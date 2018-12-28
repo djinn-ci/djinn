@@ -1,0 +1,22 @@
+driver:
+  type: docker
+  image: golang
+  workspace: /go
+sources:
+  - url: https://github.com/andrewpillar/jrnl
+    ref: master
+    dir: /go/src/github.com/andrewpillar/jrnl
+stages:
+  - test
+  - build
+jobs:
+  - stage: test
+    commands:
+      - cd /go/src/github.com/andrewpillar/jrnl
+      - GO111MODULE=on go test ./... -cover
+  - stage: build
+    commands:
+      - cd /go/src/github.com/andrewpillar/jrnl
+      - GO111MODULE=on go build
+    artifacts:
+      - /go/src/github.com/andrewpillar/jrnl/jrnl

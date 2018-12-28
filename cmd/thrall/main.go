@@ -6,6 +6,7 @@ import (
 
 	"github.com/andrewpillar/cli"
 
+	"github.com/andrewpillar/thrall/collector/filesystem"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
@@ -29,7 +30,7 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	r := runner.NewRunner(os.Stdout)
+	r := runner.NewRunner(os.Stdout, filesystem.New())
 
 	clone := runner.NewStage(cloneStage, false)
 

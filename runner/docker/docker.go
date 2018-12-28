@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path/filepath"
 	"strings"
 	"sync"
 
+	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -82,7 +84,7 @@ func (d *Docker) Create(w io.Writer) error {
 	return nil
 }
 
-func (d *Docker) Execute(j *runner.Job) {
+func (d *Docker) Execute(j *runner.Job, c collector.Collector) {
 	cfg := &container.Config{
 		Image: d.image,
 		Tty:   true,
@@ -147,6 +149,26 @@ func (d *Docker) Execute(j *runner.Job) {
 	defer rc.Close()
 
 	io.Copy(j.Buffer, rc)
+
+	for _, art := range j.Artifacts {
+		out := fmt.Sprintf("%s.tar", filepath.Base(art))
+
+		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, art)
+
+		if err != nil {
+			j.Errors = append(j.Errors, err)
+			j.Failed()
+			continue
+		}
+
+		defer rc.Close()
+
+		if err := c.Collect(out, rc); err != nil {
+			j.Errors = append(j.Errors, err)
+			j.Failed()
+			continue
+		}
+	}
 
 	if code == 0 {
 		j.Success = true

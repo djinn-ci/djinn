@@ -5,6 +5,7 @@ import (
 	"io"
 	"sync"
 
+	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/errors"
 )
 
@@ -14,20 +15,22 @@ var (
 )
 
 type Runner struct {
-	order   []string
-	lastJob *Job
-	Out     io.Writer
-	Stages  map[string]*Stage
+	order     []string
+	lastJob   *Job
+	Out       io.Writer
+	Stages    map[string]*Stage
+	Collector collector.Collector
 }
 
-func NewRunner(w io.Writer) *Runner {
+func NewRunner(w io.Writer, c collector.Collector) *Runner {
 	return &Runner{
-		Out:    w,
-		Stages: make(map[string]*Stage),
+		Out:       w,
+		Stages:    make(map[string]*Stage),
+		Collector: c,
 	}
 }
 
-func runJobs(jobs JobStore, d Driver) chan *Job {
+func runJobs(jobs JobStore, d Driver, c collector.Collector) chan *Job {
 	wg := &sync.WaitGroup{}
 	done := make(chan *Job)
 
@@ -37,11 +40,11 @@ func runJobs(jobs JobStore, d Driver) chan *Job {
 		go func(j *Job) {
 			defer wg.Done()
 
-			d.Execute(j)
+			d.Execute(j, c)
 
 			done <- j
 
-			after := runJobs(j.After, d)
+			after := runJobs(j.After, d, c)
 
 			for a := range after {
 				done <- a
@@ -142,7 +145,7 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 		return errStageNotFound
 	}
 
-	jobs := runJobs(stage.Jobs, d)
+	jobs := runJobs(stage.Jobs, d, r.Collector)
 
 	for j := range jobs {
 		io.Copy(r.Out, j.Buffer)

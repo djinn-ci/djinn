@@ -68,6 +68,27 @@ func (r *Runner) Add(stages ...*Stage) {
 	}
 }
 
+func (r *Runner) Remove(name string) {
+	_, ok := r.Stages[name]
+
+	if !ok {
+		return
+	}
+
+	delete(r.Stages, name)
+
+	i := 0
+
+	for j, search := range r.order {
+		if search == name {
+			i = j
+			break
+		}
+	}
+
+	r.order = append(r.order[:i], r.order[i + 1:]...)
+}
+
 func (r *Runner) Run(d Driver) error {
 	if err := d.Create(r.Out); err != nil {
 		return errors.Err(err)
@@ -76,7 +97,7 @@ func (r *Runner) Run(d Driver) error {
 	defer d.Destroy()
 
 	for _, name := range r.order {
-		if err := r.RunStage(name, d); err != nil {
+		if err := r.realRunStage(name, d); err != nil {
 			if err == errStageNotFound {
 				return err
 			}
@@ -95,6 +116,26 @@ func (r *Runner) Run(d Driver) error {
 }
 
 func (r *Runner) RunStage(name string, d Driver) error {
+	if err := d.Create(r.Out); err != nil {
+		return errors.Err(err)
+	}
+
+	defer d.Destroy()
+
+	if err := r.realRunStage(name, d); err != nil {
+		return errors.Err(err)
+	}
+
+	fmt.Fprintf(r.Out, "%s\n", r.lastJob.Status())
+
+	if !r.lastJob.Success {
+		return errRunFailed
+	}
+
+	return nil
+}
+
+func (r *Runner) realRunStage(name string, d Driver) error {
 	stage, ok := r.Stages[name]
 
 	if !ok {

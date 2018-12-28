@@ -12,6 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/runner/docker"
 )
 
+var cloneStage = "clone sources"
+
 func mainCommand(c cli.Command) {
 	f, err := os.Open(c.Flags.GetString("config"))
 
@@ -29,7 +31,7 @@ func mainCommand(c cli.Command) {
 
 	r := runner.NewRunner(os.Stdout)
 
-	clone := runner.NewStage("clone sources", false)
+	clone := runner.NewStage(cloneStage, false)
 
 	for i, source := range build.Sources {
 		name := fmt.Sprintf("clone.%d", i)
@@ -93,15 +95,18 @@ func mainCommand(c cli.Command) {
 	stage := c.Flags.GetString("stage")
 
 	if stage != "" {
-		if err := r.RunStage(stage, d); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
-			os.Exit(1)
+		for name := range r.Stages {
+			if name == stage || name == cloneStage {
+				continue
+			}
+
+			r.Remove(name)
 		}
-	} else {
-		if err := r.Run(d); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
-			os.Exit(1)
-		}
+	}
+
+	if err := r.Run(d); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
+		os.Exit(1)
 	}
 }
 

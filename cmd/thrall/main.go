@@ -16,8 +16,8 @@ import (
 
 var cloneStage = "clone sources"
 
-func initializeQEMU(cfg config.Build) runner.Driver {
-	arch := cfg.Driver.Arch
+func initializeQEMU(build config.Build) runner.Driver {
+	arch := build.Driver.Arch
 
 	cpus := os.Getenv("THRALL_QEMU_CPUS")
 	memory := os.Getenv("THRALL_QEMU_MEMORY")
@@ -31,7 +31,7 @@ func initializeQEMU(cfg config.Build) runner.Driver {
 		timeout = 10
 	}
 
-	if cfg.Driver.Arch == "" {
+	if build.Driver.Arch == "" {
 		arch = "x86_64"
 	}
 
@@ -47,7 +47,7 @@ func initializeQEMU(cfg config.Build) runner.Driver {
 		port = "2222"
 	}
 
-	image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), cfg.Driver.Image + ".qcow2")
+	image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), build.Driver.Image + ".qcow2")
 
 	return &driver.QEMU{
 		Image:    image,

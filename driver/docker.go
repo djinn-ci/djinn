@@ -179,6 +179,10 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 }
 
 func (d *Docker) Destroy() {
+	if d.client == nil {
+		return
+	}
+
 	ctx := context.Background()
 
 	for _, ctr := range d.containers {

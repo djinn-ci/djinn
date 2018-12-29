@@ -61,8 +61,15 @@ type QEMU struct {
 	Memory string
 	Port   string
 
+	Username string
+	Password string
+
+	Timeout int64
+
 	pidfile string
 	process *os.Process
+
+	client *ssh.Client
 }
 
 func getHostKey(host string) (ssh.PublicKey, error) {
@@ -189,20 +196,20 @@ func (d *QEMU) Create(w io.Writer) error {
 	}
 
 	cfg := &ssh.ClientConfig{
-		User: "root",
+		User: d.Username,
 		Auth: []ssh.AuthMethod{
-			ssh.Password("secret"),
+			ssh.Password(d.Password),
 		},
 		HostKeyCallback: ssh.FixedHostKey(key),
 	}
 
-	up := make(chan bool)
+	client := make(chan *ssh.Client)
 	errs := make(chan error)
-	after := time.After(time.Duration(time.Second * 10))
+	after := time.After(time.Duration(time.Second * time.Duration(d.Timeout)))
 
 	go func() {
 		for {
-			conn, err := ssh.Dial("tcp", "127.0.0.1:" + d.Port, cfg)
+			cli, err := ssh.Dial("tcp", "127.0.0.1:" + d.Port, cfg)
 
 			if err != nil {
 				if strings.Contains(err.Error(), "unable to authenticate") {
@@ -213,9 +220,7 @@ func (d *QEMU) Create(w io.Writer) error {
 				continue
 			}
 
-			conn.Close()
-
-			up <- true
+			client <- cli
 		}
 	}()
 
@@ -224,17 +229,55 @@ func (d *QEMU) Create(w io.Writer) error {
 			return errors.New("timed out waiting for SSH server to start")
 		case err := <-errs:
 			return err
-		case <-up:
+		case d.client = <-client:
+			fmt.Fprintf(w, "Established SSH connection to machine...\n")
 	}
 
 	return nil
 }
 
 func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {
+	sess, err := d.client.NewSession()
 
+	if err != nil {
+		j.Errors = append(j.Errors, err)
+		j.Failed()
+		return
+	}
+
+	defer sess.Close()
+
+	buf := bytes.Buffer{}
+
+	for i, cmd := range j.Commands {
+		buf.WriteString("echo \"$ " + cmd + "\" && " + cmd)
+
+		if i != len(j.Commands) - 1 {
+			buf.WriteString(" && ")
+		}
+	}
+
+	b, err := sess.CombinedOutput(buf.String())
+
+	io.Copy(j.Buffer, bytes.NewBuffer(b))
+
+	if err != nil {
+		if _, ok := err.(*ssh.ExitError); ok {
+			j.Failed()
+		} else {
+			j.Errors = append(j.Errors, err)
+			j.Failed()
+		}
+	} else {
+		j.Success = true
+	}
 }
 
 func (d *QEMU) Destroy() {
+	if d.client != nil {
+		d.client.Close()
+	}
+
 	if d.process != nil {
 		d.process.Kill()
 	}

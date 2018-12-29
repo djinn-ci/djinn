@@ -5,7 +5,6 @@ import (
 	"io"
 	"sync"
 
-	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/errors"
 )
 
@@ -19,10 +18,10 @@ type Runner struct {
 	lastJob   *Job
 	Out       io.Writer
 	Stages    map[string]*Stage
-	Collector collector.Collector
+	Collector Collector
 }
 
-func NewRunner(w io.Writer, c collector.Collector) *Runner {
+func NewRunner(w io.Writer, c Collector) *Runner {
 	return &Runner{
 		Out:       w,
 		Stages:    make(map[string]*Stage),
@@ -30,7 +29,7 @@ func NewRunner(w io.Writer, c collector.Collector) *Runner {
 	}
 }
 
-func runJobs(jobs JobStore, d Driver, c collector.Collector) chan *Job {
+func runJobs(jobs JobStore, d Driver, c Collector) chan *Job {
 	wg := &sync.WaitGroup{}
 	done := make(chan *Job)
 

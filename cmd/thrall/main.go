@@ -6,11 +6,11 @@ import (
 
 	"github.com/andrewpillar/cli"
 
-	"github.com/andrewpillar/thrall/collector/filesystem"
+	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
-	"github.com/andrewpillar/thrall/runner/docker"
 )
 
 var cloneStage = "clone sources"
@@ -30,7 +30,10 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	r := runner.NewRunner(os.Stdout, filesystem.New())
+	dir := c.Flags.GetString("artifacts")
+	fs := collector.NewFileSystem(dir)
+
+	r := runner.NewRunner(os.Stdout, fs)
 
 	clone := runner.NewStage(cloneStage, false)
 
@@ -87,7 +90,7 @@ func mainCommand(c cli.Command) {
 
 	switch build.Driver.Type {
 		case "docker":
-			d = docker.New(build.Driver.Image, build.Driver.Workspace)
+			d = driver.NewDocker(build.Driver.Image, build.Driver.Workspace)
 		default:
 			fmt.Fprintf(os.Stderr, "%s: unknown driver %s\n", os.Args[0], build.Driver.Type)
 			os.Exit(1)
@@ -124,6 +127,14 @@ func main() {
 	})
 
 	cmd := c.Main(mainCommand)
+
+	cmd.AddFlag(&cli.Flag{
+		Name:     "artifacts",
+		Short:    "-a",
+		Long:     "--artifacts",
+		Argument: true,
+		Default:  ".",
+	})
 
 	cmd.AddFlag(&cli.Flag{
 		Name:     "config",

@@ -1,4 +1,4 @@
-package docker
+package driver
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -32,7 +31,7 @@ type Docker struct {
 	workspace  string
 }
 
-func New(image, workspace string) *Docker {
+func NewDocker(image, workspace string) *Docker {
 	return &Docker{
 		mutex:      &sync.Mutex{},
 		image:      image,
@@ -84,7 +83,7 @@ func (d *Docker) Create(w io.Writer) error {
 	return nil
 }
 
-func (d *Docker) Execute(j *runner.Job, c collector.Collector) {
+func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	cfg := &container.Config{
 		Image: d.image,
 		Tty:   true,

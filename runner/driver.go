@@ -1,15 +1,11 @@
 package runner
 
-import (
-	"io"
-
-	"github.com/andrewpillar/thrall/collector"
-)
+import "io"
 
 type Driver interface {
 	Create(w io.Writer) error
 
-	Execute(j *Job, c collector.Collector)
+	Execute(j *Job, c Collector)
 
 	Destroy()
 }

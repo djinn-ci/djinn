@@ -92,11 +92,11 @@ func (r *Runner) Remove(name string) {
 }
 
 func (r *Runner) Run(d Driver) error {
+	defer d.Destroy()
+
 	if err := d.Create(r.Out); err != nil {
 		return errors.Err(err)
 	}
-
-	defer d.Destroy()
 
 	for _, name := range r.order {
 		if err := r.realRunStage(name, d); err != nil {

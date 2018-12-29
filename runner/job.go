@@ -29,13 +29,13 @@ type JobStore map[string]*Job
 
 func NewJob(name string, commands, depends, artifacts []string) *Job {
 	j := &Job{
-		Name:           name,
-		Commands:       commands,
-		Errors:         make([]error, 0),
-		Depends:        depends,
-		Artifacts:      artifacts,
-		After:          NewJobStore(),
-		Buffer:         &bytes.Buffer{},
+		Name:      name,
+		Commands:  commands,
+		Errors:    make([]error, 0),
+		Depends:   depends,
+		Artifacts: artifacts,
+		After:     NewJobStore(),
+		Buffer:    &bytes.Buffer{},
 	}
 
 	return j

@@ -223,6 +223,7 @@ func (d *QEMU) Create(w io.Writer) error {
 			}
 
 			client <- cli
+			break
 		}
 	}()
 

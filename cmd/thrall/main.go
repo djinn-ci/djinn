@@ -122,7 +122,7 @@ func main() {
 		Long:      "--help",
 		Exclusive: true,
 		Handler:   func(f cli.Flag, c cli.Command) {
-			fmt.Printf("usage: thrall -c [file]\n")
+			fmt.Println(usage)
 		},
 	})
 

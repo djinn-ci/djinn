@@ -110,7 +110,9 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		return
 	}
 
+	d.mutex.Lock()
 	d.containers = append(d.containers, ctr.ID)
+	d.mutex.Unlock()
 
 	if err := d.client.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{}); err != nil {
 		j.Errors = append(j.Errors, err)

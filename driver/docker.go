@@ -1,12 +1,12 @@
 package driver
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"path/filepath"
-	"strings"
 	"sync"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -84,10 +84,20 @@ func (d *Docker) Create(w io.Writer) error {
 }
 
 func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
+	buf := bytes.Buffer{}
+
+	for i, cmd := range j.Commands {
+		buf.WriteString("echo \"$ " + cmd + "\" && " + cmd)
+
+		if i != len(j.Commands) - 1 {
+			buf.WriteString(" && ")
+		}
+	}
+
 	cfg := &container.Config{
 		Image: d.image,
 		Tty:   true,
-		Cmd:   []string{"/bin/bash", "-exc", strings.Join(j.Commands, ";")},
+		Cmd:   []string{"/bin/bash", "-c", buf.String()},
 	}
 
 	hostCfg := &container.HostConfig{
@@ -105,8 +115,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	ctr, err := d.client.ContainerCreate(ctx, cfg, hostCfg, nil, "")
 
 	if err != nil {
-		j.Errors = append(j.Errors, err)
-		j.Failed()
+		j.Failed(err)
 		return
 	}
 
@@ -115,8 +124,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	d.mutex.Unlock()
 
 	if err := d.client.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{}); err != nil {
-		j.Errors = append(j.Errors, err)
-		j.Failed()
+		j.Failed(err)
 		return
 	}
 
@@ -126,8 +134,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	select {
 		case err := <-errs:
 			if err != nil {
-				j.Errors = append(j.Errors, err)
-				j.Failed()
+				j.Failed(err)
 				return
 			}
 		case resp := <-status:
@@ -142,8 +149,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	rc, err := d.client.ContainerLogs(ctx, ctr.ID, opts)
 
 	if err != nil {
-		j.Errors = append(j.Errors, err)
-		j.Failed()
+		j.Failed(err)
 		return
 	}
 
@@ -157,24 +163,22 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, art)
 
 		if err != nil {
-			j.Errors = append(j.Errors, err)
-			j.Failed()
+			j.Failed(err)
 			continue
 		}
 
 		defer rc.Close()
 
 		if err := c.Collect(out, rc); err != nil {
-			j.Errors = append(j.Errors, err)
-			j.Failed()
+			j.Failed(err)
 			continue
 		}
 	}
 
-	if code == 0 {
-		j.Success = true
-	} else {
-		j.Failed()
+	j.Success = code == 0
+
+	if !j.Success {
+		j.Failed(nil)
 	}
 }
 

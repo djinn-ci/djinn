@@ -2,7 +2,6 @@ package runner
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 )
 
@@ -31,9 +30,9 @@ func NewJob(name string, commands, depends, artifacts []string) *Job {
 	j := &Job{
 		Name:      name,
 		Commands:  commands,
-		Errors:    make([]error, 0),
 		Depends:   depends,
 		Artifacts: artifacts,
+		Errors:    make([]error, 0),
 		After:     NewJobStore(),
 		Buffer:    &bytes.Buffer{},
 	}
@@ -45,29 +44,13 @@ func NewJobStore() JobStore {
 	return JobStore(make(map[string]*Job))
 }
 
-func (j *Job) Failed() {
-	j.Success = j.CanFail
-	j.DidFail = true
-}
-
-func (j Job) Status() string {
-	buf := &bytes.Buffer{}
-
-	if !j.Success {
-		if len(j.Errors) > 0 {
-			fmt.Fprintf(buf, "\n")
-		}
-
-		for _, err := range j.Errors {
-			fmt.Fprintf(buf, "%s\n", err)
-		}
-
-		fmt.Fprintf(buf, "\nDone. Run failed.\n")
-
-		return buf.String()
+func (j *Job) Failed(err error) {
+	if err != nil {
+		j.Errors = append(j.Errors, err)
 	}
 
-	return "\nDone. Run passed.\n"
+	j.Success = j.CanFail
+	j.DidFail = true
 }
 
 func (s JobStore) Get(name string) (*Job, bool) {

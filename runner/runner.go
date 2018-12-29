@@ -95,7 +95,10 @@ func (r *Runner) Run(d Driver) error {
 	defer d.Destroy()
 
 	if err := d.Create(r.Out); err != nil {
-		return errors.Err(err)
+		fmt.Fprintf(r.Out, "%s\n", errors.Cause(err))
+		r.printLastJobStatus()
+
+		return errRunFailed
 	}
 
 	for _, name := range r.order {
@@ -108,7 +111,7 @@ func (r *Runner) Run(d Driver) error {
 		}
 	}
 
-	fmt.Fprintf(r.Out, "%s\n", r.lastJob.Status())
+	r.printLastJobStatus()
 
 	if !r.lastJob.Success {
 		return errRunFailed
@@ -121,20 +124,47 @@ func (r *Runner) RunStage(name string, d Driver) error {
 	defer d.Destroy()
 
 	if err := d.Create(r.Out); err != nil {
-		return errors.Err(err)
+		fmt.Fprintf(r.Out, "%s\n", errors.Cause(err))
+		r.printLastJobStatus()
+
+		return errRunFailed
 	}
 
 	if err := r.realRunStage(name, d); err != nil {
-		return errors.Err(err)
+		if err == errStageNotFound {
+			return err
+		}
 	}
 
-	fmt.Fprintf(r.Out, "%s\n", r.lastJob.Status())
+	r.printLastJobStatus()
 
 	if !r.lastJob.Success {
 		return errRunFailed
 	}
 
 	return nil
+}
+
+func (r Runner) printLastJobStatus() {
+	if r.lastJob == nil {
+		fmt.Fprintf(r.Out, "\nDone. No jobs run.\n")
+		return
+	}
+
+	if !r.lastJob.Success {
+		for _, err := range r.lastJob.Errors {
+			fmt.Fprintf(r.Out, "error: %s\n", err)
+		}
+
+		if len(r.lastJob.Errors) > 0 {
+			fmt.Fprintf(r.Out, "\n")
+		}
+
+		fmt.Fprintf(r.Out, "Done. Run failed.\n")
+		return
+	}
+
+	fmt.Fprintf(r.Out, "Done. Run passed.\n")
 }
 
 func (r *Runner) realRunStage(name string, d Driver) error {

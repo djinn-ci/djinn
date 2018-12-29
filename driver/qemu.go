@@ -240,8 +240,7 @@ func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {
 	sess, err := d.client.NewSession()
 
 	if err != nil {
-		j.Errors = append(j.Errors, err)
-		j.Failed()
+		j.Failed(err)
 		return
 	}
 
@@ -261,15 +260,16 @@ func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {
 
 	io.Copy(j.Buffer, bytes.NewBuffer(b))
 
+	j.Success = err == nil
+
 	if err != nil {
-		if _, ok := err.(*ssh.ExitError); ok {
-			j.Failed()
-		} else {
-			j.Errors = append(j.Errors, err)
-			j.Failed()
+		_, ok := err.(*ssh.ExitError)
+
+		if ok {
+			err = nil
 		}
-	} else {
-		j.Success = true
+
+		j.Failed(err)
 	}
 }
 

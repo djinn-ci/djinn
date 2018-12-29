@@ -11,7 +11,6 @@ import (
 	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/driver"
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 )
 
@@ -162,7 +161,6 @@ func mainCommand(c cli.Command) {
 	}
 
 	if err := r.Run(d); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
 		os.Exit(1)
 	}
 }

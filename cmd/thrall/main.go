@@ -87,6 +87,10 @@ func mainCommand(c cli.Command) {
 	for i, source := range build.Sources {
 		name := fmt.Sprintf("clone.%d", i)
 
+		if source.Ref == "" {
+			source.Ref = "master"
+		}
+
 		commands := []string{
 			"mkdir -p " + source.Dir,
 			"git clone " + source.URL + " " + source.Dir,

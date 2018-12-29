@@ -13,6 +13,7 @@ type Build struct {
 		Type      string
 		Image     string
 		Workspace string
+		Arch      string
 	}
 
 	Sources []struct {

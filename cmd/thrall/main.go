@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/andrewpillar/cli"
 
@@ -14,6 +15,7 @@ import (
 )
 
 var cloneStage = "clone sources"
+
 
 func mainCommand(c cli.Command) {
 	f, err := os.Open(c.Flags.GetString("config"))
@@ -91,6 +93,33 @@ func mainCommand(c cli.Command) {
 	switch build.Driver.Type {
 		case "docker":
 			d = driver.NewDocker(build.Driver.Image, build.Driver.Workspace)
+		case "qemu":
+			arch := build.Driver.Arch
+
+			if arch == "" {
+				arch = "x86_64"
+			}
+
+			image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), build.Driver.Image + ".qcow2")
+
+			cpus := os.Getenv("THRALL_QEMU_CPUS")
+			memory := os.Getenv("THRALL_QEMU_MEM")
+
+			if cpus == "" {
+				cpus = "2"
+			}
+
+			if memory == "" {
+				memory = "2048"
+			}
+
+			d = &driver.QEMU{
+				Image:  image,
+				Arch:   arch,
+				CPUs:   cpus,
+				Memory: memory,
+				Port:   "2222",
+			}
 		default:
 			fmt.Fprintf(os.Stderr, "%s: unknown driver %s\n", os.Args[0], build.Driver.Type)
 			os.Exit(1)

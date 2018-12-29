@@ -1,10 +1,14 @@
 package driver
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
@@ -51,6 +55,9 @@ type QEMU struct {
 	CPUs   string
 	Memory string
 	Port   string
+
+	pidfile string
+	process *os.Process
 }
 
 func (d *QEMU) Create(w io.Writer) error {
@@ -64,8 +71,16 @@ func (d *QEMU) Create(w io.Writer) error {
 	}
 
 	if !supported {
-		return errors.New("unsupported.Architecture: " + d.Arch)
+		return errors.New("unsupported architecture: " + d.Arch)
 	}
+
+	pidfile, err := ioutil.TempFile("", "qemu-")
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	d.pidfile = pidfile.Name()
 
 	bin := fmt.Sprintf("qemu-system-%s", d.Arch)
 	arg := []string{
@@ -73,6 +88,8 @@ func (d *QEMU) Create(w io.Writer) error {
 		"-enable-kvm",
 		"-display",
 		"none",
+		"-pidfile",
+		d.pidfile,
 		"-smp",
 		d.CPUs,
 		"-m",
@@ -91,7 +108,28 @@ func (d *QEMU) Create(w io.Writer) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	return errors.Err(cmd.Run())
+	if err := errors.Err(cmd.Run()); err != nil {
+		return errors.Err(err)
+	}
+
+	buf := &bytes.Buffer{}
+
+	_, err = io.Copy(buf, pidfile)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	trim := strings.Trim(buf.String(), "\n")
+	pid, err := strconv.ParseInt(trim, 10, 64)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	d.process, err = os.FindProcess(int(pid))
+
+	return errors.Err(err)
 }
 
 func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {
@@ -99,5 +137,9 @@ func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {
 }
 
 func (d *QEMU) Destroy() {
+	if d.process != nil {
+		d.process.Kill()
+	}
 
+	os.Remove(d.pidfile)
 }

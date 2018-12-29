@@ -16,6 +16,8 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
+	"github.com/pkg/sftp"
+
 	"golang.org/x/crypto/ssh"
 )
 
@@ -260,6 +262,8 @@ func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {
 
 	io.Copy(j.Buffer, bytes.NewBuffer(b))
 
+	d.collectArtifacts(j, c)
+
 	j.Success = err == nil
 
 	if err != nil {
@@ -270,6 +274,36 @@ func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {
 		}
 
 		j.Failed(err)
+	}
+}
+
+func (d *QEMU) collectArtifacts(j *runner.Job, c runner.Collector) {
+	if len(j.Artifacts) == 0 {
+		return
+	}
+
+	cli, err := sftp.NewClient(d.client)
+
+	if err != nil {
+		j.Failed(err)
+		return
+	}
+
+	for _, art := range j.Artifacts {
+		out := fmt.Sprintf("%s", filepath.Base(art))
+
+		f, err := cli.Open(art)
+
+		if err != nil {
+			j.Failed(err)
+			continue
+		}
+
+		defer f.Close()
+
+		if err := c.Collect(out, f); err != nil {
+			j.Failed(err)
+		}
 	}
 }
 

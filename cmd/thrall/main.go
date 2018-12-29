@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/andrewpillar/cli"
 
@@ -16,6 +17,50 @@ import (
 
 var cloneStage = "clone sources"
 
+func initializeQEMU(cfg config.Build) runner.Driver {
+	arch := cfg.Driver.Arch
+
+	cpus := os.Getenv("THRALL_QEMU_CPUS")
+	memory := os.Getenv("THRALL_QEMU_MEMORY")
+	port := os.Getenv("THRALL_QEMU_PORT")
+	username := os.Getenv("THRALL_QEMU_USERNAME")
+	password := os.Getenv("THRALL_QEMU_PASSWORD")
+
+	timeout, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_TIMEOUT"), 10, 64)
+
+	if err != nil {
+		timeout = 10
+	}
+
+	if cfg.Driver.Arch == "" {
+		arch = "x86_64"
+	}
+
+	if cpus == "" {
+		cpus = "2"
+	}
+
+	if memory == "" {
+		memory = "2048"
+	}
+
+	if port == "" {
+		port = "2222"
+	}
+
+	image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), cfg.Driver.Image + ".qcow2")
+
+	return &driver.QEMU{
+		Image:    image,
+		Arch:     arch,
+		CPUs:     cpus,
+		Memory:   memory,
+		Port:     port,
+		Username: username,
+		Password: password,
+		Timeout:  timeout,
+	}
+}
 
 func mainCommand(c cli.Command) {
 	f, err := os.Open(c.Flags.GetString("config"))
@@ -94,32 +139,7 @@ func mainCommand(c cli.Command) {
 		case "docker":
 			d = driver.NewDocker(build.Driver.Image, build.Driver.Workspace)
 		case "qemu":
-			arch := build.Driver.Arch
-
-			if arch == "" {
-				arch = "x86_64"
-			}
-
-			image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), build.Driver.Image + ".qcow2")
-
-			cpus := os.Getenv("THRALL_QEMU_CPUS")
-			memory := os.Getenv("THRALL_QEMU_MEM")
-
-			if cpus == "" {
-				cpus = "2"
-			}
-
-			if memory == "" {
-				memory = "2048"
-			}
-
-			d = &driver.QEMU{
-				Image:  image,
-				Arch:   arch,
-				CPUs:   cpus,
-				Memory: memory,
-				Port:   "2222",
-			}
+			d = initializeQEMU(build)
 		default:
 			fmt.Fprintf(os.Stderr, "%s: unknown driver %s\n", os.Args[0], build.Driver.Type)
 			os.Exit(1)

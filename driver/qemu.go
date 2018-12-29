@@ -230,7 +230,7 @@ func (d *QEMU) Create(w io.Writer) error {
 		case err := <-errs:
 			return err
 		case d.client = <-client:
-			fmt.Fprintf(w, "Established SSH connection to machine...\n")
+			fmt.Fprintf(w, "Established SSH connection to machine...\n\n")
 	}
 
 	return nil
@@ -282,5 +282,7 @@ func (d *QEMU) Destroy() {
 		d.process.Kill()
 	}
 
-	os.Remove(d.pidfile)
+	if d.pidfile != "" {
+		os.Remove(d.pidfile)
+	}
 }

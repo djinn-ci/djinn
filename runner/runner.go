@@ -118,11 +118,11 @@ func (r *Runner) Run(d Driver) error {
 }
 
 func (r *Runner) RunStage(name string, d Driver) error {
+	defer d.Destroy()
+
 	if err := d.Create(r.Out); err != nil {
 		return errors.Err(err)
 	}
-
-	defer d.Destroy()
 
 	if err := r.realRunStage(name, d); err != nil {
 		return errors.Err(err)

@@ -17,6 +17,21 @@ import (
 
 var cloneStage = "clone sources"
 
+func initializeSSH(build config.Build) runner.Driver {
+	timeout, err := strconv.ParseInt(os.Getenv("THRALL_SSH_TIMEOUT"), 10, 64)
+
+	if err != nil {
+		timeout = 10
+	}
+
+	return &driver.SSH{
+		Address:  build.Driver.Address,
+		Username: build.Driver.Username,
+		Password: build.Driver.Password,
+		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
+	}
+}
+
 func initializeQEMU(build config.Build) runner.Driver {
 	hostfwd := os.Getenv("THRALL_QEMU_HOSTFWD")
 
@@ -59,7 +74,7 @@ func initializeQEMU(build config.Build) runner.Driver {
 		memory = "2048"
 	}
 
-	qemu := &driver.QEMU{
+	return &driver.QEMU{
 		SSH:     ssh,
 		Image:   image,
 		Arch:    arch,
@@ -67,8 +82,6 @@ func initializeQEMU(build config.Build) runner.Driver {
 		Memory:  memory,
 		HostFwd: hostfwd,
 	}
-
-	return qemu
 }
 
 func mainCommand(c cli.Command) {
@@ -153,6 +166,8 @@ func mainCommand(c cli.Command) {
 			d = driver.NewDocker(build.Driver.Image, build.Driver.Workspace)
 		case "qemu":
 			d = initializeQEMU(build)
+		case "ssh":
+			d = initializeSSH(build)
 		default:
 			fmt.Fprintf(os.Stderr, "%s: unknown driver %s\n", os.Args[0], build.Driver.Type)
 			os.Exit(1)

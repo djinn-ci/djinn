@@ -14,6 +14,9 @@ type Build struct {
 		Image     string
 		Workspace string
 		Arch      string
+		Address   string
+		Username  string
+		Password  string
 	}
 
 	Sources []struct {

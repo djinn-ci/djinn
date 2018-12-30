@@ -181,6 +181,8 @@ func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {
 }
 
 func (d *QEMU) Destroy() {
+	d.SSH.Destroy()
+
 	if d.process != nil {
 		d.process.Kill()
 	}

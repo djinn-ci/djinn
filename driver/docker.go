@@ -45,7 +45,7 @@ func (d *Docker) Create(w io.Writer) error {
 	cli, err := client.NewEnvClient()
 
 	if err != nil {
-		return errors.Err(err)
+		return err
 	}
 
 	d.client = cli
@@ -55,7 +55,7 @@ func (d *Docker) Create(w io.Writer) error {
 	vol, err := d.client.VolumeCreate(ctx, volume.VolumeCreateBody{})
 
 	if err != nil {
-		return errors.Err(err)
+		return err
 	}
 
 	d.volume = vol
@@ -65,7 +65,7 @@ func (d *Docker) Create(w io.Writer) error {
 	rc, err := d.client.ImagePull(ctx, d.image, types.ImagePullOptions{})
 
 	if err != nil {
-		return errors.Err(err)
+		return err
 	}
 
 	defer rc.Close()
@@ -75,7 +75,7 @@ func (d *Docker) Create(w io.Writer) error {
 	image, _, err := d.client.ImageInspectWithRaw(ctx, d.image)
 
 	if err != nil {
-		return errors.Err(err)
+		return err
 	}
 
 	fmt.Fprintf(w, "Using Docker image %s - %s...\n\n", d.image, image.ID)

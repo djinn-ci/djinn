@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
@@ -144,11 +145,33 @@ func (d *QEMU) Create(w io.Writer) error {
 		return errors.New("SSH driver for QEMU not initialized")
 	}
 
-	if err := d.SSH.Create(w); err != nil {
-		return err
-	}
+	after := time.After(d.SSH.Timeout)
+	errs := make(chan error)
+	done := make(chan bool)
 
-	fmt.Fprintf(w, "Established SSH connection to machine...\n")
+	go func() {
+		for {
+			if err := d.SSH.Create(ioutil.Discard); err != nil {
+				if strings.Contains(err.Error(), "unable to authenticate") {
+					errs <- err
+				}
+
+				continue
+			}
+
+			done <- true
+			break
+		}
+	}()
+
+	select {
+		case <-after:
+			return errors.New("timed out waiting for SSH server to start")
+		case err := <-errs:
+			return err
+		case <-done:
+			fmt.Fprintf(w, "Established SSH connection to machine...\n\n")
+	}
 
 	return nil
 }

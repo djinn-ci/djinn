@@ -45,8 +45,8 @@ func initializeQEMU(build config.Build) runner.Driver {
 		timeout = 10
 	}
 
-	username := os.Getenv("THRALL_SSH_USERNAME")
-	password := os.Getenv("THRALL_SSH_PASSWORD")
+	username := os.Getenv("THRALL_QEMU_USERNAME")
+	password := os.Getenv("THRALL_QEMU_PASSWORD")
 
 	ssh := &driver.SSH{
 		Address:  hostfwd,

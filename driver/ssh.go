@@ -100,7 +100,7 @@ func (d *SSH) Create(w io.Writer) error {
 		return err
 	}
 
-	fmt.Fprintf(w, "Established SSH connection to %s...\n", d.Address)
+	fmt.Fprintf(w, "Established SSH connection to %s...\n\n", d.Address)
 
 	d.client = cli
 

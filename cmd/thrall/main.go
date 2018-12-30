@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"github.com/andrewpillar/cli"
 
@@ -17,48 +18,57 @@ import (
 var cloneStage = "clone sources"
 
 func initializeQEMU(build config.Build) runner.Driver {
-	arch := build.Driver.Arch
+	hostfwd := os.Getenv("THRALL_QEMU_HOSTFWD")
 
-	cpus := os.Getenv("THRALL_QEMU_CPUS")
-	memory := os.Getenv("THRALL_QEMU_MEMORY")
-	port := os.Getenv("THRALL_QEMU_PORT")
-	username := os.Getenv("THRALL_QEMU_USERNAME")
-	password := os.Getenv("THRALL_QEMU_PASSWORD")
+	if hostfwd == "" {
+		hostfwd = "127.0.0.1:2222"
+	}
 
-	timeout, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_TIMEOUT"), 10, 64)
+	timeout, err := strconv.ParseInt(os.Getenv("THRALL_SSH_TIMEOUT"), 10, 64)
 
 	if err != nil {
 		timeout = 10
 	}
 
-	if build.Driver.Arch == "" {
+	username := os.Getenv("THRALL_SSH_USERNAME")
+	password := os.Getenv("THRALL_SSH_PASSWORD")
+
+	ssh := &driver.SSH{
+		Address:  hostfwd,
+		Username: username,
+		Password: password,
+		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
+	}
+
+	image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), build.Driver.Image + ".qcow2")
+	arch := build.Driver.Arch
+
+	if arch == "" {
 		arch = "x86_64"
 	}
+
+	cpus := os.Getenv("THRALL_QEMU_CPUS")
 
 	if cpus == "" {
 		cpus = "2"
 	}
 
+	memory := os.Getenv("THRALL_QEMU_MEMORY")
+
 	if memory == "" {
 		memory = "2048"
 	}
 
-	if port == "" {
-		port = "2222"
+	qemu := &driver.QEMU{
+		SSH:     ssh,
+		Image:   image,
+		Arch:    arch,
+		CPUs:    cpus,
+		Memory:  memory,
+		HostFwd: hostfwd,
 	}
 
-	image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), build.Driver.Image + ".qcow2")
-
-	return &driver.QEMU{
-		Image:    image,
-		Arch:     arch,
-		CPUs:     cpus,
-		Memory:   memory,
-		Port:     port,
-		Username: username,
-		Password: password,
-		Timeout:  timeout,
-	}
+	return qemu
 }
 
 func mainCommand(c cli.Command) {

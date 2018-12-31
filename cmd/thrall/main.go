@@ -106,18 +106,22 @@ func mainCommand(c cli.Command) {
 
 	clone := runner.NewStage(cloneStage, false)
 
-	for i, source := range build.Sources {
+	for i, src := range build.Sources {
 		name := fmt.Sprintf("clone.%d", i)
 
-		if source.Ref == "" {
-			source.Ref = "master"
+		if src.Ref == "" {
+			src.Ref = "master"
+		}
+
+		if src.Dir == "" {
+			src.Dir = filepath.Base(src.URL)
 		}
 
 		commands := []string{
-			"mkdir -p " + source.Dir,
-			"git clone " + source.URL + " " + source.Dir,
-			"cd " + source.Dir,
-			"git checkout -q " + source.Ref,
+			"mkdir -p " + src.Dir,
+			"git clone " + src.URL + " " + src.Dir,
+			"cd " + src.Dir,
+			"git checkout -q " + src.Ref,
 		}
 
 		depends := []string{}

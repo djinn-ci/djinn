@@ -4,7 +4,6 @@ driver:
   workspace: /go
 sources:
   - url: https://github.com/andrewpillar/jrnl
-    ref: master
     dir: /go/src/github.com/andrewpillar/jrnl
 stages:
   - test

@@ -1,17 +1,12 @@
 package driver
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
-	"net"
-	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/pkg/sftp"
@@ -28,60 +23,8 @@ type SSH struct {
 	Timeout  time.Duration
 }
 
-func getHostKey(host string) (ssh.PublicKey, error) {
-	f, err := os.Open(filepath.Join(os.Getenv("HOME"), ".ssh", "known_hosts"))
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer f.Close()
-
-	s := bufio.NewScanner(f)
-
-	var hostKey ssh.PublicKey
-
-	for s.Scan() {
-		fields := strings.Split(s.Text(), " ")
-
-		if len(fields) != 3 {
-			continue
-		}
-
-		if strings.Contains(fields[0], host) {
-			var err error
-
-			hostKey, _, _, _, err = ssh.ParseAuthorizedKey(s.Bytes())
-
-			if err != nil {
-				return nil, err
-			}
-
-			break
-		}
-	}
-
-	if hostKey == nil {
-		return nil, errors.New("no key for host " + host)
-	}
-
-	return hostKey, nil
-}
-
 func (d *SSH) Create(w io.Writer) error {
 	fmt.Fprintf(w, "Running with SSH driver...\n")
-
-	host, _, err := net.SplitHostPort(d.Address)
-
-	if err != nil {
-		return err
-	}
-
-	key, err := getHostKey(host)
-
-	if err != nil {
-		return err
-	}
 
 	cfg := &ssh.ClientConfig{
 		User: d.Username,
@@ -89,7 +32,7 @@ func (d *SSH) Create(w io.Writer) error {
 			ssh.Password(d.Password),
 		},
 		Timeout:         d.Timeout,
-		HostKeyCallback: ssh.FixedHostKey(key),
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
 	fmt.Fprintf(w, "Connecting to %s...\n", d.Address)

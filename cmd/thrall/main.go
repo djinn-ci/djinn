@@ -136,7 +136,7 @@ func mainCommand(c cli.Command) {
 			depends = []string{fmt.Sprintf("clone.%d", i - 1)}
 		}
 
-		clone.Add(runner.NewJob(name, commands, depends, []string{}))
+		clone.Add(runner.NewJob(os.Stdout, name, commands, depends, []string{}))
 	}
 
 	r.Add(clone)
@@ -166,7 +166,7 @@ func mainCommand(c cli.Command) {
 			j.Name = fmt.Sprintf("%s.%d", stage.Name, i + 1)
 		}
 
-		stage.Add(runner.NewJob(j.Name, j.Commands, j.Depends, j.Artifacts))
+		stage.Add(runner.NewJob(os.Stdout, j.Name, j.Commands, j.Depends, j.Artifacts))
 	}
 
 	var d runner.Driver

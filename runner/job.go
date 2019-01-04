@@ -1,9 +1,6 @@
 package runner
 
-import (
-	"bytes"
-	"io"
-)
+import "io"
 
 type Job struct {
 	Stage string
@@ -20,13 +17,13 @@ type Job struct {
 	Depends   []string
 	Artifacts []string
 
-	After   JobStore
-	Buffer  io.ReadWriter
+	After  JobStore
+	Buffer io.Writer
 }
 
 type JobStore map[string]*Job
 
-func NewJob(name string, commands, depends, artifacts []string) *Job {
+func NewJob(rw io.ReadWriter, name string, commands, depends, artifacts []string) *Job {
 	j := &Job{
 		Name:      name,
 		Commands:  commands,
@@ -34,7 +31,7 @@ func NewJob(name string, commands, depends, artifacts []string) *Job {
 		Artifacts: artifacts,
 		Errors:    make([]error, 0),
 		After:     NewJobStore(),
-		Buffer:    &bytes.Buffer{},
+		Buffer:    rw,
 	}
 
 	return j

@@ -71,9 +71,10 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 		}
 	}
 
-	b, err := sess.CombinedOutput(buf.String())
+	sess.Stdout = j.Buffer
+	sess.Stderr = j.Buffer
 
-	io.Copy(j.Buffer, bytes.NewBuffer(b))
+	err = sess.Run(buf.String())
 
 	d.collectArtifacts(j, c)
 

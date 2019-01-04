@@ -190,7 +190,7 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 				if !ok {
 					jobs = nil
 				} else {
-					io.Copy(r.Out, j.Buffer)
+//					io.Copy(r.Out, j.Buffer)
 
 					r.lastJob = j
 

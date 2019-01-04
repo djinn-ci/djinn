@@ -18,7 +18,7 @@ type Job struct {
 	Artifacts []string
 
 	After  JobStore
-	Buffer io.Writer
+	Writer io.Writer
 }
 
 type JobStore map[string]*Job
@@ -31,7 +31,7 @@ func NewJob(w io.Writer, name string, commands, depends, artifacts []string) *Jo
 		Artifacts: artifacts,
 		Errors:    make([]error, 0),
 		After:     NewJobStore(),
-		Buffer:    rw,
+		Writer:    w,
 	}
 
 	return j

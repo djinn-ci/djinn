@@ -154,7 +154,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 	defer rc.Close()
 
-	io.Copy(j.Buffer, rc)
+	io.Copy(j.Writer, rc)
 
 	for _, art := range j.Artifacts {
 		out := fmt.Sprintf("%s.tar", filepath.Base(art))

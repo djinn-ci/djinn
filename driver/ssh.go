@@ -71,8 +71,8 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 		}
 	}
 
-	sess.Stdout = j.Buffer
-	sess.Stderr = j.Buffer
+	sess.Stdout = j.Writer
+	sess.Stderr = j.Writer
 
 	err = sess.Run(buf.String())
 

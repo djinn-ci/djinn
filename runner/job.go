@@ -23,7 +23,7 @@ type Job struct {
 
 type JobStore map[string]*Job
 
-func NewJob(rw io.ReadWriter, name string, commands, depends, artifacts []string) *Job {
+func NewJob(w io.Writer, name string, commands, depends, artifacts []string) *Job {
 	j := &Job{
 		Name:      name,
 		Commands:  commands,

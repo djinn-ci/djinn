@@ -3,8 +3,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/andrewpillar/cli"
@@ -102,7 +104,11 @@ func mainCommand(c cli.Command) {
 	dir := c.Flags.GetString("artifacts")
 	fs := collector.NewFileSystem(dir)
 
-	r := runner.NewRunner(os.Stdout, fs)
+	sigs := make(chan os.Signal)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
+
+	r := runner.NewRunner(os.Stdout, fs, sigs)
 
 	clone := runner.NewStage(cloneStage, false)
 

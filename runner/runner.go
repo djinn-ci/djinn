@@ -3,6 +3,7 @@ package runner
 import (
 	"fmt"
 	"io"
+	"os"
 	"sync"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -16,13 +17,15 @@ var (
 type Runner struct {
 	order     []string
 	lastJob   *Job
+	signals   chan os.Signal
 	Out       io.Writer
 	Stages    map[string]*Stage
 	Collector Collector
 }
 
-func NewRunner(w io.Writer, c Collector) *Runner {
+func NewRunner(w io.Writer, c Collector, signals chan os.Signal) *Runner {
 	return &Runner{
+		signals:   signals,
 		Out:       w,
 		Stages:    make(map[string]*Stage),
 		Collector: c,
@@ -176,14 +179,30 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 
 	jobs := runJobs(stage.Jobs, d, r.Collector)
 
-	for j := range jobs {
-		io.Copy(r.Out, j.Buffer)
+	for {
+		select {
+			case sig := <-r.signals:
+				if sig == os.Kill || sig == os.Interrupt {
+					fmt.Fprintf(r.Out, "INTERRUPT\n")
+					return errors.New("interrupt")
+				}
+			case j, ok := <-jobs:
+				if !ok {
+					jobs = nil
+				} else {
+					io.Copy(r.Out, j.Buffer)
 
-		r.lastJob = j
+					r.lastJob = j
 
-		if !j.Success {
-			fmt.Fprintf(r.Out, "\n")
-			return errors.New("failed to run job: " + j.Name)
+					if !j.Success {
+						fmt.Fprintf(r.Out, "\n")
+						return errors.New("failed to run job: " + j.Name)
+					}
+				}
+		}
+
+		if jobs == nil {
+			break
 		}
 	}
 

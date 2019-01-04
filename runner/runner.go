@@ -116,7 +116,7 @@ func (r *Runner) Run(d Driver) error {
 
 	r.printLastJobStatus()
 
-	if !r.lastJob.Success {
+	if r.lastJob != nil && !r.lastJob.Success {
 		return errRunFailed
 	}
 

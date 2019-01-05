@@ -183,7 +183,7 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 		select {
 			case sig := <-r.signals:
 				if sig == os.Kill || sig == os.Interrupt {
-					fmt.Fprintf(r.Out, "INTERRUPT\n")
+					fmt.Fprintf(r.Out, "%s\n", sig)
 					return errors.New("interrupt")
 				}
 			case j, ok := <-jobs:

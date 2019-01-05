@@ -29,7 +29,7 @@ func initializeSSH(build config.Build) runner.Driver {
 	return &driver.SSH{
 		Address:  build.Driver.Address,
 		Username: build.Driver.Username,
-		Password: build.Driver.Password,
+		KeyFile:  os.Getenv("THRALL_SSH_KEY"),
 		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
 	}
 }
@@ -47,13 +47,10 @@ func initializeQEMU(build config.Build) runner.Driver {
 		timeout = 10
 	}
 
-	username := os.Getenv("THRALL_QEMU_USERNAME")
-	password := os.Getenv("THRALL_QEMU_PASSWORD")
-
 	ssh := &driver.SSH{
 		Address:  hostfwd,
-		Username: username,
-		Password: password,
+		Username: os.Getenv("THRALL_QEMU_USERNAME"),
+		KeyFile:  os.Getenv("THRALL_SSH_KEY"),
 		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
 	}
 

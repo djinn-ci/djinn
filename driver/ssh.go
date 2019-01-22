@@ -123,7 +123,7 @@ func (d *SSH) collectArtifacts(j *runner.Job, c runner.Collector) {
 	}
 
 	for _, art := range j.Artifacts {
-		out := fmt.Sprintf("%s", filepath.Base(art))
+		out := filepath.Base(art)
 
 		f, err := cli.Open(art)
 

@@ -1,20 +1,27 @@
 driver:
-  type: docker
-  image: golang
-  workspace: /go
+  type: qemu
+  image: alpine/latest-stable
 sources:
-  - url: https://github.com/andrewpillar/jrnl
+  - https://github.com/andrewpillar/jrnl v1.1.1
 stages:
-  - test
+  - packages
   - build
+  - test
 jobs:
-  - stage: test
+  - stage: packages
     commands:
-      - cd /go/jrnl
-      - GO111MODULE=on go test ./... -cover
+      - echo "http://alpine.mirror.wearetriple.com/edge/community" >> /etc/apk/repositories
+      - apk update
+      - apk add musl-dev
+      - apk add go
   - stage: build
     commands:
-      - cd /go/jrnl
-      - GO111MODULE=on go build
+      - cd jrnl
+      - go install
+  - stage: test
+    commands:
+      - PATH="$PATH:$HOME/go/bin"
+      - cd jrnl
+      - ./test.sh
     artifacts:
-      - /go/jrnl/jrnl
+      - /root/go/bin/jrnl

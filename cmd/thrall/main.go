@@ -54,7 +54,7 @@ func initializeQEMU(build config.Build) runner.Driver {
 		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
 	}
 
-	image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), build.Driver.Image + ".qcow2")
+	image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), build.Driver.Image)
 	arch := build.Driver.Arch
 
 	if arch == "" {
@@ -112,19 +112,14 @@ func mainCommand(c cli.Command) {
 	for i, src := range build.Sources {
 		name := fmt.Sprintf("clone.%d", i)
 
-		if src.Ref == "" {
-			src.Ref = "master"
-		}
-
-		if src.Dir == "" {
-			src.Dir = filepath.Base(src.URL)
-		}
-
 		commands := []string{
-			"mkdir -p " + src.Dir,
 			"git clone " + src.URL + " " + src.Dir,
 			"cd " + src.Dir,
 			"git checkout -q " + src.Ref,
+		}
+
+		if src.Dir != "" {
+			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
 		}
 
 		depends := []string{}

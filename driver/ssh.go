@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"path/filepath"
 	"time"
 
 	"github.com/andrewpillar/thrall/runner"
@@ -89,19 +88,17 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 
 	err = sess.Run(buf.String())
 
-	d.collectArtifacts(j, c)
-
-	j.Success = err == nil
-
 	if err != nil {
-		_, ok := err.(*ssh.ExitError)
-
-		if ok {
+		if _, ok := err.(*ssh.ExitError); ok {
 			err = nil
 		}
 
 		j.Failed(err)
+	} else {
+		j.Success = true
 	}
+
+	d.collectArtifacts(j.Writer, j, c)
 }
 
 func (d *SSH) Destroy() {
@@ -110,10 +107,12 @@ func (d *SSH) Destroy() {
 	}
 }
 
-func (d *SSH) collectArtifacts(j *runner.Job, c runner.Collector) {
+func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 	if len(j.Artifacts) == 0 {
 		return
 	}
+
+	fmt.Fprintf(w, "Collecting artifacts...\n")
 
 	cli, err := sftp.NewClient(d.client)
 
@@ -122,10 +121,10 @@ func (d *SSH) collectArtifacts(j *runner.Job, c runner.Collector) {
 		return
 	}
 
-	for _, art := range j.Artifacts {
-		out := filepath.Base(art)
+	for _, a := range j.Artifacts {
+		fmt.Fprintf(w, "Collecting artifact %s => %s\n", a.Source, a.Destination)
 
-		f, err := cli.Open(art)
+		f, err := cli.Open(a.Source)
 
 		if err != nil {
 			j.Failed(err)
@@ -134,7 +133,7 @@ func (d *SSH) collectArtifacts(j *runner.Job, c runner.Collector) {
 
 		defer f.Close()
 
-		if err := c.Collect(out, f); err != nil {
+		if err := c.Collect(a.Destination, f); err != nil {
 			j.Failed(err)
 		}
 	}

@@ -4,8 +4,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-
-	"github.com/andrewpillar/thrall/errors"
 )
 
 type FileSystem struct {
@@ -17,15 +15,21 @@ func NewFileSystem(dir string) *FileSystem {
 }
 
 func (c *FileSystem) Collect(name string, r io.Reader) error {
-	f, err := os.Create(filepath.Join(c.dir, name))
+	dst := filepath.Join(c.dir, name)
+
+	if err := os.MkdirAll(filepath.Dir(dst), os.FileMode(0755)); err != nil {
+		return err
+	}
+
+	f, err := os.Create(dst)
 
 	if err != nil {
-		return errors.Err(err)
+		return err
 	}
 
 	defer f.Close()
 
 	_, err = io.Copy(f, r)
 
-	return errors.Err(err)
+	return err
 }

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"path/filepath"
 	"sync"
 
 	"github.com/andrewpillar/thrall/runner"
@@ -140,6 +139,12 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 			code = int(resp.StatusCode)
 	}
 
+	if code != 0 {
+		j.Failed(nil)
+	} else {
+		j.Success = true
+	}
+
 	opts := types.ContainerLogsOptions{
 		ShowStdout: true,
 		ShowStderr: true,
@@ -156,10 +161,10 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 	io.Copy(j.Writer, rc)
 
-	for _, art := range j.Artifacts {
-		out := fmt.Sprintf("%s.tar", filepath.Base(art))
+	for _, a := range j.Artifacts {
+		dst := fmt.Sprintf("%s.tar", a.Destination)
 
-		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, art)
+		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, a.Source)
 
 		if err != nil {
 			j.Failed(err)
@@ -168,13 +173,11 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 		defer rc.Close()
 
-		if err := c.Collect(out, rc); err != nil {
+		if err := c.Collect(dst, rc); err != nil {
 			j.Failed(err)
 			continue
 		}
 	}
-
-	j.Success = code == 0
 
 	if !j.Success {
 		j.Failed(nil)

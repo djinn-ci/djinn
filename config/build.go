@@ -2,6 +2,7 @@ package config
 
 import (
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -33,12 +34,17 @@ type Source struct {
 	Dir string
 }
 
+type Artifact struct {
+	Source      string
+	Destination string
+}
+
 type Job struct {
 	Stage     string
 	Name      string
 	Commands  []string
 	Depends   []string
-	Artifacts []string
+	Artifacts []Artifact
 }
 
 func DecodeBuild(r io.Reader) (Build, error) {
@@ -84,6 +90,25 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	urlParts := strings.Split(s.URL, "/")
 
 	s.Dir = urlParts[len(urlParts) - 1]
+
+	return nil
+}
+
+func (a *Artifact) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+
+	if err := unmarshal(&str); err != nil {
+		return err
+	}
+
+	parts := strings.Split(str, "=>")
+
+	a.Source = strings.TrimPrefix(strings.TrimSuffix(parts[0], " "), " ")
+	a.Destination = filepath.Base(a.Source)
+
+	if len(parts) > 1 {
+		a.Destination = strings.TrimPrefix(strings.TrimSuffix(parts[1], " "), " ")
+	}
 
 	return nil
 }

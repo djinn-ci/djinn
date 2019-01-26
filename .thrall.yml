@@ -24,4 +24,4 @@ jobs:
       - cd jrnl
       - ./test.sh
     artifacts:
-      - /root/go/bin/jrnl
+      - /root/go/bin/jrnl => jrnl.out

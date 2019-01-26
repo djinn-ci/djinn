@@ -1,6 +1,10 @@
 package runner
 
-import "io"
+import (
+	"io"
+
+	"github.com/andrewpillar/thrall/config"
+)
 
 type Job struct {
 	Stage string
@@ -15,7 +19,7 @@ type Job struct {
 	DidFail bool
 
 	Depends   []string
-	Artifacts []string
+	Artifacts []config.Artifact
 
 	After  JobStore
 	Writer io.Writer
@@ -23,7 +27,7 @@ type Job struct {
 
 type JobStore map[string]*Job
 
-func NewJob(w io.Writer, name string, commands, depends, artifacts []string) *Job {
+func NewJob(w io.Writer, name string, commands, depends []string, artifacts []config.Artifact) *Job {
 	j := &Job{
 		Name:      name,
 		Commands:  commands,
@@ -41,6 +45,8 @@ func NewJobStore() JobStore {
 	return JobStore(make(map[string]*Job))
 }
 
+// Mark a job as failed. The only errors that should be passed to this method should be errors
+// pertaining to the functionality of the driver executing the job.
 func (j *Job) Failed(err error) {
 	if err != nil {
 		j.Errors = append(j.Errors, err)

@@ -128,7 +128,7 @@ func mainCommand(c cli.Command) {
 			depends = []string{fmt.Sprintf("clone.%d", i - 1)}
 		}
 
-		clone.Add(runner.NewJob(os.Stdout, name, commands, depends, []string{}))
+		clone.Add(runner.NewJob(os.Stdout, name, commands, depends, []config.Artifact{}))
 	}
 
 	r.Add(clone)

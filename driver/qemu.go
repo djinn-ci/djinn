@@ -10,45 +10,53 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 )
 
-var arches = []string{
-	"aarch64",
-	"alpha",
-	"arm",
-	"cris",
-	"hppa",
-	"i386",
-	"lm32",
-	"m68k",
-	"microblaze",
-	"microblazeel",
-	"mips",
-	"mips64",
-	"mips64el",
-	"mipsel",
-	"moxie",
-	"nios2",
-	"or1k",
-	"ppc",
-	"ppc64",
-	"ppcemb",
-	"riscv32",
-	"riscv64",
-	"s390x",
-	"sh4",
-	"sh4eb",
-	"sparc",
-	"sparc64",
-	"tricore",
-	"unicore32",
-	"x86_64",
-	"xtensa",
-	"xtensaeb",
-}
+var (
+	arches = []string{
+		"aarch64",
+		"alpha",
+		"arm",
+		"cris",
+		"hppa",
+		"i386",
+		"lm32",
+		"m68k",
+		"microblaze",
+		"microblazeel",
+		"mips",
+		"mips64",
+		"mips64el",
+		"mipsel",
+		"moxie",
+		"nios2",
+		"or1k",
+		"ppc",
+		"ppc64",
+		"ppcemb",
+		"riscv32",
+		"riscv64",
+		"s390x",
+		"sh4",
+		"sh4eb",
+		"sparc",
+		"sparc64",
+		"tricore",
+		"unicore32",
+		"x86_64",
+		"xtensa",
+		"xtensaeb",
+	}
+
+	QemuDir string
+
+	QemuCPUs   = int64(1)
+	QemuMemory = int64(2048)
+)
 
 type QEMU struct {
 	*SSH
@@ -96,18 +104,18 @@ func (d *QEMU) Create(w io.Writer) error {
 		"-pidfile",
 		d.pidfile,
 		"-smp",
-		d.CPUs,
+		strconv.FormatInt(QemuCPUs, 10),
 		"-m",
-		d.Memory,
+		strconv.FormatInt(QemuMemory, 10),
 		"-net",
 		"nic,model=virtio",
 		"-net",
 		"user,hostfwd=tcp:" + d.HostFwd + "-:22",
 		"-drive",
-		"file=" + d.Image + ",media=disk,snapshot=on,if=virtio",
+		"file=" + filepath.Join(QemuDir, d.Image) + ",media=disk,snapshot=on,if=virtio",
 	}
 
-	fmt.Fprintf(w, "Booting machine with image %s...\n", filepath.Base(d.Image))
+	fmt.Fprintf(w, "Booting machine with image %s...\n", d.Image)
 
 	cmd := exec.Command(bin, arg...)
 
@@ -144,7 +152,25 @@ func (d *QEMU) Create(w io.Writer) error {
 		return errors.New("SSH driver for QEMU not initialized")
 	}
 
-	if err := d.SSH.Create(ioutil.Discard); err != nil {
+	var attempts int
+
+	for {
+		if attempts == 5 {
+			break
+		}
+
+		err = d.SSH.Create(ioutil.Discard)
+
+		if err == nil {
+			break
+		}
+
+		time.Sleep(time.Second * 5)
+
+		attempts++
+	}
+
+	if err != nil {
 		return err
 	}
 

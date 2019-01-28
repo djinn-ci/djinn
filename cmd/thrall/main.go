@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"syscall"
 	"time"
@@ -54,31 +53,30 @@ func initializeQEMU(build config.Build) runner.Driver {
 		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
 	}
 
-	image := filepath.Join(os.Getenv("THRALL_QEMU_DIR"), build.Driver.Image)
+	driver.QemuDir = os.Getenv("THRALL_QEMU_DIR")
+
+	cpus, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_CPUS"), 10, 64)
+
+	if err == nil {
+		driver.QemuCPUs = cpus
+	}
+
+	memory, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_MEMORY"), 10, 64)
+
+	if err == nil {
+		driver.QemuMemory = memory
+	}
+
 	arch := build.Driver.Arch
 
 	if arch == "" {
 		arch = "x86_64"
 	}
 
-	cpus := os.Getenv("THRALL_QEMU_CPUS")
-
-	if cpus == "" {
-		cpus = "2"
-	}
-
-	memory := os.Getenv("THRALL_QEMU_MEMORY")
-
-	if memory == "" {
-		memory = "2048"
-	}
-
 	return &driver.QEMU{
 		SSH:     ssh,
-		Image:   image,
+		Image:   build.Driver.Image,
 		Arch:    arch,
-		CPUs:    cpus,
-		Memory:  memory,
 		HostFwd: hostfwd,
 	}
 }

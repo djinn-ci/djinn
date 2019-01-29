@@ -63,7 +63,8 @@ func DecodeBuild(r io.Reader) (Build, error) {
 //   [url] [ref] => [dir]
 //
 // This will correctly unmarshal the given string, and parse it accordingly. The ref, and dir
-// parts of the string are optional.
+// parts of the string are optional. If not specified the ref will be master, and the dir will be
+// the base of the url.
 func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var str string
 
@@ -94,6 +95,12 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+// Artifacts can be in the format of:
+//
+//   [source] => [destination]
+//
+// This will correctly unmarshal the given string, and parse it accordingly. The destination part
+// is optional. If not specified then the base of the source will be used as the destination.
 func (a *Artifact) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var str string
 

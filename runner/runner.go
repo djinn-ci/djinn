@@ -150,7 +150,7 @@ func (r *Runner) RunStage(name string, d Driver) error {
 
 func (r Runner) printLastJobStatus() {
 	if r.lastJob == nil {
-		fmt.Fprintf(r.Out, "\nDone. No jobs run.\n")
+		fmt.Fprintf(r.Out, "Done. No jobs run.\n")
 		return
 	}
 
@@ -177,9 +177,13 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 		return errStageNotFound
 	}
 
+	if len(stage.Jobs) == 0 {
+		return nil
+	}
+
 	jobs := runJobs(stage.Jobs, d, r.Collector)
 
-	for {
+	for jobs != nil {
 		select {
 			case sig := <-r.signals:
 				if sig == os.Kill || sig == os.Interrupt {
@@ -197,10 +201,6 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 						return errors.New("failed to run job: " + j.Name)
 					}
 				}
-		}
-
-		if jobs == nil {
-			break
 		}
 	}
 

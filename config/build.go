@@ -119,3 +119,36 @@ func (a *Artifact) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	return nil
 }
+
+func (b Build) Validate() error {
+	if b.Driver.Type == "" {
+		return errors.New("driver type undefined")
+	}
+
+	switch b.Driver.Type {
+		case "docker":
+			if b.Driver.Image == "" {
+				return errors.New("driver type docker requires image")
+			}
+
+			if b.Driver.Workspace == "" {
+				return errors.New("driver typ docker requires workspace")
+			}
+		case "qemu":
+			if b.Driver.Image == "" {
+				return errors.New("driver type qemu requires image")
+			}
+		case "ssh":
+			if b.Driver.Address == "" {
+				return errors.New("driver type ssh requires address")
+			}
+
+			if b.Driver.Username == "" {
+				return errors.New("driver type ssh requires username")
+			}
+		default:
+			return errors.New("unknown driver type " + b.Driver.Type)
+	}
+
+	return nil
+}

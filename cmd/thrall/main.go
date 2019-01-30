@@ -96,6 +96,11 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
+	if err := build.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
 	dir := c.Flags.GetString("artifacts")
 	fs := collector.NewFileSystem(dir)
 

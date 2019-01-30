@@ -73,25 +73,25 @@ func (r *Runner) Add(stages ...*Stage) {
 	}
 }
 
-func (r *Runner) Remove(name string) {
-	_, ok := r.Stages[name]
-
-	if !ok {
-		return
-	}
-
-	delete(r.Stages, name)
-
-	i := 0
-
-	for j, search := range r.order {
-		if search == name {
-			i = j
-			break
+func (r *Runner) Remove(stages ...string) {
+	for _, s := range stages {
+		if _, ok := r.Stages[s]; !ok {
+			continue
 		}
-	}
 
-	r.order = append(r.order[:i], r.order[i + 1:]...)
+		delete(r.Stages, s)
+
+		i := 0
+
+		for j, removed := range r.order {
+			if removed == s {
+				i = j
+				break
+			}
+		}
+
+		r.order = append(r.order[:i], r.order[i + 1:]...)
+	}
 }
 
 func (r *Runner) Run(d Driver) error {

@@ -197,9 +197,7 @@ func mainCommand(c cli.Command) {
 			}
 		}
 
-		for _, stage := range remove {
-			r.Remove(stage)
-		}
+		r.Remove(remove...)
 	}
 
 	if err := r.Run(d); err != nil {

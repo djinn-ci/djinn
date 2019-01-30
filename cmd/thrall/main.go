@@ -178,15 +178,27 @@ func mainCommand(c cli.Command) {
 			os.Exit(1)
 	}
 
-	stage := c.Flags.GetString("stage")
+	stages := c.Flags.GetAll("stage")
 
-	if stage != "" {
-		for name := range r.Stages {
-			if name == stage || name == cloneStage {
-				continue
+	if len(stages) > 0 {
+		remove := make([]string, 0, len(r.Stages))
+
+		for runnerStage := range r.Stages {
+			keep := false
+
+			for _, flag := range stages {
+				if runnerStage == flag.Value || runnerStage == cloneStage {
+					keep = true
+				}
 			}
 
-			r.Remove(name)
+			if !keep {
+				remove = append(remove, runnerStage)
+			}
+		}
+
+		for _, stage := range remove {
+			r.Remove(stage)
 		}
 	}
 

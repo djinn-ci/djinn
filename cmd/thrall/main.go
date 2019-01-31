@@ -82,7 +82,7 @@ func initializeQEMU(build config.Build) runner.Driver {
 }
 
 func mainCommand(c cli.Command) {
-	f, err := os.Open(c.Flags.GetString("config"))
+	f, err := os.Open(c.Flags.GetString("build"))
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
@@ -236,9 +236,9 @@ func main() {
 	})
 
 	cmd.AddFlag(&cli.Flag{
-		Name:     "config",
-		Short:    "-c",
-		Long:     "--config",
+		Name:     "build",
+		Short:    "-b",
+		Long:     "--build",
 		Argument: true,
 		Default:  ".thrall.yml",
 	})

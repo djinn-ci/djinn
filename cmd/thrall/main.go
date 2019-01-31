@@ -149,19 +149,27 @@ func mainCommand(c cli.Command) {
 		r.Add(runner.NewStage(name, canFail))
 	}
 
-	for i, j := range build.Jobs {
-		stage, ok := r.Stages[j.Stage]
-
-		if !ok {
-			fmt.Fprintf(os.Stderr, "%s: unknown stage %s\n", os.Args[0], j.Stage)
-			os.Exit(1)
+	for _, j := range build.Jobs {
+		if _, ok := r.Stages[j.Stage]; !ok {
+			fmt.Fprintf(r.Out, "warning: unknown stage %s\n", j.Stage)
 		}
+	}
 
-		if j.Name == "" {
-			j.Name = fmt.Sprintf("%s.%d", stage.Name, i + 1)
+	for _, s := range r.Stages {
+		jobId := 1
+
+		for _, j := range build.Jobs {
+			if s.Name != j.Stage {
+				continue
+			}
+
+			if j.Name == "" {
+				j.Name = fmt.Sprintf("%s.%d", j.Stage, jobId)
+				jobId++
+			}
+
+			s.Add(runner.NewJob(os.Stdout, j.Name, j.Commands, j.Depends, j.Artifacts))
 		}
-
-		stage.Add(runner.NewJob(os.Stdout, j.Name, j.Commands, j.Depends, j.Artifacts))
 	}
 
 	var d runner.Driver

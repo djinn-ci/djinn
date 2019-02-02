@@ -122,6 +122,8 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 		return
 	}
 
+	defer cli.Close()
+
 	for _, a := range j.Artifacts {
 		fmt.Fprintf(w, "Collecting artifact %s => %s\n", a.Source, a.Destination)
 

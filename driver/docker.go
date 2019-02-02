@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"sync"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/docker/docker/api/types"
@@ -37,7 +38,7 @@ func NewDocker(image, workspace string) *Docker {
 	}
 }
 
-func (d *Docker) Create(w io.Writer) error {
+func (d *Docker) Create(w io.Writer, objects []config.Passthrough) error {
 	fmt.Fprintf(w, "Running with Docker driver...\n")
 
 	cli, err := client.NewEnvClient()

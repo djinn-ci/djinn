@@ -6,6 +6,7 @@ import (
 	"os"
 	"sync"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 )
 
@@ -19,14 +20,16 @@ type Runner struct {
 	lastJob   *Job
 	signals   chan os.Signal
 	Out       io.Writer
+	Objects   []config.Passthrough
 	Stages    map[string]*Stage
 	Collector Collector
 }
 
-func NewRunner(w io.Writer, c Collector, signals chan os.Signal) *Runner {
+func NewRunner(w io.Writer, objects []config.Passthrough, c Collector, signals chan os.Signal) *Runner {
 	return &Runner{
 		signals:   signals,
 		Out:       w,
+		Objects:   objects,
 		Stages:    make(map[string]*Stage),
 		Collector: c,
 	}
@@ -97,7 +100,7 @@ func (r *Runner) Remove(stages ...string) {
 func (r *Runner) Run(d Driver) error {
 	defer d.Destroy()
 
-	if err := d.Create(r.Out); err != nil {
+	if err := d.Create(r.Out, r.Objects); err != nil {
 		fmt.Fprintf(r.Out, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 
@@ -126,7 +129,7 @@ func (r *Runner) Run(d Driver) error {
 func (r *Runner) RunStage(name string, d Driver) error {
 	defer d.Destroy()
 
-	if err := d.Create(r.Out); err != nil {
+	if err := d.Create(r.Out, r.Objects); err != nil {
 		fmt.Fprintf(r.Out, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 

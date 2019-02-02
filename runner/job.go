@@ -19,7 +19,7 @@ type Job struct {
 	DidFail bool
 
 	Depends   []string
-	Artifacts []config.Artifact
+	Artifacts []config.Passthrough
 
 	After  JobStore
 	Writer io.Writer
@@ -27,7 +27,7 @@ type Job struct {
 
 type JobStore map[string]*Job
 
-func NewJob(w io.Writer, name string, commands, depends []string, artifacts []config.Artifact) *Job {
+func NewJob(w io.Writer, name string, commands, depends []string, artifacts []config.Passthrough) *Job {
 	j := &Job{
 		Name:      name,
 		Commands:  commands,

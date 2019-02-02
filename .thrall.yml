@@ -1,6 +1,8 @@
 driver:
   type: qemu
   image: alpine/latest-stable
+objects:
+  - . => /root/some-dir
 sources:
   - https://github.com/andrewpillar/jrnl v1.1.1
 stages:
@@ -12,8 +14,7 @@ jobs:
     commands:
       - echo "http://alpine.mirror.wearetriple.com/edge/community" >> /etc/apk/repositories
       - apk update
-      - apk add musl-dev
-      - apk add go
+      - apk add musl-dev go
   - stage: build
     commands:
       - cd jrnl

@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"time"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/pkg/sftp"
@@ -23,7 +24,7 @@ type SSH struct {
 	Timeout  time.Duration
 }
 
-func (d *SSH) Create(w io.Writer) error {
+func (d *SSH) Create(w io.Writer, objects []config.Passthrough) error {
 	fmt.Fprintf(w, "Running with SSH driver...\n")
 
 	key, err := ioutil.ReadFile(d.KeyFile)

@@ -108,7 +108,7 @@ func mainCommand(c cli.Command) {
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
 
-	r := runner.NewRunner(os.Stdout, fs, sigs)
+	r := runner.NewRunner(os.Stdout, build.Objects, fs, sigs)
 
 	clone := runner.NewStage(cloneStage, false)
 
@@ -131,7 +131,7 @@ func mainCommand(c cli.Command) {
 			depends = []string{fmt.Sprintf("clone.%d", i - 1)}
 		}
 
-		clone.Add(runner.NewJob(os.Stdout, name, commands, depends, []config.Artifact{}))
+		clone.Add(runner.NewJob(os.Stdout, name, commands, depends, []config.Passthrough{}))
 	}
 
 	r.Add(clone)

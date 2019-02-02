@@ -21,11 +21,18 @@ type Build struct {
 		Password  string
 	}
 
-	Sources       []Source
+	Objects []Passthrough
+	Sources []Source
+
 	Stages        []string
 	AllowFailures []string `yaml:"allow_failures"`
 
 	Jobs []Job
+}
+
+type Passthrough struct {
+	Source      string
+	Destination string
 }
 
 type Source struct {
@@ -34,17 +41,12 @@ type Source struct {
 	Dir string
 }
 
-type Artifact struct {
-	Source      string
-	Destination string
-}
-
 type Job struct {
 	Stage     string
 	Name      string
 	Commands  []string
 	Depends   []string
-	Artifacts []Artifact
+	Artifacts []Passthrough
 }
 
 func DecodeBuild(r io.Reader) (Build, error) {
@@ -95,13 +97,16 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-// Artifacts can be in the format of:
+// Passthrough allows for files to be passed between the host machine, and the driver. Files that
+// are passed from the host to the driver are known as objects, and files that are passed from
+// the driver to the host are known as artifacts.
+//
+// In the build YAML file they take the format of:
 //
 //   [source] => [destination]
 //
-// This will correctly unmarshal the given string, and parse it accordingly. The destination part
-// is optional. If not specified then the base of the source will be used as the destination.
-func (a *Artifact) UnmarshalYAML(unmarshal func(interface{}) error) error {
+// Whereby [destination] is optional.
+func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var str string
 
 	if err := unmarshal(&str); err != nil {
@@ -110,11 +115,11 @@ func (a *Artifact) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	parts := strings.Split(str, "=>")
 
-	a.Source = strings.TrimPrefix(strings.TrimSuffix(parts[0], " "), " ")
-	a.Destination = filepath.Base(a.Source)
+	p.Source = strings.TrimPrefix(strings.TrimSuffix(parts[0], " "), " ")
+	p.Destination = filepath.Base(p.Source)
 
 	if len(parts) > 1 {
-		a.Destination = strings.TrimPrefix(strings.TrimSuffix(parts[1], " "), " ")
+		p.Destination = strings.TrimPrefix(strings.TrimSuffix(parts[1], " "), " ")
 	}
 
 	return nil

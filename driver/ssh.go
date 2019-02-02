@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
@@ -50,7 +51,7 @@ func (d *SSH) Create(w io.Writer, objects []config.Passthrough) error {
 
 	fmt.Fprintf(w, "Connecting to %s...\n", d.Address)
 
-	cli, err := ssh.Dial("tcp", d.Address, cfg)
+	dcli, err := ssh.Dial("tcp", d.Address, cfg)
 
 	if err != nil {
 		return err
@@ -58,9 +59,9 @@ func (d *SSH) Create(w io.Writer, objects []config.Passthrough) error {
 
 	fmt.Fprintf(w, "Established SSH connection to %s...\n\n", d.Address)
 
-	d.client = cli
+	d.client = dcli
 
-	return nil
+	return d.placeObjects(w, objects)
 }
 
 func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
@@ -138,4 +139,50 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 			j.Failed(err)
 		}
 	}
+}
+
+func (d *SSH) placeObjects(w io.Writer, objects []config.Passthrough) error {
+	if len(objects) == 0 {
+		fmt.Fprintf(w, "\n")
+		return nil
+	}
+
+	fmt.Fprintf(w, "Placing objects...\n")
+
+	cli, err := sftp.NewClient(d.client)
+
+	if err != nil {
+		return err
+	}
+
+	for _, o := range objects {
+		fmt.Fprintf(w, "Placing object %s => %s\n", o.Source, o.Destination)
+
+		f, err := os.Open(o.Source)
+
+		if err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, err)
+			continue
+		}
+
+		defer f.Close()
+
+		dst, err := cli.OpenFile(o.Destination, os.O_CREATE|os.O_WRONLY)
+
+		if err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, err)
+			continue
+		}
+
+		defer dst.Close()
+
+		_, err = io.Copy(dst, f)
+
+		if err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, err)
+		}
+	}
+
+	fmt.Fprintf(w, "\n")
+	return nil
 }

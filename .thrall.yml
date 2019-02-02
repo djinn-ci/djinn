@@ -2,7 +2,7 @@ driver:
   type: qemu
   image: alpine/latest-stable
 objects:
-  - . => /root/some-dir
+  - go.mod
 sources:
   - https://github.com/andrewpillar/jrnl v1.1.1
 stages:

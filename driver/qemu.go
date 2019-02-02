@@ -160,7 +160,7 @@ func (d *QEMU) Create(w io.Writer, objects []config.Passthrough) error {
 			break
 		}
 
-		err = d.SSH.Create(ioutil.Discard, objects)
+		err = d.SSH.Create(ioutil.Discard, []config.Passthrough{})
 
 		if err == nil {
 			break
@@ -175,9 +175,9 @@ func (d *QEMU) Create(w io.Writer, objects []config.Passthrough) error {
 		return err
 	}
 
-	fmt.Fprintf(w, "Established SSH connection to machine...\n\n")
+	fmt.Fprintf(w, "Established SSH connection to machine...\n")
 
-	return nil
+	return d.placeObjects(w, objects)
 }
 
 func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {

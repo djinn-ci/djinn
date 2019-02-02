@@ -13,6 +13,7 @@ import (
 	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/driver"
+	"github.com/andrewpillar/thrall/placer"
 	"github.com/andrewpillar/thrall/runner"
 )
 
@@ -101,14 +102,14 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	dir := c.Flags.GetString("artifacts")
-	fs := collector.NewFileSystem(dir)
-
 	sigs := make(chan os.Signal)
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
 
-	r := runner.NewRunner(os.Stdout, build.Objects, fs, sigs)
+	pl := placer.NewFileSystem(".")
+	cl := collector.NewFileSystem(c.Flags.GetString("artifacts"))
+
+	r := runner.NewRunner(os.Stdout, build.Objects, pl, cl, sigs)
 
 	clone := runner.NewStage(cloneStage, false)
 

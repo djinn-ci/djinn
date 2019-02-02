@@ -2,6 +2,8 @@ package runner
 
 import "io"
 
-type Collector interface {
+type Passthrough interface {
+	Place(name string, w io.Writer) error
+
 	Collect(name string, r io.Reader) error
 }

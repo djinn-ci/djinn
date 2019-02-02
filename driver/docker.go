@@ -38,7 +38,7 @@ func NewDocker(image, workspace string) *Docker {
 	}
 }
 
-func (d *Docker) Create(w io.Writer, objects []config.Passthrough) error {
+func (d *Docker) Create(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(w, "Running with Docker driver...\n")
 
 	cli, err := client.NewEnvClient()

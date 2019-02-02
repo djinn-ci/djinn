@@ -7,11 +7,11 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 )
 
-var Discard = &collector{}
+var Discard = &discard{}
 
-type collector struct {}
+type discard struct {}
 
-func (c *collector) Collect(name string, r io.Reader) error {
+func (c *discard) Collect(name string, r io.Reader) error {
 	_, err := io.Copy(ioutil.Discard, r)
 
 	return errors.Err(err)

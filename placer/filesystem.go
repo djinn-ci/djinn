@@ -1,4 +1,4 @@
-package collector
+package placer
 
 import (
 	"io"
@@ -16,14 +16,8 @@ func NewFileSystem(dir string) *FileSystem {
 	return &FileSystem{dir: dir}
 }
 
-func (c *FileSystem) Collect(name string, r io.Reader) error {
-	dst := filepath.Join(c.dir, name)
-
-	if err := os.MkdirAll(filepath.Dir(dst), os.FileMode(0755)); err != nil {
-		return errors.Err(err)
-	}
-
-	f, err := os.Create(dst)
+func (p *FileSystem) Place(name string, w io.Writer) error {
+	f, err := os.Open(filepath.Join(p.dir, name))
 
 	if err != nil {
 		return errors.Err(err)
@@ -31,7 +25,7 @@ func (c *FileSystem) Collect(name string, r io.Reader) error {
 
 	defer f.Close()
 
-	_, err = io.Copy(f, r)
+	_, err = io.Copy(w, f)
 
 	return errors.Err(err)
 }

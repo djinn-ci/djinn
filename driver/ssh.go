@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
@@ -25,7 +24,7 @@ type SSH struct {
 	Timeout  time.Duration
 }
 
-func (d *SSH) Create(w io.Writer, objects []config.Passthrough) error {
+func (d *SSH) Create(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(w, "Running with SSH driver...\n")
 
 	key, err := ioutil.ReadFile(d.KeyFile)
@@ -61,7 +60,7 @@ func (d *SSH) Create(w io.Writer, objects []config.Passthrough) error {
 
 	d.client = dcli
 
-	return d.placeObjects(w, objects)
+	return d.placeObjects(w, objects, p)
 }
 
 func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
@@ -141,9 +140,8 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 	}
 }
 
-func (d *SSH) placeObjects(w io.Writer, objects []config.Passthrough) error {
+func (d *SSH) placeObjects(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
 	if len(objects) == 0 {
-		fmt.Fprintf(w, "\n")
 		return nil
 	}
 
@@ -155,34 +153,25 @@ func (d *SSH) placeObjects(w io.Writer, objects []config.Passthrough) error {
 		return err
 	}
 
+	defer cli.Close()
+
 	for _, o := range objects {
 		fmt.Fprintf(w, "Placing object %s => %s\n", o.Source, o.Destination)
 
-		f, err := os.Open(o.Source)
+		f, err := cli.Create(o.Destination)
 
 		if err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, err)
+			fmt.Fprintf(w, "Failed to place object %s => %s\n", o.Source, o.Destination, err)
 			continue
 		}
 
 		defer f.Close()
 
-		dst, err := cli.OpenFile(o.Destination, os.O_CREATE|os.O_WRONLY)
-
-		if err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, err)
+		if err := p.Place(o.Source, f); err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s\n", o.Source, o.Destination, err)
 			continue
-		}
-
-		defer dst.Close()
-
-		_, err = io.Copy(dst, f)
-
-		if err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, err)
 		}
 	}
 
-	fmt.Fprintf(w, "\n")
 	return nil
 }

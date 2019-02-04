@@ -88,7 +88,7 @@ func (d *QEMU) Create(w io.Writer, objects []config.Passthrough, p runner.Placer
 		return errors.New("unsupported architecture: " + d.Arch)
 	}
 
-	pidfile, err := ioutil.TempFile("", "qemu-")
+	pidfile, err := ioutil.TempFile("", "thrall-qemu-")
 
 	if err != nil {
 		return err
@@ -128,15 +128,13 @@ func (d *QEMU) Create(w io.Writer, objects []config.Passthrough, p runner.Placer
 		return err
 	}
 
-	buf := &bytes.Buffer{}
-
-	_, err = io.Copy(buf, pidfile)
+	b, err := ioutil.ReadFile(pidfile)
 
 	if err != nil {
 		return err
 	}
 
-	trim := strings.Trim(buf.String(), "\n")
+	trim := strings.Trim(string(b), "\n")
 	pid, err := strconv.ParseInt(trim, 10, 64)
 
 	if err != nil {

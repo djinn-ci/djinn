@@ -51,7 +51,7 @@ func (d *SSH) Create(w io.Writer, objects []config.Passthrough, p runner.Placer)
 
 	fmt.Fprintf(w, "Connecting to %s...\n", d.Address)
 
-	dcli, err := ssh.Dial("tcp", d.Address, cfg)
+	cli, err := ssh.Dial("tcp", d.Address, cfg)
 
 	if err != nil {
 		return err
@@ -59,7 +59,7 @@ func (d *SSH) Create(w io.Writer, objects []config.Passthrough, p runner.Placer)
 
 	fmt.Fprintf(w, "Established SSH connection to %s...\n\n", d.Address)
 
-	d.client = dcli
+	d.client = cli
 
 	return d.placeObjects(w, objects, p)
 }

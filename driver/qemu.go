@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -128,7 +127,7 @@ func (d *QEMU) Create(w io.Writer, objects []config.Passthrough, p runner.Placer
 		return err
 	}
 
-	b, err := ioutil.ReadFile(pidfile)
+	b, err := ioutil.ReadAll(pidfile)
 
 	if err != nil {
 		return err

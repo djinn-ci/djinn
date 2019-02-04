@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/pkg/sftp"
@@ -129,12 +130,14 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 
 		if err != nil {
 			j.Failed(err)
+			fmt.Fprintf(w, "Failed to collect artifact %s => %s: %s\n", a.Source, a.Destination, errors.Cause(err))
 			continue
 		}
 
 		defer f.Close()
 
 		if err := c.Collect(a.Destination, f); err != nil {
+			fmt.Fprintf(w, "Failed to collect artifact %s => %s: %s\n", a.Source, a.Destination, errors.Cause(err))
 			j.Failed(err)
 		}
 	}

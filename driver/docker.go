@@ -1,14 +1,17 @@
 package driver
 
 import (
+	"archive/tar"
 	"bytes"
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"sync"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/docker/docker/api/types"
@@ -79,7 +82,7 @@ func (d *Docker) Create(w io.Writer, objects []config.Passthrough, p runner.Plac
 
 	fmt.Fprintf(w, "Using Docker image %s - %s...\n\n", d.image, image.ID)
 
-	return nil
+	return d.placeObjects(w, objects, p)
 }
 
 func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
@@ -197,4 +200,77 @@ func (d *Docker) Destroy() {
 	}
 
 	d.client.VolumeRemove(ctx, d.volume.Name, true)
+}
+
+func (d *Docker) placeObjects(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
+	if len(objects) == 0 {
+		return nil
+	}
+
+	fmt.Fprintf(w, "Placing objects...\n")
+
+	cfg := &container.Config{
+		Image: d.image,
+		Tty:   true,
+		Cmd:   []string{"true"},
+	}
+
+	hostCfg := &container.HostConfig{
+		Mounts: []mount.Mount{
+			mount.Mount{
+				Type:   mount.TypeVolume,
+				Source: d.volume.Name,
+				Target: d.workspace,
+			},
+		},
+	}
+
+	ctx := context.Background()
+
+	ctr, err := d.client.ContainerCreate(ctx, cfg, hostCfg, nil, "")
+
+	if err != nil {
+		return err
+	}
+
+	for _, o := range objects {
+		fmt.Fprintf(w, "Placing object %s => %s\n", o.Source, o.Destination)
+
+		info, err := os.Stat(o.Source)
+
+		if err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			continue
+		}
+
+		header, err := tar.FileInfoHeader(info, info.Name())
+
+		if err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			continue
+		}
+
+		tmp := &bytes.Buffer{}
+
+		tw := tar.NewWriter(tmp)
+
+		if err := tw.WriteHeader(header); err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			continue
+		}
+
+		if err := p.Place(o.Source, tw); err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			continue
+		}
+
+		if err := d.client.CopyToContainer(ctx, ctr.ID, d.workspace, tmp, types.CopyToContainerOptions{}); err != nil {
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			continue
+		}
+	}
+
+	d.client.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{})
+
+	return nil
 }

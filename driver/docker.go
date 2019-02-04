@@ -249,24 +249,19 @@ func (d *Docker) placeObjects(w io.Writer, objects []config.Passthrough, p runne
 			continue
 		}
 
-		tmp := &bytes.Buffer{}
+		pr, pw := io.Pipe()
+		defer pr.Close()
 
-		tw := tar.NewWriter(tmp)
+		tw := tar.NewWriter(pw)
 
-		if err := tw.WriteHeader(header); err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
-			continue
-		}
+		go func(src string) {
+			defer tw.Close()
+			defer pw.Close()
 
-		if err := p.Place(o.Source, tw); err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
-			continue
-		}
+			tw.WriteHeader(header)
+		}(o.Source)
 
-		if err := d.client.CopyToContainer(ctx, ctr.ID, d.workspace, tmp, types.CopyToContainerOptions{}); err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
-			continue
-		}
+		d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
 	}
 
 	d.client.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{})

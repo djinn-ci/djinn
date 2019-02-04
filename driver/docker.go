@@ -259,6 +259,7 @@ func (d *Docker) placeObjects(w io.Writer, objects []config.Passthrough, p runne
 			defer pw.Close()
 
 			tw.WriteHeader(header)
+			p.Place(src, tw)
 		}(o.Source)
 
 		d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})

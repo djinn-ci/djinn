@@ -174,7 +174,6 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 		if err != nil {
 			fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", a.Source, dst, errors.Cause(err))
-			j.Failed(err)
 			continue
 		}
 
@@ -182,8 +181,6 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 		if err := c.Collect(dst, rc); err != nil {
 			fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", a.Source, dst, errors.Cause(err))
-			j.Failed(err)
-			continue
 		}
 	}
 

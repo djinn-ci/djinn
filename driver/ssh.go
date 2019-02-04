@@ -113,8 +113,6 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 		return
 	}
 
-	fmt.Fprintf(w, "Collecting artifacts...\n")
-
 	cli, err := sftp.NewClient(d.client)
 
 	if err != nil {
@@ -146,8 +144,6 @@ func (d *SSH) placeObjects(w io.Writer, objects []config.Passthrough, p runner.P
 	if len(objects) == 0 {
 		return nil
 	}
-
-	fmt.Fprintf(w, "Placing objects...\n")
 
 	cli, err := sftp.NewClient(d.client)
 

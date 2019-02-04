@@ -166,7 +166,9 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	io.Copy(j.Writer, rc)
 
 	for _, a := range j.Artifacts {
-		dst := fmt.Sprintf("%s.tar", a.Destination)
+		dst := a.Destination + ".tar"
+
+		fmt.Fprintf(j.Writer, "Collecting artifact %s => %s\n", a.Source, dst)
 
 		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, a.Source)
 
@@ -206,8 +208,6 @@ func (d *Docker) placeObjects(w io.Writer, objects []config.Passthrough, p runne
 	if len(objects) == 0 {
 		return nil
 	}
-
-	fmt.Fprintf(w, "Placing objects...\n")
 
 	cfg := &container.Config{
 		Image: d.image,

@@ -17,6 +17,16 @@ func NewFileSystem(dir string) *FileSystem {
 }
 
 func (p *FileSystem) Place(name string, w io.Writer) error {
+	info, err := os.Stat(name)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if info.IsDir() {
+		return errors.Err(errors.New("cannot place directory as an object"))
+	}
+
 	f, err := os.Open(filepath.Join(p.dir, name))
 
 	if err != nil {

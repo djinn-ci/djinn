@@ -71,7 +71,7 @@ type QEMU struct {
 	HostFwd string
 }
 
-func (d *QEMU) Create(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
+func (d *QEMU) Create(w io.Writer, env []string, objects []config.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(w, "Running with QEMU driver...\n")
 
 	supported := false
@@ -157,7 +157,7 @@ func (d *QEMU) Create(w io.Writer, objects []config.Passthrough, p runner.Placer
 			break
 		}
 
-		err = d.SSH.Create(ioutil.Discard, []config.Passthrough{}, p)
+		err = d.SSH.Create(ioutil.Discard, env, []config.Passthrough{}, p)
 
 		if err == nil {
 			break

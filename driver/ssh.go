@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
@@ -19,13 +20,15 @@ import (
 type SSH struct {
 	client *ssh.Client
 
+	env []string
+
 	Address  string
 	Username string
 	KeyFile  string
 	Timeout  time.Duration
 }
 
-func (d *SSH) Create(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
+func (d *SSH) Create(w io.Writer, env []string, objects []config.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(w, "Running with SSH driver...\n")
 
 	key, err := ioutil.ReadFile(d.KeyFile)
@@ -59,6 +62,7 @@ func (d *SSH) Create(w io.Writer, objects []config.Passthrough, p runner.Placer)
 
 	fmt.Fprintf(w, "Established SSH connection to %s...\n\n", d.Address)
 
+	d.env = env
 	d.client = cli
 
 	return d.placeObjects(w, objects, p)
@@ -82,6 +86,14 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 
 		if i != l {
 			buf.WriteString(" && ")
+		}
+	}
+
+	for _, e := range d.env {
+		parts := strings.Split(e, "=")
+
+		if len(parts) > 1 {
+			sess.Setenv(parts[0], parts[1])
 		}
 	}
 

@@ -21,6 +21,8 @@ type Build struct {
 		Password  string
 	}
 
+	Env []string
+
 	Objects []Passthrough
 	Sources []Source
 

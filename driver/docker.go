@@ -25,6 +25,7 @@ type Docker struct {
 	client *client.Client
 	volume types.Volume
 
+	env        []string
 	containers []string
 
 	mutex *sync.Mutex
@@ -41,7 +42,7 @@ func NewDocker(image, workspace string) *Docker {
 	}
 }
 
-func (d *Docker) Create(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
+func (d *Docker) Create(w io.Writer, env []string, objects []config.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(w, "Running with Docker driver...\n")
 
 	cli, err := client.NewEnvClient()
@@ -82,6 +83,8 @@ func (d *Docker) Create(w io.Writer, objects []config.Passthrough, p runner.Plac
 
 	fmt.Fprintf(w, "Using Docker image %s - %s...\n\n", d.image, image.ID)
 
+	d.env = env
+
 	return d.placeObjects(w, objects, p)
 }
 
@@ -99,6 +102,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	cfg := &container.Config{
 		Image: d.image,
 		Tty:   true,
+		Env:   d.env,
 		Cmd:   []string{"/bin/bash", "-c", buf.String()},
 	}
 

@@ -28,16 +28,18 @@ type Runner struct {
 	lastJob   *Job
 	signals   chan os.Signal
 	Out       io.Writer
+	Env       []string
 	Objects   []config.Passthrough
 	Stages    map[string]*Stage
 	Placer    Placer
 	Collector Collector
 }
 
-func NewRunner(w io.Writer, objects []config.Passthrough, p Placer, c Collector, signals chan os.Signal) *Runner {
+func NewRunner(w io.Writer, env []string, objects []config.Passthrough, p Placer, c Collector, signals chan os.Signal) *Runner {
 	return &Runner{
 		signals:   signals,
 		Out:       w,
+		Env:       env,
 		Objects:   objects,
 		Stages:    make(map[string]*Stage),
 		Placer:    p,
@@ -110,7 +112,7 @@ func (r *Runner) Remove(stages ...string) {
 func (r *Runner) Run(d Driver) error {
 	defer d.Destroy()
 
-	if err := d.Create(r.Out, r.Objects, r.Placer); err != nil {
+	if err := d.Create(r.Out, r.Env, r.Objects, r.Placer); err != nil {
 		fmt.Fprintf(r.Out, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 
@@ -139,7 +141,7 @@ func (r *Runner) Run(d Driver) error {
 func (r *Runner) RunStage(name string, d Driver) error {
 	defer d.Destroy()
 
-	if err := d.Create(r.Out, r.Objects, r.Placer); err != nil {
+	if err := d.Create(r.Out, r.Env, r.Objects, r.Placer); err != nil {
 		fmt.Fprintf(r.Out, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 

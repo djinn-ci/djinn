@@ -109,7 +109,7 @@ func mainCommand(c cli.Command) {
 	pl := placer.NewFileSystem(".")
 	cl := collector.NewFileSystem(c.Flags.GetString("artifacts"))
 
-	r := runner.NewRunner(os.Stdout, build.Objects, pl, cl, sigs)
+	r := runner.NewRunner(os.Stdout, build.Env, build.Objects, pl, cl, sigs)
 
 	clone := runner.NewStage(cloneStage, false)
 

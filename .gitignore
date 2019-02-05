@@ -2,3 +2,4 @@
 .vimrc
 *.out
 *.tar
+thrall-server.yml

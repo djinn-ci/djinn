@@ -17,7 +17,9 @@ func NewFileSystem(dir string) *FileSystem {
 }
 
 func (p *FileSystem) Place(name string, w io.Writer) error {
-	info, err := os.Stat(name)
+	src := filepath.Join(p.dir, name)
+
+	info, err := os.Stat(src)
 
 	if err != nil {
 		return errors.Err(err)
@@ -27,7 +29,7 @@ func (p *FileSystem) Place(name string, w io.Writer) error {
 		return errors.Err(errors.New("cannot place directory as an object"))
 	}
 
-	f, err := os.Open(filepath.Join(p.dir, name))
+	f, err := os.Open(src)
 
 	if err != nil {
 		return errors.Err(err)

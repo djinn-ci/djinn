@@ -106,7 +106,7 @@ func mainCommand(c cli.Command) {
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
 
-	pl := placer.NewFileSystem(".")
+	pl := placer.NewFileSystem(c.Flags.GetString("objects"))
 	cl := collector.NewFileSystem(c.Flags.GetString("artifacts"))
 
 	r := runner.NewRunner(os.Stdout, build.Env, build.Objects, pl, cl, sigs)
@@ -232,6 +232,14 @@ func main() {
 		Name:     "artifacts",
 		Short:    "-a",
 		Long:     "--artifacts",
+		Argument: true,
+		Default:  ".",
+	})
+
+	cmd.AddFlag(&cli.Flag{
+		Name:     "objects",
+		Short:    "-o",
+		Long:     "--objects",
 		Argument: true,
 		Default:  ".",
 	})

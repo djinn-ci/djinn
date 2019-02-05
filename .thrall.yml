@@ -1,10 +1,10 @@
 driver:
   type: qemu
   image: alpine/latest-stable
-objects:
-  - go.mod
 sources:
   - https://github.com/andrewpillar/jrnl v1.1.1
+env:
+  - MIRROR=http://alpine.mirror.wearetriple.com
 stages:
   - packages
   - build
@@ -12,7 +12,7 @@ stages:
 jobs:
   - stage: packages
     commands:
-      - echo "http://alpine.mirror.wearetriple.com/edge/community" >> /etc/apk/repositories
+      - echo "$MIRROR/edge/community" >> /etc/apk/repositories
       - apk update
       - apk add musl-dev go
   - stage: build

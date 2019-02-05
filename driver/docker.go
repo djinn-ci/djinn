@@ -165,6 +165,10 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 	io.Copy(j.Writer, rc)
 
+	if len(j.Artifacts) > 0 {
+		fmt.Fprintf(j.Writer, "\n")
+	}
+
 	for _, a := range j.Artifacts {
 		dst := a.Destination + ".tar"
 
@@ -266,6 +270,8 @@ func (d *Docker) placeObjects(w io.Writer, objects []config.Passthrough, p runne
 	}
 
 	d.client.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{})
+
+	fmt.Fprintf(w, "\n")
 
 	return nil
 }

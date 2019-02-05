@@ -172,7 +172,7 @@ func (d *QEMU) Create(w io.Writer, objects []config.Passthrough, p runner.Placer
 		return err
 	}
 
-	fmt.Fprintf(w, "Established SSH connection to machine...\n")
+	fmt.Fprintf(w, "Established SSH connection to machine...\n\n")
 
 	return d.placeObjects(w, objects, p)
 }

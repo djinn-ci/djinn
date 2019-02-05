@@ -123,6 +123,8 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 
 	defer cli.Close()
 
+	fmt.Fprintf(w, "\n")
+
 	for _, a := range j.Artifacts {
 		fmt.Fprintf(w, "Collecting artifact %s => %s\n", a.Source, a.Destination)
 
@@ -160,17 +162,19 @@ func (d *SSH) placeObjects(w io.Writer, objects []config.Passthrough, p runner.P
 		f, err := cli.Create(o.Destination)
 
 		if err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s\n", o.Source, o.Destination, err)
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
 			continue
 		}
 
 		defer f.Close()
 
 		if err := p.Place(o.Source, f); err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s\n", o.Source, o.Destination, err)
+			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
 			continue
 		}
 	}
+
+	fmt.Fprintf(w, "\n")
 
 	return nil
 }

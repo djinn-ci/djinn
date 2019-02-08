@@ -93,7 +93,9 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 		parts := strings.Split(e, "=")
 
 		if len(parts) > 1 {
-			sess.Setenv(parts[0], parts[1])
+			if err := sess.Setenv(parts[0], parts[1]); err != nil {
+				fmt.Fprintf(j.Writer, "Failed to setenv %s: %s\n", e, err)
+			}
 		}
 	}
 

@@ -9,7 +9,7 @@ Usage:
 Options:
 
   -a, --artifacts <dir>  The directory to store build artifacts
-  -b, --build <file>     The build YAML file to use
+  -m, --manifest <file>  The manifest YAML file to use
   -o, --objects <dir>    The directory to look in for object placment
   -s, --stage <stage>    The stage to run
 

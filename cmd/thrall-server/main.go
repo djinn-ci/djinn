@@ -57,14 +57,14 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to create redis store: %s\n", err)
 	}
 
-	baseHandler := handler.New(sc, store)
+	router := registerRoutes(handler.New(sc, store), "assets")
 
 	httpServer := &http.Server{
 		Addr:         cfg.Net.Listen,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      http.HandlerFunc(baseHandler.Home),
+		Handler:      router,
 	}
 
 	if cfg.Net.SSL.Cert != "" && cfg.Net.SSL.Key != "" {
@@ -73,10 +73,10 @@ func mainCommand(c cli.Command) {
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
 			IdleTimeout:  time.Second * 60,
-			Handler:      http.HandlerFunc(baseHandler.Home),
+			Handler:      router,
 		}
 
-		httpServer.Handler = handler.NewSecureRedirect(cfg.Net.SSL.Listen, http.HandlerFunc(baseHandler.Home))
+		httpServer.Handler = handler.NewSecureRedirect(cfg.Net.SSL.Listen, router)
 
 		go func() {
 			if err := httpsServer.ListenAndServeTLS(cfg.Net.SSL.Cert, cfg.Net.SSL.Key); err != nil {

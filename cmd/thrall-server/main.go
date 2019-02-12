@@ -25,7 +25,7 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	server, err := config.DecodeServer(f)
+	cfg, err := config.DecodeServer(f)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
@@ -35,7 +35,7 @@ func mainCommand(c cli.Command) {
 	servers := make([]*http.Server, 0)
 
 	httpServer := &http.Server{
-		Addr:         server.Listen,
+		Addr:         cfg.Listen,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
@@ -44,9 +44,9 @@ func mainCommand(c cli.Command) {
 
 	servers = append(servers, httpServer)
 
-	if server.SSL.Cert != "" && server.SSL.Key != "" {
+	if cfg.SSL.Cert != "" && cfg.SSL.Key != "" {
 		httpsServer := &http.Server{
-			Addr:         server.SSL.Listen,
+			Addr:         cfg.SSL.Listen,
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
 			IdleTimeout:  time.Second * 60,
@@ -56,7 +56,7 @@ func mainCommand(c cli.Command) {
 		servers = append(servers, httpsServer)
 
 		go func() {
-			if err := httpsServer.ListenAndServeTLS(server.SSL.Cert, server.SSL.Key); err != nil {
+			if err := httpsServer.ListenAndServeTLS(cfg.SSL.Cert, cfg.SSL.Key); err != nil {
 				fmt.Fprintf(os.Stderr, "%s\n", err)
 			}
 		}()

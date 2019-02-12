@@ -19,7 +19,7 @@ import (
 
 var cloneStage = "clone sources"
 
-func initializeSSH(build config.Build) runner.Driver {
+func initializeSSH(manifest config.Manifest) runner.Driver {
 	timeout, err := strconv.ParseInt(os.Getenv("THRALL_SSH_TIMEOUT"), 10, 64)
 
 	if err != nil {
@@ -27,14 +27,14 @@ func initializeSSH(build config.Build) runner.Driver {
 	}
 
 	return &driver.SSH{
-		Address:  build.Driver.Address,
-		Username: build.Driver.Username,
+		Address:  manifest.Driver.Address,
+		Username: manifest.Driver.Username,
 		KeyFile:  os.Getenv("THRALL_SSH_KEY"),
 		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
 	}
 }
 
-func initializeQEMU(build config.Build) runner.Driver {
+func initializeQEMU(manifest config.Manifest) runner.Driver {
 	hostfwd := os.Getenv("THRALL_QEMU_HOSTFWD")
 
 	if hostfwd == "" {
@@ -68,7 +68,7 @@ func initializeQEMU(build config.Build) runner.Driver {
 		driver.QemuMemory = memory
 	}
 
-	arch := build.Driver.Arch
+	arch := manifest.Driver.Arch
 
 	if arch == "" {
 		arch = "x86_64"
@@ -76,28 +76,28 @@ func initializeQEMU(build config.Build) runner.Driver {
 
 	return &driver.QEMU{
 		SSH:     ssh,
-		Image:   build.Driver.Image,
+		Image:   manifest.Driver.Image,
 		Arch:    arch,
 		HostFwd: hostfwd,
 	}
 }
 
 func mainCommand(c cli.Command) {
-	f, err := os.Open(c.Flags.GetString("build"))
+	f, err := os.Open(c.Flags.GetString("manifest"))
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 
-	build, err := config.DecodeBuild(f)
+	manifest, err := config.DecodeManifest(f)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 
-	if err := build.Validate(); err != nil {
+	if err := manifest.Validate(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
@@ -109,11 +109,11 @@ func mainCommand(c cli.Command) {
 	pl := placer.NewFileSystem(c.Flags.GetString("objects"))
 	cl := collector.NewFileSystem(c.Flags.GetString("artifacts"))
 
-	r := runner.NewRunner(os.Stdout, build.Env, build.Objects, pl, cl, sigs)
+	r := runner.NewRunner(os.Stdout, manifest.Env, manifest.Objects, pl, cl, sigs)
 
 	clone := runner.NewStage(cloneStage, false)
 
-	for i, src := range build.Sources {
+	for i, src := range manifest.Sources {
 		name := fmt.Sprintf("clone.%d", i)
 
 		commands := []string{
@@ -137,10 +137,10 @@ func mainCommand(c cli.Command) {
 
 	r.Add(clone)
 
-	for _, name := range build.Stages {
+	for _, name := range manifest.Stages {
 		canFail := false
 
-		for _, search := range build.AllowFailures {
+		for _, search := range manifest.AllowFailures {
 			if name == search {
 				canFail = true
 				break
@@ -150,7 +150,7 @@ func mainCommand(c cli.Command) {
 		r.Add(runner.NewStage(name, canFail))
 	}
 
-	for _, j := range build.Jobs {
+	for _, j := range manifest.Jobs {
 		if _, ok := r.Stages[j.Stage]; !ok {
 			fmt.Fprintf(r.Out, "warning: unknown stage %s\n", j.Stage)
 		}
@@ -159,7 +159,7 @@ func mainCommand(c cli.Command) {
 	for _, s := range r.Stages {
 		jobId := 1
 
-		for _, j := range build.Jobs {
+		for _, j := range manifest.Jobs {
 			if s.Name != j.Stage {
 				continue
 			}
@@ -175,15 +175,15 @@ func mainCommand(c cli.Command) {
 
 	var d runner.Driver
 
-	switch build.Driver.Type {
+	switch manifest.Driver.Type {
 		case "docker":
-			d = driver.NewDocker(build.Driver.Image, build.Driver.Workspace)
+			d = driver.NewDocker(manifest.Driver.Image, manifest.Driver.Workspace)
 		case "qemu":
-			d = initializeQEMU(build)
+			d = initializeQEMU(manifest)
 		case "ssh":
-			d = initializeSSH(build)
+			d = initializeSSH(manifest)
 		default:
-			fmt.Fprintf(os.Stderr, "%s: unknown driver %s\n", os.Args[0], build.Driver.Type)
+			fmt.Fprintf(os.Stderr, "%s: unknown driver %s\n", os.Args[0], manifest.Driver.Type)
 			os.Exit(1)
 	}
 
@@ -245,9 +245,9 @@ func main() {
 	})
 
 	cmd.AddFlag(&cli.Flag{
-		Name:     "build",
-		Short:    "-b",
-		Long:     "--build",
+		Name:     "manifest",
+		Short:    "-m",
+		Long:     "--manifest",
 		Argument: true,
 		Default:  ".thrall.yml",
 	})

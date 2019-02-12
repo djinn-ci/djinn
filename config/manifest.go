@@ -10,7 +10,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-type Build struct {
+type Manifest struct {
 	Driver struct {
 		Type      string
 		Image     string
@@ -51,9 +51,9 @@ type Job struct {
 	Artifacts []Passthrough
 }
 
-func DecodeBuild(r io.Reader) (Build, error) {
+func DecodeManifest(r io.Reader) (Manifest, error) {
 	dec := yaml.NewDecoder(r)
-	build := Build{}
+	build := Manifest{}
 
 	if err := dec.Decode(&build); err != nil {
 		return build, errors.Err(err)
@@ -127,34 +127,34 @@ func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func (b Build) Validate() error {
-	if b.Driver.Type == "" {
+func (m Manifest) Validate() error {
+	if m.Driver.Type == "" {
 		return errors.New("driver type undefined")
 	}
 
-	switch b.Driver.Type {
+	switch m.Driver.Type {
 		case "docker":
-			if b.Driver.Image == "" {
+			if m.Driver.Image == "" {
 				return errors.New("driver type docker requires image")
 			}
 
-			if b.Driver.Workspace == "" {
+			if m.Driver.Workspace == "" {
 				return errors.New("driver typ docker requires workspace")
 			}
 		case "qemu":
-			if b.Driver.Image == "" {
+			if m.Driver.Image == "" {
 				return errors.New("driver type qemu requires image")
 			}
 		case "ssh":
-			if b.Driver.Address == "" {
+			if m.Driver.Address == "" {
 				return errors.New("driver type ssh requires address")
 			}
 
-			if b.Driver.Username == "" {
+			if m.Driver.Username == "" {
 				return errors.New("driver type ssh requires username")
 			}
 		default:
-			return errors.New("unknown driver type " + b.Driver.Type)
+			return errors.New("unknown driver type " + m.Driver.Type)
 	}
 
 	return nil

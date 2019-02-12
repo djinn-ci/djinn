@@ -11,10 +11,11 @@ import (
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/handler"
 	"github.com/andrewpillar/thrall/log"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
+func mainHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Thrall CI server\n"))
 }
 
@@ -50,7 +51,7 @@ func mainCommand(c cli.Command) {
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      http.HandlerFunc(handler),
+		Handler:      http.HandlerFunc(mainHandler),
 	}
 
 	if cfg.Net.SSL.Cert != "" && cfg.Net.SSL.Key != "" {
@@ -59,8 +60,10 @@ func mainCommand(c cli.Command) {
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
 			IdleTimeout:  time.Second * 60,
-			Handler:      http.HandlerFunc(handler),
+			Handler:      http.HandlerFunc(mainHandler),
 		}
+
+		httpServer.Handler = handler.NewSecureRedirect(cfg.Net.SSL.Listen, http.HandlerFunc(mainHandler))
 
 		go func() {
 			if err := httpsServer.ListenAndServeTLS(cfg.Net.SSL.Cert, cfg.Net.SSL.Key); err != nil {

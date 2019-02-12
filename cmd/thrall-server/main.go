@@ -11,6 +11,7 @@ import (
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/log"
 )
 
 func handler(w http.ResponseWriter, r *http.Request) {
@@ -21,50 +22,56 @@ func mainCommand(c cli.Command) {
 	f, err := os.Open(c.Flags.GetString("config"))
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		log.Error.Fatalf("failed to open server config: %s\n", err)
 	}
 
 	cfg, err := config.DecodeServer(f)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		log.Error.Fatalf("failed to decode server config: %s\n", err)
 	}
 
-	servers := make([]*http.Server, 0)
+	log.SetLevel(cfg.Log.Level)
+
+	lf, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+
+	if err != nil {
+		log.Error.Fatalf("failed to open log file %s: %s\n", cfg.Log.File, err)
+	}
+
+	defer lf.Close()
+
+	log.SetLogger(log.NewStdLog(lf))
+
+	var httpsServer *http.Server
 
 	httpServer := &http.Server{
-		Addr:         cfg.Listen,
+		Addr:         cfg.Net.Listen,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
 		Handler:      http.HandlerFunc(handler),
 	}
 
-	servers = append(servers, httpServer)
-
-	if cfg.SSL.Cert != "" && cfg.SSL.Key != "" {
-		httpsServer := &http.Server{
-			Addr:         cfg.SSL.Listen,
+	if cfg.Net.SSL.Cert != "" && cfg.Net.SSL.Key != "" {
+		httpsServer = &http.Server{
+			Addr:         cfg.Net.SSL.Listen,
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
 			IdleTimeout:  time.Second * 60,
 			Handler:      http.HandlerFunc(handler),
 		}
 
-		servers = append(servers, httpsServer)
-
 		go func() {
-			if err := httpsServer.ListenAndServeTLS(cfg.SSL.Cert, cfg.SSL.Key); err != nil {
-				fmt.Fprintf(os.Stderr, "%s\n", err)
+			if err := httpsServer.ListenAndServeTLS(cfg.Net.SSL.Cert, cfg.Net.SSL.Key); err != nil {
+				log.Error.Println("error serving request:", err)
 			}
 		}()
 	}
 
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil {
-			fmt.Fprintf(os.Stderr, "%s\n", err)
+			log.Error.Println("error serving request:", err)
 		}
 	}()
 
@@ -77,11 +84,13 @@ func mainCommand(c cli.Command) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second * 15))
 	defer cancel()
 
-	for _, s := range servers {
-		s.Shutdown(ctx)
+	httpServer.Shutdown(ctx)
+
+	if httpsServer != nil {
+		httpsServer.Shutdown(ctx)
 	}
 
-	fmt.Printf("shutting down\n")
+	log.Info.Println("shutting down")
 }
 
 func main() {

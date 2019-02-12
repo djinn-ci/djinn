@@ -5,5 +5,6 @@ replace github.com/andrewpillar/thrall => ../../
 require (
 	github.com/andrewpillar/cli v1.0.13
 	github.com/andrewpillar/thrall v0.0.0
+	github.com/gorilla/mux v1.7.0
 	gopkg.in/yaml.v2 v2.2.2 // indirect
 )

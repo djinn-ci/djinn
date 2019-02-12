@@ -13,11 +13,11 @@ import (
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/handler"
 	"github.com/andrewpillar/thrall/log"
-)
 
-func mainHandler(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Thrall CI server\n"))
-}
+	"github.com/gorilla/securecookie"
+
+	"gopkg.in/boj/redistore.v1"
+)
 
 func mainCommand(c cli.Command) {
 	f, err := os.Open(c.Flags.GetString("config"))
@@ -46,12 +46,25 @@ func mainCommand(c cli.Command) {
 
 	var httpsServer *http.Server
 
+	hash := []byte(cfg.Crypto.Hash)
+	key := []byte(cfg.Crypto.Key)
+
+	sc := securecookie.New(hash, key)
+
+	store, err := redistore.NewRediStore(cfg.Redis.Idle, "tcp", cfg.Redis.Addr, cfg.Redis.Password, key)
+
+	if err != nil {
+		log.Error.Fatalf("failed to create redis store: %s\n", err)
+	}
+
+	baseHandler := handler.New(sc, store)
+
 	httpServer := &http.Server{
 		Addr:         cfg.Net.Listen,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      http.HandlerFunc(mainHandler),
+		Handler:      http.HandlerFunc(baseHandler.Home),
 	}
 
 	if cfg.Net.SSL.Cert != "" && cfg.Net.SSL.Key != "" {
@@ -60,10 +73,10 @@ func mainCommand(c cli.Command) {
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
 			IdleTimeout:  time.Second * 60,
-			Handler:      http.HandlerFunc(mainHandler),
+			Handler:      http.HandlerFunc(baseHandler.Home),
 		}
 
-		httpServer.Handler = handler.NewSecureRedirect(cfg.Net.SSL.Listen, http.HandlerFunc(mainHandler))
+		httpServer.Handler = handler.NewSecureRedirect(cfg.Net.SSL.Listen, http.HandlerFunc(baseHandler.Home))
 
 		go func() {
 			if err := httpsServer.ListenAndServeTLS(cfg.Net.SSL.Cert, cfg.Net.SSL.Key); err != nil {

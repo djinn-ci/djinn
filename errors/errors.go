@@ -46,7 +46,7 @@ func Err(err error) error {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s[%s:%d]:\n\t%s", path.Base(e.Func), path.Base(e.File), e.Line, e.Err)
+	return fmt.Sprintf("%s[%s:%d]: %s", path.Base(e.Func), path.Base(e.File), e.Line, e.Err)
 }
 
 func (e *errorStr) Error() string {

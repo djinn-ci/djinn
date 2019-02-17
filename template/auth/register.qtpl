@@ -1,0 +1,51 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type RegisterPage struct {
+	*template.Page
+
+	Errors form.Errors
+	Form   form.Form
+}
+%}
+
+{% func (p *RegisterPage) Title() %}
+{%= p.Page.Title() %} - Register
+{% endfunc %}
+
+{% func (p *RegisterPage) Body() %}
+<form method="POST" action="/register">
+	{% if p.Errors.First("register") != "" %}
+		<span>Failed to register account: {%s p.Errors.First("register") %}</span>
+	{% endif %}
+	<div class="input-field">
+		<label>Email</label>
+		<input type="text" name="email" value="{%s p.Form.Get("email") %}" autocomplete="off"/>
+		<span>{%s p.Errors.First("email") %}</span>
+	</div>
+	<div class="input-field">
+		<label>Username</label>
+		<input type="text" name="username" value="{%s p.Form.Get("username") %}" autocomplete="off"/>
+		<span>{%s p.Errors.First("username") %}</span>
+	</div>
+	<div class="input-field">
+		<label>Password</label>
+		<input type="password" name="password" autocomplete="off"/>
+		<span>{%s p.Errors.First("password") %}</span>
+	</div>
+	<div class="input-field">
+		<label>Verify Password</label>
+		<input type="password" name="verify_password" autocomplete="off"/>
+		<span>{%s p.Errors.First("verify_password") %}</span>
+	</div>
+	<div class="input-field">
+		<button type="submit">Register</button>
+		Already have an account? <a href="/login">Login</a>
+	</div>
+</form>
+{% endfunc %}

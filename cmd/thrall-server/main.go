@@ -13,18 +13,21 @@ import (
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/handler"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 
 	"github.com/gorilla/securecookie"
 
 	"gopkg.in/boj/redistore.v1"
 )
 
-func mainCommand(c cli.Command) {
-	f, err := os.Open(c.Flags.GetString("config"))
+func mainCommand(cmd cli.Command) {
+	f, err := os.Open(cmd.Flags.GetString("config"))
 
 	if err != nil {
 		log.Error.Fatalf("failed to open server config: %s\n", err)
 	}
+
+	defer f.Close()
 
 	cfg, err := config.DecodeServer(f)
 
@@ -34,27 +37,31 @@ func mainCommand(c cli.Command) {
 
 	log.SetLevel(cfg.Log.Level)
 
-	lf, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+	logf, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
 
 	if err != nil {
 		log.Error.Fatalf("failed to open log file %s: %s\n", cfg.Log.File, err)
 	}
 
-	defer lf.Close()
+	defer logf.Close()
 
-	log.SetLogger(log.NewStdLog(lf))
+	log.SetLogger(log.NewStdLog(logf))
 
 	var httpsServer *http.Server
 
 	hash := []byte(cfg.Crypto.Hash)
 	key := []byte(cfg.Crypto.Key)
 
+	if err := model.Connect(cfg.Database.Addr, cfg.Database.Name, cfg.Database.Username, cfg.Database.Password); err != nil {
+		log.Error.Fatalf("failed to establish database connection: %s\n", err)
+	}
+
 	sc := securecookie.New(hash, key)
 
 	store, err := redistore.NewRediStore(cfg.Redis.Idle, "tcp", cfg.Redis.Addr, cfg.Redis.Password, key)
 
 	if err != nil {
-		log.Error.Fatalf("failed to create redis store: %s\n", err)
+		log.Error.Fatalf("failed to create session store: %s\n", err)
 	}
 
 	router := registerRoutes(handler.New(sc, store), "assets")
@@ -91,11 +98,11 @@ func mainCommand(c cli.Command) {
 		}
 	}()
 
-	sig := make(chan os.Signal, 1)
+	c := make(chan os.Signal, 1)
 
-	signal.Notify(sig, os.Interrupt)
+	signal.Notify(c, os.Interrupt)
 
-	<-sig
+	<-c
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second * 15))
 	defer cancel()

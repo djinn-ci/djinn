@@ -1,0 +1,40 @@
+{%
+interface page {
+	Title()
+
+	Body()
+
+	Footer()
+}
+%}
+
+{% code
+type Page struct {}
+
+func NewPage() *Page {
+	return &Page{}
+}
+%}
+
+{% func Render(p page) %}
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>{%= p.Title() %}</title>
+		<link rel="stylesheet" type="text/css" href="/assets/css/main.css">
+	</head>
+	<body>{%= p.Body() %}</body>
+	<footer>{%= p.Footer() %}</footer>
+</html>
+{% endfunc %}
+
+{% func (p *Page) Title() %}
+Thrall
+{% endfunc %}
+
+{% func (p *Page) Body() %}
+{% endfunc %}
+
+{% func (p *Page) Footer() %}
+{% endfunc %}

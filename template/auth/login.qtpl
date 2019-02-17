@@ -1,0 +1,44 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type LoginPage struct {
+	*template.Page
+
+	Errors form.Errors
+	Form   form.Form
+}
+%}
+
+{% func (p *LoginPage) Title() %}
+{%= p.Page.Title() %} - Login
+{% endfunc %}
+
+{% func (p *LoginPage) Body() %}
+<form method="POST" action="/login">
+	{% if p.Errors.First("login") != "" %}
+		<span>Failed to login: {%s p.Errors.First("login") %}</span>
+	{% endif %}
+	<div class="input-field">
+		<label>Email / Username</label>
+		<input type="text" name="handle" value="{%s p.Form.Get("handle") %}" autocomplete="off"/>
+		<span>{%s p.Errors.First("handle") %}</span>
+	</div>
+	<div class="input-field">
+		<label>Password</label>
+		<input type="password" name="password" autocomplete="off"/>
+		<span>{%s p.Errors.First("password") %}</span>
+	</div>
+	<div class="input-field">
+		<label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label>
+	</div>
+	<div class="input-field">
+		<button type="submit">Login</button>
+		Don't have an account? <a href="/register">Register</a>
+	</div>
+</form>
+{% endfunc %}

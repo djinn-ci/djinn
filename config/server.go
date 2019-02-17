@@ -49,6 +49,9 @@ func DecodeServer(r io.Reader) (Server, error) {
 	server := Server{}
 	server.Redis.Idle = 10
 
+	server.Net.Listen = ":80"
+	server.Net.SSL.Listen = ":443"
+
 	server.Log.Level = "info"
 	server.Log.File = "/dev/stdout"
 

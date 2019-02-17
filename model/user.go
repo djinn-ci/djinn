@@ -19,6 +19,32 @@ type User struct {
 	DeletedAt *pq.NullTime `db:"deleted_at"`
 }
 
+func FindUser(id int64) (*User, error) {
+	u := &User{}
+
+	stmt, err := DB.Prepare(`SELECT * FROM users WHERE id = $1`)
+
+	if err != nil {
+		return u, errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(id)
+
+	err = row.Scan(&u.ID, &u.Email, &u.Username, &u.Password, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return u, nil
+		}
+
+		return u, errors.Err(err)
+	}
+
+	return u, errors.Err(err)
+}
+
 // FindUserByHandle is only called during authentication. Therefore we only
 // want to populate the ID field for setting the session, and the password
 // field for performing the actual authentication.
@@ -37,8 +63,10 @@ func FindUserByHandle(handle string) (*User, error) {
 
 	err = row.Scan(&u.ID, &u.Password)
 
-	if err == sql.ErrNoRows {
-		return u, nil
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return u, nil
+		}
 	}
 
 	return u, errors.Err(err)
@@ -62,4 +90,13 @@ func (u *User) Create() error {
 	err = row.Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
 
 	return errors.Err(err)
+}
+
+func (u User) IsZero() bool {
+	return	u.ID == 0            &&
+			u.Email == ""        &&
+			u.Username == ""     &&
+			len(u.Password) == 0 &&
+			u.CreatedAt == nil   &&
+			u.UpdatedAt == nil
 }

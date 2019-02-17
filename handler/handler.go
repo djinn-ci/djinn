@@ -2,10 +2,12 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 
 	"github.com/gorilla/schema"
 	"github.com/gorilla/securecookie"
@@ -97,4 +99,36 @@ func (h *Handler) flashForm(w http.ResponseWriter, r *http.Request, f form.Form)
 	if err := sess.Save(r, w); err != nil {
 		log.Error.Println(errors.Err(err))
 	}
+}
+
+func (h *Handler) UserFromRequest(r *http.Request) (*model.User, error) {
+	cookie, err := r.Cookie("user")
+
+	if err != nil {
+		if err == http.ErrNoCookie {
+			return &model.User{}, nil
+		}
+
+		return &model.User{}, errors.Err(err)
+	}
+
+	var str string
+
+	if err := h.sc.Decode("user", cookie.Value, &str); err != nil {
+		return &model.User{}, errors.Err(err)
+	}
+
+	id, err := strconv.ParseInt(str, 10, 64)
+
+	if err != nil {
+		return &model.User{}, nil
+	}
+
+	u, err := model.FindUser(id)
+
+	if err != nil {
+		return &model.User{}, errors.Err(err)
+	}
+
+	return u, err
 }

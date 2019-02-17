@@ -20,9 +20,10 @@ func registerRoutes(h handler.Handler, dir string) *mux.Router {
 	r.HandleFunc("/", page.Home)
 
 	auth := handler.NewAuth(h)
+	mw := handler.NewMiddleware(h)
 
-	r.HandleFunc("/register", auth.Register).Methods("GET", "POST")
-	r.HandleFunc("/login", auth.Login).Methods("GET", "POST")
+	r.HandleFunc("/register", mw.Guest(auth.Register)).Methods("GET", "POST")
+	r.HandleFunc("/login", mw.Guest(auth.Login)).Methods("GET", "POST")
 
 	return r
 }

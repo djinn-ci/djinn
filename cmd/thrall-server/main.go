@@ -119,7 +119,7 @@ func mainCommand(cmd cli.Command) {
 func main() {
 	c := cli.New()
 
-	cmd := c.Main(mainCommand)
+	cmd := c.MainCommand(mainCommand)
 
 	cmd.AddFlag(&cli.Flag{
 		Name:     "config",

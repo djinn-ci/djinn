@@ -41,6 +41,8 @@ type Server struct {
 		Level string
 		File  string
 	}
+
+	Assets string
 }
 
 func DecodeServer(r io.Reader) (Server, error) {

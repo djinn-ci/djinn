@@ -64,7 +64,7 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to create session store: %s\n", err)
 	}
 
-	router := registerRoutes(handler.New(sc, store), "assets")
+	router := registerRoutes(handler.New(sc, store), cfg.Assets)
 
 	httpServer := &http.Server{
 		Addr:         cfg.Net.Listen,

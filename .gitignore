@@ -5,3 +5,4 @@
 thrall-server.yml
 mgrt.yml
 *.pem
+node_modules/

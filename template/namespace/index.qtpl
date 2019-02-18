@@ -1,0 +1,32 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type IndexPage struct {
+	*template.Page
+
+	Namespaces []*model.Namespace
+}
+%}
+
+{% func (p *IndexPage) Title() %}
+{%= p.Page.Title() %} - Namespaces
+{% endfunc %}
+
+{% func (p *IndexPage) Body() %}
+<div class="dashboard-header">
+	<h1>Namespaces</h1>
+	<ul class="actions">
+		<li><a href="/namespaces/create" class="primary">Create</a></li>
+	</ul>
+</div>
+{% if len(p.Namespaces) == 0 %}
+<div class="dashboard-message">
+	Namespaces allow you to group related builds together.
+</div>
+{% endif %}
+{% endfunc %}

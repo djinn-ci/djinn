@@ -1,0 +1,15 @@
+{% import "github.com/andrewpillar/thrall/template" %}
+
+{% code
+type IndexPage struct {
+	*template.Page
+}
+%}
+
+{% func (p *IndexPage) Title() %}
+{%= p.Page.Title() %} - Builds
+{% endfunc %}
+
+{% func (p *IndexPage) Body() %}
+<h1>Builds</h1>
+{% endfunc %}

@@ -1,0 +1,61 @@
+{%
+import (
+	"regexp"
+
+	"github.com/andrewpillar/thrall/model"
+)
+%}
+
+{% code
+
+var (
+	namespacesURI = "\\/namespaces\\/?[0-9]*?"
+	settingsURI   = "\\/settings\\/?"
+)
+
+type Dashboard struct {
+	page
+
+	URI  string
+	User *model.User
+}
+
+func NewDashboard(p page, uri string, u *model.User) *Dashboard {
+	return &Dashboard{page: p, URI: uri, User: u}
+}
+
+func uriMatch(pattern, uri string) bool {
+	matched, err := regexp.Match(pattern, []byte(uri))
+
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+%}
+
+{% func (p *Dashboard) Body() %}
+<div class="dashboard-content">{%= p.page.Body() %}</div>
+<div class="dashboard-sidebar">
+	<div class="header">
+		<div class="brand">
+			<div class="left"></div>
+			<div class="right"></div>
+		</div>
+		<div class="title">Thrall</div>
+	</div>
+	<ul>
+		<li class="nav-header">MANAGE</li>
+		<li><a href="/" {% if p.URI == "/" %}class="active"{% endif %}>Builds</a></li>
+		<li><a href="/namespaces" {% if uriMatch(namespacesURI, p.URI) %}class="active"{% endif %}>Namespaces</a></li>
+		<li class="nav-header">ACCOUNT</li>
+		<li><a href="/settings" {% if uriMatch(settingsURI, p.URI) %}class="active"{% endif %}>Settings</a></li>
+		<li>
+			<form method="POST" action="/logout">
+				<button type="submit">Logout</button>
+			</form>
+		</li>
+	</ul>
+</div>
+{% endfunc %}

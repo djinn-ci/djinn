@@ -2,6 +2,8 @@
 interface page {
 	Title()
 
+	Header()
+
 	Body()
 
 	Footer()
@@ -10,10 +12,6 @@ interface page {
 
 {% code
 type Page struct {}
-
-func NewPage() *Page {
-	return &Page{}
-}
 %}
 
 {% func Render(p page) %}
@@ -21,8 +19,9 @@ func NewPage() *Page {
 <html lang="en">
 	<head>
 		<meta charset="utf-8">
+		<meta content="width=device-width, initial-scale=1" name="viewport">
 		<title>{%= p.Title() %}</title>
-		<link rel="stylesheet" type="text/css" href="/assets/css/main.css">
+		{%= p.Header() %}
 	</head>
 	<body>{%= p.Body() %}</body>
 	<footer>{%= p.Footer() %}</footer>
@@ -31,6 +30,10 @@ func NewPage() *Page {
 
 {% func (p *Page) Title() %}
 Thrall
+{% endfunc %}
+
+{% func (p *Page) Header() %}
+<link rel="stylesheet" type="text/css" href="/assets/css/main.css">
 {% endfunc %}
 
 {% func (p *Page) Body() %}

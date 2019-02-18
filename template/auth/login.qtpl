@@ -18,27 +18,42 @@ type LoginPage struct {
 {%= p.Page.Title() %} - Login
 {% endfunc %}
 
+{% func (p *LoginPage) Header() %}
+<link rel="stylesheet" type="text/css" href="/assets/css/auth.css">
+{% endfunc %}
+
 {% func (p *LoginPage) Body() %}
-<form method="POST" action="/login">
-	{% if p.Errors.First("login") != "" %}
-		<span>Failed to login: {%s p.Errors.First("login") %}</span>
-	{% endif %}
-	<div class="input-field">
-		<label>Email / Username</label>
-		<input type="text" name="handle" value="{%s p.Form.Get("handle") %}" autocomplete="off"/>
-		<span>{%s p.Errors.First("handle") %}</span>
+<div class="auth-page">
+	<div class="auth-form">
+		<div class="auth-header">
+			<div class="brand">
+				<div class="left"></div>
+				<div class="right"></div>
+			</div>
+			<h1>Login to Thrall</h1>
+		</div>
+		<form method="POST" action="/login">
+			{% if p.Errors.First("login") != "" %}
+				<span class="error">Failed to login: {%s p.Errors.First("login") %}</span>
+			{% endif %}
+			<div class="input-field">
+				<label>Email / Username</label>
+				<input class="text" type="text" name="handle" value="{%s p.Form.Get("handle") %}" autocomplete="off"/>
+				<span class="error">{%s p.Errors.First("handle") %}</span>
+			</div>
+			<div class="input-field">
+				<label>Password</label>
+				<input class="text" type="password" name="password" autocomplete="off"/>
+				<span class="error">{%s p.Errors.First("password") %}</span>
+			</div>
+			<div class="input-field">
+				<label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label>
+			</div>
+			<div class="input-field">
+				<button type="submit" class="button button-primary">Login</button>
+			</div>
+			<div class="input-field">Don't have an account? <a href="/register">Register</a></div>
+		</form>
 	</div>
-	<div class="input-field">
-		<label>Password</label>
-		<input type="password" name="password" autocomplete="off"/>
-		<span>{%s p.Errors.First("password") %}</span>
-	</div>
-	<div class="input-field">
-		<label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label>
-	</div>
-	<div class="input-field">
-		<button type="submit">Login</button>
-		Don't have an account? <a href="/register">Register</a>
-	</div>
-</form>
+</div>
 {% endfunc %}

@@ -1,0 +1,14 @@
+{
+  "scripts": {
+    "css": "lessc --clean-css resources/less/main.less public/css/main.css;lessc --clean-css resources/less/auth.less public/css/auth.css"
+  },
+  "resolutions": {
+    "source-map": "0.6.1",
+    "punycode": "2.1.1",
+    "extsprintf": "1.4.0"
+  },
+  "devDependencies": {
+    "less": "^3.9.0",
+    "less-plugin-clean-css": "^1.5.1"
+  }
+}

@@ -68,33 +68,39 @@ func (p *IndexPage) Title() string {
 func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/index.qtpl:13
 	qw422016.N().S(`
-<h1>Builds</h1>
+<div class="dashboard-header">
+	<h1>Builds</h1>
+	<ul class="actions">
+		<li><a href="/builds/create" class="button button-primary">Submit</a></li>
+	</ul>
+</div>
+<div class="dashboard-message">No builds have been submitted yet.</div>
 `)
-//line template/build/index.qtpl:15
+//line template/build/index.qtpl:21
 }
 
-//line template/build/index.qtpl:15
+//line template/build/index.qtpl:21
 func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/build/index.qtpl:15
+	//line template/build/index.qtpl:21
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/index.qtpl:15
+	//line template/build/index.qtpl:21
 	p.StreamBody(qw422016)
-	//line template/build/index.qtpl:15
+	//line template/build/index.qtpl:21
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/index.qtpl:15
+//line template/build/index.qtpl:21
 }
 
-//line template/build/index.qtpl:15
+//line template/build/index.qtpl:21
 func (p *IndexPage) Body() string {
-	//line template/build/index.qtpl:15
+	//line template/build/index.qtpl:21
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/index.qtpl:15
+	//line template/build/index.qtpl:21
 	p.WriteBody(qb422016)
-	//line template/build/index.qtpl:15
+	//line template/build/index.qtpl:21
 	qs422016 := string(qb422016.B)
-	//line template/build/index.qtpl:15
+	//line template/build/index.qtpl:21
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/index.qtpl:15
+	//line template/build/index.qtpl:21
 	return qs422016
-//line template/build/index.qtpl:15
+//line template/build/index.qtpl:21
 }

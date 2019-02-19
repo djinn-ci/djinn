@@ -11,5 +11,11 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-<h1>Builds</h1>
+<div class="dashboard-header">
+	<h1>Builds</h1>
+	<ul class="actions">
+		<li><a href="/builds/create" class="button button-primary">Submit</a></li>
+	</ul>
+</div>
+<div class="dashboard-message">No builds have been submitted yet.</div>
 {% endfunc %}

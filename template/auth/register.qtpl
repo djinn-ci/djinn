@@ -18,6 +18,10 @@ type RegisterPage struct {
 {%= p.Page.Title() %} - Register
 {% endfunc %}
 
+{% func (p *RegisterPage) Header() %}
+<link rel="stylesheet" type="text/css" href="/assets/css/auth.css">
+{% endfunc %}
+
 {% func (p *RegisterPage) Body() %}
 <div class="auth-page">
 	<div class="auth-form">

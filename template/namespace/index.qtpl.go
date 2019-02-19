@@ -76,7 +76,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 <div class="dashboard-header">
 	<h1>Namespaces</h1>
 	<ul class="actions">
-		<li><a href="/namespaces/create" class="primary">Create</a></li>
+		<li><a href="/namespaces/create" class="button button-primary">Create</a></li>
 	</ul>
 </div>
 `)
@@ -84,40 +84,38 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	if len(p.Namespaces) == 0 {
 		//line template/namespace/index.qtpl:27
 		qw422016.N().S(`
-<div class="dashboard-message">
-	Namespaces allow you to group related builds together.
-</div>
+<div class="dashboard-message">Namespaces allow you to group related builds together.</div>
 `)
-		//line template/namespace/index.qtpl:31
+		//line template/namespace/index.qtpl:29
 	}
-	//line template/namespace/index.qtpl:31
+	//line template/namespace/index.qtpl:29
 	qw422016.N().S(`
 `)
-//line template/namespace/index.qtpl:32
+//line template/namespace/index.qtpl:30
 }
 
-//line template/namespace/index.qtpl:32
+//line template/namespace/index.qtpl:30
 func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/index.qtpl:32
+	//line template/namespace/index.qtpl:30
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/index.qtpl:32
+	//line template/namespace/index.qtpl:30
 	p.StreamBody(qw422016)
-	//line template/namespace/index.qtpl:32
+	//line template/namespace/index.qtpl:30
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/index.qtpl:32
+//line template/namespace/index.qtpl:30
 }
 
-//line template/namespace/index.qtpl:32
+//line template/namespace/index.qtpl:30
 func (p *IndexPage) Body() string {
-	//line template/namespace/index.qtpl:32
+	//line template/namespace/index.qtpl:30
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/index.qtpl:32
+	//line template/namespace/index.qtpl:30
 	p.WriteBody(qb422016)
-	//line template/namespace/index.qtpl:32
+	//line template/namespace/index.qtpl:30
 	qs422016 := string(qb422016.B)
-	//line template/namespace/index.qtpl:32
+	//line template/namespace/index.qtpl:30
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/index.qtpl:32
+	//line template/namespace/index.qtpl:30
 	return qs422016
-//line template/namespace/index.qtpl:32
+//line template/namespace/index.qtpl:30
 }

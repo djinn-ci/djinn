@@ -100,3 +100,11 @@ func (u User) IsZero() bool {
 			u.CreatedAt == nil   &&
 			u.UpdatedAt == nil
 }
+
+func (u User) Namespaces() ([]*Namespace, error) {
+	namespaces := make([]*Namespace, 0)
+
+	err := DB.Select(&namespaces, "SELECT * FROM namespaces WHERE user_id = $1", u.ID)
+
+	return namespaces, errors.Err(err)
+}

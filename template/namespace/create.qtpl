@@ -1,0 +1,49 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type CreatePage struct {
+	*template.Page
+
+	Errors form.Errors
+	Form   form.Form
+}
+%}
+
+{% func (p *CreatePage) Title() %}
+{%= p.Page.Title() %} - Create Namespace
+{% endfunc %}
+
+{% func (p *CreatePage) Body() %}
+<div class="dashboard-header">
+	<h1>Create Namespace</h1>
+</div>
+<div class="dashboard-body">
+	<div class="panel panel-slim">
+		<form method="POST" action="/namespaces">
+			{% if p.Errors.First("namespace") != "" %}
+				<span class="error">Failed to create namespace: {%s p.Errors.First("namespace") %}</span>
+			{% endif %}
+			<div class="input-field">
+				<label>Name</label>
+				<input class="text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
+				<span class="error">{%s p.Errors.First("name") %}</span>
+			</div>
+			<div class="input-field">
+				<label>Description (optional)</label>
+				<textarea class="text" name="description"></textarea>
+			</div>
+			<div class="input-field">
+				<label><input type="checkbox" name="private" value="true" checked="true"/> Private</label>
+			</div>
+			<div class="input-field">
+				<button type="submit" class="button button-primary">Create</button>
+			</div>
+		</form>
+	</div>
+</div>
+{% endfunc %}

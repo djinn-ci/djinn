@@ -15,6 +15,7 @@ func init() {
 	gob.Register(form(make(map[string]string)))
 	gob.Register(Register{})
 	gob.Register(Login{})
+	gob.Register(CreateNamespace{})
 }
 
 func Empty() form {

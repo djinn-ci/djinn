@@ -34,5 +34,6 @@ func namespaceRoutes(r *mux.Router, h handler.Handler, mw handler.Middleware) {
 	namespace := handler.NewNamespace(h)
 
 	r.HandleFunc("/namespaces", mw.Auth(namespace.Index)).Methods("GET")
-//	r.HandleFunc("/namespaces", mw.Auth(namespace.Store)).Methods("POST")
+	r.HandleFunc("/namespaces/create", mw.Auth(namespace.Create)).Methods("GET")
+	r.HandleFunc("/namespaces", mw.Auth(namespace.Store)).Methods("POST")
 }

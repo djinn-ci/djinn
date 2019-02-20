@@ -3,6 +3,7 @@ package model
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -16,7 +17,8 @@ var (
 
 	DB *sqlx.DB
 
-	UsersTable = "users"
+	UsersTable      = "users"
+	NamespacesTable = "namespaces"
 )
 
 func Connect(addr, name, username, password string) error {
@@ -39,12 +41,25 @@ func Connect(addr, name, username, password string) error {
 	return nil
 }
 
-func Count(table, col, val string) (int, error) {
+func Count(table string, cols map[string]interface{}) (int, error) {
 	var count int
 
-	if err := DB.Get(&count, "SELECT COUNT(*) FROM " + table + " WHERE " + col + " = $1", val); err != nil {
-		return count, errors.Err(err)
+	query := "SELECT COUNT(*) FROM " + table + " WHERE "
+
+	wheres := make([]string, len(cols), len(cols))
+	vals := make([]interface{}, len(cols), len(cols))
+
+	i := 0
+
+	for key, val := range cols {
+		wheres[i] = fmt.Sprintf("%s = $%d", key, i + 1)
+		vals[i] = val
+		i++
 	}
 
-	return count, nil
+	query += strings.Join(wheres, " AND ")
+
+	err := DB.Get(&count, query, vals...)
+
+	return count, errors.Err(err)
 }

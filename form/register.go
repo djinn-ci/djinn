@@ -60,7 +60,7 @@ func (f Register) Validate() error {
 		errs.Put("email", ErrEmailInvalid)
 	}
 
-	count, err := model.Count(model.UsersTable, "email", f.Email)
+	count, err := model.Count(model.UsersTable, map[string]interface{}{"email": f.Email})
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -78,7 +78,7 @@ func (f Register) Validate() error {
 		errs.Put("username", ErrUsernameLen)
 	}
 
-	count, err = model.Count(model.UsersTable, "username", f.Username)
+	count, err = model.Count(model.UsersTable, map[string]interface{}{"username": f.Username})
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

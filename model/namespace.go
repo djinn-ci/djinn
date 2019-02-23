@@ -70,19 +70,6 @@ func ParseVisibility(s string) Visibility {
 	}
 }
 
-func (v Visibility) Value() (driver.Value, error) {
-	switch v {
-		case Private:
-			return driver.Value("private"), nil
-		case Internal:
-			return driver.Value("internal"), nil
-		case Public:
-			return driver.Value("public"), nil
-		default:
-			return driver.Value(""), errors.Err(errors.New("unknown visibility level"))
-	}
-}
-
 func (n *Namespace) Create() error {
 	stmt, err := DB.Prepare(`
 		INSERT INTO namespaces (user_id, parent_id, name, description, visibility)
@@ -134,4 +121,17 @@ func (v *Visibility) Scan(val interface{}) error {
 	(*v) = ParseVisibility(string(s))
 
 	return nil
+}
+
+func (v Visibility) Value() (driver.Value, error) {
+	switch v {
+		case Private:
+			return driver.Value("private"), nil
+		case Internal:
+			return driver.Value("internal"), nil
+		case Public:
+			return driver.Value("public"), nil
+		default:
+			return driver.Value(""), errors.Err(errors.New("unknown visibility level"))
+	}
 }

@@ -46,7 +46,7 @@ func FindUser(id int64) (*User, error) {
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
-	return u, errors.Err(err)
+	return u, nil
 }
 
 // FindUserByHandle is only called during authentication. Therefore we only

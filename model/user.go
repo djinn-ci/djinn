@@ -76,6 +76,30 @@ func FindUserByHandle(handle string) (*User, error) {
 	return u, errors.Err(err)
 }
 
+func FindUserByUsername(username string) (*User, error) {
+	u := &User{}
+
+	stmt, err := DB.Prepare(`SELECT * FROM users WHERE username = $1`)
+
+	if err != nil {
+		return u, errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(username)
+
+	err = row.Scan(&u.ID, &u.Email, &u.Username, &u.Password, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return u, nil
+		}
+	}
+
+	return u, errors.Err(err)
+}
+
 func (u *User) Create() error {
 	stmt, err := DB.Prepare(`
 		INSERT INTO users (email, username, password)
@@ -94,6 +118,32 @@ func (u *User) Create() error {
 	err = row.Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
 
 	return errors.Err(err)
+}
+
+func (u *User) FindNamespaceByName(name string) (*Namespace, error) {
+	n := &Namespace{}
+
+	stmt, err := DB.Prepare(`SELECT * FROM namespaces WHERE user_id = $1 AND name = $2`)
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(u.ID, name)
+
+	err = row.Scan(&n.ID, &n.UserID, &n.Name, &n.Description, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return n, nil
+		}
+	}
+
+	n.User = u
+
+	return n, errors.Err(err)
 }
 
 func (u User) IsZero() bool {

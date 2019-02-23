@@ -22,7 +22,7 @@ var (
 
 //line template/dashboard.qtpl:5
 var (
-	namespacesURI = "\\/namespaces\\/?[0-9]*?"
+	namespacesURI = "(\\/namespaces\\/?[0-9]*?|\\/u\\/[_-a-zA-Z0-9\\S.]+\\/[-a-zA-Z0-9\\/?\\S]+)"
 	settingsURI   = "\\/settings\\/?"
 )
 

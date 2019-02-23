@@ -75,6 +75,16 @@ func (n *Namespace) Create() error {
 	return errors.Err(err)
 }
 
+func (n Namespace) IsZero() bool {
+	return	n.ID == 0                     &&
+			n.UserID == 0                 &&
+			n.Name == ""                  &&
+			n.Description == ""           &&
+			n.Visibility == Visibility(0) &&
+			n.CreatedAt == nil            &&
+			n.UpdatedAt == nil
+}
+
 func (v *Visibility) Scan(val interface{}) error {
 	if val == nil {
 		(*v) = Visibility(0)

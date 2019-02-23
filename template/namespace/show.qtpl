@@ -1,0 +1,27 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type ShowPage struct {
+	*template.Page
+
+	Namespace *model.Namespace
+}
+%}
+
+{% func (p *ShowPage) Title() %}
+{%s p.Namespace.Name %}
+{% endfunc %}
+
+{% func (p *ShowPage) Body() %}
+<div class="dashboard-header">
+	<h1>{%s p.Namespace.Name %}</h1>
+	<ul class="actions">
+		<li><a href="/namespaces/create?parent={%v p.Namespace.ID %}" class="button button-primary">Create</a></li>
+	</ul>
+</div>
+{% endfunc %}

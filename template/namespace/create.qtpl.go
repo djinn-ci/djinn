@@ -113,7 +113,28 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 				<textarea class="text" name="description"></textarea>
 			</div>
 			<div class="input-field">
-				<label><input type="checkbox" name="private" value="true" checked="true"/> Private</label>
+				<label>Visibility</label>
+				<label class="option">
+					<input type="radio" name="visibility" value="private" checked="true"/>
+					<div class="description">
+						<div>Private</div>
+						<div>Only you will be able to view builds in the namespace.</div>
+					</div>
+				</label>
+				<label class="option">
+					<input type="radio" name="visibility" value="internal"/>
+					<div class="description">
+						<div>Internal</div>
+						<div>Anyone with an account will be able to view builds in the namespace.</div>
+					</div>
+				</label>
+				<label class="option">
+					<input type="radio" name="visibility" value="public"/>
+					<div class="description">
+						<div>Public</div>
+						<div>Anyone will be able to view builds in the namespace.</div>
+					</div>
+				</label>
 			</div>
 			<div class="input-field">
 				<button type="submit" class="button button-primary">Create</button>
@@ -122,31 +143,31 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	</div>
 </div>
 `)
-//line template/namespace/create.qtpl:49
+//line template/namespace/create.qtpl:70
 }
 
-//line template/namespace/create.qtpl:49
+//line template/namespace/create.qtpl:70
 func (p *CreatePage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/create.qtpl:49
+	//line template/namespace/create.qtpl:70
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/create.qtpl:49
+	//line template/namespace/create.qtpl:70
 	p.StreamBody(qw422016)
-	//line template/namespace/create.qtpl:49
+	//line template/namespace/create.qtpl:70
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/create.qtpl:49
+//line template/namespace/create.qtpl:70
 }
 
-//line template/namespace/create.qtpl:49
+//line template/namespace/create.qtpl:70
 func (p *CreatePage) Body() string {
-	//line template/namespace/create.qtpl:49
+	//line template/namespace/create.qtpl:70
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/create.qtpl:49
+	//line template/namespace/create.qtpl:70
 	p.WriteBody(qb422016)
-	//line template/namespace/create.qtpl:49
+	//line template/namespace/create.qtpl:70
 	qs422016 := string(qb422016.B)
-	//line template/namespace/create.qtpl:49
+	//line template/namespace/create.qtpl:70
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/create.qtpl:49
+	//line template/namespace/create.qtpl:70
 	return qs422016
-//line template/namespace/create.qtpl:49
+//line template/namespace/create.qtpl:70
 }

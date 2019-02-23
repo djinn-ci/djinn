@@ -38,7 +38,28 @@ type CreatePage struct {
 				<textarea class="text" name="description"></textarea>
 			</div>
 			<div class="input-field">
-				<label><input type="checkbox" name="private" value="true" checked="true"/> Private</label>
+				<label>Visibility</label>
+				<label class="option">
+					<input type="radio" name="visibility" value="private" checked="true"/>
+					<div class="description">
+						<div>Private</div>
+						<div>Only you will be able to view builds in the namespace.</div>
+					</div>
+				</label>
+				<label class="option">
+					<input type="radio" name="visibility" value="internal"/>
+					<div class="description">
+						<div>Internal</div>
+						<div>Anyone with an account will be able to view builds in the namespace.</div>
+					</div>
+				</label>
+				<label class="option">
+					<input type="radio" name="visibility" value="public"/>
+					<div class="description">
+						<div>Public</div>
+						<div>Anyone will be able to view builds in the namespace.</div>
+					</div>
+				</label>
 			</div>
 			<div class="input-field">
 				<button type="submit" class="button button-primary">Create</button>

@@ -88,7 +88,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		UserID:      u.ID,
 		Name:        f.Name,
 		Description: f.Description,
-		Private:     f.Private,
+		Visibility:  model.ParseVisibility(f.Visibility),
 	}
 
 	if err := n.Create(); err != nil {

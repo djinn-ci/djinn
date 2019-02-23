@@ -21,7 +21,7 @@ type CreateNamespace struct {
 	UserID      int64
 	Name        string `schema:"name"`
 	Description string `schema:"description"`
-	Private     bool   `schema:"private"`
+	Visibility  string `schema:"visibility"`
 }
 
 func (f CreateNamespace) Get(key string) string {

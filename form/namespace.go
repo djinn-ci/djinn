@@ -1,13 +1,19 @@
 package form
 
 import (
+	"regexp"
+
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 )
 
 var (
+	namespacePattern = "^[-a-zA-Z0-9/?\\S]+$"
+	namespaceRegex   = regexp.MustCompile(namespacePattern)
+
 	ErrNamespaceNameRequired = errors.New("Name can't be blank")
+	ErrNamespaceInvalid      = errors.New("Name can only contain numbers, letters, dashes, and slashes")
 	ErrNamespaceExists       = errors.New("Namespace already exists")
 )
 
@@ -35,6 +41,10 @@ func (f CreateNamespace) Validate() error {
 
 	if f.Name == "" {
 		errs.Put("name", ErrNamespaceNameRequired)
+	}
+
+	if !namespaceRegex.Match([]byte(f.Name)) {
+		errs.Put("name", ErrNamespaceInvalid)
 	}
 
 	count, err := model.Count(model.NamespacesTable, map[string]interface{}{"user_id": f.UserID, "name": f.Name})

@@ -12,6 +12,9 @@ var (
 	emailPattern = "@"
 	emailRegex   = regexp.MustCompile(emailPattern)
 
+	usernamePattern = "^[_-a-zA-Z0-9\\S.]+$"
+	usernameRegex   = regexp.MustCompile(usernamePattern)
+
 	ErrEmailRequired = errors.New("Email can't be blank")
 	ErrEmailLen      = errors.New("Email must be less than 254 characters")
 	ErrEmailInvalid  = errors.New("Email is not valid")
@@ -19,6 +22,7 @@ var (
 
 	ErrUsernameRequired = errors.New("Username can't be blank")
 	ErrUsernameLen      = errors.New("Username must be between 3 and 32 characters")
+	ErrUsernameInvalid  = errors.New("Username can only contain letters, numbers, dashes, and dots")
 	ErrUsernameTaken    = errors.New("Username is already taken")
 
 	ErrPasswordRequired = errors.New("Password can't be blank")
@@ -76,6 +80,10 @@ func (f Register) Validate() error {
 
 	if len(f.Username) < 3 || len(f.Username) > 64 {
 		errs.Put("username", ErrUsernameLen)
+	}
+
+	if !usernameRegex.Match([]byte(f.Username)) {
+		errs.Put("username", ErrUsernameInvalid)
 	}
 
 	count, err = model.Count(model.UsersTable, map[string]interface{}{"username": f.Username})

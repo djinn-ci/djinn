@@ -1,12 +1,15 @@
 -- mgrt: revision: 1550419283: Create namespaces table
 -- mgrt: up
 
+CREATE TYPE visibility AS ENUM ('private', 'internal', 'public');
+
 CREATE TABLE namespaces (
 	id          SERIAL PRIMARY KEY,
 	user_id     INT NOT NULL REFERENCES users(id),
+	parent      INT NULL,
 	name        VARCHAR(64) NOT NULL,
 	description VARCHAR(255) NULL,
-	private     BOOLEAN NOT NULL DEFAULT TRUE,
+	visibility  visibility DEFAULT 'private',
 	created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
 	updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -14,3 +17,4 @@ CREATE TABLE namespaces (
 -- mgrt: down
 
 DROP TABLE namespaces;
+DROP TYPE visibility;

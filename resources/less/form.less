@@ -1,4 +1,8 @@
 @import "variables.less";
+.form-error {
+	margin-bottom: 10px;
+	color: @red;
+}
 .input-field + .input-field {
 	margin-top: 10px;
 }
@@ -8,6 +12,13 @@
 	.input-field-label {
 		margin-bottom: 5px;
 		display: block;
+	}
+
+	.error {
+		margin-top: 3px;
+		display: block;
+		color: @red;
+		min-height: 20px;
 	}
 
 	.input-text {

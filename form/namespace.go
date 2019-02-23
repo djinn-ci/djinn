@@ -9,11 +9,12 @@ import (
 )
 
 var (
-	namespacePattern = "^[-a-zA-Z0-9]+$"
+	namespacePattern = "^[a-zA-Z0-9]+$"
 	namespaceRegex   = regexp.MustCompile(namespacePattern)
 
 	ErrNamespaceNameRequired = errors.New("Name can't be blank")
-	ErrNamespaceInvalid      = errors.New("Name can only contain numbers, letters, and dashes")
+	ErrNamespaceNameLen      = errors.New("Name must be between 3 and 64 characters")
+	ErrNamespaceInvalid      = errors.New("Name can only contain numbers and letters")
 	ErrNamespaceExists       = errors.New("Namespace already exists")
 )
 
@@ -42,6 +43,10 @@ func (f CreateNamespace) Validate() error {
 
 	if f.Name == "" {
 		errs.Put("name", ErrNamespaceNameRequired)
+	}
+
+	if len(f.Name) < 3 || len(f.Name) > 64 {
+		errs.Put("name", ErrNamespaceNameLen)
 	}
 
 	if !namespaceRegex.Match([]byte(f.Name)) {

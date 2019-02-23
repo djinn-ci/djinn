@@ -6,7 +6,7 @@ CREATE TYPE visibility AS ENUM ('private', 'internal', 'public');
 CREATE TABLE namespaces (
 	id          SERIAL PRIMARY KEY,
 	user_id     INT NOT NULL REFERENCES users(id),
-	parent      INT NULL,
+	parent_id   INT NULL,
 	name        VARCHAR(64) NOT NULL,
 	description VARCHAR(255) NULL,
 	visibility  visibility DEFAULT 'private',

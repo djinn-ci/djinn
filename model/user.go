@@ -133,7 +133,7 @@ func (u *User) FindNamespaceByName(name string) (*Namespace, error) {
 
 	row := stmt.QueryRow(u.ID, name)
 
-	err = row.Scan(&n.ID, &n.UserID, &n.Name, &n.Description, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
+	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.Description, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {

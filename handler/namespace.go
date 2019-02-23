@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"database/sql"
 	"net/http"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -48,9 +50,26 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
+	u, err := h.UserFromRequest(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	n, err := u.FindNamespaceByName(r.URL.Query().Get("parent"))
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	p := &namespace.CreatePage{
 		Errors:    h.errors(w, r),
 		Form:      h.form(w, r),
+		Parent:    n,
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
@@ -84,11 +103,27 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	parent, err := u.FindNamespaceByName(f.Parent)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	n := model.Namespace{
 		UserID:      u.ID,
 		Name:        f.Name,
 		Description: f.Description,
 		Visibility:  model.ParseVisibility(f.Visibility),
+	}
+
+	if !parent.IsZero() {
+		n.ParentID = sql.NullInt64{
+			Int64: parent.ID,
+			Valid: true,
+		}
+		n.Name = strings.Join([]string{parent.Name, f.Name}, "/")
 	}
 
 	if err := n.Create(); err != nil {

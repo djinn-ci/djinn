@@ -19,6 +19,7 @@ var (
 
 type CreateNamespace struct {
 	UserID      int64
+	Parent      string `schema:"parent"`
 	Name        string `schema:"name"`
 	Description string `schema:"description"`
 	Visibility  string `schema:"visibility"`

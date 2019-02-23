@@ -82,7 +82,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	<ul class="actions">
 		<li><a href="/namespaces/create?parent=`)
 	//line template/namespace/show.qtpl:24
-	qw422016.E().V(p.Namespace.ID)
+	qw422016.E().S(p.Namespace.Name)
 	//line template/namespace/show.qtpl:24
 	qw422016.N().S(`" class="button button-primary">Create</a></li>
 	</ul>

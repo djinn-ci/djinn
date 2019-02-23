@@ -7,72 +7,74 @@ package namespace
 //line template/namespace/create.qtpl:2
 import (
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
 
-//line template/namespace/create.qtpl:8
+//line template/namespace/create.qtpl:9
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line template/namespace/create.qtpl:8
+//line template/namespace/create.qtpl:9
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line template/namespace/create.qtpl:9
+//line template/namespace/create.qtpl:10
 type CreatePage struct {
 	*template.Page
 
 	Errors form.Errors
 	Form   form.Form
+	Parent *model.Namespace
 }
 
-//line template/namespace/create.qtpl:17
+//line template/namespace/create.qtpl:19
 func (p *CreatePage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/namespace/create.qtpl:17
+	//line template/namespace/create.qtpl:19
 	qw422016.N().S(`
 `)
-	//line template/namespace/create.qtpl:18
+	//line template/namespace/create.qtpl:20
 	p.Page.StreamTitle(qw422016)
-	//line template/namespace/create.qtpl:18
+	//line template/namespace/create.qtpl:20
 	qw422016.N().S(` - Create Namespace
 `)
-//line template/namespace/create.qtpl:19
-}
-
-//line template/namespace/create.qtpl:19
-func (p *CreatePage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/namespace/create.qtpl:19
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/create.qtpl:19
-	p.StreamTitle(qw422016)
-	//line template/namespace/create.qtpl:19
-	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/create.qtpl:19
-}
-
-//line template/namespace/create.qtpl:19
-func (p *CreatePage) Title() string {
-	//line template/namespace/create.qtpl:19
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/create.qtpl:19
-	p.WriteTitle(qb422016)
-	//line template/namespace/create.qtpl:19
-	qs422016 := string(qb422016.B)
-	//line template/namespace/create.qtpl:19
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/create.qtpl:19
-	return qs422016
-//line template/namespace/create.qtpl:19
+//line template/namespace/create.qtpl:21
 }
 
 //line template/namespace/create.qtpl:21
-func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
+func (p *CreatePage) WriteTitle(qq422016 qtio422016.Writer) {
 	//line template/namespace/create.qtpl:21
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/namespace/create.qtpl:21
+	p.StreamTitle(qw422016)
+	//line template/namespace/create.qtpl:21
+	qt422016.ReleaseWriter(qw422016)
+//line template/namespace/create.qtpl:21
+}
+
+//line template/namespace/create.qtpl:21
+func (p *CreatePage) Title() string {
+	//line template/namespace/create.qtpl:21
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/namespace/create.qtpl:21
+	p.WriteTitle(qb422016)
+	//line template/namespace/create.qtpl:21
+	qs422016 := string(qb422016.B)
+	//line template/namespace/create.qtpl:21
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/namespace/create.qtpl:21
+	return qs422016
+//line template/namespace/create.qtpl:21
+}
+
+//line template/namespace/create.qtpl:23
+func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
+	//line template/namespace/create.qtpl:23
 	qw422016.N().S(`
 <div class="dashboard-header">
 	<h1>Create Namespace</h1>
@@ -81,31 +83,46 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	<div class="panel panel-slim">
 		<form method="POST" action="/namespaces">
 			`)
-	//line template/namespace/create.qtpl:28
+	//line template/namespace/create.qtpl:30
+	if p.Parent != nil && !p.Parent.IsZero() {
+		//line template/namespace/create.qtpl:30
+		qw422016.N().S(`
+				<input type="hidden" name="parent" value="`)
+		//line template/namespace/create.qtpl:31
+		qw422016.E().S(p.Parent.Name)
+		//line template/namespace/create.qtpl:31
+		qw422016.N().S(`"/>
+			`)
+		//line template/namespace/create.qtpl:32
+	}
+	//line template/namespace/create.qtpl:32
+	qw422016.N().S(`
+			`)
+	//line template/namespace/create.qtpl:33
 	if p.Errors.First("namespace") != "" {
-		//line template/namespace/create.qtpl:28
+		//line template/namespace/create.qtpl:33
 		qw422016.N().S(`
 				<div class="form-error">Failed to create namespace: `)
-		//line template/namespace/create.qtpl:29
+		//line template/namespace/create.qtpl:34
 		qw422016.E().S(p.Errors.First("namespace"))
-		//line template/namespace/create.qtpl:29
+		//line template/namespace/create.qtpl:34
 		qw422016.N().S(`</div>
 			`)
-		//line template/namespace/create.qtpl:30
+		//line template/namespace/create.qtpl:35
 	}
-	//line template/namespace/create.qtpl:30
+	//line template/namespace/create.qtpl:35
 	qw422016.N().S(`
 			<div class="input-field">
 				<label class="input-field-label">Name</label>
 				<input class="input-text" type="text" name="name" value="`)
-	//line template/namespace/create.qtpl:33
+	//line template/namespace/create.qtpl:38
 	qw422016.E().S(p.Form.Get("name"))
-	//line template/namespace/create.qtpl:33
+	//line template/namespace/create.qtpl:38
 	qw422016.N().S(`" autocomplete="off"/>
 				<span class="error">`)
-	//line template/namespace/create.qtpl:34
+	//line template/namespace/create.qtpl:39
 	qw422016.E().S(p.Errors.First("name"))
-	//line template/namespace/create.qtpl:34
+	//line template/namespace/create.qtpl:39
 	qw422016.N().S(`</span>
 			</div>
 			<div class="input-field">
@@ -143,31 +160,31 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	</div>
 </div>
 `)
-//line template/namespace/create.qtpl:70
+//line template/namespace/create.qtpl:75
 }
 
-//line template/namespace/create.qtpl:70
+//line template/namespace/create.qtpl:75
 func (p *CreatePage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/create.qtpl:70
+	//line template/namespace/create.qtpl:75
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/create.qtpl:70
+	//line template/namespace/create.qtpl:75
 	p.StreamBody(qw422016)
-	//line template/namespace/create.qtpl:70
+	//line template/namespace/create.qtpl:75
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/create.qtpl:70
+//line template/namespace/create.qtpl:75
 }
 
-//line template/namespace/create.qtpl:70
+//line template/namespace/create.qtpl:75
 func (p *CreatePage) Body() string {
-	//line template/namespace/create.qtpl:70
+	//line template/namespace/create.qtpl:75
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/create.qtpl:70
+	//line template/namespace/create.qtpl:75
 	p.WriteBody(qb422016)
-	//line template/namespace/create.qtpl:70
+	//line template/namespace/create.qtpl:75
 	qs422016 := string(qb422016.B)
-	//line template/namespace/create.qtpl:70
+	//line template/namespace/create.qtpl:75
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/create.qtpl:70
+	//line template/namespace/create.qtpl:75
 	return qs422016
-//line template/namespace/create.qtpl:70
+//line template/namespace/create.qtpl:75
 }

@@ -1,6 +1,7 @@
 {%
 import (
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
 %}
@@ -11,6 +12,7 @@ type CreatePage struct {
 
 	Errors form.Errors
 	Form   form.Form
+	Parent *model.Namespace
 }
 %}
 
@@ -25,6 +27,9 @@ type CreatePage struct {
 <div class="dashboard-body">
 	<div class="panel panel-slim">
 		<form method="POST" action="/namespaces">
+			{% if p.Parent != nil && !p.Parent.IsZero() %}
+				<input type="hidden" name="parent" value="{%s p.Parent.Name %}"/>
+			{% endif %}
 			{% if p.Errors.First("namespace") != "" %}
 				<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
 			{% endif %}

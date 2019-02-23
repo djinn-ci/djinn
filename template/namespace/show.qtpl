@@ -21,7 +21,7 @@ type ShowPage struct {
 <div class="dashboard-header">
 	<h1>{%s p.Namespace.Name %}</h1>
 	<ul class="actions">
-		<li><a href="/namespaces/create?parent={%v p.Namespace.ID %}" class="button button-primary">Create</a></li>
+		<li><a href="/namespaces/create?parent={%s p.Namespace.Name %}" class="button button-primary">Create</a></li>
 	</ul>
 </div>
 {% endfunc %}

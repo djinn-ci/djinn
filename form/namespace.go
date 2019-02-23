@@ -9,11 +9,11 @@ import (
 )
 
 var (
-	namespacePattern = "^[-a-zA-Z0-9/?\\S]+$"
+	namespacePattern = "^[-a-zA-Z0-9]+$"
 	namespaceRegex   = regexp.MustCompile(namespacePattern)
 
 	ErrNamespaceNameRequired = errors.New("Name can't be blank")
-	ErrNamespaceInvalid      = errors.New("Name can only contain numbers, letters, dashes, and slashes")
+	ErrNamespaceInvalid      = errors.New("Name can only contain numbers, letters, and dashes")
 	ErrNamespaceExists       = errors.New("Namespace already exists")
 )
 

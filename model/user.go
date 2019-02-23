@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -41,6 +42,9 @@ func FindUser(id int64) (*User, error) {
 
 		return u, errors.Err(err)
 	}
+
+	u.Email = strings.TrimSpace(u.Email)
+	u.Username = strings.TrimSpace(u.Username)
 
 	return u, errors.Err(err)
 }
@@ -101,10 +105,18 @@ func (u User) IsZero() bool {
 			u.UpdatedAt == nil
 }
 
-func (u User) Namespaces() ([]*Namespace, error) {
+func (u *User) Namespaces() ([]*Namespace, error) {
 	namespaces := make([]*Namespace, 0)
 
 	err := DB.Select(&namespaces, "SELECT * FROM namespaces WHERE user_id = $1", u.ID)
 
-	return namespaces, errors.Err(err)
+	if err != nil {
+		return namespaces, errors.Err(err)
+	}
+
+	for _, n := range namespaces {
+		n.User = u
+	}
+
+	return namespaces, nil
 }

@@ -14,6 +14,8 @@ type Namespace struct {
 	Private     bool       `db:"private"`
 	CreatedAt   *time.Time `db:"created_at"`
 	UpdatedAt   *time.Time `db:"updated_at"`
+
+	User *User
 }
 
 func (n *Namespace) Create() error {

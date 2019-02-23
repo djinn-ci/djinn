@@ -11,6 +11,14 @@ import (
 func registerRoutes(h handler.Handler, dir string) *mux.Router {
 	r := mux.NewRouter()
 
+	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler.HTMLError(w, "Not found", http.StatusNotFound)
+	})
+
+	r.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
+
 	assetsHandler := http.StripPrefix("/assets/", http.FileServer(http.Dir(dir)))
 
 	r.PathPrefix("/assets/").Handler(assetsHandler)

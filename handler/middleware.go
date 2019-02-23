@@ -23,7 +23,7 @@ func (h Middleware) gate(next http.HandlerFunc, handler gateHandler) http.Handle
 
 		if err != nil {
 			log.Error.Println(err)
-			http.Error(w, "Something went wrong", http.StatusInternalServerError)
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 

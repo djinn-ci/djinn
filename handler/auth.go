@@ -57,7 +57,7 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -69,7 +69,7 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err := u.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -106,7 +106,7 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 

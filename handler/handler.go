@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
 
 	"github.com/gorilla/schema"
 	"github.com/gorilla/securecookie"
@@ -43,6 +44,15 @@ func unmarshalForm(f form.Form, r *http.Request) error {
 
 func New(sc *securecookie.SecureCookie, store sessions.Store) Handler {
 	return Handler{sc: sc, store: store}
+}
+
+func HTMLError(w http.ResponseWriter, message string, status int) {
+	p := &template.Error{
+		Code:    status,
+		Message: message,
+	}
+
+	html(w, template.Render(p), status)
 }
 
 func (h *Handler) errors(w http.ResponseWriter, r *http.Request) form.Errors {

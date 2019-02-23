@@ -1,0 +1,25 @@
+
+
+{% code
+type Error struct {
+	*Page
+
+	Code    int
+	Message string
+}
+%}
+
+{% func (p *Error) Title() %}
+Thrall - Error
+{% endfunc %}
+
+{% func (p *Error) Header() %}
+<link rel="stylesheet" type="text/css" href="/assets/css/error.css">
+{% endfunc %}
+
+{% func (p *Error) Body() %}
+<div class="error">
+	<h1>{%v p.Code %}</h1>
+	<h2>{%s p.Message %}</h2>
+</div>
+{% endfunc %}

@@ -28,7 +28,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -36,7 +36,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -54,7 +54,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -107,7 +107,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -128,7 +128,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := n.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -142,12 +142,12 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if u.IsZero() {
-		http.Error(w, "Not found", http.StatusNotFound)
+		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -155,12 +155,12 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if n.IsZero() {
-		http.Error(w, "Not found", http.StatusNotFound)
+		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 

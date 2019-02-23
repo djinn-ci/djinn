@@ -31,13 +31,13 @@ func uriMatch(pattern, uri string) bool {
 {% func (p *Dashboard) Body() %}
 <div class="dashboard-content">{%= p.page.Body() %}</div>
 <div class="dashboard-sidebar">
-	<div class="header">
+	<h2>
 		<div class="brand">
 			<div class="left"></div>
 			<div class="right"></div>
 		</div>
-		<div class="title">Thrall</div>
-	</div>
+		Thrall
+	</h2>
 	<ul>
 		<li class="nav-header">MANAGE</li>
 		<li><a href="/" {% if p.URI == "/" %}class="active"{% endif %}>Builds</a></li>

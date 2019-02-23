@@ -56,13 +56,13 @@ func (p *Dashboard) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/dashboard.qtpl:32
 	qw422016.N().S(`</div>
 <div class="dashboard-sidebar">
-	<div class="header">
+	<h2>
 		<div class="brand">
 			<div class="left"></div>
 			<div class="right"></div>
 		</div>
-		<div class="title">Thrall</div>
-	</div>
+		Thrall
+	</h2>
 	<ul>
 		<li class="nav-header">MANAGE</li>
 		<li><a href="/" `)

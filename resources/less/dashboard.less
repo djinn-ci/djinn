@@ -1,23 +1,19 @@
+@import "variables.less";
 .dashboard-sidebar {
 	position: fixed;
 	top: 0;
 	left: 0;
 	height: 100%;
 	width: 225px;
-	background: #383e51;
+	background: @blue-gray;
 
-	.header {
+	h2 {
 		color: #fff;
-		font-size: 18px;
 		padding: 20px;
 
 		.brand {
-			display: inline-block;
-			vertical-align: middle;
-		}
-
-		.title {
-			margin-left: 10px;
+			margin-top: -5px;
+			margin-right: 10px;
 			display: inline-block;
 			vertical-align: middle;
 		}
@@ -45,7 +41,7 @@
 
 			a:hover, a.active, button:hover {
 				text-decoration: none;
-				background: rgba(0, 0, 0, 0.3);
+				background: @blue-gray-dark;
 				color: #fff;
 			}
 		}

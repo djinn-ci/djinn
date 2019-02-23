@@ -85,19 +85,19 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	if p.Errors.First("namespace") != "" {
 		//line template/namespace/create.qtpl:28
 		qw422016.N().S(`
-				<span class="error">Failed to create namespace: `)
+				<div class="form-error">Failed to create namespace: `)
 		//line template/namespace/create.qtpl:29
 		qw422016.E().S(p.Errors.First("namespace"))
 		//line template/namespace/create.qtpl:29
-		qw422016.N().S(`</span>
+		qw422016.N().S(`</div>
 			`)
 		//line template/namespace/create.qtpl:30
 	}
 	//line template/namespace/create.qtpl:30
 	qw422016.N().S(`
 			<div class="input-field">
-				<label>Name</label>
-				<input class="text" type="text" name="name" value="`)
+				<label class="input-field-label">Name</label>
+				<input class="input-text" type="text" name="name" value="`)
 	//line template/namespace/create.qtpl:33
 	qw422016.E().S(p.Form.Get("name"))
 	//line template/namespace/create.qtpl:33
@@ -109,30 +109,30 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	qw422016.N().S(`</span>
 			</div>
 			<div class="input-field">
-				<label>Description</label>
-				<textarea class="text" name="description"></textarea>
+				<label class="input-field-label">Description</label>
+				<textarea class="input-text" name="description"></textarea>
 			</div>
 			<div class="input-field">
-				<label>Visibility</label>
-				<label class="option">
-					<input type="radio" name="visibility" value="private" checked="true"/>
-					<div class="description">
-						<div>Private</div>
-						<div>Only you will be able to view builds in the namespace.</div>
+				<label class="input-field-label">Visibility</label>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="private" checked="true"/>
+					<div class="input-option-description">
+						Private<br/>
+						Only you will be able to view builds in the namespace.
 					</div>
 				</label>
-				<label class="option">
-					<input type="radio" name="visibility" value="internal"/>
-					<div class="description">
-						<div>Internal</div>
-						<div>Anyone with an account will be able to view builds in the namespace.</div>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="internal"/>
+					<div class="input-option-description">
+						Internal<br/>
+						Anyone with an account will be able to view builds in the namespace
 					</div>
 				</label>
-				<label class="option">
-					<input type="radio" name="visibility" value="public"/>
-					<div class="description">
-						<div>Public</div>
-						<div>Anyone will be able to view builds in the namespace.</div>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="public"/>
+					<div class="input-option-description">
+						Public<br/>
+						Anyone will be able to view builds in the namespace.
 					</div>
 				</label>
 			</div>

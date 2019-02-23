@@ -26,38 +26,38 @@ type CreatePage struct {
 	<div class="panel panel-slim">
 		<form method="POST" action="/namespaces">
 			{% if p.Errors.First("namespace") != "" %}
-				<span class="error">Failed to create namespace: {%s p.Errors.First("namespace") %}</span>
+				<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
 			{% endif %}
 			<div class="input-field">
-				<label>Name</label>
-				<input class="text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
+				<label class="input-field-label">Name</label>
+				<input class="input-text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
 				<span class="error">{%s p.Errors.First("name") %}</span>
 			</div>
 			<div class="input-field">
-				<label>Description</label>
-				<textarea class="text" name="description"></textarea>
+				<label class="input-field-label">Description</label>
+				<textarea class="input-text" name="description"></textarea>
 			</div>
 			<div class="input-field">
-				<label>Visibility</label>
-				<label class="option">
-					<input type="radio" name="visibility" value="private" checked="true"/>
-					<div class="description">
-						<div>Private</div>
-						<div>Only you will be able to view builds in the namespace.</div>
+				<label class="input-field-label">Visibility</label>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="private" checked="true"/>
+					<div class="input-option-description">
+						Private<br/>
+						Only you will be able to view builds in the namespace.
 					</div>
 				</label>
-				<label class="option">
-					<input type="radio" name="visibility" value="internal"/>
-					<div class="description">
-						<div>Internal</div>
-						<div>Anyone with an account will be able to view builds in the namespace.</div>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="internal"/>
+					<div class="input-option-description">
+						Internal<br/>
+						Anyone with an account will be able to view builds in the namespace
 					</div>
 				</label>
-				<label class="option">
-					<input type="radio" name="visibility" value="public"/>
-					<div class="description">
-						<div>Public</div>
-						<div>Anyone will be able to view builds in the namespace.</div>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="public"/>
+					<div class="input-option-description">
+						Public<br/>
+						Anyone will be able to view builds in the namespace.
 					</div>
 				</label>
 			</div>

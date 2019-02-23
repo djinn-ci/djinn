@@ -98,6 +98,8 @@ func mainCommand(cmd cli.Command) {
 		}
 	}()
 
+	log.Info.Println("thrall-server started")
+
 	c := make(chan os.Signal, 1)
 
 	signal.Notify(c, os.Interrupt)

@@ -26,5 +26,13 @@ type IndexPage struct {
 </div>
 {% if len(p.Namespaces) == 0 %}
 <div class="dashboard-message">Namespaces allow you to group related builds together.</div>
+{% else %}
+<div class="dashboard-body">
+	{% for _, n := range p. Namespaces %}
+		<div class="panel">
+			<a href="/u/{%s n.User.Username %}/{%s n.Name %}">{%s n.User.Username %}/{%s n.Name %}</a>
+		</div>
+	{% endfor %}
+</div>
 {% endif %}
 {% endfunc %}

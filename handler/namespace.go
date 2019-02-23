@@ -40,26 +40,18 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		Namespaces: namespaces,
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI(), u)
+	d := template.NewDashboard(p, r.URL.RequestURI())
 
 	html(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
-	u, err := h.UserFromRequest(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		http.Error(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
 	p := &namespace.CreatePage{
-		Errors: h.errors(w, r),
-		Form:   h.form(w, r),
+		Errors:    h.errors(w, r),
+		Form:      h.form(w, r),
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI(), u)
+	d := template.NewDashboard(p, r.URL.RequestURI())
 
 	html(w, template.Render(d), http.StatusOK)
 }

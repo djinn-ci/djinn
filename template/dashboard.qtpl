@@ -1,10 +1,4 @@
-{%
-import (
-	"regexp"
-
-	"github.com/andrewpillar/thrall/model"
-)
-%}
+{% import "regexp" %}
 
 {% code
 
@@ -16,12 +10,11 @@ var (
 type Dashboard struct {
 	page
 
-	URI  string
-	User *model.User
+	URI string
 }
 
-func NewDashboard(p page, uri string, u *model.User) *Dashboard {
-	return &Dashboard{page: p, URI: uri, User: u}
+func NewDashboard(p page, uri string) *Dashboard {
+	return &Dashboard{page: p, URI: uri}
 }
 
 func uriMatch(pattern, uri string) bool {

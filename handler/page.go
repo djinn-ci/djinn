@@ -38,7 +38,7 @@ func (h Page) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &build.IndexPage{}
-	d := template.NewDashboard(p, r.URL.RequestURI(), u)
+	d := template.NewDashboard(p, r.URL.RequestURI())
 
 	html(w, template.Render(d), http.StatusOK)
 }

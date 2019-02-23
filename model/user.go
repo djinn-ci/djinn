@@ -97,6 +97,9 @@ func FindUserByUsername(username string) (*User, error) {
 		}
 	}
 
+	u.Email = strings.TrimSpace(u.Email)
+	u.Username = strings.TrimSpace(u.Username)
+
 	return u, errors.Err(err)
 }
 

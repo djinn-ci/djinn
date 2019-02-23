@@ -165,10 +165,17 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &namespace.ShowPage{
+		User:      u,
 		Namespace: n,
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
 
 	html(w, template.Render(d), http.StatusOK)
+}
+
+func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	html(w, vars["namespace"], http.StatusOK)
 }

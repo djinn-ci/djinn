@@ -45,5 +45,6 @@ func namespaceRoutes(r *mux.Router, h handler.Handler, mw handler.Middleware) {
 	r.HandleFunc("/namespaces/create", mw.Auth(namespace.Create)).Methods("GET")
 	r.HandleFunc("/namespaces", mw.Auth(namespace.Store)).Methods("POST")
 
-	r.HandleFunc("/u/{username}/{namespace:[-a-zA-Z0-9\\/?\\S]+}", mw.Auth(namespace.Show)).Methods("GET")
+	r.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}/-/edit", mw.Auth(namespace.Edit)).Methods("GET")
+	r.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}", mw.Auth(namespace.Show)).Methods("GET")
 }

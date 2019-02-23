@@ -9,6 +9,7 @@ import (
 type ShowPage struct {
 	*template.Page
 
+	User      *model.User
 	Namespace *model.Namespace
 }
 %}
@@ -21,6 +22,7 @@ type ShowPage struct {
 <div class="dashboard-header">
 	<h1>{%s p.Namespace.Name %}</h1>
 	<ul class="actions">
+		<li><a href="/u/{%s p.User.Username %}/{%s p.Namespace.Name %}/-/edit" class="button button-secondary">Edit</a></li>
 		<li><a href="/namespaces/create?parent={%s p.Namespace.Name %}" class="button button-primary">Create</a></li>
 	</ul>
 </div>

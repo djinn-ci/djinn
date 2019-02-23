@@ -34,7 +34,7 @@ type CreatePage struct {
 				<span class="error">{%s p.Errors.First("name") %}</span>
 			</div>
 			<div class="input-field">
-				<label>Description (optional)</label>
+				<label>Description</label>
 				<textarea class="text" name="description"></textarea>
 			</div>
 			<div class="input-field">

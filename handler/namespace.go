@@ -9,6 +9,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/namespace"
+
+	"github.com/gorilla/mux"
 )
 
 type Namespace struct {
@@ -96,4 +98,10 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/namespaces", http.StatusSeeOther)
+}
+
+func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	html(w, vars["namespace"], http.StatusOK)
 }

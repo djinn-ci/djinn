@@ -109,7 +109,7 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	qw422016.N().S(`</span>
 			</div>
 			<div class="input-field">
-				<label>Description (optional)</label>
+				<label>Description</label>
 				<textarea class="text" name="description"></textarea>
 			</div>
 			<div class="input-field">

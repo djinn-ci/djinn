@@ -16,13 +16,13 @@ type EditPage struct {
 %}
 
 {% func (p *EditPage) Title() %}
-{%s p.Namespace.Name %} - Edit
+{%s p.Namespace.FullName %} - Edit
 {% endfunc %}
 
 {% collapsespace %}
 {% func (p *EditPage) Body() %}
 <div class="dashboard-header">
-	<h1>Edit Namespace</h1>
+	<h1>{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit</h1>
 </div>
 <div class="dashboard-body">
 	<div class="panel panel-slim">

@@ -38,7 +38,7 @@ func (p *EditPage) StreamTitle(qw422016 *qt422016.Writer) {
 	qw422016.N().S(`
 `)
 	//line template/namespace/edit.qtpl:19
-	qw422016.E().S(p.Namespace.Name)
+	qw422016.E().S(p.Namespace.FullName)
 	//line template/namespace/edit.qtpl:19
 	qw422016.N().S(` - Edit
 `)
@@ -74,7 +74,11 @@ func (p *EditPage) Title() string {
 //line template/namespace/edit.qtpl:23
 func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:23
-	qw422016.N().S(` <div class="dashboard-header"> <h1>Edit Namespace</h1> </div> <div class="dashboard-body"> <div class="panel panel-slim"> <form method="POST" action="/u/`)
+	qw422016.N().S(` <div class="dashboard-header"> <h1>`)
+	//line template/namespace/edit.qtpl:25
+	streamrenderFullName(qw422016, p.Namespace.User.Username, p.Namespace.FullName)
+	//line template/namespace/edit.qtpl:25
+	qw422016.N().S(` - Edit</h1> </div> <div class="dashboard-body"> <div class="panel panel-slim"> <form method="POST" action="/u/`)
 	//line template/namespace/edit.qtpl:29
 	qw422016.E().S(p.Namespace.User.Username)
 	//line template/namespace/edit.qtpl:29

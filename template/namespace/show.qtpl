@@ -1,5 +1,7 @@
 {%
 import (
+	"strings"
+
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -14,13 +16,25 @@ type ShowPage struct {
 }
 %}
 
+{% stripspace %}
+{% func renderFullName(username, fullName string) %}
+	{% code
+		parts := strings.Split(fullName, "/")
+	%}
+	{% for i, p := range parts %}
+		<a href="/u/{%s username %}/{%s strings.Join(parts[:i + 1], "/") %}">{%s p %}</a>
+		{% if i != len(parts) - 1 %}<span> / </span>{% endif %}
+	{% endfor %}
+{% endfunc %}
+{% endstripspace %}
+
 {% func (p *ShowPage) Title() %}
-{%s p.Namespace.Name %}
+{%s p.Namespace.FullName %} - Thrall
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
 <div class="dashboard-header">
-	<h1>{%s p.Namespace.Name %}</h1>
+	<h1>{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}</h1>
 	<ul class="actions">
 		<li><a href="/u/{%s p.User.Username %}/{%s p.Namespace.FullName %}/-/edit" class="button button-secondary">Edit</a></li>
 		<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>

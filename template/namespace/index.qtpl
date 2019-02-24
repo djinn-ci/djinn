@@ -30,7 +30,7 @@ type IndexPage struct {
 <div class="dashboard-body">
 	{% for _, n := range p. Namespaces %}
 		<div class="panel">
-			<a href="/u/{%s n.User.Username %}/{%s n.FullName %}">{%s n.User.Username %}/{%s n.FullName %}</a>
+			<a href="/u/{%s n.User.Username %}/{%s n.FullName %}">{%s n.FullName %}</a>
 		</div>
 	{% endfor %}
 </div>

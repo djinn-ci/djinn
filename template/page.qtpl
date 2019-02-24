@@ -14,6 +14,7 @@ interface page {
 type Page struct {}
 %}
 
+{% collapsespace %}
 {% func Render(p page) %}
 <!DOCTYPE HTML>
 <html lang="en">
@@ -27,6 +28,7 @@ type Page struct {}
 	<footer>{%= p.Footer() %}</footer>
 </html>
 {% endfunc %}
+{% endcollapsespace %}
 
 {% func (p *Page) Title() %}
 Thrall

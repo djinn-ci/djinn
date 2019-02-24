@@ -20,6 +20,7 @@ type CreatePage struct {
 {%= p.Page.Title() %} - Create Namespace
 {% endfunc %}
 
+{% collapsespace %}
 {% func (p *CreatePage) Body() %}
 <div class="dashboard-header">
 	<h1>Create Namespace</h1>
@@ -73,3 +74,4 @@ type CreatePage struct {
 	</div>
 </div>
 {% endfunc %}
+{% endcollapsespace %}

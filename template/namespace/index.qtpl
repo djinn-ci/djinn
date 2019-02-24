@@ -17,6 +17,7 @@ type IndexPage struct {
 {%= p.Page.Title() %} - Namespaces
 {% endfunc %}
 
+{% collapsespace %}
 {% func (p *IndexPage) Body() %}
 <div class="dashboard-header">
 	<h1>Namespaces</h1>
@@ -36,3 +37,4 @@ type IndexPage struct {
 </div>
 {% endif %}
 {% endfunc %}
+{% endcollapsespace %}

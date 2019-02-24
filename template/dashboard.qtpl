@@ -28,6 +28,7 @@ func uriMatch(pattern, uri string) bool {
 }
 %}
 
+{% collapsespace %}
 {% func (p *Dashboard) Body() %}
 <div class="dashboard-content">{%= p.page.Body() %}</div>
 <div class="dashboard-sidebar">
@@ -52,3 +53,4 @@ func uriMatch(pattern, uri string) bool {
 	</ul>
 </div>
 {% endfunc %}
+{% endcollapsespace %}

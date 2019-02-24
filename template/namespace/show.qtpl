@@ -16,7 +16,7 @@ type ShowPage struct {
 }
 %}
 
-{% stripspace %}
+{% collapsespace %}
 {% func renderFullName(username, fullName string) %}
 	{% code
 		parts := strings.Split(fullName, "/")
@@ -26,8 +26,9 @@ type ShowPage struct {
 		{% if i != len(parts) - 1 %}<span> / </span>{% endif %}
 	{% endfor %}
 {% endfunc %}
-{% endstripspace %}
+{% endcollapsespace %}
 
+{% collapsespace %}
 {% func (p *ShowPage) Title() %}
 {%s p.Namespace.FullName %} - Thrall
 {% endfunc %}
@@ -41,3 +42,4 @@ type ShowPage struct {
 	</ul>
 </div>
 {% endfunc %}
+{% endcollapsespace %}

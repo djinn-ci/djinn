@@ -46,86 +46,63 @@ func uriMatch(pattern, uri string) bool {
 	return matched
 }
 
-//line template/dashboard.qtpl:31
+//line template/dashboard.qtpl:32
 func (p *Dashboard) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/dashboard.qtpl:31
-	qw422016.N().S(`
-<div class="dashboard-content">`)
 	//line template/dashboard.qtpl:32
+	qw422016.N().S(` <div class="dashboard-content">`)
+	//line template/dashboard.qtpl:33
 	p.page.StreamBody(qw422016)
-	//line template/dashboard.qtpl:32
-	qw422016.N().S(`</div>
-<div class="dashboard-sidebar">
-	<h2>
-		<div class="brand">
-			<div class="left"></div>
-			<div class="right"></div>
-		</div>
-		Thrall
-	</h2>
-	<ul>
-		<li class="nav-header">MANAGE</li>
-		<li><a href="/" `)
-	//line template/dashboard.qtpl:43
+	//line template/dashboard.qtpl:33
+	qw422016.N().S(`</div> <div class="dashboard-sidebar"> <h2> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> Thrall </h2> <ul> <li class="nav-header">MANAGE</li> <li><a href="/" `)
+	//line template/dashboard.qtpl:44
 	if p.URI == "/" {
-		//line template/dashboard.qtpl:43
+		//line template/dashboard.qtpl:44
 		qw422016.N().S(`class="active"`)
-		//line template/dashboard.qtpl:43
+		//line template/dashboard.qtpl:44
 	}
-	//line template/dashboard.qtpl:43
-	qw422016.N().S(`>Builds</a></li>
-		<li><a href="/namespaces" `)
 	//line template/dashboard.qtpl:44
+	qw422016.N().S(`>Builds</a></li> <li><a href="/namespaces" `)
+	//line template/dashboard.qtpl:45
 	if uriMatch(namespacesURI, p.URI) {
-		//line template/dashboard.qtpl:44
+		//line template/dashboard.qtpl:45
 		qw422016.N().S(`class="active"`)
-		//line template/dashboard.qtpl:44
+		//line template/dashboard.qtpl:45
 	}
-	//line template/dashboard.qtpl:44
-	qw422016.N().S(`>Namespaces</a></li>
-		<li class="nav-header">ACCOUNT</li>
-		<li><a href="/settings" `)
-	//line template/dashboard.qtpl:46
+	//line template/dashboard.qtpl:45
+	qw422016.N().S(`>Namespaces</a></li> <li class="nav-header">ACCOUNT</li> <li><a href="/settings" `)
+	//line template/dashboard.qtpl:47
 	if uriMatch(settingsURI, p.URI) {
-		//line template/dashboard.qtpl:46
+		//line template/dashboard.qtpl:47
 		qw422016.N().S(`class="active"`)
-		//line template/dashboard.qtpl:46
+		//line template/dashboard.qtpl:47
 	}
-	//line template/dashboard.qtpl:46
-	qw422016.N().S(`>Settings</a></li>
-		<li>
-			<form method="POST" action="/logout">
-				<button type="submit">Logout</button>
-			</form>
-		</li>
-	</ul>
-</div>
-`)
-//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:47
+	qw422016.N().S(`>Settings</a></li> <li> <form method="POST" action="/logout"> <button type="submit">Logout</button> </form> </li> </ul> </div> `)
+//line template/dashboard.qtpl:55
 }
 
-//line template/dashboard.qtpl:54
+//line template/dashboard.qtpl:55
 func (p *Dashboard) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:55
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:55
 	p.StreamBody(qw422016)
-	//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:55
 	qt422016.ReleaseWriter(qw422016)
-//line template/dashboard.qtpl:54
+//line template/dashboard.qtpl:55
 }
 
-//line template/dashboard.qtpl:54
+//line template/dashboard.qtpl:55
 func (p *Dashboard) Body() string {
-	//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:55
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:55
 	p.WriteBody(qb422016)
-	//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:55
 	qs422016 := string(qb422016.B)
-	//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:55
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/dashboard.qtpl:54
+	//line template/dashboard.qtpl:55
 	return qs422016
-//line template/dashboard.qtpl:54
+//line template/dashboard.qtpl:55
 }

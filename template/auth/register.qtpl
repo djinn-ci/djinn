@@ -22,6 +22,7 @@ type RegisterPage struct {
 <link rel="stylesheet" type="text/css" href="/assets/css/auth.css">
 {% endfunc %}
 
+{% collapsespace %}
 {% func (p *RegisterPage) Body() %}
 <div class="auth-page">
 	<div class="auth-form">
@@ -64,3 +65,4 @@ type RegisterPage struct {
 	</div>
 </div>
 {% endfunc %}
+{% endcollapsespace %}

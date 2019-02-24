@@ -19,6 +19,7 @@ type EditPage struct {
 {%s p.Namespace.Name %} - Edit
 {% endfunc %}
 
+{% collapsespace %}
 {% func (p *EditPage) Body() %}
 <div class="dashboard-header">
 	<h1>Edit Namespace</h1>
@@ -70,3 +71,4 @@ type EditPage struct {
 	</div>
 </div>
 {% endfunc %}
+{% endcollapsespace %}

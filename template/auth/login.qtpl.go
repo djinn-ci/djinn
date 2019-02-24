@@ -105,93 +105,59 @@ func (p *LoginPage) Header() string {
 //line template/auth/login.qtpl:23
 }
 
-//line template/auth/login.qtpl:25
+//line template/auth/login.qtpl:26
 func (p *LoginPage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/auth/login.qtpl:25
-	qw422016.N().S(`
-<div class="auth-page">
-	<div class="auth-form">
-		<div class="auth-header">
-			<div class="brand">
-				<div class="left"></div>
-				<div class="right"></div>
-			</div>
-			<h1>Login to Thrall</h1>
-		</div>
-		<form method="POST" action="/login">
-			`)
-	//line template/auth/login.qtpl:36
+	//line template/auth/login.qtpl:26
+	qw422016.N().S(` <div class="auth-page"> <div class="auth-form"> <div class="auth-header"> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> <h1>Login to Thrall</h1> </div> <form method="POST" action="/login"> `)
+	//line template/auth/login.qtpl:37
 	if p.Errors.First("login") != "" {
-		//line template/auth/login.qtpl:36
-		qw422016.N().S(`
-				<span class="error">Failed to login: `)
 		//line template/auth/login.qtpl:37
-		qw422016.E().S(p.Errors.First("login"))
-		//line template/auth/login.qtpl:37
-		qw422016.N().S(`</span>
-			`)
+		qw422016.N().S(` <span class="error">Failed to login: `)
 		//line template/auth/login.qtpl:38
+		qw422016.E().S(p.Errors.First("login"))
+		//line template/auth/login.qtpl:38
+		qw422016.N().S(`</span> `)
+		//line template/auth/login.qtpl:39
 	}
-	//line template/auth/login.qtpl:38
-	qw422016.N().S(`
-			<div class="input-field">
-				<label>Email / Username</label>
-				<input class="text" type="text" name="handle" value="`)
-	//line template/auth/login.qtpl:41
+	//line template/auth/login.qtpl:39
+	qw422016.N().S(` <div class="input-field"> <label>Email / Username</label> <input class="text" type="text" name="handle" value="`)
+	//line template/auth/login.qtpl:42
 	qw422016.E().S(p.Form.Get("handle"))
-	//line template/auth/login.qtpl:41
-	qw422016.N().S(`" autocomplete="off"/>
-				<span class="error">`)
 	//line template/auth/login.qtpl:42
+	qw422016.N().S(`" autocomplete="off"/> <span class="error">`)
+	//line template/auth/login.qtpl:43
 	qw422016.E().S(p.Errors.First("handle"))
-	//line template/auth/login.qtpl:42
-	qw422016.N().S(`</span>
-			</div>
-			<div class="input-field">
-				<label>Password</label>
-				<input class="text" type="password" name="password" autocomplete="off"/>
-				<span class="error">`)
-	//line template/auth/login.qtpl:47
+	//line template/auth/login.qtpl:43
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label>Password</label> <input class="text" type="password" name="password" autocomplete="off"/> <span class="error">`)
+	//line template/auth/login.qtpl:48
 	qw422016.E().S(p.Errors.First("password"))
-	//line template/auth/login.qtpl:47
-	qw422016.N().S(`</span>
-			</div>
-			<div class="input-field">
-				<label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label>
-			</div>
-			<div class="input-field">
-				<button type="submit" class="button button-primary">Login</button>
-			</div>
-			<div class="input-field">Don't have an account? <a href="/register">Register</a></div>
-		</form>
-	</div>
-</div>
-`)
-//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:48
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label> </div> <div class="input-field"> <button type="submit" class="button button-primary">Login</button> </div> <div class="input-field">Don't have an account? <a href="/register">Register</a></div> </form> </div> </div> `)
+//line template/auth/login.qtpl:60
 }
 
-//line template/auth/login.qtpl:59
+//line template/auth/login.qtpl:60
 func (p *LoginPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:60
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:60
 	p.StreamBody(qw422016)
-	//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:60
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/login.qtpl:59
+//line template/auth/login.qtpl:60
 }
 
-//line template/auth/login.qtpl:59
+//line template/auth/login.qtpl:60
 func (p *LoginPage) Body() string {
-	//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:60
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:60
 	p.WriteBody(qb422016)
-	//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:60
 	qs422016 := string(qb422016.B)
-	//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:60
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/login.qtpl:59
+	//line template/auth/login.qtpl:60
 	return qs422016
-//line template/auth/login.qtpl:59
+//line template/auth/login.qtpl:60
 }

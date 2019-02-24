@@ -105,112 +105,71 @@ func (p *RegisterPage) Header() string {
 //line template/auth/register.qtpl:23
 }
 
-//line template/auth/register.qtpl:25
+//line template/auth/register.qtpl:26
 func (p *RegisterPage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/auth/register.qtpl:25
-	qw422016.N().S(`
-<div class="auth-page">
-	<div class="auth-form">
-		<div class="auth-header">
-			<div class="brand">
-				<div class="left"></div>
-				<div class="right"></div>
-			</div>
-			<h1>Signup to Thrall</h1>
-		</div>
-		<form method="POST" action="/register">
-			`)
-	//line template/auth/register.qtpl:36
+	//line template/auth/register.qtpl:26
+	qw422016.N().S(` <div class="auth-page"> <div class="auth-form"> <div class="auth-header"> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> <h1>Signup to Thrall</h1> </div> <form method="POST" action="/register"> `)
+	//line template/auth/register.qtpl:37
 	if p.Errors.First("register") != "" {
-		//line template/auth/register.qtpl:36
-		qw422016.N().S(`
-				<span class="error">Failed to register account: `)
 		//line template/auth/register.qtpl:37
-		qw422016.E().S(p.Errors.First("register"))
-		//line template/auth/register.qtpl:37
-		qw422016.N().S(`</span>
-			`)
+		qw422016.N().S(` <span class="error">Failed to register account: `)
 		//line template/auth/register.qtpl:38
+		qw422016.E().S(p.Errors.First("register"))
+		//line template/auth/register.qtpl:38
+		qw422016.N().S(`</span> `)
+		//line template/auth/register.qtpl:39
 	}
-	//line template/auth/register.qtpl:38
-	qw422016.N().S(`
-			<div class="input-field">
-				<label>Email</label>
-				<input class="text" type="text" name="email" value="`)
-	//line template/auth/register.qtpl:41
+	//line template/auth/register.qtpl:39
+	qw422016.N().S(` <div class="input-field"> <label>Email</label> <input class="text" type="text" name="email" value="`)
+	//line template/auth/register.qtpl:42
 	qw422016.E().S(p.Form.Get("email"))
-	//line template/auth/register.qtpl:41
-	qw422016.N().S(`" autocomplete="off"/>
-				<span class="error">`)
 	//line template/auth/register.qtpl:42
+	qw422016.N().S(`" autocomplete="off"/> <span class="error">`)
+	//line template/auth/register.qtpl:43
 	qw422016.E().S(p.Errors.First("email"))
-	//line template/auth/register.qtpl:42
-	qw422016.N().S(`</span>
-			</div>
-			<div class="input-field">
-				<label>Username</label>
-				<input class="text" type="text" name="username" value="`)
-	//line template/auth/register.qtpl:46
+	//line template/auth/register.qtpl:43
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label>Username</label> <input class="text" type="text" name="username" value="`)
+	//line template/auth/register.qtpl:47
 	qw422016.E().S(p.Form.Get("username"))
-	//line template/auth/register.qtpl:46
-	qw422016.N().S(`" autocomplete="off"/>
-				<span class="error">`)
 	//line template/auth/register.qtpl:47
+	qw422016.N().S(`" autocomplete="off"/> <span class="error">`)
+	//line template/auth/register.qtpl:48
 	qw422016.E().S(p.Errors.First("username"))
-	//line template/auth/register.qtpl:47
-	qw422016.N().S(`</span>
-			</div>
-			<div class="input-field">
-				<label>Password</label>
-				<input class="text" type="password" name="password" autocomplete="off"/>
-				<span class="error">`)
-	//line template/auth/register.qtpl:52
+	//line template/auth/register.qtpl:48
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label>Password</label> <input class="text" type="password" name="password" autocomplete="off"/> <span class="error">`)
+	//line template/auth/register.qtpl:53
 	qw422016.E().S(p.Errors.First("password"))
-	//line template/auth/register.qtpl:52
-	qw422016.N().S(`</span>
-			</div>
-			<div class="input-field">
-				<label>Verify Password</label>
-				<input class="text" type="password" name="verify_password" autocomplete="off"/>
-				<span class="error">`)
-	//line template/auth/register.qtpl:57
+	//line template/auth/register.qtpl:53
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label>Verify Password</label> <input class="text" type="password" name="verify_password" autocomplete="off"/> <span class="error">`)
+	//line template/auth/register.qtpl:58
 	qw422016.E().S(p.Errors.First("verify_password"))
-	//line template/auth/register.qtpl:57
-	qw422016.N().S(`</span>
-			</div>
-			<div class="input-field">
-				<button type="submit" class="button button-primary">Register</button>
-			</div>
-			<div class="input-field">Already have an account? <a href="/login">Login</a></div>
-		</form>
-	</div>
-</div>
-`)
-//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:58
+	qw422016.N().S(`</span> </div> <div class="input-field"> <button type="submit" class="button button-primary">Register</button> </div> <div class="input-field">Already have an account? <a href="/login">Login</a></div> </form> </div> </div> `)
+//line template/auth/register.qtpl:67
 }
 
-//line template/auth/register.qtpl:66
+//line template/auth/register.qtpl:67
 func (p *RegisterPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:67
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:67
 	p.StreamBody(qw422016)
-	//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:67
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/register.qtpl:66
+//line template/auth/register.qtpl:67
 }
 
-//line template/auth/register.qtpl:66
+//line template/auth/register.qtpl:67
 func (p *RegisterPage) Body() string {
-	//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:67
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:67
 	p.WriteBody(qb422016)
-	//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:67
 	qs422016 := string(qb422016.B)
-	//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:67
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/register.qtpl:66
+	//line template/auth/register.qtpl:67
 	return qs422016
-//line template/auth/register.qtpl:66
+//line template/auth/register.qtpl:67
 }

@@ -17,9 +17,11 @@ Thrall - Error
 <link rel="stylesheet" type="text/css" href="/assets/css/error.css">
 {% endfunc %}
 
+{% collapsespace %}
 {% func (p *Error) Body() %}
 <div class="error">
 	<h1>{%v p.Code %}</h1>
 	<h2>{%s p.Message %}</h2>
 </div>
 {% endfunc %}
+{% endcollapsespace %}

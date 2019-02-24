@@ -71,141 +71,91 @@ func (p *EditPage) Title() string {
 //line template/namespace/edit.qtpl:20
 }
 
-//line template/namespace/edit.qtpl:22
+//line template/namespace/edit.qtpl:23
 func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/namespace/edit.qtpl:22
-	qw422016.N().S(`
-<div class="dashboard-header">
-	<h1>Edit Namespace</h1>
-</div>
-<div class="dashboard-body">
-	<div class="panel panel-slim">
-		<form method="POST" action="/u/`)
-	//line template/namespace/edit.qtpl:28
+	//line template/namespace/edit.qtpl:23
+	qw422016.N().S(` <div class="dashboard-header"> <h1>Edit Namespace</h1> </div> <div class="dashboard-body"> <div class="panel panel-slim"> <form method="POST" action="/u/`)
+	//line template/namespace/edit.qtpl:29
 	qw422016.E().S(p.Namespace.User.Username)
-	//line template/namespace/edit.qtpl:28
+	//line template/namespace/edit.qtpl:29
 	qw422016.N().S(`/`)
-	//line template/namespace/edit.qtpl:28
+	//line template/namespace/edit.qtpl:29
 	qw422016.E().S(p.Namespace.FullName)
-	//line template/namespace/edit.qtpl:28
-	qw422016.N().S(`">
-			<input type="hidden" name="_method" value="PATCH"/>
-			`)
-	//line template/namespace/edit.qtpl:30
+	//line template/namespace/edit.qtpl:29
+	qw422016.N().S(`"> <input type="hidden" name="_method" value="PATCH"/> `)
+	//line template/namespace/edit.qtpl:31
 	if p.Errors.First("namespace") != "" {
-		//line template/namespace/edit.qtpl:30
-		qw422016.N().S(`
-				<div class="form-error">Failed to create namespace: `)
 		//line template/namespace/edit.qtpl:31
-		qw422016.E().S(p.Errors.First("namespace"))
-		//line template/namespace/edit.qtpl:31
-		qw422016.N().S(`</div>
-			`)
+		qw422016.N().S(` <div class="form-error">Failed to create namespace: `)
 		//line template/namespace/edit.qtpl:32
+		qw422016.E().S(p.Errors.First("namespace"))
+		//line template/namespace/edit.qtpl:32
+		qw422016.N().S(`</div> `)
+		//line template/namespace/edit.qtpl:33
 	}
-	//line template/namespace/edit.qtpl:32
-	qw422016.N().S(`
-			<div class="input-field">
-				<label class="input-field-label">Name</label>
-				<input class="input-text" type="text" name="name" value="`)
-	//line template/namespace/edit.qtpl:35
+	//line template/namespace/edit.qtpl:33
+	qw422016.N().S(` <div class="input-field"> <label class="input-field-label">Name</label> <input class="input-text" type="text" name="name" value="`)
+	//line template/namespace/edit.qtpl:36
 	qw422016.E().S(p.Namespace.Name)
-	//line template/namespace/edit.qtpl:35
-	qw422016.N().S(`" autocomplete="off"/>
-				<span class="error">`)
 	//line template/namespace/edit.qtpl:36
+	qw422016.N().S(`" autocomplete="off"/> <span class="error">`)
+	//line template/namespace/edit.qtpl:37
 	qw422016.E().S(p.Errors.First("name"))
-	//line template/namespace/edit.qtpl:36
-	qw422016.N().S(`</span>
-			</div>
-			<div class="input-field">
-				<label class="input-field-label">Description</label>
-				<textarea class="input-text" name="description">`)
-	//line template/namespace/edit.qtpl:40
+	//line template/namespace/edit.qtpl:37
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label class="input-field-label">Description</label> <textarea class="input-text" name="description">`)
+	//line template/namespace/edit.qtpl:41
 	qw422016.E().S(p.Namespace.Description)
-	//line template/namespace/edit.qtpl:40
-	qw422016.N().S(`</textarea>
-			</div>
-			<div class="input-field">
-				<label class="input-field-label">Visibility</label>
-				<label class="input-option">
-					<input class="input-option-selector" type="radio" name="visibility" value="private" `)
-	//line template/namespace/edit.qtpl:45
+	//line template/namespace/edit.qtpl:41
+	qw422016.N().S(`</textarea> </div> <div class="input-field"> <label class="input-field-label">Visibility</label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="private" `)
+	//line template/namespace/edit.qtpl:46
 	if p.Namespace.Visibility == model.Private {
-		//line template/namespace/edit.qtpl:45
+		//line template/namespace/edit.qtpl:46
 		qw422016.N().S(`checked="true"`)
-		//line template/namespace/edit.qtpl:45
+		//line template/namespace/edit.qtpl:46
 	}
-	//line template/namespace/edit.qtpl:45
-	qw422016.N().S(`/>
-					<div class="input-option-description">
-						Private<br/>
-						Only you will be able to view builds in the namespace.
-					</div>
-				</label>
-				<label class="input-option">
-					<input class="input-option-selector" type="radio" name="visibility" value="internal" `)
-	//line template/namespace/edit.qtpl:52
+	//line template/namespace/edit.qtpl:46
+	qw422016.N().S(`/> <div class="input-option-description"> Private<br/> Only you will be able to view builds in the namespace. </div> </label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="internal" `)
+	//line template/namespace/edit.qtpl:53
 	if p.Namespace.Visibility == model.Internal {
-		//line template/namespace/edit.qtpl:52
+		//line template/namespace/edit.qtpl:53
 		qw422016.N().S(`checked="true"`)
-		//line template/namespace/edit.qtpl:52
+		//line template/namespace/edit.qtpl:53
 	}
-	//line template/namespace/edit.qtpl:52
-	qw422016.N().S(`/>
-					<div class="input-option-description">
-						Internal<br/>
-						Anyone with an account will be able to view builds in the namespace
-					</div>
-				</label>
-				<label class="input-option">
-					<input class="input-option-selector" type="radio" name="visibility" value="public" `)
-	//line template/namespace/edit.qtpl:59
+	//line template/namespace/edit.qtpl:53
+	qw422016.N().S(`/> <div class="input-option-description"> Internal<br/> Anyone with an account will be able to view builds in the namespace </div> </label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="public" `)
+	//line template/namespace/edit.qtpl:60
 	if p.Namespace.Visibility == model.Public {
-		//line template/namespace/edit.qtpl:59
+		//line template/namespace/edit.qtpl:60
 		qw422016.N().S(`checked="true"`)
-		//line template/namespace/edit.qtpl:59
+		//line template/namespace/edit.qtpl:60
 	}
-	//line template/namespace/edit.qtpl:59
-	qw422016.N().S(`/>
-					<div class="input-option-description">
-						Public<br/>
-						Anyone will be able to view builds in the namespace.
-					</div>
-				</label>
-			</div>
-			<div class="input-field">
-				<button type="submit" class="button button-primary">Save</button>
-			</div>
-		</form>
-	</div>
-</div>
-`)
-//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:60
+	qw422016.N().S(`/> <div class="input-option-description"> Public<br/> Anyone will be able to view builds in the namespace. </div> </label> </div> <div class="input-field"> <button type="submit" class="button button-primary">Save</button> </div> </form> </div> </div> `)
+//line template/namespace/edit.qtpl:73
 }
 
-//line template/namespace/edit.qtpl:72
+//line template/namespace/edit.qtpl:73
 func (p *EditPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	p.StreamBody(qw422016)
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/edit.qtpl:72
+//line template/namespace/edit.qtpl:73
 }
 
-//line template/namespace/edit.qtpl:72
+//line template/namespace/edit.qtpl:73
 func (p *EditPage) Body() string {
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	p.WriteBody(qb422016)
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	qs422016 := string(qb422016.B)
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	return qs422016
-//line template/namespace/edit.qtpl:72
+//line template/namespace/edit.qtpl:73
 }

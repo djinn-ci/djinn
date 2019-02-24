@@ -64,43 +64,35 @@ func (p *IndexPage) Title() string {
 //line template/build/index.qtpl:11
 }
 
-//line template/build/index.qtpl:13
+//line template/build/index.qtpl:14
 func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/build/index.qtpl:13
-	qw422016.N().S(`
-<div class="dashboard-header">
-	<h1>Builds</h1>
-	<ul class="actions">
-		<li><a href="/builds/create" class="button button-primary">Submit</a></li>
-	</ul>
-</div>
-<div class="dashboard-message">No builds have been submitted yet.</div>
-`)
-//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:14
+	qw422016.N().S(` <div class="dashboard-header"> <h1>Builds</h1> <ul class="actions"> <li><a href="/builds/create" class="button button-primary">Submit</a></li> </ul> </div> <div class="dashboard-message">No builds have been submitted yet.</div> `)
+//line template/build/index.qtpl:22
 }
 
-//line template/build/index.qtpl:21
+//line template/build/index.qtpl:22
 func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:22
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:22
 	p.StreamBody(qw422016)
-	//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:22
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/index.qtpl:21
+//line template/build/index.qtpl:22
 }
 
-//line template/build/index.qtpl:21
+//line template/build/index.qtpl:22
 func (p *IndexPage) Body() string {
-	//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:22
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:22
 	p.WriteBody(qb422016)
-	//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:22
 	qs422016 := string(qb422016.B)
-	//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:22
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/index.qtpl:21
+	//line template/build/index.qtpl:22
 	return qs422016
-//line template/build/index.qtpl:21
+//line template/build/index.qtpl:22
 }

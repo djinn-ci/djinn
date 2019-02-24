@@ -95,48 +95,43 @@ func (p *Error) Header() string {
 //line template/error.qtpl:18
 }
 
-//line template/error.qtpl:20
+//line template/error.qtpl:21
 func (p *Error) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/error.qtpl:20
-	qw422016.N().S(`
-<div class="error">
-	<h1>`)
-	//line template/error.qtpl:22
+	//line template/error.qtpl:21
+	qw422016.N().S(` <div class="error"> <h1>`)
+	//line template/error.qtpl:23
 	qw422016.E().V(p.Code)
-	//line template/error.qtpl:22
-	qw422016.N().S(`</h1>
-	<h2>`)
 	//line template/error.qtpl:23
+	qw422016.N().S(`</h1> <h2>`)
+	//line template/error.qtpl:24
 	qw422016.E().S(p.Message)
-	//line template/error.qtpl:23
-	qw422016.N().S(`</h2>
-</div>
-`)
-//line template/error.qtpl:25
+	//line template/error.qtpl:24
+	qw422016.N().S(`</h2> </div> `)
+//line template/error.qtpl:26
 }
 
-//line template/error.qtpl:25
+//line template/error.qtpl:26
 func (p *Error) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/error.qtpl:25
+	//line template/error.qtpl:26
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/error.qtpl:25
+	//line template/error.qtpl:26
 	p.StreamBody(qw422016)
-	//line template/error.qtpl:25
+	//line template/error.qtpl:26
 	qt422016.ReleaseWriter(qw422016)
-//line template/error.qtpl:25
+//line template/error.qtpl:26
 }
 
-//line template/error.qtpl:25
+//line template/error.qtpl:26
 func (p *Error) Body() string {
-	//line template/error.qtpl:25
+	//line template/error.qtpl:26
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/error.qtpl:25
+	//line template/error.qtpl:26
 	p.WriteBody(qb422016)
-	//line template/error.qtpl:25
+	//line template/error.qtpl:26
 	qs422016 := string(qb422016.B)
-	//line template/error.qtpl:25
+	//line template/error.qtpl:26
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/error.qtpl:25
+	//line template/error.qtpl:26
 	return qs422016
-//line template/error.qtpl:25
+//line template/error.qtpl:26
 }

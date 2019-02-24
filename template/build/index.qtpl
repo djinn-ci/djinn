@@ -10,6 +10,7 @@ type IndexPage struct {
 {%= p.Page.Title() %} - Builds
 {% endfunc %}
 
+{% collapsespace %}
 {% func (p *IndexPage) Body() %}
 <div class="dashboard-header">
 	<h1>Builds</h1>
@@ -19,3 +20,4 @@ type IndexPage struct {
 </div>
 <div class="dashboard-message">No builds have been submitted yet.</div>
 {% endfunc %}
+{% endcollapsespace %}

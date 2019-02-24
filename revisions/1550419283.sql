@@ -7,9 +7,10 @@ CREATE TABLE namespaces (
 	id          SERIAL PRIMARY KEY,
 	user_id     INT NOT NULL REFERENCES users(id),
 	parent_id   INT NULL,
-	name        VARCHAR(64) NOT NULL,
-	full_name   VARCHAR(640) NOT NULL,
+	name        VARCHAR(32) NOT NULL,
+	full_name   VARCHAR(672) NOT NULL,
 	description VARCHAR(255) NULL,
+	level       INT NOT NULL,
 	visibility  visibility DEFAULT 'private',
 	created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
 	updated_at  TIMESTAMP NOT NULL DEFAULT NOW()

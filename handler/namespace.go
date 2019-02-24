@@ -16,6 +16,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var namespaceMaxLevel int64 = 20
+
 type Namespace struct {
 	Handler
 }
@@ -117,6 +119,18 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 			Valid: true,
 		}
 		n.FullName = strings.Join([]string{parent.FullName, f.Name}, "/")
+		n.Level = parent.Level + 1
+	}
+
+	if n.Level >= namespaceMaxLevel {
+		errs := form.NewErrors()
+		errs.Put("namespace", form.ErrNamespaceTooDeep)
+
+		h.flashErrors(w, r, errs)
+		h.flashForm(w, r, f)
+
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
 	}
 
 	if err := n.Create(); err != nil {

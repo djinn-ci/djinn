@@ -14,9 +14,10 @@ var (
 	namespaceRegex   = regexp.MustCompile(namespacePattern)
 
 	ErrNamespaceNameRequired = errors.New("Name can't be blank")
-	ErrNamespaceNameLen      = errors.New("Name must be between 3 and 64 characters")
+	ErrNamespaceNameLen      = errors.New("Name must be between 3 and 32 characters")
 	ErrNamespaceInvalid      = errors.New("Name can only contain numbers and letters")
 	ErrNamespaceExists       = errors.New("Namespace already exists")
+	ErrNamespaceTooDeep      = errors.New("Namespaces can only be nested to 20 levels")
 )
 
 type Namespace struct {

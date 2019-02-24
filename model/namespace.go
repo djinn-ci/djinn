@@ -14,6 +14,7 @@ type Namespace struct {
 	Name        string        `db:"name"`
 	FullName    string        `db:"full_name"`
 	Description string        `db:"description"`
+	Level       int64         `db:"level"`
 	Visibility  Visibility    `db:"visibility"`
 	CreatedAt   *time.Time    `db:"created_at"`
 	UpdatedAt   *time.Time    `db:"updated_at"`
@@ -35,7 +36,7 @@ func FindNamespace(id int64) (*Namespace, error) {
 
 	row := stmt.QueryRow(id)
 
-	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.FullName, &n.Description, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
+	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.FullName, &n.Description, &n.Level, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -50,8 +51,8 @@ func FindNamespace(id int64) (*Namespace, error) {
 
 func (n *Namespace) Create() error {
 	stmt, err := DB.Prepare(`
-		INSERT INTO namespaces (user_id, parent_id, name, full_name, description, visibility)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO namespaces (user_id, parent_id, name, full_name, description, level, visibility)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -61,7 +62,7 @@ func (n *Namespace) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(n.UserID, n.ParentID, n.Name, n.FullName, n.Description, n.Visibility)
+	row := stmt.QueryRow(n.UserID, n.ParentID, n.Name, n.FullName, n.Description, n.Level, n.Visibility)
 
 	err = row.Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt)
 
@@ -89,6 +90,7 @@ func (n *Namespace) Destroy() error {
 	n.Name = ""
 	n.FullName = ""
 	n.Description = ""
+	n.Level = 0
 	n.Visibility = Visibility(0)
 	n.CreatedAt = nil
 	n.UpdatedAt = nil
@@ -105,6 +107,7 @@ func (n Namespace) IsZero() bool {
 			n.Name == ""                  &&
 			n.FullName == ""              &&
 			n.Description == ""           &&
+			n.Level == 0                  &&
 			n.Visibility == Visibility(0) &&
 			n.CreatedAt == nil            &&
 			n.UpdatedAt == nil
@@ -127,7 +130,7 @@ func (n *Namespace) LoadParents() error {
 
 	p := &Namespace{}
 
-	err = row.Scan(&p.ID, &p.UserID, &p.ParentID, &p.Name, &p.FullName, &p.Description, &p.Visibility, &p.CreatedAt, &p.UpdatedAt)
+	err = row.Scan(&p.ID, &p.UserID, &p.ParentID, &p.Name, &p.FullName, &p.Description, &p.Level, &p.Visibility, &p.CreatedAt, &p.UpdatedAt)
 
 	if err != nil {
 		return errors.Err(err)

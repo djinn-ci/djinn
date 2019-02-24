@@ -12,6 +12,7 @@ type Namespace struct {
 	UserID      int64         `db:"user_id"`
 	ParentID    sql.NullInt64 `db:"parent_id"`
 	Name        string        `db:"name"`
+	FullName    string        `db:"full_name"`
 	Description string        `db:"description"`
 	Visibility  Visibility    `db:"visibility"`
 	CreatedAt   *time.Time    `db:"created_at"`
@@ -34,7 +35,7 @@ func FindNamespace(id int64) (*Namespace, error) {
 
 	row := stmt.QueryRow(id)
 
-	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.Description, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
+	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.FullName, &n.Description, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -49,8 +50,8 @@ func FindNamespace(id int64) (*Namespace, error) {
 
 func (n *Namespace) Create() error {
 	stmt, err := DB.Prepare(`
-		INSERT INTO namespaces (user_id, parent_id, name, description, visibility)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO namespaces (user_id, parent_id, name, full_name, description, visibility)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -60,7 +61,7 @@ func (n *Namespace) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(n.UserID, n.ParentID, n.Name, n.Description, n.Visibility)
+	row := stmt.QueryRow(n.UserID, n.ParentID, n.Name, n.FullName, n.Description, n.Visibility)
 
 	err = row.Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt)
 
@@ -86,6 +87,7 @@ func (n *Namespace) Destroy() error {
 	n.UserID = 0
 	n.ParentID.Int64 = 0
 	n.Name = ""
+	n.FullName = ""
 	n.Description = ""
 	n.Visibility = Visibility(0)
 	n.CreatedAt = nil
@@ -101,6 +103,7 @@ func (n Namespace) IsZero() bool {
 	return	n.ID == 0                     &&
 			n.UserID == 0                 &&
 			n.Name == ""                  &&
+			n.FullName == ""              &&
 			n.Description == ""           &&
 			n.Visibility == Visibility(0) &&
 			n.CreatedAt == nil            &&
@@ -124,7 +127,7 @@ func (n *Namespace) LoadParents() error {
 
 	p := &Namespace{}
 
-	err = row.Scan(&p.ID, &p.UserID, &p.ParentID, &p.Name, &p.Description, &p.Visibility, &p.CreatedAt, &p.UpdatedAt)
+	err = row.Scan(&p.ID, &p.UserID, &p.ParentID, &p.Name, &p.FullName, &p.Description, &p.Visibility, &p.CreatedAt, &p.UpdatedAt)
 
 	if err != nil {
 		return errors.Err(err)
@@ -139,10 +142,11 @@ func (n *Namespace) Update() error {
 	stmt, err := DB.Prepare(`
 		UPDATE namespaces
 		SET	name = $1,
-			description = $2,
-			visibility = $3,
-			updated_at = NOW(),
-		WHERE id = $4
+			full_name = $2,
+			description = $3,
+			visibility = $4,
+			updated_at = NOW()
+		WHERE id = $5
 		RETURNING updated_at
 	`)
 
@@ -152,7 +156,7 @@ func (n *Namespace) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(n.Name, n.Description, n.Visibility, n.ID)
+	row := stmt.QueryRow(n.Name, n.FullName, n.Description, n.Visibility, n.ID)
 
 	err = row.Scan(&n.UpdatedAt)
 

@@ -123,10 +123,10 @@ func (u *User) Create() error {
 	return errors.Err(err)
 }
 
-func (u *User) FindNamespaceByName(name string) (*Namespace, error) {
+func (u *User) FindNamespaceByFullName(fullName string) (*Namespace, error) {
 	n := &Namespace{}
 
-	stmt, err := DB.Prepare(`SELECT * FROM namespaces WHERE user_id = $1 AND name = $2`)
+	stmt, err := DB.Prepare(`SELECT * FROM namespaces WHERE user_id = $1 AND full_name = $2`)
 
 	if err != nil {
 		return n, errors.Err(err)
@@ -134,9 +134,9 @@ func (u *User) FindNamespaceByName(name string) (*Namespace, error) {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(u.ID, name)
+	row := stmt.QueryRow(u.ID, fullName)
 
-	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.Description, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
+	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.FullName, &n.Description, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {

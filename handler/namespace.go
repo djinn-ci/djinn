@@ -59,7 +59,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := u.FindNamespaceByName(r.URL.Query().Get("parent"))
+	n, err := u.FindNamespaceByFullName(r.URL.Query().Get("parent"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -87,15 +87,15 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := &form.CreateNamespace{
-		UserID: u.ID,
+	f := &form.Namespace{
+		UserID:   u.ID,
 	}
 
 	if err := h.handleRequestData(f, w, r); err != nil {
 		return
 	}
 
-	parent, err := u.FindNamespaceByName(f.Parent)
+	parent, err := u.FindNamespaceByFullName(f.Parent)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -106,6 +106,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	n := model.Namespace{
 		UserID:      u.ID,
 		Name:        f.Name,
+		FullName:    f.Name,
 		Description: f.Description,
 		Visibility:  f.Visibility,
 	}
@@ -115,7 +116,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 			Int64: parent.ID,
 			Valid: true,
 		}
-		n.Name = strings.Join([]string{parent.Name, f.Name}, "/")
+		n.FullName = strings.Join([]string{parent.FullName, f.Name}, "/")
 	}
 
 	if err := n.Create(); err != nil {
@@ -153,7 +154,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := u.FindNamespaceByName(vars["namespace"])
+	n, err := u.FindNamespaceByFullName(vars["namespace"])
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -187,11 +188,21 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := u.FindNamespaceByName(vars["namespace"])
+	if u.IsZero() {
+		webutil.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	n, err := u.FindNamespaceByFullName(vars["namespace"])
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if n.IsZero() {
+		webutil.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -200,6 +211,9 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
+
+	// Clear the form data from the session.
+	h.form(w, r)
 
 	p := &namespace.EditPage{
 		Errors:    h.errors(w, r),
@@ -222,7 +236,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := u.FindNamespaceByName(vars["namespace"])
+	n, err := u.FindNamespaceByFullName(vars["namespace"])
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -230,8 +244,9 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := &form.CreateNamespace{
-		UserID: u.ID,
+	f := &form.Namespace{
+		UserID:    u.ID,
+		Namespace: n,
 	}
 
 	if err := h.handleRequestData(f, w, r); err != nil {
@@ -248,7 +263,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/u/" + u.Username + "/" + n.Name, http.StatusSeeOther)
+	http.Redirect(w, r, "/u/" + u.Username + "/" + n.FullName, http.StatusSeeOther)
 }
 
 func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
@@ -262,11 +277,21 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := u.FindNamespaceByName(vars["namespace"])
+	if u.IsZero() {
+		webutil.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	n, err := u.FindNamespaceByFullName(vars["namespace"])
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if n.IsZero() {
+		webutil.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 

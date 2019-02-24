@@ -86,7 +86,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:28
 	qw422016.N().S(`/`)
 	//line template/namespace/edit.qtpl:28
-	qw422016.E().S(p.Namespace.Name)
+	qw422016.E().S(p.Namespace.FullName)
 	//line template/namespace/edit.qtpl:28
 	qw422016.N().S(`">
 			<input type="hidden" name="_method" value="PATCH"/>

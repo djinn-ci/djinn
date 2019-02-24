@@ -25,7 +25,7 @@ type EditPage struct {
 </div>
 <div class="dashboard-body">
 	<div class="panel panel-slim">
-		<form method="POST" action="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.Name %}">
+		<form method="POST" action="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
 			<input type="hidden" name="_method" value="PATCH"/>
 			{% if p.Errors.First("namespace") != "" %}
 				<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>

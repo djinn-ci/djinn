@@ -22,7 +22,7 @@ func init() {
 	gob.Register(form(make(map[string]string)))
 	gob.Register(Register{})
 	gob.Register(Login{})
-	gob.Register(CreateNamespace{})
+	gob.Register(Namespace{})
 }
 
 func Unmarshal(f Form, r *http.Request) error {

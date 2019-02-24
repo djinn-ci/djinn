@@ -28,7 +28,7 @@ type CreatePage struct {
 	<div class="panel panel-slim">
 		<form method="POST" action="/namespaces">
 			{% if p.Parent != nil && !p.Parent.IsZero() %}
-				<input type="hidden" name="parent" value="{%s p.Parent.Name %}"/>
+				<input type="hidden" name="parent" value="{%s p.Parent.FullName %}"/>
 			{% endif %}
 			{% if p.Errors.First("namespace") != "" %}
 				<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>

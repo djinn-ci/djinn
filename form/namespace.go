@@ -2,6 +2,7 @@ package form
 
 import (
 	"regexp"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
@@ -18,15 +19,16 @@ var (
 	ErrNamespaceExists       = errors.New("Namespace already exists")
 )
 
-type CreateNamespace struct {
+type Namespace struct {
 	UserID      int64
 	Parent      string           `schema:"parent"`
 	Name        string           `schema:"name"`
 	Description string           `schema:"description"`
 	Visibility  model.Visibility `schema:"visibility"`
+	Namespace   *model.Namespace
 }
 
-func (f CreateNamespace) Get(key string) string {
+func (f Namespace) Get(key string) string {
 	if key == "name" {
 		return f.Name
 	}
@@ -38,7 +40,7 @@ func (f CreateNamespace) Get(key string) string {
 	return ""
 }
 
-func (f CreateNamespace) Validate() error {
+func (f Namespace) Validate() error {
 	errs := NewErrors()
 
 	if f.Name == "" {
@@ -53,7 +55,21 @@ func (f CreateNamespace) Validate() error {
 		errs.Put("name", ErrNamespaceInvalid)
 	}
 
-	count, err := model.Count(model.NamespacesTable, map[string]interface{}{"user_id": f.UserID, "name": f.Name})
+	if f.Namespace != nil && !f.Namespace.IsZero() {
+		parts := strings.Split(f.Namespace.FullName, "/")
+		parts[len(parts) - 1] = f.Name
+
+		f.Name = strings.Join(parts, "/")
+	} else if f.Parent != "" {
+		f.Name = strings.Join([]string{f.Parent, f.Name}, "/")
+	}
+
+	cols := map[string]interface{}{
+		"user_id":   f.UserID,
+		"full_name": f.Name,
+	}
+
+	count, err := model.Count(model.NamespacesTable, cols)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

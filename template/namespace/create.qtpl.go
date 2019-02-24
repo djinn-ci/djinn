@@ -89,7 +89,7 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 		qw422016.N().S(`
 				<input type="hidden" name="parent" value="`)
 		//line template/namespace/create.qtpl:31
-		qw422016.E().S(p.Parent.Name)
+		qw422016.E().S(p.Parent.FullName)
 		//line template/namespace/create.qtpl:31
 		qw422016.N().S(`"/>
 			`)

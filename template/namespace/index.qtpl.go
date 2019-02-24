@@ -103,7 +103,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 			//line template/namespace/index.qtpl:33
 			qw422016.N().S(`/`)
 			//line template/namespace/index.qtpl:33
-			qw422016.E().S(n.Name)
+			qw422016.E().S(n.FullName)
 			//line template/namespace/index.qtpl:33
 			qw422016.N().S(`">`)
 			//line template/namespace/index.qtpl:33
@@ -111,7 +111,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 			//line template/namespace/index.qtpl:33
 			qw422016.N().S(`/`)
 			//line template/namespace/index.qtpl:33
-			qw422016.E().S(n.Name)
+			qw422016.E().S(n.FullName)
 			//line template/namespace/index.qtpl:33
 			qw422016.N().S(`</a>
 		</div>

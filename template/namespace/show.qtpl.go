@@ -87,12 +87,12 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:25
 	qw422016.N().S(`/`)
 	//line template/namespace/show.qtpl:25
-	qw422016.E().S(p.Namespace.Name)
+	qw422016.E().S(p.Namespace.FullName)
 	//line template/namespace/show.qtpl:25
 	qw422016.N().S(`/-/edit" class="button button-secondary">Edit</a></li>
 		<li><a href="/namespaces/create?parent=`)
 	//line template/namespace/show.qtpl:26
-	qw422016.E().S(p.Namespace.Name)
+	qw422016.E().S(p.Namespace.FullName)
 	//line template/namespace/show.qtpl:26
 	qw422016.N().S(`" class="button button-primary">Create</a></li>
 	</ul>

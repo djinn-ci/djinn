@@ -91,6 +91,36 @@ func (n *Namespace) Create() error {
 	return errors.Err(err)
 }
 
+func (n *Namespace) Destroy() error {
+	stmt, err := DB.Prepare(`DELETE FROM namespaces WHERE id = $1`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(n.ID)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	n.ID = 0
+	n.UserID = 0
+	n.ParentID.Int64 = 0
+	n.Name = ""
+	n.Description = ""
+	n.Visibility = Visibility(0)
+	n.CreatedAt = nil
+	n.UpdatedAt = nil
+
+	n.User = nil
+	n.Parent = nil
+
+	return nil
+}
+
 func (n Namespace) IsZero() bool {
 	return	n.ID == 0                     &&
 			n.UserID == 0                 &&
@@ -127,6 +157,30 @@ func (n *Namespace) LoadParents() error {
 	n.Parent = p
 
 	return n.Parent.LoadParents()
+}
+
+func (n *Namespace) Update() error {
+	stmt, err := DB.Prepare(`
+		UPDATE namespaces
+		SET	name = $1,
+			description = $2,
+			visibility = $3,
+			updated_at = NOW(),
+		WHERE id = $4
+		RETURNING updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(n.Name, n.Description, n.Visibility, n.ID)
+
+	err = row.Scan(&n.UpdatedAt)
+
+	return errors.Err(err)
 }
 
 func (v *Visibility) Scan(val interface{}) error {

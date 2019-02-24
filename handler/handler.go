@@ -34,6 +34,7 @@ func unmarshalForm(f form.Form, r *http.Request) error {
 	}
 
 	dec := schema.NewDecoder()
+	dec.IgnoreUnknownKeys(true)
 
 	if err := dec.Decode(f, r.Form); err != nil {
 		return errors.Err(err)

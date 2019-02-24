@@ -136,6 +136,16 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "PATCH" {
+		h.Update(w, r)
+		return
+	}
+
+	if r.Method == "DELETE" {
+		h.Destroy(w, r)
+		return
+	}
+
 	vars := mux.Vars(r)
 
 	u, err := model.FindUserByUsername(vars["username"])
@@ -207,4 +217,81 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 	d := template.NewDashboard(p, r.URL.RequestURI())
 
 	html(w, template.Render(d), http.StatusOK)
+}
+
+func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	u, err := model.FindUserByUsername(vars["username"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	n, err := u.FindNamespaceByName(vars["namespace"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	f := &form.CreateNamespace{
+		UserID: u.ID,
+	}
+
+	if err := unmarshalForm(f, r); err != nil {
+		log.Error.Println(errors.Err(err))
+		return
+	}
+
+	if err := f.Validate(); err != nil {
+		h.flashErrors(w, r, err.(form.Errors))
+		h.flashForm(w, r, f)
+
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	n.Name = f.Name
+	n.Description = f.Description
+	n.Visibility = model.ParseVisibility(f.Visibility)
+
+	if err := n.Update(); err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/u/" + u.Username + "/" + n.Name, http.StatusSeeOther)
+}
+
+func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	u, err := model.FindUserByUsername(vars["username"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	n, err := u.FindNamespaceByName(vars["namespace"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := n.Destroy(); err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/namespaces", http.StatusSeeOther)
 }

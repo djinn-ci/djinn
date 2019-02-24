@@ -66,12 +66,14 @@ func mainCommand(cmd cli.Command) {
 
 	router := registerRoutes(handler.New(sc, store), cfg.Assets)
 
+	spoof := handler.NewSpoof(router)
+
 	httpServer := &http.Server{
 		Addr:         cfg.Net.Listen,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      router,
+		Handler:      spoof,
 	}
 
 	if cfg.Net.SSL.Cert != "" && cfg.Net.SSL.Key != "" {
@@ -80,10 +82,10 @@ func mainCommand(cmd cli.Command) {
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
 			IdleTimeout:  time.Second * 60,
-			Handler:      router,
+			Handler:      spoof,
 		}
 
-		httpServer.Handler = handler.NewSecureRedirect(cfg.Net.SSL.Listen, router)
+		httpServer.Handler = handler.NewSpoof(handler.NewSecureRedirect(cfg.Net.SSL.Listen, router))
 
 		go func() {
 			if err := httpsServer.ListenAndServeTLS(cfg.Net.SSL.Cert, cfg.Net.SSL.Key); err != nil {

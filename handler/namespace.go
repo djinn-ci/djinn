@@ -168,7 +168,6 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &namespace.ShowPage{
-		User:      u,
 		Namespace: n,
 	}
 

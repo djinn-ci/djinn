@@ -26,7 +26,8 @@ type Namespace struct {
 	CreatedAt   *time.Time    `db:"created_at"`
 	UpdatedAt   *time.Time    `db:"updated_at"`
 
-	User *User
+	User   *User
+	Parent *Namespace
 }
 
 func FindNamespace(id int64) (*Namespace, error) {
@@ -98,6 +99,34 @@ func (n Namespace) IsZero() bool {
 			n.Visibility == Visibility(0) &&
 			n.CreatedAt == nil            &&
 			n.UpdatedAt == nil
+}
+
+func (n *Namespace) LoadParents() error {
+	if n.ParentID.Int64 == 0 {
+		return nil
+	}
+
+	stmt, err := DB.Prepare(`SELECT * FROM namespaces WHERE id = $1`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(n.ParentID)
+
+	p := &Namespace{}
+
+	err = row.Scan(&p.ID, &p.UserID, &p.ParentID, &p.Name, &p.Description, &p.Visibility, &p.CreatedAt, &p.UpdatedAt)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	n.Parent = p
+
+	return n.Parent.LoadParents()
 }
 
 func (v *Visibility) Scan(val interface{}) error {

@@ -1,0 +1,72 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type EditPage struct {
+	*template.Page
+
+	Errors    form.Errors
+	Namespace *model.Namespace
+}
+%}
+
+{% func (p *EditPage) Title() %}
+{%s p.Namespace.Name %} - Edit
+{% endfunc %}
+
+{% func (p *EditPage) Body() %}
+<div class="dashboard-header">
+	<h1>Edit Namespace</h1>
+</div>
+<div class="dashboard-body">
+	<div class="panel panel-slim">
+		<form method="POST" action="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.Name %}">
+			<input type="hidden" name="_method" value="PATCH"/>
+			{% if p.Errors.First("namespace") != "" %}
+				<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
+			{% endif %}
+			<div class="input-field">
+				<label class="input-field-label">Name</label>
+				<input class="input-text" type="text" name="name" value="{%s p.Namespace.Name %}" autocomplete="off"/>
+				<span class="error">{%s p.Errors.First("name") %}</span>
+			</div>
+			<div class="input-field">
+				<label class="input-field-label">Description</label>
+				<textarea class="input-text" name="description">{%s p.Namespace.Description %}</textarea>
+			</div>
+			<div class="input-field">
+				<label class="input-field-label">Visibility</label>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="private" {% if p.Namespace.Visibility == model.Private %}checked="true"{% endif %}/>
+					<div class="input-option-description">
+						Private<br/>
+						Only you will be able to view builds in the namespace.
+					</div>
+				</label>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="internal" {% if p.Namespace.Visibility == model.Internal %}checked="true"{% endif %}/>
+					<div class="input-option-description">
+						Internal<br/>
+						Anyone with an account will be able to view builds in the namespace
+					</div>
+				</label>
+				<label class="input-option">
+					<input class="input-option-selector" type="radio" name="visibility" value="public" {% if p.Namespace.Visibility == model.Public %}checked="true"{% endif %}/>
+					<div class="input-option-description">
+						Public<br/>
+						Anyone will be able to view builds in the namespace.
+					</div>
+				</label>
+			</div>
+			<div class="input-field">
+				<button type="submit" class="button button-primary">Save</button>
+			</div>
+		</form>
+	</div>
+</div>
+{% endfunc %}

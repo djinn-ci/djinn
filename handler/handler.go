@@ -10,7 +10,6 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 
-	"github.com/gorilla/schema"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 )
@@ -28,21 +27,6 @@ func html(w http.ResponseWriter, content string, status int) {
 	w.Write([]byte(content))
 }
 
-func unmarshalForm(f form.Form, r *http.Request) error {
-	if err := r.ParseForm(); err != nil {
-		return errors.Err(err)
-	}
-
-	dec := schema.NewDecoder()
-	dec.IgnoreUnknownKeys(true)
-
-	if err := dec.Decode(f, r.Form); err != nil {
-		return errors.Err(err)
-	}
-
-	return nil
-}
-
 func New(sc *securecookie.SecureCookie, store sessions.Store) Handler {
 	return Handler{sc: sc, store: store}
 }
@@ -54,6 +38,28 @@ func HTMLError(w http.ResponseWriter, message string, status int) {
 	}
 
 	html(w, template.Render(p), status)
+}
+
+func (h *Handler) handleRequestData(f form.Form, w http.ResponseWriter, r *http.Request) error {
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		e, ok := err.(form.Errors)
+
+		if !ok {
+			log.Error.Println(errors.Err(err))
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+
+			return errors.Err(errors.New("failed to handle request data"))
+		}
+
+		h.flashErrors(w, r, e)
+		h.flashForm(w, r, f)
+
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+
+		return errors.Err(errors.New("request data failed validation"))
+	}
+
+	return nil
 }
 
 func (h *Handler) errors(w http.ResponseWriter, r *http.Request) form.Errors {

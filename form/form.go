@@ -1,6 +1,13 @@
 package form
 
-import "encoding/gob"
+import (
+	"encoding/gob"
+	"net/http"
+
+	"github.com/andrewpillar/thrall/errors"
+
+	"github.com/gorilla/schema"
+)
 
 type form map[string]string
 
@@ -16,6 +23,25 @@ func init() {
 	gob.Register(Register{})
 	gob.Register(Login{})
 	gob.Register(CreateNamespace{})
+}
+
+func Unmarshal(f Form, r *http.Request) error {
+	if err := r.ParseForm(); err != nil {
+		return errors.Err(err)
+	}
+
+	dec := schema.NewDecoder()
+	dec.IgnoreUnknownKeys(true)
+
+	return errors.Err(dec.Decode(f, r.Form))
+}
+
+func UnmarshalAndValidate(f Form, r *http.Request) error {
+	if err := Unmarshal(f, r); err != nil {
+		return errors.Err(err)
+	}
+
+	return f.Validate()
 }
 
 func Empty() form {

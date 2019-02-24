@@ -90,16 +90,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		UserID: u.ID,
 	}
 
-	if err := unmarshalForm(f, r); err != nil {
-		log.Error.Println(errors.Err(err))
-		return
-	}
-
-	if err := f.Validate(); err != nil {
-		h.flashErrors(w, r, err.(form.Errors))
-		h.flashForm(w, r, f)
-
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+	if err := h.handleRequestData(f, w, r); err != nil {
 		return
 	}
 
@@ -242,16 +233,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		UserID: u.ID,
 	}
 
-	if err := unmarshalForm(f, r); err != nil {
-		log.Error.Println(errors.Err(err))
-		return
-	}
-
-	if err := f.Validate(); err != nil {
-		h.flashErrors(w, r, err.(form.Errors))
-		h.flashForm(w, r, f)
-
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+	if err := h.handleRequestData(f, w, r); err != nil {
 		return
 	}
 

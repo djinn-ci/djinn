@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/andrewpillar/thrall/handler"
+	"github.com/andrewpillar/thrall/webutil"
 
 	"github.com/gorilla/mux"
 )
@@ -12,11 +13,11 @@ func registerRoutes(h handler.Handler, dir string) *mux.Router {
 	r := mux.NewRouter()
 
 	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler.HTMLError(w, "Not found", http.StatusNotFound)
+		webutil.HTMLError(w, "Not found", http.StatusNotFound)
 	})
 
 	r.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		webutil.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 
 	assetsHandler := http.StripPrefix("/assets/", http.FileServer(http.Dir(dir)))

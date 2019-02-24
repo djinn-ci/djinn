@@ -11,6 +11,7 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/namespace"
+	"github.com/andrewpillar/thrall/webutil"
 
 	"github.com/gorilla/mux"
 )
@@ -28,7 +29,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -36,7 +37,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -46,7 +47,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
 
-	html(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +55,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -62,7 +63,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -74,7 +75,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
 
-	html(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
@@ -82,7 +83,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -98,7 +99,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -119,7 +120,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := n.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -143,12 +144,12 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if u.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
+		webutil.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -156,12 +157,12 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if n.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
+		webutil.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -172,7 +173,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
 
-	html(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
@@ -182,7 +183,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -190,13 +191,13 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if err := n.LoadParents(); err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -207,7 +208,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
 
-	html(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
@@ -217,7 +218,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -225,7 +226,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -243,7 +244,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err := n.Update(); err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -257,7 +258,7 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -265,13 +266,13 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if err := n.Destroy(); err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 

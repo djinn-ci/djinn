@@ -5,6 +5,7 @@ import (
 
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/webutil"
 )
 
 type gateHandler func(u *model.User) bool
@@ -23,7 +24,7 @@ func (h Middleware) gate(next http.HandlerFunc, handler gateHandler) http.Handle
 
 		if err != nil {
 			log.Error.Println(err)
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 

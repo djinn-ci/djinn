@@ -8,7 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/webutil"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -17,27 +17,12 @@ import (
 var sessionName = "session"
 
 type Handler struct {
-	sc    *securecookie.SecureCookie
+	sc     *securecookie.SecureCookie
 	store  sessions.Store
-}
-
-func html(w http.ResponseWriter, content string, status int) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.WriteHeader(status)
-	w.Write([]byte(content))
 }
 
 func New(sc *securecookie.SecureCookie, store sessions.Store) Handler {
 	return Handler{sc: sc, store: store}
-}
-
-func HTMLError(w http.ResponseWriter, message string, status int) {
-	p := &template.Error{
-		Code:    status,
-		Message: message,
-	}
-
-	html(w, template.Render(p), status)
 }
 
 func (h *Handler) handleRequestData(f form.Form, w http.ResponseWriter, r *http.Request) error {
@@ -46,7 +31,7 @@ func (h *Handler) handleRequestData(f form.Form, w http.ResponseWriter, r *http.
 
 		if !ok {
 			log.Error.Println(errors.Err(err))
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 
 			return errors.Err(errors.New("failed to handle request data"))
 		}

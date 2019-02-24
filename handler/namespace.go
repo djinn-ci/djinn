@@ -115,7 +115,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		UserID:      u.ID,
 		Name:        f.Name,
 		Description: f.Description,
-		Visibility:  model.ParseVisibility(f.Visibility),
+		Visibility:  f.Visibility,
 	}
 
 	if !parent.IsZero() {
@@ -257,7 +257,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 
 	n.Name = f.Name
 	n.Description = f.Description
-	n.Visibility = model.ParseVisibility(f.Visibility)
+	n.Visibility = f.Visibility
 
 	if err := n.Update(); err != nil {
 		log.Error.Println(errors.Err(err))

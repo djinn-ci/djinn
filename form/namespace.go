@@ -20,10 +20,10 @@ var (
 
 type CreateNamespace struct {
 	UserID      int64
-	Parent      string `schema:"parent"`
-	Name        string `schema:"name"`
-	Description string `schema:"description"`
-	Visibility  string `schema:"visibility"`
+	Parent      string           `schema:"parent"`
+	Name        string           `schema:"name"`
+	Description string           `schema:"description"`
+	Visibility  model.Visibility `schema:"visibility"`
 }
 
 func (f CreateNamespace) Get(key string) string {

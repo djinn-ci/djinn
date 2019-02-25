@@ -23,7 +23,14 @@ Create Namespace - Thrall
 {% collapsespace %}
 {% func (p *CreatePage) Body() %}
 <div class="dashboard-header">
-	<h1><a href="/namespaces" class="dashboard-header-back">{% cat "../../svgs/arrow_back.svg" %}</a> Create Namespace</h1>
+	<h1>
+		<a href="/namespaces" class="dashboard-header-back">{% cat "../../svgs/arrow_back.svg" %}</a>
+		{% if p.Parent != nil && !p.Parent.IsZero() %}
+			Create Sub-namespace<br/>
+		{% else %}
+			Create Namespace<br/>
+		{% endif %}
+	</h1>
 </div>
 <div class="dashboard-body">
 	<div class="panel panel-slim">

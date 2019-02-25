@@ -22,7 +22,10 @@ Edit Namespace - Thrall
 {% collapsespace %}
 {% func (p *EditPage) Body() %}
 <div class="dashboard-header">
-	<h1>{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit</h1>
+	<h1>
+		<a href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}" class="dashboard-header-back">
+			{% cat "../../svgs/arrow_back.svg" %}
+		</a>{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit</h1>
 </div>
 <div class="dashboard-body">
 	<div class="panel panel-slim">

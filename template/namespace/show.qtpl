@@ -35,6 +35,7 @@ type ShowPage struct {
 {% func (p *ShowPage) Body() %}
 <div class="dashboard-header">
 	<h1>
+		<a href="/namespaces" class="dashboard-header-back">{% cat "../../svgs/arrow_back.svg" %}</a>
 		{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}<br/>
 		<small>{%s p.Namespace.Description %}</small>
 	</h1>

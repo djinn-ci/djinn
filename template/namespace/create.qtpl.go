@@ -112,32 +112,36 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/create.qtpl:40
 	qw422016.E().S(p.Errors.First("name"))
 	//line template/namespace/create.qtpl:40
-	qw422016.N().S(`</span> </div> <div class="input-field"> <label class="input-field-label">Description</label> <textarea class="input-text" name="description"></textarea> </div> <div class="input-field"> <label class="input-field-label">Visibility</label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="private" checked="true"/> <div class="input-option-description"> Private<br/> Only you will be able to view builds in the namespace. </div> </label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="internal"/> <div class="input-option-description"> Internal<br/> Anyone with an account will be able to view builds in the namespace </div> </label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="public"/> <div class="input-option-description"> Public<br/> Anyone will be able to view builds in the namespace. </div> </label> </div> <div class="input-field"> <button type="submit" class="button button-primary">Create</button> </div> </form> </div> </div> `)
-//line template/namespace/create.qtpl:76
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label class="input-field-label">Description</label> <textarea class="input-text" name="description"></textarea> <span class="error">`)
+	//line template/namespace/create.qtpl:45
+	qw422016.E().S(p.Errors.First("description"))
+	//line template/namespace/create.qtpl:45
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label class="input-field-label">Visibility</label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="private" checked="true"/> <div class="input-option-description"> Private<br/> Only you will be able to view builds in the namespace. </div> </label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="internal"/> <div class="input-option-description"> Internal<br/> Anyone with an account will be able to view builds in the namespace </div> </label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="public"/> <div class="input-option-description"> Public<br/> Anyone will be able to view builds in the namespace. </div> </label> </div> <div class="input-field"> <button type="submit" class="button button-primary">Create</button> </div> </form> </div> </div> `)
+//line template/namespace/create.qtpl:77
 }
 
-//line template/namespace/create.qtpl:76
+//line template/namespace/create.qtpl:77
 func (p *CreatePage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/create.qtpl:76
+	//line template/namespace/create.qtpl:77
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/create.qtpl:76
+	//line template/namespace/create.qtpl:77
 	p.StreamBody(qw422016)
-	//line template/namespace/create.qtpl:76
+	//line template/namespace/create.qtpl:77
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/create.qtpl:76
+//line template/namespace/create.qtpl:77
 }
 
-//line template/namespace/create.qtpl:76
+//line template/namespace/create.qtpl:77
 func (p *CreatePage) Body() string {
-	//line template/namespace/create.qtpl:76
+	//line template/namespace/create.qtpl:77
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/create.qtpl:76
+	//line template/namespace/create.qtpl:77
 	p.WriteBody(qb422016)
-	//line template/namespace/create.qtpl:76
+	//line template/namespace/create.qtpl:77
 	qs422016 := string(qb422016.B)
-	//line template/namespace/create.qtpl:76
+	//line template/namespace/create.qtpl:77
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/create.qtpl:76
+	//line template/namespace/create.qtpl:77
 	return qs422016
-//line template/namespace/create.qtpl:76
+//line template/namespace/create.qtpl:77
 }

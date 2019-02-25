@@ -156,56 +156,60 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/edit.qtpl:53
 	}
 	//line template/namespace/edit.qtpl:53
-	qw422016.N().S(` </div> <div class="input-field"> <label class="input-field-label">Visibility</label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="private" `)
-	//line template/namespace/edit.qtpl:58
+	qw422016.N().S(` <span class="error">`)
+	//line template/namespace/edit.qtpl:54
+	qw422016.E().S(p.Errors.First("description"))
+	//line template/namespace/edit.qtpl:54
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label class="input-field-label">Visibility</label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="private" `)
+	//line template/namespace/edit.qtpl:59
 	if p.Namespace.Visibility == model.Private {
-		//line template/namespace/edit.qtpl:58
+		//line template/namespace/edit.qtpl:59
 		qw422016.N().S(`checked="true"`)
-		//line template/namespace/edit.qtpl:58
+		//line template/namespace/edit.qtpl:59
 	}
-	//line template/namespace/edit.qtpl:58
+	//line template/namespace/edit.qtpl:59
 	qw422016.N().S(`/> <div class="input-option-description"> Private<br/> Only you will be able to view builds in the namespace. </div> </label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="internal" `)
-	//line template/namespace/edit.qtpl:65
+	//line template/namespace/edit.qtpl:66
 	if p.Namespace.Visibility == model.Internal {
-		//line template/namespace/edit.qtpl:65
+		//line template/namespace/edit.qtpl:66
 		qw422016.N().S(`checked="true"`)
-		//line template/namespace/edit.qtpl:65
+		//line template/namespace/edit.qtpl:66
 	}
-	//line template/namespace/edit.qtpl:65
+	//line template/namespace/edit.qtpl:66
 	qw422016.N().S(`/> <div class="input-option-description"> Internal<br/> Anyone with an account will be able to view builds in the namespace </div> </label> <label class="input-option"> <input class="input-option-selector" type="radio" name="visibility" value="public" `)
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	if p.Namespace.Visibility == model.Public {
-		//line template/namespace/edit.qtpl:72
+		//line template/namespace/edit.qtpl:73
 		qw422016.N().S(`checked="true"`)
-		//line template/namespace/edit.qtpl:72
+		//line template/namespace/edit.qtpl:73
 	}
-	//line template/namespace/edit.qtpl:72
+	//line template/namespace/edit.qtpl:73
 	qw422016.N().S(`/> <div class="input-option-description"> Public<br/> Anyone will be able to view builds in the namespace. </div> </label> </div> <div class="input-field"> <button type="submit" class="button button-primary">Save</button> </div> </form> </div> </div> `)
-//line template/namespace/edit.qtpl:85
+//line template/namespace/edit.qtpl:86
 }
 
-//line template/namespace/edit.qtpl:85
+//line template/namespace/edit.qtpl:86
 func (p *EditPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:86
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:86
 	p.StreamBody(qw422016)
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:86
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/edit.qtpl:85
+//line template/namespace/edit.qtpl:86
 }
 
-//line template/namespace/edit.qtpl:85
+//line template/namespace/edit.qtpl:86
 func (p *EditPage) Body() string {
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:86
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:86
 	p.WriteBody(qb422016)
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:86
 	qs422016 := string(qb422016.B)
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:86
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:86
 	return qs422016
-//line template/namespace/edit.qtpl:85
+//line template/namespace/edit.qtpl:86
 }

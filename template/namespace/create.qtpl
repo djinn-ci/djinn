@@ -42,6 +42,7 @@ Create Namespace - Thrall
 			<div class="input-field">
 				<label class="input-field-label">Description</label>
 				<textarea class="input-text" name="description"></textarea>
+				<span class="error">{%s p.Errors.First("description") %}</span>
 			</div>
 			<div class="input-field">
 				<label class="input-field-label">Visibility</label>

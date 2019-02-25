@@ -51,6 +51,7 @@ Edit Namespace - Thrall
 				{% else %}
 					<textarea class="input-text" name="description">{%s p.Namespace.Description %}</textarea>
 				{% endif %}
+				<span class="error">{%s p.Errors.First("description") %}</span>
 			</div>
 			<div class="input-field">
 				<label class="input-field-label">Visibility</label>

@@ -18,6 +18,8 @@ var (
 	ErrNamespaceInvalid      = errors.New("Name can only contain numbers and letters")
 	ErrNamespaceExists       = errors.New("Namespace already exists")
 	ErrNamespaceTooDeep      = errors.New("Namespaces can only be nested to 20 levels")
+
+	ErrDescriptionTooLong = errors.New("Description can't be longer than 255 characters")
 )
 
 type Namespace struct {
@@ -86,6 +88,10 @@ func (f Namespace) Validate() error {
 		} else if count > 0 {
 			errs.Put("name", ErrNamespaceExists)
 		}
+	}
+
+	if len(f.Description) > 255 {
+		errs.Put("description", ErrDescriptionTooLong)
 	}
 
 	return errs.Final()

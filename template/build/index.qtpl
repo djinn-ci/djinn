@@ -7,7 +7,7 @@ type IndexPage struct {
 %}
 
 {% func (p *IndexPage) Title() %}
-{%= p.Page.Title() %} - Builds
+Builds - Thrall
 {% endfunc %}
 
 {% collapsespace %}

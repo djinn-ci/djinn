@@ -34,7 +34,10 @@ type ShowPage struct {
 
 {% func (p *ShowPage) Body() %}
 <div class="dashboard-header">
-	<h1>{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}</h1>
+	<h1>
+		{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}<br/>
+		<small>{%s p.Namespace.Description %}</small>
+	</h1>
 	<ul class="actions">
 		<li><a href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}/-/edit" class="button button-secondary">Edit</a></li>
 		<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>

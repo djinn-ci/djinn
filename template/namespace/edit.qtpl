@@ -16,7 +16,7 @@ type EditPage struct {
 %}
 
 {% func (p *EditPage) Title() %}
-{%s p.Namespace.FullName %} - Edit
+Edit Namespace - Thrall
 {% endfunc %}
 
 {% collapsespace %}

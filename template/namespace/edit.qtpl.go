@@ -36,11 +36,7 @@ type EditPage struct {
 func (p *EditPage) StreamTitle(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:18
 	qw422016.N().S(`
-`)
-	//line template/namespace/edit.qtpl:19
-	qw422016.E().S(p.Namespace.FullName)
-	//line template/namespace/edit.qtpl:19
-	qw422016.N().S(` - Edit
+Edit Namespace - Thrall
 `)
 //line template/namespace/edit.qtpl:20
 }

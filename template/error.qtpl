@@ -10,7 +10,7 @@ type Error struct {
 %}
 
 {% func (p *Error) Title() %}
-Thrall - Error
+Error - Thrall
 {% endfunc %}
 
 {% func (p *Error) Header() %}

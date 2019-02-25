@@ -35,11 +35,7 @@ type RegisterPage struct {
 func (p *RegisterPage) StreamTitle(qw422016 *qt422016.Writer) {
 	//line template/auth/register.qtpl:17
 	qw422016.N().S(`
-`)
-	//line template/auth/register.qtpl:18
-	p.Page.StreamTitle(qw422016)
-	//line template/auth/register.qtpl:18
-	qw422016.N().S(` - Register
+Register - Thrall
 `)
 //line template/auth/register.qtpl:19
 }

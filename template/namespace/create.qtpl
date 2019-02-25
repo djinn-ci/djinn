@@ -17,7 +17,7 @@ type CreatePage struct {
 %}
 
 {% func (p *CreatePage) Title() %}
-{%= p.Page.Title() %} - Create Namespace
+Create Namespace - Thrall
 {% endfunc %}
 
 {% collapsespace %}

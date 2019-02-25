@@ -37,11 +37,7 @@ type CreatePage struct {
 func (p *CreatePage) StreamTitle(qw422016 *qt422016.Writer) {
 	//line template/namespace/create.qtpl:19
 	qw422016.N().S(`
-`)
-	//line template/namespace/create.qtpl:20
-	p.Page.StreamTitle(qw422016)
-	//line template/namespace/create.qtpl:20
-	qw422016.N().S(` - Create Namespace
+Create Namespace - Thrall
 `)
 //line template/namespace/create.qtpl:21
 }

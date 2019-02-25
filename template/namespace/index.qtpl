@@ -14,7 +14,7 @@ type IndexPage struct {
 %}
 
 {% func (p *IndexPage) Title() %}
-{%= p.Page.Title() %} - Namespaces
+Namespaces - Thrall
 {% endfunc %}
 
 {% collapsespace %}

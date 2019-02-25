@@ -29,7 +29,7 @@ type Error struct {
 func (p *Error) StreamTitle(qw422016 *qt422016.Writer) {
 	//line template/error.qtpl:12
 	qw422016.N().S(`
-Thrall - Error
+Error - Thrall
 `)
 //line template/error.qtpl:14
 }

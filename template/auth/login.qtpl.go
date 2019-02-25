@@ -35,11 +35,7 @@ type LoginPage struct {
 func (p *LoginPage) StreamTitle(qw422016 *qt422016.Writer) {
 	//line template/auth/login.qtpl:17
 	qw422016.N().S(`
-`)
-	//line template/auth/login.qtpl:18
-	p.Page.StreamTitle(qw422016)
-	//line template/auth/login.qtpl:18
-	qw422016.N().S(` - Login
+Login - Thrall
 `)
 //line template/auth/login.qtpl:19
 }

@@ -29,11 +29,7 @@ type IndexPage struct {
 func (p *IndexPage) StreamTitle(qw422016 *qt422016.Writer) {
 	//line template/build/index.qtpl:9
 	qw422016.N().S(`
-`)
-	//line template/build/index.qtpl:10
-	p.Page.StreamTitle(qw422016)
-	//line template/build/index.qtpl:10
-	qw422016.N().S(` - Builds
+Builds - Thrall
 `)
 //line template/build/index.qtpl:11
 }

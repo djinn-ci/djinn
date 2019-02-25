@@ -15,7 +15,7 @@ type LoginPage struct {
 %}
 
 {% func (p *LoginPage) Title() %}
-{%= p.Page.Title() %} - Login
+Login - Thrall
 {% endfunc %}
 
 {% func (p *LoginPage) Header() %}

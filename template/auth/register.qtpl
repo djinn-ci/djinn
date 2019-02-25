@@ -15,7 +15,7 @@ type RegisterPage struct {
 %}
 
 {% func (p *RegisterPage) Title() %}
-{%= p.Page.Title() %} - Register
+Register - Thrall
 {% endfunc %}
 
 {% func (p *RegisterPage) Header() %}

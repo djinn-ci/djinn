@@ -225,11 +225,9 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Clear the form data from the session.
-	h.form(w, r)
-
 	p := &namespace.EditPage{
 		Errors:    h.errors(w, r),
+		Form:      h.form(w, r),
 		Namespace: n,
 	}
 

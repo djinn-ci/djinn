@@ -56,28 +56,36 @@ func (f Namespace) Validate() error {
 		errs.Put("name", ErrNamespaceInvalid)
 	}
 
+	shouldCount := true
+
 	if f.Namespace != nil && !f.Namespace.IsZero() {
 		parts := strings.Split(f.Namespace.FullName, "/")
 		parts[len(parts) - 1] = f.Name
+
+		if f.Namespace.Name == f.Name {
+			shouldCount = false
+		}
 
 		f.Name = strings.Join(parts, "/")
 	} else if f.Parent != "" {
 		f.Name = strings.Join([]string{f.Parent, f.Name}, "/")
 	}
 
-	cols := map[string]interface{}{
-		"user_id":   f.UserID,
-		"full_name": f.Name,
-	}
+	if shouldCount {
+		cols := map[string]interface{}{
+			"user_id":   f.UserID,
+			"full_name": f.Name,
+		}
 
-	count, err := model.Count(model.NamespacesTable, cols)
+		count, err := model.Count(model.NamespacesTable, cols)
 
-	if err != nil {
-		log.Error.Println(errors.Err(err))
+		if err != nil {
+			log.Error.Println(errors.Err(err))
 
-		errs.Put("namespace", errors.Cause(err))
-	} else if count > 0 {
-		errs.Put("name", ErrNamespaceExists)
+			errs.Put("namespace", errors.Cause(err))
+		} else if count > 0 {
+			errs.Put("name", ErrNamespaceExists)
+		}
 	}
 
 	return errs.Final()

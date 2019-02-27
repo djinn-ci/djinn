@@ -161,7 +161,7 @@ func (u User) IsZero() bool {
 func (u *User) Namespaces() ([]*Namespace, error) {
 	namespaces := make([]*Namespace, 0)
 
-	err := DB.Select(&namespaces, "SELECT * FROM namespaces WHERE user_id = $1", u.ID)
+	err := DB.Select(&namespaces, "SELECT * FROM namespaces WHERE user_id = $1 ORDER BY full_name ASC", u.ID)
 
 	if err != nil {
 		return namespaces, errors.Err(err)

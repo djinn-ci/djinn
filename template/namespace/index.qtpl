@@ -29,11 +29,25 @@ Namespaces - Thrall
 <div class="dashboard-message">Namespaces allow you to group related builds together.</div>
 {% else %}
 <div class="dashboard-body">
-	{% for _, n := range p. Namespaces %}
-		<div class="panel">
-			<a href="/u/{%s n.User.Username %}/{%s n.FullName %}">{%s n.FullName %}</a>
-		</div>
-	{% endfor %}
+	<table class="panel table">
+		<tr>
+			<th>Name</th>
+			<th>Last Build</th>
+		</tr>
+		{% for _, n := range p.Namespaces %}
+			<tr>
+				<td>
+					<a href="/u/{%s n.User.Username %}/{%s n.FullName %}">{%s n.FullName %}</a><br/>
+					{% if n.Description == "" %}
+						<div class="info"><em>No description</em></div>
+					{% else %}
+						<div class="info">{%s n.Description %}</div>
+					{% endif %}
+				</td>
+				<td>--</td>
+			</tr>
+		{% endfor %}
+	</table>
 </div>
 {% endif %}
 {% endfunc %}

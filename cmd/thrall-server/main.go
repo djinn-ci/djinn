@@ -66,7 +66,8 @@ func mainCommand(cmd cli.Command) {
 
 	router := registerWebRoutes(web.New(sc, store), cfg.Assets)
 
-	spoof := web.NewSpoof(router)
+	weblog := web.NewLog(router)
+	spoof := web.NewSpoof(weblog)
 
 	httpServer := &http.Server{
 		Addr:         cfg.Net.Listen,

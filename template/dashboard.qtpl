@@ -31,27 +31,29 @@ func uriMatch(pattern, uri string) bool {
 
 {% collapsespace %}
 {% func (p *Dashboard) Body() %}
-<div class="dashboard-content">{%= p.page.Body() %}</div>
-<div class="dashboard-sidebar">
-	<h2>
-		<div class="brand">
-			<div class="left"></div>
-			<div class="right"></div>
-		</div>
-		Thrall
-	</h2>
-	<ul>
-		<li class="nav-header">MANAGE</li>
-		<li><a href="/" {% if uriMatch(buildsURI, p.URI) %}class="active"{% endif %}>Builds</a></li>
-		<li><a href="/namespaces" {% if uriMatch(namespacesURI, p.URI) %}class="active"{% endif %}>Namespaces</a></li>
-		<li class="nav-header">ACCOUNT</li>
-		<li><a href="/settings" {% if uriMatch(settingsURI, p.URI) %}class="active"{% endif %}>Settings</a></li>
-		<li>
-			<form method="POST" action="/logout">
-				<button type="submit">Logout</button>
-			</form>
-		</li>
-	</ul>
+<div class="dashboard">
+	<div class="content">{%= p.page.Body() %}</div>
+	<div class="sidebar">
+		<h2>
+			<div class="brand">
+				<div class="left"></div>
+				<div class="right"></div>
+			</div>
+			Thrall
+		</h2>
+		<ul>
+			<li class="nav-header">MANAGE</li>
+			<li><a href="/" {% if uriMatch(buildsURI, p.URI) %}class="active"{% endif %}>Builds</a></li>
+			<li><a href="/namespaces" {% if uriMatch(namespacesURI, p.URI) %}class="active"{% endif %}>Namespaces</a></li>
+			<li class="nav-header">ACCOUNT</li>
+			<li><a href="/settings" {% if uriMatch(settingsURI, p.URI) %}class="active"{% endif %}>Settings</a></li>
+			<li>
+				<form method="POST" action="/logout">
+					<button type="submit">Logout</button>
+				</form>
+			</li>
+		</ul>
+	</div>
 </div>
 {% endfunc %}
 {% endcollapsespace %}

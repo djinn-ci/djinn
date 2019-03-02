@@ -12,12 +12,12 @@ Builds - Thrall
 
 {% collapsespace %}
 {% func (p *IndexPage) Body() %}
-<div class="dashboard-header">
+<div class="header">
 	<h1>Builds</h1>
 	<ul class="actions">
 		<li><a href="/builds/create" class="button button-primary">Submit</a></li>
 	</ul>
 </div>
-<div class="dashboard-message">No builds have been submitted yet.</div>
+<div class="message">No builds have been submitted yet.</div>
 {% endfunc %}
 {% endcollapsespace %}

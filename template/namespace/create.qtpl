@@ -33,8 +33,8 @@ Create Namespace - Thrall
 	</h1>
 </div>
 <div class="dashboard-body">
-	<div class="panel panel-slim">
-		<form method="POST" action="/namespaces">
+	<div class="panel">
+		<form class="slim" method="POST" action="/namespaces">
 			{% if p.Parent != nil && !p.Parent.IsZero() %}
 				<input type="hidden" name="parent" value="{%s p.Parent.FullName %}"/>
 			{% endif %}
@@ -47,32 +47,28 @@ Create Namespace - Thrall
 				<span class="error">{%s p.Errors.First("name") %}</span>
 			</div>
 			<div class="input-field">
-				<label class="input-field-label">Description</label>
-				<textarea class="input-text" name="description"></textarea>
+				<label class="input-field-label">Description <small>(optional)</small></label>
+				<input class="input-text" type="text" name="description"/>
 				<span class="error">{%s p.Errors.First("description") %}</span>
 			</div>
 			<div class="input-field">
-				<label class="input-field-label">Visibility</label>
 				<label class="input-option">
 					<input class="input-option-selector" type="radio" name="visibility" value="private" checked="true"/>
-					<div class="input-option-description">
-						Private<br/>
-						Only you will be able to view builds in the namespace.
-					</div>
+					<strong>Private</strong>
+					{% cat "../../svgs/lock.svg" %}
+					<div class="description">Only you will be able to view builds in the namespace.</div>
 				</label>
 				<label class="input-option">
 					<input class="input-option-selector" type="radio" name="visibility" value="internal"/>
-					<div class="input-option-description">
-						Internal<br/>
-						Anyone with an account will be able to view builds in the namespace
-					</div>
+					<strong>Internal</strong>
+					{% cat "../../svgs/security.svg" %}
+					<div class="description">Anyone with an account will be able to view builds in the namespace.</div>
 				</label>
 				<label class="input-option">
 					<input class="input-option-selector" type="radio" name="visibility" value="public"/>
-					<div class="input-option-description">
-						Public<br/>
-						Anyone will be able to view builds in the namespace.
-					</div>
+					<strong>Public</strong>
+					{% cat "../../svgs/public.svg" %}
+					<div class="description">Anyone will be able to view builds in the namespace.</div>
 				</label>
 			</div>
 			<div class="input-field">

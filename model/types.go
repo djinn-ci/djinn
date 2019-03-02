@@ -8,28 +8,102 @@ import (
 
 type Visibility uint8
 
+type Status uint8
+
 const (
 	Private Visibility	= iota
 	Internal
 	Public
+
+	Queued Status	= iota
+	Running
+	Successful
+	Failed
 )
 
-func (v *Visibility) Scan(val interface{}) error {
+func scanBytes(val interface{}) ([]byte, error) {
 	if val == nil {
-		(*v) = Visibility(0)
-		return nil
+		return []byte{}, nil
 	}
 
-	sval, err := driver.String.ConvertValue(val)
+	str, err := driver.String.ConvertValue(val)
+
+	if err != nil {
+		return []byte{}, errors.Err(err)
+	}
+
+	b, ok := str.([]byte)
+
+	if !ok {
+		return []byte{}, errors.Err(errors.New("failed to scan bytes"))
+	}
+
+	return b, nil
+}
+
+func (s *Status) Scan(val interface{}) error {
+	b, err := scanBytes(val)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	b, ok := sval.([]byte)
+	if len(b) == 0 {
+		(*s) = Status(0)
+		return nil
+	}
 
-	if !ok {
-		return errors.Err(errors.New("failed to scan Visibility"))
+	err = s.UnmarshalText(b)
+
+	return errors.Err(err)
+}
+
+func (s *Status) UnmarshalText(b []byte) error {
+	str := string(b)
+
+	switch str {
+		case "queued":
+			(*s) = Queued
+			return nil
+		case "running":
+			(*s) = Running
+			return nil
+		case "successful":
+			(*s) = Successful
+			return nil
+		case "failed":
+			(*s) = Failed
+			return nil
+		default:
+			return errors.Err(errors.New("unknown status " + str))
+	}
+}
+
+func (s Status) Value() (driver.Value, error) {
+	switch s {
+		case Queued:
+			return driver.Value("queued"), nil
+		case Running:
+			return driver.Value("running"), nil
+		case Successful:
+			return driver.Value("successful"), nil
+		case Failed:
+			return driver.Value("failed"), nil
+		default:
+			return driver.Value(""), errors.Err(errors.New("unknown status"))
+	}
+}
+
+func (v *Visibility) Scan(val interface{}) error {
+	b, err := scanBytes(val)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if len(b) == 0 {
+		(*v) = Visibility(0)
+		return nil
 	}
 
 	err = v.UnmarshalText(b)
@@ -38,9 +112,9 @@ func (v *Visibility) Scan(val interface{}) error {
 }
 
 func (v *Visibility) UnmarshalText(b []byte) error {
-	s := string(b)
+	str := string(b)
 
-	switch s {
+	switch str {
 		case "private":
 			(*v) = Private
 			return nil
@@ -51,7 +125,7 @@ func (v *Visibility) UnmarshalText(b []byte) error {
 			(*v) = Public
 			return nil
 		default:
-			return errors.Err(errors.New("unknown visibility " + s))
+			return errors.Err(errors.New("unknown visibility " + str))
 	}
 }
 

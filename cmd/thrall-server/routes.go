@@ -34,6 +34,7 @@ func registerWebRoutes(h web.Handler, dir string) *mux.Router {
 	r.HandleFunc("/login", mw.Guest(auth.Login)).Methods("GET", "POST")
 
 	namespaceRoutes(r, h, mw)
+	buildRoutes(r, h, mw)
 
 	return r
 }
@@ -47,4 +48,10 @@ func namespaceRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
 
 	r.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}/-/edit", mw.Auth(namespace.Edit)).Methods("GET")
 	r.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}", mw.Auth(namespace.Show)).Methods("GET", "PATCH", "DELETE")
+}
+
+func buildRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
+	build := web.NewBuild(h)
+
+	r.HandleFunc("/builds/create", mw.Auth(build.Create)).Methods("GET")
 }

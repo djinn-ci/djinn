@@ -4,6 +4,7 @@
 
 var (
 	namespacesURI = "(\\/namespaces\\/?[0-9]*?|\\/u\\/[_-a-zA-Z0-9\\S.]+\\/[-a-zA-Z0-9\\/?\\S]+)"
+	buildsURI     = "(^\\/$|^\\/builds\\/create$)"
 	settingsURI   = "\\/settings\\/?"
 )
 
@@ -41,7 +42,7 @@ func uriMatch(pattern, uri string) bool {
 	</h2>
 	<ul>
 		<li class="nav-header">MANAGE</li>
-		<li><a href="/" {% if p.URI == "/" %}class="active"{% endif %}>Builds</a></li>
+		<li><a href="/" {% if uriMatch(buildsURI, p.URI) %}class="active"{% endif %}>Builds</a></li>
 		<li><a href="/namespaces" {% if uriMatch(namespacesURI, p.URI) %}class="active"{% endif %}>Namespaces</a></li>
 		<li class="nav-header">ACCOUNT</li>
 		<li><a href="/settings" {% if uriMatch(settingsURI, p.URI) %}class="active"{% endif %}>Settings</a></li>

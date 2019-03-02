@@ -1,0 +1,55 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type CreatePage struct {
+	*template.Page
+
+	Errors form.Errors
+	Form   form.Form
+}
+%}
+
+{% func (p *CreatePage) Title() %}
+Submit Build - Thrall
+{% endfunc %}
+
+{% collapsespace %}
+{% func (p *CreatePage) Body() %}
+<div class="dashboard-header">
+	<h1>
+		<a href="/" class="dashboard-header-back">{% cat "../../svgs/arrow_back.svg" %}</a> Submit Build
+	</h1>
+</div>
+<div class="dashboard-body">
+	<div class="panel panel-slim">
+		<form method="POST" action="/builds">
+			{% if p.Errors.First("build") != "" %}
+				<div class="form-error">Failed to submit build: {%s p.Errors.First("build") %}</div>
+			{% endif %}
+			<div class="input-field">
+				<label class="input-field-label">Namespace</label>
+				<input class="input-text" type="text" name="namespace" autocomplete="off"/>
+				<span class="error">{%s p.Errors.First("namespace") %}</span>
+			</div>
+			<div class="input-field">
+				<label class="input-field-label">Manifest</label>
+				<textarea class="input-text" name="manifest"></textarea>
+				<span class="error">{%s p.Errors.First("manifest") %}</span>
+			</div>
+			<div class="input-field">
+				<label class="input-field-label">Tags</label>
+				<input class="input-text" type="text" name="tags" autocomplete="off"/>
+			</div>
+			<div class="input-field">
+				<button type="submit" class="button button-primary">Submit</button>
+			</div>
+		</form>
+	</div>
+</div>
+{% endfunc %}
+{% endcollapsespace %}

@@ -26,26 +26,25 @@ Submit Build - Thrall
 	</h1>
 </div>
 <div class="dashboard-body">
-	<div class="panel panel-slim">
-		<form method="POST" action="/builds">
+	<div class="panel">
+		<form class="slim" method="POST" action="/builds">
 			{% if p.Errors.First("build") != "" %}
 				<div class="form-error">Failed to submit build: {%s p.Errors.First("build") %}</div>
 			{% endif %}
-			<div class="input-field">
-				<label class="input-field-label">Namespace</label>
-				<input class="input-text" type="text" name="namespace" autocomplete="off"/>
-				<span class="error">{%s p.Errors.First("namespace") %}</span>
+			<div class="form-field">
+				<label class="label">Namespace <small>(optional)</small></label>
+				<input class="text" type="text" name="namespace" autocomplete="off"/>
 			</div>
-			<div class="input-field">
-				<label class="input-field-label">Manifest</label>
-				<textarea class="input-text" name="manifest"></textarea>
-				<span class="error">{%s p.Errors.First("manifest") %}</span>
+			<div class="form-field">
+				<label class="label">Manifest</label>
+				<textarea class="text" name="manifest"></textarea>
+				<div class="error">{%s p.Errors.First("manifest") %}</div>
 			</div>
-			<div class="input-field">
-				<label class="input-field-label">Tags</label>
-				<input class="input-text" type="text" name="tags" autocomplete="off"/>
+			<div class="form-field">
+				<label class="label">Tags <small>(optional)</small></label>
+				<input class="text" type="text" name="tags" autocomplete="off"/>
 			</div>
-			<div class="input-field">
+			<div class="form-field">
 				<button type="submit" class="button button-primary">Submit</button>
 			</div>
 		</form>

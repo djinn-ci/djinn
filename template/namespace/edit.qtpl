@@ -29,55 +29,51 @@ Edit Namespace - Thrall
 		</a>{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit</h1>
 </div>
 <div class="dashboard-body">
-	<div class="panel panel-slim">
-		<form method="POST" action="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
+	<div class="panel">
+		<form class="slim" method="POST" action="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
 			<input type="hidden" name="_method" value="PATCH"/>
 			{% if p.Errors.First("namespace") != "" %}
 				<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
 			{% endif %}
-			<div class="input-field">
-				<label class="input-field-label">Name</label>
+			<div class="form-field">
+				<label class="label">Name</label>
 				{% if p.Form.Get("name") != "" %}
-					<input class="input-text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
+					<input class="text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
 				{% else %}
-					<input class="input-text" type="text" name="name" value="{%s p.Namespace.Name %}" autocomplete="off"/>
+					<input class="text" type="text" name="name" value="{%s p.Namespace.Name %}" autocomplete="off"/>
 				{% endif %}
-				<span class="error">{%s p.Errors.First("name") %}</span>
+				<div class="error">{%s p.Errors.First("description") %}</div>
 			</div>
-			<div class="input-field">
-				<label class="input-field-label">Description</label>
+			<div class="form-field">
+				<label class="label">Description <small>(optional)</small></label>
 				{% if p.Form.Get("description") != "" %}
-					<textarea class="input-text" name="description">{%s p.Form.Get("description") %}</textarea>
+					<textarea class="text" name="description">{%s p.Form.Get("description") %}</textarea>
 				{% else %}
-					<textarea class="input-text" name="description">{%s p.Namespace.Description %}</textarea>
+					<textarea class="text" name="description">{%s p.Namespace.Description %}</textarea>
 				{% endif %}
-				<span class="error">{%s p.Errors.First("description") %}</span>
+				<div class="error">{%s p.Errors.First("description") %}</div>
 			</div>
-			<div class="input-field">
-				<label class="input-field-label">Visibility</label>
-				<label class="input-option">
-					<input class="input-option-selector" type="radio" name="visibility" value="private" {% if p.Namespace.Visibility == model.Private %}checked="true"{% endif %}/>
-					<div class="input-option-description">
-						Private<br/>
-						Only you will be able to view builds in the namespace.
-					</div>
+			<div class="form-field">
+				<label class="option">
+					<input class="selector" type="radio" name="visibility" value="private" {% if p.Namespace.Visibility == model.Private %}checked="true"{% endif %}/>
+					<label class="label">Private</label>
+					{% cat "../../svgs/lock.svg" %}
+					<div class="description">You choose who can view builds in the namespace.</div>
 				</label>
-				<label class="input-option">
-					<input class="input-option-selector" type="radio" name="visibility" value="internal" {% if p.Namespace.Visibility == model.Internal %}checked="true"{% endif %}/>
-					<div class="input-option-description">
-						Internal<br/>
-						Anyone with an account will be able to view builds in the namespace
-					</div>
+				<label class="option">
+					<input class="selector" type="radio" name="visibility" value="internal" {% if p.Namespace.Visibility == model.Internal %}checked="true"{% endif %}/>
+					<label class="label">Internal</label>
+					{% cat "../../svgs/security.svg" %}
+					<div class="description">Anyone with an account will be able to view builds in the namespace.</div>
 				</label>
-				<label class="input-option">
-					<input class="input-option-selector" type="radio" name="visibility" value="public" {% if p.Namespace.Visibility == model.Public %}checked="true"{% endif %}/>
-					<div class="input-option-description">
-						Public<br/>
-						Anyone will be able to view builds in the namespace.
-					</div>
+				<label class="option">
+					<input class="selector" type="radio" name="visibility" value="public" {% if p.Namespace.Visibility == model.Public %}checked="true"{% endif %}/>
+					<label class="label">Public</label>
+					{% cat "../../svgs/public.svg" %}
+					<div class="description">Anyone will be able to view builds in the namespace.</div>
 				</label>
 			</div>
-			<div class="input-field">
+			<div class="form-field">
 				<button type="submit" class="button button-primary">Save</button>
 			</div>
 		</form>

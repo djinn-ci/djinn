@@ -1,4 +1,4 @@
-package handler
+package web
 
 import (
 	"net/http"
@@ -11,14 +11,11 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/auth"
-	"github.com/andrewpillar/thrall/webutil"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-var (
-	maxAge = 5 * 365 * 86400
-)
+var maxAge = 5 * 365 * 86400
 
 type Auth struct {
 	Handler
@@ -35,7 +32,7 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 			Form:   h.form(w, r),
 		}
 
-		webutil.HTML(w, template.Render(p), http.StatusOK)
+		HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
@@ -49,7 +46,7 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -61,7 +58,7 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err := u.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -75,7 +72,7 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 			Form:   h.form(w, r),
 		}
 
-		webutil.HTML(w, template.Render(p), http.StatusOK)
+		HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
@@ -89,7 +86,7 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -121,7 +118,7 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 

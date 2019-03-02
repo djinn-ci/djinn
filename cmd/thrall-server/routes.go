@@ -3,33 +3,32 @@ package main
 import (
 	"net/http"
 
-	"github.com/andrewpillar/thrall/handler"
-	"github.com/andrewpillar/thrall/webutil"
+	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/mux"
 )
 
-func registerRoutes(h handler.Handler, dir string) *mux.Router {
+func registerWebRoutes(h web.Handler, dir string) *mux.Router {
 	r := mux.NewRouter()
 
 	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		webutil.HTMLError(w, "Not found", http.StatusNotFound)
+		web.HTMLError(w, "Not found", http.StatusNotFound)
 	})
 
 	r.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		webutil.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
+		web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 
 	assetsHandler := http.StripPrefix("/assets/", http.FileServer(http.Dir(dir)))
 
 	r.PathPrefix("/assets/").Handler(assetsHandler)
 
-	page := handler.NewPage(h)
+	page := web.NewPage(h)
 
 	r.HandleFunc("/", page.Home)
 
-	auth := handler.NewAuth(h)
-	mw := handler.NewMiddleware(h)
+	auth := web.NewAuth(h)
+	mw := web.NewMiddleware(h)
 
 	r.HandleFunc("/register", mw.Guest(auth.Register)).Methods("GET", "POST")
 	r.HandleFunc("/login", mw.Guest(auth.Login)).Methods("GET", "POST")
@@ -39,8 +38,8 @@ func registerRoutes(h handler.Handler, dir string) *mux.Router {
 	return r
 }
 
-func namespaceRoutes(r *mux.Router, h handler.Handler, mw handler.Middleware) {
-	namespace := handler.NewNamespace(h)
+func namespaceRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
+	namespace := web.NewNamespace(h)
 
 	r.HandleFunc("/namespaces", mw.Auth(namespace.Index)).Methods("GET")
 	r.HandleFunc("/namespaces/create", mw.Auth(namespace.Create)).Methods("GET")

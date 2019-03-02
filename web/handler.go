@@ -1,4 +1,4 @@
-package handler
+package web
 
 import (
 	"net/http"
@@ -8,7 +8,6 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/webutil"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -31,7 +30,7 @@ func (h *Handler) handleRequestData(f form.Form, w http.ResponseWriter, r *http.
 
 		if !ok {
 			log.Error.Println(errors.Err(err))
-			webutil.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 
 			return errors.Err(errors.New("failed to handle request data"))
 		}

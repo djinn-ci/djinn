@@ -11,9 +11,9 @@ import (
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/handler"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/securecookie"
 
@@ -64,9 +64,9 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to create session store: %s\n", err)
 	}
 
-	router := registerRoutes(handler.New(sc, store), cfg.Assets)
+	router := registerWebRoutes(web.New(sc, store), cfg.Assets)
 
-	spoof := handler.NewSpoof(router)
+	spoof := web.NewSpoof(router)
 
 	httpServer := &http.Server{
 		Addr:         cfg.Net.Listen,
@@ -85,7 +85,7 @@ func mainCommand(cmd cli.Command) {
 			Handler:      spoof,
 		}
 
-		httpServer.Handler = handler.NewSpoof(handler.NewSecureRedirect(cfg.Net.SSL.Listen, router))
+		httpServer.Handler = web.NewSpoof(web.NewSecureRedirect(cfg.Net.SSL.Listen, router))
 
 		go func() {
 			if err := httpsServer.ListenAndServeTLS(cfg.Net.SSL.Cert, cfg.Net.SSL.Key); err != nil {

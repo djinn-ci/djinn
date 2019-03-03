@@ -165,3 +165,11 @@ func (n *Namespace) Update() error {
 
 	return errors.Err(err)
 }
+
+func (n Namespace) URL() string {
+	if n.User == nil {
+		return ""
+	}
+
+	return "/u/" + n.User.Username + "/" + n.FullName
+}

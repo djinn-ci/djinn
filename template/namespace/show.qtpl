@@ -4,6 +4,7 @@ import (
 
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/build"
 )
 %}
 
@@ -12,6 +13,7 @@ type ShowPage struct {
 	*template.Page
 
 	Namespace *model.Namespace
+	Builds    []*model.Build
 }
 %}
 
@@ -44,5 +46,6 @@ type ShowPage struct {
 		<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>
 	</ul>
 </div>
+{%= build.RenderBuilds(p.Builds) %}
 {% endfunc %}
 {% endcollapsespace %}

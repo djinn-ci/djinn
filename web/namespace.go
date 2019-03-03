@@ -180,8 +180,17 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	builds, err := model.BuildsWithRelations("namespace_id", n.ID)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	p := &namespace.ShowPage{
 		Namespace: n,
+		Builds:    builds,
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())

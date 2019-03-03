@@ -139,19 +139,19 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:47
 	if p.Form.Get("description") != "" {
 		//line template/namespace/edit.qtpl:47
-		qw422016.N().S(` <textarea class="text" name="description">`)
+		qw422016.N().S(` <input class="text" type="text" name="description" value="`)
 		//line template/namespace/edit.qtpl:48
 		qw422016.E().S(p.Form.Get("description"))
 		//line template/namespace/edit.qtpl:48
-		qw422016.N().S(`</textarea> `)
+		qw422016.N().S(`"/> `)
 		//line template/namespace/edit.qtpl:49
 	} else {
 		//line template/namespace/edit.qtpl:49
-		qw422016.N().S(` <textarea class="text" name="description">`)
+		qw422016.N().S(` <input class="text" type="text" name="description" value="`)
 		//line template/namespace/edit.qtpl:50
 		qw422016.E().S(p.Namespace.Description)
 		//line template/namespace/edit.qtpl:50
-		qw422016.N().S(`</textarea> `)
+		qw422016.N().S(`"/> `)
 		//line template/namespace/edit.qtpl:51
 	}
 	//line template/namespace/edit.qtpl:51

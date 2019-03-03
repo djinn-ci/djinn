@@ -45,9 +45,9 @@ Edit Namespace - Thrall
 		<div class="form-field">
 			<label class="label">Description <small>(optional)</small></label>
 			{% if p.Form.Get("description") != "" %}
-				<textarea class="text" name="description">{%s p.Form.Get("description") %}</textarea>
+				<input class="text" type="text" name="description" value="{%s p.Form.Get("description") %}"/>
 			{% else %}
-				<textarea class="text" name="description">{%s p.Namespace.Description %}</textarea>
+				<input class="text" type="text" name="description" value="{%s p.Namespace.Description %}"/>
 			{% endif %}
 			<div class="error">{%s p.Errors.First("description") %}</div>
 		</div>

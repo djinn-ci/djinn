@@ -54,4 +54,5 @@ func buildRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
 	build := web.NewBuild(h)
 
 	r.HandleFunc("/builds/create", mw.Auth(build.Create)).Methods("GET")
+	r.HandleFunc("/builds", mw.Auth(build.Store)).Methods("POST")
 }

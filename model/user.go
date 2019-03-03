@@ -149,6 +149,52 @@ func (u *User) FindNamespaceByFullName(fullName string) (*Namespace, error) {
 	return n, errors.Err(err)
 }
 
+func (u *User) FindOrCreateNamespace(fullName string) (*Namespace, error) {
+	n, err := u.FindNamespaceByFullName(fullName)
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	if !n.IsZero() {
+		return n, nil
+	}
+
+	parts := strings.Split(fullName, "/")
+
+	parent := &Namespace{}
+
+	for _, name := range parts {
+		if parent.Level + 1 > 20 {
+			break
+		}
+
+		n = &Namespace{
+			UserID:   u.ID,
+			Name:     name,
+			FullName: name,
+			Level:    parent.Level + 1,
+		}
+
+		if !parent.IsZero() {
+			n.ParentID = sql.NullInt64{
+				Int64: parent.ID,
+				Valid: true,
+			}
+
+			n.FullName = strings.Join([]string{parent.FullName, n.Name}, "/")
+		}
+
+		if err := n.Create(); err != nil {
+			return n, errors.Err(err)
+		}
+
+		parent = n
+	}
+
+	return n, nil
+}
+
 func (u User) IsZero() bool {
 	return	u.ID == 0            &&
 			u.Email == ""        &&

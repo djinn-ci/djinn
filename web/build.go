@@ -3,6 +3,7 @@ package web
 import (
 	"database/sql"
 	"net/http"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -82,7 +83,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		tags[i] = model.BuildTag{
 			UserID:  u.ID,
 			BuildID: b.ID,
-			Name:    name,
+			Name:    strings.TrimSpace(name),
 		}
 
 		if err := tags[i].Create(); err != nil {

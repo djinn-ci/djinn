@@ -37,7 +37,18 @@ func (h Page) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := &build.IndexPage{}
+	builds, err := u.Builds()
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	p := &build.IndexPage{
+		Builds: builds,
+	}
+
 	d := template.NewDashboard(p, r.URL.RequestURI())
 
 	HTML(w, template.Render(d), http.StatusOK)

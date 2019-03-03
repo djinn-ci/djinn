@@ -1,8 +1,15 @@
-{% import "github.com/andrewpillar/thrall/template" %}
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
 
 {% code
 type IndexPage struct {
 	*template.Page
+
+	Builds []*model.Build
 }
 %}
 
@@ -18,6 +25,53 @@ Builds - Thrall
 		<li><a href="/builds/create" class="button button-primary">Submit</a></li>
 	</ul>
 </div>
+{% if len(p.Builds) == 0 %}
 <div class="message">No builds have been submitted yet.</div>
+{% else %}
+<table class="panel table">
+	<tr>
+		<th>Build</th>
+		<th>Status</th>
+		<th>Namespace</th>
+		<th></th>
+		<th></th>
+	</tr>
+	{% for _, b := range p.Builds %}
+		<tr>
+			<td><a href="/builds/{%v b.ID %}">#{%v b.ID %}</a></td>
+			{% switch b.Status %}
+				{% case model.Queued %}
+					<td><span class="badge">queued</span></td>
+				{% case model.Running %}
+					<td><span class="badge">running</span></td>
+				{% case model.Successful %}
+					<td><span class="badge">successful</span></td>
+				{% case model.Failed %}
+					<td><span class="badge">failed</span></td>
+			{% endswitch %}
+			<td>
+				{% if b.Namespace != nil %}
+					<a href="{%s b.Namespace.URL() %}">
+						{%s b.Namespace.FullName %}
+					</a>
+				{% else %}
+					--
+				{% endif %}
+			</td>
+			<td class="align-right">
+				{% for _, t := range b.Tags %}
+					<a class="badge" href="/?tag={%s t.Name %}">{%s t.Name %}</a>
+				{% endfor %}
+			</td>
+			<td class="align-right">
+				{% if b.FinishedAt != nil %}
+				{% else %}
+					--
+				{% endif %}
+			</td>
+		</tr>
+	{% endfor %}
+</table>
+{% endif %}
 {% endfunc %}
 {% endcollapsespace %}

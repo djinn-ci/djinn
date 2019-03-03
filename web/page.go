@@ -5,6 +5,7 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/auth"
 	"github.com/andrewpillar/thrall/template/build"
@@ -37,7 +38,7 @@ func (h Page) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	builds, err := u.Builds()
+	builds, err := model.BuildsWithRelations("user_id", u.ID)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

@@ -36,7 +36,7 @@
 			</td>
 			<td class="align-right">
 				{% for _, t := range b.Tags %}
-					<a class="badge" href="/?tag={%s t.Name %}">{%s t.Name %}</a>
+					<a class="badge" href="?tag={%s t.Name %}">{%s t.Name %}</a>
 				{% endfor %}
 			</td>
 			<td class="align-right">

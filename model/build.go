@@ -163,7 +163,6 @@ func BuildsWithRelations(col string, val interface{}) ([]*Build, error) {
 	}
 
 	return builds, nil
-
 }
 
 func (b *Build) Create() error {

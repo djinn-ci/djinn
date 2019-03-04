@@ -189,6 +189,9 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &namespace.ShowPage{
+		Page:      &template.Page{
+			URI: r.URL.RequestURI(),
+		},
 		Namespace: n,
 		Builds:    builds,
 	}

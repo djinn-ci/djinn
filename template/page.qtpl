@@ -11,7 +11,9 @@ interface page {
 %}
 
 {% code
-type Page struct {}
+type Page struct {
+	URI string
+}
 %}
 
 {% collapsespace %}

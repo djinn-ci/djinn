@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"regexp"
 	"strings"
 	"time"
 
@@ -166,6 +167,10 @@ func (u *User) FindOrCreateNamespace(fullName string) (*Namespace, error) {
 
 	for _, name := range parts {
 		if parent.Level + 1 > 20 {
+			break
+		}
+
+		if matched, err := regexp.Match("^[a-zA-Z0-9]+$", []byte(name)); !matched || err != nil {
 			break
 		}
 

@@ -166,7 +166,7 @@ func (n *Namespace) Update() error {
 	return errors.Err(err)
 }
 
-func (n Namespace) URL() string {
+func (n Namespace) URI() string {
 	if n.User == nil {
 		return ""
 	}

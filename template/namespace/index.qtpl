@@ -36,7 +36,7 @@ Namespaces - Thrall
 	{% for _, n := range p.Namespaces %}
 		<tr>
 			<td>
-				<a href="/u/{%s n.User.Username %}/{%s n.FullName %}">{%s n.FullName %}</a><br/>
+				<a href="{%s n.URI() %}">{%s n.FullName %}</a><br/>
 				{% if n.Description == "" %}
 					<div class="info"><em>No description</em></div>
 				{% else %}

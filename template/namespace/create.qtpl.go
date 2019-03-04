@@ -75,13 +75,9 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/create.qtpl:27
 	if p.Parent != nil && !p.Parent.IsZero() {
 		//line template/namespace/create.qtpl:27
-		qw422016.N().S(` <a class="back" href="/u/`)
+		qw422016.N().S(` <a class="back" href="`)
 		//line template/namespace/create.qtpl:28
-		qw422016.E().S(p.Parent.User.Username)
-		//line template/namespace/create.qtpl:28
-		qw422016.N().S(`/`)
-		//line template/namespace/create.qtpl:28
-		qw422016.E().S(p.Parent.FullName)
+		qw422016.E().S(p.Parent.URI())
 		//line template/namespace/create.qtpl:28
 		qw422016.N().S(`">`)
 		//line template/namespace/create.qtpl:28

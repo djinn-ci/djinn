@@ -80,13 +80,9 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/index.qtpl:36
 		for _, n := range p.Namespaces {
 			//line template/namespace/index.qtpl:36
-			qw422016.N().S(` <tr> <td> <a href="/u/`)
+			qw422016.N().S(` <tr> <td> <a href="`)
 			//line template/namespace/index.qtpl:39
-			qw422016.E().S(n.User.Username)
-			//line template/namespace/index.qtpl:39
-			qw422016.N().S(`/`)
-			//line template/namespace/index.qtpl:39
-			qw422016.E().S(n.FullName)
+			qw422016.E().S(n.URI())
 			//line template/namespace/index.qtpl:39
 			qw422016.N().S(`">`)
 			//line template/namespace/index.qtpl:39

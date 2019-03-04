@@ -25,7 +25,7 @@ Create Namespace - Thrall
 <div class="header">
 	<h1>
 		{% if p.Parent != nil && !p.Parent.IsZero() %}
-			<a class="back" href="/u/{%s p.Parent.User.Username %}/{%s p.Parent.FullName %}">{% cat "../../svgs/arrow_back.svg" %}</a>
+			<a class="back" href="{%s p.Parent.URI() %}">{% cat "../../svgs/arrow_back.svg" %}</a>
 			Create Sub-namespace<br/>
 		{% else %}
 			<a class="back" href="/namespaces">{% cat "../../svgs/arrow_back.svg" %}</a>

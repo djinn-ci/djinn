@@ -27,9 +27,7 @@
 			{% endswitch %}
 			<td>
 				{% if b.Namespace != nil %}
-					<a href="{%s b.Namespace.URL() %}">
-						{%s b.Namespace.FullName %}
-					</a>
+					<a href="{%s b.Namespace.URI() %}">{%s b.Namespace.FullName %}</a>
 				{% else %}
 					--
 				{% endif %}

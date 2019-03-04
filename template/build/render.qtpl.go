@@ -97,104 +97,102 @@ func StreamRenderBuilds(qw422016 *qt422016.Writer, builds []*model.Build) {
 				qw422016.N().S(`
 					<a href="`)
 				//line template/build/render.qtpl:30
-				qw422016.E().S(b.Namespace.URL())
+				qw422016.E().S(b.Namespace.URI())
 				//line template/build/render.qtpl:30
-				qw422016.N().S(`">
-						`)
-				//line template/build/render.qtpl:31
-				qw422016.E().S(b.Namespace.FullName)
-				//line template/build/render.qtpl:31
-				qw422016.N().S(`
-					</a>
-				`)
-				//line template/build/render.qtpl:33
-			} else {
-				//line template/build/render.qtpl:33
-				qw422016.N().S(`
-					--
-				`)
-				//line template/build/render.qtpl:35
-			}
-			//line template/build/render.qtpl:35
-			qw422016.N().S(`
-			</td>
-			<td class="align-right">
-				`)
-			//line template/build/render.qtpl:38
-			for _, t := range b.Tags {
-				//line template/build/render.qtpl:38
-				qw422016.N().S(`
-					<a class="badge" href="?tag=`)
-				//line template/build/render.qtpl:39
-				qw422016.E().S(t.Name)
-				//line template/build/render.qtpl:39
 				qw422016.N().S(`">`)
-				//line template/build/render.qtpl:39
-				qw422016.E().S(t.Name)
-				//line template/build/render.qtpl:39
+				//line template/build/render.qtpl:30
+				qw422016.E().S(b.Namespace.FullName)
+				//line template/build/render.qtpl:30
 				qw422016.N().S(`</a>
 				`)
-				//line template/build/render.qtpl:40
+				//line template/build/render.qtpl:31
+			} else {
+				//line template/build/render.qtpl:31
+				qw422016.N().S(`
+					--
+				`)
+				//line template/build/render.qtpl:33
 			}
-			//line template/build/render.qtpl:40
+			//line template/build/render.qtpl:33
 			qw422016.N().S(`
 			</td>
 			<td class="align-right">
 				`)
-			//line template/build/render.qtpl:43
+			//line template/build/render.qtpl:36
+			for _, t := range b.Tags {
+				//line template/build/render.qtpl:36
+				qw422016.N().S(`
+					<a class="badge" href="?tag=`)
+				//line template/build/render.qtpl:37
+				qw422016.E().S(t.Name)
+				//line template/build/render.qtpl:37
+				qw422016.N().S(`">`)
+				//line template/build/render.qtpl:37
+				qw422016.E().S(t.Name)
+				//line template/build/render.qtpl:37
+				qw422016.N().S(`</a>
+				`)
+				//line template/build/render.qtpl:38
+			}
+			//line template/build/render.qtpl:38
+			qw422016.N().S(`
+			</td>
+			<td class="align-right">
+				`)
+			//line template/build/render.qtpl:41
 			if b.FinishedAt != nil {
-				//line template/build/render.qtpl:43
+				//line template/build/render.qtpl:41
 				qw422016.N().S(`
 				`)
-				//line template/build/render.qtpl:44
+				//line template/build/render.qtpl:42
 			} else {
-				//line template/build/render.qtpl:44
+				//line template/build/render.qtpl:42
 				qw422016.N().S(`
 					--
 				`)
-				//line template/build/render.qtpl:46
+				//line template/build/render.qtpl:44
 			}
-			//line template/build/render.qtpl:46
+			//line template/build/render.qtpl:44
 			qw422016.N().S(`
 			</td>
 		</tr>
 	`)
-			//line template/build/render.qtpl:49
+			//line template/build/render.qtpl:47
 		}
-		//line template/build/render.qtpl:49
+		//line template/build/render.qtpl:47
 		qw422016.N().S(`
 </table>
 `)
-		//line template/build/render.qtpl:51
+		//line template/build/render.qtpl:49
 	}
-	//line template/build/render.qtpl:51
+	//line template/build/render.qtpl:49
 	qw422016.N().S(`
 `)
-//line template/build/render.qtpl:52
+//line template/build/render.qtpl:50
 }
 
-//line template/build/render.qtpl:52
+//line template/build/render.qtpl:50
 func WriteRenderBuilds(qq422016 qtio422016.Writer, builds []*model.Build) {
-	//line template/build/render.qtpl:52
+	//line template/build/render.qtpl:50
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/render.qtpl:52
+	//line template/build/render.qtpl:50
 	StreamRenderBuilds(qw422016, builds)
-	//line template/build/render.qtpl:52
+	//line template/build/render.qtpl:50
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/render.qtpl:52
+//line template/build/render.qtpl:50
 }
 
-//line template/build/render.qtpl:52
+//line template/build/render.qtpl:50
 func RenderBuilds(builds []*model.Build) string {
-	//line template/build/render.qtpl:52
+	//line template/build/render.qtpl:50
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/render.qtpl:52
+	//line template/build/render.qtpl:50
 	WriteRenderBuilds(qb422016, builds)
-	//line template/build/render.qtpl:52
+	//line template/build/render.qtpl:50
 	qs422016 := string(qb422016.B)
-	//line template/build/render.qtpl:52
+	//line template/build/render.qtpl:50
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/render.qtpl:52
+	//line template/build/render.qtpl:50
 	return qs422016
-//line template/build/render.qtpl:52
+//line template/build/render.qtpl:50
 }

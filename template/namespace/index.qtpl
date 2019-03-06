@@ -25,6 +25,7 @@ Namespaces - Thrall
 		<li><a href="/namespaces/create" class="button button-primary">Create</a></li>
 	</ul>
 </div>
+<div class="body">
 {% if len(p.Namespaces) == 0 %}
 <div class="message">Namespaces allow you to group related builds together.</div>
 {% else %}
@@ -48,5 +49,6 @@ Namespaces - Thrall
 	{% endfor %}
 </table>
 {% endif %}
+</div>
 {% endfunc %}
 {% endcollapsespace %}

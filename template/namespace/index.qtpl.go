@@ -68,76 +68,76 @@ func (p *IndexPage) Title() string {
 //line template/namespace/index.qtpl:21
 func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/index.qtpl:21
-	qw422016.N().S(` <div class="header"> <h1>Namespaces</h1> <ul class="actions"> <li><a href="/namespaces/create" class="button button-primary">Create</a></li> </ul> </div> `)
-	//line template/namespace/index.qtpl:28
+	qw422016.N().S(` <div class="header"> <h1>Namespaces</h1> <ul class="actions"> <li><a href="/namespaces/create" class="button button-primary">Create</a></li> </ul> </div> <div class="body"> `)
+	//line template/namespace/index.qtpl:29
 	if len(p.Namespaces) == 0 {
-		//line template/namespace/index.qtpl:28
+		//line template/namespace/index.qtpl:29
 		qw422016.N().S(` <div class="message">Namespaces allow you to group related builds together.</div> `)
-		//line template/namespace/index.qtpl:30
+		//line template/namespace/index.qtpl:31
 	} else {
-		//line template/namespace/index.qtpl:30
+		//line template/namespace/index.qtpl:31
 		qw422016.N().S(` <table class="panel table"> <tr> <th>Name</th> <th>Last Build</th> </tr> `)
-		//line template/namespace/index.qtpl:36
+		//line template/namespace/index.qtpl:37
 		for _, n := range p.Namespaces {
-			//line template/namespace/index.qtpl:36
+			//line template/namespace/index.qtpl:37
 			qw422016.N().S(` <tr> <td> <a href="`)
-			//line template/namespace/index.qtpl:39
-			qw422016.E().S(n.URI())
-			//line template/namespace/index.qtpl:39
-			qw422016.N().S(`">`)
-			//line template/namespace/index.qtpl:39
-			qw422016.E().S(n.FullName)
-			//line template/namespace/index.qtpl:39
-			qw422016.N().S(`</a><br/> `)
 			//line template/namespace/index.qtpl:40
+			qw422016.E().S(n.URI())
+			//line template/namespace/index.qtpl:40
+			qw422016.N().S(`">`)
+			//line template/namespace/index.qtpl:40
+			qw422016.E().S(n.FullName)
+			//line template/namespace/index.qtpl:40
+			qw422016.N().S(`</a><br/> `)
+			//line template/namespace/index.qtpl:41
 			if n.Description == "" {
-				//line template/namespace/index.qtpl:40
+				//line template/namespace/index.qtpl:41
 				qw422016.N().S(` <div class="info"><em>No description</em></div> `)
-				//line template/namespace/index.qtpl:42
+				//line template/namespace/index.qtpl:43
 			} else {
-				//line template/namespace/index.qtpl:42
+				//line template/namespace/index.qtpl:43
 				qw422016.N().S(` <div class="info">`)
-				//line template/namespace/index.qtpl:43
-				qw422016.E().S(n.Description)
-				//line template/namespace/index.qtpl:43
-				qw422016.N().S(`</div> `)
 				//line template/namespace/index.qtpl:44
+				qw422016.E().S(n.Description)
+				//line template/namespace/index.qtpl:44
+				qw422016.N().S(`</div> `)
+				//line template/namespace/index.qtpl:45
 			}
-			//line template/namespace/index.qtpl:44
+			//line template/namespace/index.qtpl:45
 			qw422016.N().S(` </td> <td>--</td> </tr> `)
-			//line template/namespace/index.qtpl:48
+			//line template/namespace/index.qtpl:49
 		}
-		//line template/namespace/index.qtpl:48
+		//line template/namespace/index.qtpl:49
 		qw422016.N().S(` </table> `)
-		//line template/namespace/index.qtpl:50
+		//line template/namespace/index.qtpl:51
 	}
-	//line template/namespace/index.qtpl:50
-	qw422016.N().S(` `)
-//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:51
+	qw422016.N().S(` </div> `)
+//line template/namespace/index.qtpl:53
 }
 
-//line template/namespace/index.qtpl:51
+//line template/namespace/index.qtpl:53
 func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:53
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:53
 	p.StreamBody(qw422016)
-	//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:53
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/index.qtpl:51
+//line template/namespace/index.qtpl:53
 }
 
-//line template/namespace/index.qtpl:51
+//line template/namespace/index.qtpl:53
 func (p *IndexPage) Body() string {
-	//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:53
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:53
 	p.WriteBody(qb422016)
-	//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:53
 	qs422016 := string(qb422016.B)
-	//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:53
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/index.qtpl:51
+	//line template/namespace/index.qtpl:53
 	return qs422016
-//line template/namespace/index.qtpl:51
+//line template/namespace/index.qtpl:53
 }

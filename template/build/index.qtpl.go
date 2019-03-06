@@ -68,11 +68,11 @@ func (p *IndexPage) Title() string {
 //line template/build/index.qtpl:21
 func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/index.qtpl:21
-	qw422016.N().S(` <div class="header"> <h1>Builds</h1> <ul class="actions"> <li><a href="/builds/create" class="button button-primary">Submit</a></li> </ul> </div> `)
+	qw422016.N().S(` <div class="header"> <h1>Builds</h1> <ul class="actions"> <li><a href="/builds/create" class="button button-primary">Submit</a></li> </ul> </div> <div class="body">`)
 	//line template/build/index.qtpl:28
 	StreamRenderBuilds(qw422016, p.Builds)
 	//line template/build/index.qtpl:28
-	qw422016.N().S(` `)
+	qw422016.N().S(`</div> `)
 //line template/build/index.qtpl:29
 }
 

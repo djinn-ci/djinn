@@ -27,6 +27,7 @@ Edit Namespace - Thrall
 		<a class="back" href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">{% cat "../../svgs/arrow_back.svg" %}</a>
 		{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit</h1>
 </div>
+<div class="body">
 <div class="panel">
 	<form class="slim" method="POST" action="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
 		<input type="hidden" name="_method" value="PATCH"/>
@@ -75,6 +76,7 @@ Edit Namespace - Thrall
 			<button type="submit" class="button button-primary">Save</button>
 		</div>
 	</form>
+</div>
 </div>
 {% endfunc %}
 {% endcollapsespace %}

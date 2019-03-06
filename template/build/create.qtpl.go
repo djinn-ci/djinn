@@ -77,48 +77,48 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 	//line template/build/create.qtpl:25
-	qw422016.N().S(`</a> Submit Build </h1> </div> <div class="panel"> <form class="slim" method="POST" action="/builds"> `)
-	//line template/build/create.qtpl:30
+	qw422016.N().S(`</a> Submit Build </h1> </div> <div class="body"> <div class="panel"> <form class="slim" method="POST" action="/builds"> `)
+	//line template/build/create.qtpl:31
 	if p.Errors.First("build") != "" {
-		//line template/build/create.qtpl:30
+		//line template/build/create.qtpl:31
 		qw422016.N().S(` <div class="form-error">Failed to submit build: `)
-		//line template/build/create.qtpl:31
-		qw422016.E().S(p.Errors.First("build"))
-		//line template/build/create.qtpl:31
-		qw422016.N().S(`</div> `)
 		//line template/build/create.qtpl:32
+		qw422016.E().S(p.Errors.First("build"))
+		//line template/build/create.qtpl:32
+		qw422016.N().S(`</div> `)
+		//line template/build/create.qtpl:33
 	}
-	//line template/build/create.qtpl:32
+	//line template/build/create.qtpl:33
 	qw422016.N().S(` <div class="form-field"> <label class="label">Namespace <small>(optional)</small></label> <input class="text" type="text" name="namespace" autocomplete="off"/> </div> <div class="form-field"> <label class="label">Manifest</label> <textarea class="text" name="manifest"></textarea> <div class="error">`)
-	//line template/build/create.qtpl:40
+	//line template/build/create.qtpl:41
 	qw422016.E().S(p.Errors.First("manifest"))
-	//line template/build/create.qtpl:40
-	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="label">Tags <small>(optional)</small></label> <input class="text" type="text" name="tags" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="button button-primary">Submit</button> </div> </form> </div> `)
-//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:41
+	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="label">Tags <small>(optional)</small></label> <input class="text" type="text" name="tags" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="button button-primary">Submit</button> </div> </form> </div> </div> `)
+//line template/build/create.qtpl:53
 }
 
-//line template/build/create.qtpl:51
+//line template/build/create.qtpl:53
 func (p *CreatePage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:53
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:53
 	p.StreamBody(qw422016)
-	//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:53
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/create.qtpl:51
+//line template/build/create.qtpl:53
 }
 
-//line template/build/create.qtpl:51
+//line template/build/create.qtpl:53
 func (p *CreatePage) Body() string {
-	//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:53
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:53
 	p.WriteBody(qb422016)
-	//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:53
 	qs422016 := string(qb422016.B)
-	//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:53
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/create.qtpl:51
+	//line template/build/create.qtpl:53
 	return qs422016
-//line template/build/create.qtpl:51
+//line template/build/create.qtpl:53
 }

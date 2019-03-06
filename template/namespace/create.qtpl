@@ -33,6 +33,7 @@ Create Namespace - Thrall
 		{% endif %}
 	</h1>
 </div>
+<div class="body">
 <div class="panel">
 	<form class="slim" method="POST" action="/namespaces">
 		{% if p.Parent != nil && !p.Parent.IsZero() %}
@@ -75,6 +76,7 @@ Create Namespace - Thrall
 			<button type="submit" class="button button-primary">Create</button>
 		</div>
 	</form>
+</div>
 </div>
 {% endfunc %}
 {% endcollapsespace %}

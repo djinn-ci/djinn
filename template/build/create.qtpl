@@ -25,6 +25,7 @@ Submit Build - Thrall
 		<a href="/" class="back">{% cat "../../svgs/arrow_back.svg" %}</a> Submit Build
 	</h1>
 </div>
+<div class="body">
 <div class="panel">
 	<form class="slim" method="POST" action="/builds">
 		{% if p.Errors.First("build") != "" %}
@@ -47,6 +48,7 @@ Submit Build - Thrall
 			<button type="submit" class="button button-primary">Submit</button>
 		</div>
 	</form>
+</div>
 </div>
 {% endfunc %}
 {% endcollapsespace %}

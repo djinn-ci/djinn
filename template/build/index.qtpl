@@ -25,6 +25,6 @@ Builds - Thrall
 		<li><a href="/builds/create" class="button button-primary">Submit</a></li>
 	</ul>
 </div>
-{%= RenderBuilds(p.Builds) %}
+<div class="body">{%= RenderBuilds(p.Builds) %}</div>
 {% endfunc %}
 {% endcollapsespace %}

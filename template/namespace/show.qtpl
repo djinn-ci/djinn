@@ -46,12 +46,10 @@ type ShowPage struct {
 		<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>
 	</ul>
 </div>
-<div class="panel-wrap">
-	<ul class="panel-tabs">
-		<li><a href="{%s p.Namespace.URI() %}" {% if p.Namespace.URI() == p.URI %}class="active" {% endif %}>Builds</a></li>
-		<li><a href="{%s p.Namespace.URI() %}/-/namespaces">Namespaces</a></li>
-	</ul>
-	{%= build.RenderBuilds(p.Builds) %}
-</div>
+<ul class="tabs">
+	<li><a href="{%s p.Namespace.URI() %}" {% if p.Namespace.URI() == p.URI %}class="active" {% endif %}>Builds</a></li>
+	<li><a href="{%s p.Namespace.URI() %}/-/namespaces">Namespaces</a></li>
+</ul>
+<div class="body">{%= build.RenderBuilds(p.Builds) %}</div>
 {% endfunc %}
 {% endcollapsespace %}

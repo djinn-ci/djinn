@@ -164,52 +164,52 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:46
 	qw422016.E().S(p.Namespace.FullName)
 	//line template/namespace/show.qtpl:46
-	qw422016.N().S(`" class="button button-primary">Create</a></li> </ul> </div> <div class="panel-wrap"> <ul class="panel-tabs"> <li><a href="`)
-	//line template/namespace/show.qtpl:51
+	qw422016.N().S(`" class="button button-primary">Create</a></li> </ul> </div> <ul class="tabs"> <li><a href="`)
+	//line template/namespace/show.qtpl:50
 	qw422016.E().S(p.Namespace.URI())
-	//line template/namespace/show.qtpl:51
+	//line template/namespace/show.qtpl:50
 	qw422016.N().S(`" `)
-	//line template/namespace/show.qtpl:51
+	//line template/namespace/show.qtpl:50
 	if p.Namespace.URI() == p.URI {
-		//line template/namespace/show.qtpl:51
+		//line template/namespace/show.qtpl:50
 		qw422016.N().S(`class="active" `)
-		//line template/namespace/show.qtpl:51
+		//line template/namespace/show.qtpl:50
 	}
-	//line template/namespace/show.qtpl:51
+	//line template/namespace/show.qtpl:50
 	qw422016.N().S(`>Builds</a></li> <li><a href="`)
-	//line template/namespace/show.qtpl:52
+	//line template/namespace/show.qtpl:51
 	qw422016.E().S(p.Namespace.URI())
-	//line template/namespace/show.qtpl:52
-	qw422016.N().S(`/-/namespaces">Namespaces</a></li> </ul> `)
-	//line template/namespace/show.qtpl:54
+	//line template/namespace/show.qtpl:51
+	qw422016.N().S(`/-/namespaces">Namespaces</a></li> </ul> <div class="body">`)
+	//line template/namespace/show.qtpl:53
 	build.StreamRenderBuilds(qw422016, p.Builds)
-	//line template/namespace/show.qtpl:54
-	qw422016.N().S(` </div> `)
-//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:53
+	qw422016.N().S(`</div> `)
+//line template/namespace/show.qtpl:54
 }
 
-//line template/namespace/show.qtpl:56
+//line template/namespace/show.qtpl:54
 func (p *ShowPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:54
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:54
 	p.StreamBody(qw422016)
-	//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:54
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/show.qtpl:56
+//line template/namespace/show.qtpl:54
 }
 
-//line template/namespace/show.qtpl:56
+//line template/namespace/show.qtpl:54
 func (p *ShowPage) Body() string {
-	//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:54
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:54
 	p.WriteBody(qb422016)
-	//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:54
 	qs422016 := string(qb422016.B)
-	//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:54
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/show.qtpl:56
+	//line template/namespace/show.qtpl:54
 	return qs422016
-//line template/namespace/show.qtpl:56
+//line template/namespace/show.qtpl:54
 }

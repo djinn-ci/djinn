@@ -141,6 +141,14 @@ func (n *Namespace) LoadParents() error {
 	return n.Parent.LoadParents()
 }
 
+func (n Namespace) Namespaces() ([]*Namespace, error) {
+	namespaces := make([]*Namespace,0)
+
+	err := DB.Select(&namespaces, "SELECT * FROM namespaces WHERE parent_id = $1 ORDER BY full_name ASC", n.ID)
+
+	return namespaces, errors.Err(err)
+}
+
 func (n *Namespace) Update() error {
 	stmt, err := DB.Prepare(`
 		UPDATE namespaces

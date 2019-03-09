@@ -51,6 +51,48 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	HTML(w, template.Render(d), http.StatusOK)
 }
 
+func (h Namespace) SubIndex(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	u, err := model.FindUserByUsername(vars["username"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	n, err := u.FindNamespaceByFullName(vars["namespace"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	namespaces, err := n.Namespaces()
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	p := &namespace.SubIndexPage{
+		IndexPage: &namespace.IndexPage{
+			Page: &template.Page{
+				URI: r.URL.RequestURI(),
+			},
+			Namespaces: namespaces,
+		},
+		Namespace: n,
+	}
+
+	d := template.NewDashboard(p, r.URL.RequestURI())
+
+	HTML(w, template.Render(d), http.StatusOK)
+}
+
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	u, err := h.UserFromRequest(r)
 

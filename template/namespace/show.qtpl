@@ -63,5 +63,6 @@ type ShowNamespacesPage struct {
 {% endfunc %}
 
 {% func (p *ShowNamespacesPage) Body() %}
+{%= renderNamespaces(p.Namespaces) %}
 {% endfunc %}
 {% endcollapsespace %}

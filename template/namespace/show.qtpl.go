@@ -339,31 +339,35 @@ func (p *ShowPage) Tabs() string {
 func (p *ShowNamespacesPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:65
 	qw422016.N().S(` `)
-//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:66
+	streamrenderNamespaces(qw422016, p.Namespaces)
+	//line template/namespace/show.qtpl:66
+	qw422016.N().S(` `)
+//line template/namespace/show.qtpl:67
 }
 
-//line template/namespace/show.qtpl:66
+//line template/namespace/show.qtpl:67
 func (p *ShowNamespacesPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:67
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:67
 	p.StreamBody(qw422016)
-	//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:67
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/show.qtpl:66
+//line template/namespace/show.qtpl:67
 }
 
-//line template/namespace/show.qtpl:66
+//line template/namespace/show.qtpl:67
 func (p *ShowNamespacesPage) Body() string {
-	//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:67
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:67
 	p.WriteBody(qb422016)
-	//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:67
 	qs422016 := string(qb422016.B)
-	//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:67
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/show.qtpl:66
+	//line template/namespace/show.qtpl:67
 	return qs422016
-//line template/namespace/show.qtpl:66
+//line template/namespace/show.qtpl:67
 }

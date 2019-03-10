@@ -14,31 +14,6 @@ type IndexPage struct {
 %}
 
 {% collapsespace %}
-{% func renderNamespaces(namespaces []*model.Namespace) %}
-{% if len(namespaces) == 0 %}
-<div class="message">Namespaces allow you to group related builds together.</div>
-{% else %}
-<table class="panel table">
-	<tr>
-		<th>Name</th>
-		<th>Last Build</th>
-	</tr>
-	{% for _, n := range namespaces %}
-		<tr>
-			<td>
-				<a href="{%s n.URI() %}">{%s n.FullName %}</a><br/>
-				{% if n.Description == "" %}
-					<div class="info"><em>No description</em></div>
-				{% else %}
-					<div class="info">{%s n.Description %}</div>
-				{% endif %}
-			</td>
-			<td>--</td>
-		</tr>
-	{% endfor %}
-</table>
-{% endif %}
-{% endfunc %}
 
 {% func (p *IndexPage) Title() %}
 Namespaces - Thrall

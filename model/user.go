@@ -12,11 +12,11 @@ import (
 )
 
 type User struct {
-	ID        int64        `db:"id"`
+	Model
+
 	Email     string       `db:"email"`
 	Username  string       `db:"username"`
 	Password  []byte       `db:"password"`
-	CreatedAt *time.Time   `db:"created_at"`
 	UpdatedAt *time.Time   `db:"updated_at"`
 	DeletedAt *pq.NullTime `db:"deleted_at"`
 }
@@ -24,55 +24,21 @@ type User struct {
 func FindUser(id int64) (*User, error) {
 	u := &User{}
 
-	stmt, err := DB.Prepare(`SELECT * FROM users WHERE id = $1`)
-
-	if err != nil {
-		return u, errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(id)
-
-	err = row.Scan(&u.ID, &u.Email, &u.Username, &u.Password, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return u, nil
-		}
-
-		return u, errors.Err(err)
-	}
+	err := DB.Get(u, "SELECT * FROM users WHERE id = $1", id)
 
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
-	return u, nil
+	return u, errors.Err(err)
 }
 
-// FindUserByHandle is only called during authentication. Therefore we only
-// want to populate the ID field for setting the session, and the password
-// field for performing the actual authentication.
 func FindUserByHandle(handle string) (*User, error) {
 	u := &User{}
 
-	stmt, err := DB.Prepare(`SELECT id, password FROM users WHERE email = $1 OR username = $2`)
+	err := DB.Get(u, "SELECT * FROM users WHERE email = $1 OR username = $2", handle, handle)
 
-	if err != nil {
-		return u, errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(handle, handle)
-
-	err = row.Scan(&u.ID, &u.Password)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return u, nil
-		}
-	}
+	u.Email = strings.TrimSpace(u.Email)
+	u.Username = strings.TrimSpace(u.Username)
 
 	return u, errors.Err(err)
 }
@@ -80,28 +46,28 @@ func FindUserByHandle(handle string) (*User, error) {
 func FindUserByUsername(username string) (*User, error) {
 	u := &User{}
 
-	stmt, err := DB.Prepare(`SELECT * FROM users WHERE username = $1`)
-
-	if err != nil {
-		return u, errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(username)
-
-	err = row.Scan(&u.ID, &u.Email, &u.Username, &u.Password, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return u, nil
-		}
-	}
+	err := DB.Get(u, "SELECT * FROM users WHERE username = $1", username)
 
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
 	return u, errors.Err(err)
+}
+
+func (u *User) Builds() ([]*Build, error) {
+	builds := make([]*Build, 0)
+
+	err := DB.Select(&builds, "SELECT * FROM builds WHERE user_id = $1 ORDER BY created_at DESC", u.ID)
+
+	if err != nil {
+		return builds, errors.Err(err)
+	}
+
+	for _, b := range builds {
+		b.User = u
+	}
+
+	return builds, nil
 }
 
 func (u *User) Create() error {
@@ -127,25 +93,11 @@ func (u *User) Create() error {
 func (u *User) FindNamespaceByFullName(fullName string) (*Namespace, error) {
 	n := &Namespace{}
 
-	stmt, err := DB.Prepare(`SELECT * FROM namespaces WHERE user_id = $1 AND full_name = $2`)
+	err := DB.Get(n, "SELECT * FROM namespaces WHERE user_id = $1 AND full_name = $2", u.ID, fullName)
 
-	if err != nil {
-		return n, errors.Err(err)
+	if err == nil {
+		n.User = u
 	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(u.ID, fullName)
-
-	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.FullName, &n.Description, &n.Level, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return n, nil
-		}
-	}
-
-	n.User = u
 
 	return n, errors.Err(err)
 }
@@ -161,9 +113,9 @@ func (u *User) FindOrCreateNamespace(fullName string) (*Namespace, error) {
 		return n, nil
 	}
 
-	parts := strings.Split(fullName, "/")
-
 	parent := &Namespace{}
+
+	parts := strings.Split(fullName, "/")
 
 	for _, name := range parts {
 		if parent.Level + 1 > 20 {

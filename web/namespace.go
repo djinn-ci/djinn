@@ -52,7 +52,15 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	namespaces, err := u.Namespaces()
+	var namespaces []*model.Namespace
+
+	search := r.URL.Query().Get("search")
+
+	if search != "" {
+		namespaces, err = u.NamespacesLike(search)
+	} else {
+		namespaces, err = u.Namespaces()
+	}
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -62,6 +70,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &namespace.IndexPage{
 		Namespaces: namespaces,
+		Search:     search,
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
@@ -252,7 +261,15 @@ func (h Namespace) ShowNamespaces(w http.ResponseWriter, r *http.Request) {
 		n.Parent.User = u
 	}
 
-	namespaces, err := n.Namespaces()
+	var namespaces []*model.Namespace
+
+	search := r.URL.Query().Get("search")
+
+	if search != "" {
+		namespaces, err = n.NamespacesLike(search)
+	} else {
+		namespaces, err = n.Namespaces()
+	}
 
 	if err := model.LoadNamespaceRelations(namespaces); err != nil {
 		log.Error.Println(errors.Err(err))
@@ -268,6 +285,7 @@ func (h Namespace) ShowNamespaces(w http.ResponseWriter, r *http.Request) {
 			Namespace: n,
 		},
 		Namespaces: namespaces,
+		Search:     search,
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())

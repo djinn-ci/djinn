@@ -1,10 +1,17 @@
 {% import "github.com/andrewpillar/thrall/model" %}
 
 {% collapsespace %}
-{% func renderNamespaces(namespaces []*model.Namespace) %}
+{% func renderNamespaces(namespaces []*model.Namespace, search string) %}
 {% if len(namespaces) == 0 %}
 <div class="message">Namespaces allow you to group related builds together.</div>
 {% else %}
+<div class="panel">
+	<form>
+		<div class="form-field">
+			<input class="text" type="text" name="search" autocomplete="off" placeholder="Search namespaces..." {% if search != "" %}value="{%s search %}"{% endif %}/>
+		</div>
+	</form>
+</div>
 <table class="panel table">
 	<tr>
 		<th></th>

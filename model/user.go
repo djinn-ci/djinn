@@ -170,6 +170,25 @@ func (u User) IsZero() bool {
 			u.UpdatedAt == nil
 }
 
+func (u *User) NamespacesLike(like string) ([]*Namespace, error) {
+	namespaces := make([]*Namespace, 0)
+
+	err := DB.Select(&namespaces, `
+		SELECT * FROM namespaces WHERE user_id = $1 AND full_name LIKE $2
+		ORDER BY full_name ASC
+	`, u.ID, "%" + like + "%")
+
+	if err != nil {
+		return namespaces, errors.Err(err)
+	}
+
+	for _, n := range namespaces {
+		n.User = u
+	}
+
+	return namespaces, nil
+}
+
 func (u *User) Namespaces() ([]*Namespace, error) {
 	namespaces := make([]*Namespace, 0)
 

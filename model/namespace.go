@@ -175,6 +175,24 @@ func (n *Namespace) LoadParents() error {
 	return n.Parent.LoadParents()
 }
 
+func (n Namespace) NamespacesLike(like string) ([]*Namespace, error) {
+	namespaces := make([]*Namespace, 0)
+
+	err := DB.Select(&namespaces, `
+		SELECT * FROM namespaces WHERE parent_id = $1  AND full_name LIKE $2
+	`, n.ID, "%" + like + "%")
+
+	if err != nil {
+		return namespaces, errors.Err(err)
+	}
+
+	if err := LoadNamespaceRelations(namespaces); err != nil {
+		return namespaces, errors.Err(err)
+	}
+
+	return namespaces, nil
+}
+
 func (n Namespace) Namespaces() ([]*Namespace, error) {
 	namespaces := make([]*Namespace, 0)
 

@@ -20,6 +20,7 @@ type ShowNamespacesPage struct {
 	*ShowPage
 
 	Namespaces []*model.Namespace
+	Search     string
 }
 %}
 
@@ -63,6 +64,6 @@ type ShowNamespacesPage struct {
 {% endfunc %}
 
 {% func (p *ShowNamespacesPage) Body() %}
-{%= renderNamespaces(p.Namespaces) %}
+{%= renderNamespaces(p.Namespaces, p.Search) %}
 {% endfunc %}
 {% endcollapsespace %}

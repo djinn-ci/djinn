@@ -10,6 +10,7 @@ type IndexPage struct {
 	*template.Page
 
 	Namespaces []*model.Namespace
+	Search     string
 }
 %}
 
@@ -20,7 +21,7 @@ Namespaces - Thrall
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-{%= renderNamespaces(p.Namespaces) %}
+{%= renderNamespaces(p.Namespaces, p.Search) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

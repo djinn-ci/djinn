@@ -25,7 +25,7 @@ func streamrenderNamespaces(qw422016 *qt422016.Writer, namespaces []*model.Names
 	//line template/namespace/render.qtpl:4
 	qw422016.N().S(` `)
 	//line template/namespace/render.qtpl:5
-	if len(namespaces) == 0 {
+	if len(namespaces) == 0 && search == "" {
 		//line template/namespace/render.qtpl:5
 		qw422016.N().S(` <div class="message">Namespaces allow you to group related builds together.</div> `)
 		//line template/namespace/render.qtpl:7

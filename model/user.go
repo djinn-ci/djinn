@@ -95,11 +95,20 @@ func (u *User) FindNamespaceByFullName(fullName string) (*Namespace, error) {
 
 	err := DB.Get(n, "SELECT * FROM namespaces WHERE user_id = $1 AND full_name = $2", u.ID, fullName)
 
-	if err == nil {
-		n.User = u
+	if err != nil {
+		if err == sql.ErrNoRows {
+			n.CreatedAt = nil
+			n.UpdatedAt = nil
+
+			return n, nil
+		}
+
+		return n, errors.Err(err)
 	}
 
-	return n, errors.Err(err)
+	n.User = u
+
+	return n, nil
 }
 
 func (u *User) FindOrCreateNamespace(fullName string) (*Namespace, error) {

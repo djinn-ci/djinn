@@ -7,11 +7,22 @@
 {% else %}
 <table class="panel table">
 	<tr>
+		<th></th>
 		<th>Name</th>
 		<th>Last Build</th>
 	</tr>
 	{% for _, n := range namespaces %}
 		<tr>
+			<td class="icon">
+				{% switch n.Visibility %}
+					{% case model.Private %}
+						{% cat "../../svgs/lock.svg" %}
+					{% case model.Internal %}
+						{% cat "../../svgs/security.svg" %}
+					{% case model.Public %}
+						{% cat "../../svgs/public.svg" %}
+				{% endswitch %}
+			</td>
 			<td>
 				<a href="{%s n.URI() %}">{%s n.FullName %}</a><br/>
 				{% if n.Description == "" %}

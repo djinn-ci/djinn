@@ -73,7 +73,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		Search:     search,
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI())
+	d := template.NewDashboard(p, r.URL.Path)
 
 	HTML(w, template.Render(d), http.StatusOK)
 }
@@ -219,13 +219,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	p := &namespace.ShowPage{
 		Page:      &template.Page{
-			URI: r.URL.RequestURI(),
+			URI: r.URL.Path,
 		},
 		Namespace: n,
 		Builds:    builds,
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI())
+	d := template.NewDashboard(p, r.URL.Path)
 
 	HTML(w, template.Render(d), http.StatusOK)
 }
@@ -280,7 +280,7 @@ func (h Namespace) ShowNamespaces(w http.ResponseWriter, r *http.Request) {
 	p := &namespace.ShowNamespacesPage{
 		ShowPage: &namespace.ShowPage{
 			Page:      &template.Page{
-				URI: r.URL.RequestURI(),
+				URI: r.URL.Path,
 			},
 			Namespace: n,
 		},
@@ -288,7 +288,7 @@ func (h Namespace) ShowNamespaces(w http.ResponseWriter, r *http.Request) {
 		Search:     search,
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI())
+	d := template.NewDashboard(p, r.URL.Path)
 
 	HTML(w, template.Render(d), http.StatusOK)
 }
@@ -324,7 +324,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		Namespace: n,
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI())
+	d := template.NewDashboard(p, r.URL.Path)
 
 	HTML(w, template.Render(d), http.StatusOK)
 }

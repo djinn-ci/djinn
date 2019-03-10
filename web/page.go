@@ -56,7 +56,7 @@ func (h Page) Home(w http.ResponseWriter, r *http.Request) {
 		Builds: builds,
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI())
+	d := template.NewDashboard(p, r.URL.Path)
 
 	HTML(w, template.Render(d), http.StatusOK)
 }

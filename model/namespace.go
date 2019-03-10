@@ -1,14 +1,18 @@
 package model
 
 import (
+	"bytes"
 	"database/sql"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 )
 
 type Namespace struct {
-	ID          int64         `db:"id"`
+	Model
+
 	UserID      int64         `db:"user_id"`
 	ParentID    sql.NullInt64 `db:"parent_id"`
 	Name        string        `db:"name"`
@@ -16,7 +20,6 @@ type Namespace struct {
 	Description string        `db:"description"`
 	Level       int64         `db:"level"`
 	Visibility  Visibility    `db:"visibility"`
-	CreatedAt   *time.Time    `db:"created_at"`
 	UpdatedAt   *time.Time    `db:"updated_at"`
 
 	User   *User
@@ -26,27 +29,64 @@ type Namespace struct {
 func FindNamespace(id int64) (*Namespace, error) {
 	n := &Namespace{}
 
-	stmt, err := DB.Prepare(`SELECT * FROM namespaces WHERE id = $1`)
+	err := DB.Get(n, "SELECT * FROM namespaces WHERE id = $1", id)
 
-	if err != nil {
-		return n, errors.Err(err)
+	return n, errors.Err(err)
+}
+
+func LoadNamespaceRelations(namespaces []*Namespace) error {
+	if len(namespaces) == 0 {
+		return nil
 	}
 
-	defer stmt.Close()
+	query := bytes.NewBufferString("SELECT * FROM users WHERE id IN (")
 
-	row := stmt.QueryRow(id)
+	end := len(namespaces) - 1
 
-	err = row.Scan(&n.ID, &n.UserID, &n.ParentID, &n.Name, &n.FullName, &n.Description, &n.Level, &n.Visibility, &n.CreatedAt, &n.UpdatedAt)
+	for i, n := range namespaces {
+		query.WriteString(strconv.FormatInt(n.UserID, 10))
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return n, nil
+		if i != end {
+			query.WriteString(", ")
 		}
-
-		return n, errors.Err(err)
 	}
 
-	return n, nil
+	query.WriteString(")")
+
+	users := make([]*User, 0)
+
+	if err := DB.Select(&users, query.String()); err != nil {
+		return errors.Err(err)
+	}
+
+	for _, n := range namespaces {
+		for _, u := range users {
+			if n.UserID == u.ID && n.User == nil {
+				u.Email = strings.TrimSpace(u.Email)
+				u.Username = strings.TrimSpace(u.Username)
+
+				n.User = u
+			}
+		}
+	}
+
+	return nil
+}
+
+func (n *Namespace) Builds() ([]*Build, error) {
+	builds := make([]*Build, 0)
+
+	err := DB.Select(&builds, "SELECT * FROM builds WHERE namespace_id = $1 ORDER BY created_at DESC", n.ID)
+
+	if err != nil {
+		return builds, errors.Err(err)
+	}
+
+	for _, b := range builds {
+		b.Namespace = n
+	}
+
+	return builds, nil
 }
 
 func (n *Namespace) Create() error {
@@ -118,35 +158,37 @@ func (n *Namespace) LoadParents() error {
 		return nil
 	}
 
-	stmt, err := DB.Prepare(`SELECT * FROM namespaces WHERE id = $1`)
+	parent := &Namespace{}
+
+	err := DB.Get(parent, "SELECT * FROM namespaces WHERE id = $1", n.ParentID)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(n.ParentID)
-
-	p := &Namespace{}
-
-	err = row.Scan(&p.ID, &p.UserID, &p.ParentID, &p.Name, &p.FullName, &p.Description, &p.Level, &p.Visibility, &p.CreatedAt, &p.UpdatedAt)
-
-	if err != nil {
-		return errors.Err(err)
+	if parent.IsZero() {
+		return nil
 	}
 
-	n.Parent = p
+	n.Parent = parent
 
 	return n.Parent.LoadParents()
 }
 
 func (n Namespace) Namespaces() ([]*Namespace, error) {
-	namespaces := make([]*Namespace,0)
+	namespaces := make([]*Namespace, 0)
 
 	err := DB.Select(&namespaces, "SELECT * FROM namespaces WHERE parent_id = $1 ORDER BY full_name ASC", n.ID)
 
-	return namespaces, errors.Err(err)
+	if err != nil {
+		return namespaces, errors.Err(err)
+	}
+
+	if err := LoadNamespaceRelations(namespaces); err != nil {
+		return namespaces, errors.Err(err)
+	}
+
+	return namespaces, nil
 }
 
 func (n *Namespace) Update() error {

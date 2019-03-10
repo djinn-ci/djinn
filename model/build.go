@@ -1,10 +1,9 @@
 package model
 
 import (
+	"bytes"
 	"database/sql"
 	"strconv"
-	"strings"
-	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -12,13 +11,13 @@ import (
 )
 
 type Build struct {
-	ID          int64          `db:"id"`
+	Model
+
 	UserID      int64          `db:"user_id"`
 	NamespaceID sql.NullInt64  `db:"namespace_id"`
 	Manifest    string         `db:"manifest"`
 	Status      Status         `db:"status"`
 	Output      sql.NullString `db:"output"`
-	CreatedAt   *time.Time     `db:"created_at"`
 	StartedAt   *pq.NullTime   `db:"started_at"`
 	FinishedAt  *pq.NullTime   `db:"finished_at"`
 
@@ -28,141 +27,91 @@ type Build struct {
 }
 
 type BuildTag struct {
-	ID      int64        `db:"id"`
-	UserID  int64        `db:"user_id"`
-	BuildID int64        `db:"build_id"`
-	Name    string       `db:"name"`
-	CreatedAt *time.Time `db:"created_at"`
+	Model
+
+	UserID  int64  `db:"user_id"`
+	BuildID int64  `db:"build_id"`
+	Name    string `db:"name"`
 }
 
-func BuildsWithRelations(col string, val interface{}) ([]*Build, error) {
-	builds := make([]*Build, 0)
-
-	buildStmt, err := DB.Preparex("SELECT * FROM builds WHERE " + col + " = $1 ORDER BY created_at DESC")
-
-	if err != nil {
-		return builds, errors.Err(err)
-	}
-
-	defer buildStmt.Close()
-
-	rows, err := buildStmt.Queryx(val)
-
-	if err != nil {
-		return builds, errors.Err(err)
-	}
-
-	buildIds := make([]string, 0)
-	namespaceIds := make([]string, 0)
-
-	uniq := make(map[int64]struct{})
-
-	for rows.Next() {
-		b := &Build{}
-
-		if err := rows.StructScan(b); err != nil {
-			return builds, errors.Err(err)
-		}
-
-		builds = append(builds, b)
-		buildIds = append(buildIds, strconv.FormatInt(b.ID, 10))
-
-		if b.NamespaceID.Valid {
-			if _, ok := uniq[b.NamespaceID.Int64]; !ok {
-				namespaceIds = append(namespaceIds, strconv.FormatInt(b.NamespaceID.Int64, 10))
-				uniq[b.NamespaceID.Int64] = struct{}{}
-			}
-		}
-	}
-
+func LoadBuildRelations(builds []*Build) error {
 	if len(builds) == 0 {
-		return builds, nil
+		return nil
 	}
 
-	rows, err = DB.Queryx(`
-		SELECT * FROM build_tags WHERE build_id IN (` + strings.Join(buildIds, ",") + `)
-		ORDER BY created_at ASC
-	`)
+	namespacesQuery := bytes.NewBufferString("SELECT * FROM namespaces WHERE id IN (")
+	usersQuery := bytes.NewBufferString("SELECT * FROM users WHERE id IN (")
+	tagsQuery := bytes.NewBufferString("SELECT * FROM build_tags WHERE build_id IN (")
 
-	if err != nil {
-		return builds, errors.Err(err)
+	end := len(builds) - 1
+	loadNamespaces := false
+
+	for i, b := range builds {
+		if b.NamespaceID.Valid {
+			namespacesQuery.WriteString(strconv.FormatInt(b.NamespaceID.Int64, 10))
+			loadNamespaces = true
+		}
+
+		usersQuery.WriteString(strconv.FormatInt(b.UserID, 10))
+		tagsQuery.WriteString(strconv.FormatInt(b.ID, 10))
+
+		if i != end {
+			if b.NamespaceID.Valid {
+				namespacesQuery.WriteString(", ")
+			}
+
+			usersQuery.WriteString(", ")
+			tagsQuery.WriteString(", ")
+		}
 	}
 
+	namespacesQuery.WriteString(")")
+	usersQuery.WriteString(")")
+	tagsQuery.WriteString(")")
+
+	namespaces := make([]*Namespace, 0)
+	users := make([]*User, 0)
 	tags := make([]*BuildTag, 0)
 
-	for rows.Next() {
-		t := &BuildTag{}
-
-		if err := rows.StructScan(t); err != nil {
-			return builds, errors.Err(err)
-		}
-
-		tags = append(tags, t)
-	}
-
-	rows, err = DB.Queryx("SELECT * FROM namespaces WHERE id IN (" + strings.Join(namespaceIds, ",") + ")")
-
-	if err != nil {
-		return builds, errors.Err(err)
-	}
-
-	namespaces := make([]*Namespace, len(namespaceIds), len(namespaceIds))
-	userIds := make([]string, 0, len(namespaceIds))
-
-	uniq = make(map[int64]struct{})
-
-	for i := 0; rows.Next(); i++ {
-		namespaces[i] = &Namespace{}
-
-		if err := rows.StructScan(namespaces[i]); err != nil {
-			return builds, errors.Err(err)
-		}
-
-		if _, ok := uniq[namespaces[i].UserID]; !ok {
-			userIds = append(userIds, strconv.FormatInt(namespaces[i].UserID, 10))
-			uniq[namespaces[i].UserID] = struct{}{}
+	if loadNamespaces {
+		if err := DB.Select(&namespaces, namespacesQuery.String()); err != nil {
+			return errors.Err(err)
 		}
 	}
 
-	rows, err = DB.Queryx("SELECT * FROM users WHERE id IN (" + strings.Join(userIds, ",") + ")")
-
-	if err != nil {
-		return builds, errors.Err(err)
+	if err := DB.Select(&users, usersQuery.String()); err != nil {
+		return errors.Err(err)
 	}
 
-	for rows.Next() {
-		u := &User{}
+	if err := DB.Select(&tags, tagsQuery.String()); err != nil {
+		return errors.Err(err)
+	}
 
-		if err := rows.StructScan(u); err != nil {
-			return builds, errors.Err(err)
-		}
-
-		u.Email = strings.TrimSpace(u.Email)
-		u.Username = strings.TrimSpace(u.Username)
-
-		for _, n := range namespaces {
-			if n.UserID == u.ID {
-				n.User = u
-			}
-		}
+	if err := LoadNamespaceRelations(namespaces); err != nil {
+		return errors.Err(err)
 	}
 
 	for _, b := range builds {
 		for _, t := range tags {
-			if b.ID == t.BuildID {
+			if t.BuildID == b.ID {
 				b.Tags = append(b.Tags, t)
 			}
 		}
 
 		for _, n := range namespaces {
-			if n.ID == b.NamespaceID.Int64 {
+			if b.NamespaceID.Valid && b.NamespaceID.Int64 == n.ID && b.Namespace == nil {
 				b.Namespace = n
-				break
+			}
+		}
+
+		for _, u := range users {
+			if b.UserID == u.ID && b.User == nil {
+				b.User = u
 			}
 		}
 	}
 
-	return builds, nil
+	return nil
 }
 
 func (b *Build) Create() error {

@@ -14,18 +14,12 @@ type CreatePage struct {
 }
 %}
 
+{% collapsespace %}
 {% func (p *CreatePage) Title() %}
 Submit Build - Thrall
 {% endfunc %}
 
-{% collapsespace %}
 {% func (p *CreatePage) Body() %}
-<div class="header">
-	<h1>
-		<a href="/" class="back">{% cat "../../svgs/arrow_back.svg" %}</a> Submit Build
-	</h1>
-</div>
-<div class="body">
 <div class="panel">
 	<form class="slim" method="POST" action="/builds">
 		{% if p.Errors.First("build") != "" %}
@@ -49,6 +43,12 @@ Submit Build - Thrall
 		</div>
 	</form>
 </div>
-</div>
 {% endfunc %}
+
+{% func (p *CreatePage) Header() %}
+<a href="/" class="back">{% cat "../../svgs/arrow_back.svg" %}</a> Submit Build
+{% endfunc %}
+
+{% func (p *CreatePage) Actions() %}{% endfunc %}
+{% func (p *CreatePage) Tabs() %}{% endfunc %}
 {% endcollapsespace %}

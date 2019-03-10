@@ -11,22 +11,9 @@ type IndexPage struct {
 
 	Namespaces []*model.Namespace
 }
-
-type SubIndexPage struct {
-	*IndexPage
-
-	Namespace *model.Namespace
-}
 %}
 
-{% func (p *IndexPage) Title() %}
-Namespaces - Thrall
-{% endfunc %}
-
-{% func (p *SubIndexPage) Title() %}
-{%s p.Namespace.FullName %} - Sub-Namespaces - Thrall
-{% endfunc %}
-
+{% collapsespace %}
 {% func renderNamespaces(namespaces []*model.Namespace) %}
 {% if len(namespaces) == 0 %}
 <div class="message">Namespaces allow you to group related builds together.</div>
@@ -53,33 +40,21 @@ Namespaces - Thrall
 {% endif %}
 {% endfunc %}
 
-{% collapsespace %}
-{% func (p *IndexPage) Body() %}
-<div class="header">
-	<h1>Namespaces</h1>
-	<ul class="actions">
-		<li><a href="/namespaces/create" class="button button-primary">Create</a></li>
-	</ul>
-</div>
-<div class="body">{%= renderNamespaces(p.Namespaces) %}</div>
+{% func (p *IndexPage) Title() %}
+Namespaces - Thrall
 {% endfunc %}
 
-{% func (p *SubIndexPage) Body() %}
-<div class="header">
-	<h1>
-		<a class="back" href="{%s p.Namespace.Parent.URI() %}">{% cat "../../svgs/arrow_back.svg" %}</a>
-		{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Sub-Namespaces<br/>
-		<small>{%s p.Namespace.Description %}</small>
-	</h1>
-	<ul class="actions">
-		<li><a href="{%s p.Namespace.URI() %}/-/edit" class="button button-secondary">Edit</a></li>
-		<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>
-	</ul>
-</div>
-<ul class="tabs">
-	<li><a href="{%s p.Namespace.URI() %}" {% if p.Namespace.URI() == p.URI %}class="active" {% endif %}>Builds</a></li>
-	<li><a href="{%s p.Namespace.URI() %}/-/namespaces" {% if template.URIMatch(template.NamespacesURI, p.URI) %}class="active"{% endif %}>Namespaces</a></li>
-</ul>
-<div class="body">{%= renderNamespaces(p.Namespaces) %}</div>
+{% func (p *IndexPage) Body() %}
+{%= renderNamespaces(p.Namespaces) %}
 {% endfunc %}
+
+{% func (p *IndexPage) Header() %}
+Namespaces
+{% endfunc %}
+
+{% func (p *IndexPage) Actions() %}
+<li><a href="/namespaces/create" class="button button-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *IndexPage) Tabs() %}{% endfunc %}
 {% endcollapsespace %}

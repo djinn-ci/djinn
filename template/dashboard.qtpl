@@ -1,4 +1,20 @@
-{% import "regexp" %}
+{%
+interface dashboardPage {
+	Title()
+
+	Styles()
+
+	Body()
+
+	Footer()
+
+	Actions()
+
+	Header()
+
+	Tabs()
+}
+%}
 
 {% code
 
@@ -9,30 +25,27 @@ var (
 )
 
 type Dashboard struct {
-	page
+	dashboardPage
 
 	URI string
 }
 
-func NewDashboard(p page, uri string) *Dashboard {
-	return &Dashboard{page: p, URI: uri}
-}
-
-func URIMatch(pattern, uri string) bool {
-	matched, err := regexp.Match(pattern, []byte(uri))
-
-	if err != nil {
-		return false
-	}
-
-	return matched
+func NewDashboard(p dashboardPage, uri string) *Dashboard {
+	return &Dashboard{dashboardPage: p, URI: uri}
 }
 %}
 
 {% collapsespace %}
 {% func (p *Dashboard) Body() %}
 <div class="dashboard">
-	<div class="content">{%= p.page.Body() %}</div>
+	<div class="content">
+		<div class="header">
+			<h1>{%= p.dashboardPage.Header() %}</h1>
+			<ul class="actions">{%= p.dashboardPage.Actions() %}</ul>
+		</div>
+		<ul class="tabs">{%= p.dashboardPage.Tabs() %}</ul>
+		<div class="body">{%= p.dashboardPage.Body() %}</div>
+	</div>
 	<div class="sidebar">
 		<h2>
 			<div class="brand">
@@ -43,15 +56,11 @@ func URIMatch(pattern, uri string) bool {
 		</h2>
 		<ul>
 			<li class="nav-header">MANAGE</li>
-			<li><a href="/" {% if URIMatch(BuildsURI, p.URI) %}class="active"{% endif %}>Builds</a></li>
-			<li><a href="/namespaces" {% if URIMatch(NamespacesURI, p.URI) %}class="active"{% endif %}>Namespaces</a></li>
+			<li>{%= RenderLinkPattern("/", BuildsURI, p.URI) %}Builds</a></li>
+			<li>{%= RenderLinkPattern("/namespaces", NamespacesURI, p.URI) %}Namespaces</a></li>
 			<li class="nav-header">ACCOUNT</li>
-			<li><a href="/settings" {% if URIMatch(SettingsURI, p.URI) %}class="active"{% endif %}>Settings</a></li>
-			<li>
-				<form method="POST" action="/logout">
-					<button type="submit">Logout</button>
-				</form>
-			</li>
+			<li>{%= RenderLinkPattern("/settings", SettingsURI, p.URI) %}Settings</a></li>
+			<li><form method="POST" action="/logout"><button type="submit">Logout</button></form></li>
 		</ul>
 	</div>
 </div>

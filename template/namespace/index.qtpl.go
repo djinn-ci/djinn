@@ -30,309 +30,246 @@ type IndexPage struct {
 	Namespaces []*model.Namespace
 }
 
-type SubIndexPage struct {
-	*IndexPage
-
-	Namespace *model.Namespace
-}
-
-//line template/namespace/index.qtpl:22
-func (p *IndexPage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/namespace/index.qtpl:22
-	qw422016.N().S(`
-Namespaces - Thrall
-`)
-//line template/namespace/index.qtpl:24
-}
-
-//line template/namespace/index.qtpl:24
-func (p *IndexPage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/namespace/index.qtpl:24
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/index.qtpl:24
-	p.StreamTitle(qw422016)
-	//line template/namespace/index.qtpl:24
-	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/index.qtpl:24
-}
-
-//line template/namespace/index.qtpl:24
-func (p *IndexPage) Title() string {
-	//line template/namespace/index.qtpl:24
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/index.qtpl:24
-	p.WriteTitle(qb422016)
-	//line template/namespace/index.qtpl:24
-	qs422016 := string(qb422016.B)
-	//line template/namespace/index.qtpl:24
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/index.qtpl:24
-	return qs422016
-//line template/namespace/index.qtpl:24
-}
-
-//line template/namespace/index.qtpl:26
-func (p *SubIndexPage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/namespace/index.qtpl:26
-	qw422016.N().S(`
-`)
-	//line template/namespace/index.qtpl:27
-	qw422016.E().S(p.Namespace.FullName)
-	//line template/namespace/index.qtpl:27
-	qw422016.N().S(` - Sub-Namespaces - Thrall
-`)
-//line template/namespace/index.qtpl:28
-}
-
-//line template/namespace/index.qtpl:28
-func (p *SubIndexPage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/namespace/index.qtpl:28
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/index.qtpl:28
-	p.StreamTitle(qw422016)
-	//line template/namespace/index.qtpl:28
-	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/index.qtpl:28
-}
-
-//line template/namespace/index.qtpl:28
-func (p *SubIndexPage) Title() string {
-	//line template/namespace/index.qtpl:28
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/index.qtpl:28
-	p.WriteTitle(qb422016)
-	//line template/namespace/index.qtpl:28
-	qs422016 := string(qb422016.B)
-	//line template/namespace/index.qtpl:28
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/index.qtpl:28
-	return qs422016
-//line template/namespace/index.qtpl:28
-}
-
-//line template/namespace/index.qtpl:30
+//line template/namespace/index.qtpl:17
 func streamrenderNamespaces(qw422016 *qt422016.Writer, namespaces []*model.Namespace) {
-	//line template/namespace/index.qtpl:30
-	qw422016.N().S(`
-`)
-	//line template/namespace/index.qtpl:31
+	//line template/namespace/index.qtpl:17
+	qw422016.N().S(` `)
+	//line template/namespace/index.qtpl:18
 	if len(namespaces) == 0 {
-		//line template/namespace/index.qtpl:31
-		qw422016.N().S(`
-<div class="message">Namespaces allow you to group related builds together.</div>
-`)
-		//line template/namespace/index.qtpl:33
+		//line template/namespace/index.qtpl:18
+		qw422016.N().S(` <div class="message">Namespaces allow you to group related builds together.</div> `)
+		//line template/namespace/index.qtpl:20
 	} else {
-		//line template/namespace/index.qtpl:33
-		qw422016.N().S(`
-<table class="panel table">
-	<tr>
-		<th>Name</th>
-		<th>Last Build</th>
-	</tr>
-	`)
-		//line template/namespace/index.qtpl:39
+		//line template/namespace/index.qtpl:20
+		qw422016.N().S(` <table class="panel table"> <tr> <th>Name</th> <th>Last Build</th> </tr> `)
+		//line template/namespace/index.qtpl:26
 		for _, n := range namespaces {
-			//line template/namespace/index.qtpl:39
-			qw422016.N().S(`
-		<tr>
-			<td>
-				<a href="`)
-			//line template/namespace/index.qtpl:42
+			//line template/namespace/index.qtpl:26
+			qw422016.N().S(` <tr> <td> <a href="`)
+			//line template/namespace/index.qtpl:29
 			qw422016.E().S(n.URI())
-			//line template/namespace/index.qtpl:42
+			//line template/namespace/index.qtpl:29
 			qw422016.N().S(`">`)
-			//line template/namespace/index.qtpl:42
+			//line template/namespace/index.qtpl:29
 			qw422016.E().S(n.FullName)
-			//line template/namespace/index.qtpl:42
-			qw422016.N().S(`</a><br/>
-				`)
-			//line template/namespace/index.qtpl:43
+			//line template/namespace/index.qtpl:29
+			qw422016.N().S(`</a><br/> `)
+			//line template/namespace/index.qtpl:30
 			if n.Description == "" {
-				//line template/namespace/index.qtpl:43
-				qw422016.N().S(`
-					<div class="info"><em>No description</em></div>
-				`)
-				//line template/namespace/index.qtpl:45
+				//line template/namespace/index.qtpl:30
+				qw422016.N().S(` <div class="info"><em>No description</em></div> `)
+				//line template/namespace/index.qtpl:32
 			} else {
-				//line template/namespace/index.qtpl:45
-				qw422016.N().S(`
-					<div class="info">`)
-				//line template/namespace/index.qtpl:46
+				//line template/namespace/index.qtpl:32
+				qw422016.N().S(` <div class="info">`)
+				//line template/namespace/index.qtpl:33
 				qw422016.E().S(n.Description)
-				//line template/namespace/index.qtpl:46
-				qw422016.N().S(`</div>
-				`)
-				//line template/namespace/index.qtpl:47
+				//line template/namespace/index.qtpl:33
+				qw422016.N().S(`</div> `)
+				//line template/namespace/index.qtpl:34
 			}
-			//line template/namespace/index.qtpl:47
-			qw422016.N().S(`
-			</td>
-			<td>--</td>
-		</tr>
-	`)
-			//line template/namespace/index.qtpl:51
+			//line template/namespace/index.qtpl:34
+			qw422016.N().S(` </td> <td>--</td> </tr> `)
+			//line template/namespace/index.qtpl:38
 		}
-		//line template/namespace/index.qtpl:51
-		qw422016.N().S(`
-</table>
-`)
-		//line template/namespace/index.qtpl:53
+		//line template/namespace/index.qtpl:38
+		qw422016.N().S(` </table> `)
+		//line template/namespace/index.qtpl:40
 	}
-	//line template/namespace/index.qtpl:53
-	qw422016.N().S(`
-`)
-//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:40
+	qw422016.N().S(` `)
+//line template/namespace/index.qtpl:41
 }
 
-//line template/namespace/index.qtpl:54
+//line template/namespace/index.qtpl:41
 func writerenderNamespaces(qq422016 qtio422016.Writer, namespaces []*model.Namespace) {
-	//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:41
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:41
 	streamrenderNamespaces(qw422016, namespaces)
-	//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:41
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/index.qtpl:54
+//line template/namespace/index.qtpl:41
 }
 
-//line template/namespace/index.qtpl:54
+//line template/namespace/index.qtpl:41
 func renderNamespaces(namespaces []*model.Namespace) string {
-	//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:41
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:41
 	writerenderNamespaces(qb422016, namespaces)
-	//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:41
 	qs422016 := string(qb422016.B)
-	//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:41
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/index.qtpl:54
+	//line template/namespace/index.qtpl:41
 	return qs422016
-//line template/namespace/index.qtpl:54
+//line template/namespace/index.qtpl:41
+}
+
+//line template/namespace/index.qtpl:43
+func (p *IndexPage) StreamTitle(qw422016 *qt422016.Writer) {
+	//line template/namespace/index.qtpl:43
+	qw422016.N().S(` Namespaces - Thrall `)
+//line template/namespace/index.qtpl:45
+}
+
+//line template/namespace/index.qtpl:45
+func (p *IndexPage) WriteTitle(qq422016 qtio422016.Writer) {
+	//line template/namespace/index.qtpl:45
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/namespace/index.qtpl:45
+	p.StreamTitle(qw422016)
+	//line template/namespace/index.qtpl:45
+	qt422016.ReleaseWriter(qw422016)
+//line template/namespace/index.qtpl:45
+}
+
+//line template/namespace/index.qtpl:45
+func (p *IndexPage) Title() string {
+	//line template/namespace/index.qtpl:45
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/namespace/index.qtpl:45
+	p.WriteTitle(qb422016)
+	//line template/namespace/index.qtpl:45
+	qs422016 := string(qb422016.B)
+	//line template/namespace/index.qtpl:45
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/namespace/index.qtpl:45
+	return qs422016
+//line template/namespace/index.qtpl:45
+}
+
+//line template/namespace/index.qtpl:47
+func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
+	//line template/namespace/index.qtpl:47
+	qw422016.N().S(` `)
+	//line template/namespace/index.qtpl:48
+	streamrenderNamespaces(qw422016, p.Namespaces)
+	//line template/namespace/index.qtpl:48
+	qw422016.N().S(` `)
+//line template/namespace/index.qtpl:49
+}
+
+//line template/namespace/index.qtpl:49
+func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
+	//line template/namespace/index.qtpl:49
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/namespace/index.qtpl:49
+	p.StreamBody(qw422016)
+	//line template/namespace/index.qtpl:49
+	qt422016.ReleaseWriter(qw422016)
+//line template/namespace/index.qtpl:49
+}
+
+//line template/namespace/index.qtpl:49
+func (p *IndexPage) Body() string {
+	//line template/namespace/index.qtpl:49
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/namespace/index.qtpl:49
+	p.WriteBody(qb422016)
+	//line template/namespace/index.qtpl:49
+	qs422016 := string(qb422016.B)
+	//line template/namespace/index.qtpl:49
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/namespace/index.qtpl:49
+	return qs422016
+//line template/namespace/index.qtpl:49
+}
+
+//line template/namespace/index.qtpl:51
+func (p *IndexPage) StreamHeader(qw422016 *qt422016.Writer) {
+	//line template/namespace/index.qtpl:51
+	qw422016.N().S(` Namespaces `)
+//line template/namespace/index.qtpl:53
+}
+
+//line template/namespace/index.qtpl:53
+func (p *IndexPage) WriteHeader(qq422016 qtio422016.Writer) {
+	//line template/namespace/index.qtpl:53
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/namespace/index.qtpl:53
+	p.StreamHeader(qw422016)
+	//line template/namespace/index.qtpl:53
+	qt422016.ReleaseWriter(qw422016)
+//line template/namespace/index.qtpl:53
+}
+
+//line template/namespace/index.qtpl:53
+func (p *IndexPage) Header() string {
+	//line template/namespace/index.qtpl:53
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/namespace/index.qtpl:53
+	p.WriteHeader(qb422016)
+	//line template/namespace/index.qtpl:53
+	qs422016 := string(qb422016.B)
+	//line template/namespace/index.qtpl:53
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/namespace/index.qtpl:53
+	return qs422016
+//line template/namespace/index.qtpl:53
+}
+
+//line template/namespace/index.qtpl:55
+func (p *IndexPage) StreamActions(qw422016 *qt422016.Writer) {
+	//line template/namespace/index.qtpl:55
+	qw422016.N().S(` <li><a href="/namespaces/create" class="button button-primary">Create</a></li> `)
+//line template/namespace/index.qtpl:57
 }
 
 //line template/namespace/index.qtpl:57
-func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
+func (p *IndexPage) WriteActions(qq422016 qtio422016.Writer) {
 	//line template/namespace/index.qtpl:57
-	qw422016.N().S(` <div class="header"> <h1>Namespaces</h1> <ul class="actions"> <li><a href="/namespaces/create" class="button button-primary">Create</a></li> </ul> </div> <div class="body">`)
-	//line template/namespace/index.qtpl:64
-	streamrenderNamespaces(qw422016, p.Namespaces)
-	//line template/namespace/index.qtpl:64
-	qw422016.N().S(`</div> `)
-//line template/namespace/index.qtpl:65
-}
-
-//line template/namespace/index.qtpl:65
-func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/index.qtpl:65
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/index.qtpl:65
-	p.StreamBody(qw422016)
-	//line template/namespace/index.qtpl:65
+	//line template/namespace/index.qtpl:57
+	p.StreamActions(qw422016)
+	//line template/namespace/index.qtpl:57
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/index.qtpl:65
+//line template/namespace/index.qtpl:57
 }
 
-//line template/namespace/index.qtpl:65
-func (p *IndexPage) Body() string {
-	//line template/namespace/index.qtpl:65
+//line template/namespace/index.qtpl:57
+func (p *IndexPage) Actions() string {
+	//line template/namespace/index.qtpl:57
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/index.qtpl:65
-	p.WriteBody(qb422016)
-	//line template/namespace/index.qtpl:65
+	//line template/namespace/index.qtpl:57
+	p.WriteActions(qb422016)
+	//line template/namespace/index.qtpl:57
 	qs422016 := string(qb422016.B)
-	//line template/namespace/index.qtpl:65
+	//line template/namespace/index.qtpl:57
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/index.qtpl:65
+	//line template/namespace/index.qtpl:57
 	return qs422016
-//line template/namespace/index.qtpl:65
+//line template/namespace/index.qtpl:57
 }
 
-//line template/namespace/index.qtpl:67
-func (p *SubIndexPage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/namespace/index.qtpl:67
-	qw422016.N().S(` <div class="header"> <h1> <a class="back" href="`)
-	//line template/namespace/index.qtpl:70
-	qw422016.E().S(p.Namespace.Parent.URI())
-	//line template/namespace/index.qtpl:70
-	qw422016.N().S(`">`)
-	//line template/namespace/index.qtpl:70
-	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
-</svg>
-`)
-	//line template/namespace/index.qtpl:70
-	qw422016.N().S(`</a> `)
-	//line template/namespace/index.qtpl:71
-	streamrenderFullName(qw422016, p.Namespace.User.Username, p.Namespace.FullName)
-	//line template/namespace/index.qtpl:71
-	qw422016.N().S(` - Sub-Namespaces<br/> <small>`)
-	//line template/namespace/index.qtpl:72
-	qw422016.E().S(p.Namespace.Description)
-	//line template/namespace/index.qtpl:72
-	qw422016.N().S(`</small> </h1> <ul class="actions"> <li><a href="`)
-	//line template/namespace/index.qtpl:75
-	qw422016.E().S(p.Namespace.URI())
-	//line template/namespace/index.qtpl:75
-	qw422016.N().S(`/-/edit" class="button button-secondary">Edit</a></li> <li><a href="/namespaces/create?parent=`)
-	//line template/namespace/index.qtpl:76
-	qw422016.E().S(p.Namespace.FullName)
-	//line template/namespace/index.qtpl:76
-	qw422016.N().S(`" class="button button-primary">Create</a></li> </ul> </div> <ul class="tabs"> <li><a href="`)
-	//line template/namespace/index.qtpl:80
-	qw422016.E().S(p.Namespace.URI())
-	//line template/namespace/index.qtpl:80
-	qw422016.N().S(`" `)
-	//line template/namespace/index.qtpl:80
-	if p.Namespace.URI() == p.URI {
-		//line template/namespace/index.qtpl:80
-		qw422016.N().S(`class="active" `)
-		//line template/namespace/index.qtpl:80
-	}
-	//line template/namespace/index.qtpl:80
-	qw422016.N().S(`>Builds</a></li> <li><a href="`)
-	//line template/namespace/index.qtpl:81
-	qw422016.E().S(p.Namespace.URI())
-	//line template/namespace/index.qtpl:81
-	qw422016.N().S(`/-/namespaces" `)
-	//line template/namespace/index.qtpl:81
-	if template.URIMatch(template.NamespacesURI, p.URI) {
-		//line template/namespace/index.qtpl:81
-		qw422016.N().S(`class="active"`)
-		//line template/namespace/index.qtpl:81
-	}
-	//line template/namespace/index.qtpl:81
-	qw422016.N().S(`>Namespaces</a></li> </ul> <div class="body">`)
-	//line template/namespace/index.qtpl:83
-	streamrenderNamespaces(qw422016, p.Namespaces)
-	//line template/namespace/index.qtpl:83
-	qw422016.N().S(`</div> `)
-//line template/namespace/index.qtpl:84
+//line template/namespace/index.qtpl:59
+func (p *IndexPage) StreamTabs(qw422016 *qt422016.Writer) {
+//line template/namespace/index.qtpl:59
 }
 
-//line template/namespace/index.qtpl:84
-func (p *SubIndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/index.qtpl:84
+//line template/namespace/index.qtpl:59
+func (p *IndexPage) WriteTabs(qq422016 qtio422016.Writer) {
+	//line template/namespace/index.qtpl:59
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/index.qtpl:84
-	p.StreamBody(qw422016)
-	//line template/namespace/index.qtpl:84
+	//line template/namespace/index.qtpl:59
+	p.StreamTabs(qw422016)
+	//line template/namespace/index.qtpl:59
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/index.qtpl:84
+//line template/namespace/index.qtpl:59
 }
 
-//line template/namespace/index.qtpl:84
-func (p *SubIndexPage) Body() string {
-	//line template/namespace/index.qtpl:84
+//line template/namespace/index.qtpl:59
+func (p *IndexPage) Tabs() string {
+	//line template/namespace/index.qtpl:59
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/index.qtpl:84
-	p.WriteBody(qb422016)
-	//line template/namespace/index.qtpl:84
+	//line template/namespace/index.qtpl:59
+	p.WriteTabs(qb422016)
+	//line template/namespace/index.qtpl:59
 	qs422016 := string(qb422016.B)
-	//line template/namespace/index.qtpl:84
+	//line template/namespace/index.qtpl:59
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/index.qtpl:84
+	//line template/namespace/index.qtpl:59
 	return qs422016
-//line template/namespace/index.qtpl:84
+//line template/namespace/index.qtpl:59
 }

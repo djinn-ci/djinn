@@ -13,18 +13,22 @@ type IndexPage struct {
 }
 %}
 
+{% collapsespace %}
 {% func (p *IndexPage) Title() %}
 Builds - Thrall
 {% endfunc %}
 
-{% collapsespace %}
 {% func (p *IndexPage) Body() %}
-<div class="header">
-	<h1>Builds</h1>
-	<ul class="actions">
-		<li><a href="/builds/create" class="button button-primary">Submit</a></li>
-	</ul>
-</div>
-<div class="body">{%= RenderBuilds(p.Builds) %}</div>
+{%= RenderBuilds(p.Builds) %}
 {% endfunc %}
+
+{% func (p *IndexPage) Header() %}
+Builds
+{% endfunc %}
+
+{% func (p *IndexPage) Actions() %}
+<li><a href="/builds/create" class="button button-primary">Submit</a></li>
+{% endfunc %}
+
+{% func (p *IndexPage) Tabs() %}{% endfunc %}
 {% endcollapsespace %}

@@ -67,7 +67,7 @@ func (p *LoginPage) Title() string {
 }
 
 //line template/auth/login.qtpl:21
-func (p *LoginPage) StreamHeader(qw422016 *qt422016.Writer) {
+func (p *LoginPage) StreamStyles(qw422016 *qt422016.Writer) {
 	//line template/auth/login.qtpl:21
 	qw422016.N().S(`
 <link rel="stylesheet" type="text/css" href="/assets/css/auth.css">
@@ -76,22 +76,22 @@ func (p *LoginPage) StreamHeader(qw422016 *qt422016.Writer) {
 }
 
 //line template/auth/login.qtpl:23
-func (p *LoginPage) WriteHeader(qq422016 qtio422016.Writer) {
+func (p *LoginPage) WriteStyles(qq422016 qtio422016.Writer) {
 	//line template/auth/login.qtpl:23
 	qw422016 := qt422016.AcquireWriter(qq422016)
 	//line template/auth/login.qtpl:23
-	p.StreamHeader(qw422016)
+	p.StreamStyles(qw422016)
 	//line template/auth/login.qtpl:23
 	qt422016.ReleaseWriter(qw422016)
 //line template/auth/login.qtpl:23
 }
 
 //line template/auth/login.qtpl:23
-func (p *LoginPage) Header() string {
+func (p *LoginPage) Styles() string {
 	//line template/auth/login.qtpl:23
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line template/auth/login.qtpl:23
-	p.WriteHeader(qb422016)
+	p.WriteStyles(qb422016)
 	//line template/auth/login.qtpl:23
 	qs422016 := string(qb422016.B)
 	//line template/auth/login.qtpl:23

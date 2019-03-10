@@ -16,18 +16,12 @@ type EditPage struct {
 }
 %}
 
+{% collapsespace %}
 {% func (p *EditPage) Title() %}
 Edit Namespace - Thrall
 {% endfunc %}
 
-{% collapsespace %}
 {% func (p *EditPage) Body() %}
-<div class="header">
-	<h1>
-		<a class="back" href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">{% cat "../../svgs/arrow_back.svg" %}</a>
-		{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit</h1>
-</div>
-<div class="body">
 <div class="panel">
 	<form class="slim" method="POST" action="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
 		<input type="hidden" name="_method" value="PATCH"/>
@@ -77,6 +71,15 @@ Edit Namespace - Thrall
 		</div>
 	</form>
 </div>
-</div>
 {% endfunc %}
+
+{% func (p *EditPage) Header() %}
+<a class="back" href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
+	{% cat "../../svgs/arrow_back.svg" %}
+</a>
+{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit
+{% endfunc %}
+
+{% func (p *EditPage) Actions() %}{% endfunc %}
+{% func (p *EditPage) Tabs() %}{% endfunc %}
 {% endcollapsespace %}

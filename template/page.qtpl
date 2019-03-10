@@ -1,8 +1,15 @@
 {%
+import (
+	"strings"
+	"regexp"
+)
+%}
+
+{%
 interface page {
 	Title()
 
-	Header()
+	Styles()
 
 	Body()
 
@@ -24,11 +31,19 @@ type Page struct {
 		<meta charset="utf-8">
 		<meta content="width=device-width, initial-scale=1" name="viewport">
 		<title>{%= p.Title() %}</title>
-		{%= p.Header() %}
+		{%= p.Styles() %}
 	</head>
 	<body>{%= p.Body() %}</body>
 	<footer>{%= p.Footer() %}</footer>
 </html>
+{% endfunc %}
+
+{% func RenderLink(href, uri string, classes ...string) %}
+<a href="{%s href %}" class="{% if href == uri %}active{% endif %} {%s strings.Join(classes, " ") %}">
+{% endfunc %}
+
+{% func RenderLinkPattern(href, pattern, uri string, classes ...string) %}
+<a href="{%s href %}" class="{% if matched, _ := regexp.Match(pattern, []byte(uri)); matched %}active{% endif %}">
 {% endfunc %}
 {% endcollapsespace %}
 
@@ -36,7 +51,7 @@ type Page struct {
 Thrall
 {% endfunc %}
 
-{% func (p *Page) Header() %}
+{% func (p *Page) Styles() %}
 <link rel="stylesheet" type="text/css" href="/assets/css/main.css">
 {% endfunc %}
 

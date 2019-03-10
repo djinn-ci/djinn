@@ -15,6 +15,12 @@ type ShowPage struct {
 	Namespace *model.Namespace
 	Builds    []*model.Build
 }
+
+type ShowNamespacesPage struct {
+	*ShowPage
+
+	Namespaces []*model.Namespace
+}
 %}
 
 {% collapsespace %}
@@ -27,33 +33,35 @@ type ShowPage struct {
 		{% if i != len(parts) - 1 %}<span> / </span>{% endif %}
 	{% endfor %}
 {% endfunc %}
-{% endcollapsespace %}
 
-{% collapsespace %}
 {% func (p *ShowPage) Title() %}
 {%s p.Namespace.FullName %} - Thrall
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-<div class="header">
-	<h1>
-		{% if p.Namespace.Parent != nil %}
-			<a class="back" href="{%s p.Namespace.Parent.URI() %}">{% cat "../../svgs/arrow_back.svg" %}</a>
-		{% else %}
-			<a class="back" href="/namespaces">{% cat "../../svgs/arrow_back.svg" %}</a>
-		{% endif %}
-		{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}<br/>
-		<small>{%s p.Namespace.Description %}</small>
-	</h1>
-	<ul class="actions">
-		<li><a href="{%s p.Namespace.URI() %}/-/edit" class="button button-secondary">Edit</a></li>
-		<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>
-	</ul>
-</div>
-<ul class="tabs">
-	<li><a href="{%s p.Namespace.URI() %}" {% if p.Namespace.URI() == p.URI %}class="active" {% endif %}>Builds</a></li>
-	<li><a href="{%s p.Namespace.URI() %}/-/namespaces">Namespaces</a></li>
-</ul>
-<div class="body">{%= build.RenderBuilds(p.Builds) %}</div>
+{%= build.RenderBuilds(p.Builds) %}
+{% endfunc %}
+
+{% func (p *ShowPage) Header() %}
+{% if p.Namespace.Parent != nil %}
+	<a class="back" href="{%s p.Namespace.Parent.URI() %}">{% cat "../../svgs/arrow_back.svg" %}</a>
+{% else %}
+	<a class="back" href="/namespaces">{% cat "../../svgs/arrow_back.svg" %}</a>
+{% endif %}
+{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}<br/>
+<small>{%s p.Namespace.Description %}</small>
+{% endfunc %}
+
+{% func (p *ShowPage) Actions() %}
+<li><a href="{%s p.Namespace.URI() %}/-/edit" class="button button-secondary">Edit</a></li>
+<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *ShowPage) Tabs() %}
+<li>{%= template.RenderLink(p.Namespace.URI(), p.URI) %}Builds</a></li>
+<li>{%= template.RenderLink(p.Namespace.URI() + "/-/namespaces", p.URI) %}Namespaces</a></li>
+{% endfunc %}
+
+{% func (p *ShowNamespacesPage) Body() %}
 {% endfunc %}
 {% endcollapsespace %}

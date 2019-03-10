@@ -25,6 +25,24 @@ func NewNamespace(h Handler) Namespace {
 	return Namespace{Handler: h}
 }
 
+func (h Namespace) getUserAndNamespace(r *http.Request) (*model.User, *model.Namespace, error) {
+	vars := mux.Vars(r)
+
+	u, err := model.FindUserByUsername(vars["username"])
+
+	if err != nil {
+		return nil, nil, errors.Err(err)
+	}
+
+	n, err := u.FindNamespaceByFullName(vars["namespace"])
+
+	if err != nil {
+		return nil, nil, errors.Err(err)
+	}
+
+	return u, n, nil
+}
+
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.UserFromRequest(r)
 
@@ -152,26 +170,10 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	vars := mux.Vars(r)
-
-	u, err := model.FindUserByUsername(vars["username"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u, n, err := h.getUserAndNamespace(r)
 
 	if u.IsZero() {
 		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	n, err := u.FindNamespaceByFullName(vars["namespace"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -207,10 +209,8 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	HTML(w, template.Render(d), http.StatusOK)
 }
 
-func (h Namespace) ShowIndex(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	u, err := model.FindUserByUsername(vars["username"])
+func (h Namespace) ShowNamespaces(w http.ResponseWriter, r *http.Request) {
+	u, n, err := h.getUserAndNamespace(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -220,14 +220,6 @@ func (h Namespace) ShowIndex(w http.ResponseWriter, r *http.Request) {
 
 	if u.IsZero() {
 		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	n, err := u.FindNamespaceByFullName(vars["namespace"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -238,20 +230,20 @@ func (h Namespace) ShowIndex(w http.ResponseWriter, r *http.Request) {
 
 	namespaces, err := n.Namespaces()
 
-	if err != nil {
+	if err := model.LoadNamespaceRelations(namespaces); err != nil {
 		log.Error.Println(errors.Err(err))
 		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	p := &namespace.SubIndexPage{
-		IndexPage: &namespace.IndexPage{
-			Page: &template.Page{
+	p := &namespace.ShowNamespacesPage{
+		ShowPage: &namespace.ShowPage{
+			Page:      &template.Page{
 				URI: r.URL.RequestURI(),
 			},
-			Namespaces: namespaces,
+			Namespace: n,
 		},
-		Namespace: n,
+		Namespaces: namespaces,
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
@@ -260,9 +252,7 @@ func (h Namespace) ShowIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	u, err := model.FindUserByUsername(vars["username"])
+	u, n, err := h.getUserAndNamespace(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -272,14 +262,6 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 
 	if u.IsZero() {
 		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	n, err := u.FindNamespaceByFullName(vars["namespace"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -306,9 +288,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	u, err := model.FindUserByUsername(vars["username"])
+	u, n, err := h.getUserAndNamespace(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -316,11 +296,13 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := u.FindNamespaceByFullName(vars["namespace"])
+	if u.IsZero() {
+		HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
 
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+	if n.IsZero() {
+		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -347,9 +329,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	u, err := model.FindUserByUsername(vars["username"])
+	u, n, err := h.getUserAndNamespace(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -359,14 +339,6 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if u.IsZero() {
 		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	n, err := u.FindNamespaceByFullName(vars["namespace"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 

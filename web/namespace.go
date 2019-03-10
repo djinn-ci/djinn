@@ -240,6 +240,18 @@ func (h Namespace) ShowNamespaces(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	n.User = u
+
+	if err := n.LoadParents(); err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if n.Parent != nil {
+		n.Parent.User = u
+	}
+
 	namespaces, err := n.Namespaces()
 
 	if err := model.LoadNamespaceRelations(namespaces); err != nil {

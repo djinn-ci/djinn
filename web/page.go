@@ -38,9 +38,15 @@ func (h Page) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	builds, err := model.BuildsWithRelations("user_id", u.ID)
+	builds, err := u.Builds()
 
 	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := model.LoadBuildRelations(builds); err != nil {
 		log.Error.Println(errors.Err(err))
 		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

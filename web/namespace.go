@@ -51,48 +51,6 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	HTML(w, template.Render(d), http.StatusOK)
 }
 
-func (h Namespace) SubIndex(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	u, err := model.FindUserByUsername(vars["username"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	n, err := u.FindNamespaceByFullName(vars["namespace"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	namespaces, err := n.Namespaces()
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	p := &namespace.SubIndexPage{
-		IndexPage: &namespace.IndexPage{
-			Page: &template.Page{
-				URI: r.URL.RequestURI(),
-			},
-			Namespaces: namespaces,
-		},
-		Namespace: n,
-	}
-
-	d := template.NewDashboard(p, r.URL.RequestURI())
-
-	HTML(w, template.Render(d), http.StatusOK)
-}
-
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	u, err := h.UserFromRequest(r)
 
@@ -222,9 +180,15 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	builds, err := model.BuildsWithRelations("namespace_id", n.ID)
+	builds, err := n.Builds()
 
 	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := model.LoadBuildRelations(builds); err != nil {
 		log.Error.Println(errors.Err(err))
 		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -236,6 +200,58 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		},
 		Namespace: n,
 		Builds:    builds,
+	}
+
+	d := template.NewDashboard(p, r.URL.RequestURI())
+
+	HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h Namespace) ShowIndex(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	u, err := model.FindUserByUsername(vars["username"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if u.IsZero() {
+		HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	n, err := u.FindNamespaceByFullName(vars["namespace"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if n.IsZero() {
+		HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	namespaces, err := n.Namespaces()
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	p := &namespace.SubIndexPage{
+		IndexPage: &namespace.IndexPage{
+			Page: &template.Page{
+				URI: r.URL.RequestURI(),
+			},
+			Namespaces: namespaces,
+		},
+		Namespace: n,
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())

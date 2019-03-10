@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -20,6 +21,11 @@ var (
 	UsersTable      = "users"
 	NamespacesTable = "namespaces"
 )
+
+type Model struct {
+	ID        int64      `db:"id"`
+	CreatedAt *time.Time `db:"created_at"`
+}
 
 func Connect(addr, name, username, password string) error {
 	host, port, err := net.SplitHostPort(addr)

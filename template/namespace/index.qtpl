@@ -67,7 +67,7 @@ Namespaces - Thrall
 {% func (p *SubIndexPage) Body() %}
 <div class="header">
 	<h1>
-		<a class="back" href="/namespaces">{% cat "../../svgs/arrow_back.svg" %}</a>
+		<a class="back" href="{%s p.Namespace.Parent.URI() %}">{% cat "../../svgs/arrow_back.svg" %}</a>
 		{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Sub-Namespaces<br/>
 		<small>{%s p.Namespace.Description %}</small>
 	</h1>
@@ -78,7 +78,7 @@ Namespaces - Thrall
 </div>
 <ul class="tabs">
 	<li><a href="{%s p.Namespace.URI() %}" {% if p.Namespace.URI() == p.URI %}class="active" {% endif %}>Builds</a></li>
-	<li><a href="{%s p.Namespace.URI() %}/-/namespaces">Namespaces</a></li>
+	<li><a href="{%s p.Namespace.URI() %}/-/namespaces" {% if template.URIMatch(template.NamespacesURI, p.URI) %}class="active"{% endif %}>Namespaces</a></li>
 </ul>
 <div class="body">{%= renderNamespaces(p.Namespaces) %}</div>
 {% endfunc %}

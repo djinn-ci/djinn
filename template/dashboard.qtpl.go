@@ -22,9 +22,9 @@ var (
 
 //line template/dashboard.qtpl:5
 var (
-	namespacesURI = "(\\/namespaces\\/?[0-9]*?|\\/u\\/[_-a-zA-Z0-9\\S.]+\\/[-a-zA-Z0-9\\/?\\S]+)"
-	buildsURI     = "(^\\/$|^\\/builds\\/create$)"
-	settingsURI   = "\\/settings\\/?"
+	NamespacesURI = "(\\/namespaces\\/?[0-9]*?|\\/u\\/[_-a-zA-Z0-9\\S.]+\\/[-a-zA-Z0-9\\/?\\S]+\\/[a-z]+?)"
+	BuildsURI     = "(^\\/$|^\\/builds\\/create$)"
+	SettingsURI   = "\\/settings\\/?"
 )
 
 type Dashboard struct {
@@ -37,7 +37,7 @@ func NewDashboard(p page, uri string) *Dashboard {
 	return &Dashboard{page: p, URI: uri}
 }
 
-func uriMatch(pattern, uri string) bool {
+func URIMatch(pattern, uri string) bool {
 	matched, err := regexp.Match(pattern, []byte(uri))
 
 	if err != nil {
@@ -56,7 +56,7 @@ func (p *Dashboard) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/dashboard.qtpl:35
 	qw422016.N().S(`</div> <div class="sidebar"> <h2> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> Thrall </h2> <ul> <li class="nav-header">MANAGE</li> <li><a href="/" `)
 	//line template/dashboard.qtpl:46
-	if uriMatch(buildsURI, p.URI) {
+	if URIMatch(BuildsURI, p.URI) {
 		//line template/dashboard.qtpl:46
 		qw422016.N().S(`class="active"`)
 		//line template/dashboard.qtpl:46
@@ -64,7 +64,7 @@ func (p *Dashboard) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/dashboard.qtpl:46
 	qw422016.N().S(`>Builds</a></li> <li><a href="/namespaces" `)
 	//line template/dashboard.qtpl:47
-	if uriMatch(namespacesURI, p.URI) {
+	if URIMatch(NamespacesURI, p.URI) {
 		//line template/dashboard.qtpl:47
 		qw422016.N().S(`class="active"`)
 		//line template/dashboard.qtpl:47
@@ -72,7 +72,7 @@ func (p *Dashboard) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/dashboard.qtpl:47
 	qw422016.N().S(`>Namespaces</a></li> <li class="nav-header">ACCOUNT</li> <li><a href="/settings" `)
 	//line template/dashboard.qtpl:49
-	if uriMatch(settingsURI, p.URI) {
+	if URIMatch(SettingsURI, p.URI) {
 		//line template/dashboard.qtpl:49
 		qw422016.N().S(`class="active"`)
 		//line template/dashboard.qtpl:49

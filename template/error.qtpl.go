@@ -61,7 +61,7 @@ func (p *Error) Title() string {
 }
 
 //line template/error.qtpl:16
-func (p *Error) StreamHeader(qw422016 *qt422016.Writer) {
+func (p *Error) StreamStyles(qw422016 *qt422016.Writer) {
 	//line template/error.qtpl:16
 	qw422016.N().S(`
 <link rel="stylesheet" type="text/css" href="/assets/css/error.css">
@@ -70,22 +70,22 @@ func (p *Error) StreamHeader(qw422016 *qt422016.Writer) {
 }
 
 //line template/error.qtpl:18
-func (p *Error) WriteHeader(qq422016 qtio422016.Writer) {
+func (p *Error) WriteStyles(qq422016 qtio422016.Writer) {
 	//line template/error.qtpl:18
 	qw422016 := qt422016.AcquireWriter(qq422016)
 	//line template/error.qtpl:18
-	p.StreamHeader(qw422016)
+	p.StreamStyles(qw422016)
 	//line template/error.qtpl:18
 	qt422016.ReleaseWriter(qw422016)
 //line template/error.qtpl:18
 }
 
 //line template/error.qtpl:18
-func (p *Error) Header() string {
+func (p *Error) Styles() string {
 	//line template/error.qtpl:18
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line template/error.qtpl:18
-	p.WriteHeader(qb422016)
+	p.WriteStyles(qb422016)
 	//line template/error.qtpl:18
 	qs422016 := string(qb422016.B)
 	//line template/error.qtpl:18

@@ -13,7 +13,7 @@ type Error struct {
 Error - Thrall
 {% endfunc %}
 
-{% func (p *Error) Header() %}
+{% func (p *Error) Styles() %}
 <link rel="stylesheet" type="text/css" href="/assets/css/error.css">
 {% endfunc %}
 

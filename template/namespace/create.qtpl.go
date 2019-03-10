@@ -182,7 +182,11 @@ func (p *CreatePage) StreamHeader(qw422016 *qt422016.Writer) {
 </svg>
 `)
 		//line template/namespace/create.qtpl:72
-		qw422016.N().S(`</a> Create Sub-namespace<br/> `)
+		qw422016.N().S(`</a> `)
+		//line template/namespace/create.qtpl:73
+		streamrenderFullName(qw422016, p.Parent.User.Username, p.Parent.FullName)
+		//line template/namespace/create.qtpl:73
+		qw422016.N().S(` - Create Sub-namespace<br/> `)
 		//line template/namespace/create.qtpl:74
 	} else {
 		//line template/namespace/create.qtpl:74

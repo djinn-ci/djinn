@@ -126,6 +126,28 @@ func (u *User) Create() error {
 	return errors.Err(err)
 }
 
+func (u *User) FindBuild(id int64) (*Build, error) {
+	b := &Build{}
+
+	err := DB.Get(b, "SELECT * FROM builds WHERE user_id = $1 AND id = $2", u.ID, id)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			b.CreatedAt = nil
+			b.StartedAt = nil
+			b.FinishedAt = nil
+
+			return b, nil
+		}
+
+		return b, errors.Err(err)
+	}
+
+	b.User = u
+
+	return b, nil
+}
+
 func (u *User) FindNamespaceByFullName(fullName string) (*Namespace, error) {
 	n := &Namespace{}
 

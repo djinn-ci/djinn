@@ -131,14 +131,21 @@ func (b *Build) Create() error {
 	return errors.Err(err)
 }
 
+func (b *Build) IsZero() bool {
+	return	b.ID == 0                &&
+			b.UserID == 0            &&
+			b.NamespaceID.Int64 == 0 &&
+			!b.NamespaceID.Valid     &&
+			b.Manifest == ""         &&
+			b.Status == Status(0)    &&
+			b.Output.String == ""    &&
+			!b.Output.Valid          &&
+			b.CreatedAt == nil       &&
+			b.StartedAt == nil
+}
+
 func (b *Build) URI() string {
-	id := strconv.FormatInt(b.ID, 10)
-
-	if b.Namespace != nil {
-		return b.Namespace.URI() + "/-/builds/" + id
-	}
-
-	return "/builds/" + id
+	return "/builds/" + strconv.FormatInt(b.ID, 10)
 }
 
 func (t *BuildTag) Create() error {

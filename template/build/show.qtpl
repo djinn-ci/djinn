@@ -1,0 +1,35 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type ShowPage struct {
+	*template.Page
+
+	Build *model.Build
+}
+%}
+
+{% collapsespace %}
+{% func (p *ShowPage) Title() %}
+Build #{%v p.Build.ID %} - Thrall
+{% endfunc %}
+
+{% func (p *ShowPage) Body() %}
+
+{% endfunc %}
+
+{% func (p *ShowPage) Header() %}
+<a href="/" class="back">{% cat "../../svgs/arrow_back.svg" %}</a> Build #{%v p.Build.ID %}
+{% endfunc %}
+
+{% func (p *ShowPage) Actions() %}{% endfunc %}
+
+{% func (p *ShowPage) Tabs() %}
+<li>{%= template.RenderLink(p.Build.URI(), p.URI) %}Overview</a></li>
+<li>{%= template.RenderLink(p.Build.URI() + "/manifest", p.URI) %}Manifest</a></li>
+{% endfunc %}
+{% endcollapsespace %}

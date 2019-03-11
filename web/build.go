@@ -3,6 +3,7 @@ package web
 import (
 	"database/sql"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -11,6 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
+
+	"github.com/gorilla/mux"
 )
 
 type Build struct {
@@ -94,4 +97,47 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (h Build) Show(w http.ResponseWriter, r *http.Request) {
+	u, err := h.UserFromRequest(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	vars := mux.Vars(r)
+
+	id, err := strconv.ParseInt(vars["build"], 10, 64)
+
+	if err != nil {
+		HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	b, err := u.FindBuild(id)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if b.IsZero() {
+		HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	p := &build.ShowPage{
+		Page: &template.Page{
+			URI: r.URL.Path,
+		},
+		Build: b,
+	}
+
+	d := template.NewDashboard(p, r.URL.Path)
+
+	HTML(w, template.Render(d), http.StatusOK)
 }

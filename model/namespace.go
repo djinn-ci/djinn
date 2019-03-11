@@ -141,6 +141,28 @@ func (n *Namespace) Destroy() error {
 	return nil
 }
 
+func (n *Namespace) FindBuild(id int64) (*Build, error) {
+	b := &Build{}
+
+	err := DB.Get(b, "SELECT * FROM builds WHERE namespace_id = $1 AND id = $2", n.ID, id)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			b.CreatedAt = nil
+			b.StartedAt = nil
+			b.FinishedAt = nil
+
+			return b, nil
+		}
+
+		return b, errors.Err(err)
+	}
+
+	b.Namespace = n
+
+	return b, nil
+}
+
 func (n Namespace) IsZero() bool {
 	return	n.ID == 0                     &&
 			n.UserID == 0                 &&

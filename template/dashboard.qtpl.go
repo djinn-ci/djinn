@@ -67,7 +67,7 @@ type dashboardPage interface {
 //line template/dashboard.qtpl:21
 var (
 	NamespacesURI = "(\\/namespaces\\/?|\\/u\\/[_-a-zA-Z0-9\\S.]+\\/[-a-zA-Z0-9\\/\\S]*\\/?[a-z]*)"
-	BuildsURI     = "(^\\/$|^\\/builds\\/create$)"
+	BuildsURI     = "(^\\/$|^\\/builds\\/?[a-z0-9]*$)"
 	SettingsURI   = "\\/settings\\/?"
 )
 

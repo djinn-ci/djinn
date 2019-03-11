@@ -26,10 +26,22 @@ func FindUser(id int64) (*User, error) {
 
 	err := DB.Get(u, "SELECT * FROM users WHERE id = $1", id)
 
+	if err != nil {
+		if err == sql.ErrNoRows {
+			u.CreatedAt = nil
+			u.UpdatedAt = nil
+			u.DeletedAt = nil
+
+			return u, nil
+		}
+
+		return u, errors.Err(err)
+	}
+
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
-	return u, errors.Err(err)
+	return u, nil
 }
 
 func FindUserByHandle(handle string) (*User, error) {
@@ -37,10 +49,22 @@ func FindUserByHandle(handle string) (*User, error) {
 
 	err := DB.Get(u, "SELECT * FROM users WHERE email = $1 OR username = $2", handle, handle)
 
+	if err != nil {
+		if err == sql.ErrNoRows {
+			u.CreatedAt = nil
+			u.UpdatedAt = nil
+			u.DeletedAt = nil
+
+			return u, nil
+		}
+
+		return u, errors.Err(err)
+	}
+
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
-	return u, errors.Err(err)
+	return u, nil
 }
 
 func FindUserByUsername(username string) (*User, error) {
@@ -48,10 +72,22 @@ func FindUserByUsername(username string) (*User, error) {
 
 	err := DB.Get(u, "SELECT * FROM users WHERE username = $1", username)
 
+	if err != nil {
+		if err == sql.ErrNoRows {
+			u.CreatedAt = nil
+			u.UpdatedAt = nil
+			u.DeletedAt = nil
+
+			return u, nil
+		}
+
+		return u, errors.Err(err)
+	}
+
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
-	return u, errors.Err(err)
+	return u, nil
 }
 
 func (u *User) Builds() ([]*Build, error) {

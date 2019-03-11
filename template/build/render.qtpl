@@ -15,7 +15,7 @@
 	</tr>
 	{% for _, b := range builds %}
 		<tr>
-			<td><a href="/builds/{%v b.ID %}">#{%v b.ID %}</a></td>
+			<td><a href="{%s b.URI() %}">#{%v b.ID %}</a></td>
 			{% switch b.Status %}
 				{% case model.Queued %}
 					<td><span class="badge">queued</span></td>

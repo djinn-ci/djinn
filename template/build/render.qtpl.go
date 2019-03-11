@@ -35,9 +35,9 @@ func StreamRenderBuilds(qw422016 *qt422016.Writer, builds []*model.Build) {
 		//line template/build/render.qtpl:16
 		for _, b := range builds {
 			//line template/build/render.qtpl:16
-			qw422016.N().S(` <tr> <td><a href="/builds/`)
+			qw422016.N().S(` <tr> <td><a href="`)
 			//line template/build/render.qtpl:18
-			qw422016.E().V(b.ID)
+			qw422016.E().S(b.URI())
 			//line template/build/render.qtpl:18
 			qw422016.N().S(`">#`)
 			//line template/build/render.qtpl:18

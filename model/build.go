@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"strconv"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -43,12 +44,14 @@ func LoadBuildRelations(builds []*Build) error {
 	usersQuery := bytes.NewBufferString("SELECT * FROM users WHERE id IN (")
 	tagsQuery := bytes.NewBufferString("SELECT * FROM build_tags WHERE build_id IN (")
 
+	namespaceIds := make([]string, 0)
+
 	end := len(builds) - 1
 	loadNamespaces := false
 
 	for i, b := range builds {
 		if b.NamespaceID.Valid {
-			namespacesQuery.WriteString(strconv.FormatInt(b.NamespaceID.Int64, 10))
+			namespaceIds = append(namespaceIds, strconv.FormatInt(b.NamespaceID.Int64, 10))
 			loadNamespaces = true
 		}
 
@@ -56,16 +59,12 @@ func LoadBuildRelations(builds []*Build) error {
 		tagsQuery.WriteString(strconv.FormatInt(b.ID, 10))
 
 		if i != end {
-			if b.NamespaceID.Valid {
-				namespacesQuery.WriteString(", ")
-			}
-
 			usersQuery.WriteString(", ")
 			tagsQuery.WriteString(", ")
 		}
 	}
 
-	namespacesQuery.WriteString(")")
+	namespacesQuery.WriteString(strings.Join(namespaceIds, ", ") + ")")
 	usersQuery.WriteString(")")
 	tagsQuery.WriteString(")")
 
@@ -130,6 +129,16 @@ func (b *Build) Create() error {
 	err = stmt.QueryRow(b.UserID, b.NamespaceID, b.Manifest).Scan(&b.ID, &b.CreatedAt)
 
 	return errors.Err(err)
+}
+
+func (b *Build) URI() string {
+	id := strconv.FormatInt(b.ID, 10)
+
+	if b.Namespace != nil {
+		return b.Namespace.URI() + "/-/builds/" + id
+	}
+
+	return "/builds/" + id
 }
 
 func (t *BuildTag) Create() error {

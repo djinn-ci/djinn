@@ -23,7 +23,7 @@ Edit Namespace - Thrall
 
 {% func (p *EditPage) Body() %}
 <div class="panel">
-	<form class="slim" method="POST" action="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
+	<form class="slim" method="POST" action="{%s p.Namespace.URI() %}">
 		<input type="hidden" name="_method" value="PATCH"/>
 		{% if p.Errors.First("namespace") != "" %}
 			<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
@@ -68,6 +68,18 @@ Edit Namespace - Thrall
 		</div>
 		<div class="form-field">
 			<button type="submit" class="button button-primary">Save</button>
+		</div>
+	</form>
+</div>
+<div class="panel">
+	<form class="slim" method="POST" action="{%s p.Namespace.URI ()%}">
+		<input type="hidden" name="_method" value="DELETE"/>
+		<div class="form-field">
+			<button type="submit" class="right button button-danger">Delete</button>
+			<div>
+				<strong>Delete Namespace</strong><br/>
+				Builds within the namespace will not be deleted.
+			</div>
 		</div>
 	</form>
 </div>

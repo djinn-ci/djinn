@@ -69,6 +69,9 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &namespace.IndexPage{
+		Page: &template.Page{
+			URI: r.URL.Path,
+		},
 		Namespaces: namespaces,
 		Search:     search,
 	}

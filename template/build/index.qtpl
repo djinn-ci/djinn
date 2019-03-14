@@ -30,5 +30,5 @@ Builds
 <li><a href="/builds/create" class="button button-primary">Submit</a></li>
 {% endfunc %}
 
-{% func (p *IndexPage) Tabs() %}{% endfunc %}
+{% func (p *IndexPage) Navigation() %}{% endfunc %}
 {% endcollapsespace %}

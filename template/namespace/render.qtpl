@@ -1,26 +1,41 @@
 {% import "github.com/andrewpillar/thrall/model" %}
 
 {% collapsespace %}
-{% func renderNamespaces(namespaces []*model.Namespace, search string) %}
-{% if len(namespaces) == 0 && search == "" %}
-<div class="message">Namespaces allow you to group related builds together.</div>
+{% func renderNamespaces(namespaces []*model.Namespace, uri, search string) %}
+{% if len(namespaces) == 0 %}
+	{% if search == "" %}
+		<div class="message">Namespaces allow you to group related builds together.</div>
+	{% else %}
+		<form class="search">
+			<div class="form-field">
+				<input type="text" class="text" name="search" placeholder="Find a namespace..." autocomplete="off" value="{%s search %}"/>
+				{% if search != "" %}
+					<a href="{%s uri %}">{% cat "../../svgs/close.svg" %}Clear search</a>
+				{% endif %}
+			</div>
+		</form>
+		<div class="message">No results found.</div>
+	{% endif %}
 {% else %}
-<div class="panel">
-	<form>
-		<div class="form-field">
-			<input class="text" type="text" name="search" autocomplete="off" placeholder="Search namespaces..." {% if search != "" %}value="{%s search %}"{% endif %}/>
-		</div>
-	</form>
-</div>
-<table class="panel table">
+<form class="search">
+	<div class="form-field">
+		<input type="text" class="text" name="search" placeholder="Find a namespace..." autocomplete="off" value="{%s search %}"/>
+		{% if search != "" %}
+			<a href="{%s uri %}">{% cat "../../svgs/close.svg" %}Clear search</a>
+		{% endif %}
+	</div>
+</form>
+<table class="table">
 	<tr>
-		<th></th>
 		<th>Name</th>
 		<th>Last Build</th>
+		<th></th>
 	</tr>
 	{% for _, n := range namespaces %}
 		<tr>
-			<td class="icon">
+			<td><a href="{%s n.URI() %}">{%s n.FullName %}</a><div class="info">{% if n.Description == "" %}<em>No description</em>{% else %}{%s n.Description %}{% endif %}</div></td>
+			<td>--</td>
+			<td class="icon align-right">
 				{% switch n.Visibility %}
 					{% case model.Private %}
 						{% cat "../../svgs/lock.svg" %}
@@ -30,15 +45,6 @@
 						{% cat "../../svgs/public.svg" %}
 				{% endswitch %}
 			</td>
-			<td>
-				<a href="{%s n.URI() %}">{%s n.FullName %}</a><br/>
-				{% if n.Description == "" %}
-					<div class="info"><em>No description</em></div>
-				{% else %}
-					<div class="info">{%s n.Description %}</div>
-				{% endif %}
-			</td>
-			<td>--</td>
 		</tr>
 	{% endfor %}
 </table>

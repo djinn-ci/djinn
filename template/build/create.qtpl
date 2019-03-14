@@ -20,29 +20,27 @@ Submit Build - Thrall
 {% endfunc %}
 
 {% func (p *CreatePage) Body() %}
-<div class="panel">
-	<form class="slim" method="POST" action="/builds">
-		{% if p.Errors.First("build") != "" %}
-			<div class="form-error">Failed to submit build: {%s p.Errors.First("build") %}</div>
-		{% endif %}
-		<div class="form-field">
-			<label class="label">Namespace <small>(optional)</small></label>
-			<input class="text" type="text" name="namespace" autocomplete="off"/>
-		</div>
-		<div class="form-field">
-			<label class="label">Manifest</label>
-			<textarea class="text" name="manifest"></textarea>
-			<div class="error">{%s p.Errors.First("manifest") %}</div>
-		</div>
-		<div class="form-field">
-			<label class="label">Tags <small>(optional)</small></label>
-			<input class="text" type="text" name="tags" autocomplete="off"/>
-		</div>
-		<div class="form-field">
-			<button type="submit" class="button button-primary">Submit</button>
-		</div>
-	</form>
-</div>
+<form class="slim" method="POST" action="/builds">
+	{% if p.Errors.First("build") != "" %}
+		<div class="form-error">Failed to submit build: {%s p.Errors.First("build") %}</div>
+	{% endif %}
+	<div class="form-field">
+		<label class="label">Namespace <small>(optional)</small></label>
+		<input class="text" type="text" name="namespace" autocomplete="off"/>
+	</div>
+	<div class="form-field">
+		<label class="label">Manifest</label>
+		<textarea style="font-family: monospace;min-height: 250px;" class="text" name="manifest"></textarea>
+		<div class="error">{%s p.Errors.First("manifest") %}</div>
+	</div>
+	<div class="form-field">
+		<label class="label">Tags <small>(optional)</small></label>
+		<input class="text" type="text" name="tags" autocomplete="off"/>
+	</div>
+	<div class="form-field">
+		<button type="submit" class="button button-primary">Submit</button>
+	</div>
+</form>
 {% endfunc %}
 
 {% func (p *CreatePage) Header() %}
@@ -50,5 +48,5 @@ Submit Build - Thrall
 {% endfunc %}
 
 {% func (p *CreatePage) Actions() %}{% endfunc %}
-{% func (p *CreatePage) Tabs() %}{% endfunc %}
+{% func (p *CreatePage) Navigation() %}{% endfunc %}
 {% endcollapsespace %}

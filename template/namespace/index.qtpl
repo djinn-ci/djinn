@@ -21,7 +21,7 @@ Namespaces - Thrall
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-{%= renderNamespaces(p.Namespaces, p.Search) %}
+{%= renderNamespaces(p.Namespaces, p.URI, p.Search) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}
@@ -32,5 +32,7 @@ Namespaces
 <li><a href="/namespaces/create" class="button button-primary">Create</a></li>
 {% endfunc %}
 
-{% func (p *IndexPage) Tabs() %}{% endfunc %}
+{% func (p *IndexPage) Navigation() %}
+
+{% endfunc %}
 {% endcollapsespace %}

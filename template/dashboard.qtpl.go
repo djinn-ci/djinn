@@ -56,11 +56,11 @@ type dashboardPage interface {
 	//line template/dashboard.qtpl:2
 	WriteHeader(qq422016 qtio422016.Writer)
 	//line template/dashboard.qtpl:2
-	Tabs() string
+	Navigation() string
 	//line template/dashboard.qtpl:2
-	StreamTabs(qw422016 *qt422016.Writer)
+	StreamNavigation(qw422016 *qt422016.Writer)
 	//line template/dashboard.qtpl:2
-	WriteTabs(qq422016 qtio422016.Writer)
+	WriteNavigation(qq422016 qtio422016.Writer)
 //line template/dashboard.qtpl:2
 }
 
@@ -92,11 +92,11 @@ func (p *Dashboard) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/dashboard.qtpl:44
 	p.dashboardPage.StreamActions(qw422016)
 	//line template/dashboard.qtpl:44
-	qw422016.N().S(`</ul> </div> <ul class="tabs">`)
+	qw422016.N().S(`</ul> </div> <div class="navigation">`)
 	//line template/dashboard.qtpl:46
-	p.dashboardPage.StreamTabs(qw422016)
+	p.dashboardPage.StreamNavigation(qw422016)
 	//line template/dashboard.qtpl:46
-	qw422016.N().S(`</ul> <div class="body">`)
+	qw422016.N().S(`</div> <div class="body">`)
 	//line template/dashboard.qtpl:47
 	p.dashboardPage.StreamBody(qw422016)
 	//line template/dashboard.qtpl:47

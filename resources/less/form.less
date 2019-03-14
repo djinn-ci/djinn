@@ -1,4 +1,32 @@
 @import "variables.less";
+form.search {
+	margin-bottom: 10px;
+
+	.form-field {
+		.text {
+			max-width: 250px;
+		}
+
+		a {
+			color: @gray;
+
+			svg {
+				width: 15px;
+				vertical-align: middle;
+				fill: @gray;
+			}
+		}
+
+		a:hover {
+			text-decoration: none;
+			color: @gray-dark;
+
+			svg {
+				fill: @gray-dark;
+			}
+		}
+	}
+}
 .form-error {
 	margin-bottom: 10px;
 	color: @red;
@@ -34,6 +62,8 @@
 		box-sizing: border-box;
 		width: 100%;
 		border: solid 1px @gray-light;
+		background: #fafafa;
+		box-shadow: inset 1px 1px 2px 0px rgba(0, 0, 0, 0.075);
 	}
 
 	textarea.text {
@@ -59,11 +89,6 @@
 			display: inline-block;
 			float: left;
 			outline: none;
-		}
-
-		.label {
-			cursor: pointer;
-			display: inline-block;
 		}
 
 		svg {

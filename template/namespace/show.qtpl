@@ -58,12 +58,14 @@ type ShowNamespacesPage struct {
 <li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>
 {% endfunc %}
 
-{% func (p *ShowPage) Tabs() %}
-<li>{%= template.RenderLink(p.Namespace.URI(), p.URI) %}Builds</a></li>
-<li>{%= template.RenderLink(p.Namespace.URI() + "/-/namespaces", p.URI) %}Namespaces</a></li>
+{% func (p *ShowPage) Navigation() %}
+<ul>
+	<li>{%= template.RenderLink(p.Namespace.URI(), p.URI) %}Builds</a></li>
+	<li>{%= template.RenderLink(p.Namespace.URI() + "/-/namespaces", p.URI) %}Namespaces</a></li>
+</ul>
 {% endfunc %}
 
 {% func (p *ShowNamespacesPage) Body() %}
-{%= renderNamespaces(p.Namespaces, p.Search) %}
+{%= renderNamespaces(p.Namespaces, p.URI, p.Search) %}
 {% endfunc %}
 {% endcollapsespace %}

@@ -12,7 +12,7 @@ interface dashboardPage {
 
 	Header()
 
-	Tabs()
+	Navigation()
 }
 %}
 
@@ -43,7 +43,7 @@ func NewDashboard(p dashboardPage, uri string) *Dashboard {
 			<h1>{%= p.dashboardPage.Header() %}</h1>
 			<ul class="actions">{%= p.dashboardPage.Actions() %}</ul>
 		</div>
-		<ul class="tabs">{%= p.dashboardPage.Tabs() %}</ul>
+		<div class="navigation">{%= p.dashboardPage.Navigation() %}</div>
 		<div class="body">{%= p.dashboardPage.Body() %}</div>
 	</div>
 	<div class="sidebar">

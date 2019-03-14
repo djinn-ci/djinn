@@ -167,27 +167,27 @@ func (p *IndexPage) Actions() string {
 }
 
 //line template/build/index.qtpl:33
-func (p *IndexPage) StreamTabs(qw422016 *qt422016.Writer) {
+func (p *IndexPage) StreamNavigation(qw422016 *qt422016.Writer) {
 //line template/build/index.qtpl:33
 }
 
 //line template/build/index.qtpl:33
-func (p *IndexPage) WriteTabs(qq422016 qtio422016.Writer) {
+func (p *IndexPage) WriteNavigation(qq422016 qtio422016.Writer) {
 	//line template/build/index.qtpl:33
 	qw422016 := qt422016.AcquireWriter(qq422016)
 	//line template/build/index.qtpl:33
-	p.StreamTabs(qw422016)
+	p.StreamNavigation(qw422016)
 	//line template/build/index.qtpl:33
 	qt422016.ReleaseWriter(qw422016)
 //line template/build/index.qtpl:33
 }
 
 //line template/build/index.qtpl:33
-func (p *IndexPage) Tabs() string {
+func (p *IndexPage) Navigation() string {
 	//line template/build/index.qtpl:33
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line template/build/index.qtpl:33
-	p.WriteTabs(qb422016)
+	p.WriteNavigation(qb422016)
 	//line template/build/index.qtpl:33
 	qs422016 := string(qb422016.B)
 	//line template/build/index.qtpl:33

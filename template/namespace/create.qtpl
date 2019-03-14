@@ -22,49 +22,47 @@ Create Namespace - Thrall
 {% endfunc %}
 
 {% func (p *CreatePage) Body() %}
-<div class="panel">
-	<form class="slim" method="POST" action="/namespaces">
-		{% if p.Parent != nil && !p.Parent.IsZero() %}
-			<input type="hidden" name="parent" value="{%s p.Parent.FullName %}"/>
-		{% endif %}
-		{% if p.Errors.First("namespace") != "" %}
-			<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
-		{% endif %}
-		<div class="form-field">
-			<label class="label">Name</label>
-			<input class="text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
-			<div class="error">{%s p.Errors.First("name") %}</div>
-		</div>
-		<div class="form-field">
-			<label class="label">Description <small>(optional)</small></label>
-			<input class="text" type="text" name="description" value="{%s p.Form.Get("description") %}" autocomplete="off"/>
-			<div class="error">{%s p.Errors.First("description") %}</div>
-		</div>
-		<div class="form-field">
-			<label class="option">
-				<input class="selector" type="radio" name="visibility" value="private" checked="trust"/>
-				<label class="label">Private</label>
-				{% cat "../../svgs/lock.svg" %}
-				<div class="description">You choose who can view builds in the namespace.</div>
-			</label>
-			<label class="option">
-				<input class="selector" type="radio" name="visibility" value="internal"/>
-				<label class="label">Internal</label>
-				{% cat "../../svgs/security.svg" %}
-				<div class="description">Anyone with an account will be able to view builds in the namespace.</div>
-			</label>
-			<label class="option">
-				<input class="selector" type="radio" name="visibility" value="public"/>
-				<label class="label">Public</label>
-				{% cat "../../svgs/public.svg" %}
-				<div class="description">Anyone will be able to view builds in the namespace.</div>
-			</label>
-		</div>
-		<div class="form-field">
-			<button type="submit" class="button button-primary">Create</button>
-		</div>
-	</form>
-</div>
+<form class="slim" method="POST" action="/namespaces">
+	{% if p.Parent != nil && !p.Parent.IsZero() %}
+		<input type="hidden" name="parent" value="{%s p.Parent.FullName %}"/>
+	{% endif %}
+	{% if p.Errors.First("namespace") != "" %}
+		<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
+	{% endif %}
+	<div class="form-field">
+		<label class="label">Name</label>
+		<input class="text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
+		<div class="error">{%s p.Errors.First("name") %}</div>
+	</div>
+	<div class="form-field">
+		<label class="label">Description <small>(optional)</small></label>
+		<input class="text" type="text" name="description" value="{%s p.Form.Get("description") %}" autocomplete="off"/>
+		<div class="error">{%s p.Errors.First("description") %}</div>
+	</div>
+	<div class="form-field">
+		<label class="option">
+			<input class="selector" type="radio" name="visibility" value="private" checked="trust"/>
+			<strong>Private</strong>
+			{% cat "../../svgs/lock.svg" %}
+			<div class="description">You choose who can view builds in the namespace.</div>
+		</label>
+		<label class="option">
+			<input class="selector" type="radio" name="visibility" value="internal"/>
+			<strong>Internal</strong>
+			{% cat "../../svgs/security.svg" %}
+			<div class="description">Anyone with an account will be able to view builds in the namespace.</div>
+		</label>
+		<label class="option">
+			<input class="selector" type="radio" name="visibility" value="public"/>
+			<strong>Public</strong>
+			{% cat "../../svgs/public.svg" %}
+			<div class="description">Anyone will be able to view builds in the namespace.</div>
+		</label>
+	</div>
+	<div class="form-field">
+		<button type="submit" class="button button-primary">Create</button>
+	</div>
+</form>
 {% endfunc %}
 
 {% func (p *CreatePage) Header() %}
@@ -78,5 +76,5 @@ Create Namespace - Thrall
 {% endfunc %}
 
 {% func (p *CreatePage) Actions() %}{% endfunc %}
-{% func (p *CreatePage) Tabs() %}{% endfunc %}
+{% func (p *CreatePage) Navigation() %}{% endfunc %}
 {% endcollapsespace %}

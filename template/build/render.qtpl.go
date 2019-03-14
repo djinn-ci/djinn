@@ -31,7 +31,7 @@ func StreamRenderBuilds(qw422016 *qt422016.Writer, builds []*model.Build) {
 		//line template/build/render.qtpl:7
 	} else {
 		//line template/build/render.qtpl:7
-		qw422016.N().S(` <table class="panel table"> <tr> <th>Build</th> <th>Status</th> <th>Namespace</th> <th></th> <th></th> </tr> `)
+		qw422016.N().S(` <table class="table"> <tr> <th>Build</th> <th>Status</th> <th>Namespace</th> <th></th> <th></th> </tr> `)
 		//line template/build/render.qtpl:16
 		for _, b := range builds {
 			//line template/build/render.qtpl:16

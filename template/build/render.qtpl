@@ -5,7 +5,7 @@
 {% if len(builds) == 0 %}
 <div class="message">No builds have been submitted yet.</div>
 {% else %}
-<table class="panel table">
+<table class="table">
 	<tr>
 		<th>Build</th>
 		<th>Status</th>

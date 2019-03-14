@@ -177,42 +177,42 @@ func (p *ShowPage) Actions() string {
 }
 
 //line template/build/show.qtpl:31
-func (p *ShowPage) StreamTabs(qw422016 *qt422016.Writer) {
+func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:31
-	qw422016.N().S(` <li>`)
-	//line template/build/show.qtpl:32
+	qw422016.N().S(` <ul> <li>`)
+	//line template/build/show.qtpl:33
 	template.StreamRenderLink(qw422016, p.Build.URI(), p.URI)
-	//line template/build/show.qtpl:32
+	//line template/build/show.qtpl:33
 	qw422016.N().S(`Overview</a></li> <li>`)
-	//line template/build/show.qtpl:33
+	//line template/build/show.qtpl:34
 	template.StreamRenderLink(qw422016, p.Build.URI()+"/manifest", p.URI)
-	//line template/build/show.qtpl:33
-	qw422016.N().S(`Manifest</a></li> `)
-//line template/build/show.qtpl:34
+	//line template/build/show.qtpl:34
+	qw422016.N().S(`Manifest</a></li> </ul> `)
+//line template/build/show.qtpl:36
 }
 
-//line template/build/show.qtpl:34
-func (p *ShowPage) WriteTabs(qq422016 qtio422016.Writer) {
-	//line template/build/show.qtpl:34
+//line template/build/show.qtpl:36
+func (p *ShowPage) WriteNavigation(qq422016 qtio422016.Writer) {
+	//line template/build/show.qtpl:36
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/show.qtpl:34
-	p.StreamTabs(qw422016)
-	//line template/build/show.qtpl:34
+	//line template/build/show.qtpl:36
+	p.StreamNavigation(qw422016)
+	//line template/build/show.qtpl:36
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/show.qtpl:34
+//line template/build/show.qtpl:36
 }
 
-//line template/build/show.qtpl:34
-func (p *ShowPage) Tabs() string {
-	//line template/build/show.qtpl:34
+//line template/build/show.qtpl:36
+func (p *ShowPage) Navigation() string {
+	//line template/build/show.qtpl:36
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/show.qtpl:34
-	p.WriteTabs(qb422016)
-	//line template/build/show.qtpl:34
+	//line template/build/show.qtpl:36
+	p.WriteNavigation(qb422016)
+	//line template/build/show.qtpl:36
 	qs422016 := string(qb422016.B)
-	//line template/build/show.qtpl:34
+	//line template/build/show.qtpl:36
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/show.qtpl:34
+	//line template/build/show.qtpl:36
 	return qs422016
-//line template/build/show.qtpl:34
+//line template/build/show.qtpl:36
 }

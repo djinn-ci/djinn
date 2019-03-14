@@ -28,8 +28,10 @@ Build #{%v p.Build.ID %} - Thrall
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}
 
-{% func (p *ShowPage) Tabs() %}
-<li>{%= template.RenderLink(p.Build.URI(), p.URI) %}Overview</a></li>
-<li>{%= template.RenderLink(p.Build.URI() + "/manifest", p.URI) %}Manifest</a></li>
+{% func (p *ShowPage) Navigation() %}
+<ul>
+	<li>{%= template.RenderLink(p.Build.URI(), p.URI) %}Overview</a></li>
+	<li>{%= template.RenderLink(p.Build.URI() + "/manifest", p.URI) %}Manifest</a></li>
+</ul>
 {% endfunc %}
 {% endcollapsespace %}

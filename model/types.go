@@ -17,7 +17,7 @@ const (
 
 	Queued Status	= iota
 	Running
-	Successful
+	Passed
 	Failed
 )
 
@@ -68,8 +68,8 @@ func (s *Status) UnmarshalText(b []byte) error {
 		case "running":
 			(*s) = Running
 			return nil
-		case "successful":
-			(*s) = Successful
+		case "passed":
+			(*s) = Passed
 			return nil
 		case "failed":
 			(*s) = Failed
@@ -85,8 +85,8 @@ func (s Status) Value() (driver.Value, error) {
 			return driver.Value("queued"), nil
 		case Running:
 			return driver.Value("running"), nil
-		case Successful:
-			return driver.Value("successful"), nil
+		case Passed:
+			return driver.Value("passed"), nil
 		case Failed:
 			return driver.Value("failed"), nil
 		default:

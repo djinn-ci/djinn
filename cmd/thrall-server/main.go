@@ -56,6 +56,8 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to establish database connection: %s\n", err)
 	}
 
+	log.Info.Println("connected to postgresql database")
+
 	sc := securecookie.New(hash, key)
 
 	store, err := redistore.NewRediStore(cfg.Redis.Idle, "tcp", cfg.Redis.Addr, cfg.Redis.Password, key)
@@ -64,17 +66,22 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to create session store: %s\n", err)
 	}
 
-	router := registerWebRoutes(web.New(sc, store), cfg.Assets)
+	log.Info.Println("connected to redis database")
 
-	weblog := web.NewLog(router)
-	spoof := web.NewSpoof(weblog)
+	var handler http.Handler = registerWebRoutes(web.New(sc, store), cfg.Assets)
+
+	if cfg.Log.Access {
+		handler = web.NewLog(handler)
+	}
+
+	handler = web.NewSpoof(handler)
 
 	httpServer := &http.Server{
 		Addr:         cfg.Net.Listen,
 		WriteTimeout: time.Second * 15,
 		ReadTimeout:  time.Second * 15,
 		IdleTimeout:  time.Second * 60,
-		Handler:      spoof,
+		Handler:      handler,
 	}
 
 	if cfg.Net.SSL.Cert != "" && cfg.Net.SSL.Key != "" {
@@ -83,10 +90,10 @@ func mainCommand(cmd cli.Command) {
 			WriteTimeout: time.Second * 15,
 			ReadTimeout:  time.Second * 15,
 			IdleTimeout:  time.Second * 60,
-			Handler:      spoof,
+			Handler:      handler,
 		}
 
-		httpServer.Handler = web.NewSpoof(web.NewSecureRedirect(cfg.Net.SSL.Listen, router))
+		httpServer.Handler = web.NewSpoof(web.NewSecureRedirect(cfg.Net.SSL.Listen, handler))
 
 		go func() {
 			if err := httpsServer.ListenAndServeTLS(cfg.Net.SSL.Cert, cfg.Net.SSL.Key); err != nil {
@@ -107,7 +114,7 @@ func mainCommand(cmd cli.Command) {
 
 	signal.Notify(c, os.Interrupt)
 
-	<-c
+	sig := <-c
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second * 15))
 	defer cancel()
@@ -118,7 +125,7 @@ func mainCommand(cmd cli.Command) {
 		httpsServer.Shutdown(ctx)
 	}
 
-	log.Info.Println("shutting down")
+	log.Info.Println(sig, "received, shutting down")
 }
 
 func main() {

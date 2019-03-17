@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/log"
 
 	"github.com/jmoiron/sqlx"
 
@@ -34,11 +35,15 @@ func Connect(addr, name, username, password string) error {
 		return errors.Err(err)
 	}
 
+	log.Debug.Printf("opening postgresql connection with '%s'\n",fmt.Sprintf(sourceFmt, host, port, username, name, "*****"))
+
 	DB, err = sqlx.Open("postgres", fmt.Sprintf(sourceFmt, host, port, username, name, password))
 
 	if err != nil {
 		return errors.Err(err)
 	}
+
+	log.Debug.Println("testing connection to database")
 
 	if err = DB.Ping(); err != nil {
 		return errors.Err(err)

@@ -38,8 +38,9 @@ type Server struct {
 	}
 
 	Log struct {
-		Level string
-		File  string
+		Level  string
+		File   string
+		Access bool
 	}
 
 	Assets string

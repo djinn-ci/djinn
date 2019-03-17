@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 
+	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/mux"
@@ -40,6 +41,8 @@ func registerWebRoutes(h web.Handler, dir string) *mux.Router {
 }
 
 func namespaceRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
+	log.Debug.Println("registering namespace routes")
+
 	namespace := web.NewNamespace(h)
 
 	r.HandleFunc("/namespaces", mw.Auth(namespace.Index)).Methods("GET")
@@ -54,6 +57,8 @@ func namespaceRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
 }
 
 func buildRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
+	log.Debug.Println("registering build routes")
+
 	build := web.NewBuild(h)
 
 	r.HandleFunc("/builds/create", mw.Auth(build.Create)).Methods("GET")

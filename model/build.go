@@ -66,7 +66,7 @@ func LoadBuildRelations(builds []*Build) error {
 
 	namespacesQuery.WriteString(strings.Join(namespaceIds, ", ") + ")")
 	usersQuery.WriteString(")")
-	tagsQuery.WriteString(")")
+	tagsQuery.WriteString(") ORDER BY name ASC")
 
 	namespaces := make([]*Namespace, 0)
 	users := make([]*User, 0)

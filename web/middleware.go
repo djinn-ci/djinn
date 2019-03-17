@@ -19,7 +19,7 @@ func NewMiddleware(h Handler) Middleware {
 
 func (h Middleware) gate(next http.HandlerFunc, handler gateHandler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, err := h.UserFromRequest(r)
+		u, err := h.userFromRequest(r)
 
 		if err != nil {
 			log.Error.Println(err)

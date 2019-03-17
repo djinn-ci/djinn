@@ -36,7 +36,7 @@ func (h Build) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Build) Store(w http.ResponseWriter, r *http.Request) {
-	u, err := h.UserFromRequest(r)
+	u, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -100,7 +100,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Build) Show(w http.ResponseWriter, r *http.Request) {
-	u, err := h.UserFromRequest(r)
+	u, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

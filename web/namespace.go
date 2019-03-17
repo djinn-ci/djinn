@@ -26,26 +26,30 @@ func NewNamespace(h Handler) Namespace {
 	return Namespace{Handler: h}
 }
 
-func (h Namespace) getUserAndNamespace(r *http.Request) (*model.User, *model.Namespace, error) {
+func namespaceFromRequest(r *http.Request) (*model.Namespace, error) {
 	vars := mux.Vars(r)
 
 	u, err := model.FindUserByUsername(vars["username"])
 
 	if err != nil {
-		return nil, nil, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
 	n, err := u.FindNamespaceByFullName(vars["namespace"])
 
 	if err != nil {
-		return nil, nil, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	return u, n, nil
+	if !n.IsZero() {
+		n.User = u
+	}
+
+	return n, nil
 }
 
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
-	u, err := h.UserFromRequest(r)
+	u, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -83,7 +87,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
-	u, err := h.UserFromRequest(r)
+	u, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -111,7 +115,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
-	u, err := h.UserFromRequest(r)
+	u, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -169,11 +173,13 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/namespaces", http.StatusSeeOther)
+	n.User = u
+
+	http.Redirect(w, r, n.URI(), http.StatusSeeOther)
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
-	u, n, err := h.getUserAndNamespace(r)
+	n, err := namespaceFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -181,12 +187,12 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if u.IsZero() || n.IsZero() {
+	if n.IsZero() || n.User.IsZero() {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
-	auth, err := h.UserFromRequest(r)
+	auth, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -209,8 +215,6 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			break
 	}
 
-	n.User = u
-
 	if err := n.LoadParents(); err != nil {
 		log.Error.Println(errors.Err(err))
 		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
@@ -218,7 +222,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if n.Parent != nil {
-		n.Parent.User = u
+		n.Parent.User = n.User
 	}
 
 	if filepath.Base(r.URL.Path) == "namespaces" {
@@ -283,7 +287,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
-	auth, err := h.UserFromRequest(r)
+	auth, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -291,7 +295,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, n, err := h.getUserAndNamespace(r)
+	n, err := namespaceFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -299,7 +303,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if u.IsZero() || n.IsZero() || u.ID != auth.ID {
+	if n.IsZero() || n.User.IsZero() || n.UserID != auth.ID {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -322,7 +326,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
-	auth, err := h.UserFromRequest(r)
+	auth, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -330,7 +334,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, n, err := h.getUserAndNamespace(r)
+	n, err := namespaceFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -338,13 +342,13 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if u.IsZero() || n.IsZero() || u.ID != auth.ID {
+	if n.IsZero() || n.User.IsZero() || n.UserID != auth.ID {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
 	f := &form.Namespace{
-		UserID:    u.ID,
+		UserID:    n.UserID,
 		Namespace: n,
 	}
 
@@ -362,11 +366,11 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/u/" + u.Username + "/" + n.FullName, http.StatusSeeOther)
+	http.Redirect(w, r, n.URI(), http.StatusSeeOther)
 }
 
 func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
-	auth, err := h.UserFromRequest(r)
+	auth, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -374,7 +378,7 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, n, err := h.getUserAndNamespace(r)
+	n, err := namespaceFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -382,7 +386,7 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if u.IsZero() || n.IsZero() || u.ID != auth.ID {
+	if n.IsZero() || n.User.IsZero() || n.UserID != auth.ID {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}

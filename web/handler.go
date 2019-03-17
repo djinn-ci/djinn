@@ -102,7 +102,7 @@ func (h *Handler) flashForm(w http.ResponseWriter, r *http.Request, f form.Form)
 	}
 }
 
-func (h *Handler) UserFromRequest(r *http.Request) (*model.User, error) {
+func (h *Handler) userFromRequest(r *http.Request) (*model.User, error) {
 	cookie, err := r.Cookie("user")
 
 	if err != nil {

@@ -20,7 +20,7 @@ func NewPage(h Handler) Page {
 }
 
 func (h Page) Home(w http.ResponseWriter, r *http.Request) {
-	u, err := h.UserFromRequest(r)
+	u, err := h.userFromRequest(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

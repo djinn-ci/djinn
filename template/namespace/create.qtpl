@@ -30,37 +30,37 @@ Create Namespace - Thrall
 		<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
 	{% endif %}
 	<div class="form-field">
-		<label class="label">Name</label>
-		<input class="text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
-		<div class="error">{%s p.Errors.First("name") %}</div>
+		<label class="label" for="name">Name</label>
+		<input class="form-text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
+		<div class="form-error">{%s p.Errors.First("name") %}</div>
 	</div>
 	<div class="form-field">
-		<label class="label">Description <small>(optional)</small></label>
-		<input class="text" type="text" name="description" value="{%s p.Form.Get("description") %}" autocomplete="off"/>
+		<label class="label" for="description">Description <small>(optional)</small></label>
+		<input class="form-text" type="text" name="description" value="{%s p.Form.Get("description") %}" autocomplete="off"/>
 		<div class="error">{%s p.Errors.First("description") %}</div>
 	</div>
 	<div class="form-field">
-		<label class="option">
-			<input class="selector" type="radio" name="visibility" value="private" checked="trust"/>
+		<label class="form-option">
+			<input class="form-selector" type="radio" name="visibility" value="private" checked="trust"/>
 			<strong>Private</strong>
 			{% cat "../../svgs/lock.svg" %}
-			<div class="description">You choose who can view builds in the namespace.</div>
+			<div class="form-desc">You choose who can view builds in the namespace.</div>
 		</label>
-		<label class="option">
-			<input class="selector" type="radio" name="visibility" value="internal"/>
+		<label class="form-option">
+			<input class="form-selector" type="radio" name="visibility" value="internal"/>
 			<strong>Internal</strong>
 			{% cat "../../svgs/security.svg" %}
-			<div class="description">Anyone with an account will be able to view builds in the namespace.</div>
+			<div class="form-desc">Anyone with an account will be able to view builds in the namespace.</div>
 		</label>
-		<label class="option">
-			<input class="selector" type="radio" name="visibility" value="public"/>
+		<label class="form-option">
+			<input class="form-selector" type="radio" name="visibility" value="public"/>
 			<strong>Public</strong>
 			{% cat "../../svgs/public.svg" %}
-			<div class="description">Anyone will be able to view builds in the namespace.</div>
+			<div class="form-desc">Anyone will be able to view builds in the namespace.</div>
 		</label>
 	</div>
 	<div class="form-field">
-		<button type="submit" class="button button-primary">Create</button>
+		<button type="submit" class="btn btn-primary">Create</button>
 	</div>
 </form>
 {% endfunc %}
@@ -68,10 +68,9 @@ Create Namespace - Thrall
 {% func (p *CreatePage) Header() %}
 {% if p.Parent != nil && !p.Parent.IsZero() %}
 	<a class="back" href="{%s p.Parent.URI() %}">{% cat "../../svgs/back.svg" %}</a>
-	{%= renderFullName(p.Parent.User.Username, p.Parent.FullName) %} - Create Sub-namespace<br/>
+	{%= renderFullName(p.Parent.User.Username, p.Parent.FullName) %} - Create Sub-namespace
 {% else %}
-	<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
-	Create Namespace<br/>
+	<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a> Create Namespace
 {% endif %}
 {% endfunc %}
 

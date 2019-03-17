@@ -182,7 +182,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:31
 	qw422016.N().S(` `)
 	//line template/build/show.qtpl:32
-	qw422016.N().S(`<ul class="tabs"><li>`)
+	qw422016.N().S(`<ul class="nav"><li>`)
 	//line template/build/show.qtpl:34
 	template.StreamRenderLink(qw422016, p.Build.URI(), p.URI)
 	//line template/build/show.qtpl:34

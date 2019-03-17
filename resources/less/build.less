@@ -1,4 +1,7 @@
-@import "variables.less";
+.build-manifest-text {
+	font-family: monospace !important;
+	min-height: 250px;
+}
 .build-status {
 	display: inline-block;
 	padding: 5px;
@@ -17,14 +20,14 @@
 .build-failed {
 	background: @red;
 }
-.build-tag {
+.tag {
 	display: inline-block;
 	padding: 5px;
 	border-radius: 3px;
 	color: #fff;
 	background: @blue;
 }
-.build-tag:hover {
+.tag:hover {
 	text-decoration: none;
 	background: @blue-light;
 }

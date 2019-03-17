@@ -137,7 +137,7 @@ func (p *IndexPage) Header() string {
 //line template/namespace/index.qtpl:31
 func (p *IndexPage) StreamActions(qw422016 *qt422016.Writer) {
 	//line template/namespace/index.qtpl:31
-	qw422016.N().S(` <li><a href="/namespaces/create" class="button button-primary">Create</a></li> `)
+	qw422016.N().S(` <li><a href="/namespaces/create" class="btn btn-primary">Create</a></li> `)
 //line template/namespace/index.qtpl:33
 }
 

@@ -27,17 +27,17 @@ Builds
 {% endfunc %}
 
 {% func (p *IndexPage) Actions() %}
-<li><a href="/builds/create" class="button button-primary">Submit</a></li>
+<li><a href="/builds/create" class="btn btn-primary">Submit</a></li>
 {% endfunc %}
 
 {% func (p *IndexPage) Navigation() %}
 {% stripspace %}
-<ul class="tabs">
-	<li><a href="" class="active">All</a></li>
-	<li><a href="?status=queued">Queued</a></li>
-	<li><a href="?status=running">Running</a></li>
-	<li><a href="?status=passed">Passed</a></li>
-	<li><a href="?status=failed">Failed</a></li>
+<ul class="nav">
+	<li><a href="" class="active"><span class="icon-inline">{% cat "../../svgs/build.svg" %}</span>All</a></li>
+	<li><a href="?status=queued"><span class="icon-inline">{% cat "../../svgs/hourglass.svg" %}</span>Queued</a></li>
+	<li><a href="?status=running"><span class="icon-inline">{% cat "../../svgs/timer.svg" %}</span>Running</a></li>
+	<li><a href="?status=passed"><span class="icon-inline">{% cat "../../svgs/check.svg" %}</span>Passed</a></li>
+	<li><a href="?status=failed"><span class="icon-inline">{% cat "../../svgs/close.svg" %}</span>Failed</a></li>
 </ul>
 {% endstripspace %}
 {% endfunc %}

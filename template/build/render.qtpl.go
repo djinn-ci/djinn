@@ -89,7 +89,7 @@ func StreamRenderBuilds(qw422016 *qt422016.Writer, builds []*model.Build) {
 			//line template/build/render.qtpl:37
 			for _, t := range b.Tags {
 				//line template/build/render.qtpl:37
-				qw422016.N().S(` <a class="build-tag" href="?tag=`)
+				qw422016.N().S(` <a class="tag" href="?tag=`)
 				//line template/build/render.qtpl:38
 				qw422016.E().S(t.Name)
 				//line template/build/render.qtpl:38

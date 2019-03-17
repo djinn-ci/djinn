@@ -40,23 +40,20 @@ func NewDashboard(p dashboardPage, uri string) *Dashboard {
 <div class="dashboard">
 	<div class="content">
 		<div class="header">
-			<div class="title-wrap">
+			<div class="p-20 overflow">
 				<h1>{%= p.dashboardPage.Header() %}</h1>
 				<ul class="actions">{%= p.dashboardPage.Actions() %}</ul>
 			</div>
-			<div class="navigation">{%= p.dashboardPage.Navigation() %}</div>
+			<div>{%= p.dashboardPage.Navigation() %}</div>
 		</div>
-		<div class="body">{%= p.dashboardPage.Body() %}</div>
+		<div class="p-20">{%= p.dashboardPage.Body() %}</div>
 	</div>
 	<div class="sidebar">
-		<h2>
-			<div class="brand">
-				<div class="left"></div>
-				<div class="right"></div>
-			</div>
-			Thrall
-		</h2>
-		<ul>
+		<div class="sidebar-header">
+			<div class="logo"><div class="left"></div><div class="right"></div></div>
+			<h2>Thrall</h2>
+		</div>
+		<ul class="nav">
 			<li class="nav-header">MANAGE</li>
 			<li>{%= RenderLinkPattern("/", BuildsURI, p.URI) %}{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
 			<li>{%= RenderLinkPattern("/namespaces", NamespacesURI, p.URI) %}{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>

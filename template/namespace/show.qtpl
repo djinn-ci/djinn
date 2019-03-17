@@ -49,20 +49,20 @@ type ShowNamespacesPage struct {
 {% else %}
 	<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
 {% endif %}
-{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}<br/>
+{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}
 <small>{%s p.Namespace.Description %}</small>
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}
-<li><a href="{%s p.Namespace.URI() %}/-/edit" class="button button-secondary">Edit</a></li>
-<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="button button-primary">Create</a></li>
+<li><a href="{%s p.Namespace.URI() %}/-/edit" class="btn btn-secondary">Edit</a></li>
+<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="btn btn-primary">Create</a></li>
 {% endfunc %}
 
 {% func (p *ShowPage) Navigation() %}
 {% stripspace %}
-<ul class="tabs">
-	<li>{%= template.RenderLink(p.Namespace.URI(), p.URI) %}Builds</a></li>
-	<li>{%= template.RenderLink(p.Namespace.URI() + "/-/namespaces", p.URI) %}Namespaces</a></li>
+<ul class="nav">
+	<li>{%= template.RenderLink(p.Namespace.URI(), p.URI) %}<span class="icon-inline">{% cat "../../svgs/build.svg" %}</span>Builds</a></li>
+	<li>{%= template.RenderLink(p.Namespace.URI() + "/-/namespaces", p.URI) %}<span class="icon-inline">{% cat "../../svgs/folder.svg" %}</span>Namespaces</a></li>
 </ul>
 {% endstripspace %}
 {% endfunc %}

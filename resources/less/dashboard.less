@@ -1,4 +1,3 @@
-@import "variables.less";
 .dashboard {
 	.sidebar {
 		position: fixed;
@@ -8,19 +7,23 @@
 		width: 225px;
 		background: @blue-gray;
 	
-		h2 {
+		.sidebar-header {
 			color: #fff;
 			padding: 20px;
 	
-			.brand {
+			.logo {
 				margin-top: -5px;
 				margin-right: 10px;
 				display: inline-block;
 				vertical-align: middle;
 			}
+
+			h2 {
+				display: inline-block;
+			}
 		}
 	
-		ul {
+		.nav {
 			list-style: none;
 	
 			li {
@@ -81,16 +84,13 @@
 	.header {
 		background: rgba(0, 0, 0, 0.03);
 		border-bottom: solid 2px rgba(0, 0, 0, 0.07);
-
-		.title-wrap {
-			padding: 20px;
-			overflow: auto;
-		}
 	
 		h1 {
 			float: left;
 	
 			small {
+				margin-top: 10px;
+				display: block;
 				font-size: 16px;
 				color: rgba(0, 0, 0, 0.6);
 			}
@@ -106,7 +106,7 @@
 			}
 		}
 	
-		ul.actions {
+		.actions {
 			float: right;
 			list-style: none;
 	
@@ -118,10 +118,8 @@
 				}
 			}
 		}
-	}
 
-	.navigation {
-		.tabs {
+		.nav {
 			margin-top: -15px;
 			list-style: none;
 
@@ -135,31 +133,29 @@
 					border-bottom: solid 2px transparent;
 					position: relative;
 					top: 2px;
+
+					svg {
+						fill: rgba(0, 0, 0, 0.4);
+					}
 				}
 
 				a.active, a:hover {
 					text-decoration: none;
 					color: @blue;
 					border-bottom: solid 2px @blue;
+
+					svg {
+						fill: @blue;
+					}
 				}
 			}
 		}
-	}
-
-	.body {
-		padding: 20px;
 	}
 
 	.message {
 		margin-top: 200px;
 		text-align: center;
 		font-size: 28px;
-		color: rgba(0, 0, 0, 0.6);
-	}
-
-	.slim {
-		margin: 0 auto;
-		max-width: 600px;
 	}
 
 	.separator {

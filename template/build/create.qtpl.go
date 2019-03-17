@@ -79,11 +79,11 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/build/create.qtpl:26
 	}
 	//line template/build/create.qtpl:26
-	qw422016.N().S(` <div class="form-field"> <label class="label">Namespace <small>(optional)</small></label> <input class="text" type="text" name="namespace" autocomplete="off"/> </div> <div class="form-field"> <label class="label">Manifest</label> <textarea style="font-family: monospace;min-height: 250px;" class="text" name="manifest"></textarea> <div class="error">`)
+	qw422016.N().S(` <div class="form-field"> <label class="label">Namespace <small>(optional)</small></label> <input class="form-text" type="text" name="namespace" autocomplete="off"/> </div> <div class="form-field"> <label class="label">Manifest</label> <textarea class="form-text build-manifest-text" name="manifest"></textarea> <div class="form-error">`)
 	//line template/build/create.qtpl:34
 	qw422016.E().S(p.Errors.First("manifest"))
 	//line template/build/create.qtpl:34
-	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="label">Tags <small>(optional)</small></label> <input class="text" type="text" name="tags" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="button button-primary">Submit</button> </div> </form> `)
+	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="label">Tags <small>(optional)</small></label> <input class="form-text" type="text" name="tags" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Submit</button> </div> </form> `)
 //line template/build/create.qtpl:44
 }
 

@@ -85,11 +85,11 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/edit.qtpl:29
 	}
 	//line template/namespace/edit.qtpl:29
-	qw422016.N().S(` <div class="form-field"> <label class="label">Name</label> `)
+	qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Name</label> `)
 	//line template/namespace/edit.qtpl:32
 	if p.Form.Get("name") != "" {
 		//line template/namespace/edit.qtpl:32
-		qw422016.N().S(` <input class="text" type="text" name="name" value="`)
+		qw422016.N().S(` <input class="form-text" type="text" name="name" value="`)
 		//line template/namespace/edit.qtpl:33
 		qw422016.E().S(p.Form.Get("name"))
 		//line template/namespace/edit.qtpl:33
@@ -97,7 +97,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/edit.qtpl:34
 	} else {
 		//line template/namespace/edit.qtpl:34
-		qw422016.N().S(` <input class="text" type="text" name="name" value="`)
+		qw422016.N().S(` <input class="form-text" type="text" name="name" value="`)
 		//line template/namespace/edit.qtpl:35
 		qw422016.E().S(p.Namespace.Name)
 		//line template/namespace/edit.qtpl:35
@@ -105,15 +105,15 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/edit.qtpl:36
 	}
 	//line template/namespace/edit.qtpl:36
-	qw422016.N().S(` <div class="error">`)
+	qw422016.N().S(` <div class="form-error">`)
 	//line template/namespace/edit.qtpl:37
 	qw422016.E().S(p.Errors.First("description"))
 	//line template/namespace/edit.qtpl:37
-	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="label">Description <small>(optional)</small></label> `)
+	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="label" for="name">Description <small>(optional)</small></label> `)
 	//line template/namespace/edit.qtpl:41
 	if p.Form.Get("description") != "" {
 		//line template/namespace/edit.qtpl:41
-		qw422016.N().S(` <input class="text" type="text" name="description" value="`)
+		qw422016.N().S(` <input class="form-text" type="text" name="description" value="`)
 		//line template/namespace/edit.qtpl:42
 		qw422016.E().S(p.Form.Get("description"))
 		//line template/namespace/edit.qtpl:42
@@ -121,7 +121,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/edit.qtpl:43
 	} else {
 		//line template/namespace/edit.qtpl:43
-		qw422016.N().S(` <input class="text" type="text" name="description" value="`)
+		qw422016.N().S(` <input class="form-text" type="text" name="description" value="`)
 		//line template/namespace/edit.qtpl:44
 		qw422016.E().S(p.Namespace.Description)
 		//line template/namespace/edit.qtpl:44
@@ -129,11 +129,11 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/edit.qtpl:45
 	}
 	//line template/namespace/edit.qtpl:45
-	qw422016.N().S(` <div class="error">`)
+	qw422016.N().S(` <div class="form-error">`)
 	//line template/namespace/edit.qtpl:46
 	qw422016.E().S(p.Errors.First("description"))
 	//line template/namespace/edit.qtpl:46
-	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="option"> <input class="selector" type="radio" name="visibility" value="private" `)
+	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="form-option"> <input class="form-selector" type="radio" name="visibility" value="private" `)
 	//line template/namespace/edit.qtpl:50
 	if p.Namespace.Visibility == model.Private {
 		//line template/namespace/edit.qtpl:50
@@ -150,7 +150,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 	//line template/namespace/edit.qtpl:52
-	qw422016.N().S(` <div class="description">You choose who can view builds in the namespace.</div> </label> <label class="option"> <input class="selector" type="radio" name="visibility" value="internal" `)
+	qw422016.N().S(` <div class="form-desc">You choose who can view builds in the namespace.</div> </label> <label class="form-option"> <input class="form-selector" type="radio" name="visibility" value="internal" `)
 	//line template/namespace/edit.qtpl:56
 	if p.Namespace.Visibility == model.Internal {
 		//line template/namespace/edit.qtpl:56
@@ -167,7 +167,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 	//line template/namespace/edit.qtpl:58
-	qw422016.N().S(` <div class="description">Anyone with an account will be able to view builds in the namespace.</div> </label> <label class="option"> <input class="selector" type="radio" name="visibility" value="public" `)
+	qw422016.N().S(` <div class="form-desc">Anyone with an account will be able to view builds in the namespace.</div> </label> <label class="form-option"> <input class="form-selector" type="radio" name="visibility" value="public" `)
 	//line template/namespace/edit.qtpl:62
 	if p.Namespace.Visibility == model.Public {
 		//line template/namespace/edit.qtpl:62
@@ -184,116 +184,147 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 	//line template/namespace/edit.qtpl:64
-	qw422016.N().S(` <div class="description">Anyone will be able to view builds in the namespace.</div> </label> </div> <div class="form-field"> <button type="submit" class="button button-primary">Save</button> </div> </form> <div class="slim separator"></div> <form class="slim" method="POST" action="`)
+	qw422016.N().S(` <div class="form-desc">Anyone will be able to view builds in the namespace.</div> </label> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Save</button> </div> </form> <div class="slim separator"></div> <form class="slim" method="POST" action="`)
 	//line template/namespace/edit.qtpl:73
 	qw422016.E().S(p.Namespace.URI())
 	//line template/namespace/edit.qtpl:73
-	qw422016.N().S(`"> <input type="hidden" name="_method" value="DELETE"/> <div class="form-field"> <button type="submit" class="right button button-danger">Delete</button> <div> <strong>Delete Namespace</strong><br/> Builds within the namespace will not be deleted. </div> </div> </form> `)
-//line template/namespace/edit.qtpl:83
+	qw422016.N().S(`"> <input type="hidden" name="_method" value="DELETE"/> <div class="overflow"> <div class="align-right"> <button type="submit" class="btn btn-danger">Delete</button> </div> <strong>Delete Namespace</strong><br/><p>Builds within the namespace will not be deleted.</p> </div> </form> `)
+//line template/namespace/edit.qtpl:82
 }
 
-//line template/namespace/edit.qtpl:83
+//line template/namespace/edit.qtpl:82
 func (p *EditPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/edit.qtpl:83
+	//line template/namespace/edit.qtpl:82
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/edit.qtpl:83
+	//line template/namespace/edit.qtpl:82
 	p.StreamBody(qw422016)
-	//line template/namespace/edit.qtpl:83
+	//line template/namespace/edit.qtpl:82
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/edit.qtpl:83
+//line template/namespace/edit.qtpl:82
 }
 
-//line template/namespace/edit.qtpl:83
+//line template/namespace/edit.qtpl:82
 func (p *EditPage) Body() string {
-	//line template/namespace/edit.qtpl:83
+	//line template/namespace/edit.qtpl:82
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/edit.qtpl:83
+	//line template/namespace/edit.qtpl:82
 	p.WriteBody(qb422016)
-	//line template/namespace/edit.qtpl:83
+	//line template/namespace/edit.qtpl:82
 	qs422016 := string(qb422016.B)
-	//line template/namespace/edit.qtpl:83
+	//line template/namespace/edit.qtpl:82
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/edit.qtpl:83
+	//line template/namespace/edit.qtpl:82
 	return qs422016
-//line template/namespace/edit.qtpl:83
+//line template/namespace/edit.qtpl:82
 }
 
-//line template/namespace/edit.qtpl:85
+//line template/namespace/edit.qtpl:84
 func (p *EditPage) StreamHeader(qw422016 *qt422016.Writer) {
-	//line template/namespace/edit.qtpl:85
+	//line template/namespace/edit.qtpl:84
 	qw422016.N().S(` <a class="back" href="/u/`)
-	//line template/namespace/edit.qtpl:86
+	//line template/namespace/edit.qtpl:85
 	qw422016.E().S(p.Namespace.User.Username)
-	//line template/namespace/edit.qtpl:86
+	//line template/namespace/edit.qtpl:85
 	qw422016.N().S(`/`)
-	//line template/namespace/edit.qtpl:86
+	//line template/namespace/edit.qtpl:85
 	qw422016.E().S(p.Namespace.FullName)
-	//line template/namespace/edit.qtpl:86
+	//line template/namespace/edit.qtpl:85
 	qw422016.N().S(`"> `)
-	//line template/namespace/edit.qtpl:87
+	//line template/namespace/edit.qtpl:86
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <title>back</title>
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-	//line template/namespace/edit.qtpl:87
+	//line template/namespace/edit.qtpl:86
 	qw422016.N().S(` </a> `)
-	//line template/namespace/edit.qtpl:89
+	//line template/namespace/edit.qtpl:88
 	streamrenderFullName(qw422016, p.Namespace.User.Username, p.Namespace.FullName)
-	//line template/namespace/edit.qtpl:89
+	//line template/namespace/edit.qtpl:88
 	qw422016.N().S(` - Edit `)
-//line template/namespace/edit.qtpl:90
+//line template/namespace/edit.qtpl:89
 }
 
-//line template/namespace/edit.qtpl:90
+//line template/namespace/edit.qtpl:89
 func (p *EditPage) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/namespace/edit.qtpl:90
+	//line template/namespace/edit.qtpl:89
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/edit.qtpl:90
+	//line template/namespace/edit.qtpl:89
 	p.StreamHeader(qw422016)
-	//line template/namespace/edit.qtpl:90
+	//line template/namespace/edit.qtpl:89
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/edit.qtpl:90
+//line template/namespace/edit.qtpl:89
 }
 
-//line template/namespace/edit.qtpl:90
+//line template/namespace/edit.qtpl:89
 func (p *EditPage) Header() string {
-	//line template/namespace/edit.qtpl:90
+	//line template/namespace/edit.qtpl:89
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/edit.qtpl:90
+	//line template/namespace/edit.qtpl:89
 	p.WriteHeader(qb422016)
-	//line template/namespace/edit.qtpl:90
+	//line template/namespace/edit.qtpl:89
 	qs422016 := string(qb422016.B)
-	//line template/namespace/edit.qtpl:90
+	//line template/namespace/edit.qtpl:89
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/edit.qtpl:90
+	//line template/namespace/edit.qtpl:89
 	return qs422016
-//line template/namespace/edit.qtpl:90
+//line template/namespace/edit.qtpl:89
 }
 
-//line template/namespace/edit.qtpl:92
+//line template/namespace/edit.qtpl:91
 func (p *EditPage) StreamActions(qw422016 *qt422016.Writer) {
-//line template/namespace/edit.qtpl:92
+//line template/namespace/edit.qtpl:91
 }
 
-//line template/namespace/edit.qtpl:92
+//line template/namespace/edit.qtpl:91
 func (p *EditPage) WriteActions(qq422016 qtio422016.Writer) {
-	//line template/namespace/edit.qtpl:92
+	//line template/namespace/edit.qtpl:91
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/edit.qtpl:92
+	//line template/namespace/edit.qtpl:91
 	p.StreamActions(qw422016)
-	//line template/namespace/edit.qtpl:92
+	//line template/namespace/edit.qtpl:91
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/edit.qtpl:92
+//line template/namespace/edit.qtpl:91
 }
 
-//line template/namespace/edit.qtpl:92
+//line template/namespace/edit.qtpl:91
 func (p *EditPage) Actions() string {
+	//line template/namespace/edit.qtpl:91
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/namespace/edit.qtpl:91
+	p.WriteActions(qb422016)
+	//line template/namespace/edit.qtpl:91
+	qs422016 := string(qb422016.B)
+	//line template/namespace/edit.qtpl:91
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/namespace/edit.qtpl:91
+	return qs422016
+//line template/namespace/edit.qtpl:91
+}
+
+//line template/namespace/edit.qtpl:92
+func (p *EditPage) StreamNavigation(qw422016 *qt422016.Writer) {
+//line template/namespace/edit.qtpl:92
+}
+
+//line template/namespace/edit.qtpl:92
+func (p *EditPage) WriteNavigation(qq422016 qtio422016.Writer) {
+	//line template/namespace/edit.qtpl:92
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/namespace/edit.qtpl:92
+	p.StreamNavigation(qw422016)
+	//line template/namespace/edit.qtpl:92
+	qt422016.ReleaseWriter(qw422016)
+//line template/namespace/edit.qtpl:92
+}
+
+//line template/namespace/edit.qtpl:92
+func (p *EditPage) Navigation() string {
 	//line template/namespace/edit.qtpl:92
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line template/namespace/edit.qtpl:92
-	p.WriteActions(qb422016)
+	p.WriteNavigation(qb422016)
 	//line template/namespace/edit.qtpl:92
 	qs422016 := string(qb422016.B)
 	//line template/namespace/edit.qtpl:92
@@ -301,35 +332,4 @@ func (p *EditPage) Actions() string {
 	//line template/namespace/edit.qtpl:92
 	return qs422016
 //line template/namespace/edit.qtpl:92
-}
-
-//line template/namespace/edit.qtpl:93
-func (p *EditPage) StreamNavigation(qw422016 *qt422016.Writer) {
-//line template/namespace/edit.qtpl:93
-}
-
-//line template/namespace/edit.qtpl:93
-func (p *EditPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/namespace/edit.qtpl:93
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/edit.qtpl:93
-	p.StreamNavigation(qw422016)
-	//line template/namespace/edit.qtpl:93
-	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/edit.qtpl:93
-}
-
-//line template/namespace/edit.qtpl:93
-func (p *EditPage) Navigation() string {
-	//line template/namespace/edit.qtpl:93
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/edit.qtpl:93
-	p.WriteNavigation(qb422016)
-	//line template/namespace/edit.qtpl:93
-	qs422016 := string(qb422016.B)
-	//line template/namespace/edit.qtpl:93
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/edit.qtpl:93
-	return qs422016
-//line template/namespace/edit.qtpl:93
 }

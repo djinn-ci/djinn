@@ -28,56 +28,55 @@ Edit Namespace - Thrall
 		<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
 	{% endif %}
 	<div class="form-field">
-		<label class="label">Name</label>
+		<label class="label" for="name">Name</label>
 		{% if p.Form.Get("name") != "" %}
-			<input class="text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
+			<input class="form-text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
 		{% else %}
-			<input class="text" type="text" name="name" value="{%s p.Namespace.Name %}" autocomplete="off"/>
+			<input class="form-text" type="text" name="name" value="{%s p.Namespace.Name %}" autocomplete="off"/>
 		{% endif %}
-		<div class="error">{%s p.Errors.First("description") %}</div>
+		<div class="form-error">{%s p.Errors.First("description") %}</div>
 	</div>
 	<div class="form-field">
-		<label class="label">Description <small>(optional)</small></label>
+		<label class="label" for="name">Description <small>(optional)</small></label>
 		{% if p.Form.Get("description") != "" %}
-			<input class="text" type="text" name="description" value="{%s p.Form.Get("description") %}" autocomplete="off"/>
+			<input class="form-text" type="text" name="description" value="{%s p.Form.Get("description") %}" autocomplete="off"/>
 		{% else %}
-			<input class="text" type="text" name="description" value="{%s p.Namespace.Description %}" autocomplete="off"/>
+			<input class="form-text" type="text" name="description" value="{%s p.Namespace.Description %}" autocomplete="off"/>
 		{% endif %}
-		<div class="error">{%s p.Errors.First("description") %}</div>
+		<div class="form-error">{%s p.Errors.First("description") %}</div>
 	</div>
 	<div class="form-field">
-		<label class="option">
-			<input class="selector" type="radio" name="visibility" value="private" {% if p.Namespace.Visibility == model.Private %}checked="true"{% endif %}/>
+		<label class="form-option">
+			<input class="form-selector" type="radio" name="visibility" value="private" {% if p.Namespace.Visibility == model.Private %}checked="true"{% endif %}/>
 			<strong>Private</strong>
 			{% cat "../../svgs/lock.svg" %}
-			<div class="description">You choose who can view builds in the namespace.</div>
+			<div class="form-desc">You choose who can view builds in the namespace.</div>
 		</label>
-		<label class="option">
-			<input class="selector" type="radio" name="visibility" value="internal" {% if p.Namespace.Visibility == model.Internal %}checked="true"{% endif %}/>
+		<label class="form-option">
+			<input class="form-selector" type="radio" name="visibility" value="internal" {% if p.Namespace.Visibility == model.Internal %}checked="true"{% endif %}/>
 			<strong>Internal</strong>
 			{% cat "../../svgs/security.svg" %}
-			<div class="description">Anyone with an account will be able to view builds in the namespace.</div>
+			<div class="form-desc">Anyone with an account will be able to view builds in the namespace.</div>
 		</label>
-		<label class="option">
-			<input class="selector" type="radio" name="visibility" value="public" {% if p.Namespace.Visibility == model.Public %}checked="true"{% endif %}/>
+		<label class="form-option">
+			<input class="form-selector" type="radio" name="visibility" value="public" {% if p.Namespace.Visibility == model.Public %}checked="true"{% endif %}/>
 			<strong>Public</strong>
 			{% cat "../../svgs/public.svg" %}
-			<div class="description">Anyone will be able to view builds in the namespace.</div>
+			<div class="form-desc">Anyone will be able to view builds in the namespace.</div>
 		</label>
 	</div>
 	<div class="form-field">
-		<button type="submit" class="button button-primary">Save</button>
+		<button type="submit" class="btn btn-primary">Save</button>
 	</div>
 </form>
 <div class="slim separator"></div>
 <form class="slim" method="POST" action="{%s p.Namespace.URI ()%}">
 	<input type="hidden" name="_method" value="DELETE"/>
-	<div class="form-field">
-		<button type="submit" class="right button button-danger">Delete</button>
-		<div>
-			<strong>Delete Namespace</strong><br/>
-			Builds within the namespace will not be deleted.
+	<div class="overflow">
+		<div class="align-right">
+			<button type="submit" class="btn btn-danger">Delete</button>
 		</div>
+		<strong>Delete Namespace</strong><br/><p>Builds within the namespace will not be deleted.</p>
 	</div>
 </form>
 {% endfunc %}

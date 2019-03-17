@@ -1,30 +1,27 @@
 {% import "github.com/andrewpillar/thrall/model" %}
 
 {% collapsespace %}
-{% func renderNamespaces(namespaces []*model.Namespace, uri, search string) %}
-{% if len(namespaces) == 0 %}
-	{% if search == "" %}
-		<div class="message">Namespaces allow you to group related builds together.</div>
-	{% else %}
-		<form class="search">
-			<div class="form-field">
-				<input type="text" class="text" name="search" placeholder="Find a namespace..." autocomplete="off" value="{%s search %}"/>
-				{% if search != "" %}
-					<a href="{%s uri %}">{% cat "../../svgs/close.svg" %}Clear search</a>
-				{% endif %}
-			</div>
-		</form>
-		<div class="message">No results found.</div>
-	{% endif %}
-{% else %}
-<form class="search">
+{% func renderSearch(uri, search string) %}
+<form class="mb-10">
 	<div class="form-field">
-		<input type="text" class="text" name="search" placeholder="Find a namespace..." autocomplete="off" value="{%s search %}"/>
+		<input type="text" class="form-text w-250" name="search" placeholder="Find a namespace..." autocomplete="off" value="{%s search %}"/>
 		{% if search != "" %}
-			<a href="{%s uri %}">{% cat "../../svgs/close.svg" %}Clear search</a>
+			<a class="muted" href="{%s uri %}"><span class="icon-inline">{% cat "../../svgs/close.svg" %}</span>Clear search</a>
 		{% endif %}
 	</div>
 </form>
+{% endfunc %}
+
+{% func renderNamespaces(namespaces []*model.Namespace, uri, search string) %}
+{% if len(namespaces) == 0 %}
+	{% if search == "" %}
+		<div class="message muted">Namespaces allow you to group related builds together.</div>
+	{% else %}
+		{%= renderSearch(uri, search) %}
+		<div class="message muted">No results found.</div>
+	{% endif %}
+{% else %}
+{%= renderSearch(uri, search) %}
 <table class="table">
 	<tr>
 		<th>Name</th>
@@ -33,9 +30,18 @@
 	</tr>
 	{% for _, n := range namespaces %}
 		<tr>
-			<td><a href="{%s n.URI() %}">{%s n.FullName %}</a><div class="info">{% if n.Description == "" %}<em>No description</em>{% else %}{%s n.Description %}{% endif %}</div></td>
+			<td>
+				<a href="{%s n.URI() %}">{%s n.FullName %}</a>
+				<div class="muted">
+					{% if n.Description == "" %}
+						<em>No description</em>
+					{% else %}
+						{%s n.Description %}
+					{% endif %}
+				</div>
+			</td>
 			<td>--</td>
-			<td class="icon align-right">
+			<td class="icon-inline align-right muted">
 				{% switch n.Visibility %}
 					{% case model.Private %}
 						{% cat "../../svgs/lock.svg" %}

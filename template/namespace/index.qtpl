@@ -29,7 +29,7 @@ Namespaces
 {% endfunc %}
 
 {% func (p *IndexPage) Actions() %}
-<li><a href="/namespaces/create" class="button button-primary">Create</a></li>
+<li><a href="/namespaces/create" class="btn btn-primary">Create</a></li>
 {% endfunc %}
 
 {% func (p *IndexPage) Navigation() %}{% endfunc %}

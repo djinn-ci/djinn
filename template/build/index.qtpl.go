@@ -168,31 +168,37 @@ func (p *IndexPage) Actions() string {
 
 //line template/build/index.qtpl:33
 func (p *IndexPage) StreamNavigation(qw422016 *qt422016.Writer) {
-//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:33
+	qw422016.N().S(` `)
+	//line template/build/index.qtpl:34
+	qw422016.N().S(`<ul class="tabs"><li><a href="" class="active">All</a></li><li><a href="?status=queued">Queued</a></li><li><a href="?status=running">Running</a></li><li><a href="?status=passed">Passed</a></li><li><a href="?status=failed">Failed</a></li></ul>`)
+	//line template/build/index.qtpl:42
+	qw422016.N().S(` `)
+//line template/build/index.qtpl:43
 }
 
-//line template/build/index.qtpl:33
+//line template/build/index.qtpl:43
 func (p *IndexPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:43
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:43
 	p.StreamNavigation(qw422016)
-	//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:43
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/index.qtpl:33
+//line template/build/index.qtpl:43
 }
 
-//line template/build/index.qtpl:33
+//line template/build/index.qtpl:43
 func (p *IndexPage) Navigation() string {
-	//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:43
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:43
 	p.WriteNavigation(qb422016)
-	//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:43
 	qs422016 := string(qb422016.B)
-	//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:43
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/index.qtpl:33
+	//line template/build/index.qtpl:43
 	return qs422016
-//line template/build/index.qtpl:33
+//line template/build/index.qtpl:43
 }

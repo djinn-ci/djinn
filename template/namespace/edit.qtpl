@@ -84,7 +84,7 @@ Edit Namespace - Thrall
 
 {% func (p *EditPage) Header() %}
 <a class="back" href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
-	{% cat "../../svgs/arrow_back.svg" %}
+	{% cat "../../svgs/back.svg" %}
 </a>
 {%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit
 {% endfunc %}

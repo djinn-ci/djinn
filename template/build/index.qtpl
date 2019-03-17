@@ -30,5 +30,15 @@ Builds
 <li><a href="/builds/create" class="button button-primary">Submit</a></li>
 {% endfunc %}
 
-{% func (p *IndexPage) Navigation() %}{% endfunc %}
+{% func (p *IndexPage) Navigation() %}
+{% stripspace %}
+<ul class="tabs">
+	<li><a href="" class="active">All</a></li>
+	<li><a href="?status=queued">Queued</a></li>
+	<li><a href="?status=running">Running</a></li>
+	<li><a href="?status=passed">Passed</a></li>
+	<li><a href="?status=failed">Failed</a></li>
+</ul>
+{% endstripspace %}
+{% endfunc %}
 {% endcollapsespace %}

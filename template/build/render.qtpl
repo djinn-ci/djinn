@@ -7,25 +7,25 @@
 {% else %}
 <table class="table">
 	<tr>
-		<th>Build</th>
 		<th>Status</th>
+		<th>Build</th>
 		<th>Namespace</th>
 		<th></th>
 		<th></th>
 	</tr>
 	{% for _, b := range builds %}
 		<tr>
-			<td><a href="{%s b.URI() %}">#{%v b.ID %}</a></td>
 			{% switch b.Status %}
 				{% case model.Queued %}
-					<td><span class="badge">queued</span></td>
+					<td><span class="build-status build-queued">queued</span></td>
 				{% case model.Running %}
-					<td><span class="badge">running</span></td>
-				{% case model.Successful %}
-					<td><span class="badge">successful</span></td>
+					<td><span class="build-status build-running">running</span></td>
+				{% case model.Passed %}
+					<td><span class="build-status build-passed">passed</span></td>
 				{% case model.Failed %}
-					<td><span class="badge">failed</span></td>
+					<td><span class="build-status build-failed">failed</span></td>
 			{% endswitch %}
+			<td><a href="{%s b.URI() %}">#{%v b.ID %}</a></td>
 			<td>
 				{% if b.Namespace != nil %}
 					<a href="{%s b.Namespace.URI() %}">{%s b.Namespace.FullName %}</a>
@@ -35,7 +35,7 @@
 			</td>
 			<td class="align-right">
 				{% for _, t := range b.Tags %}
-					<a class="badge" href="?tag={%s t.Name %}">{%s t.Name %}</a>
+					<a class="build-tag" href="?tag={%s t.Name %}">{%s t.Name %}</a>
 				{% endfor %}
 			</td>
 			<td class="align-right">

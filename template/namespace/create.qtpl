@@ -67,10 +67,10 @@ Create Namespace - Thrall
 
 {% func (p *CreatePage) Header() %}
 {% if p.Parent != nil && !p.Parent.IsZero() %}
-	<a class="back" href="{%s p.Parent.URI() %}">{% cat "../../svgs/arrow_back.svg" %}</a>
+	<a class="back" href="{%s p.Parent.URI() %}">{% cat "../../svgs/back.svg" %}</a>
 	{%= renderFullName(p.Parent.User.Username, p.Parent.FullName) %} - Create Sub-namespace<br/>
 {% else %}
-	<a class="back" href="/namespaces">{% cat "../../svgs/arrow_back.svg" %}</a>
+	<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
 	Create Namespace<br/>
 {% endif %}
 {% endfunc %}

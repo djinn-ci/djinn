@@ -45,9 +45,9 @@ type ShowNamespacesPage struct {
 
 {% func (p *ShowPage) Header() %}
 {% if p.Namespace.Parent != nil %}
-	<a class="back" href="{%s p.Namespace.Parent.URI() %}">{% cat "../../svgs/arrow_back.svg" %}</a>
+	<a class="back" href="{%s p.Namespace.Parent.URI() %}">{%cat "../../svgs/back.svg" %}</a>
 {% else %}
-	<a class="back" href="/namespaces">{% cat "../../svgs/arrow_back.svg" %}</a>
+	<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
 {% endif %}
 {%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}<br/>
 <small>{%s p.Namespace.Description %}</small>
@@ -59,10 +59,12 @@ type ShowNamespacesPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Navigation() %}
-<ul>
+{% stripspace %}
+<ul class="tabs">
 	<li>{%= template.RenderLink(p.Namespace.URI(), p.URI) %}Builds</a></li>
 	<li>{%= template.RenderLink(p.Namespace.URI() + "/-/namespaces", p.URI) %}Namespaces</a></li>
 </ul>
+{% endstripspace %}
 {% endfunc %}
 
 {% func (p *ShowNamespacesPage) Body() %}

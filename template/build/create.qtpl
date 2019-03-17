@@ -44,7 +44,7 @@ Submit Build - Thrall
 {% endfunc %}
 
 {% func (p *CreatePage) Header() %}
-<a href="/" class="back">{% cat "../../svgs/arrow_back.svg" %}</a> Submit Build
+<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Submit Build
 {% endfunc %}
 
 {% func (p *CreatePage) Actions() %}{% endfunc %}

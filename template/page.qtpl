@@ -38,6 +38,7 @@ type Page struct {
 </html>
 {% endfunc %}
 
+{% stripspace %}
 {% func RenderLink(href, uri string, classes ...string) %}
 <a href="{%s href %}" class="{% if href == uri %}active{% endif %} {%s strings.Join(classes, " ") %}">
 {% endfunc %}
@@ -45,6 +46,7 @@ type Page struct {
 {% func RenderLinkPattern(href, pattern, uri string, classes ...string) %}
 <a href="{%s href %}" class="{% if matched, _ := regexp.Match(pattern, []byte(uri)); matched %}active{% endif %}">
 {% endfunc %}
+{% endstripspace %}
 {% endcollapsespace %}
 
 {% func (p *Page) Title() %}

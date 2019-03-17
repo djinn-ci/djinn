@@ -32,7 +32,5 @@ Namespaces
 <li><a href="/namespaces/create" class="button button-primary">Create</a></li>
 {% endfunc %}
 
-{% func (p *IndexPage) Navigation() %}
-
-{% endfunc %}
+{% func (p *IndexPage) Navigation() %}{% endfunc %}
 {% endcollapsespace %}

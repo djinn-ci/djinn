@@ -38,7 +38,15 @@ func (h Page) Home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	builds, err := u.Builds()
+	var builds []*model.Build
+
+	status := r.URL.Query().Get("status")
+
+	if status != "" {
+		builds, err = u.BuildsByStatus(status)
+	} else {
+		builds, err = u.Builds()
+	}
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

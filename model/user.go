@@ -90,6 +90,26 @@ func FindUserByUsername(username string) (*User, error) {
 	return u, nil
 }
 
+func (u *User) BuildsByStatus(status string) ([]*Build, error) {
+	builds := make([]*Build, 0)
+
+	err := DB.Select(&builds, `
+		SELECT * FROM builds
+		WHERE user_id = $1 AND status = $2
+		ORDER BY created_at DESC
+	`, u.ID, status)
+
+	if err != nil {
+		return builds, errors.Err(err)
+	}
+
+	for _, b := range builds {
+		b.User = u
+	}
+
+	return builds, nil
+}
+
 func (u *User) Builds() ([]*Build, error) {
 	builds := make([]*Build, 0)
 

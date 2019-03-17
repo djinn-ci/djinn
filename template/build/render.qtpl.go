@@ -27,7 +27,7 @@ func StreamRenderBuilds(qw422016 *qt422016.Writer, builds []*model.Build) {
 	//line template/build/render.qtpl:5
 	if len(builds) == 0 {
 		//line template/build/render.qtpl:5
-		qw422016.N().S(` <div class="message">No builds have been submitted yet.</div> `)
+		qw422016.N().S(` <div class="message muted">No builds have been submitted yet.</div> `)
 		//line template/build/render.qtpl:7
 	} else {
 		//line template/build/render.qtpl:7

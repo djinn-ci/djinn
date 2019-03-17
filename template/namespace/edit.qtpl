@@ -72,8 +72,8 @@ Edit Namespace - Thrall
 <div class="slim separator"></div>
 <form class="slim" method="POST" action="{%s p.Namespace.URI ()%}">
 	<input type="hidden" name="_method" value="DELETE"/>
-	<div class="overflow">
-		<div class="align-right">
+	<div class="form-row">
+		<div class="action">
 			<button type="submit" class="btn btn-danger">Delete</button>
 		</div>
 		<strong>Delete Namespace</strong><br/><p>Builds within the namespace will not be deleted.</p>

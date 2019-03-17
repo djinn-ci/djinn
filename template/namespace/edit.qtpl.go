@@ -188,7 +188,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:73
 	qw422016.E().S(p.Namespace.URI())
 	//line template/namespace/edit.qtpl:73
-	qw422016.N().S(`"> <input type="hidden" name="_method" value="DELETE"/> <div class="overflow"> <div class="align-right"> <button type="submit" class="btn btn-danger">Delete</button> </div> <strong>Delete Namespace</strong><br/><p>Builds within the namespace will not be deleted.</p> </div> </form> `)
+	qw422016.N().S(`"> <input type="hidden" name="_method" value="DELETE"/> <div class="form-row"> <div class="action"> <button type="submit" class="btn btn-danger">Delete</button> </div> <strong>Delete Namespace</strong><br/><p>Builds within the namespace will not be deleted.</p> </div> </form> `)
 //line template/namespace/edit.qtpl:82
 }
 

@@ -3,6 +3,7 @@ package web
 import (
 	"database/sql"
 	"net/http"
+	"path/filepath"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -172,26 +173,40 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "PATCH" {
-		h.Update(w, r)
-		return
-	}
-
-	if r.Method == "DELETE" {
-		h.Destroy(w, r)
-		return
-	}
-
 	u, n, err := h.getUserAndNamespace(r)
 
-	if u.IsZero() {
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if u.IsZero() || n.IsZero() {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
-	if n.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
+	auth, err := h.UserFromRequest(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
+	}
+
+	switch n.Visibility {
+		case model.Private:
+			if n.UserID != auth.ID {
+				HTMLError(w, "Not found", http.StatusNotFound)
+				return
+			}
+		case model.Internal:
+			if auth.IsZero() {
+				HTMLError(w, "Not found", http.StatusNotFound)
+				return
+			}
+		case model.Public:
+			break
 	}
 
 	n.User = u
@@ -204,6 +219,40 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	if n.Parent != nil {
 		n.Parent.User = u
+	}
+
+	if filepath.Base(r.URL.Path) == "namespaces" {
+		var namespaces []*model.Namespace
+
+		search := r.URL.Query().Get("search")
+
+		if search != "" {
+			namespaces, err = n.NamespacesLike(search)
+		} else {
+			namespaces, err = n.Namespaces()
+		}
+
+		if err := model.LoadNamespaceRelations(namespaces); err != nil {
+			log.Error.Println(errors.Err(err))
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p := &namespace.ShowNamespacesPage{
+			ShowPage: &namespace.ShowPage{
+				Page:      &template.Page{
+					URI: r.URL.Path,
+				},
+				Namespace: n,
+			},
+			Namespaces: namespaces,
+			Search:     search,
+		}
+
+		d := template.NewDashboard(p, r.URL.Path)
+
+		HTML(w, template.Render(d), http.StatusOK)
+		return
 	}
 
 	builds, err := n.Builds()
@@ -233,70 +282,15 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	HTML(w, template.Render(d), http.StatusOK)
 }
 
-func (h Namespace) ShowNamespaces(w http.ResponseWriter, r *http.Request) {
-	u, n, err := h.getUserAndNamespace(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if u.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	if n.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	n.User = u
-
-	if err := n.LoadParents(); err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if n.Parent != nil {
-		n.Parent.User = u
-	}
-
-	var namespaces []*model.Namespace
-
-	search := r.URL.Query().Get("search")
-
-	if search != "" {
-		namespaces, err = n.NamespacesLike(search)
-	} else {
-		namespaces, err = n.Namespaces()
-	}
-
-	if err := model.LoadNamespaceRelations(namespaces); err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	p := &namespace.ShowNamespacesPage{
-		ShowPage: &namespace.ShowPage{
-			Page:      &template.Page{
-				URI: r.URL.Path,
-			},
-			Namespace: n,
-		},
-		Namespaces: namespaces,
-		Search:     search,
-	}
-
-	d := template.NewDashboard(p, r.URL.Path)
-
-	HTML(w, template.Render(d), http.StatusOK)
-}
-
 func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
+	auth, err := h.UserFromRequest(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	u, n, err := h.getUserAndNamespace(r)
 
 	if err != nil {
@@ -305,12 +299,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if u.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	if n.IsZero() {
+	if u.IsZero() || n.IsZero() || u.ID != auth.ID {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -333,6 +322,14 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
+	auth, err := h.UserFromRequest(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	u, n, err := h.getUserAndNamespace(r)
 
 	if err != nil {
@@ -341,12 +338,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if u.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	if n.IsZero() {
+	if u.IsZero() || n.IsZero() || u.ID != auth.ID {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -374,6 +366,14 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
+	auth, err := h.UserFromRequest(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	u, n, err := h.getUserAndNamespace(r)
 
 	if err != nil {
@@ -382,12 +382,7 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if u.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	if n.IsZero() {
+	if u.IsZero() || n.IsZero() || u.ID != auth.ID {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}

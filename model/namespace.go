@@ -110,6 +110,18 @@ func (n *Namespace) Create() error {
 }
 
 func (n *Namespace) Destroy() error {
+	namespaces, err := n.Namespaces()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, child := range namespaces {
+		if err := child.Destroy(); err != nil {
+			return errors.Err(err)
+		}
+	}
+
 	stmt, err := DB.Prepare(`DELETE FROM namespaces WHERE id = $1`)
 
 	if err != nil {

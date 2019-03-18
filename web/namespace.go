@@ -225,6 +225,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		n.Parent.User = n.User
 	}
 
+	p := &namespace.ShowPage{
+		Page: &template.Page{
+			URI: r.URL.Path,
+		},
+		Namespace: n,
+	}
+
 	if filepath.Base(r.URL.Path) == "namespaces" {
 		var namespaces []*model.Namespace
 
@@ -242,18 +249,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		p := &namespace.ShowNamespacesPage{
-			ShowPage: &namespace.ShowPage{
-				Page:      &template.Page{
-					URI: r.URL.Path,
-				},
-				Namespace: n,
-			},
+		np := &namespace.ShowNamespacesPage{
+			ShowPage:   p,
 			Namespaces: namespaces,
 			Search:     search,
 		}
 
-		d := template.NewDashboard(p, r.URL.Path)
+		d := template.NewDashboard(np, r.URL.Path)
 
 		HTML(w, template.Render(d), http.StatusOK)
 		return
@@ -273,13 +275,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := &namespace.ShowPage{
-		Page:      &template.Page{
-			URI: r.URL.Path,
-		},
-		Namespace: n,
-		Builds:    builds,
-	}
+	p.Builds = builds
 
 	d := template.NewDashboard(p, r.URL.Path)
 

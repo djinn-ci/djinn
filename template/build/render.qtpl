@@ -17,13 +17,13 @@
 		<tr>
 			{% switch b.Status %}
 				{% case model.Queued %}
-					<td><span class="build-status build-queued">queued</span></td>
+					<td><span class="build-status build-queued">{% cat "../../svgs/hourglass.svg" %} Queued</span></td>
 				{% case model.Running %}
-					<td><span class="build-status build-running">running</span></td>
+					<td><span class="build-status build-running">{% cat "../../svgs/timer.svg" %} Running</span></td>
 				{% case model.Passed %}
-					<td><span class="build-status build-passed">passed</span></td>
+					<td><span class="build-status build-passed">{% cat "../../svgs/check.svg" %} Passed</span></td>
 				{% case model.Failed %}
-					<td><span class="build-status build-failed">failed</span></td>
+					<td><span class="build-status build-failed">{% cat "../../svgs/close.svg" %} Failed</span></td>
 			{% endswitch %}
 			<td><a href="{%s b.URI() %}">#{%v b.ID %}</a></td>
 			<td>

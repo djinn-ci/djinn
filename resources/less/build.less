@@ -4,12 +4,19 @@
 }
 .build-status {
 	display: inline-block;
-	padding: 5px;
+	width: 90px;
+	text-align: center;
 	border-radius: 3px;
 	color: #fff;
+
+	svg {
+		fill: #fff;
+		width: 15px;
+		vertical-align: middle;
+	}
 }
 .build-queued {
-	background: rgba(0, 0, 0, 0.5);
+	background: @blue-gray;
 }
 .build-running {
 	background: @orange;

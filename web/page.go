@@ -61,7 +61,11 @@ func (h Page) Home(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &build.IndexPage{
+		Page: &template.Page{
+			URI: r.URL.Path,
+		},
 		Builds: builds,
+		Status: status,
 	}
 
 	d := template.NewDashboard(p, r.URL.Path)

@@ -10,6 +10,7 @@ type IndexPage struct {
 	*template.Page
 
 	Builds []*model.Build
+	Status string
 }
 %}
 
@@ -33,11 +34,11 @@ Builds
 {% func (p *IndexPage) Navigation() %}
 {% stripspace %}
 <ul class="nav">
-	<li><a href="" class="active"><span class="icon-inline">{% cat "../../svgs/build.svg" %}</span>All</a></li>
-	<li><a href="?status=queued"><span class="icon-inline">{% cat "../../svgs/hourglass.svg" %}</span>Queued</a></li>
-	<li><a href="?status=running"><span class="icon-inline">{% cat "../../svgs/timer.svg" %}</span>Running</a></li>
-	<li><a href="?status=passed"><span class="icon-inline">{% cat "../../svgs/check.svg" %}</span>Passed</a></li>
-	<li><a href="?status=failed"><span class="icon-inline">{% cat "../../svgs/close.svg" %}</span>Failed</a></li>
+	<li><a href="{%s p.URI %}" {% if p.Status == "" %}class="active"{% endif %}><span class="icon-inline">{% cat "../../svgs/build.svg" %}</span>All</a></li>
+	<li><a href="?status=queued" {% if p.Status == "queued" %}class="active"{% endif %}><span class="icon-inline">{% cat "../../svgs/hourglass.svg" %}</span>Queued</a></li>
+	<li><a href="?status=running" {% if p.Status == "running" %}class="active"{% endif %}><span class="icon-inline">{% cat "../../svgs/timer.svg" %}</span>Running</a></li>
+	<li><a href="?status=passed" {% if p.Status == "passed" %}class="active"{% endif %}><span class="icon-inline">{% cat "../../svgs/check.svg" %}</span>Passed</a></li>
+	<li><a href="?status=failed" {% if p.Status == "failed" %}class="active"{% endif %}><span class="icon-inline">{% cat "../../svgs/close.svg" %}</span>Failed</a></li>
 </ul>
 {% endstripspace %}
 {% endfunc %}

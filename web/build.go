@@ -3,6 +3,7 @@ package web
 import (
 	"database/sql"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -135,6 +136,17 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			URI: r.URL.Path,
 		},
 		Build: b,
+	}
+
+	if filepath.Base(r.URL.Path) == "manifest" {
+		mp := &build.ShowManifestPage{
+			ShowPage: p,
+		}
+
+		d := template.NewDashboard(mp, r.URL.Path)
+
+		HTML(w, template.Render(d), http.StatusOK)
+		return
 	}
 
 	d := template.NewDashboard(p, r.URL.Path)

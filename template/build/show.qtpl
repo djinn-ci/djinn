@@ -11,6 +11,10 @@ type ShowPage struct {
 
 	Build *model.Build
 }
+
+type ShowManifestPage struct {
+	*ShowPage
+}
 %}
 
 {% collapsespace %}
@@ -35,5 +39,11 @@ Build #{%v p.Build.ID %} - Thrall
 	<li>{%= template.RenderLink(p.Build.URI() + "/manifest", p.URI) %}Manifest</a></li>
 </ul>
 {% endstripspace %}
+{% endfunc %}
+
+{% func (p *ShowManifestPage) Body() %}
+<div class="build-manifest">
+	<pre>{%s p.Build.Manifest %}</pre>
+</div>
 {% endfunc %}
 {% endcollapsespace %}

@@ -110,6 +110,28 @@ func (u *User) BuildsByStatus(status string) ([]*Build, error) {
 	return builds, nil
 }
 
+func (u *User) BuildsByTag(tag string) ([]*Build, error) {
+	builds := make([]*Build, 0)
+
+	err := DB.Select(`
+		SELECT * FROM builds
+		WHERE user_id = $1 AND id in (
+			SELECT build_id FROM build_tags
+			WHERE name = $2
+		) ORDER BY created_at ASC
+	`, u.ID, tag)
+
+	if err != nil {
+		return builds, errors.Err(err)
+	}
+
+	for _, b := range builds {
+		b.User = u
+	}
+
+	return builds, nil
+}
+
 func (u *User) Builds() ([]*Build, error) {
 	builds := make([]*Build, 0)
 

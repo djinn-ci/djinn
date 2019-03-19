@@ -113,7 +113,7 @@ func (u *User) BuildsByStatus(status string) ([]*Build, error) {
 func (u *User) BuildsByTag(tag string) ([]*Build, error) {
 	builds := make([]*Build, 0)
 
-	err := DB.Select(`
+	err := DB.Select(&builds, `
 		SELECT * FROM builds
 		WHERE user_id = $1 AND id in (
 			SELECT build_id FROM build_tags

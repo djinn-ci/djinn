@@ -51,7 +51,7 @@ Login - Thrall
 				<label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label>
 			</div>
 			<div class="input-field">
-				<button type="submit" class="button button-primary">Login</button>
+				<button type="submit" class="btn btn-primary">Login</button>
 			</div>
 			<div class="input-field">Don't have an account? <a href="/register">Register</a></div>
 		</form>

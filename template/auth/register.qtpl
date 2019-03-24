@@ -58,7 +58,7 @@ Register - Thrall
 				<span class="error">{%s p.Errors.First("verify_password") %}</span>
 			</div>
 			<div class="input-field">
-				<button type="submit" class="button button-primary">Register</button>
+				<button type="submit" class="btn btn-primary">Register</button>
 			</div>
 			<div class="input-field">Already have an account? <a href="/login">Login</a></div>
 		</form>

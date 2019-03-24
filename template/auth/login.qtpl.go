@@ -128,7 +128,7 @@ func (p *LoginPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/auth/login.qtpl:48
 	qw422016.E().S(p.Errors.First("password"))
 	//line template/auth/login.qtpl:48
-	qw422016.N().S(`</span> </div> <div class="input-field"> <label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label> </div> <div class="input-field"> <button type="submit" class="button button-primary">Login</button> </div> <div class="input-field">Don't have an account? <a href="/register">Register</a></div> </form> </div> </div> `)
+	qw422016.N().S(`</span> </div> <div class="input-field"> <label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label> </div> <div class="input-field"> <button type="submit" class="btn btn-primary">Login</button> </div> <div class="input-field">Don't have an account? <a href="/register">Register</a></div> </form> </div> </div> `)
 //line template/auth/login.qtpl:60
 }
 

@@ -140,7 +140,7 @@ func (p *RegisterPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/auth/register.qtpl:58
 	qw422016.E().S(p.Errors.First("verify_password"))
 	//line template/auth/register.qtpl:58
-	qw422016.N().S(`</span> </div> <div class="input-field"> <button type="submit" class="button button-primary">Register</button> </div> <div class="input-field">Already have an account? <a href="/login">Login</a></div> </form> </div> </div> `)
+	qw422016.N().S(`</span> </div> <div class="input-field"> <button type="submit" class="btn btn-primary">Register</button> </div> <div class="input-field">Already have an account? <a href="/login">Login</a></div> </form> </div> </div> `)
 //line template/auth/register.qtpl:67
 }
 

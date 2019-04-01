@@ -2,6 +2,8 @@ package web
 
 import (
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
@@ -23,9 +25,22 @@ func (h Page) Home(w http.ResponseWriter, r *http.Request) {
 	u, err := h.userFromRequest(r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
+		cause := errors.Cause(err)
+
+		if strings.Contains(cause.Error(), "expired timestamp") {
+			cookie := &http.Cookie{
+				Name:     "user",
+				HttpOnly: true,
+				Path:     "/",
+				Expires:  time.Unix(0, 0),
+			}
+
+			http.SetCookie(w, cookie)
+		} else {
+			log.Error.Println(errors.Err(err))
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if u.IsZero() {

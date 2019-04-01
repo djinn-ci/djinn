@@ -1,6 +1,3 @@
--- mgrt: revision: 1550356067: Create users table
--- mgrt: up
-
 CREATE TABLE users (
 	id         SERIAL PRIMARY KEY,
 	email      CHAR(254) NOT NULL UNIQUE,
@@ -10,7 +7,3 @@ CREATE TABLE users (
 	updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	deleted_at TIMESTAMP NULL
 );
-
--- mgrt: down
-
-DROP TABLE users;

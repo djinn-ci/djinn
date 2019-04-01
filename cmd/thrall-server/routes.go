@@ -65,4 +65,5 @@ func buildRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/builds", mw.Auth(build.Store)).Methods("POST")
 	r.HandleFunc("/builds/{build}", mw.Auth(build.Show)).Methods("GET")
 	r.HandleFunc("/builds/{build}/manifest", mw.Auth(build.Show)).Methods("GET")
+	r.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.Show)).Methods("GET")
 }

@@ -149,6 +149,11 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if filepath.Base(r.URL.Path) == "raw" {
+		Text(w, b.Manifest, http.StatusOK)
+		return
+	}
+
 	d := template.NewDashboard(p, r.URL.Path)
 
 	HTML(w, template.Render(d), http.StatusOK)

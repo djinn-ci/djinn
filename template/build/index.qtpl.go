@@ -69,7 +69,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/index.qtpl:22
 	qw422016.N().S(` `)
 	//line template/build/index.qtpl:23
-	StreamRenderBuilds(qw422016, p.Builds)
+	StreamRenderBuilds(qw422016, p.Builds, p.Status)
 	//line template/build/index.qtpl:23
 	qw422016.N().S(` `)
 //line template/build/index.qtpl:24

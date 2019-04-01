@@ -149,7 +149,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:42
 	qw422016.N().S(` `)
 	//line template/namespace/show.qtpl:43
-	build.StreamRenderBuilds(qw422016, p.Builds)
+	build.StreamRenderBuilds(qw422016, p.Builds, "")
 	//line template/namespace/show.qtpl:43
 	qw422016.N().S(` `)
 //line template/namespace/show.qtpl:44

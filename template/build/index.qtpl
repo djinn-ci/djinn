@@ -20,7 +20,7 @@ Builds - Thrall
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-{%= RenderBuilds(p.Builds) %}
+{%= RenderBuilds(p.Builds, p.Status) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

@@ -1,9 +1,15 @@
 {% import "github.com/andrewpillar/thrall/model" %}
 
 {% collapsespace %}
-{% func RenderBuilds(builds []*model.Build) %}
+{% func RenderBuilds(builds []*model.Build, status string) %}
 {% if len(builds) == 0 %}
-<div class="message muted">No builds have been submitted yet.</div>
+	<div class="message muted">
+	{% if status == "" %}
+		No builds have been submitted yet.
+	{% else %}
+		No {%s status %} builds.
+	{% endif %}
+	</div>
 {% else %}
 <table class="table">
 	<tr>

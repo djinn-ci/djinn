@@ -127,3 +127,15 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, cookie)
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
+
+func (h Auth) Logout(w http.ResponseWriter, r *http.Request) {
+	cookie := &http.Cookie{
+		Name:     "user",
+		HttpOnly: true,
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+	}
+
+	http.SetCookie(w, cookie)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}

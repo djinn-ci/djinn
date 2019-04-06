@@ -33,6 +33,7 @@ func registerWebRoutes(h web.Handler, dir string) *mux.Router {
 
 	r.HandleFunc("/register", mw.Guest(auth.Register)).Methods("GET", "POST")
 	r.HandleFunc("/login", mw.Guest(auth.Login)).Methods("GET", "POST")
+	r.HandleFunc("/logout", mw.Auth(auth.Logout)).Methods("POST")
 
 	namespaceRoutes(r, h, mw)
 	buildRoutes(r, h, mw)

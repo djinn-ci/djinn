@@ -51,12 +51,14 @@ type Page struct {
 	{% code
 		lines := strings.Split(code, "\n")
 	%}
+	<code><span class="line-number"></span><span></span></code>
 	{% for i, l := range lines %}
 		<code id="line-{%v i + 1 %}">
-			<a href="#line-{%v i + 1 %}">{%v i + 1 %}</a>
+			<a class="line-number" href="#line-{%v i + 1 %}">{%v i + 1 %}</a>
 			<span>{%s l %}</span>
 		</code>
 	{% endfor %}
+	<code><span class="line-number"></span><span></span></code>
 {% endfunc %}
 {% endstripspace %}
 

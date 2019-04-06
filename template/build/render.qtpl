@@ -1,58 +1,82 @@
 {% import "github.com/andrewpillar/thrall/model" %}
 
 {% collapsespace %}
-{% func RenderBuilds(builds []*model.Build, status string) %}
-{% if len(builds) == 0 %}
-	<div class="message muted">
-	{% if status == "" %}
-		No builds have been submitted yet.
-	{% else %}
-		No {%s status %} builds.
-	{% endif %}
-	</div>
-{% else %}
-<table class="table">
-	<tr>
-		<th>Status</th>
-		<th>Build</th>
-		<th>Namespace</th>
-		<th></th>
-		<th></th>
-	</tr>
-	{% for _, b := range builds %}
-		<tr>
-			{% switch b.Status %}
-				{% case model.Queued %}
-					<td><span class="build-status build-queued">{% cat "../../svgs/hourglass.svg" %} Queued</span></td>
-				{% case model.Running %}
-					<td><span class="build-status build-running">{% cat "../../svgs/timer.svg" %} Running</span></td>
-				{% case model.Passed %}
-					<td><span class="build-status build-passed">{% cat "../../svgs/check.svg" %} Passed</span></td>
-				{% case model.Failed %}
-					<td><span class="build-status build-failed">{% cat "../../svgs/close.svg" %} Failed</span></td>
-			{% endswitch %}
-			<td><a href="{%s b.URI() %}">#{%v b.ID %}</a></td>
-			<td>
-				{% if b.Namespace != nil %}
-					<a href="{%s b.Namespace.URI() %}">{%s b.Namespace.FullName %}</a>
+{% func RenderBuildStatus(b *model.Build) %}
+	{% switch b.Status %}
+		{% case model.Queued %}
+			<span class="pill pill-dark">{% cat "../../svgs/hourglass.svg" %} Queued</span>
+		{% case model.Running %}
+			<span class="pill pill-orange">{% cat "../../svgs/hourglass.svg" %} Running</span>
+		{% case model.Passed %}
+			<span class="pill pill-green">{% cat "../../svgs/hourglass.svg" %} Passed</span>
+		{% case model.Failed %}
+			<span class="pill pill-red">{% cat "../../svgs/hourglass.svg" %} Failed</span>
+	{% endswitch %}
+{% endfunc %}
+
+{% func RenderBuildsTable(builds []*model.Build, status, uri string) %}
+	<div class="panel">
+		<div class="panel-header">
+			{% stripspace %}
+				<ul class="panel-nav">
+					<li><a href="{%s uri %}" {% if status == "" %}class="active"{% endif %}>{% cat "../../svgs/build.svg" %}<span>All</span></a></li>
+					<li><a href="?status=queued" {% if status == "queued" %}class="active"{% endif %}>{% cat "../../svgs/hourglass.svg" %}<span>Queued</span></a></li>
+					<li><a href="?status=running" {% if status == "running" %}class="active"{% endif %}>{% cat "../../svgs/timer.svg" %}<span>Running</span></a></li>
+					<li><a href="?status=passed" {% if status == "passed" %}class="active"{% endif %}>{% cat "../../svgs/check.svg" %}<span>Passed</span></a></li>
+					<li><a href="?status=failed" {% if status == "failed" %}class="active"{% endif %}>{% cat "../../svgs/close.svg" %}<span>Failed</span></a></li>
+				</ul>
+			{% endstripspace %}
+			<form class="panel-search">
+				<input type="text" name="search" class="text" placeholder="Find a build..." autocomplete="off"/>
+			</form>
+		</div>
+		{% if len(builds) == 0 %}
+			<div class="panel-message muted">
+				{% if status == "" %}
+					No builds have been submitted yet.
 				{% else %}
-					--
+					No {%s status %} builds.
 				{% endif %}
-			</td>
-			<td class="align-right">
-				{% for _, t := range b.Tags %}
-					<a class="tag" href="?tag={%s t.Name %}">{%s t.Name %}</a>
+			</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>STATUS</th>
+						<th>BUILD</th>
+						<th>NAMESPACE</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+				{% for _, b := range builds %}
+					<tr>
+						<td>{%= RenderBuildStatus(b) %}</td>
+						<td><a href="{%s b.URI() %}">#{%v b.ID %}</a></td>
+						<td>
+							{% if b.Namespace != nil %}
+								<a href="{%s b.Namespace.URI() %}">{%s b.Namespace.FullName %}</a>
+							{% else %}
+								<span class="muted">--</span>
+							{% endif %}
+						</td>
+						<td class="align-right">
+							{% for _, t := range b.Tags %}
+								<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
+							{% endfor %}
+						</td>
+						<td class="align-right muted">
+							{% if b.FinishedAt != nil %}
+							{% else %}
+								--
+							{% endif %}
+						</td>
+					</tr>
 				{% endfor %}
-			</td>
-			<td class="align-right">
-				{% if b.FinishedAt != nil %}
-				{% else %}
-					--
-				{% endif %}
-			</td>
-		</tr>
-	{% endfor %}
-</table>
-{% endif %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
 {% endfunc %}
 {% endcollapsespace %}

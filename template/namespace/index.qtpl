@@ -15,21 +15,20 @@ type IndexPage struct {
 %}
 
 {% collapsespace %}
-
 {% func (p *IndexPage) Title() %}
-Namespaces - Thrall
+	Namespaces - Thrall
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-{%= renderNamespaces(p.Namespaces, p.URI, p.Search) %}
+	{%= renderNamespaces(p.Namespaces, p.URI, p.Search) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}
-Namespaces
+	Namespaces
 {% endfunc %}
 
 {% func (p *IndexPage) Actions() %}
-<li><a href="/namespaces/create" class="btn btn-primary">Create</a></li>
+	<li><a href="/namespaces/create" class="btn btn-primary">Create</a></li>
 {% endfunc %}
 
 {% func (p *IndexPage) Navigation() %}{% endfunc %}

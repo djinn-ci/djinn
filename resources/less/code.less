@@ -1,0 +1,46 @@
+.code {
+	background: @blue-gray-dark;
+	color: #fff;
+	white-space: pre-wrap;
+	display: table;
+	width: 100%;
+
+	code {
+		display: table-row;
+
+		a {
+			display: table-cell;
+			width: 25px;
+			text-align: right;
+			color: rgba(255, 255, 255, 0.5);
+			border-right: solid 1px rgba(255, 255, 255, 0.5);
+			padding-left: 10px;
+			padding-right: 10px;
+		}
+
+		a:hover {
+			text-decoration: none;
+		}
+
+		span {
+			display: table-cell;
+			padding-left: 10px;
+		}
+	}
+
+	code:first-child {
+		a {
+			padding-top: 15px;
+		}
+	}
+
+	code:last-child {
+		a {
+			padding-bottom: 15px;
+		}
+	}
+
+	code:target {
+		background: #2c4e8d;
+	}
+}

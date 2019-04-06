@@ -16,35 +16,37 @@ type CreatePage struct {
 
 {% collapsespace %}
 {% func (p *CreatePage) Title() %}
-Submit Build - Thrall
+	Submit Build - Thrall
 {% endfunc %}
 
 {% func (p *CreatePage) Body() %}
-<form class="slim" method="POST" action="/builds">
-	{% if p.Errors.First("build") != "" %}
-		<div class="form-error">Failed to submit build: {%s p.Errors.First("build") %}</div>
-	{% endif %}
-	<div class="form-field">
-		<label class="label">Namespace <small>(optional)</small></label>
-		<input class="form-text" type="text" name="namespace" autocomplete="off"/>
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="/builds">
+			{% if p.Errors.First("build") != "" %}
+				<div class="form-error">Failed to submit build: {%s p.Errors.First("build") %}</div>
+			{% endif %}
+			<div class="form-field">
+				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
+				<input class="form-text" type="text" id="namespace" name="namespace" autocomplete="off"/>
+			</div>
+			<div class="form-field">
+				<label class="label" for="manifest">Manifest</label>
+				<textarea class="form-text form-code" id="manifest" name="manifest"></textarea>
+				<div class="form-error">{%s p.Errors.First("manifest") %}</div>
+			</div>
+			<div class="form-field">
+				<label class="label" for="tags">Tags <small>(optional)</small></label>
+				<input class="form-text" type="text" id="tags" name="tags" autocomplete="off"/>
+			</div>
+			<div class="form-field">
+				<button type="submit" class="btn btn-primary">Submit</button>
+			</div>
+		</form>
 	</div>
-	<div class="form-field">
-		<label class="label">Manifest</label>
-		<textarea class="form-text build-manifest-text" name="manifest"></textarea>
-		<div class="form-error">{%s p.Errors.First("manifest") %}</div>
-	</div>
-	<div class="form-field">
-		<label class="label">Tags <small>(optional)</small></label>
-		<input class="form-text" type="text" name="tags" autocomplete="off"/>
-	</div>
-	<div class="form-field">
-		<button type="submit" class="btn btn-primary">Submit</button>
-	</div>
-</form>
 {% endfunc %}
 
 {% func (p *CreatePage) Header() %}
-<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Submit Build
+	<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Submit Build
 {% endfunc %}
 
 {% func (p *CreatePage) Actions() %}{% endfunc %}

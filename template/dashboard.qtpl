@@ -37,35 +37,35 @@ func NewDashboard(p dashboardPage, uri string) *Dashboard {
 
 {% collapsespace %}
 {% func (p *Dashboard) Body() %}
-<div class="dashboard">
-	<div class="content">
-		<div class="header">
-			<div class="p-20 overflow">
-				<h1>{%= p.dashboardPage.Header() %}</h1>
-				<ul class="actions">{%= p.dashboardPage.Actions() %}</ul>
+	<div class="dashboard">
+		<div class="dashboard-content">
+			<div class="dashboard-header">
+				<div class="overflow">
+					<h1>{%= p.dashboardPage.Header() %}</h1>
+					<ul class="dashboard-actions">{%= p.dashboardPage.Actions() %}</ul>
+				</div>
+				<ul class="dashboard-nav">{%= p.dashboardPage.Navigation() %}</ul>
 			</div>
-			<div>{%= p.dashboardPage.Navigation() %}</div>
+			<div class="dashboard-body">{%= p.dashboardPage.Body() %}</div>
 		</div>
-		<div class="p-20">{%= p.dashboardPage.Body() %}</div>
-	</div>
-	<div class="sidebar">
-		<div class="sidebar-header">
-			<div class="logo"><div class="left"></div><div class="right"></div></div>
-			<h2>Thrall</h2>
+		<div class="sidebar">
+			<div class="sidebar-header">
+				<div class="logo"><div class="left"></div><div class="right"></div></div>
+				<h2>Thrall</h2>
+			</div>
+			<ul class="sidebar-nav">
+				<li class="sidebar-nav-header">MANAGE</li>
+				<li>{%= RenderLinkPattern("/", BuildsURI, p.URI) %}{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
+				<li>{%= RenderLinkPattern("/namespaces", NamespacesURI, p.URI) %}{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
+				<li><a>{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
+				<li><a>{% cat "../svgs/download.svg" %}<span>Artifacts</span></a></li>
+				<li><a>{% cat "../svgs/key.svg" %}<span>SSH Keys</span></a></li>
+				<li><a>{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
+				<li class="sidebar-nav-header">ACCOUNT</li>
+				<li>{%= RenderLinkPattern("/settings", SettingsURI, p.URI) %}{% cat "../svgs/settings.svg" %}<span>Settings</span></a></li>
+				<li><form method="POST" action="/logout"><button type="submit">{% cat "../svgs/logout.svg" %}<span>Logout</span></button></form></li>
+			</ul>
 		</div>
-		<ul class="nav">
-			<li class="nav-header">MANAGE</li>
-			<li>{%= RenderLinkPattern("/", BuildsURI, p.URI) %}{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
-			<li>{%= RenderLinkPattern("/namespaces", NamespacesURI, p.URI) %}{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
-			<li><a>{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
-			<li><a>{% cat "../svgs/download.svg" %}<span>Artifacts</span></a></li>
-			<li><a>{% cat "../svgs/key.svg" %}<span>SSH Keys</span></a></li>
-			<li><a>{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
-			<li class="nav-header">ACCOUNT</li>
-			<li>{%= RenderLinkPattern("/settings", SettingsURI, p.URI) %}{% cat "../svgs/settings.svg" %}<span>Settings</span></a></li>
-			<li><form method="POST" action="/logout"><button type="submit">{% cat "../svgs/logout.svg" %}<span>Logout</span></button></form></li>
-		</ul>
 	</div>
-</div>
 {% endfunc %}
 {% endcollapsespace %}

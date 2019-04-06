@@ -2,17 +2,27 @@
 	border-collapse: collapse;
 	width: 100%;
 
+	td, th {
+		padding: 15px;
+
+		svg {
+			width: 15px;
+		}
+	}
+
 	th {
-		padding: 10px;
+		background: rgba(0, 0, 0, 0.03);
+		border-bottom: solid 1px #e4e4e4;
 		text-align: left;
+		color: rgba(0, 0, 0, 0.5);
+		font-weight: normal;
 	}
 
-	td {
-		border-top: solid 1px @gray-light;
-		padding: 10px;
+	tr {
+		border-bottom: solid 1px #e4e4e4;
 	}
 
-	td.align-right {
-		text-align: right;
+	tr:last-child {
+		border-bottom: none;
 	}
 }

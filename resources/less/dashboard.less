@@ -6,29 +6,50 @@
 		height: 100%;
 		width: 225px;
 		background: @blue-gray;
-	
+
 		.sidebar-header {
 			color: #fff;
 			padding: 20px;
-	
+			background: @blue-gray-dark;
+
 			.logo {
 				margin-top: -5px;
 				margin-right: 10px;
 				display: inline-block;
 				vertical-align: middle;
+
+				.left {
+					margin-left: 3px;
+					display: inline-block;
+					width: 0px;
+					height: 0px;
+					border-style: solid;
+					border-width: 25px 0px 0px 15px;
+					border-color: transparent transparent transparent #fff;
+				}
+
+				.right {
+					margin-left: 3px;
+					display: inline-block;
+					width: 0px;
+					height: 0px;
+					border-style: solid;
+					border-width: 0px 0px 25px 15px;
+					border-color: transparent transparent #fff transparent;
+				}
 			}
 
 			h2 {
 				display: inline-block;
 			}
 		}
-	
-		.nav {
+
+		.sidebar-nav {
 			list-style: none;
-	
+
 			li {
 				display: block;
-	
+
 				a, button {
 					display: block;
 					color: rgba(255, 255, 255, 0.5);
@@ -48,16 +69,14 @@
 						vertical-align: middle;
 					}
 				}
-	
+
 				button {
-					cursor: pointer;
 					width: 100%;
-					outline: none;
 					border: none;
 					text-align: left;
-					background: #383e51;
+					background: rgba(0, 0, 0, 0);
 				}
-	
+
 				a:hover, a.active, button:hover {
 					text-decoration: none;
 					background: @blue-gray-dark;
@@ -68,99 +87,98 @@
 					}
 				}
 			}
-	
-			li.nav-header {
+
+			li.sidebar-nav-header {
 				padding: 15px;
 				font-weight: bold;
 				color: #fff;
 			}
 		}
 	}
+}
+.dashboard-header {
+	margin-bottom: 10px;
 
-	.content {
-		margin-left: 225px;
+	h1 {
+		float: left;
+
+		.back {
+			margin-top: 2px;
+			display: inline-block;
+			vertical-align: middle;
+
+			svg {
+				fill: #7f7f7f;
+			}
+		}
+
+		.back:hover {
+			text-decoration: none;
+
+			svg {
+				fill: #444;
+			}
+		}
+
+		small {
+			margin-top: 10px;
+			display: block;
+			font-size: 16px;
+			color: rgba(0, 0, 0, 0.5);
+		}
 	}
 
-	.header {
-		background: rgba(0, 0, 0, 0.03);
-		border-bottom: solid 2px rgba(0, 0, 0, 0.07);
-	
-		h1 {
-			float: left;
-	
-			small {
-				margin-top: 10px;
-				display: block;
-				font-size: 16px;
-				color: rgba(0, 0, 0, 0.6);
+	.dashboard-actions {
+		float: right;
+		list-style: none;
+
+		li {
+			display: inline;
+
+			a {
+				cursor: pointer;
+				display: inline-block;
 			}
-	
-			.back {
-				fill: rgba(0, 0, 0, 0.4);
+		}
+	}
+}
+.dashboard-nav {
+	list-style: none;
+
+	li {
+		display: inline;
+
+		a {
+			display: inline-block;
+			padding: 15px;
+			color: #9f9f9f;
+
+			svg {
+				margin-right: 3px;
+				width: 20px;
+				vertical-align: middle;
+				display: inline-block;
+				fill: #9f9f9f;
+			}
+
+			span {
+				margin-top: 2px;
+				display: inline-block;
 				vertical-align: middle;
 			}
-	
-			.back:hover {
-				text-decoration: none;
-				fill: rgba(0, 0, 0, 0.6);
-			}
-		}
-	
-		.actions {
-			float: right;
-			list-style: none;
-	
-			li {
-				display: inline;
-	
-				a {
-					display: inline-block;
-				}
-			}
 		}
 
-		.nav {
-			margin-top: -20px;
-			list-style: none;
+		a:hover, a.active {
+			text-decoration: none;
+			color: @blue-gray-dark;
 
-			li {
-				display: inline;
-
-				a {
-					display: inline-block;
-					padding: 15px;
-					color: rgba(0, 0, 0, 0.4);
-					border-bottom: solid 2px transparent;
-					position: relative;
-					top: 2px;
-
-					svg {
-						fill: rgba(0, 0, 0, 0.4);
-					}
-				}
-
-				a.active, a:hover {
-					text-decoration: none;
-					color: @blue;
-					border-bottom: solid 2px @blue;
-
-					svg {
-						fill: @blue;
-					}
-				}
+			svg {
+				fill: @blue-gray-dark;
 			}
 		}
 	}
-
-	.message {
-		margin-top: 200px;
-		text-align: center;
-		font-size: 28px;
-	}
-
-	.separator {
-		margin-top: 20px;
-		margin-bottom: 20px;
-		border-bottom: solid 1px @gray-light;
-	}
+}
+.dashboard-content {
+	margin-left: 225px;
+	padding: 20px;
 }

@@ -19,31 +19,63 @@ type ShowManifestPage struct {
 
 {% collapsespace %}
 {% func (p *ShowPage) Title() %}
-Build #{%v p.Build.ID %} - Thrall
+	Build #{%v p.Build.ID %} - Thrall
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-
+	<div class="panel">
+		<table class="table">
+			<tr>
+				<td>Status:</td>
+				<td class="align-right">{%= RenderBuildStatus(p.Build) %}</td>
+			</tr>
+			<tr>
+				<td>Submitted by:</td>
+				<td class="align-right">{%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</td>
+			</tr>
+			<tr>
+				<td>Started at:</td>
+				<td class="align-right">
+					{% if p.Build.StartedAt != nil %}
+					{% else %}
+						--
+					{% endif %}
+				</td>
+			</tr>
+			<tr>
+				<td>Finished at:</td>
+				<td class="align-right">
+					{% if p.Build.FinishedAt != nil %}
+					{% else %}
+						--
+					{% endif %}
+				</td>
+			</tr>
+		</table>
+	</div>
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Build.ID %}
+	<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Build.ID %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}
 
 {% func (p *ShowPage) Navigation() %}
-{% stripspace %}
-<ul class="nav">
-	<li>{%= template.RenderLink(p.Build.URI(), p.URI) %}Overview</a></li>
-	<li>{%= template.RenderLink(p.Build.URI() + "/manifest", p.URI) %}Manifest</a></li>
-</ul>
-{% endstripspace %}
+	{% stripspace %}
+		<li>{%= template.RenderLink(p.Build.URI(), p.URI) %}{% cat "../../svgs/eye.svg" %}<span>Overview</span></a></li>
+		<li>{%= template.RenderLink(p.Build.URI() + "/manifest", p.URI) %}{% cat "../../svgs/document.svg" %}<span>Manifest</span></a></li>
+	{% endstripspace %}
 {% endfunc %}
 
 {% func (p *ShowManifestPage) Body() %}
-<div class="build-manifest">
-	<pre>{%s p.Build.Manifest %}</pre>
-</div>
+	<div class="panel">
+		<div class="panel-header">
+			<ul class="panel-actions">
+				<li><a class="btn btn-primary" href="/builds/{%v p.Build.ID %}/manifest/raw">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
+			</ul>
+		</div>
+		<pre class="code">{%= template.RenderCode(p.Build.Manifest) %}</pre>
+	</div>
 {% endfunc %}
 {% endcollapsespace %}

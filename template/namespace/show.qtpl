@@ -36,38 +36,34 @@ type ShowNamespacesPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Title() %}
-{%s p.Namespace.FullName %} - Thrall
+	{%s p.Namespace.FullName %} - Thrall
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-{%= build.RenderBuilds(p.Builds, "") %}
+	{%= build.RenderBuildsTable(p.Builds, "", p.URI) %}
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-{% if p.Namespace.Parent != nil %}
-	<a class="back" href="{%s p.Namespace.Parent.URI() %}">{%cat "../../svgs/back.svg" %}</a>
-{% else %}
-	<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
-{% endif %}
-{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}
-<small>{%s p.Namespace.Description %}</small>
+	{% if p.Namespace.Parent != nil %}
+		<a class="back" href="{%s p.Namespace.Parent.URI() %}">{%cat "../../svgs/back.svg" %}</a>
+	{% else %}
+		<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
+	{% endif %}
+	{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}
+	<small>{%s p.Namespace.Description %}</small>
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}
-<li><a href="{%s p.Namespace.URI() %}/-/edit" class="btn btn-secondary">Edit</a></li>
-<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="btn btn-primary">Create</a></li>
+	<li><a href="{%s p.Namespace.URI() %}/-/edit" class="btn btn-primary">Edit</a></li>
+	<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="btn btn-primary">Create</a></li>
 {% endfunc %}
 
 {% func (p *ShowPage) Navigation() %}
-{% stripspace %}
-<ul class="nav">
-	<li>{%= template.RenderLink(p.Namespace.URI(), p.URI) %}<span class="icon-inline">{% cat "../../svgs/build.svg" %}</span>Builds</a></li>
-	<li>{%= template.RenderLink(p.Namespace.URI() + "/-/namespaces", p.URI) %}<span class="icon-inline">{% cat "../../svgs/folder.svg" %}</span>Namespaces</a></li>
-</ul>
-{% endstripspace %}
+	<li>{%= template.RenderLink(p.Namespace.URI(), p.URI) %}{% cat "../../svgs/build.svg" %}<span>Builds</span></a></li>
+	<li>{%= template.RenderLink(p.Namespace.URI() + "/-/namespaces", p.URI) %}{% cat "../../svgs/folder.svg" %}<span>Namespaces</span></a></li>
 {% endfunc %}
 
 {% func (p *ShowNamespacesPage) Body() %}
-{%= renderNamespaces(p.Namespaces, p.URI, p.Search) %}
+	{%= renderNamespaces(p.Namespaces, p.URI, p.Search) %}
 {% endfunc %}
 {% endcollapsespace %}

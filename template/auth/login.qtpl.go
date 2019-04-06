@@ -31,74 +31,70 @@ type LoginPage struct {
 	Form   form.Form
 }
 
-//line template/auth/login.qtpl:17
+//line template/auth/login.qtpl:18
 func (p *LoginPage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/auth/login.qtpl:17
-	qw422016.N().S(`
-Login - Thrall
-`)
-//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:18
+	qw422016.N().S(` Login - Thrall `)
+//line template/auth/login.qtpl:20
 }
 
-//line template/auth/login.qtpl:19
+//line template/auth/login.qtpl:20
 func (p *LoginPage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:20
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:20
 	p.StreamTitle(qw422016)
-	//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:20
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/login.qtpl:19
+//line template/auth/login.qtpl:20
 }
 
-//line template/auth/login.qtpl:19
+//line template/auth/login.qtpl:20
 func (p *LoginPage) Title() string {
-	//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:20
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:20
 	p.WriteTitle(qb422016)
-	//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:20
 	qs422016 := string(qb422016.B)
-	//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:20
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/login.qtpl:19
+	//line template/auth/login.qtpl:20
 	return qs422016
-//line template/auth/login.qtpl:19
+//line template/auth/login.qtpl:20
 }
 
-//line template/auth/login.qtpl:21
+//line template/auth/login.qtpl:22
 func (p *LoginPage) StreamStyles(qw422016 *qt422016.Writer) {
-	//line template/auth/login.qtpl:21
-	qw422016.N().S(`
-<link rel="stylesheet" type="text/css" href="/assets/css/auth.css">
-`)
-//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:22
+	qw422016.N().S(` <link rel="stylesheet" type="text/css" href="/assets/css/auth.css"> `)
+//line template/auth/login.qtpl:24
 }
 
-//line template/auth/login.qtpl:23
+//line template/auth/login.qtpl:24
 func (p *LoginPage) WriteStyles(qq422016 qtio422016.Writer) {
-	//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:24
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:24
 	p.StreamStyles(qw422016)
-	//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:24
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/login.qtpl:23
+//line template/auth/login.qtpl:24
 }
 
-//line template/auth/login.qtpl:23
+//line template/auth/login.qtpl:24
 func (p *LoginPage) Styles() string {
-	//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:24
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:24
 	p.WriteStyles(qb422016)
-	//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:24
 	qs422016 := string(qb422016.B)
-	//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:24
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/login.qtpl:23
+	//line template/auth/login.qtpl:24
 	return qs422016
-//line template/auth/login.qtpl:23
+//line template/auth/login.qtpl:24
 }
 
 //line template/auth/login.qtpl:26

@@ -31,74 +31,70 @@ type RegisterPage struct {
 	Form   form.Form
 }
 
-//line template/auth/register.qtpl:17
+//line template/auth/register.qtpl:18
 func (p *RegisterPage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/auth/register.qtpl:17
-	qw422016.N().S(`
-Register - Thrall
-`)
-//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:18
+	qw422016.N().S(` Register - Thrall `)
+//line template/auth/register.qtpl:20
 }
 
-//line template/auth/register.qtpl:19
+//line template/auth/register.qtpl:20
 func (p *RegisterPage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:20
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:20
 	p.StreamTitle(qw422016)
-	//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:20
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/register.qtpl:19
+//line template/auth/register.qtpl:20
 }
 
-//line template/auth/register.qtpl:19
+//line template/auth/register.qtpl:20
 func (p *RegisterPage) Title() string {
-	//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:20
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:20
 	p.WriteTitle(qb422016)
-	//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:20
 	qs422016 := string(qb422016.B)
-	//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:20
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/register.qtpl:19
+	//line template/auth/register.qtpl:20
 	return qs422016
-//line template/auth/register.qtpl:19
+//line template/auth/register.qtpl:20
 }
 
-//line template/auth/register.qtpl:21
+//line template/auth/register.qtpl:22
 func (p *RegisterPage) StreamStyles(qw422016 *qt422016.Writer) {
-	//line template/auth/register.qtpl:21
-	qw422016.N().S(`
-<link rel="stylesheet" type="text/css" href="/assets/css/auth.css">
-`)
-//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:22
+	qw422016.N().S(` <link rel="stylesheet" type="text/css" href="/assets/css/auth.css"> `)
+//line template/auth/register.qtpl:24
 }
 
-//line template/auth/register.qtpl:23
+//line template/auth/register.qtpl:24
 func (p *RegisterPage) WriteStyles(qq422016 qtio422016.Writer) {
-	//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:24
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:24
 	p.StreamStyles(qw422016)
-	//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:24
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/register.qtpl:23
+//line template/auth/register.qtpl:24
 }
 
-//line template/auth/register.qtpl:23
+//line template/auth/register.qtpl:24
 func (p *RegisterPage) Styles() string {
-	//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:24
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:24
 	p.WriteStyles(qb422016)
-	//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:24
 	qs422016 := string(qb422016.B)
-	//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:24
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/register.qtpl:23
+	//line template/auth/register.qtpl:24
 	return qs422016
-//line template/auth/register.qtpl:23
+//line template/auth/register.qtpl:24
 }
 
 //line template/auth/register.qtpl:26

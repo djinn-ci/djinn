@@ -1,36 +1,29 @@
+@import "variables.less";
 .btn {
-	cursor: pointer;
-	outline: none;
 	border: none;
-	font-family: sans-serif;
-	font-size: 14px;
+	border-radius: 3px;
+	font-family: @system-fonts;
 	padding: 10px;
 	padding-left: 15px;
 	padding-right: 15px;
-	border-radius: 3px;
 	color: #fff;
+
+	svg {
+		fill: #fff;
+	}
 }
 .btn:hover {
 	text-decoration: none;
 }
 .btn-primary {
-	background: #409540;
-	border: solid 1px #367536;
+	background: #61a0ea;
 }
 .btn-primary:hover {
-	background: #308430;
-}
-.btn-secondary {
-	background: #c6c6c6;
-	border: solid 1px #a8a6a6;
-}
-.btn-secondary:hover {
-	background: #b5b5b5;
+	background: #5090d9;
 }
 .btn-danger {
-	background: #ec3636;
-	border: solid 1px #ae3e3e;
+	background: #de4141;
 }
 .btn-danger:hover {
-	background: #db2525;
+	background: #cd3030;
 }

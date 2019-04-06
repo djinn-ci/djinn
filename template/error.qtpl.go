@@ -25,74 +25,70 @@ type Error struct {
 	Message string
 }
 
-//line template/error.qtpl:12
+//line template/error.qtpl:13
 func (p *Error) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/error.qtpl:12
-	qw422016.N().S(`
-Error - Thrall
-`)
-//line template/error.qtpl:14
+	//line template/error.qtpl:13
+	qw422016.N().S(` Error - Thrall `)
+//line template/error.qtpl:15
 }
 
-//line template/error.qtpl:14
+//line template/error.qtpl:15
 func (p *Error) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/error.qtpl:14
+	//line template/error.qtpl:15
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/error.qtpl:14
+	//line template/error.qtpl:15
 	p.StreamTitle(qw422016)
-	//line template/error.qtpl:14
+	//line template/error.qtpl:15
 	qt422016.ReleaseWriter(qw422016)
-//line template/error.qtpl:14
+//line template/error.qtpl:15
 }
 
-//line template/error.qtpl:14
+//line template/error.qtpl:15
 func (p *Error) Title() string {
-	//line template/error.qtpl:14
+	//line template/error.qtpl:15
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/error.qtpl:14
+	//line template/error.qtpl:15
 	p.WriteTitle(qb422016)
-	//line template/error.qtpl:14
+	//line template/error.qtpl:15
 	qs422016 := string(qb422016.B)
-	//line template/error.qtpl:14
+	//line template/error.qtpl:15
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/error.qtpl:14
+	//line template/error.qtpl:15
 	return qs422016
-//line template/error.qtpl:14
+//line template/error.qtpl:15
 }
 
-//line template/error.qtpl:16
+//line template/error.qtpl:17
 func (p *Error) StreamStyles(qw422016 *qt422016.Writer) {
-	//line template/error.qtpl:16
-	qw422016.N().S(`
-<link rel="stylesheet" type="text/css" href="/assets/css/error.css">
-`)
-//line template/error.qtpl:18
+	//line template/error.qtpl:17
+	qw422016.N().S(` <link rel="stylesheet" type="text/css" href="/assets/css/error.css"> `)
+//line template/error.qtpl:19
 }
 
-//line template/error.qtpl:18
+//line template/error.qtpl:19
 func (p *Error) WriteStyles(qq422016 qtio422016.Writer) {
-	//line template/error.qtpl:18
+	//line template/error.qtpl:19
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/error.qtpl:18
+	//line template/error.qtpl:19
 	p.StreamStyles(qw422016)
-	//line template/error.qtpl:18
+	//line template/error.qtpl:19
 	qt422016.ReleaseWriter(qw422016)
-//line template/error.qtpl:18
+//line template/error.qtpl:19
 }
 
-//line template/error.qtpl:18
+//line template/error.qtpl:19
 func (p *Error) Styles() string {
-	//line template/error.qtpl:18
+	//line template/error.qtpl:19
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/error.qtpl:18
+	//line template/error.qtpl:19
 	p.WriteStyles(qb422016)
-	//line template/error.qtpl:18
+	//line template/error.qtpl:19
 	qs422016 := string(qb422016.B)
-	//line template/error.qtpl:18
+	//line template/error.qtpl:19
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/error.qtpl:18
+	//line template/error.qtpl:19
 	return qs422016
-//line template/error.qtpl:18
+//line template/error.qtpl:19
 }
 
 //line template/error.qtpl:21

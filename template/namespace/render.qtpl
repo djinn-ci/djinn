@@ -2,58 +2,62 @@
 
 {% collapsespace %}
 {% func renderSearch(uri, search string) %}
-<form class="mb-10">
-	<div class="form-field">
-		<input type="text" class="form-text w-250" name="search" placeholder="Find a namespace..." autocomplete="off" value="{%s search %}"/>
+	<form class="panel-search">
+		<input type="text" name="search" class="text" placeholder="Find a namespace..." autocomplete="off" value="{%s search %}"/>
 		{% if search != "" %}
-			<a class="muted" href="{%s uri %}"><span class="icon-inline">{% cat "../../svgs/close.svg" %}</span>Clear search</a>
+			<a class="muted" href="{%s uri %}">{% cat "../../svgs/close.svg" %}</a>
 		{% endif %}
-	</div>
-</form>
+	</form>
 {% endfunc %}
 
 {% func renderNamespaces(namespaces []*model.Namespace, uri, search string) %}
-{% if len(namespaces) == 0 %}
-	{% if search == "" %}
-		<div class="message muted">Namespaces allow you to group related builds together.</div>
+	<div class="panel">
+	{% if len(namespaces) == 0 %}
+		{% if search == "" %}
+			<div class="panel-message muted">Namespaces allow you to group related builds together.</div>
+		{% else %}
+			<div class="panel-header">{%= renderSearch(uri, search) %}</div>
+			<div class="panel-message muted">No results found.</div>
+		{% endif %}
 	{% else %}
-		{%= renderSearch(uri, search) %}
-		<div class="message muted">No results found.</div>
+		<div class="panel-header">{%= renderSearch(uri, search) %}</div>
+		<table class="table">
+			<thead>
+				<tr>
+					<th>NAME</th>
+					<th>LAST BUILD</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+			{% for _, n := range namespaces %}
+				<tr>
+					<td>
+						<a href="{%s n.URI() %}">{%s n.FullName %}</a>
+						<div class="muted">
+							{% if n.Description == "" %}
+								<em>No description</em>
+							{% else %}
+								{%s n.Description %}
+							{% endif %}
+						</div>
+					</td>
+					<td class="muted">--</td>
+					<td class="align-right muted">
+						{% switch n.Visibility %}
+							{% case model.Private %}
+								{% cat "../../svgs/lock.svg" %}
+							{% case model.Internal %}
+								{% cat "../../svgs/security.svg" %}
+							{% case model.Public %}
+								{% cat "../../svgs/public.svg" %}
+						{% endswitch %}
+					</td>
+				</tr>
+			{% endfor %}
+			</tbody>
+		</table>
+		</div>
 	{% endif %}
-{% else %}
-{%= renderSearch(uri, search) %}
-<table class="table">
-	<tr>
-		<th>Name</th>
-		<th>Last Build</th>
-		<th></th>
-	</tr>
-	{% for _, n := range namespaces %}
-		<tr>
-			<td>
-				<a href="{%s n.URI() %}">{%s n.FullName %}</a>
-				<div class="muted">
-					{% if n.Description == "" %}
-						<em>No description</em>
-					{% else %}
-						{%s n.Description %}
-					{% endif %}
-				</div>
-			</td>
-			<td>--</td>
-			<td class="icon-inline align-right muted">
-				{% switch n.Visibility %}
-					{% case model.Private %}
-						{% cat "../../svgs/lock.svg" %}
-					{% case model.Internal %}
-						{% cat "../../svgs/security.svg" %}
-					{% case model.Public %}
-						{% cat "../../svgs/public.svg" %}
-				{% endswitch %}
-			</td>
-		</tr>
-	{% endfor %}
-</table>
-{% endif %}
 {% endfunc %}
 {% endcollapsespace %}

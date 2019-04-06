@@ -1,9 +1,5 @@
-.form-error {
-	margin-bottom: 10px;
-	color: @red;
-}
 .form-field + .form-field {
-	margin-top: 10px;
+	margin-top: 15px;
 }
 .form-field {
 	overflow: auto;
@@ -14,36 +10,39 @@
 		font-weight: bold;
 
 		small {
-			color: rgba(0, 0, 0, 0.6);
+			color: rgba(0, 0, 0, 0.5);
 		}
 	}
 
 	.form-error {
-		margin-top: 3px;
-		color: @red;
+		margin-top: 5px;
+		color: #ff4343;
 		min-height: 20px;
 	}
 
 	.form-text {
-		font-family: sans-serif;
+		font-family: @system-fonts;
 		font-size: 14px;
-		padding: 7px;
+		padding: 10px;
 		outline: none;
 		border-radius: 3px;
 		box-sizing: border-box;
 		width: 100%;
-		border: solid 1px @gray-light;
-		background: #fafafa;
-		box-shadow: inset 1px 1px 2px 0px rgba(0, 0, 0, 0.075);
+		border: solid 1px #e4e4e4;
+	}
+
+	.form-text:focus {
+		border: solid 1px #c2c2c2;
+	}
+
+	.form-code {
+		min-height: 250px;
+		font-family: monospace;
 	}
 
 	textarea.form-text {
 		min-width: 100%;
 		max-width: 100%;
-	}
-
-	.form-text:focus {
-		border: solid 1px @gray;
 	}
 
 	.form-option + .form-option {
@@ -67,16 +66,5 @@
 			float: left;
 			fill: rgba(0, 0, 0, 0.4);
 		}
-
-		.form-desc {
-			color: rgba(0, 0, 0, 0.6);
-		}
-	}
-}
-.form-row {
-	overflow: auto;
-
-	.action {
-		float: right;
 	}
 }

@@ -1,37 +1,33 @@
-@blue:           #146de0;
-@blue-light:     #257ef0;
-@blue-gray:      #383e51;
-@blue-gray-dark: #272b39;
-@gray:           #b2b2b2;
-@gray-dark:      #a1a1a1;
-@gray-light:     #dfdfdf;
-@red:            #e72626;
-@orange:         #f07527;
+@import "variables.less";
 * {
 	margin: 0;
 	padding: 0;
 }
 body {
-	font-family: sans-serif;
+	font-family: @system-fonts;
 	font-size: 14px;
-	color: #323232;
-	background: #fff;
+	background: #eee;
+	color: #444;
 }
 a {
-	text-decoration: none;
+	color: #146de0;
 	cursor: pointer;
-	color: @blue;
+	text-decoration: none;
 }
 a:hover {
 	text-decoration: underline;
 }
+button {
+	cursor: pointer;
+}
 h1, h2, h3, h4, h5, h6 {
 	font-weight: normal;
 }
-@import "build.less";
 @import "button.less";
+@import "code.less";
 @import "dashboard.less";
 @import "form.less";
-@import "logo.less";
+@import "panel.less";
+@import "pill.less";
 @import "table.less";
 @import "util.less";

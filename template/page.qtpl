@@ -25,36 +25,47 @@ type Page struct {
 
 {% collapsespace %}
 {% func Render(p page) %}
-<!DOCTYPE HTML>
-<html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<meta content="width=device-width, initial-scale=1" name="viewport">
-		<title>{%= p.Title() %}</title>
-		{%= p.Styles() %}
-	</head>
-	<body>{%= p.Body() %}</body>
-	<footer>{%= p.Footer() %}</footer>
-</html>
+	<!DOCTYPE HTML>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8">
+			<meta content="width=device-width, initial-scale=1" name="viewport">
+			<title>{%= p.Title() %}</title>
+			{%= p.Styles() %}
+		</head>
+		<body>{%= p.Body() %}</body>
+		<footer>{%= p.Footer() %}</footer>
+	</html>
 {% endfunc %}
 
 {% stripspace %}
 {% func RenderLink(href, uri string, classes ...string) %}
-<a href="{%s href %}" class="{% if href == uri %}active{% endif %} {%s strings.Join(classes, " ") %}">
+	<a href="{%s href %}" class="{% if href == uri %}active{% endif %} {%s strings.Join(classes, " ") %}">
 {% endfunc %}
 
 {% func RenderLinkPattern(href, pattern, uri string, classes ...string) %}
-<a href="{%s href %}" class="{% if matched, _ := regexp.Match(pattern, []byte(uri)); matched %}active{% endif %}">
+	<a href="{%s href %}" class="{% if matched, _ := regexp.Match(pattern, []byte(uri)); matched %}active{% endif %}">
+{% endfunc %}
+
+{% func RenderCode(code string) %}
+	{% code
+		lines := strings.Split(code, "\n")
+	%}
+	{% for i, l := range lines %}
+		<code id="line-{%v i + 1 %}">
+			<a href="#line-{%v i + 1 %}">{%v i + 1 %}</a>
+			<span>{%s l %}</span>
+		</code>
+	{% endfor %}
 {% endfunc %}
 {% endstripspace %}
-{% endcollapsespace %}
 
 {% func (p *Page) Title() %}
-Thrall
+	Thrall
 {% endfunc %}
 
 {% func (p *Page) Styles() %}
-<link rel="stylesheet" type="text/css" href="/assets/css/main.css">
+	<link rel="stylesheet" type="text/css" href="/assets/css/main.css">
 {% endfunc %}
 
 {% func (p *Page) Body() %}
@@ -62,3 +73,4 @@ Thrall
 
 {% func (p *Page) Footer() %}
 {% endfunc %}
+{% endcollapsespace %}

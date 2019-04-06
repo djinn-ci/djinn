@@ -9,19 +9,19 @@ type Error struct {
 }
 %}
 
+{% collapsespace %}
 {% func (p *Error) Title() %}
-Error - Thrall
+	Error - Thrall
 {% endfunc %}
 
 {% func (p *Error) Styles() %}
-<link rel="stylesheet" type="text/css" href="/assets/css/error.css">
+	<link rel="stylesheet" type="text/css" href="/assets/css/error.css">
 {% endfunc %}
 
-{% collapsespace %}
 {% func (p *Error) Body() %}
-<div class="error">
-	<h1>{%v p.Code %}</h1>
-	<h2>{%s p.Message %}</h2>
-</div>
+	<div class="error">
+		<h1>{%v p.Code %}</h1>
+		<h2>{%s p.Message %}</h2>
+	</div>
 {% endfunc %}
 {% endcollapsespace %}

@@ -76,7 +76,9 @@ func LoadNamespaceRelations(namespaces []*Namespace) error {
 func (n *Namespace) Builds() ([]*Build, error) {
 	builds := make([]*Build, 0)
 
-	err := DB.Select(&builds, "SELECT * FROM builds WHERE namespace_id = $1 ORDER BY created_at DESC", n.ID)
+	err := DB.Select(&builds, `
+		SELECT * FROM builds WHERE namespace_id = $1 ORDER BY created_at DESC
+	`, n.ID)
 
 	if err != nil {
 		return builds, errors.Err(err)
@@ -102,7 +104,15 @@ func (n *Namespace) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(n.UserID, n.ParentID, n.Name, n.FullName, n.Description, n.Level, n.Visibility)
+	row := stmt.QueryRow(
+		n.UserID,
+		n.ParentID,
+		n.Name,
+		n.FullName,
+		n.Description,
+		n.Level,
+		n.Visibility,
+	)
 
 	err = row.Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt)
 
@@ -122,7 +132,7 @@ func (n *Namespace) Destroy() error {
 		}
 	}
 
-	stmt, err := DB.Prepare(`DELETE FROM namespaces WHERE id = $1`)
+	stmt, err := DB.Prepare("DELETE FROM namespaces WHERE id = $1")
 
 	if err != nil {
 		return errors.Err(err)
@@ -230,7 +240,9 @@ func (n Namespace) NamespacesLike(like string) ([]*Namespace, error) {
 func (n Namespace) Namespaces() ([]*Namespace, error) {
 	namespaces := make([]*Namespace, 0)
 
-	err := DB.Select(&namespaces, "SELECT * FROM namespaces WHERE parent_id = $1 ORDER BY full_name ASC", n.ID)
+	err := DB.Select(&namespaces, `
+		SELECT * FROM namespaces WHERE parent_id = $1 ORDER BY full_name ASC
+	`, n.ID)
 
 	if err != nil {
 		return namespaces, errors.Err(err)

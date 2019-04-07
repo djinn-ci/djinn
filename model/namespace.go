@@ -1,13 +1,13 @@
 package model
 
 import (
-	"bytes"
 	"database/sql"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type Namespace struct {
@@ -39,23 +39,23 @@ func LoadNamespaceRelations(namespaces []*Namespace) error {
 		return nil
 	}
 
-	query := bytes.NewBufferString("SELECT * FROM users WHERE id IN (")
-
-	end := len(namespaces) - 1
+	userIds := make([]int64, len(namespaces), len(namespaces))
 
 	for i, n := range namespaces {
-		query.WriteString(strconv.FormatInt(n.UserID, 10))
-
-		if i != end {
-			query.WriteString(", ")
-		}
+		userIds[i] = n.UserID
 	}
 
-	query.WriteString(")")
+	query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
+
+	if err != nil {
+		return errors.Err(err)
+	}
 
 	users := make([]*User, 0)
 
-	if err := DB.Select(&users, query.String()); err != nil {
+	err = DB.Select(&users, DB.Rebind(query), args...)
+
+	if err != nil {
 		return errors.Err(err)
 	}
 

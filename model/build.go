@@ -1,12 +1,12 @@
 package model
 
 import (
-	"bytes"
 	"database/sql"
 	"strconv"
-	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
+
+	"github.com/jmoiron/sqlx"
 
 	"github.com/lib/pq"
 )
@@ -40,49 +40,60 @@ func LoadBuildRelations(builds []*Build) error {
 		return nil
 	}
 
-	namespacesQuery := bytes.NewBufferString("SELECT * FROM namespaces WHERE id IN (")
-	usersQuery := bytes.NewBufferString("SELECT * FROM users WHERE id IN (")
-	tagsQuery := bytes.NewBufferString("SELECT * FROM build_tags WHERE build_id IN (")
-
-	namespaceIds := make([]string, 0)
-
-	end := len(builds) - 1
-	loadNamespaces := false
+	namespaceIds := make([]int64, 0, len(builds))
+	buildIds := make([]int64, len(builds), len(builds))
+	userIds := make([]int64, len(builds), len(builds))
 
 	for i, b := range builds {
 		if b.NamespaceID.Valid {
-			namespaceIds = append(namespaceIds, strconv.FormatInt(b.NamespaceID.Int64, 10))
-			loadNamespaces = true
+			namespaceIds = append(namespaceIds, b.NamespaceID.Int64)
 		}
 
-		usersQuery.WriteString(strconv.FormatInt(b.UserID, 10))
-		tagsQuery.WriteString(strconv.FormatInt(b.ID, 10))
-
-		if i != end {
-			usersQuery.WriteString(", ")
-			tagsQuery.WriteString(", ")
-		}
+		buildIds[i] = b.ID
+		userIds[i] = b.UserID
 	}
 
-	namespacesQuery.WriteString(strings.Join(namespaceIds, ", ") + ")")
-	usersQuery.WriteString(")")
-	tagsQuery.WriteString(") ORDER BY name ASC")
-
 	namespaces := make([]*Namespace, 0)
-	users := make([]*User, 0)
-	tags := make([]*BuildTag, 0)
 
-	if loadNamespaces {
-		if err := DB.Select(&namespaces, namespacesQuery.String()); err != nil {
+	if len(namespaceIds) > 0 {
+		query, args, err := sqlx.In("SELECT * FROM namespaces WHERE id IN (?)", namespaceIds)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		err = DB.Select(&namespaces, DB.Rebind(query), args...)
+
+		if err != nil {
 			return errors.Err(err)
 		}
 	}
 
-	if err := DB.Select(&users, usersQuery.String()); err != nil {
+	query, args, err := sqlx.In("SELECT * FROM build_tags WHERE build_id IN (?)", buildIds)
+
+	if err != nil {
 		return errors.Err(err)
 	}
 
-	if err := DB.Select(&tags, tagsQuery.String()); err != nil {
+	tags := make([]*BuildTag, 0)
+
+	err = DB.Select(&tags, DB.Rebind(query), args...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	query, args, err = sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	users := make([]*User, 0)
+
+	err = DB.Select(&users, DB.Rebind(query), args...)
+
+	if err != nil {
 		return errors.Err(err)
 	}
 
@@ -142,6 +153,18 @@ func (b *Build) IsZero() bool {
 			!b.Output.Valid          &&
 			b.CreatedAt == nil       &&
 			b.StartedAt == nil
+}
+
+func (b *Build) LoadNamespace() error {
+	if !b.NamespaceID.Valid {
+		return nil
+	}
+
+	b.Namespace = &Namespace{}
+
+	err := DB.Get(b.Namespace, "SELECT * FROM namespaces WHERE id = $1", b.NamespaceID.Int64)
+
+	return errors.Err(err)
 }
 
 func (b *Build) URI() string {

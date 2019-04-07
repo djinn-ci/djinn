@@ -1,4 +1,4 @@
-CREATE TYPE status AS ENUM ('queued', 'running', 'passed', 'failed');
+CREATE TYPE status AS ENUM ('queued', 'running', 'passed', 'failed', 'passed_with_failures');
 
 CREATE TABLE builds (
 	id           SERIAL PRIMARY KEY,

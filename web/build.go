@@ -2,11 +2,13 @@ package web
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
@@ -77,14 +79,63 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tags := make([]model.BuildTag, len(f.Tags), len(f.Tags))
+	// Passed form validation, so the YAML is valid.
+	manifest, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
+
+	for _, name := range manifest.Stages {
+		canFail := false
+
+		for _, allowed := range manifest.AllowFailures {
+			if name == allowed {
+				canFail = true
+				break
+			}
+		}
+
+		s := model.Stage{
+			BuildID: b.ID,
+			Name:    name,
+			CanFail: canFail,
+		}
+
+		if err := s.Create(); err != nil {
+			log.Error.Println(errors.Err(err))
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		jobId := 1
+
+		for _, manifestJob := range manifest.Jobs {
+			if manifestJob.Stage != s.Name {
+				continue
+			}
+
+			if manifestJob.Name == "" {
+				manifestJob.Name = fmt.Sprintf("%s.%d", manifestJob.Stage, jobId)
+			}
+
+			j := model.Job{
+				StageID: s.ID,
+				Name:    manifestJob.Name,
+			}
+
+			if err := j.Create(); err != nil {
+				log.Error.Println(errors.Err(err))
+				HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+				return
+			}
+		}
+	}
+
+	tags := make([]model.Tag, len(f.Tags), len(f.Tags))
 
 	for i, name := range f.Tags {
 		if name == "" {
 			continue
 		}
 
-		tags[i] = model.BuildTag{
+		tags[i] = model.Tag{
 			UserID:  u.ID,
 			BuildID: b.ID,
 			Name:    strings.TrimSpace(name),

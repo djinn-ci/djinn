@@ -21,11 +21,11 @@ var (
 )
 
 //line template/build/render.qtpl:4
-func StreamRenderBuildStatus(qw422016 *qt422016.Writer, b *model.Build) {
+func StreamRenderStatus(qw422016 *qt422016.Writer, s model.Status) {
 	//line template/build/render.qtpl:4
 	qw422016.N().S(` `)
 	//line template/build/render.qtpl:5
-	switch b.Status {
+	switch s {
 	//line template/build/render.qtpl:6
 	case model.Queued:
 		//line template/build/render.qtpl:6
@@ -82,22 +82,22 @@ func StreamRenderBuildStatus(qw422016 *qt422016.Writer, b *model.Build) {
 }
 
 //line template/build/render.qtpl:15
-func WriteRenderBuildStatus(qq422016 qtio422016.Writer, b *model.Build) {
+func WriteRenderStatus(qq422016 qtio422016.Writer, s model.Status) {
 	//line template/build/render.qtpl:15
 	qw422016 := qt422016.AcquireWriter(qq422016)
 	//line template/build/render.qtpl:15
-	StreamRenderBuildStatus(qw422016, b)
+	StreamRenderStatus(qw422016, s)
 	//line template/build/render.qtpl:15
 	qt422016.ReleaseWriter(qw422016)
 //line template/build/render.qtpl:15
 }
 
 //line template/build/render.qtpl:15
-func RenderBuildStatus(b *model.Build) string {
+func RenderStatus(s model.Status) string {
 	//line template/build/render.qtpl:15
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line template/build/render.qtpl:15
-	WriteRenderBuildStatus(qb422016, b)
+	WriteRenderStatus(qb422016, s)
 	//line template/build/render.qtpl:15
 	qs422016 := string(qb422016.B)
 	//line template/build/render.qtpl:15
@@ -228,7 +228,7 @@ func StreamRenderBuildsTable(qw422016 *qt422016.Writer, builds []*model.Build, s
 			//line template/build/render.qtpl:53
 			qw422016.N().S(` <tr> <td>`)
 			//line template/build/render.qtpl:55
-			StreamRenderBuildStatus(qw422016, b)
+			StreamRenderStatus(qw422016, b.Status)
 			//line template/build/render.qtpl:55
 			qw422016.N().S(`</td> <td><a href="`)
 			//line template/build/render.qtpl:56

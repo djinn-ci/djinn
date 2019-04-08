@@ -1,8 +1,8 @@
 {% import "github.com/andrewpillar/thrall/model" %}
 
 {% collapsespace %}
-{% func RenderBuildStatus(b *model.Build) %}
-	{% switch b.Status %}
+{% func RenderStatus(s model.Status) %}
+	{% switch s %}
 		{% case model.Queued %}
 			<span class="pill pill-dark">{% cat "../../svgs/hourglass.svg" %} Queued</span>
 		{% case model.Running %}
@@ -52,7 +52,7 @@
 				<tbody>
 				{% for _, b := range builds %}
 					<tr>
-						<td>{%= RenderBuildStatus(b) %}</td>
+						<td>{%= RenderStatus(b.Status) %}</td>
 						<td><a href="{%s b.URI() %}">#{%v b.ID %}</a></td>
 						<td>
 							{% if b.Namespace != nil %}

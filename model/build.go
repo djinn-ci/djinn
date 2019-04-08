@@ -27,14 +27,6 @@ type Build struct {
 	Tags      []*Tag
 }
 
-type Tag struct {
-	Model
-
-	UserID  int64  `db:"user_id"`
-	BuildID int64  `db:"build_id"`
-	Name    string `db:"name"`
-}
-
 func LoadBuildRelations(builds []*Build) error {
 	if len(builds) == 0 {
 		return nil
@@ -169,22 +161,4 @@ func (b *Build) LoadNamespace() error {
 
 func (b *Build) URI() string {
 	return "/builds/" + strconv.FormatInt(b.ID, 10)
-}
-
-func (t *Tag) Create() error {
-	stmt, err := DB.Prepare(`
-		INSERT INTO tags (user_id, build_id, name)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	err = stmt.QueryRow(t.UserID, t.BuildID, t.Name).Scan(&t.ID, &t.CreatedAt)
-
-	return errors.Err(err)
 }

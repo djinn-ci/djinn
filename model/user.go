@@ -116,7 +116,7 @@ func (u *User) BuildsByTag(tag string) ([]*Build, error) {
 	err := DB.Select(&builds, `
 		SELECT * FROM builds
 		WHERE user_id = $1 AND id in (
-			SELECT build_id FROM build_tags
+			SELECT build_id FROM tags
 			WHERE name = $2
 		) ORDER BY created_at ASC
 	`, u.ID, tag)

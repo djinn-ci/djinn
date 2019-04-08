@@ -1,3 +1,3 @@
-DROP TABLE build_tags;
+DROP TABLE tags;
 DROP TABLE builds;
 DROP TYPE status;

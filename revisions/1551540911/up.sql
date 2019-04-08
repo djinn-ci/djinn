@@ -12,7 +12,7 @@ CREATE TABLE builds (
 	finished_at  TIMESTAMP NULL
 );
 
-CREATE TABLE build_tags (
+CREATE TABLE tags (
 	id         SERIAL PRIMARY KEY,
 	user_id    INT NOT NULL REFERENCES users(id),
 	build_id   INT NOT NULL REFERENCES builds(id),

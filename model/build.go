@@ -24,10 +24,10 @@ type Build struct {
 
 	User      *User
 	Namespace *Namespace
-	Tags      []*BuildTag
+	Tags      []*Tag
 }
 
-type BuildTag struct {
+type Tag struct {
 	Model
 
 	UserID  int64  `db:"user_id"`
@@ -69,13 +69,13 @@ func LoadBuildRelations(builds []*Build) error {
 		}
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM build_tags WHERE build_id IN (?)", buildIds)
+	query, args, err := sqlx.In("SELECT * FROM tags WHERE build_id IN (?)", buildIds)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	tags := make([]*BuildTag, 0)
+	tags := make([]*Tag, 0)
 
 	err = DB.Select(&tags, DB.Rebind(query), args...)
 
@@ -171,9 +171,9 @@ func (b *Build) URI() string {
 	return "/builds/" + strconv.FormatInt(b.ID, 10)
 }
 
-func (t *BuildTag) Create() error {
+func (t *Tag) Create() error {
 	stmt, err := DB.Prepare(`
-		INSERT INTO build_tags (user_id, build_id, name)
+		INSERT INTO tags (user_id, build_id, name)
 		VALUES ($1, $2, $3)
 		RETURNING id, created_at
 	`)

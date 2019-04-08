@@ -9,7 +9,9 @@ import (
 type ShowPage struct {
 	*template.Page
 
-	Build *model.Build
+	Build  *model.Build
+	Tags   []*model.Tag
+	Stages []*model.Stage
 }
 
 type ShowManifestPage struct {
@@ -27,7 +29,7 @@ type ShowManifestPage struct {
 		<table class="table">
 			<tr>
 				<td>Status:</td>
-				<td class="align-right">{%= RenderBuildStatus(p.Build) %}</td>
+				<td class="align-right">{%= RenderStatus(p.Build.Status) %}</td>
 			</tr>
 			<tr>
 				<td>Submitted by:</td>
@@ -53,6 +55,33 @@ type ShowManifestPage struct {
 			</tr>
 		</table>
 	</div>
+	{% for _, s := range p.Stages %}
+		<div class="panel">
+			<div class="panel-header">
+				<h3>{%s s.Name %}</h3>
+			</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th class="cell-pill">STATUS</th>
+						<th>JOB</th>
+						<th class="cell-date">STARTED</th>
+						<th class="cell-date">FINISHED</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, j := range s.Jobs %}
+						<tr>
+							<td class="cell-pill">{%= RenderStatus(j.Status) %}</td>
+							<td><a href="/builds/{%v p.Build.ID %}/jobs/{%v j.ID %}">{%s j.Name %}</a></td>
+							<td class="cell-date"><span class="muted">--</span></td>
+							<td class="cell-date"><span class="muted">--</span></td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		</div>
+	{% endfor %}
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}

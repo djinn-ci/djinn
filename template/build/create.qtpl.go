@@ -79,7 +79,15 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/build/create.qtpl:27
 	}
 	//line template/build/create.qtpl:27
-	qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> <input class="form-text" type="text" id="namespace" name="namespace" autocomplete="off"/> </div> <div class="form-field"> <label class="label" for="manifest">Manifest</label> <textarea class="form-text form-code" id="manifest" name="manifest"></textarea> <div class="form-error">`)
+	qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> <input class="form-text" type="text" id="namespace" name="namespace" value="`)
+	//line template/build/create.qtpl:30
+	qw422016.E().S(p.Form.Get("namespace"))
+	//line template/build/create.qtpl:30
+	qw422016.N().S(`" autocomplete="off"/> </div> <div class="form-field"> <label class="label" for="manifest">Manifest</label> <textarea class="form-text form-code" id="manifest" name="manifest">`)
+	//line template/build/create.qtpl:34
+	qw422016.E().S(p.Form.Get("manifest"))
+	//line template/build/create.qtpl:34
+	qw422016.N().S(`</textarea> <div class="form-error">`)
 	//line template/build/create.qtpl:35
 	qw422016.E().S(p.Errors.First("manifest"))
 	//line template/build/create.qtpl:35

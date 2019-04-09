@@ -23,6 +23,7 @@ func init() {
 	gob.Register(Register{})
 	gob.Register(Login{})
 	gob.Register(Namespace{})
+	gob.Register(Build{})
 }
 
 func Unmarshal(f Form, r *http.Request) error {

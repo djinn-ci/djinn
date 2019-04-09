@@ -27,11 +27,11 @@ type CreatePage struct {
 			{% endif %}
 			<div class="form-field">
 				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
-				<input class="form-text" type="text" id="namespace" name="namespace" autocomplete="off"/>
+				<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Form.Get("namespace") %}" autocomplete="off"/>
 			</div>
 			<div class="form-field">
 				<label class="label" for="manifest">Manifest</label>
-				<textarea class="form-text form-code" id="manifest" name="manifest"></textarea>
+				<textarea class="form-text form-code" id="manifest" name="manifest">{%s p.Form.Get("manifest") %}</textarea>
 				<div class="form-error">{%s p.Errors.First("manifest") %}</div>
 			</div>
 			<div class="form-field">

@@ -28,10 +28,6 @@ func FindUser(id int64) (*User, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			u.CreatedAt = nil
-			u.UpdatedAt = nil
-			u.DeletedAt = nil
-
 			return u, nil
 		}
 
@@ -51,10 +47,6 @@ func FindUserByHandle(handle string) (*User, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			u.CreatedAt = nil
-			u.UpdatedAt = nil
-			u.DeletedAt = nil
-
 			return u, nil
 		}
 
@@ -74,10 +66,6 @@ func FindUserByUsername(username string) (*User, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			u.CreatedAt = nil
-			u.UpdatedAt = nil
-			u.DeletedAt = nil
-
 			return u, nil
 		}
 
@@ -90,54 +78,38 @@ func FindUserByUsername(username string) (*User, error) {
 	return u, nil
 }
 
+func (u *User) Builds() ([]*Build, error) {
+	builds := make([]*Build, 0)
+
+	err := DB.Select(&builds, "SELECT * FROM builds WHERE user_id = $1", u.ID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return builds, nil
+		}
+
+		return builds, errors.Err(err)
+	}
+
+	for _, b := range builds {
+		b.User = u
+	}
+
+	return builds, nil
+}
+
 func (u *User) BuildsByStatus(status string) ([]*Build, error) {
 	builds := make([]*Build, 0)
 
 	err := DB.Select(&builds, `
-		SELECT * FROM builds
-		WHERE user_id = $1 AND status = $2
-		ORDER BY created_at DESC
+		SELECT * FROM builds WHERE user_id = $1 AND status = $2
 	`, u.ID, status)
 
 	if err != nil {
-		return builds, errors.Err(err)
-	}
+		if err == sql.ErrNoRows {
+			return builds, nil
+		}
 
-	for _, b := range builds {
-		b.User = u
-	}
-
-	return builds, nil
-}
-
-func (u *User) BuildsByTag(tag string) ([]*Build, error) {
-	builds := make([]*Build, 0)
-
-	err := DB.Select(&builds, `
-		SELECT * FROM builds
-		WHERE user_id = $1 AND id in (
-			SELECT build_id FROM tags
-			WHERE name = $2
-		) ORDER BY created_at ASC
-	`, u.ID, tag)
-
-	if err != nil {
-		return builds, errors.Err(err)
-	}
-
-	for _, b := range builds {
-		b.User = u
-	}
-
-	return builds, nil
-}
-
-func (u *User) Builds() ([]*Build, error) {
-	builds := make([]*Build, 0)
-
-	err := DB.Select(&builds, "SELECT * FROM builds WHERE user_id = $1 ORDER BY created_at DESC", u.ID)
-
-	if err != nil {
 		return builds, errors.Err(err)
 	}
 
@@ -175,10 +147,6 @@ func (u *User) FindBuild(id int64) (*Build, error) {
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			b.CreatedAt = nil
-			b.StartedAt = nil
-			b.FinishedAt = nil
-
 			return b, nil
 		}
 
@@ -193,13 +161,12 @@ func (u *User) FindBuild(id int64) (*Build, error) {
 func (u *User) FindNamespaceByFullName(fullName string) (*Namespace, error) {
 	n := &Namespace{}
 
-	err := DB.Get(n, "SELECT * FROM namespaces WHERE user_id = $1 AND full_name = $2", u.ID, fullName)
+	err := DB.Get(n, `
+		SELECT * FROM namespaces WHERE user_id = $1 AND full_name = $2
+	`, u.ID, fullName)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			n.CreatedAt = nil
-			n.UpdatedAt = nil
-
 			return n, nil
 		}
 
@@ -262,23 +229,26 @@ func (u *User) FindOrCreateNamespace(fullName string) (*Namespace, error) {
 }
 
 func (u User) IsZero() bool {
-	return	u.ID == 0            &&
-			u.Email == ""        &&
-			u.Username == ""     &&
-			len(u.Password) == 0 &&
-			u.CreatedAt == nil   &&
-			u.UpdatedAt == nil
+	return	u.ID == 0                                         &&
+			u.Email == ""                                     &&
+			u.Username == ""                                  &&
+			len(u.Password) == 0                              &&
+			u.CreatedAt == nil || *u.CreatedAt == time.Time{} &&
+			u.UpdatedAt == nil || *u.UpdatedAt == time.Time{}
 }
 
-func (u *User) NamespacesLike(like string) ([]*Namespace, error) {
+func (u *User) Namespaces() ([]*Namespace, error) {
 	namespaces := make([]*Namespace, 0)
 
 	err := DB.Select(&namespaces, `
-		SELECT * FROM namespaces WHERE user_id = $1 AND full_name LIKE $2
-		ORDER BY full_name ASC
-	`, u.ID, "%" + like + "%")
+		SELECT * FROM namespaces WHERE user_id = $1 ORDER BY full_name ASC
+	`, u.ID)
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return namespaces, nil
+		}
+
 		return namespaces, errors.Err(err)
 	}
 
@@ -289,12 +259,18 @@ func (u *User) NamespacesLike(like string) ([]*Namespace, error) {
 	return namespaces, nil
 }
 
-func (u *User) Namespaces() ([]*Namespace, error) {
+func (u *User) NamespacesLike(like string) ([]*Namespace, error) {
 	namespaces := make([]*Namespace, 0)
 
-	err := DB.Select(&namespaces, "SELECT * FROM namespaces WHERE user_id = $1 ORDER BY full_name ASC", u.ID)
+	err := DB.Select(&namespaces, `
+		SELECT * FROM namespaces WHERE user_id = $1 full_name LIKE $2 ORDER BY full_name ASC
+	`, u.ID, "%" + like + "%")
 
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return namespaces, nil
+		}
+
 		return namespaces, errors.Err(err)
 	}
 

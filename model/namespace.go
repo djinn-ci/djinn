@@ -186,15 +186,15 @@ func (n *Namespace) FindBuild(id int64) (*Build, error) {
 }
 
 func (n Namespace) IsZero() bool {
-	return	n.ID == 0                     &&
-			n.UserID == 0                 &&
-			n.Name == ""                  &&
-			n.FullName == ""              &&
-			n.Description == ""           &&
-			n.Level == 0                  &&
-			n.Visibility == Visibility(0) &&
-			n.CreatedAt == nil            &&
-			n.UpdatedAt == nil
+	return	n.ID == 0                                         &&
+			n.UserID == 0                                     &&
+			n.Name == ""                                      &&
+			n.FullName == ""                                  &&
+			n.Description == ""                               &&
+			n.Level == 0                                      &&
+			n.Visibility == Visibility(0)                     &&
+			n.CreatedAt == nil || *n.CreatedAt == time.Time{} &&
+			n.UpdatedAt == nil || *n.UpdatedAt == time.Time{}
 }
 
 func (n *Namespace) LoadParents() error {

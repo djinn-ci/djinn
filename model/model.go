@@ -35,7 +35,10 @@ func Connect(addr, name, username, password string) error {
 		return errors.Err(err)
 	}
 
-	log.Debug.Printf("opening postgresql connection with '%s'\n",fmt.Sprintf(sourceFmt, host, port, username, name, "*****"))
+	log.Debug.Printf(
+		"opening postgresql connection with '%s'\n",
+		fmt.Sprintf(sourceFmt, host, port, username, name, "*****"),
+	)
 
 	DB, err = sqlx.Open("postgres", fmt.Sprintf(sourceFmt, host, port, username, name, password))
 

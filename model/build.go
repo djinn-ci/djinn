@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"strconv"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -25,6 +26,7 @@ type Build struct {
 	User      *User
 	Namespace *Namespace
 	Tags      []*Tag
+	Stages    []*Stage
 }
 
 func LoadBuildRelations(builds []*Build) error {
@@ -135,26 +137,53 @@ func (b *Build) Create() error {
 }
 
 func (b *Build) IsZero() bool {
-	return	b.ID == 0                &&
-			b.UserID == 0            &&
-			b.NamespaceID.Int64 == 0 &&
-			!b.NamespaceID.Valid     &&
-			b.Manifest == ""         &&
-			b.Status == Status(0)    &&
-			b.Output.String == ""    &&
-			!b.Output.Valid          &&
-			b.CreatedAt == nil       &&
-			b.StartedAt == nil
+	return	b.ID == 0                                         &&
+			b.UserID == 0                                     &&
+			b.NamespaceID.Int64 == 0                          &&
+			!b.NamespaceID.Valid                              &&
+			b.Manifest == ""                                  &&
+			b.Status == Status(0)                             &&
+			b.Output.String == ""                             &&
+			!b.Output.Valid                                   &&
+			b.CreatedAt == nil || *b.CreatedAt == time.Time{} &&
+			b.StartedAt.Time == time.Time{}                   &&
+			!b.StartedAt.Valid                                &&
+			b.FinishedAt.Time == time.Time{}                  &&
+			!b.FinishedAt.Valid
 }
 
-func (b *Build) LoadNamespace() error {
-	if !b.NamespaceID.Valid {
-		return nil
+func (b *Build) LoadRelations() error {
+	if b.User == nil {
+		b.User = &User{}
+
+		err := DB.Get(b.User, "SELECT * FROM users WHERE id = $1", b.UserID)
+
+		if err != nil {
+			return errors.Err(err)
+		}
 	}
 
-	b.Namespace = &Namespace{}
+	if b.NamespaceID.Valid {
+		b.Namespace = &Namespace{}
 
-	err := DB.Get(b.Namespace, "SELECT * FROM namespaces WHERE id = $1", b.NamespaceID.Int64)
+		err := DB.Get(b.Namespace, "SELECT * FROM namespaces WHERE id = $1", b.NamespaceID.Int64)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	b.Tags = make([]*Tag, 0)
+
+	err := DB.Select(&b.Tags, "SELECT * FROM tags WHERE build_id = $1", b.ID)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	b.Stages = make([]*Stage, 0)
+
+	err = DB.Select(&b.Stages, "SELECT * FROM stages WHERE build_id = $1", b.ID)
 
 	return errors.Err(err)
 }

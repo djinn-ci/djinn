@@ -21,7 +21,8 @@ type Stage struct {
 	StartedAt  *pq.NullTime `db:"started_at"`
 	FinishedAt *pq.NullTime `db:"finished_at"`
 
-	Jobs []*Job
+	Build *Build
+	Jobs  []*Job
 }
 
 func StagesByBuildID(id int64) ([]*Stage, error) {

@@ -17,6 +17,8 @@ type Job struct {
 	Output     sql.NullString `db:"output"`
 	StartedAt  *pq.NullTime   `db:"started_at"`
 	FinishedAt *pq.NullTime   `db:"finished_at"`
+
+	Stage *Stage
 }
 
 func (j *Job) Create() error {

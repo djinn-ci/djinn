@@ -12,6 +12,9 @@ type Tag struct {
 	UserID  int64  `db:"user_id"`
 	BuildID int64  `db:"build_id"`
 	Name    string `db:"name"`
+
+	User  *User
+	Build *Build
 }
 
 func TagsByBuildID(id int64) ([]*Tag, error) {

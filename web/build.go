@@ -177,7 +177,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b.IsZero() {
+	if b.IsZero() || u.ID != b.UserID {
 		HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -205,30 +205,17 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tags, err := model.TagsByBuildID(b.ID)
-
-	if err != nil {
+	if err := b.LoadRelations(); err != nil {
 		log.Error.Println(errors.Err(err))
 		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	stages, err := model.StagesByBuildID(b.ID)
-
-	if err != nil {
+	if err := model.LoadStageJobs(b.Stages); err != nil {
 		log.Error.Println(errors.Err(err))
 		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-
-	if err := model.LoadStageJobs(stages); err != nil {
-		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	p.Tags = tags
-	p.Stages = stages
 
 	d := template.NewDashboard(p, r.URL.Path)
 

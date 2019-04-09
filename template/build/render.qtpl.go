@@ -276,7 +276,7 @@ func StreamRenderBuildsTable(qw422016 *qt422016.Writer, builds []*model.Build, s
 			//line template/build/render.qtpl:67
 			qw422016.N().S(` </td> <td class="align-right muted"> `)
 			//line template/build/render.qtpl:70
-			if b.FinishedAt.Valid {
+			if b.FinishedAt != nil && b.FinishedAt.Valid {
 				//line template/build/render.qtpl:70
 				qw422016.N().S(` `)
 				//line template/build/render.qtpl:71

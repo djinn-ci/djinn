@@ -116,6 +116,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 			}
 
 			j := model.Job{
+				BuildID: b.ID,
 				StageID: s.ID,
 				Name:    manifestJob.Name,
 			}

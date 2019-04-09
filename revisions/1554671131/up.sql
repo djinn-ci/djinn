@@ -1,5 +1,6 @@
 CREATE TABLE jobs (
 	id          SERIAL PRIMARY KEY,
+	build_id    INT NOT NULL REFERENCES builds(id),
 	stage_id    INT NOT NULL REFERENCES stages(id),
 	name        VARCHAR(32) NOT NULL,
 	output      TEXT NULL,

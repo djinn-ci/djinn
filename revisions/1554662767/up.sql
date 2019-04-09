@@ -5,6 +5,7 @@ CREATE TABLE stages (
 	can_fail    BOOLEAN NOT NULL,
 	did_fail    BOOLEAN NOT NULL DEFAULT false,
 	status      status DEFAULT 'queued',
+	created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
 	started_at  TIMESTAMP NULL,
 	finished_at TIMESTAMP NULL
 );

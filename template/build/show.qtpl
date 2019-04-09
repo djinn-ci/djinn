@@ -36,7 +36,7 @@ type ShowManifestPage struct {
 			<tr>
 				<td>Started at:</td>
 				<td class="align-right">
-					{% if p.Build.StartedAt != nil %}
+					{% if p.Build.StartedAt.Valid %}
 					{% else %}
 						--
 					{% endif %}
@@ -45,7 +45,7 @@ type ShowManifestPage struct {
 			<tr>
 				<td>Finished at:</td>
 				<td class="align-right">
-					{% if p.Build.FinishedAt != nil %}
+					{% if p.Build.FinishedAt.Valid %}
 					{% else %}
 						--
 					{% endif %}

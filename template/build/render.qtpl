@@ -67,7 +67,7 @@
 							{% endfor %}
 						</td>
 						<td class="align-right muted">
-							{% if b.FinishedAt != nil %}
+							{% if b.FinishedAt.Valid %}
 							{% else %}
 								--
 							{% endif %}

@@ -10,8 +10,6 @@ type ShowPage struct {
 	*template.Page
 
 	Build  *model.Build
-	Tags   []*model.Tag
-	Stages []*model.Stage
 }
 
 type ShowManifestPage struct {
@@ -55,7 +53,7 @@ type ShowManifestPage struct {
 			</tr>
 		</table>
 	</div>
-	{% for _, s := range p.Stages %}
+	{% for _, s := range p.Build.Stages %}
 		<div class="panel">
 			<div class="panel-header">
 				<h3>{%s s.Name %}</h3>

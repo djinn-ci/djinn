@@ -136,6 +136,24 @@ func (b *Build) Create() error {
 	return errors.Err(err)
 }
 
+func (b *Build) FindJob(id int64) (*Job, error) {
+	j := &Job{}
+
+	err := DB.Get(j, "SELECT * FROM jobs WHERE build_id = $1", b.ID)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return j, nil
+		}
+
+		return j, errors.Err(err)
+	}
+
+	j.Build = b
+
+	return j, nil
+}
+
 func (b *Build) IsZero() bool {
 	return	b.ID == 0                                         &&
 			b.UserID == 0                                     &&

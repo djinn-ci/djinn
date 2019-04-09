@@ -37,6 +37,7 @@ func registerWebRoutes(h web.Handler, dir string) *mux.Router {
 
 	namespaceRoutes(r, h, mw)
 	buildRoutes(r, h, mw)
+	jobRoutes(r, h, mw)
 
 	return r
 }
@@ -67,4 +68,12 @@ func buildRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/builds/{build}", mw.Auth(build.Show)).Methods("GET")
 	r.HandleFunc("/builds/{build}/manifest", mw.Auth(build.Show)).Methods("GET")
 	r.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.Show)).Methods("GET")
+}
+
+func jobRoutes(r *mux.Router, h web.Handler, mw web.Middleware) {
+	log.Debug.Println("registering job routes")
+
+	job := web.NewJob(h)
+
+	r.HandleFunc("/builds/{build}/jobs/{job}", mw.Auth(job.Show))
 }

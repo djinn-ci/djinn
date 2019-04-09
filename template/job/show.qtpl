@@ -1,0 +1,57 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/build"
+)
+%}
+
+{% code
+type ShowPage struct {
+	*template.Page
+
+	Job *model.Job
+}
+%}
+
+{% collapsespace %}
+{% func (p *ShowPage) Title() %}
+	{%s p.Job.Name %} - Thrall
+{% endfunc %}
+
+{% func (p *ShowPage) Body() %}
+	<div class="panel">
+		<table class="table">
+			<tr>
+				<td>Status:</td>
+				<td class="align-right">{%= build.RenderStatus(p.Job.Status) %}</td>
+			</tr>
+			<tr>
+				<td>Started At:</td>
+				<td class="align-right">
+					{% if p.Job.StartedAt != nil && p.Job.StartedAt.Valid %}
+					{% else %}
+						--
+					{% endif %}
+				</td>
+			</tr>
+			<tr>
+				<td>Finished At:</td>
+				<td class="align-right">
+					{% if p.Job.FinishedAt != nil && p.Job.FinishedAt.Valid %}
+					{% else %}
+						--
+					{% endif %}
+				</td>
+			</tr>
+		</table>
+	</div>
+{% endfunc %}
+
+{% func (p *ShowPage) Header() %}
+	<a href="/builds/{%v p.Job.Stage.BuildID %}" class="back">{% cat "../../svgs/back.svg" %}</a> {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
+{% endfunc %}
+
+{% func (p *ShowPage) Actions() %}{% endfunc %}
+{% func (p *ShowPage) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

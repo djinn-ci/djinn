@@ -144,7 +144,11 @@ func (p *ShowPage) StreamHeader(qw422016 *qt422016.Writer) {
 </svg>
 `)
 	//line template/job/show.qtpl:52
-	qw422016.N().S(`</a> `)
+	qw422016.N().S(`</a> Build #`)
+	//line template/job/show.qtpl:52
+	qw422016.E().V(p.Job.BuildID)
+	//line template/job/show.qtpl:52
+	qw422016.N().S(` / `)
 	//line template/job/show.qtpl:52
 	qw422016.E().S(p.Job.Stage.Name)
 	//line template/job/show.qtpl:52

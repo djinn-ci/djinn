@@ -139,7 +139,7 @@ func (b *Build) Create() error {
 func (b *Build) FindJob(id int64) (*Job, error) {
 	j := &Job{}
 
-	err := DB.Get(j, "SELECT * FROM jobs WHERE build_id = $1", b.ID)
+	err := DB.Get(j, "SELECT * FROM jobs WHERE build_id = $1 AND id = $2", b.ID, id)
 
 	if err != nil {
 		if err == sql.ErrNoRows {

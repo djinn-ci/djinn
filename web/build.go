@@ -82,6 +82,47 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 	// Passed form validation, so the YAML is valid.
 	manifest, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
 
+	// Create initial setup stage. Will contain the output of driver creation
+	// and cloning of source repositories.
+	setupStage := model.Stage{
+		BuildID: b.ID,
+		Name:    fmt.Sprintf("setup - #%v", b.ID),
+	}
+
+	if err := setupStage.Create(); err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	createJob := model.Job{
+		BuildID: b.ID,
+		StageID: setupStage.ID,
+		Name:    "create driver",
+	}
+
+	if err := createJob.Create(); err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	for i := range manifest.Sources {
+		name := fmt.Sprintf("clone.%d", i + 1)
+
+		j := model.Job{
+			BuildID: b.ID,
+			StageID: setupStage.ID,
+			Name:    name,
+		}
+
+		if err := j.Create(); err != nil {
+			log.Error.Println(errors.Err(err))
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	for _, name := range manifest.Stages {
 		canFail := false
 

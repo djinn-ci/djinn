@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 	"strconv"
@@ -17,7 +18,7 @@ import (
 	"github.com/andrewpillar/thrall/runner"
 )
 
-var cloneStage = "clone sources"
+var setupStage = "setup"
 
 func initializeSSH(manifest config.Manifest) runner.Driver {
 	timeout, err := strconv.ParseInt(os.Getenv("THRALL_SSH_TIMEOUT"), 10, 64)
@@ -27,6 +28,7 @@ func initializeSSH(manifest config.Manifest) runner.Driver {
 	}
 
 	return &driver.SSH{
+		Writer:   os.Stdout,
 		Address:  manifest.Driver.Address,
 		Username: manifest.Driver.Username,
 		KeyFile:  os.Getenv("THRALL_SSH_KEY"),
@@ -48,6 +50,7 @@ func initializeQEMU(manifest config.Manifest) runner.Driver {
 	}
 
 	ssh := &driver.SSH{
+		Writer:   ioutil.Discard,
 		Address:  hostfwd,
 		Username: os.Getenv("THRALL_QEMU_USERNAME"),
 		KeyFile:  os.Getenv("THRALL_SSH_KEY"),
@@ -75,6 +78,7 @@ func initializeQEMU(manifest config.Manifest) runner.Driver {
 	}
 
 	return &driver.QEMU{
+		Writer:  os.Stdout,
 		SSH:     ssh,
 		Image:   manifest.Driver.Image,
 		Arch:    arch,
@@ -106,15 +110,19 @@ func mainCommand(c cli.Command) {
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
 
-	pl := placer.NewFileSystem(c.Flags.GetString("objects"))
-	cl := collector.NewFileSystem(c.Flags.GetString("artifacts"))
+	r := runner.NewRunner(
+		os.Stdout,
+		manifest.Env,
+		manifest.Objects,
+		placer.NewFileSystem(c.Flags.GetString("objects")),
+		collector.NewFileSystem(c.Flags.GetString("artifacts")),
+		sigs,
+	)
 
-	r := runner.NewRunner(os.Stdout, manifest.Env, manifest.Objects, pl, cl, sigs)
-
-	clone := runner.NewStage(cloneStage, false)
+	setup := runner.NewStage(setupStage, false)
 
 	for i, src := range manifest.Sources {
-		name := fmt.Sprintf("clone.%d", i)
+		name := fmt.Sprintf("clone.%d", i + 1)
 
 		commands := []string{
 			"git clone " + src.URL + " " + src.Dir,
@@ -126,16 +134,16 @@ func mainCommand(c cli.Command) {
 			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
 		}
 
-		depends := []string{}
+		depends := []string{"create driver"}
 
 		if i > 0 {
-			depends = []string{fmt.Sprintf("clone.%d", i - 1)}
+			depends = append(depends, fmt.Sprintf("clone.%d", i))
 		}
 
-		clone.Add(runner.NewJob(os.Stdout, name, commands, depends, []config.Passthrough{}))
+		setup.Add(runner.NewJob(os.Stdout, name, commands, depends, []config.Passthrough{}))
 	}
 
-	r.Add(clone)
+	r.Add(setup)
 
 	for _, name := range manifest.Stages {
 		canFail := false
@@ -152,7 +160,7 @@ func mainCommand(c cli.Command) {
 
 	for _, j := range manifest.Jobs {
 		if _, ok := r.Stages[j.Stage]; !ok {
-			fmt.Fprintf(r.Out, "warning: unknown stage %s\n", j.Stage)
+			fmt.Fprintf(r.Writer, "warning: unknown stage %s\n", j.Stage)
 		}
 	}
 
@@ -196,7 +204,7 @@ func mainCommand(c cli.Command) {
 			keep := false
 
 			for _, flag := range stages {
-				if runnerStage == flag.Value || runnerStage == cloneStage {
+				if runnerStage == flag.Value || runnerStage == setupStage {
 					keep = true
 				}
 			}

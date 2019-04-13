@@ -18,6 +18,8 @@ import (
 )
 
 type SSH struct {
+	io.Writer
+
 	client *ssh.Client
 
 	env []string
@@ -28,8 +30,8 @@ type SSH struct {
 	Timeout  time.Duration
 }
 
-func (d *SSH) Create(w io.Writer, env []string, objects []config.Passthrough, p runner.Placer) error {
-	fmt.Fprintf(w, "Running with SSH driver...\n")
+func (d *SSH) Create(env []string, objects []config.Passthrough, p runner.Placer) error {
+	fmt.Fprintf(d.Writer, "Running with SSH driver...\n")
 
 	key, err := ioutil.ReadFile(d.KeyFile)
 
@@ -52,7 +54,7 @@ func (d *SSH) Create(w io.Writer, env []string, objects []config.Passthrough, p 
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	fmt.Fprintf(w, "Connecting to %s...\n", d.Address)
+	fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.Address)
 
 	cli, err := ssh.Dial("tcp", d.Address, cfg)
 
@@ -60,12 +62,12 @@ func (d *SSH) Create(w io.Writer, env []string, objects []config.Passthrough, p 
 		return err
 	}
 
-	fmt.Fprintf(w, "Established SSH connection to %s...\n\n", d.Address)
+	fmt.Fprintf(d.Writer, "Established SSH connection to %s...\n\n", d.Address)
 
 	d.env = env
 	d.client = cli
 
-	return d.placeObjects(w, objects, p)
+	return d.placeObjects(objects, p)
 }
 
 func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
@@ -145,19 +147,31 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 		f, err := cli.Open(a.Source)
 
 		if err != nil {
-			fmt.Fprintf(w, "Failed to collect artifact %s => %s: %s\n", a.Source, a.Destination, errors.Cause(err))
+			fmt.Fprintf(
+				w,
+				"Failed to collect artifact %s => %s: %s\n",
+				a.Source,
+				a.Destination,
+				errors.Cause(err),
+			)
 			continue
 		}
 
 		defer f.Close()
 
 		if err := c.Collect(a.Destination, f); err != nil {
-			fmt.Fprintf(w, "Failed to collect artifact %s => %s: %s\n", a.Source, a.Destination, errors.Cause(err))
+			fmt.Fprintf(
+				w,
+				"Failed to collect artifact %s => %s: %s\n",
+				a.Source,
+				a.Destination,
+				errors.Cause(err),
+			)
 		}
 	}
 }
 
-func (d *SSH) placeObjects(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
+func (d *SSH) placeObjects(objects []config.Passthrough, p runner.Placer) error {
 	if len(objects) == 0 {
 		return nil
 	}
@@ -171,24 +185,36 @@ func (d *SSH) placeObjects(w io.Writer, objects []config.Passthrough, p runner.P
 	defer cli.Close()
 
 	for _, o := range objects {
-		fmt.Fprintf(w, "Placing object %s => %s\n", o.Source, o.Destination)
+		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", o.Source, o.Destination)
 
 		f, err := cli.Create(o.Destination)
 
 		if err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			fmt.Fprintf(
+				d.Writer,
+				"Failed to place object %s => %s: %s\n",
+				o.Source,
+				o.Destination,
+				errors.Cause(err),
+			)
 			continue
 		}
 
 		defer f.Close()
 
 		if err := p.Place(o.Source, f); err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			fmt.Fprintf(
+				d.Writer,
+				"Failed to place object %s => %s: %s\n",
+				o.Source,
+				o.Destination,
+				errors.Cause(err),
+			)
 			continue
 		}
 	}
 
-	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(d.Writer, "\n")
 
 	return nil
 }

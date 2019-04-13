@@ -22,6 +22,8 @@ import (
 )
 
 type Docker struct {
+	io.Writer
+
 	client *client.Client
 	volume types.Volume
 
@@ -42,8 +44,8 @@ func NewDocker(image, workspace string) *Docker {
 	}
 }
 
-func (d *Docker) Create(w io.Writer, env []string, objects []config.Passthrough, p runner.Placer) error {
-	fmt.Fprintf(w, "Running with Docker driver...\n")
+func (d *Docker) Create(env []string, objects []config.Passthrough, p runner.Placer) error {
+	fmt.Fprintf(d.Writer, "Running with Docker driver...\n")
 
 	cli, err := client.NewEnvClient()
 
@@ -63,7 +65,7 @@ func (d *Docker) Create(w io.Writer, env []string, objects []config.Passthrough,
 
 	d.volume = vol
 
-	fmt.Fprintf(w, "Pulling Docker image %s...\n", d.image)
+	fmt.Fprintf(d.Writer, "Pulling Docker image %s...\n", d.image)
 
 	rc, err := d.client.ImagePull(ctx, d.image, types.ImagePullOptions{})
 
@@ -81,11 +83,11 @@ func (d *Docker) Create(w io.Writer, env []string, objects []config.Passthrough,
 		return err
 	}
 
-	fmt.Fprintf(w, "Using Docker image %s - %s...\n\n", d.image, image.ID)
+	fmt.Fprintf(d.Writer, "Using Docker image %s - %s...\n\n", d.image, image.ID)
 
 	d.env = env
 
-	return d.placeObjects(w, objects, p)
+	return d.placeObjects(objects, p)
 }
 
 func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
@@ -181,14 +183,26 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, a.Source)
 
 		if err != nil {
-			fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", a.Source, dst, errors.Cause(err))
+			fmt.Fprintf(
+				j.Writer,
+				"Failed to collect artifact %s => %s: %s\n",
+				a.Source,
+				dst,
+				errors.Cause(err),
+			)
 			continue
 		}
 
 		defer rc.Close()
 
 		if err := c.Collect(dst, rc); err != nil {
-			fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", a.Source, dst, errors.Cause(err))
+			fmt.Fprintf(
+				j.Writer,
+				"Failed to collect artifact %s => %s: %s\n",
+				a.Source,
+				dst,
+				errors.Cause(err),
+			)
 		}
 	}
 
@@ -211,7 +225,7 @@ func (d *Docker) Destroy() {
 	d.client.VolumeRemove(ctx, d.volume.Name, true)
 }
 
-func (d *Docker) placeObjects(w io.Writer, objects []config.Passthrough, p runner.Placer) error {
+func (d *Docker) placeObjects(objects []config.Passthrough, p runner.Placer) error {
 	if len(objects) == 0 {
 		return nil
 	}
@@ -241,19 +255,31 @@ func (d *Docker) placeObjects(w io.Writer, objects []config.Passthrough, p runne
 	}
 
 	for _, o := range objects {
-		fmt.Fprintf(w, "Placing object %s => %s\n", o.Source, o.Destination)
+		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", o.Source, o.Destination)
 
 		info, err := os.Stat(o.Source)
 
 		if err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			fmt.Fprintf(
+				d.Writer,
+				"Failed to place object %s => %s: %s\n",
+				o.Source,
+				o.Destination,
+				errors.Cause(err),
+			)
 			continue
 		}
 
 		header, err := tar.FileInfoHeader(info, info.Name())
 
 		if err != nil {
-			fmt.Fprintf(w, "Failed to place object %s => %s: %s\n", o.Source, o.Destination, errors.Cause(err))
+			fmt.Fprintf(
+				d.Writer,
+				"Failed to place object %s => %s: %s\n",
+				o.Source,
+				o.Destination,
+				errors.Cause(err),
+			)
 			continue
 		}
 
@@ -275,7 +301,7 @@ func (d *Docker) placeObjects(w io.Writer, objects []config.Passthrough, p runne
 
 	d.client.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{})
 
-	fmt.Fprintf(w, "\n")
+	fmt.Fprintf(d.Writer, "\n")
 
 	return nil
 }

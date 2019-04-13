@@ -59,6 +59,8 @@ var (
 )
 
 type QEMU struct {
+	io.Writer
+
 	*SSH
 
 	pidfile string
@@ -71,8 +73,8 @@ type QEMU struct {
 	HostFwd string
 }
 
-func (d *QEMU) Create(w io.Writer, env []string, objects []config.Passthrough, p runner.Placer) error {
-	fmt.Fprintf(w, "Running with QEMU driver...\n")
+func (d *QEMU) Create(env []string, objects []config.Passthrough, p runner.Placer) error {
+	fmt.Fprintf(d.Writer, "Running with QEMU driver...\n")
 
 	supported := false
 
@@ -115,7 +117,7 @@ func (d *QEMU) Create(w io.Writer, env []string, objects []config.Passthrough, p
 		"file=" + filepath.Join(QemuDir, d.Image) + ",media=disk,snapshot=on,if=virtio",
 	}
 
-	fmt.Fprintf(w, "Booting machine with image %s...\n", d.Image)
+	fmt.Fprintf(d.Writer, "Booting machine with image %s...\n", d.Image)
 
 	cmd := exec.Command(bin, arg...)
 
@@ -157,7 +159,7 @@ func (d *QEMU) Create(w io.Writer, env []string, objects []config.Passthrough, p
 			break
 		}
 
-		err = d.SSH.Create(ioutil.Discard, env, []config.Passthrough{}, p)
+		err = d.SSH.Create(env, []config.Passthrough{}, p)
 
 		if err == nil {
 			break
@@ -172,9 +174,9 @@ func (d *QEMU) Create(w io.Writer, env []string, objects []config.Passthrough, p
 		return err
 	}
 
-	fmt.Fprintf(w, "Established SSH connection to machine...\n\n")
+	fmt.Fprintf(d.Writer, "Established SSH connection to machine...\n\n")
 
-	return d.placeObjects(w, objects, p)
+	return d.placeObjects(objects, p)
 }
 
 func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {

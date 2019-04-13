@@ -24,26 +24,35 @@ type Collector interface {
 }
 
 type Runner struct {
+	io.Writer
+
 	order     []string
 	lastJob   *Job
-	signals   chan os.Signal
-	Out       io.Writer
-	Env       []string
-	Objects   []config.Passthrough
-	Stages    map[string]*Stage
-	Placer    Placer
-	Collector Collector
+	sigs      chan os.Signal
+	env       []string
+	objs      []config.Passthrough
+	placer    Placer
+	collector Collector
+
+	Stages map[string]*Stage
 }
 
-func NewRunner(w io.Writer, env []string, objects []config.Passthrough, p Placer, c Collector, signals chan os.Signal) *Runner {
+func NewRunner(
+	w    io.Writer,
+	env  []string,
+	objs []config.Passthrough,
+	p    Placer,
+	c    Collector,
+	sigs chan os.Signal,
+) *Runner {
 	return &Runner{
-		signals:   signals,
-		Out:       w,
-		Env:       env,
-		Objects:   objects,
+		Writer:    w,
+		sigs:      sigs,
+		env:       env,
+		objs:      objs,
+		placer:    p,
+		collector: c,
 		Stages:    make(map[string]*Stage),
-		Placer:    p,
-		Collector: c,
 	}
 }
 
@@ -112,8 +121,8 @@ func (r *Runner) Remove(stages ...string) {
 func (r *Runner) Run(d Driver) error {
 	defer d.Destroy()
 
-	if err := d.Create(r.Out, r.Env, r.Objects, r.Placer); err != nil {
-		fmt.Fprintf(r.Out, "%s\n", errors.Cause(err))
+	if err := d.Create(r.env, r.objs, r.placer); err != nil {
+		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 
 		return errRunFailed
@@ -141,8 +150,8 @@ func (r *Runner) Run(d Driver) error {
 func (r *Runner) RunStage(name string, d Driver) error {
 	defer d.Destroy()
 
-	if err := d.Create(r.Out, r.Env, r.Objects, r.Placer); err != nil {
-		fmt.Fprintf(r.Out, "%s\n", errors.Cause(err))
+	if err := d.Create(r.env, r.objs, r.placer); err != nil {
+		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 
 		return errRunFailed
@@ -165,24 +174,24 @@ func (r *Runner) RunStage(name string, d Driver) error {
 
 func (r Runner) printLastJobStatus() {
 	if r.lastJob == nil {
-		fmt.Fprintf(r.Out, "Done. No jobs run.\n")
+		fmt.Fprintf(r.Writer, "Done. No jobs run.\n")
 		return
 	}
 
 	if !r.lastJob.Success {
 		for _, err := range r.lastJob.Errors {
-			fmt.Fprintf(r.Out, "error: %s\n", err)
+			fmt.Fprintf(r.Writer, "error: %s\n", err)
 		}
 
 		if len(r.lastJob.Errors) > 0 {
-			fmt.Fprintf(r.Out, "\n")
+			fmt.Fprintf(r.Writer, "\n")
 		}
 
-		fmt.Fprintf(r.Out, "Done. Run failed.\n")
+		fmt.Fprintf(r.Writer, "Done. Run failed.\n")
 		return
 	}
 
-	fmt.Fprintf(r.Out, "Done. Run passed.\n")
+	fmt.Fprintf(r.Writer, "Done. Run passed.\n")
 }
 
 func (r *Runner) realRunStage(name string, d Driver) error {
@@ -196,13 +205,13 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 		return nil
 	}
 
-	jobs := runJobs(stage.Jobs, d, r.Collector)
+	jobs := runJobs(stage.Jobs, d, r.collector)
 
 	for jobs != nil {
 		select {
-			case sig := <-r.signals:
+			case sig := <-r.sigs:
 				if sig == os.Kill || sig == os.Interrupt {
-					fmt.Fprintf(r.Out, "%s\n", sig)
+					fmt.Fprintf(r.Writer, "%s\n", sig)
 					return errors.New("interrupt")
 				}
 			case j, ok := <-jobs:
@@ -212,14 +221,14 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 					r.lastJob = j
 
 					if !j.Success {
-						fmt.Fprintf(r.Out, "\n")
+						fmt.Fprintf(r.Writer, "\n")
 						return errors.New("failed to run job: " + j.Name)
 					}
 				}
 		}
 	}
 
-	fmt.Fprintf(r.Out, "\n")
+	fmt.Fprintf(r.Writer, "\n")
 
 	return nil
 }

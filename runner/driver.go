@@ -7,7 +7,9 @@ import (
 )
 
 type Driver interface {
-	Create(w io.Writer, env []string, objects []config.Passthrough, p Placer) error
+	io.Writer
+
+	Create(env []string, objects []config.Passthrough, p Placer) error
 
 	Execute(j *Job, c Collector)
 

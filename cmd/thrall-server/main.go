@@ -14,10 +14,11 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/thrall/session"
 
 	"github.com/gorilla/securecookie"
 
-	"gopkg.in/boj/redistore.v1"
+	"github.com/go-redis/redis"
 )
 
 func mainCommand(cmd cli.Command) {
@@ -53,20 +54,29 @@ func mainCommand(cmd cli.Command) {
 	key := []byte(cfg.Crypto.Key)
 
 	if err := model.Connect(cfg.Database.Addr, cfg.Database.Name, cfg.Database.Username, cfg.Database.Password); err != nil {
-		log.Error.Fatalf("failed to establish database connection: %s\n", err)
+		log.Error.Fatalf("failed to establish postgresql connection: %s\n", err)
 	}
 
 	log.Info.Println("connected to postgresql database")
 
 	sc := securecookie.New(hash, key)
 
-	store, err := redistore.NewRediStore(cfg.Redis.Idle, "tcp", cfg.Redis.Addr, cfg.Redis.Password, key)
+	client := redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+	})
 
 	if err != nil {
-		log.Error.Fatalf("failed to create session store: %s\n", err)
+		log.Error.Fatalf("failed to establish redis connection: %s\n", err)
+	}
+
+	if _, err := client.Ping().Result(); err != nil {
+		log.Error.Fatalf("failed to ping redis: %s\n", err)
 	}
 
 	log.Info.Println("connected to redis database")
+
+	store := session.New(client, key)
 
 	var handler http.Handler = registerWebRoutes(web.New(sc, store), cfg.Assets)
 

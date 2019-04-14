@@ -5,10 +5,12 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 
-	"gopkg.in/yaml.v2"
+	"github.com/pelletier/go-toml"
 )
 
 type Server struct {
+	Assets string
+
 	Net struct {
 		Listen string
 
@@ -42,12 +44,10 @@ type Server struct {
 		File   string
 		Access bool
 	}
-
-	Assets string
 }
 
 func DecodeServer(r io.Reader) (Server, error) {
-	dec := yaml.NewDecoder(r)
+	dec := toml.NewDecoder(r)
 
 	server := Server{}
 	server.Redis.Idle = 10

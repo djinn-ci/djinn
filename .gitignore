@@ -2,7 +2,8 @@
 .vimrc
 *.out
 *.tar
-thrall-server.yml
+thrall-server.toml
 mgrt.yml
-*.pem
+*.crt
+*.key
 node_modules/

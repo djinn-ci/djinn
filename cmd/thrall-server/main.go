@@ -138,7 +138,7 @@ func main() {
 		Short:    "-c",
 		Long:     "--config",
 		Argument: true,
-		Default:  "thrall-server.yml",
+		Default:  "thrall-server.toml",
 	})
 
 	if err := c.Run(os.Args[1:]); err != nil {

@@ -10,6 +10,8 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/lib/pq"
+
+	"github.com/RichardKnop/machinery/v1/tasks"
 )
 
 type Build struct {
@@ -204,6 +206,23 @@ func (b *Build) LoadRelations() error {
 	err = DB.Select(&b.Stages, "SELECT * FROM stages WHERE build_id = $1", b.ID)
 
 	return errors.Err(err)
+}
+
+func (b Build) Signature() *tasks.Signature {
+	id := tasks.Arg{
+		Type:  "int64",
+		Value: b.ID,
+	}
+
+	manifest := tasks.Arg{
+		Type:  "string",
+		Value: b.Manifest,
+	}
+
+	return &tasks.Signature{
+		Name: "build",
+		Args: []tasks.Arg{id, manifest},
+	}
 }
 
 func (b *Build) URI() string {

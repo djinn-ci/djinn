@@ -9,7 +9,11 @@ import (
 	"github.com/RichardKnop/machinery/v1/tasks"
 )
 
-var servers = make(map[string]*machinery.Server)
+var (
+	servers = make(map[string]*machinery.Server)
+
+	Builds = "thrall_builds"
+)
 
 func New(name, addr, password string) (*machinery.Server, error) {
 	url := "redis://"

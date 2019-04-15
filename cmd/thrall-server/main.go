@@ -85,7 +85,7 @@ func mainCommand(cmd cli.Command) {
 
 	log.Info.Println("connected to redis database")
 
-	if _, err := queue.New("thrall_builds", cfg.Redis.Addr, cfg.Redis.Password); err != nil {
+	if _, err := queue.New(queue.Builds, cfg.Redis.Addr, cfg.Redis.Password); err != nil {
 		log.Error.Fatalf("failed to create queue: %s\n", errors.Cause(err))
 	}
 

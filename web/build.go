@@ -15,6 +15,7 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
+	"github.com/andrewpillar/thrall/queue"
 
 	"github.com/gorilla/mux"
 )
@@ -188,6 +189,12 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
+	}
+
+	if _, err := queue.SendTask(queue.Builds, b.Signature()); err != nil {
+		log.Error.Println(errors.Err(err))
+		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)

@@ -53,7 +53,14 @@ func mainCommand(cmd cli.Command) {
 	hash := []byte(cfg.Crypto.Hash)
 	key := []byte(cfg.Crypto.Key)
 
-	if err := model.Connect(cfg.Database.Addr, cfg.Database.Name, cfg.Database.Username, cfg.Database.Password); err != nil {
+	err = model.Connect(
+		cfg.Database.Addr,
+		cfg.Database.Name,
+		cfg.Database.Username,
+		cfg.Database.Password,
+	)
+
+	if err != nil {
 		log.Error.Fatalf("failed to establish postgresql connection: %s\n", err)
 	}
 

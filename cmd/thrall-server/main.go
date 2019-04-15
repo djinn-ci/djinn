@@ -11,10 +11,12 @@ import (
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/session"
+	"github.com/andrewpillar/thrall/queue"
 
 	"github.com/gorilla/securecookie"
 
@@ -82,6 +84,10 @@ func mainCommand(cmd cli.Command) {
 	}
 
 	log.Info.Println("connected to redis database")
+
+	if _, err := queue.New("thrall_builds", cfg.Redis.Addr, cfg.Redis.Password); err != nil {
+		log.Error.Fatalf("failed to create queue: %s\n", errors.Cause(err))
+	}
 
 	store := session.New(client, key)
 

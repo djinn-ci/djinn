@@ -3,6 +3,7 @@ module github.com/andrewpillar/thrall/cmd/thrall-server
 replace github.com/andrewpillar/thrall => ../../
 
 require (
+	github.com/RichardKnop/machinery v1.6.2 // indirect
 	github.com/andrewpillar/cli v1.1.0
 	github.com/andrewpillar/thrall v0.0.0
 	github.com/go-redis/redis v6.15.2+incompatible
@@ -12,13 +13,10 @@ require (
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.1.3 // indirect
 	github.com/jmoiron/sqlx v1.2.0 // indirect
-	github.com/kr/pretty v0.1.0 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pelletier/go-toml v1.3.0 // indirect
 	github.com/valyala/quicktemplate v1.0.2 // indirect
-	golang.org/x/crypto v0.0.0-20190211182817-74369b46fc67 // indirect
 	google.golang.org/appengine v1.5.0 // indirect
-	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )

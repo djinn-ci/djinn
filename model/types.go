@@ -19,6 +19,7 @@ const (
 	Running
 	Passed
 	Failed
+	PassedWithFailures
 )
 
 func scanBytes(val interface{}) ([]byte, error) {
@@ -74,6 +75,9 @@ func (s *Status) UnmarshalText(b []byte) error {
 		case "failed":
 			(*s) = Failed
 			return nil
+		case "passed_with_failures":
+			(*s) = PassedWithFailures
+			return nil
 		default:
 			return errors.Err(errors.New("unknown status " + str))
 	}
@@ -89,6 +93,8 @@ func (s Status) Value() (driver.Value, error) {
 			return driver.Value("passed"), nil
 		case Failed:
 			return driver.Value("failed"), nil
+		case PassedWithFailures:
+			return driver.Value("passed_with_failures"), nil
 		default:
 			return driver.Value(""), errors.Err(errors.New("unknown status"))
 	}

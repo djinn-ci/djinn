@@ -186,10 +186,13 @@ func mainCommand(c cli.Command) {
 	switch manifest.Driver.Type {
 		case "docker":
 			d = driver.NewDocker(manifest.Driver.Image, manifest.Driver.Workspace)
+			break
 		case "qemu":
 			d = initializeQEMU(manifest)
+			break
 		case "ssh":
 			d = initializeSSH(manifest)
+			break
 		default:
 			fmt.Fprintf(os.Stderr, "%s: unknown driver %s\n", os.Args[0], manifest.Driver.Type)
 			os.Exit(1)
@@ -204,7 +207,7 @@ func mainCommand(c cli.Command) {
 			keep := false
 
 			for _, flag := range stages {
-				if runnerStage == flag.Value || runnerStage == setupStage {
+				if runnerStage == flag.GetString() || runnerStage == setupStage {
 					keep = true
 				}
 			}
@@ -234,7 +237,7 @@ func main() {
 		},
 	})
 
-	cmd := c.Main(mainCommand)
+	cmd := c.MainCommand(mainCommand)
 
 	cmd.AddFlag(&cli.Flag{
 		Name:     "artifacts",

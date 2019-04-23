@@ -61,14 +61,14 @@ func initializeQEMU(manifest config.Manifest) runner.Driver {
 
 	cpus, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_CPUS"), 10, 64)
 
-	if err == nil {
-		driver.QemuCPUs = cpus
+	if err != nil {
+		cpus = int64(2)
 	}
 
 	memory, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_MEMORY"), 10, 64)
 
-	if err == nil {
-		driver.QemuMemory = memory
+	if err != nil {
+		memory = int64(4096)
 	}
 
 	arch := manifest.Driver.Arch
@@ -82,6 +82,8 @@ func initializeQEMU(manifest config.Manifest) runner.Driver {
 		SSH:     ssh,
 		Image:   manifest.Driver.Image,
 		Arch:    arch,
+		CPUs:    int(cpus),
+		Memory:  int(memory),
 		HostFwd: hostfwd,
 	}
 }

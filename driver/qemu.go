@@ -53,9 +53,6 @@ var (
 	}
 
 	QemuDir string
-
-	QemuCPUs   = int64(1)
-	QemuMemory = int64(2048)
 )
 
 type QEMU struct {
@@ -68,8 +65,8 @@ type QEMU struct {
 
 	Image   string
 	Arch    string
-	CPUs    string
-	Memory  string
+	CPUs    int
+	Memory  int
 	HostFwd string
 }
 
@@ -106,9 +103,9 @@ func (d *QEMU) Create(env []string, objects []config.Passthrough, p runner.Place
 		"-pidfile",
 		d.pidfile,
 		"-smp",
-		strconv.FormatInt(QemuCPUs, 10),
+		fmt.Sprintf("%d", d.CPUs),
 		"-m",
-		strconv.FormatInt(QemuMemory, 10),
+		fmt.Sprintf("%d", d.Memory),
 		"-net",
 		"nic,model=virtio",
 		"-net",

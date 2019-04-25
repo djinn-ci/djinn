@@ -37,6 +37,7 @@ type BuildObject struct {
 	BuildID  int64  `db:"build_id"`
 	ObjectID int64  `db:"object_id"`
 	Source   string `db:"source"`
+	Placed   bool   `db:"placed"`
 }
 
 func FindBuild(id int64) (*Build, error) {
@@ -274,8 +275,8 @@ func (b *Build) URI() string {
 
 func (o *BuildObject) Create() error {
 	stmt, err := DB.Prepare(`
-		INSERT INTO build_objects (build_id, object_id, source)
-		VALUES ($1, $2, $3)
+		INSERT INTO build_objects (build_id, object_id, source, placed)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at
 	`)
 
@@ -285,7 +286,7 @@ func (o *BuildObject) Create() error {
 
 	defer stmt.Close()
 
-	err = stmt.QueryRow(o.BuildID, o.ObjectID, o.Source).Scan(&o.ID, &o.CreatedAt)
+	err = stmt.QueryRow(o.BuildID, o.ObjectID, o.Source, o.Placed).Scan(&o.ID, &o.CreatedAt)
 
 	return errors.Err(err)
 }
@@ -294,4 +295,18 @@ func (o *BuildObject) IsZero() bool {
 	return	o.ID == 0       &&
 			o.ObjectID == 0 &&
 			o.CreatedAt == nil || *o.CreatedAt == time.Time{}
+}
+
+func (o *BuildObject) Update() error {
+	stmt, err := DB.Prepare(`UPDATE build_objects SET placed = $1 WHERE id = $2`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(o.ID)
+
+	return errors.Err(err)
 }

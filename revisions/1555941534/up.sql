@@ -16,5 +16,6 @@ CREATE TABLE build_objects (
 	build_id   INT NOT NULL REFERENCES builds(id),
 	object_id  INT NOT NULL REFERENCES objects(id),
 	source     VARCHAR NOT NULL,
+	placed     BOOLEAN NOT NULL DEFAULT FALSE,
 	created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

@@ -80,22 +80,22 @@ func (s *Store) New(r *http.Request, name string) (*sessions.Session, error) {
 	c, err := r.Cookie(name)
 
 	if err != nil {
-		return nil, errors.Err(err)
+		return sess, errors.Err(err)
 	}
 
 	if err := securecookie.DecodeMulti(name, c.Value, &sess.ID, s.Codecs...); err != nil {
-		return nil, errors.Err(err)
+		return sess, errors.Err(err)
 	}
 
 	data, err := s.client.Get(prefix + sess.ID).Result()
 
 	if err != nil {
-		return nil, errors.Err(err)
+		return sess, errors.Err(err)
 	}
 
 	if data != "" {
 		if err := deserialize([]byte(data), sess); err != nil {
-			return nil, errors.Err(err)
+			return sess, errors.Err(err)
 		}
 
 		sess.IsNew = false

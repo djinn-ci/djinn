@@ -1,1 +1,1 @@
-DROP TABLE stages;
+DROP TABLE IF EXISTS stages;

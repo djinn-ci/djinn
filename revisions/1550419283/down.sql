@@ -1,2 +1,2 @@
-DROP TABLE namespaces;
-DROP TYPE visibility;
+DROP TABLE IF EXISTS namespaces;
+DROP TYPE IF EXISTS visibility;

@@ -1,3 +1,3 @@
-DROP TABLE tags;
-DROP TABLE builds;
-DROP TYPE status;
+DROP TABLE IF EXISTS tags;
+DROP TABLE IF EXISTS builds;
+DROP TYPE IF EXISTS status;

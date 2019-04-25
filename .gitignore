@@ -1,9 +1,10 @@
 *.swp
-.vimrc
 *.out
 *.tar
-thrall-server.toml
-mgrt.yml
 *.crt
 *.key
 node_modules/
+.vimrc
+mgrt.yml
+thrall-worker.toml
+thrall-server.toml

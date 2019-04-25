@@ -13,10 +13,12 @@ require (
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.1.3 // indirect
 	github.com/jmoiron/sqlx v1.2.0 // indirect
+	github.com/lib/pq v1.1.0 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect
 	github.com/onsi/gomega v1.5.0 // indirect
 	github.com/pelletier/go-toml v1.3.0 // indirect
 	github.com/valyala/quicktemplate v1.0.2 // indirect
+	golang.org/x/crypto v0.0.0-20190424203555-c05e17bb3b2d // indirect
 	google.golang.org/appengine v1.5.0 // indirect
 )

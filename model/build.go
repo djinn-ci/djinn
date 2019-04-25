@@ -31,6 +31,28 @@ type Build struct {
 	Stages    []*Stage
 }
 
+type BuildObject struct {
+	Model
+
+	BuildID  int64  `db:"build_id"`
+	ObjectID int64  `db:"object_id"`
+	Source   string `db:"source"`
+}
+
+func FindBuild(id int64) (*Build, error) {
+	b := &Build{}
+
+	if err := DB.Get(b, "SELECT * FROM builds WHERE id = $1", id); err != nil {
+		if err == sql.ErrNoRows {
+			return b, nil
+		}
+
+		return b, errors.Err(err)
+	}
+
+	return b, nil
+}
+
 func LoadBuildRelations(builds []*Build) error {
 	if len(builds) == 0 {
 		return nil
@@ -220,11 +242,56 @@ func (b Build) Signature() *tasks.Signature {
 	}
 
 	return &tasks.Signature{
-		Name: "build",
+		Name: "run_build",
 		Args: []tasks.Arg{id, manifest},
 	}
 }
 
+func (b *Build) Update() error {
+	stmt, err := DB.Prepare(`
+		UPDATE builds
+		SET status = $1,
+			output = $2,
+			started_at = $3,
+			finished_at = $4
+		WHERE id = $5
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(b.Status, b.Output, b.StartedAt, b.FinishedAt)
+
+	return errors.Err(err)
+}
+
 func (b *Build) URI() string {
 	return "/builds/" + strconv.FormatInt(b.ID, 10)
+}
+
+func (o *BuildObject) Create() error {
+	stmt, err := DB.Prepare(`
+		INSERT INTO build_objects (build_id, object_id, source)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	err = stmt.QueryRow(o.BuildID, o.ObjectID, o.Source).Scan(&o.ID, &o.CreatedAt)
+
+	return errors.Err(err)
+}
+
+func (o *BuildObject) IsZero() bool {
+	return	o.ID == 0       &&
+			o.ObjectID == 0 &&
+			o.CreatedAt == nil || *o.CreatedAt == time.Time{}
 }

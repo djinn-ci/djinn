@@ -178,6 +178,24 @@ func (u *User) FindNamespaceByFullName(fullName string) (*Namespace, error) {
 	return n, nil
 }
 
+func (u *User) FindObjectByName(name string) (*Object, error) {
+	o := &Object{}
+
+	err := DB.Get(o, "SELECT * FROM objects WHERE user_id = $1 AND name = $2", u.ID, name)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return o, nil
+		}
+
+		return o, errors.Err(err)
+	}
+
+	o.User = u
+
+	return o, nil
+}
+
 func (u *User) FindOrCreateNamespace(fullName string) (*Namespace, error) {
 	n, err := u.FindNamespaceByFullName(fullName)
 

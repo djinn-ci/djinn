@@ -14,20 +14,24 @@ type Job struct {
 
 	BuildID    int64          `db:"build_id"`
 	StageID    int64          `db:"stage_id"`
+	Parent     sql.NullInt64  `db:"parent"`
 	Name       string         `db:"name"`
+	Commands   string         `db:"commands"`
 	Status     Status         `db:"status"`
 	Output     sql.NullString `db:"output"`
 	StartedAt  *pq.NullTime   `db:"started_at"`
 	FinishedAt *pq.NullTime   `db:"finished_at"`
 
-	Build *Build
-	Stage *Stage
+	Build        *Build
+	Stage        *Stage
+	Artifacts    []*Artifact
+	Dependencies []*Job
 }
 
 func (j *Job) Create() error {
 	stmt, err := DB.Prepare(`
-		INSERT INTO jobs (build_id, stage_id, name)
-		VALUES ($1, $2, $3)
+		INSERT INTO jobs (build_id, stage_id, name, commands)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id
 	`)
 
@@ -37,7 +41,7 @@ func (j *Job) Create() error {
 
 	defer stmt.Close()
 
-	err = stmt.QueryRow(j.BuildID, j.StageID, j.Name).Scan(&j.ID)
+	err = stmt.QueryRow(j.BuildID, j.StageID, j.Name, j.Commands).Scan(&j.ID)
 
 	return errors.Err(err)
 }
@@ -66,6 +70,7 @@ func (j Job) IsZero() bool {
 	return j.ID == 0                                          &&
 			j.BuildID == 0                                    &&
 			j.StageID == 0                                    &&
+			!j.Parent.Valid                                   &&
 			j.Name == ""                                      &&
 			j.Status == Status(0)                             &&
 			j.Output.String == ""                             &&

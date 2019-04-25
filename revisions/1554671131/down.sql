@@ -1,1 +1,1 @@
-DROP TABLE jobs;
+DROP TABLE IF EXISTS jobs;

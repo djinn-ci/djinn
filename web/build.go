@@ -97,9 +97,10 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	createJob := model.Job{
-		BuildID: b.ID,
-		StageID: setupStage.ID,
-		Name:    "create driver",
+		BuildID:  b.ID,
+		StageID:  setupStage.ID,
+		Name:     "create driver",
+		Commands: "",
 	}
 
 	if err := createJob.Create(); err != nil {
@@ -108,13 +109,51 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for i := range manifest.Sources {
+	for _, obj := range manifest.Objects {
+		o, err := u.FindObjectByName(obj.Source)
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		if o.IsZero() {
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
+		bo := model.BuildObject{
+			BuildID:  b.ID,
+			ObjectID: o.ID,
+			Source:   obj.Source,
+		}
+
+		if err := bo.Create(); err != nil {
+			log.Error.Println(errors.Err(err))
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	for i, src := range manifest.Sources {
 		name := fmt.Sprintf("clone.%d", i + 1)
 
+		commands := []string{
+			"git clone " + src.URL + " " + src.Dir,
+			"cd " + src.Dir,
+			"git checkout -q " + src.Ref,
+		}
+
+		if src.Dir != "" {
+			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
+		}
+
 		j := model.Job{
-			BuildID: b.ID,
-			StageID: setupStage.ID,
-			Name:    name,
+			BuildID:  b.ID,
+			StageID:  setupStage.ID,
+			Name:     name,
+			Commands: strings.Join(commands, "\n"),
 		}
 
 		if err := j.Create(); err != nil {
@@ -158,15 +197,31 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 			}
 
 			j := model.Job{
-				BuildID: b.ID,
-				StageID: s.ID,
-				Name:    manifestJob.Name,
+				BuildID:  b.ID,
+				StageID:  s.ID,
+				Name:     manifestJob.Name,
+				Commands: strings.Join(manifestJob.Commands, "\n"),
 			}
 
 			if err := j.Create(); err != nil {
 				log.Error.Println(errors.Err(err))
 				HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 				return
+			}
+
+			for _, manifestArtifact := range manifestJob.Artifacts {
+				a := model.Artifact{
+					BuildID: b.ID,
+					JobID:   j.ID,
+					Source:  manifestArtifact.Source,
+					Name:    manifestArtifact.Destination,
+				}
+
+				if err := a.Create(); err != nil {
+					log.Error.Println(errors.Err(err))
+					HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+					return
+				}
 			}
 		}
 	}

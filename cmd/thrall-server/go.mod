@@ -12,7 +12,7 @@ require (
 	github.com/gorilla/schema v1.0.2 // indirect
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.1.3 // indirect
-	github.com/jmoiron/sqlx v1.2.0 // indirect
+	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.1.0 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	github.com/onsi/ginkgo v1.8.0 // indirect

@@ -31,6 +31,8 @@ var (
 )
 
 type Register struct {
+	Users *model.UserStore
+
 	Email          string `schema:"email"`
 	Username       string `schema:"username"`
 	Password       string `schema:"password"`
@@ -64,13 +66,13 @@ func (f Register) Validate() error {
 		errs.Put("email", ErrEmailInvalid)
 	}
 
-	count, err := model.Count(model.UsersTable, map[string]interface{}{"email": f.Email})
+	u, err := f.Users.FindByEmail(f.Email)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 
 		errs.Put("register", errors.Cause(err))
-	} else if count > 0 {
+	} else if !u.IsZero() {
 		errs.Put("email", ErrEmailTaken)
 	}
 
@@ -86,13 +88,13 @@ func (f Register) Validate() error {
 		errs.Put("username", ErrUsernameInvalid)
 	}
 
-	count, err = model.Count(model.UsersTable, map[string]interface{}{"username": f.Username})
+	u, err = f.Users.FindByUsername(f.Username)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 
 		errs.Put("register", errors.Cause(err))
-	} else if count > 0 {
+	} else if !u.IsZero() {
 		errs.Put("username", ErrUsernameTaken)
 	}
 

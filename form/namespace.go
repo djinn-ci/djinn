@@ -23,12 +23,14 @@ var (
 )
 
 type Namespace struct {
+	Namespaces *model.NamespaceStore
+	Namespace  *model.Namespace
+
 	UserID      int64
 	Parent      string           `schema:"parent"`
 	Name        string           `schema:"name"`
 	Description string           `schema:"description"`
 	Visibility  model.Visibility `schema:"visibility"`
-	Namespace   *model.Namespace
 }
 
 func (f Namespace) Get(key string) string {
@@ -58,14 +60,14 @@ func (f Namespace) Validate() error {
 		errs.Put("name", ErrNamespaceInvalid)
 	}
 
-	shouldCount := true
+	checkUnique := true
 
 	if f.Namespace != nil && !f.Namespace.IsZero() {
 		parts := strings.Split(f.Namespace.FullName, "/")
 		parts[len(parts) - 1] = f.Name
 
 		if f.Namespace.Name == f.Name {
-			shouldCount = false
+			checkUnique = false
 		}
 
 		f.Name = strings.Join(parts, "/")
@@ -73,19 +75,14 @@ func (f Namespace) Validate() error {
 		f.Name = strings.Join([]string{f.Parent, f.Name}, "/")
 	}
 
-	if shouldCount {
-		cols := map[string]interface{}{
-			"user_id":   f.UserID,
-			"full_name": f.Name,
-		}
-
-		count, err := model.Count(model.NamespacesTable, cols)
+	if checkUnique {
+		n, err := f.Namespaces.FindByFullName(f.Name)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
 
 			errs.Put("namespace", errors.Cause(err))
-		} else if count > 0 {
+		} else if !n.IsZero() {
 			errs.Put("name", ErrNamespaceExists)
 		}
 	}

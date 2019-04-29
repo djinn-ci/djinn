@@ -2,129 +2,181 @@ package model
 
 import (
 	"database/sql"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/lib/pq"
 )
 
 type User struct {
-	Model
+	model
 
 	Email     string       `db:"email"`
 	Username  string       `db:"username"`
 	Password  []byte       `db:"password"`
-	UpdatedAt *time.Time   `db:"updated_at"`
 	DeletedAt *pq.NullTime `db:"deleted_at"`
 }
 
-func FindUser(id int64) (*User, error) {
-	u := &User{}
+type UserStore struct {
+	*Store
+}
 
-	err := DB.Get(u, "SELECT * FROM users WHERE id = $1", id)
+func NewUserStore(s *Store) *UserStore {
+	return &UserStore{
+		Store: s,
+	}
+}
+
+func (us UserStore) New() *User {
+	u := &User{
+		model: model{
+			DB: us.DB,
+		},
+	}
+
+	return u
+}
+
+func (us UserStore) In(ids ...int64) ([]*User, error) {
+	uu := make([]*User, 0)
+
+	if len(ids) == 0 {
+		return uu, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", ids)
 
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return u, nil
-		}
+		return uu, errors.Err(err)
+	}
 
-		return u, errors.Err(err)
+	err = us.Select(&uu, us.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, u := range uu {
+		u.DB = us.DB
+		u.Email = strings.TrimSpace(u.Email)
+		u.Username = strings.TrimSpace(u.Username)
+	}
+
+	return uu, errors.Err(err)
+}
+
+func (us UserStore) Find(id int64) (*User, error) {
+	u := &User{
+		model: model{
+			DB: us.DB,
+		},
+	}
+
+	err := us.Get(u, "SELECT * FROM users WHERE id = $1", id)
+
+	if err == sql.ErrNoRows {
+		err = nil
 	}
 
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
-	return u, nil
+	return u, errors.Err(err)
 }
 
-func FindUserByHandle(handle string) (*User, error) {
-	u := &User{}
+func (us UserStore) FindByEmail(email string) (*User, error) {
+	u := &User{
+		model: model{
+			DB: us.DB,
+		},
+	}
 
-	err := DB.Get(u, "SELECT * FROM users WHERE email = $1 OR username = $2", handle, handle)
+	err := us.Get(u, "SELECT * FROM users WHERE email = $1", email)
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return u, nil
-		}
-
-		return u, errors.Err(err)
+	if err == sql.ErrNoRows {
+		err = nil
 	}
 
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
-	return u, nil
+	return u, errors.Err(err)
 }
 
-func FindUserByUsername(username string) (*User, error) {
-	u := &User{}
+func (us UserStore) FindByUsername(username string) (*User, error) {
+	u := &User{
+		model: model{
+			DB: us.DB,
+		},
+	}
 
-	err := DB.Get(u, "SELECT * FROM users WHERE username = $1", username)
+	err := us.Get(u, "SELECT * FROM users WHERE username = $1", username)
 
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return u, nil
-		}
-
-		return u, errors.Err(err)
+	if err == sql.ErrNoRows {
+		err = nil
 	}
 
 	u.Email = strings.TrimSpace(u.Email)
 	u.Username = strings.TrimSpace(u.Username)
 
-	return u, nil
+	return u, errors.Err(err)
 }
 
-func (u *User) Builds() ([]*Build, error) {
-	builds := make([]*Build, 0)
-
-	err := DB.Select(&builds, "SELECT * FROM builds WHERE user_id = $1", u.ID)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return builds, nil
-		}
-
-		return builds, errors.Err(err)
+func (us UserStore) FindByHandle(handle string) (*User, error) {
+	u := &User{
+		model: model{
+			DB: us.DB,
+		},
 	}
 
-	for _, b := range builds {
-		b.User = u
+	err := us.Get(u, "SELECT * FROM users WHERE username = $1 OR email = $2", handle, handle)
+
+	if err == sql.ErrNoRows {
+		err = nil
 	}
 
-	return builds, nil
+	u.Email = strings.TrimSpace(u.Email)
+	u.Username = strings.TrimSpace(u.Username)
+
+	return u, errors.Err(err)
 }
 
-func (u *User) BuildsByStatus(status string) ([]*Build, error) {
-	builds := make([]*Build, 0)
-
-	err := DB.Select(&builds, `
-		SELECT * FROM builds WHERE user_id = $1 AND status = $2
-	`, u.ID, status)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return builds, nil
-		}
-
-		return builds, errors.Err(err)
+func (u *User) BuildStore() BuildStore {
+	return BuildStore{
+		Store: &Store{
+			DB: u.DB,
+		},
+		user: u,
 	}
+}
 
-	for _, b := range builds {
-		b.User = u
+func (u *User) NamespaceStore() NamespaceStore {
+	return NamespaceStore{
+		Store: &Store{
+			DB: u.DB,
+		},
+		user: u,
 	}
+}
 
-	return builds, nil
+func (u *User) ObjectStore() ObjectStore {
+	return ObjectStore{
+		Store: &Store{
+			DB: u.DB,
+		},
+		user: u,
+	}
 }
 
 func (u *User) Create() error {
-	stmt, err := DB.Prepare(`
+	stmt, err := u.Prepare(`
 		INSERT INTO users (email, username, password)
 		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at, deleted_at
+		RETURNING id, created_at, updated_at
 	`)
 
 	if err != nil {
@@ -135,166 +187,57 @@ func (u *User) Create() error {
 
 	row := stmt.QueryRow(u.Email, u.Username, u.Password)
 
-	err = row.Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt, &u.DeletedAt)
+	return errors.Err(row.Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt))
+}
+
+func (u *User) Update() error {
+	stmt, err := u.Prepare(`
+		UPDATE users
+		SET email = $1, username = $2, password = $3, updated_at = NOW()
+		WHERE id = $4
+		RETURNING updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(u.Email, u.Username, u.Password, u.ID)
+
+	return errors.Err(row.Scan(&u.UpdatedAt))
+}
+
+func (u *User) Destroy() error {
+	u.DeletedAt = &pq.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
+
+	stmt, err := u.Prepare("UPDATE users SET deleted_at = $1 WHERE id = $2")
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(u.DeletedAt)
 
 	return errors.Err(err)
 }
 
-func (u *User) FindBuild(id int64) (*Build, error) {
-	b := &Build{}
-
-	err := DB.Get(b, "SELECT * FROM builds WHERE user_id = $1 AND id = $2", u.ID, id)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return b, nil
-		}
-
-		return b, errors.Err(err)
-	}
-
-	b.User = u
-
-	return b, nil
+func (u *User) Deleted() bool {
+	return u.DeletedAt != nil && u.DeletedAt.Valid
 }
 
-func (u *User) FindNamespaceByFullName(fullName string) (*Namespace, error) {
-	n := &Namespace{}
-
-	err := DB.Get(n, `
-		SELECT * FROM namespaces WHERE user_id = $1 AND full_name = $2
-	`, u.ID, fullName)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return n, nil
-		}
-
-		return n, errors.Err(err)
-	}
-
-	n.User = u
-
-	return n, nil
-}
-
-func (u *User) FindObjectByName(name string) (*Object, error) {
-	o := &Object{}
-
-	err := DB.Get(o, "SELECT * FROM objects WHERE user_id = $1 AND name = $2", u.ID, name)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return o, nil
-		}
-
-		return o, errors.Err(err)
-	}
-
-	o.User = u
-
-	return o, nil
-}
-
-func (u *User) FindOrCreateNamespace(fullName string) (*Namespace, error) {
-	n, err := u.FindNamespaceByFullName(fullName)
-
-	if err != nil {
-		return n, errors.Err(err)
-	}
-
-	if !n.IsZero() {
-		return n, nil
-	}
-
-	parent := &Namespace{}
-
-	parts := strings.Split(fullName, "/")
-
-	for _, name := range parts {
-		if parent.Level + 1 > 20 {
-			break
-		}
-
-		if matched, err := regexp.Match("^[a-zA-Z0-9]+$", []byte(name)); !matched || err != nil {
-			break
-		}
-
-		n = &Namespace{
-			UserID:   u.ID,
-			Name:     name,
-			FullName: name,
-			Level:    parent.Level + 1,
-		}
-
-		if !parent.IsZero() {
-			n.ParentID = sql.NullInt64{
-				Int64: parent.ID,
-				Valid: true,
-			}
-
-			n.FullName = strings.Join([]string{parent.FullName, n.Name}, "/")
-		}
-
-		if err := n.Create(); err != nil {
-			return n, errors.Err(err)
-		}
-
-		parent = n
-	}
-
-	return n, nil
-}
-
-func (u User) IsZero() bool {
-	return	u.ID == 0                                         &&
-			u.Email == ""                                     &&
-			u.Username == ""                                  &&
-			len(u.Password) == 0                              &&
-			u.CreatedAt == nil || *u.CreatedAt == time.Time{} &&
-			u.UpdatedAt == nil || *u.UpdatedAt == time.Time{}
-}
-
-func (u *User) Namespaces() ([]*Namespace, error) {
-	namespaces := make([]*Namespace, 0)
-
-	err := DB.Select(&namespaces, `
-		SELECT * FROM namespaces WHERE user_id = $1 ORDER BY full_name ASC
-	`, u.ID)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return namespaces, nil
-		}
-
-		return namespaces, errors.Err(err)
-	}
-
-	for _, n := range namespaces {
-		n.User = u
-	}
-
-	return namespaces, nil
-}
-
-func (u *User) NamespacesLike(like string) ([]*Namespace, error) {
-	namespaces := make([]*Namespace, 0)
-
-	err := DB.Select(&namespaces, `
-		SELECT * FROM namespaces WHERE user_id = $1 full_name LIKE $2 ORDER BY full_name ASC
-	`, u.ID, "%" + like + "%")
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return namespaces, nil
-		}
-
-		return namespaces, errors.Err(err)
-	}
-
-	for _, n := range namespaces {
-		n.User = u
-	}
-
-	return namespaces, nil
+func (u *User) IsZero() bool {
+	return u.ID == 0 &&
+           u.Email == "" &&
+           u.Username == "" &&
+           len(u.Password) == 0 &&
+           u.CreatedAt == nil &&
+           u.UpdatedAt == nil &&
+           u.DeletedAt == nil
 }

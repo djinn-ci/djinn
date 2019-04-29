@@ -3,77 +3,54 @@ package model
 import (
 	"fmt"
 	"net"
-	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/errors"
 
 	"github.com/jmoiron/sqlx"
 
 	_ "github.com/lib/pq"
 )
 
-var (
-	sourceFmt = "host=%s port=%s user=%s dbname=%s password=%s sslmode=disable"
+var sourceFmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=disable"
 
-	DB *sqlx.DB
+type model struct {
+	*sqlx.DB
 
-	UsersTable      = "users"
-	NamespacesTable = "namespaces"
-)
-
-type Model struct {
 	ID        int64      `db:"id"`
 	CreatedAt *time.Time `db:"created_at"`
+	UpdatedAt *time.Time `db:"updated_at"`
 }
 
-func Connect(addr, name, username, password string) error {
+type Store struct {
+	*sqlx.DB
+}
+
+func NewStore(db *sqlx.DB) *Store {
+	return &Store{
+		DB: db,
+	}
+}
+
+func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
 	host, port, err := net.SplitHostPort(addr)
 
 	if err != nil {
-		return errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	log.Debug.Printf(
-		"opening postgresql connection with '%s'\n",
-		fmt.Sprintf(sourceFmt, host, port, username, name, "*****"),
-	)
+	source := fmt.Sprintf(sourceFmt, host, port, dbname, username, password)
 
-	DB, err = sqlx.Open("postgres", fmt.Sprintf(sourceFmt, host, port, username, name, password))
+	log.Debug.Printf("opening postgresql connection with '%s'\n", source)
+
+	db, err := sqlx.Open("postgres", source)
 
 	if err != nil {
-		return errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
 	log.Debug.Println("testing connection to database")
 
-	if err = DB.Ping(); err != nil {
-		return errors.Err(err)
-	}
-
-	return nil
-}
-
-func Count(table string, cols map[string]interface{}) (int, error) {
-	var count int
-
-	query := "SELECT COUNT(*) FROM " + table + " WHERE "
-
-	wheres := make([]string, len(cols), len(cols))
-	vals := make([]interface{}, len(cols), len(cols))
-
-	i := 0
-
-	for key, val := range cols {
-		wheres[i] = fmt.Sprintf("%s = $%d", key, i + 1)
-		vals[i] = val
-		i++
-	}
-
-	query += strings.Join(wheres, " AND ")
-
-	err := DB.Get(&count, query, vals...)
-
-	return count, errors.Err(err)
+	return db, errors.Err(db.Ping())
 }

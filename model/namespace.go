@@ -2,8 +2,8 @@ package model
 
 import (
 	"database/sql"
+	"regexp"
 	"strings"
-	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -11,7 +11,7 @@ import (
 )
 
 type Namespace struct {
-	Model
+	model
 
 	UserID      int64         `db:"user_id"`
 	ParentID    sql.NullInt64 `db:"parent_id"`
@@ -20,28 +20,293 @@ type Namespace struct {
 	Description string        `db:"description"`
 	Level       int64         `db:"level"`
 	Visibility  Visibility    `db:"visibility"`
-	UpdatedAt   *time.Time    `db:"updated_at"`
 
-	User   *User
-	Parent *Namespace
+	User     *User
+	Parent   *Namespace
+	Children []*Namespace
 }
 
-func FindNamespace(id int64) (*Namespace, error) {
-	n := &Namespace{}
+type NamespaceStore struct {
+	*Store
 
-	err := DB.Get(n, "SELECT * FROM namespaces WHERE id = $1", id)
+	user      *User
+	namespace *Namespace
+}
+
+func NewNamespaceStore(s *Store) *NamespaceStore {
+	return &NamespaceStore{
+		Store: s,
+	}
+}
+
+func (ns NamespaceStore) New() *Namespace {
+	n := &Namespace{
+		model: model{
+			DB: ns.DB,
+		},
+	}
+
+	if ns.user != nil {
+		n.UserID = ns.user.ID
+		n.User = ns.user
+	}
+
+	if ns.namespace != nil {
+		n.ParentID = sql.NullInt64{
+			Int64: ns.namespace.ID,
+			Valid: true,
+		}
+		n.Parent = ns.namespace
+	}
+
+	return n
+}
+
+func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
+	n := &Namespace{
+		model: model{
+			DB: ns.DB,
+		},
+	}
+
+	query := "SELECT * FROM namespaces WHERE id = $1"
+	args := []interface{}{id}
+
+	if ns.user != nil {
+		query += " AND user_id = $2"
+		args = append(args, ns.user.ID)
+
+		n.User = ns.user
+	}
+
+	if ns.namespace != nil {
+		if ns.user != nil {
+			query += " AND parent_id = $3"
+		} else {
+			query += " AND parent_id = $2"
+		}
+
+		args = append(args, ns.namespace.ID)
+
+		n.Parent = ns.namespace
+	}
+
+	err := ns.Get(n, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 
 	return n, errors.Err(err)
 }
 
-func LoadNamespaceRelations(namespaces []*Namespace) error {
-	if len(namespaces) == 0 {
+func (ns NamespaceStore) In(ids ...int64) ([]*Namespace, error) {
+	nn := make([]*Namespace, 0)
+
+	if len(ids) == 0 {
+		return nn, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM namespaces WHERE id IN (?)", ids)
+
+	if err != nil {
+		return nn, errors.Err(err)
+	}
+
+	err = ns.Select(&nn, ns.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, n := range nn {
+		n.DB = ns.DB
+	}
+
+	return nn, errors.Err(err)
+}
+
+func (ns NamespaceStore) FindByFullName(fullName string) (*Namespace, error) {
+	n := &Namespace{
+		model: model{
+			DB: ns.DB,
+		},
+	}
+
+	query := "SELECT * FROM namespaces WHERE full_name = $1"
+	args := []interface{}{fullName}
+
+	if ns.user != nil {
+		query += " AND user_id = $2"
+		args = append(args, ns.user.ID)
+
+		n.User = ns.user
+	}
+
+	if ns.namespace != nil {
+		if ns.user != nil {
+			query += " AND parent_id = $3"
+		} else {
+			query += " AND parent_id = $2"
+		}
+
+		args = append(args, ns.namespace.ID)
+
+		n.Parent = ns.namespace
+	}
+
+	err := ns.Get(n, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return n, errors.Err(err)
+}
+
+func (ns NamespaceStore) FindOrCreate(fullName string) (*Namespace, error) {
+	n, err := ns.FindByFullName(fullName)
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	if !n.IsZero() {
+		return n, nil
+	}
+
+	parent := &Namespace{}
+	parts := strings.Split(fullName, "/")
+
+	for _, name := range parts {
+		if parent.Level + 1 > 20 {
+			break
+		}
+
+		if matched, err := regexp.Match("^[a-zA-Z0-9]+$", []byte(name)); !matched || err != nil {
+			break
+		}
+
+		n = ns.New()
+		n.Name = name
+		n.FullName = name
+		n.Level = parent.Level + 1
+
+		if !parent.IsZero() {
+			n.ParentID = sql.NullInt64{
+				Int64: parent.ID,
+				Valid: true,
+			}
+
+			n.FullName = strings.Join([]string{parent.FullName, n.Name}, "/")
+		}
+
+		if err := n.Create(); err != nil {
+			return n, errors.Err(err)
+		}
+
+		parent = n
+	}
+
+	if ns.user != nil {
+		n.User = ns.user
+	}
+
+	return n, nil
+}
+
+func (ns NamespaceStore) All() ([]*Namespace, error) {
+	nn := make([]*Namespace, 0)
+
+	query := "SELECT * FROM namespaces"
+	args := []interface{}{}
+
+	if ns.user != nil {
+		query += " WHERE user_id = $1"
+		args = append(args, ns.user.ID)
+	}
+
+	if ns.namespace != nil {
+		if ns.user != nil {
+			query += " AND WHERE parent_id = $2"
+		} else {
+			query += " WHERE parent_id = $1"
+		}
+
+		args = append(args, ns.namespace.ID)
+	}
+
+	err := ns.Select(&nn, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, n := range nn {
+		n.DB = ns.DB
+
+		if ns.user != nil {
+			n.User = ns.user
+		}
+
+		if ns.namespace != nil {
+			n.Parent = ns.namespace
+		}
+	}
+
+	return nn, errors.Err(err)
+}
+
+func (ns NamespaceStore) Like(like string) ([]*Namespace, error) {
+	nn := make([]*Namespace, 0)
+
+	query := "SELECT * FROM namespaces WHERE full_name LIKE $1"
+	args := []interface{}{"%" + like + "%"}
+
+	if ns.user != nil {
+		query += " AND user_id = $2"
+		args = append(args, ns.user.ID)
+	}
+
+	if ns.namespace != nil {
+		if ns.user != nil {
+			query += " AND parent_id = $3"
+		} else {
+			query += " AND parent_id = $2"
+		}
+
+		args = append(args, ns.namespace.ID)
+	}
+
+	err := ns.Select(&nn, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, n := range nn {
+		n.DB = ns.DB
+
+		if ns.user != nil {
+			n.User = ns.user
+		}
+
+		if ns.namespace != nil {
+			n.Parent = ns.namespace
+		}
+	}
+
+	return nn, errors.Err(err)
+}
+
+func (ns NamespaceStore) LoadRelations(nn []*Namespace) error {
+	if len(nn) == 0 {
 		return nil
 	}
 
-	userIds := make([]int64, len(namespaces), len(namespaces))
+	userIds := make([]int64, len(nn), len(nn))
 
-	for i, n := range namespaces {
+	for i, n := range nn {
 		userIds[i] = n.UserID
 	}
 
@@ -51,48 +316,45 @@ func LoadNamespaceRelations(namespaces []*Namespace) error {
 		return errors.Err(err)
 	}
 
-	users := make([]*User, 0)
+	uu := make([]*User, 0)
 
-	err = DB.Select(&users, DB.Rebind(query), args...)
+	err = ns.Select(&uu, ns.Rebind(query), args...)
 
-	if err != nil {
-		return errors.Err(err)
+	if err == sql.ErrNoRows {
+		err = nil
 	}
 
-	for _, n := range namespaces {
-		for _, u := range users {
-			if n.UserID == u.ID && n.User == nil {
-				u.Email = strings.TrimSpace(u.Email)
-				u.Username = strings.TrimSpace(u.Username)
-
+	for _, n := range nn {
+		for _, u := range uu {
+			if u.ID == n.UserID && n.User == nil {
 				n.User = u
 			}
 		}
 	}
 
-	return nil
+	return errors.Err(err)
 }
 
-func (n *Namespace) Builds() ([]*Build, error) {
-	builds := make([]*Build, 0)
-
-	err := DB.Select(&builds, `
-		SELECT * FROM builds WHERE namespace_id = $1 ORDER BY created_at DESC
-	`, n.ID)
-
-	if err != nil {
-		return builds, errors.Err(err)
+func (n *Namespace) BuildStore() BuildStore {
+	return BuildStore{
+		Store: &Store{
+			DB: n.DB,
+		},
+		namespace: n,
 	}
+}
 
-	for _, b := range builds {
-		b.Namespace = n
+func (n *Namespace) NamespaceStore() NamespaceStore {
+	return NamespaceStore{
+		Store: &Store{
+			DB: n.DB,
+		},
+		namespace: n,
 	}
-
-	return builds, nil
 }
 
 func (n *Namespace) Create() error {
-	stmt, err := DB.Prepare(`
+	stmt, err := n.Prepare(`
 		INSERT INTO namespaces (user_id, parent_id, name, full_name, description, level, visibility)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
@@ -114,155 +376,13 @@ func (n *Namespace) Create() error {
 		n.Visibility,
 	)
 
-	err = row.Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt)
-
-	return errors.Err(err)
-}
-
-func (n *Namespace) Destroy() error {
-	namespaces, err := n.Namespaces()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, child := range namespaces {
-		if err := child.Destroy(); err != nil {
-			return errors.Err(err)
-		}
-	}
-
-	stmt, err := DB.Prepare("DELETE FROM namespaces WHERE id = $1")
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(n.ID)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	n.ID = 0
-	n.UserID = 0
-	n.ParentID.Int64 = 0
-	n.Name = ""
-	n.FullName = ""
-	n.Description = ""
-	n.Level = 0
-	n.Visibility = Visibility(0)
-	n.CreatedAt = nil
-	n.UpdatedAt = nil
-
-	n.User = nil
-	n.Parent = nil
-
-	return nil
-}
-
-func (n *Namespace) FindBuild(id int64) (*Build, error) {
-	b := &Build{}
-
-	err := DB.Get(b, "SELECT * FROM builds WHERE namespace_id = $1 AND id = $2", n.ID, id)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			b.CreatedAt = nil
-			b.StartedAt = nil
-			b.FinishedAt = nil
-
-			return b, nil
-		}
-
-		return b, errors.Err(err)
-	}
-
-	b.Namespace = n
-
-	return b, nil
-}
-
-func (n Namespace) IsZero() bool {
-	return	n.ID == 0                                         &&
-			n.UserID == 0                                     &&
-			n.Name == ""                                      &&
-			n.FullName == ""                                  &&
-			n.Description == ""                               &&
-			n.Level == 0                                      &&
-			n.Visibility == Visibility(0)                     &&
-			n.CreatedAt == nil || *n.CreatedAt == time.Time{} &&
-			n.UpdatedAt == nil || *n.UpdatedAt == time.Time{}
-}
-
-func (n *Namespace) LoadParents() error {
-	if n.ParentID.Int64 == 0 {
-		return nil
-	}
-
-	parent := &Namespace{}
-
-	err := DB.Get(parent, "SELECT * FROM namespaces WHERE id = $1", n.ParentID)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if parent.IsZero() {
-		return nil
-	}
-
-	n.Parent = parent
-
-	return n.Parent.LoadParents()
-}
-
-func (n Namespace) NamespacesLike(like string) ([]*Namespace, error) {
-	namespaces := make([]*Namespace, 0)
-
-	err := DB.Select(&namespaces, `
-		SELECT * FROM namespaces WHERE parent_id = $1  AND full_name LIKE $2
-	`, n.ID, "%" + like + "%")
-
-	if err != nil {
-		return namespaces, errors.Err(err)
-	}
-
-	if err := LoadNamespaceRelations(namespaces); err != nil {
-		return namespaces, errors.Err(err)
-	}
-
-	return namespaces, nil
-}
-
-func (n Namespace) Namespaces() ([]*Namespace, error) {
-	namespaces := make([]*Namespace, 0)
-
-	err := DB.Select(&namespaces, `
-		SELECT * FROM namespaces WHERE parent_id = $1 ORDER BY full_name ASC
-	`, n.ID)
-
-	if err != nil {
-		return namespaces, errors.Err(err)
-	}
-
-	if err := LoadNamespaceRelations(namespaces); err != nil {
-		return namespaces, errors.Err(err)
-	}
-
-	return namespaces, nil
+	return errors.Err(row.Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt))
 }
 
 func (n *Namespace) Update() error {
-	stmt, err := DB.Prepare(`
+	stmt, err := n.Prepare(`
 		UPDATE namespaces
-		SET	name = $1,
-			full_name = $2,
-			description = $3,
-			visibility = $4,
-			updated_at = NOW()
+		SET name = $1, full_name = $2, description = $3, visibility = $4, updated_at = NOW()
 		WHERE id = $5
 		RETURNING updated_at
 	`)
@@ -275,12 +395,76 @@ func (n *Namespace) Update() error {
 
 	row := stmt.QueryRow(n.Name, n.FullName, n.Description, n.Visibility, n.ID)
 
-	err = row.Scan(&n.UpdatedAt)
+	return errors.Err(row.Scan(&n.UpdatedAt))
+}
+
+func (n *Namespace) Destroy() error {
+	nn, err := n.NamespaceStore().All()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, n := range nn {
+		if err := n.Destroy(); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	stmt, err := n.Prepare("DELETE FROM namespaces WHERE id = $1")
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(n.ID)
 
 	return errors.Err(err)
 }
 
-func (n Namespace) URI() string {
+func (n *Namespace) IsZero() bool {
+	return n.ID == 0 &&
+           n.UserID == 0 &&
+           !n.ParentID.Valid &&
+           n.Name == "" &&
+           n.FullName == "" &&
+           n.Description == "" &&
+           n.Level == 0 &&
+           n.Visibility == Visibility(0) &&
+           n.CreatedAt == nil &&
+           n.UpdatedAt == nil
+}
+
+func (n *Namespace) LoadParents() error {
+	if !n.ParentID.Valid {
+		return nil
+	}
+
+	var err error
+
+	namespaces := NamespaceStore{
+		Store: &Store{
+			DB: n.DB,
+		},
+		user: n.User,
+	}
+
+	n.Parent, err = namespaces.Find(n.ParentID.Int64)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if n.Parent.IsZero() {
+		return nil
+	}
+
+	return n.Parent.LoadParents()
+}
+
+func (n Namespace) UIEndpoint() string {
 	if n.User == nil {
 		return ""
 	}

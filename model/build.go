@@ -1,21 +1,16 @@
 package model
 
 import (
+	"fmt"
 	"database/sql"
-	"strconv"
-	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/lib/pq"
-
-	"github.com/RichardKnop/machinery/v1/tasks"
 )
 
 type Build struct {
-	Model
+	model
 
 	UserID      int64          `db:"user_id"`
 	NamespaceID sql.NullInt64  `db:"namespace_id"`
@@ -27,43 +22,297 @@ type Build struct {
 
 	User      *User
 	Namespace *Namespace
-	Tags      []*Tag
 	Stages    []*Stage
+	Tags      []*Tag
 }
 
 type BuildObject struct {
-	Model
+	model
 
 	BuildID  int64  `db:"build_id"`
 	ObjectID int64  `db:"object_id"`
 	Source   string `db:"source"`
 	Placed   bool   `db:"placed"`
+
+	Build  *Build
+	Object *Object
 }
 
-func FindBuild(id int64) (*Build, error) {
-	b := &Build{}
+type BuildStore struct {
+	*Store
 
-	if err := DB.Get(b, "SELECT * FROM builds WHERE id = $1", id); err != nil {
-		if err == sql.ErrNoRows {
-			return b, nil
-		}
+	user      *User
+	namespace *Namespace
+}
 
-		return b, errors.Err(err)
+type BuildObjectStore struct {
+	*Store
+
+	build  *Build
+	object *Object
+}
+
+func (bs BuildStore) New() *Build {
+	b := &Build{
+		model: model{
+			DB: bs.DB,
+		},
 	}
 
-	return b, nil
+	if bs.user != nil {
+		b.UserID = bs.user.ID
+		b.User = bs.user
+	}
+
+	if bs.namespace != nil {
+		b.NamespaceID = sql.NullInt64{
+			Int64: bs.namespace.ID,
+			Valid: true,
+		}
+		b.Namespace = bs.namespace
+	}
+
+	return b
 }
 
-func LoadBuildRelations(builds []*Build) error {
-	if len(builds) == 0 {
+func (bs BuildStore) All() ([]*Build, error) {
+	bb := make([]*Build, 0)
+
+	query := "SELECT * FROM builds"
+	args := []interface{}{}
+
+	if bs.user != nil {
+		query += " WHERE user_id = $1"
+		args = append(args, bs.user.ID)
+	}
+
+	if bs.namespace != nil {
+		if bs.user != nil {
+			query += " AND namespace_id = $2"
+		} else {
+			query += " WHERE namespace_id = $1"
+		}
+
+		args = append(args, bs.namespace.ID)
+	}
+
+	err := bs.Select(&bb, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, b := range bb {
+		b.DB = bs.DB
+
+		if bs.user != nil {
+			b.User = bs.user
+		}
+
+		if bs.namespace != nil {
+			b.Namespace = bs.namespace
+		}
+	}
+
+	return bb, errors.Err(err)
+}
+
+func (bs BuildStore) ByStatus(status string) ([]*Build, error) {
+	bb := make([]*Build, 0)
+
+	query := "SELECT * FROM builds WHERE status = $1"
+	args := []interface{}{status}
+
+	if bs.user != nil {
+		query += " AND user_id = $2"
+		args = append(args, bs.user.ID)
+	}
+
+	if bs.namespace != nil {
+		if bs.user != nil {
+			query += " AND namespace_id = $3"
+		} else {
+			query += " AND namespace_id = $2"
+		}
+
+		args = append(args, bs.namespace.ID)
+	}
+
+	err := bs.Select(&bb, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, b := range bb {
+		b.DB = bs.DB
+
+		if bs.user != nil {
+			b.User = bs.user
+		}
+
+		if bs.namespace != nil {
+			b.Namespace = bs.namespace
+		}
+	}
+
+	return bb, errors.Err(err)
+}
+
+func (bs BuildStore) Find(id int64) (*Build, error) {
+	b := &Build{
+		model: model{
+			DB: bs.DB,
+		},
+	}
+
+	query := "SELECT * FROM builds WHERE id = $1"
+	args := []interface{}{id}
+
+	if bs.user != nil {
+		query += " AND user_id = $2"
+		args = append(args, bs.user.ID)
+
+		b.User = bs.user
+	}
+
+	if bs.namespace != nil {
+		if bs.user != nil {
+			query += " AND namespace_id = $3"
+		} else {
+			query += " AND namespace_id = $2"
+		}
+
+		args = append(args, bs.namespace.ID)
+
+		b.Namespace = bs.namespace
+	}
+
+	err := bs.Get(b, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return b, errors.Err(err)
+}
+
+func (bos BuildObjectStore) New() *BuildObject {
+	bo := &BuildObject{
+		model: model{
+			DB: bos.DB,
+		},
+	}
+
+	if bos.build != nil {
+		bo.BuildID = bos.build.ID
+		bo.Build = bos.build
+	}
+
+	if bos.object != nil {
+		bo.ObjectID = bos.object.ID
+		bo.Object = bos.object
+	}
+
+	return bo
+}
+
+func (b *Build) TagStore() TagStore {
+	return TagStore{
+		Store: &Store{
+			DB: b.DB,
+		},
+		build: b,
+	}
+}
+
+func (b *Build) StageStore() StageStore {
+	return StageStore{
+		Store: &Store{
+			DB: b.DB,
+		},
+		build: b,
+	}
+}
+
+func (b *Build) JobStore() JobStore {
+	return JobStore{
+		Store: &Store{
+			DB: b.DB,
+		},
+		build: b,
+	}
+}
+
+func (b *Build) BuildObjectStore() BuildObjectStore {
+	return BuildObjectStore{
+		Store: &Store{
+			DB: b.DB,
+		},
+		build: b,
+	}
+}
+
+func (b *Build) Create() error {
+	stmt, err := b.Prepare(`
+		INSERT INTO builds (user_id, namespace_id, manifest)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at, updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(b.UserID, b.NamespaceID, b.Manifest)
+
+	return errors.Err(row.Scan(&b.ID, &b.CreatedAt, &b.UpdatedAt))
+}
+
+func (b *Build) Update() error {
+	stmt, err := b.Prepare(`
+		UPDATE builds
+		SET status = $1, output = $2, started_at = $3, finished_at = $4, updated_at = NOW()
+		WHERE id = $5
+		RETURNING updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(b.Status, b.Output, b.StartedAt, b.FinishedAt, b.ID)
+
+	return errors.Err(row.Scan(&b.UpdatedAt))
+}
+
+func (b *Build) IsZero() bool {
+	return b.ID == 0 &&
+           b.UserID == 0 &&
+           !b.NamespaceID.Valid &&
+           b.Manifest == "" &&
+           b.Status == Status(0) &&
+           !b.Output.Valid &&
+           b.StartedAt == nil &&
+           b.FinishedAt == nil &&
+           b.CreatedAt == nil &&
+           b.UpdatedAt == nil
+}
+
+func (bs *BuildStore) LoadRelations(bb []*Build) error {
+	if len(bb) == 0 {
 		return nil
 	}
 
-	namespaceIds := make([]int64, 0, len(builds))
-	buildIds := make([]int64, len(builds), len(builds))
-	userIds := make([]int64, len(builds), len(builds))
+	namespaceIds := make([]int64, 0, len(bb))
+	buildIds := make([]int64, len(bb), len(bb))
+	userIds := make([]int64, len(bb), len(bb))
 
-	for i, b := range builds {
+	for i, b := range bb {
 		if b.NamespaceID.Valid {
 			namespaceIds = append(namespaceIds, b.NamespaceID.Int64)
 		}
@@ -72,69 +321,61 @@ func LoadBuildRelations(builds []*Build) error {
 		userIds[i] = b.UserID
 	}
 
-	namespaces := make([]*Namespace, 0)
-
-	if len(namespaceIds) > 0 {
-		query, args, err := sqlx.In("SELECT * FROM namespaces WHERE id IN (?)", namespaceIds)
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		err = DB.Select(&namespaces, DB.Rebind(query), args...)
-
-		if err != nil {
-			return errors.Err(err)
-		}
+	namespaces := NamespaceStore{
+		Store: &Store{
+			DB: bs.DB,
+		},
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM tags WHERE build_id IN (?)", buildIds)
+	nn, err := namespaces.In(namespaceIds...)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	tags := make([]*Tag, 0)
+	if err := namespaces.LoadRelations(nn); err != nil {
+		return errors.Err(err)
+	}
 
-	err = DB.Select(&tags, DB.Rebind(query), args...)
+	tags := TagStore{
+		Store: &Store{
+			DB: bs.DB,
+		},
+	}
+
+	tt, err := tags.InBuildID(buildIds...)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	query, args, err = sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
+	users := UserStore{
+		Store: &Store{
+			DB: bs.DB,
+		},
+	}
+
+	uu, err := users.In(userIds...)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	users := make([]*User, 0)
-
-	err = DB.Select(&users, DB.Rebind(query), args...)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if err := LoadNamespaceRelations(namespaces); err != nil {
-		return errors.Err(err)
-	}
-
-	for _, b := range builds {
-		for _, t := range tags {
+	for _, b := range bb {
+		for _, t := range tt {
 			if t.BuildID == b.ID {
 				b.Tags = append(b.Tags, t)
 			}
 		}
 
-		for _, n := range namespaces {
-			if b.NamespaceID.Valid && b.NamespaceID.Int64 == n.ID && b.Namespace == nil {
+		for _, n := range nn {
+			if n.ID == b.NamespaceID.Int64 && b.Namespace == nil {
 				b.Namespace = n
 			}
 		}
 
-		for _, u := range users {
-			if b.UserID == u.ID && b.User == nil {
+		for _, u := range uu {
+			if u.ID == b.UserID && b.User == nil {
 				b.User = u
 			}
 		}
@@ -143,119 +384,63 @@ func LoadBuildRelations(builds []*Build) error {
 	return nil
 }
 
-func (b *Build) Create() error {
-	stmt, err := DB.Prepare(`
-		INSERT INTO builds (user_id, namespace_id, manifest)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	err = stmt.QueryRow(b.UserID, b.NamespaceID, b.Manifest).Scan(&b.ID, &b.CreatedAt)
-
-	return errors.Err(err)
-}
-
-func (b *Build) FindJob(id int64) (*Job, error) {
-	j := &Job{}
-
-	err := DB.Get(j, "SELECT * FROM jobs WHERE build_id = $1 AND id = $2", b.ID, id)
-
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return j, nil
-		}
-
-		return j, errors.Err(err)
-	}
-
-	j.Build = b
-
-	return j, nil
-}
-
-func (b *Build) IsZero() bool {
-	return	b.ID == 0                                         &&
-			b.UserID == 0                                     &&
-			b.NamespaceID.Int64 == 0                          &&
-			!b.NamespaceID.Valid                              &&
-			b.Manifest == ""                                  &&
-			b.Status == Status(0)                             &&
-			b.Output.String == ""                             &&
-			!b.Output.Valid                                   &&
-			b.CreatedAt == nil || *b.CreatedAt == time.Time{} &&
-			b.StartedAt.Time == time.Time{}                   &&
-			!b.StartedAt.Valid                                &&
-			b.FinishedAt.Time == time.Time{}                  &&
-			!b.FinishedAt.Valid
-}
-
 func (b *Build) LoadRelations() error {
+	var err error
+
 	if b.User == nil {
-		b.User = &User{}
+		users := UserStore{
+			Store: &Store{
+				DB: b.DB,
+			},
+		}
 
-		err := DB.Get(b.User, "SELECT * FROM users WHERE id = $1", b.UserID)
+		b.User, err = users.Find(b.UserID)
 
 		if err != nil {
 			return errors.Err(err)
 		}
 	}
 
-	if b.NamespaceID.Valid {
-		b.Namespace = &Namespace{}
+	if b.Namespace == nil && b.NamespaceID.Valid {
+		namespaces := NamespaceStore{
+			Store: &Store{
+				DB: b.DB,
+			},
+		}
 
-		err := DB.Get(b.Namespace, "SELECT * FROM namespaces WHERE id = $1", b.NamespaceID.Int64)
+		b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
 
 		if err != nil {
 			return errors.Err(err)
 		}
 	}
 
-	b.Tags = make([]*Tag, 0)
+	if len(b.Tags) == 0 {
+		b.Tags, err = b.TagStore().All()
 
-	err := DB.Select(&b.Tags, "SELECT * FROM tags WHERE build_id = $1", b.ID)
+		if err != nil {
+			return errors.Err(err)
+		}
+	}
 
-	if err != nil {
+	if len(b.Stages) == 0 {
+		b.Stages, err = b.StageStore().All()
+
 		return errors.Err(err)
 	}
 
-	b.Stages = make([]*Stage, 0)
-
-	err = DB.Select(&b.Stages, "SELECT * FROM stages WHERE build_id = $1", b.ID)
-
-	return errors.Err(err)
+	return nil
 }
 
-func (b Build) Signature() *tasks.Signature {
-	id := tasks.Arg{
-		Type:  "int64",
-		Value: b.ID,
-	}
-
-	manifest := tasks.Arg{
-		Type:  "string",
-		Value: b.Manifest,
-	}
-
-	return &tasks.Signature{
-		Name: "run_build",
-		Args: []tasks.Arg{id, manifest},
-	}
+func (b Build) UIEndpoint() string {
+	return fmt.Sprintf("/builds/%v", b.ID)
 }
 
-func (b *Build) Update() error {
-	stmt, err := DB.Prepare(`
-		UPDATE builds
-		SET status = $1,
-			output = $2,
-			started_at = $3,
-			finished_at = $4
-		WHERE id = $5
+func (b *BuildObject) Create() error {
+	stmt, err := b.Prepare(`
+		INSERT INTO build_objects (build_id, object_id, source)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at, updated_at
 	`)
 
 	if err != nil {
@@ -264,49 +449,7 @@ func (b *Build) Update() error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(b.Status, b.Output, b.StartedAt, b.FinishedAt)
+	row := stmt.QueryRow(b.BuildID, b.ObjectID, b.Source)
 
-	return errors.Err(err)
-}
-
-func (b *Build) URI() string {
-	return "/builds/" + strconv.FormatInt(b.ID, 10)
-}
-
-func (o *BuildObject) Create() error {
-	stmt, err := DB.Prepare(`
-		INSERT INTO build_objects (build_id, object_id, source, placed)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	err = stmt.QueryRow(o.BuildID, o.ObjectID, o.Source, o.Placed).Scan(&o.ID, &o.CreatedAt)
-
-	return errors.Err(err)
-}
-
-func (o *BuildObject) IsZero() bool {
-	return	o.ID == 0       &&
-			o.ObjectID == 0 &&
-			o.CreatedAt == nil || *o.CreatedAt == time.Time{}
-}
-
-func (o *BuildObject) Update() error {
-	stmt, err := DB.Prepare(`UPDATE build_objects SET placed = $1 WHERE id = $2`)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(o.ID)
-
-	return errors.Err(err)
+	return errors.Err(row.Scan(&b.ID, &b.CreatedAt, &b.UpdatedAt))
 }

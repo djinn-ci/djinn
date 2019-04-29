@@ -53,10 +53,10 @@
 				{% for _, b := range builds %}
 					<tr>
 						<td>{%= RenderStatus(b.Status) %}</td>
-						<td><a href="{%s b.URI() %}">#{%v b.ID %}</a></td>
+						<td><a href="{%s b.UIEndpoint() %}">#{%v b.ID %}</a></td>
 						<td>
 							{% if b.Namespace != nil %}
-								<a href="{%s b.Namespace.URI() %}">{%s b.Namespace.FullName %}</a>
+								<a href="{%s b.Namespace.UIEndpoint() %}">{%s b.Namespace.FullName %}</a>
 							{% else %}
 								<span class="muted">--</span>
 							{% endif %}

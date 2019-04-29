@@ -232,7 +232,7 @@ func StreamRenderBuildsTable(qw422016 *qt422016.Writer, builds []*model.Build, s
 			//line template/build/render.qtpl:55
 			qw422016.N().S(`</td> <td><a href="`)
 			//line template/build/render.qtpl:56
-			qw422016.E().S(b.URI())
+			qw422016.E().S(b.UIEndpoint())
 			//line template/build/render.qtpl:56
 			qw422016.N().S(`">#`)
 			//line template/build/render.qtpl:56
@@ -244,7 +244,7 @@ func StreamRenderBuildsTable(qw422016 *qt422016.Writer, builds []*model.Build, s
 				//line template/build/render.qtpl:58
 				qw422016.N().S(` <a href="`)
 				//line template/build/render.qtpl:59
-				qw422016.E().S(b.Namespace.URI())
+				qw422016.E().S(b.Namespace.UIEndpoint())
 				//line template/build/render.qtpl:59
 				qw422016.N().S(`">`)
 				//line template/build/render.qtpl:59

@@ -90,8 +90,8 @@ type ShowManifestPage struct {
 
 {% func (p *ShowPage) Navigation() %}
 	{% stripspace %}
-		<li>{%= template.RenderLink(p.Build.URI(), p.URI) %}{% cat "../../svgs/eye.svg" %}<span>Overview</span></a></li>
-		<li>{%= template.RenderLink(p.Build.URI() + "/manifest", p.URI) %}{% cat "../../svgs/document.svg" %}<span>Manifest</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint(), p.URI) %}{% cat "../../svgs/eye.svg" %}<span>Overview</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/manifest", p.URI) %}{% cat "../../svgs/document.svg" %}<span>Manifest</span></a></li>
 	{% endstripspace %}
 {% endfunc %}
 

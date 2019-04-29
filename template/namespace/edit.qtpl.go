@@ -71,7 +71,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:24
 	qw422016.N().S(` <div class="panel"> <div class="panel-body slim"> <form method="POST" action="`)
 	//line template/namespace/edit.qtpl:27
-	qw422016.E().S(p.Namespace.URI())
+	qw422016.E().S(p.Namespace.UIEndpoint())
 	//line template/namespace/edit.qtpl:27
 	qw422016.N().S(`"> <input type="hidden" name="_method" value="PATCH"/> `)
 	//line template/namespace/edit.qtpl:29
@@ -107,7 +107,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:38
 	qw422016.N().S(` <div class="form-error">`)
 	//line template/namespace/edit.qtpl:39
-	qw422016.E().S(p.Errors.First("description"))
+	qw422016.E().S(p.Errors.First("name"))
 	//line template/namespace/edit.qtpl:39
 	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="label" for="name">Description <small>(optional)</small></label> `)
 	//line template/namespace/edit.qtpl:43
@@ -183,7 +183,7 @@ func (p *EditPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:66
 	qw422016.N().S(` <div class="form-desc">Anyone will be able to view builds in the namespace.</div> </label> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Save</button> </div> </form> <div class="separator"></div> <form method="POST" action="`)
 	//line template/namespace/edit.qtpl:75
-	qw422016.E().S(p.Namespace.URI())
+	qw422016.E().S(p.Namespace.UIEndpoint())
 	//line template/namespace/edit.qtpl:75
 	qw422016.N().S(`"> <input type="hidden" name="_method" value="DELETE"/> <div class="overflow"> <div class="right"> <button type="submit" class="btn btn-danger">Delete</button> </div> <strong>Delete Namespace</strong><br/><p>Builds within the namespace will not be deleted.</p> </div> </form> </div> </div> `)
 //line template/namespace/edit.qtpl:86

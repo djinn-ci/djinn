@@ -24,7 +24,7 @@ type EditPage struct {
 {% func (p *EditPage) Body() %}
 	<div class="panel">
 		<div class="panel-body slim">
-			<form method="POST" action="{%s p.Namespace.URI() %}">
+			<form method="POST" action="{%s p.Namespace.UIEndpoint() %}">
 				<input type="hidden" name="_method" value="PATCH"/>
 				{% if p.Errors.First("namespace") != "" %}
 					<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
@@ -36,7 +36,7 @@ type EditPage struct {
 					{% else %}
 						<input class="form-text" type="text" name="name" value="{%s p.Namespace.Name %}" autocomplete="off"/>
 					{% endif %}
-					<div class="form-error">{%s p.Errors.First("description") %}</div>
+					<div class="form-error">{%s p.Errors.First("name") %}</div>
 				</div>
 				<div class="form-field">
 					<label class="label" for="name">Description <small>(optional)</small></label>
@@ -72,7 +72,7 @@ type EditPage struct {
 				</div>
 			</form>
 			<div class="separator"></div>
-			<form method="POST" action="{%s p.Namespace.URI ()%}">
+			<form method="POST" action="{%s p.Namespace.UIEndpoint() %}">
 				<input type="hidden" name="_method" value="DELETE"/>
 				<div class="overflow">
 					<div class="right">

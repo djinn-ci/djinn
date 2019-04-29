@@ -172,7 +172,7 @@ func (p *CreatePage) StreamHeader(qw422016 *qt422016.Writer) {
 		//line template/namespace/create.qtpl:71
 		qw422016.N().S(` <a class="back" href="`)
 		//line template/namespace/create.qtpl:72
-		qw422016.E().S(p.Parent.URI())
+		qw422016.E().S(p.Parent.UIEndpoint())
 		//line template/namespace/create.qtpl:72
 		qw422016.N().S(`">`)
 		//line template/namespace/create.qtpl:72

@@ -33,7 +33,7 @@
 			{% for _, n := range namespaces %}
 				<tr>
 					<td>
-						<a href="{%s n.URI() %}">{%s n.FullName %}</a>
+						<a href="{%s n.UIEndpoint() %}">{%s n.FullName %}</a>
 						<div class="muted">
 							{% if n.Description == "" %}
 								<em>No description</em>

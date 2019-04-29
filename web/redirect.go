@@ -6,14 +6,11 @@ import (
 )
 
 type SecureRedirect struct {
-	http.Handler
-
 	listen string
 }
 
-func NewSecureRedirect(listen string, h http.Handler) SecureRedirect {
+func NewSecureRedirect(listen string) SecureRedirect {
 	return SecureRedirect{
-		Handler: h,
 		listen:  listen,
 	}
 }

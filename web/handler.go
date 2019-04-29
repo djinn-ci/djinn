@@ -16,43 +16,47 @@ import (
 var sessionName = "session"
 
 type Handler struct {
-	sc     *securecookie.SecureCookie
-	store  sessions.Store
+	store sessions.Store
+
+	SecureCookie *securecookie.SecureCookie
+	Users        *model.UserStore
 }
 
-func New(sc *securecookie.SecureCookie, store sessions.Store) Handler {
-	return Handler{sc: sc, store: store}
-}
-
-func (h *Handler) handleRequestData(f form.Form, w http.ResponseWriter, r *http.Request) error {
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
-		e, ok := err.(form.Errors)
-
-		if !ok {
-			log.Error.Println(errors.Err(err))
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-
-			return errors.Err(errors.New("failed to handle request data"))
-		}
-
-		h.flashErrors(w, r, e)
-		h.flashForm(w, r, f)
-
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-
-		return errors.Err(errors.New("request data failed validation"))
+func New(sc *securecookie.SecureCookie, store sessions.Store, users *model.UserStore) Handler {
+	return Handler{
+		store:        store,
+		SecureCookie: sc,
+		Users:        users,
 	}
-
-	return nil
 }
 
-func (h *Handler) errors(w http.ResponseWriter, r *http.Request) form.Errors {
+func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Errors) {
 	sess, _ := h.store.Get(r, sessionName)
 
-	e, ok := sess.Values["errors"]
+	sess.Values["Errors"] = e
+
+	if err := sess.Save(r, w); err != nil {
+		log.Error.Println(errors.Err(err))
+	}
+}
+
+func (h *Handler) FlashForm(w http.ResponseWriter, r *http.Request, f form.Form) {
+	sess, _ := h.store.Get(r, sessionName)
+
+	sess.Values["form"] = f
+
+	if err := sess.Save(r, w); err != nil {
+		log.Error.Println(errors.Err(err))
+	}
+}
+
+func (h *Handler) Errors(w http.ResponseWriter, r *http.Request) form.Errors {
+	sess, _ := h.store.Get(r, sessionName)
+
+	e, ok := sess.Values["Errors"]
 
 	if ok {
-		delete(sess.Values, "errors")
+		delete(sess.Values, "Errors")
 
 		if err := sess.Save(r, w); err != nil {
 			log.Error.Println(errors.Err(err))
@@ -64,7 +68,7 @@ func (h *Handler) errors(w http.ResponseWriter, r *http.Request) form.Errors {
 	return form.NewErrors()
 }
 
-func (h *Handler) form(w http.ResponseWriter, r *http.Request) form.Form {
+func (h *Handler) Form(w http.ResponseWriter, r *http.Request) form.Form {
 	sess, _ := h.store.Get(r, sessionName)
 
 	f, ok := sess.Values["form"]
@@ -82,28 +86,23 @@ func (h *Handler) form(w http.ResponseWriter, r *http.Request) form.Form {
 	return form.Empty()
 }
 
-func (h *Handler) flashErrors(w http.ResponseWriter, r *http.Request, e form.Errors) {
-	sess, _ := h.store.Get(r, sessionName)
-
-	sess.Values["errors"] = e
-
-	if err := sess.Save(r, w); err != nil {
-		log.Error.Println(errors.Err(err))
+func (h *Handler) ValidateForm(f form.Form, w http.ResponseWriter, r *http.Request) error {
+	if err := form.Unmarshal(f, r); err != nil {
+		return errors.Err(err)
 	}
+
+	if err := f.Validate(); err != nil {
+		h.FlashErrors(w, r, err.(form.Errors))
+		h.FlashForm(w, r, f)
+
+		return err
+	}
+
+	return nil
 }
 
-func (h *Handler) flashForm(w http.ResponseWriter, r *http.Request, f form.Form) {
-	sess, _ := h.store.Get(r, sessionName)
-
-	sess.Values["form"] = f
-
-	if err := sess.Save(r, w); err != nil {
-		log.Error.Println(errors.Err(err))
-	}
-}
-
-func (h *Handler) userFromRequest(r *http.Request) (*model.User, error) {
-	cookie, err := r.Cookie("user")
+func (h Handler) User(r *http.Request) (*model.User, error) {
+	c, err := r.Cookie("user")
 
 	if err != nil {
 		if err == http.ErrNoCookie {
@@ -113,23 +112,23 @@ func (h *Handler) userFromRequest(r *http.Request) (*model.User, error) {
 		return &model.User{}, errors.Err(err)
 	}
 
-	var str string
+	var s string
 
-	if err := h.sc.Decode("user", cookie.Value, &str); err != nil {
+	if err := h.SecureCookie.Decode("user", c.Value, &s); err != nil {
 		return &model.User{}, errors.Err(err)
 	}
 
-	id, err := strconv.ParseInt(str, 10, 64)
+	id, err := strconv.ParseInt(s, 10, 64)
 
 	if err != nil {
 		return &model.User{}, nil
 	}
 
-	u, err := model.FindUser(id)
+	u, err := h.Users.Find(id)
 
-	if err != nil {
-		return &model.User{}, errors.Err(err)
+	if u.Deleted() {
+		return &model.User{}, nil
 	}
 
-	return u, err
+	return u, errors.Err(err)
 }

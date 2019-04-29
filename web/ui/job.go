@@ -1,4 +1,4 @@
-package web
+package ui
 
 import (
 	"net/http"
@@ -8,24 +8,27 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/job"
+	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/mux"
 )
 
 type Job struct {
-	Handler
+	web.Handler
 }
 
-func NewJob(h Handler) Job {
-	return Job{Handler: h}
+func NewJob(h web.Handler) Job {
+	return Job{
+		Handler: h,
+	}
 }
 
 func (h Job) Show(w http.ResponseWriter, r *http.Request) {
-	u, err := h.userFromRequest(r)
+	u, err := h.User(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -34,46 +37,46 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 	buildId, err := strconv.ParseInt(vars["build"], 10, 64)
 
 	if err != nil {
-		HTMLError(w, "Not found", http.StatusNotFound)
+		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
-	b, err := u.FindBuild(buildId)
+	b, err := u.BuildStore().Find(buildId)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if b.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
+		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
 	jobId, err := strconv.ParseInt(vars["job"], 10, 64)
 
 	if err != nil {
-		HTMLError(w, "Not found", http.StatusNotFound)
+		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
-	j, err := b.FindJob(jobId)
+	j, err := b.JobStore().Find(jobId)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if j.IsZero() {
-		HTMLError(w, "Not found", http.StatusNotFound)
+		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
 	if err := j.LoadRelations(); err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -88,5 +91,5 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL.Path)
 
-	HTML(w, template.Render(d), http.StatusOK)
+	web.HTML(w, template.Render(d), http.StatusOK)
 }

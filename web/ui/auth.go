@@ -1,4 +1,4 @@
-package web
+package ui
 
 import (
 	"net/http"
@@ -8,9 +8,9 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/auth"
+	"github.com/andrewpillar/thrall/web"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -18,27 +18,38 @@ import (
 var maxAge = 5 * 365 * 86400
 
 type Auth struct {
-	Handler
+	web.Handler
 }
 
-func NewAuth(h Handler) Auth {
-	return Auth{Handler: h}
+func NewAuth(h web.Handler) Auth {
+	return Auth{
+		Handler: h,
+	}
 }
 
 func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &auth.RegisterPage{
-			Errors: h.errors(w, r),
-			Form:   h.form(w, r),
+			Errors: h.Errors(w, r),
+			Form:   h.Form(w, r),
 		}
 
-		HTML(w, template.Render(p), http.StatusOK)
+		web.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
-	f := &form.Register{}
+	f := &form.Register{
+		Users: h.Users,
+	}
 
-	if err := h.handleRequestData(f, w, r); err != nil {
+	if err := h.ValidateForm(f, w, r); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -46,19 +57,18 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	u := model.User{
-		Email:    f.Email,
-		Username: f.Username,
-		Password: password,
-	}
+	u := h.Users.New()
+	u.Email = f.Email
+	u.Username = f.Username
+	u.Password = password
 
 	if err := u.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -68,25 +78,32 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &auth.LoginPage{
-			Errors: h.errors(w, r),
-			Form:   h.form(w, r),
+			Errors: h.Errors(w, r),
+			Form:   h.Form(w, r),
 		}
 
-		HTML(w, template.Render(p), http.StatusOK)
+		web.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
 	f := &form.Login{}
 
-	if err := h.handleRequestData(f, w, r); err != nil {
+	if err := h.ValidateForm(f, w, r); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	u, err := model.FindUserByHandle(f.Handle)
+	u, err := h.Users.FindByHandle(f.Handle)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -95,8 +112,8 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 		errs.Put("handle", errors.New("Invalid login credentials"))
 		errs.Put("password", errors.New("Invalid login credentials"))
 
-		h.flashErrors(w, r, errs)
-		h.flashForm(w, r, f)
+		h.FlashErrors(w, r, errs)
+		h.FlashForm(w, r, f)
 
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
@@ -114,11 +131,11 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 
 	id := strconv.FormatInt(u.ID, 10)
 
-	encoded, err := h.sc.Encode("user", id)
+	encoded, err := h.SecureCookie.Encode("user", id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 

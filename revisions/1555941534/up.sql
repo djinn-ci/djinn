@@ -8,6 +8,7 @@ CREATE TABLE objects (
 	md5        BYTEA NOT NULL,
 	sha256     BYTEA NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	deleted_at TIMESTAMP NULL
 );
 
@@ -17,5 +18,6 @@ CREATE TABLE build_objects (
 	object_id  INT NOT NULL REFERENCES objects(id),
 	source     VARCHAR NOT NULL,
 	placed     BOOLEAN NOT NULL DEFAULT FALSE,
-	created_at TIMESTAMP NOT NULL DEFAULT NOW()
+	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

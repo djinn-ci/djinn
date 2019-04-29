@@ -8,5 +8,6 @@ CREATE TABLE artifacts (
 	type       VARCHAR NULL,
 	md5        BYTEA NULL,
 	sha256     BYTEA NULL,
-	created_at TIMESTAMP NOT NULL DEFAULT NOW()
+	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

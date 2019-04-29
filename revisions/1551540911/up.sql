@@ -8,6 +8,7 @@ CREATE TABLE builds (
 	status       status DEFAULT 'queued',
 	output       TEXT NULL,
 	created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at   TIMESTAMP NOT NULL DEFAULT NOW(),
 	started_at   TIMESTAMP NULL,
 	finished_at  TIMESTAMP NULL
 );
@@ -17,5 +18,6 @@ CREATE TABLE tags (
 	user_id    INT NOT NULL REFERENCES users(id),
 	build_id   INT NOT NULL REFERENCES builds(id),
 	name       VARCHAR(32) NOT NULL,
-	created_at TIMESTAMP NOT NULL DEFAULT NOW()
+	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );

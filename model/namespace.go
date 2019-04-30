@@ -336,6 +336,8 @@ func (ns NamespaceStore) LoadRelations(nn []*Namespace) error {
 		for _, u := range uu {
 			if u.ID == n.UserID && n.User == nil {
 				n.User = u
+				n.User.Email = strings.TrimSpace(n.User.Email)
+				n.User.Username = strings.TrimSpace(n.User.Username)
 			}
 		}
 	}

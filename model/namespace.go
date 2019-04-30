@@ -21,9 +21,9 @@ type Namespace struct {
 	Level       int64         `db:"level"`
 	Visibility  Visibility    `db:"visibility"`
 
-	User     *User
-	Parent   *Namespace
-	Children []*Namespace
+	User   *User
+	Parent *Namespace
+	Child  *Namespace
 }
 
 type NamespaceStore struct {
@@ -89,6 +89,34 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 		args = append(args, ns.namespace.ID)
 
 		n.Parent = ns.namespace
+	}
+
+	err := ns.Get(n, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		n.CreatedAt = nil
+		n.UpdatedAt = nil
+	}
+
+	return n, errors.Err(err)
+}
+
+func (ns NamespaceStore) FindByParentID(id int64) (*Namespace, error) {
+	n := &Namespace{
+		model: model{
+			DB: ns.DB,
+		},
+		User: ns.user,
+	}
+
+	query := "SELECT * FROM namespaces WHERE parent_id = $1"
+	args := []interface{}{id}
+
+	if ns.user != nil {
+		query += " AND user_id = $2"
+		args = append(args, ns.user.ID)
 	}
 
 	err := ns.Get(n, query, args...)
@@ -401,11 +429,29 @@ func (n *Namespace) Update() error {
 		return errors.Err(err)
 	}
 
+	if err := n.LoadParent(); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := n.LoadChild(); err != nil {
+		return errors.Err(err)
+	}
+
+	n.FullName = strings.Join([]string{n.Parent.FullName, n.Name}, "/")
+
 	defer stmt.Close()
 
 	row := stmt.QueryRow(n.Name, n.FullName, n.Description, n.Visibility, n.ID)
 
-	return errors.Err(row.Scan(&n.UpdatedAt))
+	if err := row.Scan(&n.UpdatedAt); err != nil {
+		return errors.Err(err)
+	}
+
+	if !n.Child.IsZero() {
+		return errors.Err(n.Child.Update())
+	}
+
+	return nil
 }
 
 func (n *Namespace) Destroy() error {
@@ -447,7 +493,34 @@ func (n *Namespace) IsZero() bool {
            n.UpdatedAt == nil
 }
 
-func (n *Namespace) LoadParents() error {
+func (n *Namespace) LoadChildren() error {
+	if err := n.LoadChild(); err != nil {
+		return errors.Err(err)
+	}
+
+	if n.Child.IsZero() {
+		return nil
+	}
+
+	return errors.Err(n.Child.LoadChild())
+}
+
+func (n *Namespace) LoadChild() error {
+	var err error
+
+	namespaces := NamespaceStore{
+		Store: &Store{
+			DB: n.DB,
+		},
+		user: n.User,
+	}
+
+	n.Child, err = namespaces.FindByParentID(n.ID)
+
+	return errors.Err(err)
+}
+
+func (n *Namespace) LoadParent() error {
 	if !n.ParentID.Valid {
 		return nil
 	}
@@ -463,7 +536,15 @@ func (n *Namespace) LoadParents() error {
 
 	n.Parent, err = namespaces.Find(n.ParentID.Int64)
 
-	if err != nil {
+	return errors.Err(err)
+}
+
+func (n *Namespace) LoadParents() error {
+	if !n.ParentID.Valid {
+		return nil
+	}
+
+	if err := n.LoadParent(); err != nil {
 		return errors.Err(err)
 	}
 
@@ -471,7 +552,7 @@ func (n *Namespace) LoadParents() error {
 		return nil
 	}
 
-	return n.Parent.LoadParents()
+	return errors.Err(n.Parent.LoadParents())
 }
 
 func (n Namespace) UIEndpoint() string {

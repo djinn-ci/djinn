@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/gob"
 	"net/http"
 
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
@@ -60,6 +62,13 @@ func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) init() {
+	gob.Register(web.Form(make(map[string]string)))
+	gob.Register(form.NewErrors())
+	gob.Register(form.Register{})
+	gob.Register(form.Login{})
+	gob.Register(form.Namespace{})
+	gob.Register(form.Build{})
+
 	s.router = mux.NewRouter()
 
 	wh := web.New(

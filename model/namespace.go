@@ -95,6 +95,9 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		n.CreatedAt = nil
+		n.UpdatedAt = nil
 	}
 
 	return n, errors.Err(err)
@@ -159,6 +162,9 @@ func (ns NamespaceStore) FindByFullName(fullName string) (*Namespace, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		n.CreatedAt = nil
+		n.UpdatedAt = nil
 	}
 
 	return n, errors.Err(err)
@@ -235,6 +241,8 @@ func (ns NamespaceStore) All() ([]*Namespace, error) {
 
 		args = append(args, ns.namespace.ID)
 	}
+
+	query += " ORDER BY full_name ASC"
 
 	err := ns.Select(&nn, query, args...)
 

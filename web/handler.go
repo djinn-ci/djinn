@@ -15,6 +15,9 @@ import (
 
 var sessionName = "session"
 
+// Zero-value form implementation.
+type Form map[string]string
+
 type Handler struct {
 	store sessions.Store
 
@@ -28,6 +31,14 @@ func New(sc *securecookie.SecureCookie, store sessions.Store, users *model.UserS
 		SecureCookie: sc,
 		Users:        users,
 	}
+}
+
+func (f Form) Get(key string) string {
+	return f[key]
+}
+
+func (f Form) Validate() error {
+	return nil
 }
 
 func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Errors) {
@@ -83,7 +94,7 @@ func (h *Handler) Form(w http.ResponseWriter, r *http.Request) form.Form {
 		return f.(form.Form)
 	}
 
-	return form.Empty()
+	return Form(make(map[string]string))
 }
 
 func (h *Handler) ValidateForm(f form.Form, w http.ResponseWriter, r *http.Request) error {

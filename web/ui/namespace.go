@@ -97,7 +97,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := u.NamespaceStore().FindByFullName(r.URL.Query().Get("parent"))
+	parent, err := u.NamespaceStore().FindByFullName(r.URL.Query().Get("parent"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -108,7 +108,10 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	p := &namespace.CreatePage{
 		Errors: h.Errors(w, r),
 		Form:   h.Form(w, r),
-		Parent: n,
+	}
+
+	if !parent.IsZero() {
+		p.Parent = parent
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())
@@ -125,10 +128,13 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	namespaces := u.NamespaceStore()
+
 	f := &form.Namespace{
-		Namespaces: h.Namespaces,
-		UserID:     u.ID,
+		UserID: u.ID,
 	}
+
+	f.Bind(namespaces, nil)
 
 	if err := h.ValidateForm(f, w, r); err != nil {
 		if _, ok := err.(form.Errors); ok {
@@ -140,8 +146,6 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-
-	namespaces := u.NamespaceStore()
 
 	parent, err := namespaces.FindByFullName(f.Parent)
 
@@ -350,10 +354,10 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f := &form.Namespace{
-		UserID:     n.UserID,
-		Namespace:  n,
-		Namespaces: h.Namespaces,
+		UserID: n.UserID,
 	}
+
+	f.Bind(*h.Namespaces, n)
 
 	if err := h.ValidateForm(f, w, r); err != nil {
 		if _, ok := err.(form.Errors); ok {

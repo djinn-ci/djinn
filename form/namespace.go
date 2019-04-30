@@ -23,14 +23,20 @@ var (
 )
 
 type Namespace struct {
-	Namespaces *model.NamespaceStore
-	Namespace  *model.Namespace
+	// Unexported, we don't want them encoded via gob.
+	ns model.NamespaceStore
+	n  *model.Namespace
 
 	UserID      int64
 	Parent      string           `schema:"parent"`
 	Name        string           `schema:"name"`
 	Description string           `schema:"description"`
 	Visibility  model.Visibility `schema:"visibility"`
+}
+
+func (f *Namespace) Bind(ns model.NamespaceStore, n *model.Namespace) {
+	f.ns = ns
+	f.n = n
 }
 
 func (f Namespace) Get(key string) string {
@@ -62,11 +68,11 @@ func (f Namespace) Validate() error {
 
 	checkUnique := true
 
-	if f.Namespace != nil && !f.Namespace.IsZero() {
-		parts := strings.Split(f.Namespace.FullName, "/")
+	if f.n != nil && !f.n.IsZero() {
+		parts := strings.Split(f.n.FullName, "/")
 		parts[len(parts) - 1] = f.Name
 
-		if f.Namespace.Name == f.Name {
+		if f.n.Name == f.Name {
 			checkUnique = false
 		}
 
@@ -76,7 +82,7 @@ func (f Namespace) Validate() error {
 	}
 
 	if checkUnique {
-		n, err := f.Namespaces.FindByFullName(f.Name)
+		n, err := f.ns.FindByFullName(f.Name)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

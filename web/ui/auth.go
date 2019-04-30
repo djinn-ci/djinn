@@ -38,9 +38,9 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := &form.Register{
-		Users: h.Users,
-	}
+	f := &form.Register{}
+
+	f.Bind(*h.Users)
 
 	if err := h.ValidateForm(f, w, r); err != nil {
 		if _, ok := err.(form.Errors); ok {

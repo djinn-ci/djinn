@@ -31,12 +31,16 @@ var (
 )
 
 type Register struct {
-	Users *model.UserStore
+	us model.UserStore
 
 	Email          string `schema:"email"`
 	Username       string `schema:"username"`
 	Password       string `schema:"password"`
 	VerifyPassword string `schema:"verify_password"`
+}
+
+func (f *Register) Bind(us model.UserStore) {
+	f.us = us
 }
 
 func (f Register) Get(key string) string {
@@ -66,7 +70,7 @@ func (f Register) Validate() error {
 		errs.Put("email", ErrEmailInvalid)
 	}
 
-	u, err := f.Users.FindByEmail(f.Email)
+	u, err := f.us.FindByEmail(f.Email)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -88,7 +92,7 @@ func (f Register) Validate() error {
 		errs.Put("username", ErrUsernameInvalid)
 	}
 
-	u, err = f.Users.FindByUsername(f.Username)
+	u, err = f.us.FindByUsername(f.Username)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

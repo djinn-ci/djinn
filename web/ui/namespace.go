@@ -162,6 +162,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	n.Visibility = f.Visibility
 
 	if !parent.IsZero() {
+		n.RootID = parent.RootID
 		n.ParentID = sql.NullInt64{
 			Int64: parent.ID,
 			Valid: true,
@@ -186,6 +187,19 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
+	}
+
+	if parent.IsZero() {
+		n.RootID = sql.NullInt64{
+			Int64: n.ID,
+			Valid: true,
+		}
+
+		if err := n.Update(); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	http.Redirect(w, r, n.UIEndpoint(), http.StatusSeeOther)
@@ -383,6 +397,8 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 
 	if !n.Parent.IsZero() {
 		n.Visibility = n.Parent.Visibility
+	} else {
+
 	}
 
 	if err := n.Update(); err != nil {

@@ -14,6 +14,7 @@ type Namespace struct {
 	model
 
 	UserID      int64         `db:"user_id"`
+	RootID      sql.NullInt64 `db:"root_id"`
 	ParentID    sql.NullInt64 `db:"parent_id"`
 	Name        string        `db:"name"`
 	Path        string        `db:"path"`
@@ -22,6 +23,7 @@ type Namespace struct {
 	Visibility  Visibility    `db:"visibility"`
 
 	User     *User
+	Root     *Namespace
 	Parent   *Namespace
 	Children []*Namespace
 }
@@ -394,8 +396,8 @@ func (n *Namespace) NamespaceStore() NamespaceStore {
 
 func (n *Namespace) Create() error {
 	stmt, err := n.Prepare(`
-		INSERT INTO namespaces (user_id, parent_id, name, path, description, level, visibility)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO namespaces (user_id, root_id, parent_id, name, path, description, level, visibility)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -407,6 +409,7 @@ func (n *Namespace) Create() error {
 
 	row := stmt.QueryRow(
 		n.UserID,
+		n.RootID,
 		n.ParentID,
 		n.Name,
 		n.Path,
@@ -421,8 +424,8 @@ func (n *Namespace) Create() error {
 func (n *Namespace) Update() error {
 	stmt, err := n.Prepare(`
 		UPDATE namespaces
-		SET name = $1, path = $2, description = $3, visibility = $4, updated_at = NOW()
-		WHERE id = $5
+		SET root_id = $1, name = $2, path = $3, description = $4, visibility = $5, updated_at = NOW()
+		WHERE id = $6
 		RETURNING updated_at
 	`)
 
@@ -432,7 +435,7 @@ func (n *Namespace) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(n.Name, n.Path, n.Description, n.Visibility, n.ID)
+	row := stmt.QueryRow(n.RootID, n.Name, n.Path, n.Description, n.Visibility, n.ID)
 
 	return errors.Err(row.Scan(&n.UpdatedAt))
 }

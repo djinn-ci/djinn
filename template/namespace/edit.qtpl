@@ -86,10 +86,10 @@ type EditPage struct {
 {% endfunc %}
 
 {% func (p *EditPage) Header() %}
-	<a class="back" href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.FullName %}">
+	<a class="back" href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.Path %}">
 		{% cat "../../svgs/back.svg" %}
 	</a>
-	{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %} - Edit
+	{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %} - Edit
 {% endfunc %}
 
 {% func (p *EditPage) Actions() %}{% endfunc %}

@@ -72,6 +72,8 @@ func (f Register) Validate() error {
 
 	u, err := f.us.FindByEmail(f.Email)
 
+	log.Debug.Println(u, u.IsZero())
+
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 

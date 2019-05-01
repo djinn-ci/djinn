@@ -41,7 +41,7 @@ func (h Namespace) namespace(r *http.Request) (*model.Namespace, error) {
 		return nil, errors.Err(err)
 	}
 
-	n, err := u.NamespaceStore().FindByFullName(vars["namespace"])
+	n, err := u.NamespaceStore().FindByPath(vars["namespace"])
 
 	if err != nil {
 		return nil, errors.Err(err)
@@ -97,7 +97,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parent, err := u.NamespaceStore().FindByFullName(r.URL.Query().Get("parent"))
+	parent, err := u.NamespaceStore().FindByPath(r.URL.Query().Get("parent"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -147,7 +147,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parent, err := namespaces.FindByFullName(f.Parent)
+	parent, err := namespaces.FindByPath(f.Parent)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -157,7 +157,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	n := namespaces.New()
 	n.Name = f.Name
-	n.FullName = f.Name
+	n.Path = f.Name
 	n.Description = f.Description
 	n.Visibility = f.Visibility
 
@@ -166,8 +166,9 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 			Int64: parent.ID,
 			Valid: true,
 		}
-		n.FullName = strings.Join([]string{parent.FullName, f.Name}, "/")
+		n.Path = strings.Join([]string{parent.Path, f.Name}, "/")
 		n.Level = parent.Level + 1
+		n.Visibility = parent.Visibility
 	}
 
 	if n.Level >= namespaceMaxLevel {
@@ -370,9 +371,19 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := n.LoadParent(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	n.Name = f.Name
 	n.Description = f.Description
 	n.Visibility = f.Visibility
+
+	if !n.Parent.IsZero() {
+		n.Visibility = n.Parent.Visibility
+	}
 
 	if err := n.Update(); err != nil {
 		log.Error.Println(errors.Err(err))

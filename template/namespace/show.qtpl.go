@@ -42,7 +42,7 @@ type ShowNamespacesPage struct {
 }
 
 //line template/namespace/show.qtpl:28
-func streamrenderFullName(qw422016 *qt422016.Writer, username, fullName string) {
+func streamrenderPath(qw422016 *qt422016.Writer, username, fullName string) {
 	//line template/namespace/show.qtpl:28
 	qw422016.N().S(` `)
 	//line template/namespace/show.qtpl:30
@@ -82,22 +82,22 @@ func streamrenderFullName(qw422016 *qt422016.Writer, username, fullName string) 
 }
 
 //line template/namespace/show.qtpl:36
-func writerenderFullName(qq422016 qtio422016.Writer, username, fullName string) {
+func writerenderPath(qq422016 qtio422016.Writer, username, fullName string) {
 	//line template/namespace/show.qtpl:36
 	qw422016 := qt422016.AcquireWriter(qq422016)
 	//line template/namespace/show.qtpl:36
-	streamrenderFullName(qw422016, username, fullName)
+	streamrenderPath(qw422016, username, fullName)
 	//line template/namespace/show.qtpl:36
 	qt422016.ReleaseWriter(qw422016)
 //line template/namespace/show.qtpl:36
 }
 
 //line template/namespace/show.qtpl:36
-func renderFullName(username, fullName string) string {
+func renderPath(username, fullName string) string {
 	//line template/namespace/show.qtpl:36
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line template/namespace/show.qtpl:36
-	writerenderFullName(qb422016, username, fullName)
+	writerenderPath(qb422016, username, fullName)
 	//line template/namespace/show.qtpl:36
 	qs422016 := string(qb422016.B)
 	//line template/namespace/show.qtpl:36
@@ -112,7 +112,7 @@ func (p *ShowPage) StreamTitle(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:38
 	qw422016.N().S(` `)
 	//line template/namespace/show.qtpl:39
-	qw422016.E().S(p.Namespace.FullName)
+	qw422016.E().S(p.Namespace.Path)
 	//line template/namespace/show.qtpl:39
 	qw422016.N().S(` - Thrall `)
 //line template/namespace/show.qtpl:40
@@ -218,7 +218,7 @@ func (p *ShowPage) StreamHeader(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:51
 	qw422016.N().S(` `)
 	//line template/namespace/show.qtpl:52
-	streamrenderFullName(qw422016, p.Namespace.User.Username, p.Namespace.FullName)
+	streamrenderPath(qw422016, p.Namespace.User.Username, p.Namespace.Path)
 	//line template/namespace/show.qtpl:52
 	qw422016.N().S(` <small>`)
 	//line template/namespace/show.qtpl:53
@@ -263,7 +263,7 @@ func (p *ShowPage) StreamActions(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:57
 	qw422016.N().S(`/-/edit" class="btn btn-primary">Edit</a></li> <li><a href="/namespaces/create?parent=`)
 	//line template/namespace/show.qtpl:58
-	qw422016.E().S(p.Namespace.FullName)
+	qw422016.E().S(p.Namespace.Path)
 	//line template/namespace/show.qtpl:58
 	qw422016.N().S(`" class="btn btn-primary">Create</a></li> `)
 //line template/namespace/show.qtpl:59

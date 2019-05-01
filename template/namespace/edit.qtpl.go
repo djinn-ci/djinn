@@ -224,7 +224,7 @@ func (p *EditPage) StreamHeader(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:89
 	qw422016.N().S(`/`)
 	//line template/namespace/edit.qtpl:89
-	qw422016.E().S(p.Namespace.FullName)
+	qw422016.E().S(p.Namespace.Path)
 	//line template/namespace/edit.qtpl:89
 	qw422016.N().S(`"> `)
 	//line template/namespace/edit.qtpl:90
@@ -236,7 +236,7 @@ func (p *EditPage) StreamHeader(qw422016 *qt422016.Writer) {
 	//line template/namespace/edit.qtpl:90
 	qw422016.N().S(` </a> `)
 	//line template/namespace/edit.qtpl:92
-	streamrenderFullName(qw422016, p.Namespace.User.Username, p.Namespace.FullName)
+	streamrenderPath(qw422016, p.Namespace.User.Username, p.Namespace.Path)
 	//line template/namespace/edit.qtpl:92
 	qw422016.N().S(` - Edit `)
 //line template/namespace/edit.qtpl:93

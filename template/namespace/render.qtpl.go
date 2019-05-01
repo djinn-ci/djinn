@@ -118,7 +118,7 @@ func streamrenderNamespaces(qw422016 *qt422016.Writer, namespaces []*model.Names
 			//line template/namespace/render.qtpl:36
 			qw422016.N().S(`">`)
 			//line template/namespace/render.qtpl:36
-			qw422016.E().S(n.FullName)
+			qw422016.E().S(n.Path)
 			//line template/namespace/render.qtpl:36
 			qw422016.N().S(`</a> <div class="muted"> `)
 			//line template/namespace/render.qtpl:38

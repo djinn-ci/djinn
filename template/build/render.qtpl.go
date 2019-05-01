@@ -248,7 +248,7 @@ func StreamRenderBuildsTable(qw422016 *qt422016.Writer, builds []*model.Build, s
 				//line template/build/render.qtpl:59
 				qw422016.N().S(`">`)
 				//line template/build/render.qtpl:59
-				qw422016.E().S(b.Namespace.FullName)
+				qw422016.E().S(b.Namespace.Path)
 				//line template/build/render.qtpl:59
 				qw422016.N().S(`</a> `)
 				//line template/build/render.qtpl:60

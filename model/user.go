@@ -80,6 +80,10 @@ func (us UserStore) Find(id int64) (*User, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		u.CreatedAt = nil
+		u.UpdatedAt = nil
+		u.DeletedAt = nil
 	}
 
 	u.Email = strings.TrimSpace(u.Email)
@@ -99,6 +103,10 @@ func (us UserStore) FindByEmail(email string) (*User, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		u.CreatedAt = nil
+		u.UpdatedAt = nil
+		u.DeletedAt = nil
 	}
 
 	u.Email = strings.TrimSpace(u.Email)
@@ -118,6 +126,10 @@ func (us UserStore) FindByUsername(username string) (*User, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		u.CreatedAt = nil
+		u.UpdatedAt = nil
+		u.DeletedAt = nil
 	}
 
 	u.Email = strings.TrimSpace(u.Email)
@@ -137,6 +149,10 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		u.CreatedAt = nil
+		u.UpdatedAt = nil
+		u.DeletedAt = nil
 	}
 
 	u.Email = strings.TrimSpace(u.Email)

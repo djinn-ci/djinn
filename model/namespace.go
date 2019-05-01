@@ -16,14 +16,14 @@ type Namespace struct {
 	UserID      int64         `db:"user_id"`
 	ParentID    sql.NullInt64 `db:"parent_id"`
 	Name        string        `db:"name"`
-	FullName    string        `db:"full_name"`
+	Path        string        `db:"path"`
 	Description string        `db:"description"`
 	Level       int64         `db:"level"`
 	Visibility  Visibility    `db:"visibility"`
 
-	User   *User
-	Parent *Namespace
-	Child  *Namespace
+	User     *User
+	Parent   *Namespace
+	Children []*Namespace
 }
 
 type NamespaceStore struct {
@@ -103,13 +103,8 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 	return n, errors.Err(err)
 }
 
-func (ns NamespaceStore) FindByParentID(id int64) (*Namespace, error) {
-	n := &Namespace{
-		model: model{
-			DB: ns.DB,
-		},
-		User: ns.user,
-	}
+func (ns NamespaceStore) GetByParentID(id int64) ([]*Namespace, error) {
+	nn := make([]*Namespace, 0)
 
 	query := "SELECT * FROM namespaces WHERE parent_id = $1"
 	args := []interface{}{id}
@@ -119,16 +114,22 @@ func (ns NamespaceStore) FindByParentID(id int64) (*Namespace, error) {
 		args = append(args, ns.user.ID)
 	}
 
-	err := ns.Get(n, query, args...)
+	err := ns.Select(&nn, query, args...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 
-		n.CreatedAt = nil
-		n.UpdatedAt = nil
+		for _, n := range nn {
+			n.CreatedAt = nil
+			n.UpdatedAt = nil
+		}
 	}
 
-	return n, errors.Err(err)
+	for _, n := range nn {
+		n.DB = ns.DB
+	}
+
+	return nn, errors.Err(err)
 }
 
 func (ns NamespaceStore) In(ids ...int64) ([]*Namespace, error) {
@@ -157,15 +158,15 @@ func (ns NamespaceStore) In(ids ...int64) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
-func (ns NamespaceStore) FindByFullName(fullName string) (*Namespace, error) {
+func (ns NamespaceStore) FindByPath(path string) (*Namespace, error) {
 	n := &Namespace{
 		model: model{
 			DB: ns.DB,
 		},
 	}
 
-	query := "SELECT * FROM namespaces WHERE full_name = $1"
-	args := []interface{}{fullName}
+	query := "SELECT * FROM namespaces WHERE path = $1"
+	args := []interface{}{path}
 
 	if ns.user != nil {
 		query += " AND user_id = $2"
@@ -198,8 +199,8 @@ func (ns NamespaceStore) FindByFullName(fullName string) (*Namespace, error) {
 	return n, errors.Err(err)
 }
 
-func (ns NamespaceStore) FindOrCreate(fullName string) (*Namespace, error) {
-	n, err := ns.FindByFullName(fullName)
+func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
+	n, err := ns.FindByPath(path)
 
 	if err != nil {
 		return n, errors.Err(err)
@@ -210,7 +211,7 @@ func (ns NamespaceStore) FindOrCreate(fullName string) (*Namespace, error) {
 	}
 
 	parent := &Namespace{}
-	parts := strings.Split(fullName, "/")
+	parts := strings.Split(path, "/")
 
 	for _, name := range parts {
 		if parent.Level + 1 > 20 {
@@ -223,7 +224,7 @@ func (ns NamespaceStore) FindOrCreate(fullName string) (*Namespace, error) {
 
 		n = ns.New()
 		n.Name = name
-		n.FullName = name
+		n.Path = name
 		n.Level = parent.Level + 1
 
 		if !parent.IsZero() {
@@ -232,7 +233,7 @@ func (ns NamespaceStore) FindOrCreate(fullName string) (*Namespace, error) {
 				Valid: true,
 			}
 
-			n.FullName = strings.Join([]string{parent.FullName, n.Name}, "/")
+			n.Path = strings.Join([]string{parent.Path, n.Name}, "/")
 		}
 
 		if err := n.Create(); err != nil {
@@ -270,7 +271,7 @@ func (ns NamespaceStore) All() ([]*Namespace, error) {
 		args = append(args, ns.namespace.ID)
 	}
 
-	query += " ORDER BY full_name ASC"
+	query += " ORDER BY path ASC"
 
 	err := ns.Select(&nn, query, args...)
 
@@ -296,7 +297,7 @@ func (ns NamespaceStore) All() ([]*Namespace, error) {
 func (ns NamespaceStore) Like(like string) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
-	query := "SELECT * FROM namespaces WHERE full_name LIKE $1"
+	query := "SELECT * FROM namespaces WHERE path LIKE $1"
 	args := []interface{}{"%" + like + "%"}
 
 	if ns.user != nil {
@@ -393,7 +394,7 @@ func (n *Namespace) NamespaceStore() NamespaceStore {
 
 func (n *Namespace) Create() error {
 	stmt, err := n.Prepare(`
-		INSERT INTO namespaces (user_id, parent_id, name, full_name, description, level, visibility)
+		INSERT INTO namespaces (user_id, parent_id, name, path, description, level, visibility)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`)
@@ -408,7 +409,7 @@ func (n *Namespace) Create() error {
 		n.UserID,
 		n.ParentID,
 		n.Name,
-		n.FullName,
+		n.Path,
 		n.Description,
 		n.Level,
 		n.Visibility,
@@ -420,7 +421,7 @@ func (n *Namespace) Create() error {
 func (n *Namespace) Update() error {
 	stmt, err := n.Prepare(`
 		UPDATE namespaces
-		SET name = $1, full_name = $2, description = $3, visibility = $4, updated_at = NOW()
+		SET name = $1, path = $2, description = $3, visibility = $4, updated_at = NOW()
 		WHERE id = $5
 		RETURNING updated_at
 	`)
@@ -429,29 +430,11 @@ func (n *Namespace) Update() error {
 		return errors.Err(err)
 	}
 
-	if err := n.LoadParent(); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := n.LoadChild(); err != nil {
-		return errors.Err(err)
-	}
-
-	n.FullName = strings.Join([]string{n.Parent.FullName, n.Name}, "/")
-
 	defer stmt.Close()
 
-	row := stmt.QueryRow(n.Name, n.FullName, n.Description, n.Visibility, n.ID)
+	row := stmt.QueryRow(n.Name, n.Path, n.Description, n.Visibility, n.ID)
 
-	if err := row.Scan(&n.UpdatedAt); err != nil {
-		return errors.Err(err)
-	}
-
-	if !n.Child.IsZero() {
-		return errors.Err(n.Child.Update())
-	}
-
-	return nil
+	return errors.Err(row.Scan(&n.UpdatedAt))
 }
 
 func (n *Namespace) Destroy() error {
@@ -485,7 +468,7 @@ func (n *Namespace) IsZero() bool {
            n.UserID == 0 &&
            !n.ParentID.Valid &&
            n.Name == "" &&
-           n.FullName == "" &&
+           n.Path == "" &&
            n.Description == "" &&
            n.Level == 0 &&
            n.Visibility == Visibility(0) &&
@@ -494,18 +477,6 @@ func (n *Namespace) IsZero() bool {
 }
 
 func (n *Namespace) LoadChildren() error {
-	if err := n.LoadChild(); err != nil {
-		return errors.Err(err)
-	}
-
-	if n.Child.IsZero() {
-		return nil
-	}
-
-	return errors.Err(n.Child.LoadChild())
-}
-
-func (n *Namespace) LoadChild() error {
 	var err error
 
 	namespaces := NamespaceStore{
@@ -515,13 +486,15 @@ func (n *Namespace) LoadChild() error {
 		user: n.User,
 	}
 
-	n.Child, err = namespaces.FindByParentID(n.ID)
+	n.Children, err = namespaces.GetByParentID(n.ID)
 
 	return errors.Err(err)
 }
 
 func (n *Namespace) LoadParent() error {
 	if !n.ParentID.Valid {
+		n.Parent = &Namespace{}
+
 		return nil
 	}
 
@@ -560,5 +533,5 @@ func (n Namespace) UIEndpoint() string {
 		return ""
 	}
 
-	return "/u/" + n.User.Username + "/" + n.FullName
+	return "/u/" + n.User.Username + "/" + n.Path
 }

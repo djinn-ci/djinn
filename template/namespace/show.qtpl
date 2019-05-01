@@ -25,7 +25,7 @@ type ShowNamespacesPage struct {
 %}
 
 {% collapsespace %}
-{% func renderFullName(username, fullName string) %}
+{% func renderPath(username, fullName string) %}
 	{% code
 		parts := strings.Split(fullName, "/")
 	%}
@@ -36,7 +36,7 @@ type ShowNamespacesPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Title() %}
-	{%s p.Namespace.FullName %} - Thrall
+	{%s p.Namespace.Path %} - Thrall
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
@@ -49,13 +49,13 @@ type ShowNamespacesPage struct {
 	{% else %}
 		<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
 	{% endif %}
-	{%= renderFullName(p.Namespace.User.Username, p.Namespace.FullName) %}
+	{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %}
 	<small>{%s p.Namespace.Description %}</small>
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}
 	<li><a href="{%s p.Namespace.UIEndpoint() %}/-/edit" class="btn btn-primary">Edit</a></li>
-	<li><a href="/namespaces/create?parent={%s p.Namespace.FullName %}" class="btn btn-primary">Create</a></li>
+	<li><a href="/namespaces/create?parent={%s p.Namespace.Path %}" class="btn btn-primary">Create</a></li>
 {% endfunc %}
 
 {% func (p *ShowPage) Navigation() %}

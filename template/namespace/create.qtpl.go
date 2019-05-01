@@ -75,7 +75,7 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/create.qtpl:27
 		qw422016.N().S(` <input type="hidden" name="parent" value="`)
 		//line template/namespace/create.qtpl:28
-		qw422016.E().S(p.Parent.FullName)
+		qw422016.E().S(p.Parent.Path)
 		//line template/namespace/create.qtpl:28
 		qw422016.N().S(`"/> `)
 		//line template/namespace/create.qtpl:29
@@ -184,7 +184,7 @@ func (p *CreatePage) StreamHeader(qw422016 *qt422016.Writer) {
 		//line template/namespace/create.qtpl:72
 		qw422016.N().S(`</a> `)
 		//line template/namespace/create.qtpl:73
-		streamrenderFullName(qw422016, p.Parent.User.Username, p.Parent.FullName)
+		streamrenderPath(qw422016, p.Parent.User.Username, p.Parent.Path)
 		//line template/namespace/create.qtpl:73
 		qw422016.N().S(` - Create Sub-namespace `)
 		//line template/namespace/create.qtpl:74

@@ -58,7 +58,7 @@ func (f Namespace) Validate() error {
 		errs.Put("name", ErrNamespaceNameRequired)
 	}
 
-	if len(f.Name) < 3 || len(f.Name) > 64 {
+	if len(f.Name) < 3 || len(f.Name) > 32 {
 		errs.Put("name", ErrNamespaceNameLen)
 	}
 
@@ -69,7 +69,7 @@ func (f Namespace) Validate() error {
 	checkUnique := true
 
 	if f.n != nil && !f.n.IsZero() {
-		parts := strings.Split(f.n.FullName, "/")
+		parts := strings.Split(f.n.Path, "/")
 		parts[len(parts) - 1] = f.Name
 
 		if f.n.Name == f.Name {
@@ -82,7 +82,7 @@ func (f Namespace) Validate() error {
 	}
 
 	if checkUnique {
-		n, err := f.ns.FindByFullName(f.Name)
+		n, err := f.ns.FindByPath(f.Name)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

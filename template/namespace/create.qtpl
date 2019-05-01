@@ -25,7 +25,7 @@ type CreatePage struct {
 	<div class="panel">
 		<form class="panel-body slim" method="POST" action="/namespaces">
 			{% if p.Parent != nil && !p.Parent.IsZero() %}
-				<input type="hidden" name="parent" value="{%s p.Parent.FullName %}"/>
+				<input type="hidden" name="parent" value="{%s p.Parent.Path %}"/>
 			{% endif %}
 			{% if p.Errors.First("namespace") != "" %}
 				<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
@@ -70,7 +70,7 @@ type CreatePage struct {
 {% func (p *CreatePage) Header() %}
 	{% if p.Parent != nil && !p.Parent.IsZero() %}
 		<a class="back" href="{%s p.Parent.UIEndpoint() %}">{% cat "../../svgs/back.svg" %}</a>
-		{%= renderFullName(p.Parent.User.Username, p.Parent.FullName) %} - Create Sub-namespace
+		{%= renderPath(p.Parent.User.Username, p.Parent.Path) %} - Create Sub-namespace
 	{% else %}
 		<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a> Create Namespace
 	{% endif %}

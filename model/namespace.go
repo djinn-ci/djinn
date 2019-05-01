@@ -105,10 +105,32 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 	return n, errors.Err(err)
 }
 
-func (ns NamespaceStore) GetByParentID(id int64) ([]*Namespace, error) {
+func (ns NamespaceStore) CascadeVisibility(visibility Visibility, id int64) error {
+	query := "UPDATE namespaces SET visibility = $1 WHERE root_id = $2"
+	args := []interface{}{visibility, id}
+
+	if ns.user != nil {
+		query += " AND user_id = $3"
+		args = append(args, ns.user.ID)
+	}
+
+	stmt, err := ns.Prepare(query)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(args...)
+
+	return errors.Err(err)
+}
+
+func (ns NamespaceStore) GetByRootID(id int64) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
-	query := "SELECT * FROM namespaces WHERE parent_id = $1"
+	query := "SELECT * FROM namespaces WHERE root_id = $1"
 	args := []interface{}{id}
 
 	if ns.user != nil {
@@ -489,7 +511,7 @@ func (n *Namespace) LoadChildren() error {
 		user: n.User,
 	}
 
-	n.Children, err = namespaces.GetByParentID(n.ID)
+	n.Children, err = namespaces.GetByRootID(n.ID)
 
 	return errors.Err(err)
 }

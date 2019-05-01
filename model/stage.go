@@ -36,11 +36,11 @@ func (stgs StageStore) New() *Stage {
 		model: model{
 			DB: stgs.DB,
 		},
+		Build: stgs.build,
 	}
 
 	if stgs.build != nil {
 		s.BuildID = stgs.build.ID
-		s.Build = stgs.build
 	}
 
 	return s

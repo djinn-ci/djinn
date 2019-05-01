@@ -57,11 +57,12 @@ func (bs BuildStore) New() *Build {
 		model: model{
 			DB: bs.DB,
 		},
+		User:      bs.user,
+		Namespace: bs.namespace,
 	}
 
 	if bs.user != nil {
 		b.UserID = bs.user.ID
-		b.User = bs.user
 	}
 
 	if bs.namespace != nil {
@@ -69,7 +70,6 @@ func (bs BuildStore) New() *Build {
 			Int64: bs.namespace.ID,
 			Valid: true,
 		}
-		b.Namespace = bs.namespace
 	}
 
 	return b

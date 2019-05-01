@@ -44,11 +44,12 @@ func (ns NamespaceStore) New() *Namespace {
 		model: model{
 			DB: ns.DB,
 		},
+		User:   ns.user,
+		Parent: ns.namespace,
 	}
 
 	if ns.user != nil {
 		n.UserID = ns.user.ID
-		n.User = ns.user
 	}
 
 	if ns.namespace != nil {
@@ -56,7 +57,6 @@ func (ns NamespaceStore) New() *Namespace {
 			Int64: ns.namespace.ID,
 			Valid: true,
 		}
-		n.Parent = ns.namespace
 	}
 
 	return n

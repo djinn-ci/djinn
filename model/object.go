@@ -34,11 +34,11 @@ func (os ObjectStore) New() *Object {
 		model: model{
 			DB: os.DB,
 		},
+		User: os.user,
 	}
 
 	if os.user != nil {
 		o.UserID = os.user.ID
-		o.User = os.user
 	}
 
 	return o

@@ -34,16 +34,16 @@ func (as ArtifactStore) New() *Artifact {
 		model: model{
 			DB: as.DB,
 		},
+		Build: as.build,
+		Job:   as.job,
 	}
 
 	if as.build != nil {
 		a.BuildID = as.build.ID
-		a.Build = as.build
 	}
 
 	if as.job != nil {
 		a.JobID = as.job.ID
-		a.Job = as.job
 	}
 
 	return a

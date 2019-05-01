@@ -222,6 +222,7 @@ func (b *Build) TagStore() TagStore {
 		Store: &Store{
 			DB: b.DB,
 		},
+		user:  b.User,
 		build: b,
 	}
 }

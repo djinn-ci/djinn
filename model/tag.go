@@ -22,6 +22,7 @@ type Tag struct {
 type TagStore struct {
 	*Store
 
+	user  *User
 	build *Build
 }
 
@@ -30,11 +31,16 @@ func (ts TagStore) New() *Tag {
 		model: model{
 			DB: ts.DB,
 		},
+		User:  ts.user,
+		Build: ts.build,
 	}
 
 	if ts.build != nil {
 		t.BuildID = ts.build.ID
-		t.Build = ts.build
+	}
+
+	if ts.user != nil {
+		t.UserID = ts.user.ID
 	}
 
 	return t

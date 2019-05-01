@@ -137,6 +137,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	b.User = u
+
 	manifest, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
 
 	// Create initial setup stage. Will contain the output of driver creation

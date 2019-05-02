@@ -398,7 +398,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 	if !n.Parent.IsZero() {
 		n.Visibility = n.Parent.Visibility
 	} else {
-		if err := u.NamespaceStore().CascadeVisibility(f.Visibility, n.ID); err != nil {
+		if err := n.CascadeVisibility(); err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return

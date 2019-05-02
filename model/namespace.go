@@ -105,28 +105,6 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 	return n, errors.Err(err)
 }
 
-func (ns NamespaceStore) CascadeVisibility(visibility Visibility, id int64) error {
-	query := "UPDATE namespaces SET visibility = $1 WHERE root_id = $2"
-	args := []interface{}{visibility, id}
-
-	if ns.user != nil {
-		query += " AND user_id = $3"
-		args = append(args, ns.user.ID)
-	}
-
-	stmt, err := ns.Prepare(query)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(args...)
-
-	return errors.Err(err)
-}
-
 func (ns NamespaceStore) GetByRootID(id int64) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
@@ -252,6 +230,7 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 		n.Level = parent.Level + 1
 
 		if !parent.IsZero() {
+			n.RootID = parent.RootID
 			n.ParentID = sql.NullInt64{
 				Int64: parent.ID,
 				Valid: true,
@@ -262,6 +241,17 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 
 		if err := n.Create(); err != nil {
 			return n, errors.Err(err)
+		}
+
+		if parent.IsZero() {
+			n.RootID = sql.NullInt64{
+				Int64: n.ID,
+				Valid: true,
+			}
+
+			if err := n.Update(); err != nil {
+				return n, errors.Err(err)
+			}
 		}
 
 		parent = n
@@ -460,6 +450,24 @@ func (n *Namespace) Update() error {
 	row := stmt.QueryRow(n.RootID, n.Name, n.Path, n.Description, n.Visibility, n.ID)
 
 	return errors.Err(row.Scan(&n.UpdatedAt))
+}
+
+func (n *Namespace) CascadeVisibility() error {
+	if n.ID != n.RootID.Int64 {
+		return nil
+	}
+
+	stmt, err := n.Prepare("UPDATE namespaces SET visibility = $1 WHERE root_id = $2")
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(n.Visibility, n.RootID)
+
+	return errors.Err(err)
 }
 
 func (n *Namespace) Destroy() error {

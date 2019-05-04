@@ -6,6 +6,8 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/lib/pq"
 )
 
@@ -24,6 +26,7 @@ type Build struct {
 	Namespace *Namespace
 	Stages    []*Stage
 	Tags      []*Tag
+	Variables []*BuildVariable
 }
 
 type BuildObject struct {
@@ -214,6 +217,113 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 	return b, errors.Err(err)
 }
 
+func (bs *BuildStore) In(ids ...int64) ([]*Build, error) {
+	bb := make([]*Build, 0)
+
+	if len(bb) == 0 {
+		return bb, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM builds WHERE id IN (?)", ids)
+
+	if err != nil {
+		return bb, errors.Err(err)
+	}
+
+	err = bs.Select(&bb, bs.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, b := range bb {
+		b.DB = bs.DB
+	}
+
+	return bb, errors.Err(err)
+}
+
+func (bs *BuildStore) LoadRelations(bb []*Build) error {
+	if len(bb) == 0 {
+		return nil
+	}
+
+	namespaceIds := make([]int64, 0, len(bb))
+	buildIds := make([]int64, len(bb), len(bb))
+	userIds := make([]int64, len(bb), len(bb))
+
+	for i, b := range bb {
+		if b.NamespaceID.Valid {
+			namespaceIds = append(namespaceIds, b.NamespaceID.Int64)
+		}
+
+		buildIds[i] = b.ID
+		userIds[i] = b.UserID
+	}
+
+	namespaces := NamespaceStore{
+		Store: &Store{
+			DB: bs.DB,
+		},
+	}
+
+	nn, err := namespaces.In(namespaceIds...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if err := namespaces.LoadRelations(nn); err != nil {
+		return errors.Err(err)
+	}
+
+	tags := TagStore{
+		Store: &Store{
+			DB: bs.DB,
+		},
+	}
+
+	tt, err := tags.InBuildID(buildIds...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	users := UserStore{
+		Store: &Store{
+			DB: bs.DB,
+		},
+	}
+
+	uu, err := users.In(userIds...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, b := range bb {
+		for _, t := range tt {
+			if t.BuildID == b.ID {
+				b.Tags = append(b.Tags, t)
+			}
+		}
+
+		for _, n := range nn {
+			if n.ID == b.NamespaceID.Int64 && b.Namespace == nil {
+				b.Namespace = n
+			}
+		}
+
+		for _, u := range uu {
+			if u.ID == b.UserID && b.User == nil {
+				b.User = u
+			}
+		}
+	}
+
+	return nil
+}
+
 func (bos BuildObjectStore) New() *BuildObject {
 	bo := &BuildObject{
 		model: model{
@@ -272,6 +382,15 @@ func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
 	}
 
 	return vv, errors.Err(err)
+}
+
+func (b *Build) ArtifactStore() ArtifactStore {
+	return ArtifactStore{
+		Store: &Store{
+			DB: b.DB,
+		},
+		build: b,
+	}
 }
 
 func (b *Build) TagStore() TagStore {
@@ -370,87 +489,6 @@ func (b *Build) IsZero() bool {
            b.UpdatedAt == nil
 }
 
-func (bs *BuildStore) LoadRelations(bb []*Build) error {
-	if len(bb) == 0 {
-		return nil
-	}
-
-	namespaceIds := make([]int64, 0, len(bb))
-	buildIds := make([]int64, len(bb), len(bb))
-	userIds := make([]int64, len(bb), len(bb))
-
-	for i, b := range bb {
-		if b.NamespaceID.Valid {
-			namespaceIds = append(namespaceIds, b.NamespaceID.Int64)
-		}
-
-		buildIds[i] = b.ID
-		userIds[i] = b.UserID
-	}
-
-	namespaces := NamespaceStore{
-		Store: &Store{
-			DB: bs.DB,
-		},
-	}
-
-	nn, err := namespaces.In(namespaceIds...)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if err := namespaces.LoadRelations(nn); err != nil {
-		return errors.Err(err)
-	}
-
-	tags := TagStore{
-		Store: &Store{
-			DB: bs.DB,
-		},
-	}
-
-	tt, err := tags.InBuildID(buildIds...)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	users := UserStore{
-		Store: &Store{
-			DB: bs.DB,
-		},
-	}
-
-	uu, err := users.In(userIds...)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, b := range bb {
-		for _, t := range tt {
-			if t.BuildID == b.ID {
-				b.Tags = append(b.Tags, t)
-			}
-		}
-
-		for _, n := range nn {
-			if n.ID == b.NamespaceID.Int64 && b.Namespace == nil {
-				b.Namespace = n
-			}
-		}
-
-		for _, u := range uu {
-			if u.ID == b.UserID && b.User == nil {
-				b.User = u
-			}
-		}
-	}
-
-	return nil
-}
-
 func (b *Build) LoadRelations() error {
 	var err error
 
@@ -494,6 +532,60 @@ func (b *Build) LoadRelations() error {
 		b.Stages, err = b.StageStore().All()
 
 		return errors.Err(err)
+	}
+
+	return nil
+}
+
+func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
+	if len(bvv) == 0 {
+		return nil
+	}
+
+	variables := VariableStore{
+		Store: &Store{
+			DB: bvs.DB,
+		},
+	}
+
+	ids := make([]int64, len(bvv), len(bvv))
+
+	for i, bv := range bvv {
+		ids[i] = bv.VariableID
+	}
+
+	vv, err := variables.In(ids...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, v := range vv {
+		for _, bv := range bvv {
+			if v.ID == bv.VariableID {
+				bv.Variable = v
+			}
+		}
+	}
+
+	return nil
+}
+
+func (b *Build) LoadVariables() error {
+	var err error
+
+	if len(b.Variables) == 0 {
+		variables := b.BuildVariableStore()
+
+		b.Variables, err = variables.All()
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		if err := variables.LoadVariables(b.Variables); err != nil {
+			return errors.Err(err)
+		}
 	}
 
 	return nil

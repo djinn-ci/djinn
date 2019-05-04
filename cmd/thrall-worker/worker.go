@@ -2,177 +2,160 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
-	"strings"
-	"sync"
 
+	thrallconfig "github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/collector"
-	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/placer"
 	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/thrall/server"
 
-	"github.com/go-redis/redis"
-
-	"github.com/lib/pq"
+	"github.com/RichardKnop/machinery/v1"
+	"github.com/RichardKnop/machinery/v1/config"
 )
 
-type Worker struct {
-	Client    *redis.Client
-	Drivers   []string
-	Placer    *placer.Database
-	Collector *collector.Database
-	Signals   chan os.Signal
+type worker struct {
+	server.Server
 
+	store  *model.Store
+
+	concurrency int
+
+	redisAddr     string
+	redisPassword string
+
+	users   *model.UserStore
+	objects *model.ObjectStore
+	builds  *model.BuildStore
+
+	placer    runner.Placer
+	collector runner.Collector
+
+	worker *machinery.Worker
+
+	signals map[int64]chan os.Signal
 }
 
-func (w Worker) RunBuild(id int64, smanifest string) {
-	log.Debug.Println("received task for build:", id)
+func (w *worker) init() error {
+	w.users = &model.UserStore{
+		Store: w.store,
+	}
+	w.objects = &model.ObjectStore{
+		Store: w.store,
+	}
+	w.builds = &model.BuildStore{
+		Store: w.store,
+	}
+	w.signals = make(map[int64]chan os.Signal)
 
-	manifest, err := config.DecodeManifest(strings.NewReader(smanifest))
+	url := "redis://"
+
+	if w.redisPassword != "" {
+		url += w.redisPassword + "@"
+	}
+
+	url += w.redisAddr
+
+	cnf := &config.Config{
+		Broker:        url,
+		DefaultQueue:  "thrall_builds",
+		ResultBackend: url,
+	}
+
+	server, err := machinery.NewServer(cnf)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	server.RegisterTask("run_build", w.runBuild)
+
+	w.worker = server.NewWorker("thrall_builds", w.concurrency)
+
+	return nil
+}
+
+func (w *worker) serve() error {
+	return errors.Err(w.worker.Launch())
+}
+
+func (w worker) runBuild(id int64) {
+	log.Debug.Println("received build", id)
+
+	b, err := w.builds.Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		return
 	}
 
-	b, err := model.FindBuild(id)
+	w.signals[id] = make(chan os.Signal)
 
-	if err != nil {
+	buf := &bytes.Buffer{}
+
+	placer := placer.NewDatabase(w.placer)
+	collector := collector.NewDatabase(w.collector)
+
+	placer.Build = b
+	placer.Users = w.users
+
+	collector.Build = b
+
+	if err := b.LoadVariables(); err != nil {
 		log.Error.Println(errors.Err(err))
 		return
 	}
 
-	if b.IsZero() {
-		log.Error.Println("failed to find build:", id)
-		return
+	env := make([]string, len(b.Variables), len(b.Variables))
+
+	for i, v := range b.Variables {
+		env[i] = v.Variable.Key + "=" + v.Variable.Value
 	}
-
-	if b.Manifest != smanifest {
-		b.Status = model.Failed
-
-		if err := b.Update(); err != nil {
-			log.Error.Println(errors.Err(err))
-			return
-		}
-
-		return
-	}
-
-	if err := b.LoadRelations(); err != nil {
-		log.Error.Println(errors.Err(err))
-		return
-	}
-
-	b.Status = model.Running
-	b.StartedAt = &pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
-
-	if err := b.Update(); err != nil {
-		log.Error.Println(errors.Err(err))
-		return
-	}
-
-	w.Placer.Build = b
-	w.Collector.Build = b
-
-	buildOut := &bytes.Buffer{}
 
 	r := runner.NewRunner(
-		buildOut,
-		manifest.Env,
-		manifest.Objects,
-		w.Placer,
-		w.Collector,
-		w.Signals,
+		buf,
+		env,
+		[]thrallconfig.Passthrough{},
+		placer,
+		collector,
+		w.signals[id],
 	)
 
-	validDriver := true
+	ss, err := b.StageStore().All()
 
-	var d runner.Driver
-
-	switch manifest.Driver.Type {
-		case "docker":
-			d = driver.NewDocker(manifest.Driver.Image, manifest.Driver.Workspace)
-			break
-		case "qemu":
-			d = &driver.QEMU{
-				Writer:
-				SSH:     &driver.SSH{
-					Writer:   ioutil.Discard,
-					Address:  ,
-					Username: ,
-					KeyFile:  ,
-					Timeout:  ,
-				}
-				Image:   manifest.Driver.Image,
-				Arch:    manifest.Driver.Arch,
-				HostFwd: hostfwd,
-			}
-			break
-		case "ssh":
-			d = &driver.SSH{
-				Writer:   ,
-				Address:  manifest.Driver.Address,
-				Username: manifest.Driver.Username,
-				KeyFile:  ,
-				Timeout:  ,
-			}
-			break
-		default:
-			validDriver = false
-	}
-
-	if err := r.Run(d); err != nil {
-		b.Status = model.Failed
-	} else {
-		b.Status = model.Passed
-	}
-
-	wg := &sync.WaitGroup{}
-
-	for j := range r.Jobs {
-		wg.Add(1)
-
-		go func(j runner.Job) {
-			defer wg.Done()
-
-			mj, err := b.FindJobByName(j.Name)
-
-			if err != nil {
-				log.Error.Println(errors.Err(err))
-				return
-			}
-
-			if j.Success && !j.DidFail {
-				mj.Status = model.Passed
-			} else if j.Success && j.DidFail {
-				mj.Status = model.PassedWithFailures
-			} else {
-				mj.Status = model.Failed
-			}
-
-			if err := mj.Update(); err != nil {
-				log.Error.Println(errors.Err(err))
-			}
-		}(j)
-	}
-
-	wg.Wait()
-
-	b.Output = buildOut.String()
-	b.FinishedAt = &pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
-
-	if err := b.Update(); err != nil {
+	if err != nil {
 		log.Error.Println(errors.Err(err))
+		return
+	}
+
+	for _, s := range ss {
+		r.Add(s.Stage())
+	}
+
+	jobs := b.JobStore()
+
+	jj, err := jobs.All()
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		return
+	}
+
+	if err := jobs.LoadRelations(jj); err != nil {
+		log.Error.Println(errors.Err(err))
+		return
+	}
+
+	for _, s := range r.Stages {
+		for _, j := range jj {
+			if s.Name != j.Stage.Name {
+				continue
+			}
+
+			s.Add(j.Job())
+		}
 	}
 }

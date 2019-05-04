@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/jmoiron/sqlx"
 
@@ -100,6 +101,32 @@ func (stgs StageStore) Find(id int64) (*Stage, error) {
 	return s, errors.Err(err)
 }
 
+func (stgs StageStore) In(ids ...int64) ([]*Stage, error) {
+	ss := make([]*Stage, 0)
+
+	if len(ss) == 0 {
+		return ss, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM stages WHERE id IN (?)", ids)
+
+	if err != nil {
+		return ss, errors.Err(err)
+	}
+
+	err = stgs.Select(&ss, stgs.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, s := range ss {
+		s.DB = stgs.DB
+	}
+
+	return ss, errors.Err(err)
+}
+
 func (stgs StageStore) LoadJobs(ss []*Stage) error {
 	ids := make([]int64, len(ss), len(ss))
 
@@ -179,4 +206,11 @@ func (s *Stage) Update() error {
 	row := stmt.QueryRow(s.DidFail, s.Status, s.StartedAt, s.FinishedAt, s.ID)
 
 	return errors.Err(row.Scan(&s.UpdatedAt))
+}
+
+func (s Stage) Stage() *runner.Stage {
+	return &runner.Stage{
+		Name:    s.Name,
+		CanFail: s.CanFail,
+	}
 }

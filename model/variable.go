@@ -5,6 +5,8 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/lib/pq"
 )
 
@@ -67,6 +69,32 @@ func (vs VariableStore) All() ([]*Variable, error) {
 	}
 
 	return vv, errors.Err(err)
+}
+
+func (vs VariableStore) In(ids ...int64) ([]*Variable, error) {
+	vv := make([]*Variable, 0)
+
+	if len(ids) == 0 {
+		return vv, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM variables WHERE id in (?)", ids)
+
+	if err != nil {
+		return vv, errors.Err(err)
+	}
+
+	err = vs.Select(&vv, vs.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, v := range vv {
+		v.DB = vs.DB
+	}
+
+	return vv, nil
 }
 
 func (v *Variable) Create() error {

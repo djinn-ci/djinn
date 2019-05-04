@@ -12,6 +12,7 @@ type Database struct {
 	runner.Placer
 
 	Build *model.Build
+	Users *model.UserStore
 }
 
 func NewDatabase(p runner.Placer) *Database {
@@ -19,27 +20,29 @@ func NewDatabase(p runner.Placer) *Database {
 }
 
 func (p *Database) Place(name string, w io.Writer) error {
-	u, err := model.FindUser(p.Build.UserID)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	o, err := u.FindObjectByName(name)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if o.IsZero() {
-		return errors.Err(errors.New("could not find object in database"))
-	}
-
+//	u, err := p.Users.Find(p.Build.UserID)
+//
+//	if err != nil {
+//		return errors.Err(err)
+//	}
+//
+//	o, err := u.ObjectStore().FindByName(name)
+//
+//	if err != nil {
+//		return errors.Err(err)
+//	}
+//
+//	if o.IsZero() {
+//		return errors.Err(errors.New("could not find object in database"))
+//	}
+//
 	if err := p.Placer.Place(name, w); err != nil {
 		return errors.Err(err)
 	}
 
-	o.Placed = true
-
-	return errors.Err(o.Update())
+	return nil
+//
+//	o.Placed = true
+//
+//	return errors.Err(o.Update())
 }

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type Artifact struct {
@@ -123,6 +125,32 @@ func (as ArtifactStore) FindByName(name string) (*Artifact, error) {
 	}
 
 	return a, errors.Err(err)
+}
+
+func (as ArtifactStore) InJobID(ids ...int64) ([]*Artifact, error) {
+	aa := make([]*Artifact, 0)
+
+	if len(ids) == 0 {
+		return aa, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM artifacts WHERE job_id IN (?)", ids)
+
+	if err != nil {
+		return aa, errors.Err(err)
+	}
+
+	err = as.Select(&aa, as.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, a := range aa {
+		a.DB = as.DB
+	}
+
+	return aa, errors.Err(err)
 }
 
 func (a *Artifact) Create() error {

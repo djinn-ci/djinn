@@ -8,15 +8,23 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
+	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
 
 	"github.com/gorilla/securecookie"
-
 	"github.com/gorilla/mux"
+
+	"github.com/go-redis/redis"
 )
 
 type uiServer struct {
-	server
+	server.Server
+
+	store  *model.Store
+	client *redis.Client
+
+	hash []byte
+	key  []byte
 
 	assets string
 	router *mux.Router
@@ -95,5 +103,5 @@ func (s *uiServer) init() {
 	s.initBuild(wh, mw)
 	s.initJob(wh, mw)
 
-	s.server.init(web.NewLog(web.NewSpoof(s.router)))
+	s.Server.Init(web.NewLog(web.NewSpoof(s.router)))
 }

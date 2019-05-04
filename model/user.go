@@ -188,6 +188,15 @@ func (u *User) ObjectStore() ObjectStore {
 	}
 }
 
+func (u *User) VariableStore() VariableStore {
+	return VariableStore{
+		Store: &Store{
+			DB: u.DB,
+		},
+		user: u,
+	}
+}
+
 func (u *User) Create() error {
 	stmt, err := u.Prepare(`
 		INSERT INTO users (email, username, password)

@@ -38,6 +38,16 @@ type BuildObject struct {
 	Object *Object
 }
 
+type BuildVariable struct {
+	model
+
+	BuildID    int64 `db:"build_id"`
+	VariableID int64 `db:"variable_id"`
+
+	Build    *Build
+	Variable *Variable
+}
+
 type BuildStore struct {
 	*Store
 
@@ -50,6 +60,13 @@ type BuildObjectStore struct {
 
 	build  *Build
 	object *Object
+}
+
+type BuildVariableStore struct {
+	*Store
+
+	build    *Build
+	variable *Variable
 }
 
 func (bs BuildStore) New() *Build {
@@ -217,6 +234,46 @@ func (bos BuildObjectStore) New() *BuildObject {
 	return bo
 }
 
+func (bvs BuildVariableStore) New() *BuildVariable {
+	bv := &BuildVariable{
+		model: model{
+			DB: bvs.DB,
+		},
+		Build: bvs.build,
+	}
+
+	if bvs.build != nil {
+		bv.BuildID = bvs.build.ID
+	}
+
+	return bv
+}
+
+func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
+	vv := make([]*BuildVariable, 0)
+
+	query := "SELECT * FROM build_variables"
+	args := []interface{}{}
+
+	if bvs.build != nil {
+		query += " WHERE build_id = $1"
+		args = append(args, bvs.build.ID)
+	}
+
+	err := bvs.Select(&vv, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, v := range vv {
+		v.DB = bvs.DB
+		v.Build = bvs.build
+	}
+
+	return vv, errors.Err(err)
+}
+
 func (b *Build) TagStore() TagStore {
 	return TagStore{
 		Store: &Store{
@@ -247,6 +304,15 @@ func (b *Build) JobStore() JobStore {
 
 func (b *Build) BuildObjectStore() BuildObjectStore {
 	return BuildObjectStore{
+		Store: &Store{
+			DB: b.DB,
+		},
+		build: b,
+	}
+}
+
+func (b *Build) BuildVariableStore() BuildVariableStore {
+	return BuildVariableStore{
 		Store: &Store{
 			DB: b.DB,
 		},
@@ -451,6 +517,24 @@ func (b *BuildObject) Create() error {
 	defer stmt.Close()
 
 	row := stmt.QueryRow(b.BuildID, b.ObjectID, b.Source)
+
+	return errors.Err(row.Scan(&b.ID, &b.CreatedAt, &b.UpdatedAt))
+}
+
+func (b *BuildVariable) Create() error {
+	stmt, err := b.Prepare(`
+		INSERT INTO build_variables (build_id, variable_id)
+		VALUES ($1, $2)
+		RETURNING id, created_at, updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(b.BuildID, b.VariableID)
 
 	return errors.Err(row.Scan(&b.ID, &b.CreatedAt, &b.UpdatedAt))
 }

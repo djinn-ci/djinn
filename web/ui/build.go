@@ -161,6 +161,34 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	variables := u.VariableStore()
+	buildVariables := b.BuildVariableStore()
+
+	for _, env := range manifest.Env {
+		parts := strings.Split(env, "=")
+
+		v := variables.New()
+		v.Key = parts[0]
+		v.Value = parts[1]
+		v.FromManifest = true
+
+		if err := v.Create(); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		bv := buildVariables.New()
+		bv.BuildID = b.ID
+		bv.VariableID = v.ID
+
+		if err := bv.Create(); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	for _, obj := range manifest.Objects {
 		o, err := u.ObjectStore().FindByName(obj.Source)
 

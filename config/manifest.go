@@ -2,10 +2,10 @@ package config
 
 import (
 	"io"
-	"path/filepath"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/runner"
 
 	"gopkg.in/yaml.v2"
 )
@@ -23,18 +23,13 @@ type Manifest struct {
 
 	Env []string
 
-	Objects []Passthrough
+	Objects runner.Passthrough
 	Sources []Source
 
 	Stages        []string
 	AllowFailures []string `yaml:"allow_failures"`
 
 	Jobs []Job
-}
-
-type Passthrough struct {
-	Source      string
-	Destination string
 }
 
 type Source struct {
@@ -48,7 +43,7 @@ type Job struct {
 	Name      string
 	Commands  []string
 	Depends   []string
-	Artifacts []Passthrough
+	Artifacts runner.Passthrough
 }
 
 func DecodeManifest(r io.Reader) (Manifest, error) {
@@ -95,34 +90,6 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	urlParts := strings.Split(s.URL, "/")
 
 	s.Dir = urlParts[len(urlParts) - 1]
-
-	return nil
-}
-
-// Passthrough allows for files to be passed between the host machine, and the driver. Files that
-// are passed from the host to the driver are known as objects, and files that are passed from
-// the driver to the host are known as artifacts.
-//
-// In the build YAML file they take the format of:
-//
-//   [source] => [destination]
-//
-// Whereby [destination] is optional.
-func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var str string
-
-	if err := unmarshal(&str); err != nil {
-		return err
-	}
-
-	parts := strings.Split(str, "=>")
-
-	p.Source = strings.TrimPrefix(strings.TrimSuffix(parts[0], " "), " ")
-	p.Destination = filepath.Base(p.Source)
-
-	if len(parts) > 1 {
-		p.Destination = strings.TrimPrefix(strings.TrimSuffix(parts[1], " "), " ")
-	}
 
 	return nil
 }

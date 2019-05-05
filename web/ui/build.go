@@ -219,8 +219,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	for _, obj := range manifest.Objects {
-		o, err := u.ObjectStore().FindByName(obj.Source)
+	for src := range manifest.Objects {
+		o, err := u.ObjectStore().FindByName(src)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -235,7 +235,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 		bo := o.BuildObjectStore().New()
 		bo.BuildID = b.ID
-		bo.Source = obj.Source
+		bo.Source = src
 
 		if err := bo.Create(); err != nil {
 			log.Error.Println(errors.Err(err))
@@ -309,10 +309,10 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			for _, ma := range mj.Artifacts {
+			for src, dst := range mj.Artifacts {
 				a := j.ArtifactStore().New()
-				a.Source = ma.Source
-				a.Name = ma.Destination
+				a.Source = src
+				a.Name = dst
 
 				if err := a.Create(); err != nil {
 					log.Error.Println(errors.Err(err))

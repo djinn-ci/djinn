@@ -8,8 +8,6 @@ import (
 
 type Visibility uint8
 
-type Status uint8
-
 type DriverType uint8
 
 const (
@@ -17,18 +15,12 @@ const (
 	Internal
 	Public
 
-	Queued Status = iota
-	Running
-	Passed
-	Failed
-	PassedWithFailures
-
 	SSH DriverType = iota
 	Qemu
 	Docker
 )
 
-func scanBytes(val interface{}) ([]byte, error) {
+func scan(val interface{}) ([]byte, error) {
 	if val == nil {
 		return []byte{}, nil
 	}
@@ -48,66 +40,8 @@ func scanBytes(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
-func (s *Status) Scan(val interface{}) error {
-	b, err := scanBytes(val)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if len(b) == 0 {
-		(*s) = Status(0)
-		return nil
-	}
-
-	err = s.UnmarshalText(b)
-
-	return errors.Err(err)
-}
-
-func (s *Status) UnmarshalText(b []byte) error {
-	str := string(b)
-
-	switch str {
-		case "queued":
-			(*s) = Queued
-			return nil
-		case "running":
-			(*s) = Running
-			return nil
-		case "passed":
-			(*s) = Passed
-			return nil
-		case "failed":
-			(*s) = Failed
-			return nil
-		case "passed_with_failures":
-			(*s) = PassedWithFailures
-			return nil
-		default:
-			return errors.Err(errors.New("unknown status " + str))
-	}
-}
-
-func (s Status) Value() (driver.Value, error) {
-	switch s {
-		case Queued:
-			return driver.Value("queued"), nil
-		case Running:
-			return driver.Value("running"), nil
-		case Passed:
-			return driver.Value("passed"), nil
-		case Failed:
-			return driver.Value("failed"), nil
-		case PassedWithFailures:
-			return driver.Value("passed_with_failures"), nil
-		default:
-			return driver.Value(""), errors.Err(errors.New("unknown status"))
-	}
-}
-
 func (v *Visibility) Scan(val interface{}) error {
-	b, err := scanBytes(val)
+	b, err := scan(val)
 
 	if err != nil {
 		return errors.Err(err)
@@ -155,7 +89,7 @@ func (v Visibility) Value() (driver.Value, error) {
 }
 
 func (t *DriverType) Scan(val interface{}) error {
-	b, err := scanBytes(val)
+	b, err := scan(val)
 
 	if err != nil {
 		return errors.Err(err)

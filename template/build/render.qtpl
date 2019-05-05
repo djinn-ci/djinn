@@ -1,15 +1,20 @@
-{% import "github.com/andrewpillar/thrall/model" %}
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/runner"
+)
+%}
 
 {% collapsespace %}
-{% func RenderStatus(s model.Status) %}
+{% func RenderStatus(s runner.Status) %}
 	{% switch s %}
-		{% case model.Queued %}
+		{% case runner.Queued %}
 			<span class="pill pill-dark">{% cat "../../svgs/hourglass.svg" %} Queued</span>
-		{% case model.Running %}
+		{% case runner.Running %}
 			<span class="pill pill-orange">{% cat "../../svgs/hourglass.svg" %} Running</span>
-		{% case model.Passed %}
+		{% case runner.Passed %}
 			<span class="pill pill-green">{% cat "../../svgs/hourglass.svg" %} Passed</span>
-		{% case model.Failed %}
+		{% case runner.Failed %}
 			<span class="pill pill-red">{% cat "../../svgs/hourglass.svg" %} Failed</span>
 	{% endswitch %}
 {% endfunc %}

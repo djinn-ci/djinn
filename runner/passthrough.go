@@ -32,22 +32,27 @@ func NewPassthrough() Passthrough {
 // The [destination] is optional, and if not provided the based of the [source]
 // will be used intstead.
 func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var str string
+	pt := NewPassthrough()
+	p = &pt
 
-	if err := unmarshal(&str); err != nil {
+	ss := make([]string, 0)
+
+	if err := unmarshal(&ss); err != nil {
 		return errors.Err(err)
 	}
 
-	parts := strings.Split(str, "=>")
+	for _, s := range ss {
+		parts := strings.Split(s, "=>")
 
-	key := strings.TrimSpace(parts[0])
-	val := filepath.Base(key)
+		key := strings.TrimSpace(parts[0])
+		val := filepath.Base(key)
 
-	if len(parts) > 1 {
-		val = strings.TrimSpace(parts[1])
+		if len(parts) > 1 {
+			val = strings.TrimSpace(parts[1])
+		}
+
+		(*p)[key] = val
 	}
-
-	(*p)[key] = val
 
 	return nil
 }

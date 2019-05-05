@@ -6,7 +6,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 )
 
@@ -14,6 +13,8 @@ var (
 	errStageNotFound = errors.New("stage could not be found")
 	errRunFailed     = errors.New("run failed")
 )
+
+type jobHandler func(j Job)
 
 type Placer interface {
 	Place(name string, w io.Writer) error
@@ -26,21 +27,23 @@ type Collector interface {
 type Runner struct {
 	io.Writer
 
+	handleJob jobHandler
 	order     []string
 	lastJob   *Job
 	sigs      chan os.Signal
 	env       []string
-	objs      []config.Passthrough
+	objs      Passthrough
 	placer    Placer
 	collector Collector
 
+	Status Status
 	Stages map[string]*Stage
 }
 
 func NewRunner(
 	w    io.Writer,
 	env  []string,
-	objs []config.Passthrough,
+	objs Passthrough,
 	p    Placer,
 	c    Collector,
 	sigs chan os.Signal,
@@ -86,6 +89,10 @@ func runJobs(jobs JobStore, d Driver, c Collector) chan *Job {
 	return done
 }
 
+func (r *Runner) HandleJobFunc(f jobHandler) {
+	r.handleJob = f
+}
+
 func (r *Runner) Add(stages ...*Stage) {
 	for _, s := range stages {
 		_, ok := r.Stages[s.Name]
@@ -119,11 +126,15 @@ func (r *Runner) Remove(stages ...string) {
 }
 
 func (r *Runner) Run(d Driver) error {
+	r.Status = Running
+
 	defer d.Destroy()
 
 	if err := d.Create(r.env, r.objs, r.placer); err != nil {
 		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
+
+		r.Status = Failed
 
 		return errRunFailed
 	}
@@ -140,19 +151,27 @@ func (r *Runner) Run(d Driver) error {
 
 	r.printLastJobStatus()
 
-	if r.lastJob != nil && !r.lastJob.Success {
-		return errRunFailed
+	if r.lastJob != nil {
+		r.Status = r.lastJob.Status
+
+		if r.lastJob.Status == Failed {
+			return errRunFailed
+		}
 	}
 
 	return nil
 }
 
 func (r *Runner) RunStage(name string, d Driver) error {
+	r.Status = Running
+
 	defer d.Destroy()
 
 	if err := d.Create(r.env, r.objs, r.placer); err != nil {
 		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
+
+		r.Status = Failed
 
 		return errRunFailed
 	}
@@ -165,8 +184,12 @@ func (r *Runner) RunStage(name string, d Driver) error {
 
 	r.printLastJobStatus()
 
-	if !r.lastJob.Success {
-		return errRunFailed
+	if r.lastJob != nil {
+		r.Status = r.lastJob.Status
+
+		if r.lastJob.Status == Failed {
+			return errRunFailed
+		}
 	}
 
 	return nil
@@ -178,20 +201,15 @@ func (r Runner) printLastJobStatus() {
 		return
 	}
 
-	if !r.lastJob.Success {
-		for _, err := range r.lastJob.Errors {
-			fmt.Fprintf(r.Writer, "error: %s\n", err)
-		}
-
-		if len(r.lastJob.Errors) > 0 {
-			fmt.Fprintf(r.Writer, "\n")
-		}
-
-		fmt.Fprintf(r.Writer, "Done. Run failed.\n")
-		return
+	for _, err := range r.lastJob.Errors {
+		fmt.Fprintf(r.Writer, "error: %s\n", err)
 	}
 
-	fmt.Fprintf(r.Writer, "Done. Run passed.\n")
+	if len(r.lastJob.Errors) > 0 {
+		fmt.Fprintf(r.Writer, "\n")
+	}
+
+	fmt.Fprintf(r.Writer, "Done. Run %s.\n", r.lastJob.Status)
 }
 
 func (r *Runner) realRunStage(name string, d Driver) error {
@@ -218,9 +236,13 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 				if !ok {
 					jobs = nil
 				} else {
+					if r.handleJob != nil {
+						r.handleJob(*j)
+					}
+
 					r.lastJob = j
 
-					if !j.Success {
+					if j.Status == Failed {
 						fmt.Fprintf(r.Writer, "\n")
 						return errors.New("failed to run job: " + j.Name)
 					}

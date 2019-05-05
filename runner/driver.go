@@ -1,15 +1,11 @@
 package runner
 
-import (
-	"io"
-
-	"github.com/andrewpillar/thrall/config"
-)
+import "io"
 
 type Driver interface {
 	io.Writer
 
-	Create(env []string, objects []config.Passthrough, p Placer) error
+	Create(env []string, objects Passthrough, p Placer) error
 
 	Execute(j *Job, c Collector)
 

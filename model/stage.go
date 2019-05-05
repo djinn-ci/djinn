@@ -14,13 +14,12 @@ import (
 type Stage struct {
 	model
 
-	BuildID    int64        `db:"build_id"`
-	Name       string       `db:"name"`
-	CanFail    bool         `db:"can_fail"`
-	DidFail    bool         `db:"did_fail"`
-	Status     Status       `db:"status"`
-	StartedAt  *pq.NullTime `db:"started_at"`
-	FinishedAt *pq.NullTime `db:"finished_at"`
+	BuildID    int64         `db:"build_id"`
+	Name       string        `db:"name"`
+	CanFail    bool          `db:"can_fail"`
+	Status     runner.Status `db:"status"`
+	StartedAt  *pq.NullTime  `db:"started_at"`
+	FinishedAt *pq.NullTime  `db:"finished_at"`
 
 	Build *Build
 	Jobs  []*Job
@@ -192,8 +191,8 @@ func (s *Stage) Create() error {
 func (s *Stage) Update() error {
 	stmt, err := s.Prepare(`
 		UPDATE stages
-		SET did_fail = $1, status = $2, started_at = $3, finished_at = $4, updated_at = NOW()
-		WHERE id = $5
+		SET status = $1, started_at = $2, finished_at = $3, updated_at = NOW()
+		WHERE id = $4
 		RETURNING updated_at
 	`)
 
@@ -203,14 +202,11 @@ func (s *Stage) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(s.DidFail, s.Status, s.StartedAt, s.FinishedAt, s.ID)
+	row := stmt.QueryRow(s.Status, s.StartedAt, s.FinishedAt, s.ID)
 
 	return errors.Err(row.Scan(&s.UpdatedAt))
 }
 
 func (s Stage) Stage() *runner.Stage {
-	return &runner.Stage{
-		Name:    s.Name,
-		CanFail: s.CanFail,
-	}
+	return runner.NewStage(s.Name, s.CanFail)
 }

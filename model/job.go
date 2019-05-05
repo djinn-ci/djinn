@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -21,7 +20,7 @@ type Job struct {
 	Parent     sql.NullInt64  `db:"parent"`
 	Name       string         `db:"name"`
 	Commands   string         `db:"commands"`
-	Status     Status         `db:"status"`
+	Status     runner.Status  `db:"status"`
 	Output     sql.NullString `db:"output"`
 	StartedAt  *pq.NullTime   `db:"started_at"`
 	FinishedAt *pq.NullTime   `db:"finished_at"`
@@ -299,13 +298,10 @@ func (j *Job) Update() error {
 }
 
 func (j Job) Job() *runner.Job {
-	artifacts := make([]config.Passthrough, len(j.Artifacts), len(j.Artifacts))
+	artifacts := runner.NewPassthrough()
 
-	for i, a := range j.Artifacts {
-		artifacts[i] = config.Passthrough{
-			Source:      a.Source,
-			Destination: a.Name,
-		}
+	for _, a := range j.Artifacts {
+		artifacts[a.Source] = a.Name
 	}
 
 	depends := make([]string, len(j.Dependencies), len(j.Dependencies))
@@ -330,7 +326,7 @@ func (j *Job) IsZero() bool {
            !j.Parent.Valid &&
            j.Name == "" &&
            j.Commands == "" &&
-           j.Status == Status(0) &&
+           j.Status == runner.Status(0) &&
            !j.Output.Valid &&
            j.StartedAt == nil &&
            j.FinishedAt == nil &&

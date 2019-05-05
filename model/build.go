@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/jmoiron/sqlx"
 
@@ -17,7 +18,7 @@ type Build struct {
 	UserID      int64          `db:"user_id"`
 	NamespaceID sql.NullInt64  `db:"namespace_id"`
 	Manifest    string         `db:"manifest"`
-	Status      Status         `db:"status"`
+	Status      runner.Status  `db:"status"`
 	Output      sql.NullString `db:"output"`
 	StartedAt   *pq.NullTime   `db:"started_at"`
 	FinishedAt  *pq.NullTime   `db:"finished_at"`
@@ -490,7 +491,7 @@ func (b *Build) IsZero() bool {
            b.UserID == 0 &&
            !b.NamespaceID.Valid &&
            b.Manifest == "" &&
-           b.Status == Status(0) &&
+           b.Status == runner.Status(0) &&
            !b.Output.Valid &&
            b.StartedAt == nil &&
            b.FinishedAt == nil &&

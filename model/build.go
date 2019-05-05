@@ -393,6 +393,15 @@ func (b *Build) ArtifactStore() ArtifactStore {
 	}
 }
 
+func (b *Build) DriverStore() DriverStore {
+	return DriverStore{
+		Store: &Store{
+			DB: b.DB,
+		},
+		build: b,
+	}
+}
+
 func (b *Build) TagStore() TagStore {
 	return TagStore{
 		Store: &Store{

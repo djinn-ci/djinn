@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"path/filepath"
@@ -140,6 +142,34 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 	b.User = u
 
 	manifest, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
+
+	benc, err := json.Marshal(manifest.Driver)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	buf := bytes.NewBuffer(benc)
+
+	var typ model.DriverType
+
+	if err := typ.UnmarshalText([]byte(manifest.Driver.Type)); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	d := b.DriverStore().New()
+	d.Type = typ
+	d.Config = buf.String()
+
+	if err := d.Create(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
 
 	// Create initial setup stage. Will contain the output of driver creation
 	// and cloning of source repositories.

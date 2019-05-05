@@ -142,7 +142,7 @@ func mainCommand(c cli.Command) {
 			depends = append(depends, fmt.Sprintf("clone.%d", i))
 		}
 
-		setup.Add(runner.NewJob(os.Stdout, name, commands, depends, []config.Passthrough{}))
+		setup.Add(runner.NewJob(os.Stdout, name, commands, depends, runner.NewPassthrough()))
 	}
 
 	r.Add(setup)

@@ -10,7 +10,6 @@ import (
 	"os"
 	"sync"
 
-	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -44,7 +43,7 @@ func NewDocker(image, workspace string) *Docker {
 	}
 }
 
-func (d *Docker) Create(env []string, objects []config.Passthrough, p runner.Placer) error {
+func (d *Docker) Create(env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with Docker driver...\n")
 
 	cli, err := client.NewEnvClient()
@@ -152,7 +151,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	if code != 0 {
 		j.Failed(nil)
 	} else {
-		j.Success = true
+		j.Status = runner.Passed
 	}
 
 	opts := types.ContainerLogsOptions{
@@ -175,18 +174,18 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		fmt.Fprintf(j.Writer, "\n")
 	}
 
-	for _, a := range j.Artifacts {
-		dst := a.Destination + ".tar"
+	for src, dst := range j.Artifacts {
+		dst += ".tar"
 
-		fmt.Fprintf(j.Writer, "Collecting artifact %s => %s\n", a.Source, dst)
+		fmt.Fprintf(j.Writer, "Collecting artifact %s => %s\n", src, dst)
 
-		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, a.Source)
+		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, src)
 
 		if err != nil {
 			fmt.Fprintf(
 				j.Writer,
 				"Failed to collect artifact %s => %s: %s\n",
-				a.Source,
+				src,
 				dst,
 				errors.Cause(err),
 			)
@@ -199,14 +198,14 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 			fmt.Fprintf(
 				j.Writer,
 				"Failed to collect artifact %s => %s: %s\n",
-				a.Source,
+				src,
 				dst,
 				errors.Cause(err),
 			)
 		}
 	}
 
-	if !j.Success {
+	if j.Status == runner.Failed {
 		j.Failed(nil)
 	}
 }
@@ -225,7 +224,7 @@ func (d *Docker) Destroy() {
 	d.client.VolumeRemove(ctx, d.volume.Name, true)
 }
 
-func (d *Docker) placeObjects(objects []config.Passthrough, p runner.Placer) error {
+func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 	if len(objects) == 0 {
 		return nil
 	}
@@ -254,17 +253,17 @@ func (d *Docker) placeObjects(objects []config.Passthrough, p runner.Placer) err
 		return err
 	}
 
-	for _, o := range objects {
-		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", o.Source, o.Destination)
+	for src, dst := range objects {
+		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
 
-		info, err := os.Stat(o.Source)
+		info, err := os.Stat(src)
 
 		if err != nil {
 			fmt.Fprintf(
 				d.Writer,
 				"Failed to place object %s => %s: %s\n",
-				o.Source,
-				o.Destination,
+				src,
+				dst,
 				errors.Cause(err),
 			)
 			continue
@@ -276,8 +275,8 @@ func (d *Docker) placeObjects(objects []config.Passthrough, p runner.Placer) err
 			fmt.Fprintf(
 				d.Writer,
 				"Failed to place object %s => %s: %s\n",
-				o.Source,
-				o.Destination,
+				src,
+				dst,
 				errors.Cause(err),
 			)
 			continue
@@ -294,7 +293,7 @@ func (d *Docker) placeObjects(objects []config.Passthrough, p runner.Placer) err
 
 			tw.WriteHeader(header)
 			p.Place(src, tw)
-		}(o.Source)
+		}(src)
 
 		d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
 	}

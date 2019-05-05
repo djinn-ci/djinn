@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 )
@@ -70,7 +69,7 @@ type QEMU struct {
 	HostFwd string
 }
 
-func (d *QEMU) Create(env []string, objects []config.Passthrough, p runner.Placer) error {
+func (d *QEMU) Create(env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with QEMU driver...\n")
 
 	supported := false
@@ -156,7 +155,7 @@ func (d *QEMU) Create(env []string, objects []config.Passthrough, p runner.Place
 			break
 		}
 
-		err = d.SSH.Create(env, []config.Passthrough{}, p)
+		err = d.SSH.Create(env, runner.NewPassthrough(), p)
 
 		if err == nil {
 			break

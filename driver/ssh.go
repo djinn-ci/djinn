@@ -91,7 +91,7 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 	}
 
 	for _, e := range d.env {
-		parts := strings.Split(e, "=")
+		parts := strings.SplitN(e, "=", 2)
 
 		if len(parts) > 1 {
 			if err := sess.Setenv(parts[0], parts[1]); err != nil {

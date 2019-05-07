@@ -1,7 +1,6 @@
 package driver
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -79,16 +78,33 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 
 	defer sess.Close()
 
-	buf := bytes.Buffer{}
-	l := len(j.Commands) - 1
+	script := j.Name + ".sh"
+	buf := createScript(j)
 
-	for i, cmd := range j.Commands {
-		buf.WriteString(`echo "$ ` + cmd + ` " && ` + cmd)
+	cli, err := sftp.NewClient(d.client)
 
-		if i != l {
-			buf.WriteString(" && ")
-		}
+	if err != nil {
+		j.Failed(err)
+		return
 	}
+
+	defer cli.Close()
+
+	f, err := cli.Create(script)
+
+	if err != nil {
+		j.Failed(err)
+		return
+	}
+
+	io.Copy(f, buf)
+
+	if err := f.Chmod(0755); err != nil {
+		j.Failed(err)
+		return
+	}
+
+	f.Close()
 
 	for _, e := range d.env {
 		parts := strings.SplitN(e, "=", 2)
@@ -103,9 +119,7 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 	sess.Stdout = j.Writer
 	sess.Stderr = j.Writer
 
-	err = sess.Run(buf.String())
-
-	if err != nil {
+	if err := sess.Run("./" + script); err != nil {
 		if _, ok := err.(*ssh.ExitError); ok {
 			err = nil
 		}
@@ -114,6 +128,8 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 	} else {
 		j.Status = runner.Passed
 	}
+
+	cli.Remove(script)
 
 	d.collectArtifacts(j.Writer, j, c)
 }

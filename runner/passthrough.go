@@ -32,8 +32,7 @@ func NewPassthrough() Passthrough {
 // The [destination] is optional, and if not provided the based of the [source]
 // will be used intstead.
 func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	pt := NewPassthrough()
-	p = &pt
+	*p = make(map[string]string)
 
 	ss := make([]string, 0)
 

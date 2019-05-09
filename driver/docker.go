@@ -2,7 +2,6 @@ package driver
 
 import (
 	"archive/tar"
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -35,8 +34,9 @@ type Docker struct {
 	workspace  string
 }
 
-func NewDocker(image, workspace string) *Docker {
+func NewDocker(w io.Writer, image, workspace string) *Docker {
 	return &Docker{
+		Writer:     w,
 		mutex:      &sync.Mutex{},
 		image:      image,
 		workspace:  workspace,
@@ -90,23 +90,6 @@ func (d *Docker) Create(env []string, objects runner.Passthrough, p runner.Place
 }
 
 func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
-	buf := bytes.Buffer{}
-
-	for i, cmd := range j.Commands {
-		buf.WriteString("echo \"$ " + cmd + "\" && " + cmd)
-
-		if i != len(j.Commands) - 1 {
-			buf.WriteString(" && ")
-		}
-	}
-
-	cfg := &container.Config{
-		Image: d.image,
-		Tty:   true,
-		Env:   d.env,
-		Cmd:   []string{"/bin/bash", "-c", buf.String()},
-	}
-
 	hostCfg := &container.HostConfig{
 		Mounts: []mount.Mount{
 			mount.Mount{
@@ -117,9 +100,55 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		},
 	}
 
+	cfg := &container.Config{
+		Image: d.image,
+		Tty:   true,
+		Cmd:   []string{"true"},
+	}
+
 	ctx := context.Background()
 
 	ctr, err := d.client.ContainerCreate(ctx, cfg, hostCfg, nil, "")
+
+	if err != nil {
+		j.Failed(err)
+		return
+	}
+
+	d.mutex.Lock()
+	d.containers = append(d.containers, ctr.ID)
+	d.mutex.Unlock()
+
+	script := j.Name + ".sh"
+	buf := createScript(j)
+
+	header := &tar.Header{
+		Typeflag: tar.TypeReg,
+		Name:     "/bin/" + script,
+		Size:     int64(buf.Len()),
+		Mode:     755,
+	}
+
+	pr, pw := io.Pipe()
+	defer pr.Close()
+
+	tw := tar.NewWriter(pw)
+
+	go func() {
+		defer tw.Close()
+		defer pw.Close()
+
+		tw.WriteHeader(header)
+		io.Copy(tw, buf)
+	}()
+
+	d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
+
+	cfg.Cmd = []string{}
+	cfg.Env = d.env
+	cfg.Entrypoint = []string{script}
+
+	ctr, err = d.client.ContainerCreate(ctx, cfg, hostCfg, nil, "")
 
 	if err != nil {
 		j.Failed(err)

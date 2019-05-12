@@ -53,7 +53,11 @@ func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
-	build := ui.NewBuild(h)
+	namespaces := &model.NamespaceStore{
+		Store: s.store,
+	}
+
+	build := ui.NewBuild(h, namespaces)
 
 	s.router.HandleFunc("/", mw.Auth(build.Index)).Methods("GET")
 	s.router.HandleFunc("/builds/create", mw.Auth(build.Create)).Methods("GET")

@@ -25,6 +25,7 @@ type Build struct {
 
 	User      *User
 	Namespace *Namespace
+	Driver    *Driver
 	Tags      []*Tag
 	Stages    []*Stage
 	Objects   []*BuildObject
@@ -422,52 +423,48 @@ func (b *Build) IsZero() bool {
            b.UpdatedAt == nil
 }
 
-func (b *Build) LoadRelations() error {
+func (b *Build) LoadUser() error {
 	var err error
 
-	if b.User == nil {
-		users := UserStore{
-			Store: &Store{
-				DB: b.DB,
-			},
-		}
-
-		b.User, err = users.Find(b.UserID)
-
-		if err != nil {
-			return errors.Err(err)
-		}
+	users := UserStore{
+		Store: &Store{
+			DB: b.DB,
+		},
 	}
 
-	if b.Namespace == nil && b.NamespaceID.Valid {
-		namespaces := NamespaceStore{
-			Store: &Store{
-				DB: b.DB,
-			},
-		}
+	b.User, err = users.Find(b.UserID)
 
-		b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
+	return errors.Err(err)
+}
 
-		if err != nil {
-			return errors.Err(err)
-		}
+func (b *Build) LoadNamespace() error {
+	var err error
+
+	namespaces := NamespaceStore{
+		Store: &Store{
+			DB: b.DB,
+		},
 	}
 
-	if len(b.Tags) == 0 {
-		b.Tags, err = b.TagStore().All()
+	b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
 
-		if err != nil {
-			return errors.Err(err)
-		}
-	}
+	return errors.Err(err)
+}
 
-	if len(b.Stages) == 0 {
-		b.Stages, err = b.StageStore().All()
+func (b *Build) LoadTags() error {
+	var err error
 
-		return errors.Err(err)
-	}
+	b.Tags, err = b.TagStore().All()
 
-	return nil
+	return errors.Err(err)
+}
+
+func (b *Build) LoadStages() error {
+	var err error
+
+	b.Stages, err = b.StageStore().All()
+
+	return errors.Err(err)
 }
 
 func (b *Build) LoadVariables() error {

@@ -74,14 +74,6 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := j.LoadRelations(); err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	j.Stage.Build = b
-
 	p := &job.ShowPage{
 		Page: &template.Page{
 			URI: r.URL.Path,

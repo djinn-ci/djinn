@@ -423,7 +423,25 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := b.LoadRelations(); err != nil {
+	if err := b.LoadUser(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := b.LoadNamespace(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := b.LoadTags(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := b.LoadStages(); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

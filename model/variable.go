@@ -22,10 +22,27 @@ type Variable struct {
 	User  *User
 }
 
+type BuildVariable struct {
+	model
+
+	BuildID    int64 `db:"build_id"`
+	VariableID int64 `db:"variable_id"`
+
+	Build    *Build
+	Variable *Variable
+}
+
 type VariableStore struct {
 	*Store
 
 	user *User
+}
+
+type BuildVariableStore struct {
+	*Store
+
+	build    *Build
+	variable *Variable
 }
 
 func (vs VariableStore) New() *Variable {
@@ -95,6 +112,78 @@ func (vs VariableStore) In(ids ...int64) ([]*Variable, error) {
 	}
 
 	return vv, nil
+}
+
+func (bvs BuildVariableStore) New() *BuildVariable {
+	bv := &BuildVariable{
+		model: model{
+			DB: bvs.DB,
+		},
+		Build: bvs.build,
+	}
+
+	if bvs.build != nil {
+		bv.BuildID = bvs.build.ID
+	}
+
+	return bv
+}
+
+func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
+	vv := make([]*BuildVariable, 0)
+
+	query := "SELECT * FROM build_variables"
+	args := []interface{}{}
+
+	if bvs.build != nil {
+		query += " WHERE build_id = $1"
+		args = append(args, bvs.build.ID)
+	}
+
+	err := bvs.Select(&vv, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, v := range vv {
+		v.DB = bvs.DB
+		v.Build = bvs.build
+	}
+
+	return vv, errors.Err(err)
+}
+
+func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
+	if len(bvv) == 0 {
+		return nil
+	}
+
+	variables := VariableStore{
+		Store: bvs.Store,
+	}
+
+	ids := make([]int64, len(bvv), len(bvv))
+
+	for i, bv := range bvv {
+		ids[i] = bv.VariableID
+	}
+
+	vv, err := variables.In(ids...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, v := range vv {
+		for _, bv := range bvv {
+			if v.ID == bv.VariableID {
+				bv.Variable = v
+			}
+		}
+	}
+
+	return nil
 }
 
 func (v *Variable) Create() error {

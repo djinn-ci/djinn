@@ -255,18 +255,20 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		Namespace: n,
 	}
 
+	namespaces := n.NamespaceStore()
+
 	if filepath.Base(r.URL.Path) == "namespaces" {
 		var nn []*model.Namespace
 
 		search := r.URL.Query().Get("search")
 
 		if search != "" {
-			nn, err = n.NamespaceStore().Like(search)
+			nn, err = namespaces.Like(search)
 		} else {
-			nn, err = n.NamespaceStore().All()
+			nn, err = namespaces.All()
 		}
 
-		if err := n.NamespaceStore().LoadRelations(nn); err != nil {
+		if err := namespaces.LoadUsers(nn); err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -294,7 +296,31 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := builds.LoadRelations(bb); err != nil {
+	if err := builds.LoadNamespaces(bb); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := builds.LoadTags(bb); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := builds.LoadUsers(bb); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	nn := make([]*model.Namespace, 0)
+
+	for _, b := range bb {
+		nn = append(nn, b.Namespace)
+	}
+
+	if err := namespaces.LoadUsers(nn); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

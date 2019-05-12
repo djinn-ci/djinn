@@ -23,10 +23,29 @@ type Object struct {
 	User *User
 }
 
+type BuildObject struct {
+	model
+
+	BuildID  int64  `db:"build_id"`
+	ObjectID int64  `db:"object_id"`
+	Source   string `db:"source"`
+	Placed   bool   `db:"placed"`
+
+	Build  *Build
+	Object *Object
+}
+
 type ObjectStore struct {
 	*Store
 
 	user *User
+}
+
+type BuildObjectStore struct {
+	*Store
+
+	build  *Build
+	object *Object
 }
 
 func (os ObjectStore) New() *Object {
@@ -75,6 +94,7 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 		model: model{
 			DB: os.DB,
 		},
+		User: os.user,
 	}
 
 	query := "SELECT * FROM objects WHERE name = $1"
@@ -83,8 +103,6 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 	if os.user != nil {
 		query += " AND user_id = $2"
 		args = append(args, os.user.ID)
-
-		o.User = os.user
 	}
 
 	err := os.Get(o, query, args...)
@@ -94,6 +112,26 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 	}
 
 	return o, errors.Err(err)
+}
+
+func (bos BuildObjectStore) New() *BuildObject {
+	bo := &BuildObject{
+		model: model{
+			DB: bos.DB,
+		},
+		Build:  bos.build,
+		Object: bos.object,
+	}
+
+	if bos.build != nil {
+		bo.BuildID = bos.build.ID
+	}
+
+	if bos.object != nil {
+		bo.ObjectID = bos.object.ID
+	}
+
+	return bo
 }
 
 func (o *Object) BuildObjectStore() BuildObjectStore {

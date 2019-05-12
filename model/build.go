@@ -25,31 +25,11 @@ type Build struct {
 
 	User      *User
 	Namespace *Namespace
-	Stages    []*Stage
 	Tags      []*Tag
+	Stages    []*Stage
+	Objects   []*BuildObject
+	Artifacts []*Artifact
 	Variables []*BuildVariable
-}
-
-type BuildObject struct {
-	model
-
-	BuildID  int64  `db:"build_id"`
-	ObjectID int64  `db:"object_id"`
-	Source   string `db:"source"`
-	Placed   bool   `db:"placed"`
-
-	Build  *Build
-	Object *Object
-}
-
-type BuildVariable struct {
-	model
-
-	BuildID    int64 `db:"build_id"`
-	VariableID int64 `db:"variable_id"`
-
-	Build    *Build
-	Variable *Variable
 }
 
 type BuildStore struct {
@@ -57,20 +37,6 @@ type BuildStore struct {
 
 	user      *User
 	namespace *Namespace
-}
-
-type BuildObjectStore struct {
-	*Store
-
-	build  *Build
-	object *Object
-}
-
-type BuildVariableStore struct {
-	*Store
-
-	build    *Build
-	variable *Variable
 }
 
 func (bs BuildStore) New() *Build {
@@ -221,7 +187,7 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 func (bs *BuildStore) In(ids ...int64) ([]*Build, error) {
 	bb := make([]*Build, 0)
 
-	if len(bb) == 0 {
+	if len(ids) == 0 {
 		return bb, nil
 	}
 
@@ -244,80 +210,33 @@ func (bs *BuildStore) In(ids ...int64) ([]*Build, error) {
 	return bb, errors.Err(err)
 }
 
-func (bs *BuildStore) LoadRelations(bb []*Build) error {
+func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil
 	}
 
-	namespaceIds := make([]int64, 0, len(bb))
-	buildIds := make([]int64, len(bb), len(bb))
-	userIds := make([]int64, len(bb), len(bb))
+	ids := make([]int64, len(bb), len(bb))
 
 	for i, b := range bb {
 		if b.NamespaceID.Valid {
-			namespaceIds = append(namespaceIds, b.NamespaceID.Int64)
+			ids[i] = b.NamespaceID.Int64
 		}
-
-		buildIds[i] = b.ID
-		userIds[i] = b.UserID
 	}
 
 	namespaces := NamespaceStore{
-		Store: &Store{
-			DB: bs.DB,
-		},
+		Store: bs.Store,
 	}
 
-	nn, err := namespaces.In(namespaceIds...)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if err := namespaces.LoadRelations(nn); err != nil {
-		return errors.Err(err)
-	}
-
-	tags := TagStore{
-		Store: &Store{
-			DB: bs.DB,
-		},
-	}
-
-	tt, err := tags.InBuildID(buildIds...)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	users := UserStore{
-		Store: &Store{
-			DB: bs.DB,
-		},
-	}
-
-	uu, err := users.In(userIds...)
+	nn, err := namespaces.In(ids...)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
 	for _, b := range bb {
-		for _, t := range tt {
-			if t.BuildID == b.ID {
-				b.Tags = append(b.Tags, t)
-			}
-		}
-
 		for _, n := range nn {
-			if n.ID == b.NamespaceID.Int64 && b.Namespace == nil {
+			if b.NamespaceID.Int64 == n.ID {
 				b.Namespace = n
-			}
-		}
-
-		for _, u := range uu {
-			if u.ID == b.UserID && b.User == nil {
-				b.User = u
 			}
 		}
 	}
@@ -325,64 +244,68 @@ func (bs *BuildStore) LoadRelations(bb []*Build) error {
 	return nil
 }
 
-func (bos BuildObjectStore) New() *BuildObject {
-	bo := &BuildObject{
-		model: model{
-			DB: bos.DB,
-		},
+func (bs *BuildStore) LoadTags(bb []*Build) error {
+	if len(bb) == 0 {
+		return nil
 	}
 
-	if bos.build != nil {
-		bo.BuildID = bos.build.ID
-		bo.Build = bos.build
+	ids := make([]int64, len(bb), len(bb))
+
+	for i, b := range bb {
+		ids[i] = b.ID
 	}
 
-	if bos.object != nil {
-		bo.ObjectID = bos.object.ID
-		bo.Object = bos.object
+	tags := TagStore{
+		Store: bs.Store,
 	}
 
-	return bo
+	tt, err := tags.InBuildID(ids...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, b := range bb {
+		for _, t := range tt {
+			if b.ID == t.BuildID {
+				b.Tags = append(b.Tags, t)
+			}
+		}
+	}
+
+	return nil
 }
 
-func (bvs BuildVariableStore) New() *BuildVariable {
-	bv := &BuildVariable{
-		model: model{
-			DB: bvs.DB,
-		},
-		Build: bvs.build,
+func (bs *BuildStore) LoadUsers(bb []*Build) error {
+	if len(bb) == 0 {
+		return nil
 	}
 
-	if bvs.build != nil {
-		bv.BuildID = bvs.build.ID
+	ids := make([]int64, len(bb), len(bb))
+
+	for i, b := range bb {
+		ids[i] = b.UserID
 	}
 
-	return bv
-}
-
-func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
-	vv := make([]*BuildVariable, 0)
-
-	query := "SELECT * FROM build_variables"
-	args := []interface{}{}
-
-	if bvs.build != nil {
-		query += " WHERE build_id = $1"
-		args = append(args, bvs.build.ID)
+	users := UserStore{
+		Store: bs.Store,
 	}
 
-	err := bvs.Select(&vv, query, args...)
+	uu, err := users.In(ids...)
 
-	if err == sql.ErrNoRows {
-		err = nil
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	for _, v := range vv {
-		v.DB = bvs.DB
-		v.Build = bvs.build
+	for _, b := range bb {
+		for _, u := range uu {
+			if b.UserID == u.ID {
+				b.User = u
+			}
+		}
 	}
 
-	return vv, errors.Err(err)
+	return nil
 }
 
 func (b *Build) ArtifactStore() ArtifactStore {
@@ -542,40 +465,6 @@ func (b *Build) LoadRelations() error {
 		b.Stages, err = b.StageStore().All()
 
 		return errors.Err(err)
-	}
-
-	return nil
-}
-
-func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
-	if len(bvv) == 0 {
-		return nil
-	}
-
-	variables := VariableStore{
-		Store: &Store{
-			DB: bvs.DB,
-		},
-	}
-
-	ids := make([]int64, len(bvv), len(bvv))
-
-	for i, bv := range bvv {
-		ids[i] = bv.VariableID
-	}
-
-	vv, err := variables.In(ids...)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, v := range vv {
-		for _, bv := range bvv {
-			if v.ID == bv.VariableID {
-				bv.Variable = v
-			}
-		}
 	}
 
 	return nil

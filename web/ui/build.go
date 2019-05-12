@@ -27,12 +27,14 @@ import (
 type Build struct {
 	web.Handler
 
-	srv *machinery.Server
+	srv        *machinery.Server
+	namespaces *model.NamespaceStore
 }
 
-func NewBuild(h web.Handler) Build {
+func NewBuild(h web.Handler, namespaces *model.NamespaceStore) Build {
 	return Build{
-		Handler: h,
+		Handler:    h,
+		namespaces: namespaces,
 	}
 }
 
@@ -63,7 +65,31 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := builds.LoadRelations(bb); err != nil {
+	if err := builds.LoadNamespaces(bb); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := builds.LoadTags(bb); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := builds.LoadUsers(bb); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	nn := make([]*model.Namespace, 0)
+
+	for _, b := range bb {
+		nn = append(nn, b.Namespace)
+	}
+
+	if err := h.namespaces.LoadUsers(nn); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

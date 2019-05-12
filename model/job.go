@@ -17,7 +17,7 @@ type Job struct {
 
 	BuildID    int64          `db:"build_id"`
 	StageID    int64          `db:"stage_id"`
-	Parent     sql.NullInt64  `db:"parent"`
+	ParentID   sql.NullInt64  `db:"parent_id"`
 	Name       string         `db:"name"`
 	Commands   string         `db:"commands"`
 	Status     runner.Status  `db:"status"`
@@ -132,6 +132,32 @@ func (js JobStore) Find(id int64) (*Job, error) {
 	return j, errors.Err(err)
 }
 
+func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
+	jj := make([]*Job, 0)
+
+	if len(ids) == 0 {
+		return jj, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM jobs WHERE stage_id IN (?)", ids)
+
+	if err != nil {
+		return jj, errors.Err(err)
+	}
+
+	err = js.Select(&jj, js.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, j := range jj {
+		j.DB = js.DB
+	}
+
+	return jj, errors.Err(err)
+}
+
 func (js JobStore) InParentID(ids ...int64) ([]*Job, error) {
 	jj := make([]*Job, 0)
 
@@ -139,7 +165,7 @@ func (js JobStore) InParentID(ids ...int64) ([]*Job, error) {
 		return jj, nil
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM namespaces WHERE parent_id IN (?)", ids)
+	query, args, err := sqlx.In("SELECT * FROM jobs WHERE parent_id IN (?)", ids)
 
 	if err != nil {
 		return jj, errors.Err(err)
@@ -174,9 +200,7 @@ func (js JobStore) LoadRelations(jj []*Job) error {
 	}
 
 	stages := StageStore{
-		Store: &Store{
-			DB: js.DB,
-		},
+		Store: js.Store,
 	}
 
 	ss, err := stages.In(stageIds...)
@@ -186,9 +210,7 @@ func (js JobStore) LoadRelations(jj []*Job) error {
 	}
 
 	builds := BuildStore{
-		Store: &Store{
-			DB: js.DB,
-		},
+		Store: js.Store,
 	}
 
 	bb, err := builds.In(buildIds...)
@@ -198,9 +220,7 @@ func (js JobStore) LoadRelations(jj []*Job) error {
 	}
 
 	jobs := JobStore{
-		Store: &Store{
-			DB: js.DB,
-		},
+		Store: js.Store,
 	}
 
 	deps, err := jobs.InParentID(jobIds...)
@@ -210,9 +230,7 @@ func (js JobStore) LoadRelations(jj []*Job) error {
 	}
 
 	artifacts := ArtifactStore{
-		Store: &Store{
-			DB: js.DB,
-		},
+		Store: js.Store,
 	}
 
 	aa, err := artifacts.InJobID(jobIds...)
@@ -241,7 +259,7 @@ func (js JobStore) LoadRelations(jj []*Job) error {
 		}
 
 		for _, d := range deps {
-			if d.Parent.Int64 == j.ID {
+			if d.ParentID.Int64 == j.ID {
 				j.Dependencies = append(j.Dependencies, d)
 			}
 		}
@@ -323,7 +341,7 @@ func (j *Job) IsZero() bool {
 	return j.ID == 0 &&
            j.BuildID == 0 &&
            j.StageID == 0 &&
-           !j.Parent.Valid &&
+           !j.ParentID.Valid &&
            j.Name == "" &&
            j.Commands == "" &&
            j.Status == runner.Status(0) &&

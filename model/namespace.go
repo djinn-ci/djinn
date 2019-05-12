@@ -350,37 +350,31 @@ func (ns NamespaceStore) Like(like string) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
-func (ns NamespaceStore) LoadRelations(nn []*Namespace) error {
+func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {
 	if len(nn) == 0 {
 		return nil
 	}
 
-	userIds := make([]int64, len(nn), len(nn))
+	ids := make([]int64, len(nn), len(nn))
 
 	for i, n := range nn {
-		userIds[i] = n.UserID
+		ids[i] = n.UserID
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", userIds)
+	users := UserStore{
+		Store: ns.Store,
+	}
+
+	uu, err := users.In(ids...)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	uu := make([]*User, 0)
-
-	err = ns.Select(&uu, ns.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
 	for _, n := range nn {
 		for _, u := range uu {
-			if u.ID == n.UserID && n.User == nil {
+			if n.UserID == u.ID {
 				n.User = u
-				n.User.Email = strings.TrimSpace(n.User.Email)
-				n.User.Username = strings.TrimSpace(n.User.Username)
 			}
 		}
 	}

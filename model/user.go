@@ -2,7 +2,6 @@ package model
 
 import (
 	"database/sql"
-	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -62,8 +61,6 @@ func (us UserStore) In(ids ...int64) ([]*User, error) {
 
 	for _, u := range uu {
 		u.DB = us.DB
-		u.Email = strings.TrimSpace(u.Email)
-		u.Username = strings.TrimSpace(u.Username)
 	}
 
 	return uu, errors.Err(err)
@@ -86,9 +83,6 @@ func (us UserStore) Find(id int64) (*User, error) {
 		u.DeletedAt = nil
 	}
 
-	u.Email = strings.TrimSpace(u.Email)
-	u.Username = strings.TrimSpace(u.Username)
-
 	return u, errors.Err(err)
 }
 
@@ -108,9 +102,6 @@ func (us UserStore) FindByEmail(email string) (*User, error) {
 		u.UpdatedAt = nil
 		u.DeletedAt = nil
 	}
-
-	u.Email = strings.TrimSpace(u.Email)
-	u.Username = strings.TrimSpace(u.Username)
 
 	return u, errors.Err(err)
 }
@@ -132,9 +123,6 @@ func (us UserStore) FindByUsername(username string) (*User, error) {
 		u.DeletedAt = nil
 	}
 
-	u.Email = strings.TrimSpace(u.Email)
-	u.Username = strings.TrimSpace(u.Username)
-
 	return u, errors.Err(err)
 }
 
@@ -154,9 +142,6 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 		u.UpdatedAt = nil
 		u.DeletedAt = nil
 	}
-
-	u.Email = strings.TrimSpace(u.Email)
-	u.Username = strings.TrimSpace(u.Username)
 
 	return u, errors.Err(err)
 }

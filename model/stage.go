@@ -127,31 +127,29 @@ func (stgs StageStore) In(ids ...int64) ([]*Stage, error) {
 }
 
 func (stgs StageStore) LoadJobs(ss []*Stage) error {
+	if len(ss) == 0 {
+		return nil
+	}
+
 	ids := make([]int64, len(ss), len(ss))
 
 	for i, s := range ss {
 		ids[i] = s.ID
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM jobs WHERE stage_id IN (?)", ids)
+	jobs := JobStore{
+		Store: stgs.Store,
+	}
+
+	jj, err := jobs.InStageID(ids...)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	jj := make([]*Job, 0)
-
-	if err := stgs.Select(&jj, stgs.Rebind(query), args...); err != nil && err != sql.ErrNoRows {
-		return errors.Err(err)
-	}
-
 	for _, s := range ss {
-		if s.Jobs == nil {
-			s.Jobs = make([]*Job, 0, len(jj))
-		}
-
 		for _, j := range jj {
-			if j.StageID == s.ID {
+			if s.ID == j.StageID {
 				s.Jobs = append(s.Jobs, j)
 			}
 		}

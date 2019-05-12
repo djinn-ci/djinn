@@ -11,15 +11,7 @@ import (
 )
 
 type Manifest struct {
-	Driver struct {
-		Type      string
-		Image     string
-		Workspace string
-		Arch      string
-		Address   string
-		Username  string
-		Password  string
-	}
+	Driver Driver
 
 	Env []string
 
@@ -30,6 +22,16 @@ type Manifest struct {
 	AllowFailures []string `yaml:"allow_failures"`
 
 	Jobs []Job
+}
+
+type Driver struct {
+	Type      string
+	Image     string
+	Workspace string
+	Arch      string
+	Address   string
+	Username  string
+	Password  string
 }
 
 type Source struct {

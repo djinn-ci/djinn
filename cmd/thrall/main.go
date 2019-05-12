@@ -2,12 +2,9 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
-	"time"
 
 	"github.com/andrewpillar/cli"
 
@@ -19,74 +16,6 @@ import (
 )
 
 var setupStage = "setup"
-
-func initializeSSH(manifest config.Manifest) runner.Driver {
-	timeout, err := strconv.ParseInt(os.Getenv("THRALL_SSH_TIMEOUT"), 10, 64)
-
-	if err != nil {
-		timeout = 10
-	}
-
-	return &driver.SSH{
-		Writer:   os.Stdout,
-		Address:  manifest.Driver.Address,
-		Username: manifest.Driver.Username,
-		KeyFile:  os.Getenv("THRALL_SSH_KEY"),
-		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
-	}
-}
-
-func initializeQEMU(manifest config.Manifest) runner.Driver {
-	hostfwd := os.Getenv("THRALL_QEMU_HOSTFWD")
-
-	if hostfwd == "" {
-		hostfwd = "127.0.0.1:2222"
-	}
-
-	timeout, err := strconv.ParseInt(os.Getenv("THRALL_SSH_TIMEOUT"), 10, 64)
-
-	if err != nil {
-		timeout = 10
-	}
-
-	ssh := &driver.SSH{
-		Writer:   ioutil.Discard,
-		Address:  hostfwd,
-		Username: os.Getenv("THRALL_QEMU_USERNAME"),
-		KeyFile:  os.Getenv("THRALL_SSH_KEY"),
-		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
-	}
-
-	driver.QemuDir = os.Getenv("THRALL_QEMU_DIR")
-
-	cpus, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_CPUS"), 10, 64)
-
-	if err != nil {
-		cpus = int64(2)
-	}
-
-	memory, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_MEMORY"), 10, 64)
-
-	if err != nil {
-		memory = int64(4096)
-	}
-
-	arch := manifest.Driver.Arch
-
-	if arch == "" {
-		arch = "x86_64"
-	}
-
-	return &driver.QEMU{
-		Writer:  os.Stdout,
-		SSH:     ssh,
-		Image:   manifest.Driver.Image,
-		Arch:    arch,
-		CPUs:    int(cpus),
-		Memory:  int(memory),
-		HostFwd: hostfwd,
-	}
-}
 
 func mainCommand(c cli.Command) {
 	f, err := os.Open(c.Flags.GetString("manifest"))
@@ -183,21 +112,11 @@ func mainCommand(c cli.Command) {
 		}
 	}
 
-	var d runner.Driver
+	d, err := driver.NewEnv(os.Stdout, manifest.Driver)
 
-	switch manifest.Driver.Type {
-		case "docker":
-			d = driver.NewDocker(manifest.Driver.Image, manifest.Driver.Workspace)
-			break
-		case "qemu":
-			d = initializeQEMU(manifest)
-			break
-		case "ssh":
-			d = initializeSSH(manifest)
-			break
-		default:
-			fmt.Fprintf(os.Stderr, "%s: unknown driver %s\n", os.Args[0], manifest.Driver.Type)
-			os.Exit(1)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to configure driver: %s\n", err)
+		os.Exit(1)
 	}
 
 	stages := c.Flags.GetAll("stage")

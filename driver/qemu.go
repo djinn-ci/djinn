@@ -50,8 +50,6 @@ var (
 		"xtensa",
 		"xtensaeb",
 	}
-
-	QemuDir string
 )
 
 type QEMU struct {
@@ -62,11 +60,12 @@ type QEMU struct {
 	pidfile string
 	process *os.Process
 
-	Image   string
-	Arch    string
-	CPUs    int
-	Memory  int
-	HostFwd string
+	dir     string
+	image   string
+	arch    string
+	cpus    int
+	memory  int
+	hostfwd string
 }
 
 func (d *QEMU) Create(env []string, objects runner.Passthrough, p runner.Placer) error {
@@ -75,14 +74,14 @@ func (d *QEMU) Create(env []string, objects runner.Passthrough, p runner.Placer)
 	supported := false
 
 	for _, arch := range arches {
-		if arch == d.Arch {
+		if arch == d.arch {
 			supported = true
 			break
 		}
 	}
 
 	if !supported {
-		return errors.New("unsupported architecture: " + d.Arch)
+		return errors.New("unsupported architecture: " + d.arch)
 	}
 
 	pidfile, err := ioutil.TempFile("", "thrall-qemu-")
@@ -93,7 +92,7 @@ func (d *QEMU) Create(env []string, objects runner.Passthrough, p runner.Placer)
 
 	d.pidfile = pidfile.Name()
 
-	bin := fmt.Sprintf("qemu-system-%s", d.Arch)
+	bin := fmt.Sprintf("qemu-system-%s", d.arch)
 	arg := []string{
 		"-daemonize",
 		"-enable-kvm",
@@ -102,18 +101,18 @@ func (d *QEMU) Create(env []string, objects runner.Passthrough, p runner.Placer)
 		"-pidfile",
 		d.pidfile,
 		"-smp",
-		fmt.Sprintf("%d", d.CPUs),
+		fmt.Sprintf("%d", d.cpus),
 		"-m",
-		fmt.Sprintf("%d", d.Memory),
+		fmt.Sprintf("%d", d.memory),
 		"-net",
 		"nic,model=virtio",
 		"-net",
-		"user,hostfwd=tcp:" + d.HostFwd + "-:22",
+		"user,hostfwd=tcp:" + d.hostfwd + "-:22",
 		"-drive",
-		"file=" + filepath.Join(QemuDir, d.Image) + ",media=disk,snapshot=on,if=virtio",
+		"file=" + filepath.Join(d.dir, d.image) + ",media=disk,snapshot=on,if=virtio",
 	}
 
-	fmt.Fprintf(d.Writer, "Booting machine with image %s...\n", d.Image)
+	fmt.Fprintf(d.Writer, "Booting machine with image %s...\n", d.image)
 
 	cmd := exec.Command(bin, arg...)
 

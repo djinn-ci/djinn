@@ -22,16 +22,16 @@ type SSH struct {
 
 	env []string
 
-	Address  string
-	Username string
-	KeyFile  string
-	Timeout  time.Duration
+	address  string
+	username string
+	keyFile  string
+	timeout  time.Duration
 }
 
 func (d *SSH) Create(env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with SSH driver...\n")
 
-	key, err := ioutil.ReadFile(d.KeyFile)
+	key, err := ioutil.ReadFile(d.keyFile)
 
 	if err != nil {
 		return err
@@ -44,23 +44,23 @@ func (d *SSH) Create(env []string, objects runner.Passthrough, p runner.Placer) 
 	}
 
 	cfg := &ssh.ClientConfig{
-		User: d.Username,
+		User: d.username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
-		Timeout:         d.Timeout,
+		Timeout:         d.timeout,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 
-	fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.Address)
+	fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)
 
-	cli, err := ssh.Dial("tcp", d.Address, cfg)
+	cli, err := ssh.Dial("tcp", d.address, cfg)
 
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(d.Writer, "Established SSH connection to %s...\n\n", d.Address)
+	fmt.Fprintf(d.Writer, "Established SSH connection to %s...\n\n", d.address)
 
 	d.env = env
 	d.client = cli

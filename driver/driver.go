@@ -31,6 +31,11 @@ func createScript(j *runner.Job) *bytes.Buffer {
 	return buf
 }
 
+// Create a new driver from the given config, and from the specified
+// environment variables. Driver environment variables are used to configure
+// parts of the driver that will remain the same between each initialization
+// of that driver. For example, SSH timeoutes, QEMU image locations, and QEMU
+// CPUs and memory.
 func NewEnv(w io.Writer, cfg config.Driver) (runner.Driver, error) {
 	switch cfg.Type {
 		case "docker":

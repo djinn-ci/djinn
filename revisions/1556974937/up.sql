@@ -13,6 +13,6 @@ CREATE TABLE build_variables (
 	id          SERIAL PRIMARY KEY,
 	build_id    INT NOT NULL REFERENCES builds(id),
 	variable_id INT NOT NULL REFERENCES variables(id),
-	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-	updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+	created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );

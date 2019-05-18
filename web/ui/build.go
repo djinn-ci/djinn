@@ -86,7 +86,9 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 	nn := make([]*model.Namespace, 0)
 
 	for _, b := range bb {
-		nn = append(nn, b.Namespace)
+		if b.Namespace != nil {
+			nn = append(nn, b.Namespace)
+		}
 	}
 
 	if err := h.namespaces.LoadUsers(nn); err != nil {

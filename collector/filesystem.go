@@ -35,3 +35,9 @@ func (c *FileSystem) Collect(name string, r io.Reader) error {
 
 	return errors.Err(err)
 }
+
+func (c *FileSystem) Stat(name string) (os.FileInfo, error) {
+	info, err := os.Stat(name)
+
+	return info, errors.Err(err)
+}

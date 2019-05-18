@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
+	"strings"
 	"sync"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -285,7 +285,7 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 	for src, dst := range objects {
 		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
 
-		info, err := os.Stat(src)
+		info, err := p.Stat(src)
 
 		if err != nil {
 			fmt.Fprintf(
@@ -310,6 +310,8 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 			)
 			continue
 		}
+
+		header.Name = strings.TrimPrefix(dst, d.workspace)
 
 		pr, pw := io.Pipe()
 		defer pr.Close()

@@ -41,3 +41,9 @@ func (p *FileSystem) Place(name string, w io.Writer) error {
 
 	return errors.Err(err)
 }
+
+func (p *FileSystem) Stat(name string) (os.FileInfo, error) {
+	info, err := os.Stat(name)
+
+	return info, errors.Err(err)
+}

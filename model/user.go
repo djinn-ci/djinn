@@ -21,12 +21,12 @@ type User struct {
 }
 
 type UserStore struct {
-	*Store
+	*sqlx.DB
 }
 
-func NewUserStore(s *Store) *UserStore {
+func NewUserStore(db *sqlx.DB) *UserStore{
 	return &UserStore{
-		Store: s,
+		DB: db,
 	}
 }
 
@@ -148,36 +148,28 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 
 func (u *User) BuildStore() BuildStore {
 	return BuildStore{
-		Store: &Store{
-			DB: u.DB,
-		},
+		DB:   u.DB,
 		user: u,
 	}
 }
 
 func (u *User) NamespaceStore() NamespaceStore {
 	return NamespaceStore{
-		Store: &Store{
-			DB: u.DB,
-		},
+		DB:   u.DB,
 		user: u,
 	}
 }
 
 func (u *User) ObjectStore() ObjectStore {
 	return ObjectStore{
-		Store: &Store{
-			DB: u.DB,
-		},
+		DB:   u.DB,
 		user: u,
 	}
 }
 
 func (u *User) VariableStore() VariableStore {
 	return VariableStore{
-		Store: &Store{
-			DB: u.DB,
-		},
+		DB:   u.DB,
 		user: u,
 	}
 }

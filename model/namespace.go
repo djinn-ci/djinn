@@ -29,15 +29,15 @@ type Namespace struct {
 }
 
 type NamespaceStore struct {
-	*Store
+	*sqlx.DB
 
 	user      *User
 	namespace *Namespace
 }
 
-func NewNamespaceStore(s *Store) *NamespaceStore {
+func NewNamespaceStore(db *sqlx.DB) *NamespaceStore {
 	return &NamespaceStore{
-		Store: s,
+		DB: db,
 	}
 }
 
@@ -362,7 +362,7 @@ func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {
 	}
 
 	users := UserStore{
-		Store: ns.Store,
+		DB: ns.DB,
 	}
 
 	uu, err := users.In(ids...)
@@ -384,18 +384,14 @@ func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {
 
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
-		Store: &Store{
-			DB: n.DB,
-		},
+		DB:        n.DB,
 		namespace: n,
 	}
 }
 
 func (n *Namespace) NamespaceStore() NamespaceStore {
 	return NamespaceStore{
-		Store: &Store{
-			DB: n.DB,
-		},
+		DB:        n.DB,
 		namespace: n,
 	}
 }
@@ -507,9 +503,7 @@ func (n *Namespace) LoadChildren() error {
 	var err error
 
 	namespaces := NamespaceStore{
-		Store: &Store{
-			DB: n.DB,
-		},
+		DB:   n.DB,
 		user: n.User,
 	}
 
@@ -528,9 +522,7 @@ func (n *Namespace) LoadParent() error {
 	var err error
 
 	namespaces := NamespaceStore{
-		Store: &Store{
-			DB: n.DB,
-		},
+		DB:   n.DB,
 		user: n.User,
 	}
 

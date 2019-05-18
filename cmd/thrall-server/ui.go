@@ -11,6 +11,8 @@ import (
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/mux"
 
@@ -20,7 +22,7 @@ import (
 type uiServer struct {
 	server.Server
 
-	store  *model.Store
+	db     *sqlx.DB
 	client *redis.Client
 
 	hash []byte
@@ -39,7 +41,7 @@ func (s *uiServer) initAuth(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
-	namespace := ui.NewNamespace(h, model.NewNamespaceStore(s.store))
+	namespace := ui.NewNamespace(h, model.NewNamespaceStore(s.db))
 
 	s.router.HandleFunc("/namespaces", mw.Auth(namespace.Index)).Methods("GET")
 	s.router.HandleFunc("/namespaces/create", mw.Auth(namespace.Create)).Methods("GET")
@@ -53,9 +55,7 @@ func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
-	namespaces := &model.NamespaceStore{
-		Store: s.store,
-	}
+	namespaces := model.NewNamespaceStore(s.db)
 
 	build := ui.NewBuild(h, namespaces)
 
@@ -86,7 +86,7 @@ func (s *uiServer) init() {
 	wh := web.New(
 		securecookie.New(s.hash, s.key),
 		session.New(s.client, s.key),
-		model.NewUserStore(s.store),
+		model.NewUserStore(s.db),
 	)
 	mw := web.NewMiddleware(wh)
 

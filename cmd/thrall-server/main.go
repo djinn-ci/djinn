@@ -77,7 +77,7 @@ func mainCommand(cmd cli.Command) {
 
 	uiSrv := uiServer{
 		Server: srv,
-		store:  model.NewStore(db),
+		db:     db,
 		client: client,
 		hash:   []byte(cfg.Crypto.Hash),
 		key:    []byte(cfg.Crypto.Key),

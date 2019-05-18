@@ -5,6 +5,8 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/lib/pq"
 )
 
@@ -36,13 +38,13 @@ type BuildObject struct {
 }
 
 type ObjectStore struct {
-	*Store
+	*sqlx.DB
 
 	user *User
 }
 
 type BuildObjectStore struct {
-	*Store
+	*sqlx.DB
 
 	build  *Build
 	object *Object
@@ -136,9 +138,7 @@ func (bos BuildObjectStore) New() *BuildObject {
 
 func (o *Object) BuildObjectStore() BuildObjectStore {
 	return BuildObjectStore{
-		Store: &Store{
-			DB: o.DB,
-		},
+		DB:     o.DB,
 		object: o,
 	}
 }

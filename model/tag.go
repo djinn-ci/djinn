@@ -20,7 +20,7 @@ type Tag struct {
 }
 
 type TagStore struct {
-	*Store
+	*sqlx.DB
 
 	user  *User
 	build *Build

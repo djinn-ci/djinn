@@ -33,13 +33,13 @@ type BuildVariable struct {
 }
 
 type VariableStore struct {
-	*Store
+	*sqlx.DB
 
 	user *User
 }
 
 type BuildVariableStore struct {
-	*Store
+	*sqlx.DB
 
 	build    *Build
 	variable *Variable
@@ -160,7 +160,7 @@ func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
 	}
 
 	variables := VariableStore{
-		Store: bvs.Store,
+		DB: bvs.DB,
 	}
 
 	ids := make([]int64, len(bvv), len(bvv))

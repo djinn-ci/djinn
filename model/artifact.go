@@ -25,7 +25,7 @@ type Artifact struct {
 }
 
 type ArtifactStore struct {
-	*Store
+	*sqlx.DB
 
 	build *Build
 	job   *Job

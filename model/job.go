@@ -32,7 +32,7 @@ type Job struct {
 }
 
 type JobStore struct {
-	*Store
+	*sqlx.DB
 
 	build *Build
 	stage *Stage
@@ -186,9 +186,7 @@ func (js JobStore) InParentID(ids ...int64) ([]*Job, error) {
 
 func (j *Job) ArtifactStore() ArtifactStore {
 	return ArtifactStore{
-		Store: &Store{
-			DB: j.DB,
-		},
+		DB:    j.DB,
 		build: j.Build,
 		job:   j,
 	}

@@ -18,19 +18,13 @@ var sourceFmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=disable"
 type model struct {
 	*sqlx.DB
 
-	ID        int64      `db:"id"`
-	CreatedAt *time.Time `db:"created_at"`
+	ID        int64      `db:"id,omitcreate"`
+	CreatedAt *time.Time `db:"created_at,omitcreate"`
 	UpdatedAt *time.Time `db:"updated_at"`
 }
 
 type Store struct {
 	*sqlx.DB
-}
-
-func NewStore(db *sqlx.DB) *Store {
-	return &Store{
-		DB: db,
-	}
 }
 
 func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {

@@ -26,7 +26,7 @@ type Stage struct {
 }
 
 type StageStore struct {
-	*Store
+	*sqlx.DB
 
 	build *Build
 }
@@ -138,7 +138,7 @@ func (stgs StageStore) LoadJobs(ss []*Stage) error {
 	}
 
 	jobs := JobStore{
-		Store: stgs.Store,
+		DB: stgs.DB,
 	}
 
 	jj, err := jobs.InStageID(ids...)
@@ -160,9 +160,7 @@ func (stgs StageStore) LoadJobs(ss []*Stage) error {
 
 func (s *Stage) JobStore() JobStore {
 	return JobStore{
-		Store: &Store{
-			DB: s.DB,
-		},
+		DB:    s.DB,
 		build: s.Build,
 		stage: s,
 	}

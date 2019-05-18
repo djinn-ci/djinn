@@ -34,7 +34,7 @@ type Build struct {
 }
 
 type BuildStore struct {
-	*Store
+	*sqlx.DB
 
 	user      *User
 	namespace *Namespace
@@ -225,7 +225,7 @@ func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 	}
 
 	namespaces := NamespaceStore{
-		Store: bs.Store,
+		DB: bs.DB,
 	}
 
 	nn, err := namespaces.In(ids...)
@@ -257,7 +257,7 @@ func (bs *BuildStore) LoadTags(bb []*Build) error {
 	}
 
 	tags := TagStore{
-		Store: bs.Store,
+		DB: bs.DB,
 	}
 
 	tt, err := tags.InBuildID(ids...)
@@ -289,7 +289,7 @@ func (bs *BuildStore) LoadUsers(bb []*Build) error {
 	}
 
 	users := UserStore{
-		Store: bs.Store,
+		DB: bs.DB,
 	}
 
 	uu, err := users.In(ids...)
@@ -311,27 +311,21 @@ func (bs *BuildStore) LoadUsers(bb []*Build) error {
 
 func (b *Build) ArtifactStore() ArtifactStore {
 	return ArtifactStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB:    b.DB,
 		build: b,
 	}
 }
 
 func (b *Build) DriverStore() DriverStore {
 	return DriverStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB:    b.DB,
 		build: b,
 	}
 }
 
 func (b *Build) TagStore() TagStore {
 	return TagStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB:    b.DB,
 		user:  b.User,
 		build: b,
 	}
@@ -339,36 +333,28 @@ func (b *Build) TagStore() TagStore {
 
 func (b *Build) StageStore() StageStore {
 	return StageStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB:    b.DB,
 		build: b,
 	}
 }
 
 func (b *Build) JobStore() JobStore {
 	return JobStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB:    b.DB,
 		build: b,
 	}
 }
 
 func (b *Build) BuildObjectStore() BuildObjectStore {
 	return BuildObjectStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB:    b.DB,
 		build: b,
 	}
 }
 
 func (b *Build) BuildVariableStore() BuildVariableStore {
 	return BuildVariableStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB:    b.DB,
 		build: b,
 	}
 }
@@ -427,9 +413,7 @@ func (b *Build) LoadUser() error {
 	var err error
 
 	users := UserStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB: b.DB,
 	}
 
 	b.User, err = users.Find(b.UserID)
@@ -441,9 +425,7 @@ func (b *Build) LoadNamespace() error {
 	var err error
 
 	namespaces := NamespaceStore{
-		Store: &Store{
-			DB: b.DB,
-		},
+		DB: b.DB,
 	}
 
 	b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)

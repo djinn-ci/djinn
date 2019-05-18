@@ -4,6 +4,8 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type Driver struct {
@@ -17,7 +19,7 @@ type Driver struct {
 }
 
 type DriverStore struct {
-	*Store
+	*sqlx.DB
 
 	build *Build
 }

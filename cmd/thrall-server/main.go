@@ -15,7 +15,16 @@ import (
 	"github.com/andrewpillar/thrall/server"
 
 	"github.com/go-redis/redis"
+
+	"github.com/RichardKnop/machinery/v1"
+	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
+
+var drivers = []string{
+	"docker",
+	"ssh",
+	"qemu",
+}
 
 func mainCommand(cmd cli.Command) {
 	f, err := os.Open(cmd.Flags.GetString("config"))
@@ -68,11 +77,39 @@ func mainCommand(cmd cli.Command) {
 
 	log.Info.Println("connected to redis database")
 
-	srv := server.Server{
+	srv := &server.Server{
 		HttpAddr:  cfg.Net.Listen,
 		HttpsAddr: cfg.Net.SSL.Listen,
 		SSLCert:   cfg.Net.SSL.Cert,
 		SSLKey:    cfg.Net.SSL.Key,
+	}
+
+	broker := "redis://"
+
+	if cfg.Redis.Password != "" {
+		broker += cfg.Redis.Password + "@"
+	}
+
+	broker += cfg.Redis.Addr
+
+	if len(cfg.Drivers) == 1 && cfg.Drivers[0] == "*" {
+		cfg.Drivers = drivers
+	}
+
+	for _, d := range cfg.Drivers {
+		qsrv, err := machinery.NewServer(&qconfig.Config{
+			Broker:        broker,
+			DefaultQueue:  d,
+			ResultBackend: broker,
+		})
+
+		if err != nil {
+			log.Error.Fatalf("failed to create queue server: %s\n", err)
+		}
+
+		log.Debug.Println("adding build queue for driver:", d)
+
+		srv.AddQueue(d, qsrv)
 	}
 
 	uiSrv := uiServer{
@@ -81,7 +118,7 @@ func mainCommand(cmd cli.Command) {
 		client: client,
 		hash:   []byte(cfg.Crypto.Hash),
 		key:    []byte(cfg.Crypto.Key),
-		assets: cfg.Assets,
+		assets: "public",
 	}
 
 	uiSrv.init()

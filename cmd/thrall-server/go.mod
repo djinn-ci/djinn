@@ -3,6 +3,7 @@ module github.com/andrewpillar/thrall/cmd/thrall-server
 replace github.com/andrewpillar/thrall => ../../
 
 require (
+	github.com/RichardKnop/machinery v1.6.2
 	github.com/andrewpillar/cli v1.1.0
 	github.com/andrewpillar/thrall v0.0.0
 	github.com/go-redis/redis v6.15.2+incompatible

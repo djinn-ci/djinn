@@ -20,7 +20,7 @@ import (
 )
 
 type uiServer struct {
-	server.Server
+	*server.Server
 
 	db     *sqlx.DB
 	client *redis.Client
@@ -55,9 +55,7 @@ func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
-	namespaces := model.NewNamespaceStore(s.db)
-
-	build := ui.NewBuild(h, namespaces)
+	build := ui.NewBuild(h, s.Queues, model.NewNamespaceStore(s.db))
 
 	s.router.HandleFunc("/", mw.Auth(build.Index)).Methods("GET")
 	s.router.HandleFunc("/builds/create", mw.Auth(build.Create)).Methods("GET")

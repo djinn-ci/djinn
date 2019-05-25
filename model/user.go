@@ -40,6 +40,79 @@ func (us UserStore) New() *User {
 	return u
 }
 
+func (u *User) BuildShow(id int64) (*Build, error) {
+	b, err := u.BuildStore().Find(id)
+
+	if err != nil {
+		return b, errors.Err(err)
+	}
+
+	b.User = u
+
+	if err := b.LoadNamespace(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadTags(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadStages(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	err = b.StageStore().LoadJobs(b.Stages)
+
+	return b, errors.Err(err)
+}
+
+func (u *User) BuildList(status string) ([]*Build, error) {
+	var (
+		bb  []*Build
+		err error
+	)
+
+	builds := u.BuildStore()
+
+	if status != "" {
+		bb, err = builds.ByStatus(status)
+	} else {
+		bb, err = builds.All()
+	}
+
+	if err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := builds.LoadNamespaces(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := builds.LoadTags(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := builds.LoadUsers(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	nn := make([]*Namespace, 0, len(bb))
+
+	for _, b := range bb {
+		if b.Namespace != nil {
+			nn = append(nn, b.Namespace)
+		}
+	}
+
+	err = NewNamespaceStore(u.DB).LoadUsers(nn)
+
+	return bb, errors.Err(err)
+}
+
 func (us UserStore) In(ids ...int64) ([]*User, error) {
 	uu := make([]*User, 0)
 

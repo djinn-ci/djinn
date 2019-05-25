@@ -1,15 +1,22 @@
 package model
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"database/sql"
+	"strings"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/jmoiron/sqlx"
 
 	"github.com/lib/pq"
+
+	"github.com/RichardKnop/machinery/v1"
+	"github.com/RichardKnop/machinery/v1/tasks"
 )
 
 type Build struct {
@@ -471,6 +478,195 @@ func (b *Build) LoadVariables() error {
 
 func (b Build) UIEndpoint() string {
 	return fmt.Sprintf("/builds/%v", b.ID)
+}
+
+func (b Build) Signature() *tasks.Signature {
+	return &tasks.Signature{
+		Name: "run_build",
+		Args: []tasks.Arg{
+			tasks.Arg{
+				Type: "int64",
+				Value: b.ID,
+			},
+		},
+	}
+}
+
+func (b Build) Submit(srv *machinery.Server) error {
+	m, _ := config.DecodeManifest(strings.NewReader(b.Manifest))
+
+	buf := &bytes.Buffer{}
+	enc := json.NewEncoder(buf)
+
+	if err := enc.Encode(m.Driver); err != nil {
+		return errors.Err(err)
+	}
+
+	d := b.DriverStore().New()
+	d.Config = buf.String()
+	d.Type.UnmarshalText([]byte(m.Driver.Type))
+
+	if err := d.Create(); err != nil {
+		return errors.Err(err)
+	}
+
+	setupStage := b.StageStore().New()
+	setupStage.Name = fmt.Sprintf("setup - #%v", b.ID)
+
+	if err := setupStage.Create(); err != nil {
+		return errors.Err(err)
+	}
+
+	createJob := setupStage.JobStore().New()
+	createJob.Name = "create driver"
+
+	if err := createJob.Create(); err != nil {
+		return errors.Err(err)
+	}
+
+	vars := b.User.VariableStore()
+	buildVars := b.BuildVariableStore()
+
+	for _, env := range m.Env {
+		parts := strings.SplitN(env, "=", 2)
+
+		v := vars.New()
+		v.Key = parts[0]
+		v.Value = parts[1]
+		v.FromManifest = true
+
+		if err := v.Create(); err != nil {
+			return errors.Err(err)
+		}
+
+		bv := buildVars.New()
+		bv.BuildID = b.ID
+		bv.VariableID = v.ID
+
+		if err := bv.Create(); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	for objSrc := range m.Objects {
+		o, err := b.User.ObjectStore().FindByName(objSrc)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		if o.IsZero() {
+			continue
+		}
+
+		bo := o.BuildObjectStore().New()
+		bo.BuildID = b.ID
+		bo.Source = objSrc
+
+		if err := bo.Create(); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	setupJobs := setupStage.JobStore()
+
+	for i, src := range m.Sources {
+		commands := []string{
+			"git clone " + src.URL + " " + src.Dir,
+			"cd " + src.Dir,
+			"git checkout -q " + src.Ref,
+		}
+
+		if src.Dir != "" {
+			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
+		}
+
+		j := setupJobs.New()
+		j.Name = fmt.Sprintf("clone.%d", i + 1)
+		j.Commands = strings.Join(commands, "\n")
+
+		if err := j.Create(); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	stages := b.StageStore()
+	stageModels := make(map[string]*Stage)
+
+	for _, name := range m.Stages {
+		canFail := false
+
+		for _, allowed := range m.AllowFailures {
+			if name == allowed {
+				canFail = true
+				break
+			}
+		}
+
+		s := stages.New()
+		s.Name = name
+		s.CanFail = canFail
+
+		if err := s.Create(); err != nil {
+			return errors.Err(err)
+		}
+
+		stageModels[s.Name] = s
+	}
+
+	stage := ""
+	jobId := 0
+
+	jobModels := make(map[int64]*Job)
+	jobArtifacts := make(map[int64]runner.Passthrough)
+
+	for _, job := range m.Jobs {
+		s, ok := stageModels[job.Stage]
+
+		if !ok {
+			continue
+		}
+
+		if s.Name != stage {
+			stage = s.Name
+			jobId = 0
+		}
+
+		jobId++
+
+		if job.Name == "" {
+			job.Name = fmt.Sprintf("%s.%d", job.Stage, jobId)
+		}
+
+		j := s.JobStore().New()
+		j.Name = job.Name
+		j.Commands = strings.Join(job.Commands, "\n")
+
+		if err := j.Create(); err != nil {
+			return errors.Err(err)
+		}
+
+		jobModels[j.ID] = j
+		jobArtifacts[j.ID] = job.Artifacts
+	}
+
+	for id, artifacts := range jobArtifacts {
+		for src, dst := range artifacts {
+			j := jobModels[id]
+
+			a := j.ArtifactStore().New()
+			a.Source = src
+			a.Name = dst
+
+			if err := a.Create(); err != nil {
+				return errors.Err(err)
+			}
+		}
+	}
+
+	_, err := srv.SendTask(b.Signature())
+
+	return errors.Err(err)
 }
 
 func (b *BuildObject) Create() error {

@@ -9,7 +9,7 @@ import (
 )
 
 type Server struct {
-	Assets string
+	Drivers []string
 
 	Net struct {
 		Listen string
@@ -36,7 +36,6 @@ type Server struct {
 	Redis struct {
 		Addr     string
 		Password string
-		Idle     int
 	}
 
 	Log struct {
@@ -50,13 +49,6 @@ func DecodeServer(r io.Reader) (Server, error) {
 	dec := toml.NewDecoder(r)
 
 	server := Server{}
-	server.Redis.Idle = 10
-
-	server.Net.Listen = ":80"
-	server.Net.SSL.Listen = ":443"
-
-	server.Log.Level = "info"
-	server.Log.File = "/dev/stdout"
 
 	if err := dec.Decode(&server); err != nil {
 		return server, errors.Err(err)

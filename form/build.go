@@ -25,10 +25,16 @@ func (t *tags) UnmarshalText(b []byte) error {
 
 	parts := strings.Split(str, ",")
 
-	(*t) = tags(make([]string, len(parts), len(parts)))
+	(*t) = tags(make([]string, 0, len(parts)))
 
-	for i, tag := range parts {
-		(*t)[i] = tag
+	for _, tag := range parts {
+		tag = strings.TrimSpace(tag)
+
+		if tag == "" {
+			continue
+		}
+
+		(*t) = append((*t), tag)
 	}
 
 	return nil

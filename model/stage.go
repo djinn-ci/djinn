@@ -31,19 +31,53 @@ type StageStore struct {
 	build *Build
 }
 
-func (stgs StageStore) New() *Stage {
-	s := &Stage{
-		model: model{
-			DB: stgs.DB,
-		},
-		Build: stgs.build,
+func (s *Stage) Create() error {
+	stmt, err := s.Prepare(`
+		INSERT INTO stages (build_id, name, can_fail)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at, updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	if stgs.build != nil {
-		s.BuildID = stgs.build.ID
+	defer stmt.Close()
+
+	row := stmt.QueryRow(s.BuildID, s.Name, s.CanFail)
+
+	return errors.Err(row.Scan(&s.ID, &s.CreatedAt, &s.UpdatedAt))
+}
+
+func (s *Stage) JobStore() JobStore {
+	return JobStore{
+		DB:    s.DB,
+		build: s.Build,
+		stage: s,
+	}
+}
+
+func (s Stage) Stage() *runner.Stage {
+	return runner.NewStage(s.Name, s.CanFail)
+}
+
+func (s *Stage) Update() error {
+	stmt, err := s.Prepare(`
+		UPDATE stages
+		SET status = $1, started_at = $2, finished_at = $3, updated_at = NOW()
+		WHERE id = $4
+		RETURNING updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	return s
+	defer stmt.Close()
+
+	row := stmt.QueryRow(s.Status, s.StartedAt, s.FinishedAt, s.ID)
+
+	return errors.Err(row.Scan(&s.UpdatedAt))
 }
 
 func (stgs StageStore) All() ([]*Stage, error) {
@@ -95,6 +129,9 @@ func (stgs StageStore) Find(id int64) (*Stage, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		s.CreatedAt = nil
+		s.UpdatedAt = nil
 	}
 
 	return s, errors.Err(err)
@@ -158,51 +195,17 @@ func (stgs StageStore) LoadJobs(ss []*Stage) error {
 	return nil
 }
 
-func (s *Stage) JobStore() JobStore {
-	return JobStore{
-		DB:    s.DB,
-		build: s.Build,
-		stage: s,
-	}
-}
-
-func (s *Stage) Create() error {
-	stmt, err := s.Prepare(`
-		INSERT INTO stages (build_id, name, can_fail)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+func (stgs StageStore) New() *Stage {
+	s := &Stage{
+		model: model{
+			DB: stgs.DB,
+		},
+		Build: stgs.build,
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(s.BuildID, s.Name, s.CanFail)
-
-	return errors.Err(row.Scan(&s.ID, &s.CreatedAt, &s.UpdatedAt))
-}
-
-func (s *Stage) Update() error {
-	stmt, err := s.Prepare(`
-		UPDATE stages
-		SET status = $1, started_at = $2, finished_at = $3, updated_at = NOW()
-		WHERE id = $4
-		RETURNING updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+	if stgs.build != nil {
+		s.BuildID = stgs.build.ID
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(s.Status, s.StartedAt, s.FinishedAt, s.ID)
-
-	return errors.Err(row.Scan(&s.UpdatedAt))
-}
-
-func (s Stage) Stage() *runner.Stage {
-	return runner.NewStage(s.Name, s.CanFail)
+	return s
 }

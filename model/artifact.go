@@ -31,24 +31,41 @@ type ArtifactStore struct {
 	job   *Job
 }
 
-func (as ArtifactStore) New() *Artifact {
-	a := &Artifact{
-		model: model{
-			DB: as.DB,
-		},
-		Build: as.build,
-		Job:   as.job,
+func (a *Artifact) Create() error {
+	stmt, err := a.Prepare(`
+		INSERT INTO artifacts (build_id, job_id, source, name, size, type, md5, sha256)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, created_at, updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	if as.build != nil {
-		a.BuildID = as.build.ID
+	defer stmt.Close()
+
+	row := stmt.QueryRow(a.BuildID, a.JobID, a.Source, a.Name, a.Size, a.Type, a.MD5, a.SHA256)
+
+	return errors.Err(row.Scan(&a.ID, &a.CreatedAt, &a.UpdatedAt))
+}
+
+func (a *Artifact) Update() error {
+	stmt, err := a.Prepare(`
+		UPDATE artifacts
+		SET size = $1, type = $2, md5 = $3, sha256 = $4, updated_at = NOW()
+		WHERE id = $5
+		RETURNING updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	if as.job != nil {
-		a.JobID = as.job.ID
-	}
+	defer stmt.Close()
 
-	return a
+	row := stmt.QueryRow(a.Size, a.Type, a.MD5, a.SHA256, a.ID)
+
+	return errors.Err(row.Scan(&a.UpdatedAt))
 }
 
 func (as ArtifactStore) Find(id int64) (*Artifact, error) {
@@ -153,39 +170,22 @@ func (as ArtifactStore) InJobID(ids ...int64) ([]*Artifact, error) {
 	return aa, errors.Err(err)
 }
 
-func (a *Artifact) Create() error {
-	stmt, err := a.Prepare(`
-		INSERT INTO artifacts (build_id, job_id, source, name, size, type, md5, sha256)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, created_at, updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+func (as ArtifactStore) New() *Artifact {
+	a := &Artifact{
+		model: model{
+			DB: as.DB,
+		},
+		Build: as.build,
+		Job:   as.job,
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(a.BuildID, a.JobID, a.Source, a.Name, a.Size, a.Type, a.MD5, a.SHA256)
-
-	return errors.Err(row.Scan(&a.ID, &a.CreatedAt, &a.UpdatedAt))
-}
-
-func (a *Artifact) Update() error {
-	stmt, err := a.Prepare(`
-		UPDATE artifacts
-		SET size = $1, type = $2, md5 = $3, sha256 = $4, updated_at = NOW()
-		WHERE id = $5
-		RETURNING updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+	if as.build != nil {
+		a.BuildID = as.build.ID
 	}
 
-	defer stmt.Close()
+	if as.job != nil {
+		a.JobID = as.job.ID
+	}
 
-	row := stmt.QueryRow(a.Size, a.Type, a.MD5, a.SHA256, a.ID)
-
-	return errors.Err(row.Scan(&a.UpdatedAt))
+	return a
 }

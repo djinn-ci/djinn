@@ -40,6 +40,52 @@ func scan(val interface{}) ([]byte, error) {
 	return b, nil
 }
 
+func (t *DriverType) Scan(val interface{}) error {
+	b, err := scan(val)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if len(b) == 0 {
+		(*t) = DriverType(0)
+		return nil
+	}
+
+	return errors.Err(t.UnmarshalText(b))
+}
+
+func (t *DriverType) UnmarshalText(b []byte) error {
+	str := string(b)
+
+	switch str {
+		case "ssh":
+			(*t) = SSH
+			return nil
+		case "qemu":
+			(*t) = Qemu
+			return nil
+		case "docker":
+			(*t) = Docker
+			return nil
+		default:
+			return errors.Err(errors.New("unknown driver " + str))
+	}
+}
+
+func (t DriverType) Value() (driver.Value, error) {
+	switch t {
+		case SSH:
+			return driver.Value("ssh"), nil
+		case Qemu:
+			return driver.Value("qemu"), nil
+		case Docker:
+			return driver.Value("docker"), nil
+		default:
+			return driver.Value(""), errors.Err(errors.New("unknown driver"))
+	}
+}
+
 func (v *Visibility) Scan(val interface{}) error {
 	b, err := scan(val)
 
@@ -85,51 +131,5 @@ func (v Visibility) Value() (driver.Value, error) {
 			return driver.Value("public"), nil
 		default:
 			return driver.Value(""), errors.Err(errors.New("unknown visibility level"))
-	}
-}
-
-func (t *DriverType) Scan(val interface{}) error {
-	b, err := scan(val)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if len(b) == 0 {
-		(*t) = DriverType(0)
-		return nil
-	}
-
-	return errors.Err(t.UnmarshalText(b))
-}
-
-func (t *DriverType) UnmarshalText(b []byte) error {
-	str := string(b)
-
-	switch str {
-		case "ssh":
-			(*t) = SSH
-			return nil
-		case "qemu":
-			(*t) = Qemu
-			return nil
-		case "docker":
-			(*t) = Docker
-			return nil
-		default:
-			return errors.Err(errors.New("unknown driver " + str))
-	}
-}
-
-func (t DriverType) Value() (driver.Value, error) {
-	switch t {
-		case SSH:
-			return driver.Value("ssh"), nil
-		case Qemu:
-			return driver.Value("qemu"), nil
-		case Docker:
-			return driver.Value("docker"), nil
-		default:
-			return driver.Value(""), errors.Err(errors.New("unknown driver"))
 	}
 }

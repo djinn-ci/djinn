@@ -26,24 +26,22 @@ type TagStore struct {
 	build *Build
 }
 
-func (ts TagStore) New() *Tag {
-	t := &Tag{
-		model: model{
-			DB: ts.DB,
-		},
-		User:  ts.user,
-		Build: ts.build,
+func (t *Tag) Create() error {
+	stmt, err := t.Prepare(`
+		INSERT INTO tags (user_id, build_id, name)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at, updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	if ts.build != nil {
-		t.BuildID = ts.build.ID
-	}
+	defer stmt.Close()
 
-	if ts.user != nil {
-		t.UserID = ts.user.ID
-	}
+	row := stmt.QueryRow(t.UserID, t.BuildID, t.Name)
 
-	return t
+	return errors.Err(row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
 }
 
 func (ts TagStore) All() ([]*Tag, error) {
@@ -102,34 +100,22 @@ func (ts TagStore) InBuildID(ids ...int64) ([]*Tag, error) {
 	return tt, errors.Err(err)
 }
 
-func (t *Tag) Create() error {
-	stmt, err := t.Prepare(`
-		INSERT INTO tags (user_id, build_id, name)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+func (ts TagStore) New() *Tag {
+	t := &Tag{
+		model: model{
+			DB: ts.DB,
+		},
+		User:  ts.user,
+		Build: ts.build,
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(t.UserID, t.BuildID, t.Name)
-
-	return errors.Err(row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
-}
-
-func (t *Tag) Destroy() error {
-	stmt, err := t.Prepare("DELETE FROM tags WHERE id = $1")
-
-	if err != nil {
-		return errors.Err(err)
+	if ts.build != nil {
+		t.BuildID = ts.build.ID
 	}
 
-	defer stmt.Close()
+	if ts.user != nil {
+		t.UserID = ts.user.ID
+	}
 
-	_, err = stmt.Exec(t.ID)
-
-	return errors.Err(err)
+	return t
 }

@@ -41,27 +41,221 @@ func NewNamespaceStore(db *sqlx.DB) *NamespaceStore {
 	}
 }
 
-func (ns NamespaceStore) New() *Namespace {
-	n := &Namespace{
-		model: model{
-			DB: ns.DB,
-		},
-		User:   ns.user,
-		Parent: ns.namespace,
+func (n *Namespace) BuildStore() BuildStore {
+	return BuildStore{
+		DB:        n.DB,
+		namespace: n,
+	}
+}
+
+func (n *Namespace) NamespaceStore() NamespaceStore {
+	return NamespaceStore{
+		DB:        n.DB,
+		namespace: n,
+	}
+}
+
+func (n *Namespace) CascadeVisibility() error {
+	if n.ID != n.RootID.Int64 {
+		return nil
 	}
 
-	if ns.user != nil {
-		n.UserID = ns.user.ID
+	stmt, err := n.Prepare("UPDATE namespaces SET visibility = $1 WHERE root_id = $2")
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	if ns.namespace != nil {
-		n.ParentID = sql.NullInt64{
-			Int64: ns.namespace.ID,
-			Valid: true,
+	defer stmt.Close()
+
+	_, err = stmt.Exec(n.Visibility, n.RootID)
+
+	return errors.Err(err)
+}
+
+func (n *Namespace) Create() error {
+	stmt, err := n.Prepare(`
+		INSERT INTO namespaces (user_id, root_id, parent_id, name, path, description, level, visibility)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, created_at, updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(
+		n.UserID,
+		n.RootID,
+		n.ParentID,
+		n.Name,
+		n.Path,
+		n.Description,
+		n.Level,
+		n.Visibility,
+	)
+
+	return errors.Err(row.Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt))
+}
+
+func (n *Namespace) Destroy() error {
+	nn, err := n.NamespaceStore().All()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, n := range nn {
+		if err := n.Destroy(); err != nil {
+			return errors.Err(err)
 		}
 	}
 
-	return n
+	stmt, err := n.Prepare("DELETE FROM namespaces WHERE id = $1")
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(n.ID)
+
+	return errors.Err(err)
+}
+
+func (n *Namespace) IsZero() bool {
+	return n.ID == 0 &&
+           n.UserID == 0 &&
+           !n.ParentID.Valid &&
+           n.Name == "" &&
+           n.Path == "" &&
+           n.Description == "" &&
+           n.Level == 0 &&
+           n.Visibility == Visibility(0) &&
+           n.CreatedAt == nil &&
+           n.UpdatedAt == nil
+}
+
+func (n *Namespace) LoadChildren() error {
+	var err error
+
+	namespaces := NamespaceStore{
+		DB:   n.DB,
+		user: n.User,
+	}
+
+	n.Children, err = namespaces.GetByRootID(n.ID)
+
+	return errors.Err(err)
+}
+
+func (n *Namespace) LoadParent() error {
+	if !n.ParentID.Valid {
+		n.Parent = &Namespace{}
+
+		return nil
+	}
+
+	var err error
+
+	namespaces := NamespaceStore{
+		DB:   n.DB,
+		user: n.User,
+	}
+
+	n.Parent, err = namespaces.Find(n.ParentID.Int64)
+
+	return errors.Err(err)
+}
+
+func (n *Namespace) LoadParents() error {
+	if !n.ParentID.Valid {
+		return nil
+	}
+
+	if err := n.LoadParent(); err != nil {
+		return errors.Err(err)
+	}
+
+	if n.Parent.IsZero() {
+		return nil
+	}
+
+	return errors.Err(n.Parent.LoadParents())
+}
+
+func (n Namespace) UIEndpoint() string {
+	if n.User == nil {
+		return ""
+	}
+
+	return "/u/" + n.User.Username + "/" + n.Path
+}
+
+func (n *Namespace) Update() error {
+	stmt, err := n.Prepare(`
+		UPDATE namespaces
+		SET root_id = $1, name = $2, path = $3, description = $4, visibility = $5, updated_at = NOW()
+		WHERE id = $6
+		RETURNING updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(n.RootID, n.Name, n.Path, n.Description, n.Visibility, n.ID)
+
+	return errors.Err(row.Scan(&n.UpdatedAt))
+}
+
+func (ns NamespaceStore) All() ([]*Namespace, error) {
+	nn := make([]*Namespace, 0)
+
+	query := "SELECT * FROM namespaces"
+	args := []interface{}{}
+
+	if ns.user != nil {
+		query += " WHERE user_id = $1"
+		args = append(args, ns.user.ID)
+	}
+
+	if ns.namespace != nil {
+		if ns.user != nil {
+			query += " AND WHERE parent_id = $2"
+		} else {
+			query += " WHERE parent_id = $1"
+		}
+
+		args = append(args, ns.namespace.ID)
+	}
+
+	query += " ORDER BY path ASC"
+
+	err := ns.Select(&nn, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, n := range nn {
+		n.DB = ns.DB
+
+		if ns.user != nil {
+			n.User = ns.user
+		}
+
+		if ns.namespace != nil {
+			n.Parent = ns.namespace
+		}
+	}
+
+	return nn, errors.Err(err)
 }
 
 func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
@@ -264,50 +458,6 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 	return n, nil
 }
 
-func (ns NamespaceStore) All() ([]*Namespace, error) {
-	nn := make([]*Namespace, 0)
-
-	query := "SELECT * FROM namespaces"
-	args := []interface{}{}
-
-	if ns.user != nil {
-		query += " WHERE user_id = $1"
-		args = append(args, ns.user.ID)
-	}
-
-	if ns.namespace != nil {
-		if ns.user != nil {
-			query += " AND WHERE parent_id = $2"
-		} else {
-			query += " WHERE parent_id = $1"
-		}
-
-		args = append(args, ns.namespace.ID)
-	}
-
-	query += " ORDER BY path ASC"
-
-	err := ns.Select(&nn, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, n := range nn {
-		n.DB = ns.DB
-
-		if ns.user != nil {
-			n.User = ns.user
-		}
-
-		if ns.namespace != nil {
-			n.Parent = ns.namespace
-		}
-	}
-
-	return nn, errors.Err(err)
-}
-
 func (ns NamespaceStore) Like(like string) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
@@ -382,175 +532,25 @@ func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {
 	return errors.Err(err)
 }
 
-func (n *Namespace) BuildStore() BuildStore {
-	return BuildStore{
-		DB:        n.DB,
-		namespace: n,
-	}
-}
-
-func (n *Namespace) NamespaceStore() NamespaceStore {
-	return NamespaceStore{
-		DB:        n.DB,
-		namespace: n,
-	}
-}
-
-func (n *Namespace) Create() error {
-	stmt, err := n.Prepare(`
-		INSERT INTO namespaces (user_id, root_id, parent_id, name, path, description, level, visibility)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-		RETURNING id, created_at, updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+func (ns NamespaceStore) New() *Namespace {
+	n := &Namespace{
+		model: model{
+			DB: ns.DB,
+		},
+		User:   ns.user,
+		Parent: ns.namespace,
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(
-		n.UserID,
-		n.RootID,
-		n.ParentID,
-		n.Name,
-		n.Path,
-		n.Description,
-		n.Level,
-		n.Visibility,
-	)
-
-	return errors.Err(row.Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt))
-}
-
-func (n *Namespace) Update() error {
-	stmt, err := n.Prepare(`
-		UPDATE namespaces
-		SET root_id = $1, name = $2, path = $3, description = $4, visibility = $5, updated_at = NOW()
-		WHERE id = $6
-		RETURNING updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+	if ns.user != nil {
+		n.UserID = ns.user.ID
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(n.RootID, n.Name, n.Path, n.Description, n.Visibility, n.ID)
-
-	return errors.Err(row.Scan(&n.UpdatedAt))
-}
-
-func (n *Namespace) CascadeVisibility() error {
-	if n.ID != n.RootID.Int64 {
-		return nil
-	}
-
-	stmt, err := n.Prepare("UPDATE namespaces SET visibility = $1 WHERE root_id = $2")
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(n.Visibility, n.RootID)
-
-	return errors.Err(err)
-}
-
-func (n *Namespace) Destroy() error {
-	nn, err := n.NamespaceStore().All()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, n := range nn {
-		if err := n.Destroy(); err != nil {
-			return errors.Err(err)
+	if ns.namespace != nil {
+		n.ParentID = sql.NullInt64{
+			Int64: ns.namespace.ID,
+			Valid: true,
 		}
 	}
 
-	stmt, err := n.Prepare("DELETE FROM namespaces WHERE id = $1")
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(n.ID)
-
-	return errors.Err(err)
-}
-
-func (n *Namespace) IsZero() bool {
-	return n.ID == 0 &&
-           n.UserID == 0 &&
-           !n.ParentID.Valid &&
-           n.Name == "" &&
-           n.Path == "" &&
-           n.Description == "" &&
-           n.Level == 0 &&
-           n.Visibility == Visibility(0) &&
-           n.CreatedAt == nil &&
-           n.UpdatedAt == nil
-}
-
-func (n *Namespace) LoadChildren() error {
-	var err error
-
-	namespaces := NamespaceStore{
-		DB:   n.DB,
-		user: n.User,
-	}
-
-	n.Children, err = namespaces.GetByRootID(n.ID)
-
-	return errors.Err(err)
-}
-
-func (n *Namespace) LoadParent() error {
-	if !n.ParentID.Valid {
-		n.Parent = &Namespace{}
-
-		return nil
-	}
-
-	var err error
-
-	namespaces := NamespaceStore{
-		DB:   n.DB,
-		user: n.User,
-	}
-
-	n.Parent, err = namespaces.Find(n.ParentID.Int64)
-
-	return errors.Err(err)
-}
-
-func (n *Namespace) LoadParents() error {
-	if !n.ParentID.Valid {
-		return nil
-	}
-
-	if err := n.LoadParent(); err != nil {
-		return errors.Err(err)
-	}
-
-	if n.Parent.IsZero() {
-		return nil
-	}
-
-	return errors.Err(n.Parent.LoadParents())
-}
-
-func (n Namespace) UIEndpoint() string {
-	if n.User == nil {
-		return ""
-	}
-
-	return "/u/" + n.User.Username + "/" + n.Path
+	return n
 }

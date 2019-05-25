@@ -38,24 +38,84 @@ type JobStore struct {
 	stage *Stage
 }
 
-func (js JobStore) New() *Job {
-	j := &Job{
-		model: model{
-			DB: js.DB,
-		},
+func (j *Job) ArtifactStore() ArtifactStore {
+	return ArtifactStore{
+		DB:    j.DB,
+		build: j.Build,
+		job:   j,
+	}
+}
+
+func (j *Job) Create() error {
+	stmt, err := j.Prepare(`
+		INSERT INTO jobs (build_id, stage_id, name, commands)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, created_at, updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	if js.build != nil {
-		j.BuildID = js.build.ID
-		j.Build = js.build
+	defer stmt.Close()
+
+	row := stmt.QueryRow(j.BuildID, j.StageID, j.Name, j.Commands)
+
+	return errors.Err(row.Scan(&j.ID, &j.CreatedAt, &j.UpdatedAt))
+}
+
+func (j Job) Job() *runner.Job {
+	artifacts := runner.NewPassthrough()
+
+	for _, a := range j.Artifacts {
+		artifacts[a.Source] = a.Name
 	}
 
-	if js.stage != nil {
-		j.StageID = js.stage.ID
-		j.Stage = js.stage
+	depends := make([]string, len(j.Dependencies), len(j.Dependencies))
+
+	for i, d := range j.Dependencies {
+		depends[i] = d.Name
 	}
 
-	return j
+	return &runner.Job{
+		Stage:     j.Stage.Name,
+		Name:      j.Name,
+		Commands:  strings.Split(j.Commands, "\n"),
+		Depends:   depends,
+		Artifacts: artifacts,
+	}
+}
+
+func (j *Job) IsZero() bool {
+	return j.model.IsZero() &&
+           j.BuildID == 0 &&
+           j.StageID == 0 &&
+           !j.ParentID.Valid &&
+           j.Name == "" &&
+           j.Commands == "" &&
+           j.Status == runner.Status(0) &&
+           !j.Output.Valid &&
+           j.StartedAt == nil &&
+           j.FinishedAt == nil
+}
+
+func (j *Job) Update() error {
+	stmt, err := j.Prepare(`
+		UPDATE jobs
+		SET output = $1, status = $2, started_at = $3, finished_at = $4, updated_at = NOW()
+		WHERE id = $5
+		RETURNING updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(j.Output, j.Status, j.StartedAt, j.FinishedAt, j.ID)
+
+	return errors.Err(row.Scan(&j.UpdatedAt))
 }
 
 func (js JobStore) All() ([]*Job, error) {
@@ -127,35 +187,12 @@ func (js JobStore) Find(id int64) (*Job, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		j.CreatedAt = nil
+		j.UpdatedAt = nil
 	}
 
 	return j, errors.Err(err)
-}
-
-func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
-	jj := make([]*Job, 0)
-
-	if len(ids) == 0 {
-		return jj, nil
-	}
-
-	query, args, err := sqlx.In("SELECT * FROM jobs WHERE stage_id IN (?)", ids)
-
-	if err != nil {
-		return jj, errors.Err(err)
-	}
-
-	err = js.Select(&jj, js.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, j := range jj {
-		j.DB = js.DB
-	}
-
-	return jj, errors.Err(err)
 }
 
 func (js JobStore) InParentID(ids ...int64) ([]*Job, error) {
@@ -184,84 +221,48 @@ func (js JobStore) InParentID(ids ...int64) ([]*Job, error) {
 	return jj, errors.Err(err)
 }
 
-func (j *Job) ArtifactStore() ArtifactStore {
-	return ArtifactStore{
-		DB:    j.DB,
-		build: j.Build,
-		job:   j,
-	}
-}
+func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
+	jj := make([]*Job, 0)
 
-func (j *Job) Create() error {
-	stmt, err := j.Prepare(`
-		INSERT INTO jobs (build_id, stage_id, name, commands)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at, updated_at
-	`)
+	if len(ids) == 0 {
+		return jj, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM jobs WHERE stage_id IN (?)", ids)
 
 	if err != nil {
-		return errors.Err(err)
+		return jj, errors.Err(err)
 	}
 
-	defer stmt.Close()
+	err = js.Select(&jj, js.Rebind(query), args...)
 
-	row := stmt.QueryRow(j.BuildID, j.StageID, j.Name, j.Commands)
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 
-	return errors.Err(row.Scan(&j.ID, &j.CreatedAt, &j.UpdatedAt))
+	for _, j := range jj {
+		j.DB = js.DB
+	}
+
+	return jj, errors.Err(err)
 }
 
-func (j *Job) Update() error {
-	stmt, err := j.Prepare(`
-		UPDATE jobs
-		SET output = $1, status = $2, started_at = $3, finished_at = $4, updated_at = NOW()
-		WHERE id = $5
-		RETURNING updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+func (js JobStore) New() *Job {
+	j := &Job{
+		model: model{
+			DB: js.DB,
+		},
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(j.Output, j.Status, j.StartedAt, j.FinishedAt, j.ID)
-
-	return errors.Err(row.Scan(&j.UpdatedAt))
-}
-
-func (j Job) Job() *runner.Job {
-	artifacts := runner.NewPassthrough()
-
-	for _, a := range j.Artifacts {
-		artifacts[a.Source] = a.Name
+	if js.build != nil {
+		j.BuildID = js.build.ID
+		j.Build = js.build
 	}
 
-	depends := make([]string, len(j.Dependencies), len(j.Dependencies))
-
-	for i, d := range j.Dependencies {
-		depends[i] = d.Name
+	if js.stage != nil {
+		j.StageID = js.stage.ID
+		j.Stage = js.stage
 	}
 
-	return &runner.Job{
-		Stage:     j.Stage.Name,
-		Name:      j.Name,
-		Commands:  strings.Split(j.Commands, "\n"),
-		Depends:   depends,
-		Artifacts: artifacts,
-	}
-}
-
-func (j *Job) IsZero() bool {
-	return j.ID == 0 &&
-           j.BuildID == 0 &&
-           j.StageID == 0 &&
-           !j.ParentID.Valid &&
-           j.Name == "" &&
-           j.Commands == "" &&
-           j.Status == runner.Status(0) &&
-           !j.Output.Valid &&
-           j.StartedAt == nil &&
-           j.FinishedAt == nil &&
-           j.CreatedAt == nil &&
-           j.UpdatedAt == nil
+	return j
 }

@@ -50,92 +50,6 @@ type BuildObjectStore struct {
 	object *Object
 }
 
-func (os ObjectStore) New() *Object {
-	o := &Object{
-		model: model{
-			DB: os.DB,
-		},
-		User: os.user,
-	}
-
-	if os.user != nil {
-		o.UserID = os.user.ID
-	}
-
-	return o
-}
-
-func (os ObjectStore) Find(id int64) (*Object, error) {
-	o := &Object{
-		model: model{
-			DB: os.DB,
-		},
-	}
-
-	query := "SELECT * FROM objects WHERE id = $1"
-	args := []interface{}{id}
-
-	if os.user != nil {
-		query += " AND user_id = $2"
-		args = append(args, os.user.ID)
-
-		o.User = os.user
-	}
-
-	err := os.Get(o, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return o, errors.Err(err)
-}
-
-func (os ObjectStore) FindByName(name string) (*Object, error) {
-	o := &Object{
-		model: model{
-			DB: os.DB,
-		},
-		User: os.user,
-	}
-
-	query := "SELECT * FROM objects WHERE name = $1"
-	args := []interface{}{name}
-
-	if os.user != nil {
-		query += " AND user_id = $2"
-		args = append(args, os.user.ID)
-	}
-
-	err := os.Get(o, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return o, errors.Err(err)
-}
-
-func (bos BuildObjectStore) New() *BuildObject {
-	bo := &BuildObject{
-		model: model{
-			DB: bos.DB,
-		},
-		Build:  bos.build,
-		Object: bos.object,
-	}
-
-	if bos.build != nil {
-		bo.BuildID = bos.build.ID
-	}
-
-	if bos.object != nil {
-		bo.ObjectID = bos.object.ID
-	}
-
-	return bo
-}
-
 func (o *Object) BuildObjectStore() BuildObjectStore {
 	return BuildObjectStore{
 		DB:     o.DB,
@@ -162,7 +76,7 @@ func (o *Object) Create() error {
 }
 
 func (o *Object) IsZero() bool {
-	return o.ID == 0 &&
+	return o.model.IsZero() &&
            o.UserID == 0 &&
            o.Name == "" &&
            o.Filename == "" &&
@@ -170,7 +84,99 @@ func (o *Object) IsZero() bool {
            o.Size == 0 &&
            len(o.MD5) == 0 &&
            len(o.SHA256) == 0 &&
-           o.CreatedAt == nil &&
-           o.UpdatedAt == nil &&
            o.DeletedAt == nil
+}
+
+func (os ObjectStore) Find(id int64) (*Object, error) {
+	o := &Object{
+		model: model{
+			DB: os.DB,
+		},
+	}
+
+	query := "SELECT * FROM objects WHERE id = $1"
+	args := []interface{}{id}
+
+	if os.user != nil {
+		query += " AND user_id = $2"
+		args = append(args, os.user.ID)
+
+		o.User = os.user
+	}
+
+	err := os.Get(o, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		o.CreatedAt = nil
+		o.UpdatedAt = nil
+		o.DeletedAt = nil
+	}
+
+	return o, errors.Err(err)
+}
+
+func (os ObjectStore) FindByName(name string) (*Object, error) {
+	o := &Object{
+		model: model{
+			DB: os.DB,
+		},
+		User: os.user,
+	}
+
+	query := "SELECT * FROM objects WHERE name = $1"
+	args := []interface{}{name}
+
+	if os.user != nil {
+		query += " AND user_id = $2"
+		args = append(args, os.user.ID)
+	}
+
+	err := os.Get(o, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		o.CreatedAt = nil
+		o.UpdatedAt = nil
+		o.DeletedAt = nil
+	}
+
+	return o, errors.Err(err)
+}
+
+func (os ObjectStore) New() *Object {
+	o := &Object{
+		model: model{
+			DB: os.DB,
+		},
+		User: os.user,
+	}
+
+	if os.user != nil {
+		o.UserID = os.user.ID
+	}
+
+	return o
+}
+
+func (bos BuildObjectStore) New() *BuildObject {
+	bo := &BuildObject{
+		model: model{
+			DB: bos.DB,
+		},
+		Build:  bos.build,
+		Object: bos.object,
+	}
+
+	if bos.build != nil {
+		bo.BuildID = bos.build.ID
+	}
+
+	if bos.object != nil {
+		bo.ObjectID = bos.object.ID
+	}
+
+	return bo
 }

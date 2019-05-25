@@ -48,3 +48,7 @@ func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
 
 	return db, errors.Err(db.Ping())
 }
+
+func (m model) IsZero() bool {
+	return m.ID == 0 && m.CreatedAt == nil && m.UpdatedAt == nil
+}

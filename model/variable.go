@@ -45,90 +45,6 @@ type BuildVariableStore struct {
 	variable *Variable
 }
 
-func (vs VariableStore) New() *Variable {
-	v := &Variable{
-		model: model{
-			DB: vs.DB,
-		},
-		User:  vs.user,
-	}
-
-	if vs.user != nil {
-		v.UserID = vs.user.ID
-	}
-
-	return v
-}
-
-func (vs VariableStore) All() ([]*Variable, error) {
-	vv := make([]*Variable, 0)
-
-	query := "SELECT * FROM variables"
-	args := []interface{}{}
-
-	if vs.user != nil {
-		query += " WHERE user_id = $1"
-		args = append(args, vs.user.ID)
-	}
-
-	err := vs.Select(&vv, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, v := range vv {
-		v.DB = vs.DB
-
-		if vs.user != nil {
-			v.User = vs.user
-		}
-	}
-
-	return vv, errors.Err(err)
-}
-
-func (vs VariableStore) In(ids ...int64) ([]*Variable, error) {
-	vv := make([]*Variable, 0)
-
-	if len(ids) == 0 {
-		return vv, nil
-	}
-
-	query, args, err := sqlx.In("SELECT * FROM variables WHERE id in (?)", ids)
-
-	if err != nil {
-		return vv, errors.Err(err)
-	}
-
-	err = vs.Select(&vv, vs.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, v := range vv {
-		v.DB = vs.DB
-	}
-
-	return vv, nil
-}
-
-func (bvs BuildVariableStore) New() *BuildVariable {
-	bv := &BuildVariable{
-		model: model{
-			DB: bvs.DB,
-		},
-		Build: bvs.build,
-	}
-
-	if bvs.build != nil {
-		bv.BuildID = bvs.build.ID
-	}
-
-	return bv
-}
-
 func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
 	vv := make([]*BuildVariable, 0)
 
@@ -186,6 +102,21 @@ func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
 	return nil
 }
 
+func (bvs BuildVariableStore) New() *BuildVariable {
+	bv := &BuildVariable{
+		model: model{
+			DB: bvs.DB,
+		},
+		Build: bvs.build,
+	}
+
+	if bvs.build != nil {
+		bv.BuildID = bvs.build.ID
+	}
+
+	return bv
+}
+
 func (v *Variable) Create() error {
 	stmt, err := v.Prepare(`
 		INSERT INTO variables (user_id, key, value, from_manifest)
@@ -202,4 +133,73 @@ func (v *Variable) Create() error {
 	row := stmt.QueryRow(v.UserID, v.Key, v.Value, v.FromManifest)
 
 	return errors.Err(row.Scan(&v.ID, &v.CreatedAt, &v.UpdatedAt))
+}
+
+func (vs VariableStore) All() ([]*Variable, error) {
+	vv := make([]*Variable, 0)
+
+	query := "SELECT * FROM variables"
+	args := []interface{}{}
+
+	if vs.user != nil {
+		query += " WHERE user_id = $1"
+		args = append(args, vs.user.ID)
+	}
+
+	err := vs.Select(&vv, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, v := range vv {
+		v.DB = vs.DB
+
+		if vs.user != nil {
+			v.User = vs.user
+		}
+	}
+
+	return vv, errors.Err(err)
+}
+
+func (vs VariableStore) In(ids ...int64) ([]*Variable, error) {
+	vv := make([]*Variable, 0)
+
+	if len(ids) == 0 {
+		return vv, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM variables WHERE id in (?)", ids)
+
+	if err != nil {
+		return vv, errors.Err(err)
+	}
+
+	err = vs.Select(&vv, vs.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, v := range vv {
+		v.DB = vs.DB
+	}
+
+	return vv, nil
+}
+
+func (vs VariableStore) New() *Variable {
+	v := &Variable{
+		model: model{
+			DB: vs.DB,
+		},
+		User:  vs.user,
+	}
+
+	if vs.user != nil {
+		v.UserID = vs.user.ID
+	}
+
+	return v
 }

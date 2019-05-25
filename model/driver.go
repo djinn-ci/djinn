@@ -24,19 +24,22 @@ type DriverStore struct {
 	build *Build
 }
 
-func (ds DriverStore) New() *Driver {
-	d := &Driver{
-		model: model{
-			DB: ds.DB,
-		},
-		Build: ds.build,
+func (d *Driver) Create() error {
+	stmt, err := d.Prepare(`
+		INSERT INTO drivers (build_id, type, config)
+		VALUES ($1, $2, $3)
+		RETURNING id, created_at, updated_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	if ds.build != nil {
-		d.BuildID = ds.build.ID
-	}
+	defer stmt.Close()
 
-	return d
+	row := stmt.QueryRow(d.BuildID, d.Type, d.Config)
+
+	return errors.Err(row.Scan(&d.ID, &d.CreatedAt, &d.UpdatedAt))
 }
 
 func (ds DriverStore) Find(id int64) (*Driver, error) {
@@ -59,6 +62,9 @@ func (ds DriverStore) Find(id int64) (*Driver, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
+
+		d.CreatedAt = nil
+		d.UpdatedAt = nil
 	}
 
 	return d, errors.Err(err)
@@ -89,20 +95,17 @@ func (ds DriverStore) First() (*Driver, error) {
 	return d, errors.Err(err)
 }
 
-func (d *Driver) Create() error {
-	stmt, err := d.Prepare(`
-		INSERT INTO drivers (build_id, type, config)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
+func (ds DriverStore) New() *Driver {
+	d := &Driver{
+		model: model{
+			DB: ds.DB,
+		},
+		Build: ds.build,
 	}
 
-	defer stmt.Close()
+	if ds.build != nil {
+		d.BuildID = ds.build.ID
+	}
 
-	row := stmt.QueryRow(d.BuildID, d.Type, d.Config)
-
-	return errors.Err(row.Scan(&d.ID, &d.CreatedAt, &d.UpdatedAt))
+	return d
 }

@@ -99,7 +99,7 @@ func mainCommand(cmd cli.Command) {
 	for _, d := range cfg.Drivers {
 		qsrv, err := machinery.NewServer(&qconfig.Config{
 			Broker:        broker,
-			DefaultQueue:  d,
+			DefaultQueue:  "thrall_builds_" + d,
 			ResultBackend: broker,
 		})
 

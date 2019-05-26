@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/server"
@@ -52,6 +53,10 @@ func mainCommand(cmd cli.Command) {
 	defer logf.Close()
 
 	log.SetLogger(log.NewStdLog(logf))
+
+	if err := crypto.InitHashing(cfg.Crypto.Salt, 8); err != nil {
+		log.Error.Fatalf("failed to initialize hashing mechanism: %s\n", err)
+	}
 
 	db, err := model.Connect(
 		cfg.Database.Addr,
@@ -97,17 +102,19 @@ func mainCommand(cmd cli.Command) {
 	}
 
 	for _, d := range cfg.Drivers {
-		qsrv, err := machinery.NewServer(&qconfig.Config{
+		qcfg := &qconfig.Config{
 			Broker:        broker,
 			DefaultQueue:  "thrall_builds_" + d,
 			ResultBackend: broker,
-		})
+		}
+
+		qsrv, err := machinery.NewServer(qcfg)
 
 		if err != nil {
 			log.Error.Fatalf("failed to create queue server: %s\n", err)
 		}
 
-		log.Debug.Println("adding build queue for driver:", d)
+		log.Debug.Println("adding build queue:", qcfg.DefaultQueue)
 
 		srv.AddQueue(d, qsrv)
 	}

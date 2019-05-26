@@ -24,6 +24,7 @@ type Server struct {
 	Crypto struct {
 		Hash string
 		Key  string
+		Salt string
 	}
 
 	Database struct {

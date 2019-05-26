@@ -1,6 +1,6 @@
 CREATE TABLE stages (
 	id          SERIAL PRIMARY KEY,
-	build_id    INT NOT NULL REFERENCES builds(id),
+	build_id    INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
 	name        VARCHAR NOT NULL,
 	can_fail    BOOLEAN NOT NULL,
 	status      status DEFAULT 'queued',

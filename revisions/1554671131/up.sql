@@ -1,7 +1,7 @@
 CREATE TABLE jobs (
 	id          SERIAL PRIMARY KEY,
-	build_id    INT NOT NULL REFERENCES builds(id),
-	stage_id    INT NOT NULL REFERENCES stages(id),
+	build_id    INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
+	stage_id    INT NOT NULL REFERENCES stages(id) ON DELETE CASCADE,
 	parent_id   INT NULL,
 	name        VARCHAR NOT NULL,
 	commands    VARCHAR NOT NULL,

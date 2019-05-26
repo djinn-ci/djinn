@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -378,8 +380,23 @@ func (b Build) Submit(srv *machinery.Server) error {
 	for id, artifacts := range jobArtifacts {
 		for src, dst := range artifacts {
 			j := jobModels[id]
+			ii := make([]int, 0)
+
+			now := time.Now().UnixNano()
+
+			for now != 0 {
+				ii = append(ii, int(now % 10))
+				now /= 10
+			}
+
+			hash, err := crypto.Hash(ii)
+
+			if err != nil {
+				return errors.Err(err)
+			}
 
 			a := j.ArtifactStore().New()
+			a.Hash = hash
 			a.Source = src
 			a.Name = dst
 

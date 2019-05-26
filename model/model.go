@@ -23,10 +23,6 @@ type model struct {
 	UpdatedAt *time.Time `db:"updated_at"`
 }
 
-type Store struct {
-	*sqlx.DB
-}
-
 func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
 	host, port, err := net.SplitHostPort(addr)
 

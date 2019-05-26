@@ -65,9 +65,10 @@ func mainCommand(c cli.Command) {
 	w := worker{
 		Server:        srv,
 		concurrency:   cfg.Parallelism,
+		driver:        cfg.Driver,
 		redisAddr:     cfg.Redis.Addr,
 		redisPassword: cfg.Redis.Password,
-		store:         model.NewStore(db),
+		db:            db,
 		placer:        placer.NewFileSystem("."),
 		collector:     collector.NewFileSystem("."),
 	}

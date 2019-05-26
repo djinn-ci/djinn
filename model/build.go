@@ -273,7 +273,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 		}
 	}
 
-	for objSrc := range m.Objects {
+	for objSrc, objDst := range m.Objects {
 		o, err := b.User.ObjectStore().FindByName(objSrc)
 
 		if err != nil {
@@ -286,7 +286,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 
 		bo := o.BuildObjectStore().New()
 		bo.BuildID = b.ID
-		bo.Source = objSrc
+		bo.Destination = objDst
 
 		if err := bo.Create(); err != nil {
 			return errors.Err(err)
@@ -668,24 +668,6 @@ func (bs BuildStore) New() *Build {
 	}
 
 	return b
-}
-
-func (bo *BuildObject) Create() error {
-	stmt, err := bo.Prepare(`
-		INSERT INTO build_objects (build_id, object_id, source)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(bo.BuildID, bo.ObjectID, bo.Source)
-
-	return errors.Err(row.Scan(&bo.ID, &bo.CreatedAt, &bo.UpdatedAt))
 }
 
 func (bv *BuildVariable) Create() error {

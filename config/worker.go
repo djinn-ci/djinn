@@ -11,8 +11,7 @@ import (
 
 type Worker struct {
 	Parallelism int
-
-	Drivers []string
+	Driver      string
 
 	Net struct {
 		Listen string

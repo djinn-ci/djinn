@@ -414,6 +414,8 @@ func (bs BuildStore) All() ([]*Build, error) {
 		args = append(args, bs.namespace.ID)
 	}
 
+	query += " ORDER BY created_at DESC"
+
 	err := bs.Select(&bb, query, args...)
 
 	if err == sql.ErrNoRows {
@@ -455,6 +457,8 @@ func (bs BuildStore) ByStatus(status string) ([]*Build, error) {
 
 		args = append(args, bs.namespace.ID)
 	}
+
+	query += " ORDER BY created_at DESC"
 
 	err := bs.Select(&bb, query, args...)
 

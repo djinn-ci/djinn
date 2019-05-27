@@ -3,16 +3,16 @@ CREATE TABLE variables (
 	user_id       INT NOT NULL REFERENCES users(id),
 	key           VARCHAR NOT NULL,
 	value         VARCHAR NOT NULL,
-	from_manifest BOOLEAN NOT NULL DEFAULT FALSE,
 	created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-	updated_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-	deleted_at    TIMESTAMP NULL
+	updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE build_variables (
-	id          SERIAL PRIMARY KEY,
-	build_id    INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
-	variable_id INT NOT NULL REFERENCES variables(id),
-	created_at  TIMESTAMP NOT NULL DEFAULT NOW(),
-	updated_at  TIMESTAMP NOT NULL DEFAULT NOW()
+	id            SERIAL PRIMARY KEY,
+	build_id      INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
+	variable_id   INT NULL REFERENCES variables(id),
+	key           VARCHAR NOT NULL,
+	value         VARCHAR NOT NULL,
+	created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );

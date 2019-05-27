@@ -6,10 +6,8 @@ import (
 	"fmt"
 	"database/sql"
 	"strings"
-	"time"
 
 	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -251,32 +249,32 @@ func (b Build) Submit(srv *machinery.Server) error {
 		return errors.Err(err)
 	}
 
-	vars := b.User.VariableStore()
+	vv, err := b.User.VariableStore().All()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
 	buildVars := b.BuildVariableStore()
+
+	if err := buildVars.Copy(vv); err != nil {
+		return errors.Err(err)
+	}
 
 	for _, env := range m.Env {
 		parts := strings.SplitN(env, "=", 2)
 
-		v := vars.New()
-		v.Key = parts[0]
-		v.Value = parts[1]
-		v.FromManifest = true
-
-		if err := v.Create(); err != nil {
-			return errors.Err(err)
-		}
-
 		bv := buildVars.New()
-		bv.BuildID = b.ID
-		bv.VariableID = v.ID
+		bv.Key = parts[0]
+		bv.Value = parts[1]
 
 		if err := bv.Create(); err != nil {
 			return errors.Err(err)
 		}
 	}
 
-	for objSrc, objDst := range m.Objects {
-		o, err := b.User.ObjectStore().FindByName(objSrc)
+	for src, dst := range m.Objects {
+		o, err := b.User.ObjectStore().FindByName(src)
 
 		if err != nil {
 			return errors.Err(err)
@@ -288,7 +286,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 
 		bo := o.BuildObjectStore().New()
 		bo.BuildID = b.ID
-		bo.Destination = objDst
+		bo.Destination = dst
 
 		if err := bo.Create(); err != nil {
 			return errors.Err(err)
@@ -344,9 +342,6 @@ func (b Build) Submit(srv *machinery.Server) error {
 	stage := ""
 	jobId := 0
 
-	jobModels := make(map[int64]*Job)
-	jobArtifacts := make(map[int64]runner.Passthrough)
-
 	for _, job := range m.Jobs {
 		s, ok := stageModels[job.Stage]
 
@@ -372,41 +367,9 @@ func (b Build) Submit(srv *machinery.Server) error {
 		if err := j.Create(); err != nil {
 			return errors.Err(err)
 		}
-
-		jobModels[j.ID] = j
-		jobArtifacts[j.ID] = job.Artifacts
 	}
 
-	for id, artifacts := range jobArtifacts {
-		for src, dst := range artifacts {
-			j := jobModels[id]
-			ii := make([]int, 0)
-
-			now := time.Now().UnixNano()
-
-			for now != 0 {
-				ii = append(ii, int(now % 10))
-				now /= 10
-			}
-
-			hash, err := crypto.Hash(ii)
-
-			if err != nil {
-				return errors.Err(err)
-			}
-
-			a := j.ArtifactStore().New()
-			a.Hash = hash
-			a.Source = src
-			a.Name = dst
-
-			if err := a.Create(); err != nil {
-				return errors.Err(err)
-			}
-		}
-	}
-
-	_, err := srv.SendTask(b.Signature())
+	_, err = srv.SendTask(b.Signature())
 
 	return errors.Err(err)
 }
@@ -689,8 +652,8 @@ func (bs BuildStore) New() *Build {
 
 func (bv *BuildVariable) Create() error {
 	stmt, err := bv.Prepare(`
-		INSERT INTO build_variables (build_id, variable_id)
-		VALUES ($1, $2)
+		INSERT INTO build_variables (build_id, variable_id, key, value)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -700,7 +663,7 @@ func (bv *BuildVariable) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(bv.BuildID, bv.VariableID)
+	row := stmt.QueryRow(bv.BuildID, bv.VariableID, bv.Key, bv.Value)
 
 	return errors.Err(row.Scan(&bv.ID, &bv.CreatedAt, &bv.UpdatedAt))
 }

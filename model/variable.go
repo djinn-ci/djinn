@@ -6,8 +6,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/lib/pq"
 )
 
 type Variable struct {
@@ -16,8 +14,6 @@ type Variable struct {
 	UserID       int64        `db:"user_id"`
 	Key          string       `db:"key"`
 	Value        string       `db:"value"`
-	FromManifest bool         `db:"from_manifest"`
-	DeletedAt    *pq.NullTime `db:"deleted_at"`
 
 	User  *User
 }
@@ -25,8 +21,10 @@ type Variable struct {
 type BuildVariable struct {
 	model
 
-	BuildID    int64 `db:"build_id"`
-	VariableID int64 `db:"variable_id"`
+	BuildID      int64         `db:"build_id"`
+	VariableID   sql.NullInt64 `db:"variable_id"`
+	Key          string        `db:"key"`
+	Value        string        `db:"value"`
 
 	Build    *Build
 	Variable *Variable
@@ -70,6 +68,28 @@ func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
 	return vv, errors.Err(err)
 }
 
+func (bvs BuildVariableStore) Copy(vv []*Variable) error {
+	if len(vv) == 0 {
+		return nil
+	}
+
+	for _, v := range vv {
+		bv := bvs.New()
+		bv.VariableID = sql.NullInt64{
+			Int64: v.ID,
+			Valid: true,
+		}
+		bv.Key = v.Key
+		bv.Value = v.Value
+
+		if err := bv.Create(); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	return nil
+}
+
 func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
 	if len(bvv) == 0 {
 		return nil
@@ -79,10 +99,12 @@ func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
 		DB: bvs.DB,
 	}
 
-	ids := make([]int64, len(bvv), len(bvv))
+	ids := make([]int64, 0, len(bvv))
 
-	for i, bv := range bvv {
-		ids[i] = bv.VariableID
+	for _, bv := range bvv {
+		if bv.VariableID.Valid {
+			ids = append(ids, bv.VariableID.Int64)
+		}
 	}
 
 	vv, err := variables.In(ids...)
@@ -93,7 +115,7 @@ func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
 
 	for _, v := range vv {
 		for _, bv := range bvv {
-			if v.ID == bv.VariableID {
+			if v.ID == bv.VariableID.Int64 && bv.VariableID.Valid {
 				bv.Variable = v
 			}
 		}
@@ -119,8 +141,8 @@ func (bvs BuildVariableStore) New() *BuildVariable {
 
 func (v *Variable) Create() error {
 	stmt, err := v.Prepare(`
-		INSERT INTO variables (user_id, key, value, from_manifest)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO variables (user_id, key, value)
+		VALUES ($1, $2, $3)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -130,7 +152,7 @@ func (v *Variable) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(v.UserID, v.Key, v.Value, v.FromManifest)
+	row := stmt.QueryRow(v.UserID, v.Key, v.Value)
 
 	return errors.Err(row.Scan(&v.ID, &v.CreatedAt, &v.UpdatedAt))
 }

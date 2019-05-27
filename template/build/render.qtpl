@@ -15,7 +15,7 @@ import (
 		{% case runner.Passed %}
 			<span class="pill pill-green">{% cat "../../svgs/hourglass.svg" %} Passed</span>
 		{% case runner.Failed %}
-			<span class="pill pill-red">{% cat "../../svgs/hourglass.svg" %} Failed</span>
+			<span class="pill pill-red">{% cat "../../svgs/close.svg" %} Failed</span>
 	{% endswitch %}
 {% endfunc %}
 

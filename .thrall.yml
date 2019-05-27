@@ -1,28 +1,23 @@
 driver:
-  type: qemu
-  image: alpine/latest-stable
+  type: docker
+  image: golang
+  workspace: /go
 sources:
-  - https://github.com/andrewpillar/jrnl v1.1.1
-env:
-  - MIRROR=http://alpine.mirror.wearetriple.com
+  - https://github.com/andrewpillar/mgrt
+objects:
+  - some-file => /go/src/some-file
 stages:
-  - packages
-  - build
   - test
+  - build
 jobs:
-  - stage: packages
-    commands:
-      - echo "$MIRROR/edge/community" >> /etc/apk/repositories
-      - apk update
-      - apk add musl-dev go
-  - stage: build
-    commands:
-      - cd jrnl
-      - go install
   - stage: test
     commands:
-      - PATH="$PATH:$HOME/go/bin"
-      - cd jrnl
-      - ./test.sh
+      - cat src/some-file
+      - cd mgrt
+      - go test ./... -v -cover
+  - stage: build
+    commands:
+      - cd mgrt
+      - go build -o mgrt.out
     artifacts:
-      - /root/go/bin/jrnl => jrnl.out
+      - /go/mgrt/mgrt.out

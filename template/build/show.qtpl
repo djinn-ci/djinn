@@ -10,10 +10,9 @@ type ShowPage struct {
 	*template.Page
 
 	Build  *model.Build
-}
 
-type ShowManifestPage struct {
-	*ShowPage
+	ShowManifest bool
+	ShowOutput   bool
 }
 %}
 
@@ -23,63 +22,69 @@ type ShowManifestPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-	<div class="panel">
-		<table class="table">
-			<tr>
-				<td>Status:</td>
-				<td class="align-right">{%= RenderStatus(p.Build.Status) %}</td>
-			</tr>
-			<tr>
-				<td>Submitted by:</td>
-				<td class="align-right">{%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</td>
-			</tr>
-			<tr>
-				<td>Started at:</td>
-				<td class="align-right">
-					{% if p.Build.StartedAt != nil && p.Build.StartedAt.Valid %}
-					{% else %}
-						--
-					{% endif %}
-				</td>
-			</tr>
-			<tr>
-				<td>Finished at:</td>
-				<td class="align-right">
-					{% if p.Build.FinishedAt != nil && p.Build.FinishedAt.Valid %}
-					{% else %}
-						--
-					{% endif %}
-				</td>
-			</tr>
-		</table>
-	</div>
-	{% for _, s := range p.Build.Stages %}
+	{% if p.ShowManifest %}
+		{%= p.RenderManifest() %}
+	{% elseif p.ShowOutput %}
+		{%= p.RenderOutput() %}
+	{% else %}
 		<div class="panel">
-			<div class="panel-header">
-				<h3>{%s s.Name %}</h3>
-			</div>
 			<table class="table">
-				<thead>
-					<tr>
-						<th class="cell-pill">STATUS</th>
-						<th>JOB</th>
-						<th class="cell-date">STARTED</th>
-						<th class="cell-date">FINISHED</th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for _, j := range s.Jobs %}
-						<tr>
-							<td class="cell-pill">{%= RenderStatus(j.Status) %}</td>
-							<td><a href="/builds/{%v p.Build.ID %}/jobs/{%v j.ID %}">{%s j.Name %}</a></td>
-							<td class="cell-date"><span class="muted">--</span></td>
-							<td class="cell-date"><span class="muted">--</span></td>
-						</tr>
-					{% endfor %}
-				</tbody>
+				<tr>
+					<td>Status:</td>
+					<td class="align-right">{%= RenderStatus(p.Build.Status) %}</td>
+				</tr>
+				<tr>
+					<td>Submitted by:</td>
+					<td class="align-right">{%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</td>
+				</tr>
+				<tr>
+					<td>Started at:</td>
+					<td class="align-right">
+						{% if p.Build.StartedAt != nil && p.Build.StartedAt.Valid %}
+						{% else %}
+							--
+						{% endif %}
+					</td>
+				</tr>
+				<tr>
+					<td>Finished at:</td>
+					<td class="align-right">
+						{% if p.Build.FinishedAt != nil && p.Build.FinishedAt.Valid %}
+						{% else %}
+							--
+						{% endif %}
+					</td>
+				</tr>
 			</table>
 		</div>
-	{% endfor %}
+		{% for _, s := range p.Build.Stages %}
+			<div class="panel">
+				<div class="panel-header">
+					<h3>{%s s.Name %}</h3>
+				</div>
+				<table class="table">
+					<thead>
+						<tr>
+							<th class="cell-pill">STATUS</th>
+							<th>JOB</th>
+							<th class="cell-date">STARTED</th>
+							<th class="cell-date">FINISHED</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, j := range s.Jobs %}
+							<tr>
+								<td class="cell-pill">{%= RenderStatus(j.Status) %}</td>
+								<td><a href="/builds/{%v p.Build.ID %}/jobs/{%v j.ID %}">{%s j.Name %}</a></td>
+								<td class="cell-date"><span class="muted">--</span></td>
+								<td class="cell-date"><span class="muted">--</span></td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		{% endfor %}
+	{% endif %}
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
@@ -92,10 +97,11 @@ type ShowManifestPage struct {
 	{% stripspace %}
 		<li>{%= template.RenderLink(p.Build.UIEndpoint(), p.URI) %}{% cat "../../svgs/eye.svg" %}<span>Overview</span></a></li>
 		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/manifest", p.URI) %}{% cat "../../svgs/document.svg" %}<span>Manifest</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/output", p.URI) %}{% cat "../../svgs/code.svg" %}<span>Output</span></a></li>
 	{% endstripspace %}
 {% endfunc %}
 
-{% func (p *ShowManifestPage) Body() %}
+{% func (p *ShowPage) RenderManifest() %}
 	<div class="panel">
 		<div class="panel-header">
 			<ul class="panel-actions">
@@ -103,6 +109,19 @@ type ShowManifestPage struct {
 			</ul>
 		</div>
 		<pre class="code">{%= template.RenderCode(p.Build.Manifest) %}</pre>
+	</div>
+{% endfunc %}
+
+{% func (p *ShowPage) RenderOutput() %}
+	<div class="panel">
+		{% if p.Build.Output.Valid %}
+			<div class="panel-header">
+				<ul class="panel-actions">
+					<li><a class="btn btn-primary" href="/builds/{%v p.Build.ID %}/output/raw">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
+				</ul>
+			</div>
+			<pre class="code">{%= template.RenderCode(p.Build.Output.String) %}</pre>
+		{% endif %}
 	</div>
 {% endfunc %}
 {% endcollapsespace %}

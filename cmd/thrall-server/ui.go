@@ -63,6 +63,8 @@ func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
 	s.router.HandleFunc("/builds/{build}", mw.Auth(build.Show)).Methods("GET")
 	s.router.HandleFunc("/builds/{build}/manifest", mw.Auth(build.Show)).Methods("GET")
 	s.router.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.Show)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/output", mw.Auth(build.Show)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/output/raw", mw.Auth(build.Show)).Methods("GET")
 }
 
 func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {

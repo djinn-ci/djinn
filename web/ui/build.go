@@ -194,27 +194,28 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if filepath.Base(r.URL.Path) == "raw" {
+		parts := strings.Split(r.URL.Path, "/")
+		field := parts[len(parts) - 2]
+
+		if field == "manifest" {
+			web.Text(w, b.Manifest, http.StatusOK)
+			return
+		}
+
+		if field == "output" {
+			web.Text(w, b.Output.String, http.StatusOK)
+			return
+		}
+	}
+
 	p := &build.ShowPage{
 		Page: &template.Page{
 			URI: r.URL.Path,
 		},
-		Build: b,
-	}
-
-	if filepath.Base(r.URL.Path) == "manifest" {
-		mp := &build.ShowManifestPage{
-			ShowPage: p,
-		}
-
-		d := template.NewDashboard(mp, r.URL.Path)
-
-		web.HTML(w, template.Render(d), http.StatusOK)
-		return
-	}
-
-	if filepath.Base(r.URL.Path) == "raw" {
-		web.Text(w, b.Manifest, http.StatusOK)
-		return
+		Build:        b,
+		ShowManifest: filepath.Base(r.URL.Path) == "manifest",
+		ShowOutput:   filepath.Base(r.URL.Path) == "output",
 	}
 
 	d := template.NewDashboard(p, r.URL.Path)

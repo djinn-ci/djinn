@@ -53,8 +53,8 @@ type Page struct {
 	%}
 	<code><span class="line-number"></span><span></span></code>
 	{% for i, l := range lines %}
-		<code id="line-{%v i + 1 %}">
-			<a class="line-number" href="#line-{%v i + 1 %}">{%v i + 1 %}</a>
+		<code id="L{%v i + 1 %}">
+			<a class="line-number" href="#L{%v i + 1 %}">{%v i + 1 %}</a>
 			<span>{%s l %}</span>
 		</code>
 	{% endfor %}

@@ -208,11 +208,11 @@ func StreamRenderCode(qw422016 *qt422016.Writer, code string) {
 	//line template/page.qtpl:55
 	for i, l := range lines {
 		//line template/page.qtpl:55
-		qw422016.N().S(`<code id="line-`)
+		qw422016.N().S(`<code id="L`)
 		//line template/page.qtpl:56
 		qw422016.E().V(i + 1)
 		//line template/page.qtpl:56
-		qw422016.N().S(`"><a class="line-number" href="#line-`)
+		qw422016.N().S(`"><a class="line-number" href="#L`)
 		//line template/page.qtpl:57
 		qw422016.E().V(i + 1)
 		//line template/page.qtpl:57

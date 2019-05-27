@@ -57,10 +57,6 @@ func (s *Stage) JobStore() JobStore {
 	}
 }
 
-func (s Stage) Stage() *runner.Stage {
-	return runner.NewStage(s.Name, s.CanFail)
-}
-
 func (s *Stage) Update() error {
 	stmt, err := s.Prepare(`
 		UPDATE stages

@@ -145,6 +145,14 @@ func (b *Build) Update() error {
 	return errors.Err(row.Scan(&b.UpdatedAt))
 }
 
+func (b *Build) LoadDriver() error {
+	var err error
+
+	b.Driver, err = b.DriverStore().First()
+
+	return errors.Err(err)
+}
+
 func (b *Build) LoadNamespace() error {
 	var err error
 
@@ -153,6 +161,14 @@ func (b *Build) LoadNamespace() error {
 	}
 
 	b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadObjects() error {
+	var err error
+
+	b.Objects, err = b.BuildObjectStore().All()
 
 	return errors.Err(err)
 }
@@ -188,21 +204,9 @@ func (b *Build) LoadUser() error {
 func (b *Build) LoadVariables() error {
 	var err error
 
-	if len(b.Variables) == 0 {
-		variables := b.BuildVariableStore()
+	b.Variables, err = b.BuildVariableStore().All()
 
-		b.Variables, err = variables.All()
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		if err := variables.LoadVariables(b.Variables); err != nil {
-			return errors.Err(err)
-		}
-	}
-
-	return nil
+	return errors.Err(err)
 }
 
 func (b Build) Signature() *tasks.Signature {
@@ -286,7 +290,8 @@ func (b Build) Submit(srv *machinery.Server) error {
 
 		bo := o.BuildObjectStore().New()
 		bo.BuildID = b.ID
-		bo.Destination = dst
+		bo.Source = src
+		bo.Name = dst
 
 		if err := bo.Create(); err != nil {
 			return errors.Err(err)
@@ -294,6 +299,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 	}
 
 	setupJobs := setupStage.JobStore()
+	parent := int64(0)
 
 	for i, src := range m.Sources {
 		commands := []string{
@@ -310,9 +316,18 @@ func (b Build) Submit(srv *machinery.Server) error {
 		j.Name = fmt.Sprintf("clone.%d", i + 1)
 		j.Commands = strings.Join(commands, "\n")
 
+		if parent > 0 {
+			j.ParentID = sql.NullInt64{
+				Int64: parent,
+				Valid: true,
+			}
+		}
+
 		if err := j.Create(); err != nil {
 			return errors.Err(err)
 		}
+
+		parent = j.ID
 	}
 
 	stages := b.StageStore()

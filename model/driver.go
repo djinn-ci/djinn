@@ -82,7 +82,7 @@ func (ds DriverStore) First() (*Driver, error) {
 	args := []interface{}{}
 
 	if ds.build != nil {
-		query += " WHERE build_id = $2"
+		query += " WHERE build_id = $1"
 		args = append(args, ds.build.ID)
 	}
 

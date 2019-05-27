@@ -14,6 +14,7 @@ type Object struct {
 	model
 
 	UserID    int64        `db:"user_id"`
+	Hash      string       `db:"hash"`
 	Name      string       `db:"name"`
 	Type      string       `db:"type"`
 	Size      int64        `db:"size"`
@@ -29,7 +30,8 @@ type BuildObject struct {
 
 	BuildID     int64  `db:"build_id"`
 	ObjectID    int64  `db:"object_id"`
-	Destination string `db:"destination"`
+	Source      string `db:"source"`
+	Name        string `db:"name"`
 	Placed      bool   `db:"placed"`
 
 	Build  *Build
@@ -87,8 +89,8 @@ func (o *Object) IsZero() bool {
 
 func (bo *BuildObject) Create() error {
 	stmt, err := bo.Prepare(`
-		INSERT INTO build_objects (build_id, object_id)
-		VALUES ($1, $2, $3)
+		INSERT INTO build_objects (build_id, object_id, source, name)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -98,14 +100,16 @@ func (bo *BuildObject) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(bo.BuildID, bo.ObjectID)
+	row := stmt.QueryRow(bo.BuildID, bo.ObjectID, bo.Source, bo.Name)
 
 	return errors.Err(row.Scan(&bo.ID, &bo.CreatedAt, &bo.UpdatedAt))
 }
 
 func (bo *BuildObject) Update() error {
 	stmt, err := bo.Prepare(`
-		UPDATE build_objects SET placed = $1 WHERE id = $2 RETURNING updated_at
+		UPDATE build_objects
+		SET placed = $1 WHERE id = $2
+		RETURNING updated_at
 	`)
 
 	if err != nil {
@@ -178,6 +182,32 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 	return o, errors.Err(err)
 }
 
+func (os ObjectStore) In(ids ...int64) ([]*Object, error) {
+	oo := make([]*Object, 0)
+
+	if len(ids) == 0 {
+		return oo, nil
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM objects WHERE id IN (?)", ids)
+
+	if err != nil {
+		return oo, errors.Err(err)
+	}
+
+	err = os.Select(&oo, os.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, o := range oo {
+		o.DB = os.DB
+	}
+
+	return oo, errors.Err(err)
+}
+
 func (os ObjectStore) New() *Object {
 	o := &Object{
 		model: model{
@@ -191,6 +221,36 @@ func (os ObjectStore) New() *Object {
 	}
 
 	return o
+}
+
+func (bos BuildObjectStore) All() ([]*BuildObject, error) {
+	bo := make([]*BuildObject, 0)
+
+	query := "SELECT * FROM build_objects"
+	args := []interface{}{}
+
+	if bos.build != nil {
+		query += " WHERE build_id = $1"
+		args = append(args, bos.build.ID)
+	}
+
+	if bos.object != nil {
+		if bos.build != nil {
+			query += " AND object_id = $2"
+		} else {
+			query += " WHERE object_id = $1"
+		}
+
+		args = append(args, bos.object.ID)
+	}
+
+	err := bos.Select(&bo, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return bo, errors.Err(err)
 }
 
 func (bos BuildObjectStore) First() (*BuildObject, error) {
@@ -228,6 +288,38 @@ func (bos BuildObjectStore) First() (*BuildObject, error) {
 	}
 
 	return bo, errors.Err(err)
+}
+
+func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
+	if len(boo) == 0 {
+		return nil
+	}
+
+	ids := make([]int64, len(boo), len(boo))
+
+	for i, bo := range boo {
+		ids[i] = bo.ObjectID
+	}
+
+	objects := ObjectStore{
+		DB: bos.DB,
+	}
+
+	oo, err := objects.In(ids...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, bo := range boo {
+		for _, o := range oo {
+			if bo.ObjectID == o.ID {
+				bo.Object = o
+			}
+		}
+	}
+
+	return nil
 }
 
 func (bos BuildObjectStore) New() *BuildObject {

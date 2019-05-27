@@ -2,7 +2,6 @@ package model
 
 import (
 	"database/sql"
-	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
@@ -48,8 +47,8 @@ func (j *Job) ArtifactStore() ArtifactStore {
 
 func (j *Job) Create() error {
 	stmt, err := j.Prepare(`
-		INSERT INTO jobs (build_id, stage_id, name, commands)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO jobs (build_id, stage_id, parent_id, name, commands)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -59,31 +58,9 @@ func (j *Job) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(j.BuildID, j.StageID, j.Name, j.Commands)
+	row := stmt.QueryRow(j.BuildID, j.StageID, j.ParentID, j.Name, j.Commands)
 
 	return errors.Err(row.Scan(&j.ID, &j.CreatedAt, &j.UpdatedAt))
-}
-
-func (j Job) Job() *runner.Job {
-	artifacts := runner.NewPassthrough()
-
-	for _, a := range j.Artifacts {
-		artifacts[a.Source] = a.Name
-	}
-
-	depends := make([]string, len(j.Dependencies), len(j.Dependencies))
-
-	for i, d := range j.Dependencies {
-		depends[i] = d.Name
-	}
-
-	return &runner.Job{
-		Stage:     j.Stage.Name,
-		Name:      j.Name,
-		Commands:  strings.Split(j.Commands, "\n"),
-		Depends:   depends,
-		Artifacts: artifacts,
-	}
 }
 
 func (j *Job) IsZero() bool {
@@ -245,6 +222,46 @@ func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
 	}
 
 	return jj, errors.Err(err)
+}
+
+func (js JobStore) LoadDependencies(jj []*Job) error {
+	if len(jj) == 0 {
+		return nil
+	}
+
+	ids := make([]int64, len(jj))
+
+	for i, j := range jj {
+		ids[i] = j.ID
+	}
+
+	query, args, err := sqlx.In("SELECT * FROM jobs WHERE parent_id IN (?)", ids)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	deps := make([]*Job, 0)
+
+	err = js.Select(&deps, js.Rebind(query), args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, j := range jj {
+		j.DB = js.DB
+
+		for _, d := range deps {
+			d.DB = js.DB
+
+			if d.ID == j.ParentID.Int64 && j.ParentID.Valid {
+				j.Dependencies = append(j.Dependencies, d)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (js JobStore) New() *Job {

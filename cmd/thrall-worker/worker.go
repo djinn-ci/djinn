@@ -2,33 +2,38 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
+	"io"
 	"os"
+	"strings"
 
-	thrallconfig "github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/collector"
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/placer"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/server"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/RichardKnop/machinery/v1"
-	"github.com/RichardKnop/machinery/v1/config"
+	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
 type worker struct {
 	server.Server
 
-	store  *model.Store
+	db *sqlx.DB
 
 	concurrency int
+	driver      string
 
 	redisAddr     string
 	redisPassword string
 
 	users   *model.UserStore
-	objects *model.ObjectStore
 	builds  *model.BuildStore
 
 	placer    runner.Placer
@@ -36,19 +41,19 @@ type worker struct {
 
 	worker *machinery.Worker
 
+	buffers map[int64]*bytes.Buffer
 	signals map[int64]chan os.Signal
 }
 
 func (w *worker) init() error {
-	w.users = &model.UserStore{
-		Store: w.store,
-	}
-	w.objects = &model.ObjectStore{
-		Store: w.store,
-	}
 	w.builds = &model.BuildStore{
-		Store: w.store,
+		DB: w.db,
 	}
+	w.users = &model.UserStore{
+		DB: w.db,
+	}
+
+	w.buffers = make(map[int64]*bytes.Buffer)
 	w.signals = make(map[int64]chan os.Signal)
 
 	url := "redis://"
@@ -59,13 +64,13 @@ func (w *worker) init() error {
 
 	url += w.redisAddr
 
-	cnf := &config.Config{
+	qcfg := &qconfig.Config{
 		Broker:        url,
-		DefaultQueue:  "thrall_builds",
+		DefaultQueue:  "thrall_builds_" + w.driver,
 		ResultBackend: url,
 	}
 
-	server, err := machinery.NewServer(cnf)
+	server, err := machinery.NewServer(qcfg)
 
 	if err != nil {
 		return errors.Err(err)
@@ -73,7 +78,7 @@ func (w *worker) init() error {
 
 	server.RegisterTask("run_build", w.runBuild)
 
-	w.worker = server.NewWorker("thrall_builds", w.concurrency)
+	w.worker = server.NewWorker("thrall-worker-" + w.driver, w.concurrency)
 
 	return nil
 }
@@ -82,80 +87,141 @@ func (w *worker) serve() error {
 	return errors.Err(w.worker.Launch())
 }
 
-func (w worker) runBuild(id int64) {
-	log.Debug.Println("received build", id)
-
+func (w worker) runBuild(id int64) error {
 	b, err := w.builds.Find(id)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		return
+		return errors.Err(err)
 	}
 
-	w.signals[id] = make(chan os.Signal)
+	if b.IsZero() {
+		return errors.Err(errors.New("build does not exist"))
+	}
 
-	buf := &bytes.Buffer{}
+	if err := b.LoadUser(); err != nil {
+		return errors.Err(err)
+	}
 
-	placer := placer.NewDatabase(w.placer)
-	collector := collector.NewDatabase(w.collector)
+	if err := b.LoadDriver(); err != nil {
+		return errors.Err(err)
+	}
 
-	placer.Build = b
-	placer.Users = w.users
+	if err := b.LoadObjects(); err != nil {
+		return errors.Err(err)
+	}
 
-	collector.Build = b
+	if err := b.BuildObjectStore().LoadObjects(b.Objects); err != nil {
+		return errors.Err(err)
+	}
 
 	if err := b.LoadVariables(); err != nil {
-		log.Error.Println(errors.Err(err))
-		return
+		return errors.Err(err)
+	}
+
+	if err := b.LoadStages(); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := b.StageStore().LoadJobs(b.Stages); err != nil {
+		return errors.Err(err)
+	}
+
+	jobs := make(map[int64]*model.Job)
+
+	for _, s := range b.Stages {
+		for _, j := range s.Jobs {
+			if !j.ParentID.Valid {
+				jobs[j.ID] = j
+				continue
+			}
+
+			if parent, ok := jobs[j.ParentID.Int64]; ok {
+				parent.Dependencies = append(parent.Dependencies, j)
+			}
+		}
+
+		s.Jobs = make([]*model.Job, 0)
+	}
+
+	for _, s := range b.Stages {
+		for _, j := range jobs {
+			if j.StageID == s.ID {
+				s.Jobs = append(s.Jobs, j)
+			}
+		}
+	}
+
+	objs := runner.NewPassthrough()
+
+	for _, o := range b.Objects {
+		objs[o.Source] = o.Name
 	}
 
 	env := make([]string, len(b.Variables), len(b.Variables))
 
 	for i, v := range b.Variables {
-		env[i] = v.Variable.Key + "=" + v.Variable.Value
+		env[i] = v.Key + "=" + v.Value
 	}
 
-	r := runner.NewRunner(
-		buf,
-		env,
-		[]thrallconfig.Passthrough{},
-		placer,
-		collector,
-		w.signals[id],
-	)
+	buf := &bytes.Buffer{}
 
-	ss, err := b.StageStore().All()
+	pl := placer.NewDatabase(w.placer)
+	cl := collector.NewDatabase(w.collector)
 
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		return
-	}
+	pl.Build = b
+	pl.Users = w.users
 
-	for _, s := range ss {
-		r.Add(s.Stage())
-	}
+	cl.Build = b
 
-	jobs := b.JobStore()
+	w.signals[b.ID] = make(chan os.Signal)
 
-	jj, err := jobs.All()
+	r := runner.NewRunner(buf, env, objs, pl, cl, w.signals[b.ID])
 
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		return
-	}
+	createDriverId := int64(0)
 
-	if err := jobs.LoadRelations(jj); err != nil {
-		log.Error.Println(errors.Err(err))
-		return
-	}
+	for _, s := range b.Stages {
+		rs := runner.NewStage(s.Name, s.CanFail)
 
-	for _, s := range r.Stages {
-		for _, j := range jj {
-			if s.Name != j.Stage.Name {
-				continue
+		if err := s.JobStore().LoadDependencies(s.Jobs); err != nil {
+			return errors.Err(err)
+		}
+
+		for _, j := range s.Jobs {
+			w.buffers[j.ID] = &bytes.Buffer{}
+
+			if j.Name == "create driver" {
+				createDriverId = j.ID
 			}
 
-			s.Add(j.Job())
+			depends := make([]string, len(j.Dependencies), len(j.Dependencies))
+
+			for i, d := range j.Dependencies {
+				depends[i] = d.Name
+			}
+
+			rj := runner.NewJob(
+				io.MultiWriter(buf, w.buffers[j.ID]),
+				j.Name,
+				strings.Split(j.Commands, "\n"),
+				depends,
+				runner.NewPassthrough(),
+			)
+
+			rs.Add(rj)
 		}
+
+		r.Add(rs)
 	}
+
+	dcfg := config.Driver{}
+
+	json.Unmarshal([]byte(b.Driver.Config), &dcfg)
+
+	d, err := driver.NewEnv(w.buffers[createDriverId], dcfg)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	return r.Run(d)
 }

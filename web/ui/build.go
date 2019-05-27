@@ -147,6 +147,19 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tags := b.TagStore()
+
+	for _, name := range f.Tags {
+		t := tags.New()
+		t.Name = name
+
+		if err := t.Create(); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"io"
 	"os"
@@ -223,5 +224,17 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
-	return r.Run(d)
+	r.Run(d)
+
+	b.Status = r.Status
+	b.Output = sql.NullString{
+		String: buf.String(),
+		Valid:  true,
+	}
+
+	if err := b.Update(); err != nil {
+		return errors.Err(err)
+	}
+
+	return nil
 }

@@ -416,34 +416,38 @@ func (p *ShowPage) StreamRenderOutput(qw422016 *qt422016.Writer) {
 		//line template/build/show.qtpl:123
 		qw422016.N().S(`</pre> `)
 		//line template/build/show.qtpl:124
+	} else {
+		//line template/build/show.qtpl:124
+		qw422016.N().S(` <div class="panel-message muted">No build output has been produced.</div> `)
+		//line template/build/show.qtpl:126
 	}
-	//line template/build/show.qtpl:124
+	//line template/build/show.qtpl:126
 	qw422016.N().S(` </div> `)
-//line template/build/show.qtpl:126
+//line template/build/show.qtpl:128
 }
 
-//line template/build/show.qtpl:126
+//line template/build/show.qtpl:128
 func (p *ShowPage) WriteRenderOutput(qq422016 qtio422016.Writer) {
-	//line template/build/show.qtpl:126
+	//line template/build/show.qtpl:128
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/show.qtpl:126
+	//line template/build/show.qtpl:128
 	p.StreamRenderOutput(qw422016)
-	//line template/build/show.qtpl:126
+	//line template/build/show.qtpl:128
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/show.qtpl:126
+//line template/build/show.qtpl:128
 }
 
-//line template/build/show.qtpl:126
+//line template/build/show.qtpl:128
 func (p *ShowPage) RenderOutput() string {
-	//line template/build/show.qtpl:126
+	//line template/build/show.qtpl:128
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/show.qtpl:126
+	//line template/build/show.qtpl:128
 	p.WriteRenderOutput(qb422016)
-	//line template/build/show.qtpl:126
+	//line template/build/show.qtpl:128
 	qs422016 := string(qb422016.B)
-	//line template/build/show.qtpl:126
+	//line template/build/show.qtpl:128
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/show.qtpl:126
+	//line template/build/show.qtpl:128
 	return qs422016
-//line template/build/show.qtpl:126
+//line template/build/show.qtpl:128
 }

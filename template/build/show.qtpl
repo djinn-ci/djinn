@@ -121,6 +121,8 @@ type ShowPage struct {
 				</ul>
 			</div>
 			<pre class="code">{%= template.RenderCode(p.Build.Output.String) %}</pre>
+		{% else %}
+			<div class="panel-message muted">No build output has been produced.</div>
 		{% endif %}
 	</div>
 {% endfunc %}

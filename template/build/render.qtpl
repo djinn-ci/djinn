@@ -11,9 +11,9 @@ import (
 		{% case runner.Queued %}
 			<span class="pill pill-dark">{% cat "../../svgs/hourglass.svg" %} Queued</span>
 		{% case runner.Running %}
-			<span class="pill pill-orange">{% cat "../../svgs/hourglass.svg" %} Running</span>
+			<span class="pill pill-blue">{% cat "../../svgs/timer.svg" %} Running</span>
 		{% case runner.Passed %}
-			<span class="pill pill-green">{% cat "../../svgs/hourglass.svg" %} Passed</span>
+			<span class="pill pill-green">{% cat "../../svgs/check.svg" %} Passed</span>
 		{% case runner.Failed %}
 			<span class="pill pill-red">{% cat "../../svgs/close.svg" %} Failed</span>
 	{% endswitch %}

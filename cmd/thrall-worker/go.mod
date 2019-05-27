@@ -16,6 +16,7 @@ require (
 	github.com/gorilla/sessions v1.1.3 // indirect
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/kr/fs v0.1.0 // indirect
+	github.com/lib/pq v1.0.0
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pelletier/go-toml v1.4.0 // indirect

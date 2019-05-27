@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/collector"
@@ -18,6 +19,8 @@ import (
 	"github.com/andrewpillar/thrall/server"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/lib/pq"
 
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
@@ -230,6 +233,10 @@ func (w worker) runBuild(id int64) error {
 	b.Output = sql.NullString{
 		String: buf.String(),
 		Valid:  true,
+	}
+	b.FinishedAt = &pq.NullTime{
+		Time:  time.Now(),
+		Valid: true,
 	}
 
 	if err := b.Update(); err != nil {

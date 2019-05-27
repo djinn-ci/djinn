@@ -221,9 +221,19 @@ func (w worker) runBuild(id int64) error {
 
 	json.Unmarshal([]byte(b.Driver.Config), &dcfg)
 
-	d, err := driver.NewEnv(w.buffers[createDriverId], dcfg)
+	d, err := driver.NewEnv(io.MultiWriter(buf, w.buffers[createDriverId]), dcfg)
 
 	if err != nil {
+		return errors.Err(err)
+	}
+
+	b.Status = runner.Running
+	b.StartedAt = &pq.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
+
+	if err := b.Update(); err != nil {
 		return errors.Err(err)
 	}
 

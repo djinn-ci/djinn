@@ -2,6 +2,7 @@ package placer
 
 import (
 	"io"
+	"os"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
@@ -20,29 +21,45 @@ func NewDatabase(p runner.Placer) *Database {
 }
 
 func (p *Database) Place(name string, w io.Writer) error {
-//	u, err := p.Users.Find(p.Build.UserID)
-//
-//	if err != nil {
-//		return errors.Err(err)
-//	}
-//
-//	o, err := u.ObjectStore().FindByName(name)
-//
-//	if err != nil {
-//		return errors.Err(err)
-//	}
-//
-//	if o.IsZero() {
-//		return errors.Err(errors.New("could not find object in database"))
-//	}
-//
-	if err := p.Placer.Place(name, w); err != nil {
+	u, err := p.Users.Find(p.Build.UserID)
+
+	if err != nil {
 		return errors.Err(err)
 	}
 
-	return nil
-//
-//	o.Placed = true
-//
-//	return errors.Err(o.Update())
+	o, err := u.ObjectStore().FindByName(name)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if o.IsZero() {
+		return errors.Err(errors.New("could not find object '" + name + "'"))
+	}
+
+	bo, err := o.BuildObjectStore().First()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if bo.IsZero() {
+		return errors.Err(errors.New("could not find build object '" + name + "'"))
+	}
+
+	placeErr := p.Placer.Place(name, w)
+
+	bo.Placed = placeErr == nil
+
+	if err := bo.Update(); err != nil {
+		return errors.Err(err)
+	}
+
+	return errors.Err(placeErr)
+}
+
+func (p *Database) Stat(name string) (os.FileInfo, error) {
+	info, err := p.Placer.Stat(name)
+
+	return info, errors.Err(err)
 }

@@ -28,11 +28,11 @@ type Object struct {
 type BuildObject struct {
 	model
 
-	BuildID     int64  `db:"build_id"`
-	ObjectID    int64  `db:"object_id"`
-	Source      string `db:"source"`
-	Name        string `db:"name"`
-	Placed      bool   `db:"placed"`
+	BuildID     int64         `db:"build_id"`
+	ObjectID    sql.NullInt64 `db:"object_id"`
+	Source      string        `db:"source"`
+	Name        string        `db:"name"`
+	Placed      bool          `db:"placed"`
 
 	Build  *Build
 	Object *Object
@@ -295,10 +295,12 @@ func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 		return nil
 	}
 
-	ids := make([]int64, len(boo), len(boo))
+	ids := make([]int64, 0, len(boo))
 
-	for i, bo := range boo {
-		ids[i] = bo.ObjectID
+	for _, bo := range boo {
+		if bo.ObjectID.Valid {
+			ids = append(ids, bo.ObjectID.Int64)
+		}
 	}
 
 	objects := ObjectStore{
@@ -313,7 +315,7 @@ func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 
 	for _, bo := range boo {
 		for _, o := range oo {
-			if bo.ObjectID == o.ID {
+			if bo.ObjectID.Int64 == o.ID {
 				bo.Object = o
 			}
 		}
@@ -336,7 +338,10 @@ func (bos BuildObjectStore) New() *BuildObject {
 	}
 
 	if bos.object != nil {
-		bo.ObjectID = bos.object.ID
+		bo.ObjectID = sql.NullInt64{
+			Int64: bos.object.ID,
+			Valid: true,
+		}
 	}
 
 	return bo

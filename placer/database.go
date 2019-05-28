@@ -43,10 +43,6 @@ func (p *Database) Place(name string, w io.Writer) error {
 		return errors.Err(err)
 	}
 
-	if bo.IsZero() {
-		return errors.Err(errors.New("could not find build object '" + name + "'"))
-	}
-
 	placeErr := p.Placer.Place(name, w)
 
 	bo.Placed = placeErr == nil
@@ -59,6 +55,22 @@ func (p *Database) Place(name string, w io.Writer) error {
 }
 
 func (p *Database) Stat(name string) (os.FileInfo, error) {
+	u, err := p.Users.Find(p.Build.UserID)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	o, err := u.ObjectStore().FindByName(name)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if o.IsZero() {
+		return nil, errors.Err(errors.New("could not find object '" + name + "'"))
+	}
+
 	info, err := p.Placer.Stat(name)
 
 	return info, errors.Err(err)

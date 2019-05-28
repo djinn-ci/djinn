@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 )
 
 type Docker struct {
@@ -102,7 +103,6 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 	cfg := &container.Config{
 		Image: d.image,
-		Tty:   true,
 		Cmd:   []string{"true"},
 	}
 
@@ -175,13 +175,16 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		rc, err := d.client.ContainerLogs(ctx, ctr.ID, logOpts)
 
 		if err != nil {
-			println("ERR 1", err.Error())
+			if err == io.EOF {
+				return
+			}
+
 			return
 		}
 
 		defer rc.Close()
 
-		io.Copy(j.Writer, rc)
+		stdcopy.StdCopy(j.Writer, j.Writer, rc)
 	}()
 
 	status, errs := d.client.ContainerWait(ctx, ctr.ID, container.WaitConditionNotRunning)
@@ -264,7 +267,6 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 
 	cfg := &container.Config{
 		Image: d.image,
-		Tty:   true,
 		Cmd:   []string{"true"},
 	}
 

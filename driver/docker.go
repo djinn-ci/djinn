@@ -164,6 +164,26 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		return
 	}
 
+	logOpts := types.ContainerLogsOptions{
+		ShowStderr: true,
+		ShowStdout: true,
+		Timestamps: false,
+		Follow:     true,
+	}
+
+	go func() {
+		rc, err := d.client.ContainerLogs(ctx, ctr.ID, logOpts)
+
+		if err != nil {
+			println("ERR 1", err.Error())
+			return
+		}
+
+		defer rc.Close()
+
+		io.Copy(j.Writer, rc)
+	}()
+
 	status, errs := d.client.ContainerWait(ctx, ctr.ID, container.WaitConditionNotRunning)
 	code := 0
 
@@ -182,22 +202,6 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	} else {
 		j.Status = runner.Passed
 	}
-
-	opts := types.ContainerLogsOptions{
-		ShowStdout: true,
-		ShowStderr: true,
-	}
-
-	rc, err := d.client.ContainerLogs(ctx, ctr.ID, opts)
-
-	if err != nil {
-		j.Failed(err)
-		return
-	}
-
-	defer rc.Close()
-
-	io.Copy(j.Writer, rc)
 
 	if len(j.Artifacts) > 0 {
 		fmt.Fprintf(j.Writer, "\n")

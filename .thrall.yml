@@ -5,7 +5,7 @@ driver:
 sources:
   - https://github.com/andrewpillar/mgrt
 objects:
-  - some-file => /go/src/some-file
+  - .thrall.yml => /go/src/some-file
 stages:
   - test
   - build
@@ -13,11 +13,7 @@ jobs:
   - stage: test
     commands:
       - cat src/some-file
-      - cd mgrt
-      - go test ./... -v -cover
   - stage: build
     commands:
-      - cd mgrt
-      - go build -o mgrt.out
-    artifacts:
-      - /go/mgrt/mgrt.out
+      - pwd
+      - ls -la

@@ -211,8 +211,9 @@ func (b *Build) LoadVariables() error {
 
 func (b Build) Signature() *tasks.Signature {
 	return &tasks.Signature{
-		Name: "run_build",
-		Args: []tasks.Arg{
+		Name:       "run_build",
+		RetryCount: 3,
+		Args:       []tasks.Arg{
 			tasks.Arg{
 				Type: "int64",
 				Value: b.ID,

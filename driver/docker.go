@@ -184,7 +184,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 		defer rc.Close()
 
-		stdcopy.StdCopy(j.Writer, j.Writer, rc)
+		stdcopy.StdCopy(j.Writer, ioutil.Discard, rc)
 	}()
 
 	status, errs := d.client.ContainerWait(ctx, ctr.ID, container.WaitConditionNotRunning)

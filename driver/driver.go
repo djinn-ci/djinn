@@ -16,6 +16,7 @@ import (
 )
 
 var preamble = `#!/bin/sh
+exec 2>&1
 
 set -ex
 

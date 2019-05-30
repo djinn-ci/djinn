@@ -147,7 +147,7 @@ func (n *Namespace) LoadChildren() error {
 		User: n.User,
 	}
 
-	n.Children, err = namespaces.GetByRootID(n.ID)
+	n.Children, err = namespaces.ByRootID(n.ID)
 
 	return errors.Err(err)
 }
@@ -291,7 +291,7 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 	return n, errors.Err(err)
 }
 
-func (ns NamespaceStore) GetByRootID(id int64) ([]*Namespace, error) {
+func (ns NamespaceStore) ByRootID(id int64) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
 	query := "SELECT * FROM namespaces WHERE root_id = $1"

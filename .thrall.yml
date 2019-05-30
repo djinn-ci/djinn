@@ -9,6 +9,8 @@ objects:
 stages:
   - test
   - build
+allow_failures:
+  - test
 jobs:
   - stage: test
     commands:

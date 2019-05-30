@@ -12,8 +12,8 @@ const (
 	Queued Status = iota
 	Running
 	Passed
-	Failed
 	PassedWithFailures
+	Failed
 )
 
 func scan(val interface{}) ([]byte, error) {

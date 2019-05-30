@@ -172,6 +172,45 @@ func (js JobStore) Find(id int64) (*Job, error) {
 	return j, errors.Err(err)
 }
 
+func (js JobStore) FindByName(name string) (*Job, error) {
+	j := &Job{
+		model: model{
+			DB: js.DB,
+		},
+		Build: js.build,
+		Stage: js.stage,
+	}
+
+	query := "SELECT * FROM jobs WHERE name = $1"
+	args := []interface{}{name}
+
+	if js.build != nil {
+		query += " AND build_id = $2"
+		args = append(args, js.build.ID)
+	}
+
+	if js.stage != nil {
+		if js.build != nil {
+			query += " AND stage_id = $3"
+		} else {
+			query += " AND stage_id = $2"
+		}
+
+		args = append(args, js.stage.ID)
+	}
+
+	err := js.Get(j, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		j.CreatedAt = nil
+		j.UpdatedAt = nil
+	}
+
+	return j, errors.Err(err)
+}
+
 func (js JobStore) InParentID(ids ...int64) ([]*Job, error) {
 	jj := make([]*Job, 0)
 
@@ -282,4 +321,29 @@ func (js JobStore) New() *Job {
 	}
 
 	return j
+}
+
+func (js JobStore) NotCompleted() ([]*Job, error) {
+	jj := make([]*Job, 0)
+
+	query := "SELECT * FROM jobs WHERE started_at IS NULL AND finished_at IS NULL"
+	args := []interface{}{}
+
+	if js.build != nil {
+		query += " AND build_id = $1"
+		args = append(args, js.build.ID)
+	}
+
+	err := js.Select(&jj, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, j := range jj {
+		j.DB = js.DB
+		j.Build = js.build
+	}
+
+	return jj, errors.Err(err)
 }

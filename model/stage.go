@@ -133,6 +133,34 @@ func (stgs StageStore) Find(id int64) (*Stage, error) {
 	return s, errors.Err(err)
 }
 
+func (stgs StageStore) FindByName(name string) (*Stage, error) {
+	s := &Stage{
+		model: model{
+			DB: stgs.DB,
+		},
+		Build: stgs.build,
+	}
+
+	query := "SELECT * FROM stages WHERE name = $1"
+	args := []interface{}{name}
+
+	if stgs.build != nil {
+		query += " AND build_id = $2"
+		args = append(args, stgs.build.ID)
+	}
+
+	err := stgs.Get(s, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		s.CreatedAt = nil
+		s.UpdatedAt = nil
+	}
+
+	return s, errors.Err(err)
+}
+
 func (stgs StageStore) In(ids ...int64) ([]*Stage, error) {
 	ss := make([]*Stage, 0)
 

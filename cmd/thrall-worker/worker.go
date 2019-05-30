@@ -91,6 +91,32 @@ func (w *worker) serve() error {
 	return errors.Err(w.worker.Launch())
 }
 
+func (w worker) handleJobComplete(b *model.Build, rj runner.Job) {
+	s, err := b.StageStore().FindByName(rj.Stage)
+
+	if err != nil || s.IsZero() {
+		return
+	}
+
+	j, err := s.JobStore().FindByName(rj.Name)
+
+	if err != nil || j.IsZero() {
+		return
+	}
+
+	j.Status = rj.Status
+	j.Output = sql.NullString{
+		String: w.buffers[j.ID].String(),
+		Valid:  true,
+	}
+	j.FinishedAt = &pq.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
+
+	j.Update()
+}
+
 func (w worker) runBuild(id int64) error {
 	b, err := w.builds.Find(id)
 
@@ -237,6 +263,10 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
+	r.HandleJobFunc(func(j runner.Job) {
+		w.handleJobComplete(b, j)
+	})
+
 	r.Run(d)
 
 	b.Status = r.Status
@@ -251,6 +281,24 @@ func (w worker) runBuild(id int64) error {
 
 	if err := b.Update(); err != nil {
 		return errors.Err(err)
+	}
+
+	jj, err := b.JobStore().NotCompleted()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, j := range jj {
+		j.Status = runner.Failed
+		j.Output = sql.NullString{
+			String: w.buffers[j.ID].String(),
+			Valid:  true,
+		}
+
+		if err := j.Update(); err != nil {
+			return errors.Err(err)
+		}
 	}
 
 	return nil

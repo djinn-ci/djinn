@@ -155,45 +155,8 @@ func (r *Runner) Run(d Driver) error {
 
 	r.printLastJobStatus()
 
-	if r.lastJob != nil {
-		r.Status = r.lastJob.Status
-
-		if r.lastJob.Status == Failed {
-			return errRunFailed
-		}
-	}
-
-	return nil
-}
-
-func (r *Runner) RunStage(name string, d Driver) error {
-	r.Status = Running
-
-	defer d.Destroy()
-
-	if err := d.Create(r.env, r.objs, r.placer); err != nil {
-		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
-		r.printLastJobStatus()
-
-		r.Status = Failed
-
+	if r.Status == Failed {
 		return errRunFailed
-	}
-
-	if err := r.realRunStage(name, d); err != nil {
-		if err == errStageNotFound {
-			return err
-		}
-	}
-
-	r.printLastJobStatus()
-
-	if r.lastJob != nil {
-		r.Status = r.lastJob.Status
-
-		if r.lastJob.Status == Failed {
-			return errRunFailed
-		}
 	}
 
 	return nil
@@ -213,7 +176,7 @@ func (r Runner) printLastJobStatus() {
 		fmt.Fprintf(r.Writer, "\n")
 	}
 
-	fmt.Fprintf(r.Writer, "Done. Run %s.\n", r.lastJob.Status)
+	fmt.Fprintf(r.Writer, "Done. Run %s\n", r.Status)
 }
 
 func (r *Runner) realRunStage(name string, d Driver) error {
@@ -246,7 +209,11 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 
 					r.lastJob = j
 
-					if j.Status == Failed {
+					if j.Status >= r.Status {
+						r.Status = j.Status
+					}
+
+					if r.Status == Failed {
 						fmt.Fprintf(r.Writer, "\n")
 						return errors.New("failed to run job: " + j.Name)
 					}

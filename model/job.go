@@ -33,15 +33,15 @@ type Job struct {
 type JobStore struct {
 	*sqlx.DB
 
-	build *Build
-	stage *Stage
+	Build *Build
+	Stage *Stage
 }
 
 func (j *Job) ArtifactStore() ArtifactStore {
 	return ArtifactStore{
 		DB:    j.DB,
-		build: j.Build,
-		job:   j,
+		Build: j.Build,
+		Job:   j,
 	}
 }
 
@@ -101,19 +101,19 @@ func (js JobStore) All() ([]*Job, error) {
 	query := "SELECT * FROM jobs"
 	args := []interface{}{}
 
-	if js.build != nil {
+	if js.Build != nil {
 		query += " WHERE build_id = $1"
-		args = append(args, js.build.ID)
+		args = append(args, js.Build.ID)
 	}
 
-	if js.stage != nil {
-		if js.build != nil {
+	if js.Stage != nil {
+		if js.Build != nil {
 			query += " AND WHERE stage_id = $2"
 		} else {
 			query += " WHERE stage_id = $1"
 		}
 
-		args = append(args, js.stage.ID)
+		args = append(args, js.Stage.ID)
 	}
 
 	err := js.Select(&jj, query, args...)
@@ -124,8 +124,8 @@ func (js JobStore) All() ([]*Job, error) {
 
 	for _, j := range jj {
 		j.DB = js.DB
-		j.Build = js.build
-		j.Stage = js.stage
+		j.Build = js.Build
+		j.Stage = js.Stage
 	}
 
 	return jj, errors.Err(err)
@@ -136,28 +136,26 @@ func (js JobStore) Find(id int64) (*Job, error) {
 		model: model{
 			DB: js.DB,
 		},
+		Build: js.Build,
+		Stage: js.Stage,
 	}
 
 	query := "SELECT * FROM jobs WHERE id = $1"
 	args := []interface{}{id}
 
-	if js.build != nil {
+	if js.Build != nil {
 		query += " AND build_id = $2"
-		args = append(args, js.build.ID)
-
-		j.Build = js.build
+		args = append(args, js.Build.ID)
 	}
 
-	if js.stage != nil {
-		if js.build != nil {
+	if js.Stage != nil {
+		if js.Build != nil {
 			query += " AND stage_id = $3"
 		} else {
 			query += " AND stage_id = $2"
 		}
 
-		args = append(args, js.stage.ID)
-
-		j.Stage = js.stage
+		args = append(args, js.Stage.ID)
 	}
 
 	err := js.Get(j, query, args...)
@@ -177,26 +175,26 @@ func (js JobStore) FindByName(name string) (*Job, error) {
 		model: model{
 			DB: js.DB,
 		},
-		Build: js.build,
-		Stage: js.stage,
+		Build: js.Build,
+		Stage: js.Stage,
 	}
 
 	query := "SELECT * FROM jobs WHERE name = $1"
 	args := []interface{}{name}
 
-	if js.build != nil {
+	if js.Build != nil {
 		query += " AND build_id = $2"
-		args = append(args, js.build.ID)
+		args = append(args, js.Build.ID)
 	}
 
-	if js.stage != nil {
-		if js.build != nil {
+	if js.Stage != nil {
+		if js.Build != nil {
 			query += " AND stage_id = $3"
 		} else {
 			query += " AND stage_id = $2"
 		}
 
-		args = append(args, js.stage.ID)
+		args = append(args, js.Stage.ID)
 	}
 
 	err := js.Get(j, query, args...)
@@ -232,6 +230,8 @@ func (js JobStore) InParentID(ids ...int64) ([]*Job, error) {
 
 	for _, j := range jj {
 		j.DB = js.DB
+		j.Build = js.Build
+		j.Stage = js.Stage
 	}
 
 	return jj, errors.Err(err)
@@ -258,6 +258,8 @@ func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
 
 	for _, j := range jj {
 		j.DB = js.DB
+		j.Build = js.Build
+		j.Stage = js.Stage
 	}
 
 	return jj, errors.Err(err)
@@ -308,16 +310,16 @@ func (js JobStore) New() *Job {
 		model: model{
 			DB: js.DB,
 		},
+		Build: js.Build,
+		Stage: js.Stage,
 	}
 
-	if js.build != nil {
-		j.BuildID = js.build.ID
-		j.Build = js.build
+	if js.Build != nil {
+		j.BuildID = js.Build.ID
 	}
 
-	if js.stage != nil {
-		j.StageID = js.stage.ID
-		j.Stage = js.stage
+	if js.Stage != nil {
+		j.StageID = js.Stage.ID
 	}
 
 	return j
@@ -329,9 +331,9 @@ func (js JobStore) NotCompleted() ([]*Job, error) {
 	query := "SELECT * FROM jobs WHERE started_at IS NULL AND finished_at IS NULL"
 	args := []interface{}{}
 
-	if js.build != nil {
+	if js.Build != nil {
 		query += " AND build_id = $1"
-		args = append(args, js.build.ID)
+		args = append(args, js.Build.ID)
 	}
 
 	err := js.Select(&jj, query, args...)
@@ -342,7 +344,8 @@ func (js JobStore) NotCompleted() ([]*Job, error) {
 
 	for _, j := range jj {
 		j.DB = js.DB
-		j.Build = js.build
+		j.Build = js.Build
+		j.Stage = js.Stage
 	}
 
 	return jj, errors.Err(err)

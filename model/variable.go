@@ -33,14 +33,14 @@ type BuildVariable struct {
 type VariableStore struct {
 	*sqlx.DB
 
-	user *User
+	User *User
 }
 
 type BuildVariableStore struct {
 	*sqlx.DB
 
-	build    *Build
-	variable *Variable
+	Build    *Build
+	Variable *Variable
 }
 
 func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
@@ -49,9 +49,9 @@ func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
 	query := "SELECT * FROM build_variables"
 	args := []interface{}{}
 
-	if bvs.build != nil {
+	if bvs.Build != nil {
 		query += " WHERE build_id = $1"
-		args = append(args, bvs.build.ID)
+		args = append(args, bvs.Build.ID)
 	}
 
 	err := bvs.Select(&vv, query, args...)
@@ -62,7 +62,7 @@ func (bvs BuildVariableStore) All() ([]*BuildVariable, error) {
 
 	for _, v := range vv {
 		v.DB = bvs.DB
-		v.Build = bvs.build
+		v.Build = bvs.Build
 	}
 
 	return vv, errors.Err(err)
@@ -129,11 +129,19 @@ func (bvs BuildVariableStore) New() *BuildVariable {
 		model: model{
 			DB: bvs.DB,
 		},
-		Build: bvs.build,
+		Build:    bvs.Build,
+		Variable: bvs.Variable,
 	}
 
-	if bvs.build != nil {
-		bv.BuildID = bvs.build.ID
+	if bvs.Build != nil {
+		bv.BuildID = bvs.Build.ID
+	}
+
+	if bvs.Variable != nil {
+		bv.VariableID = sql.NullInt64{
+			Int64: bvs.Variable.ID,
+			Valid: true,
+		}
 	}
 
 	return bv
@@ -163,9 +171,9 @@ func (vs VariableStore) All() ([]*Variable, error) {
 	query := "SELECT * FROM variables"
 	args := []interface{}{}
 
-	if vs.user != nil {
+	if vs.User != nil {
 		query += " WHERE user_id = $1"
-		args = append(args, vs.user.ID)
+		args = append(args, vs.User.ID)
 	}
 
 	err := vs.Select(&vv, query, args...)
@@ -177,8 +185,8 @@ func (vs VariableStore) All() ([]*Variable, error) {
 	for _, v := range vv {
 		v.DB = vs.DB
 
-		if vs.user != nil {
-			v.User = vs.user
+		if vs.User != nil {
+			v.User = vs.User
 		}
 	}
 
@@ -216,11 +224,11 @@ func (vs VariableStore) New() *Variable {
 		model: model{
 			DB: vs.DB,
 		},
-		User:  vs.user,
+		User:  vs.User,
 	}
 
-	if vs.user != nil {
-		v.UserID = vs.user.ID
+	if vs.User != nil {
+		v.UserID = vs.User.ID
 	}
 
 	return v

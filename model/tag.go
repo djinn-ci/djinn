@@ -22,8 +22,8 @@ type Tag struct {
 type TagStore struct {
 	*sqlx.DB
 
-	user  *User
-	build *Build
+	User  *User
+	Build *Build
 }
 
 func (t *Tag) Create() error {
@@ -50,9 +50,9 @@ func (ts TagStore) All() ([]*Tag, error) {
 	query := "SELECT * FROM tags"
 	args := []interface{}{}
 
-	if ts.build != nil {
+	if ts.Build != nil {
 		query += " WHERE build_id = $1"
-		args = append(args, ts.build.ID)
+		args = append(args, ts.Build.ID)
 	}
 
 	query += " ORDER BY name ASC"
@@ -66,8 +66,8 @@ func (ts TagStore) All() ([]*Tag, error) {
 	for _, t := range tt {
 		t.DB = ts.DB
 
-		if ts.build != nil {
-			t.Build = ts.build
+		if ts.Build != nil {
+			t.Build = ts.Build
 		}
 	}
 
@@ -105,16 +105,16 @@ func (ts TagStore) New() *Tag {
 		model: model{
 			DB: ts.DB,
 		},
-		User:  ts.user,
-		Build: ts.build,
+		User:  ts.User,
+		Build: ts.Build,
 	}
 
-	if ts.build != nil {
-		t.BuildID = ts.build.ID
+	if ts.Build != nil {
+		t.BuildID = ts.Build.ID
 	}
 
-	if ts.user != nil {
-		t.UserID = ts.user.ID
+	if ts.User != nil {
+		t.UserID = ts.User.ID
 	}
 
 	return t

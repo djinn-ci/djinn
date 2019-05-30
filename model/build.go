@@ -43,57 +43,57 @@ type Build struct {
 type BuildStore struct {
 	*sqlx.DB
 
-	user      *User
-	namespace *Namespace
+	User      *User
+	Namespace *Namespace
 }
 
 func (b *Build) ArtifactStore() ArtifactStore {
 	return ArtifactStore{
 		DB:    b.DB,
-		build: b,
+		Build: b,
 	}
 }
 
 func (b *Build) BuildObjectStore() BuildObjectStore {
 	return BuildObjectStore{
 		DB:    b.DB,
-		build: b,
+		Build: b,
 	}
 }
 
 func (b *Build) BuildVariableStore() BuildVariableStore {
 	return BuildVariableStore{
 		DB:    b.DB,
-		build: b,
+		Build: b,
 	}
 }
 
 func (b *Build) DriverStore() DriverStore {
 	return DriverStore{
 		DB:    b.DB,
-		build: b,
+		Build: b,
 	}
 }
 
 func (b *Build) JobStore() JobStore {
 	return JobStore{
 		DB:    b.DB,
-		build: b,
+		Build: b,
 	}
 }
 
 func (b *Build) StageStore() StageStore {
 	return StageStore{
 		DB:    b.DB,
-		build: b,
+		Build: b,
 	}
 }
 
 func (b *Build) TagStore() TagStore {
 	return TagStore{
 		DB:    b.DB,
-		user:  b.User,
-		build: b,
+		User:  b.User,
+		Build: b,
 	}
 }
 
@@ -399,19 +399,19 @@ func (bs BuildStore) All() ([]*Build, error) {
 	query := "SELECT * FROM builds"
 	args := []interface{}{}
 
-	if bs.user != nil {
+	if bs.User != nil {
 		query += " WHERE user_id = $1"
-		args = append(args, bs.user.ID)
+		args = append(args, bs.User.ID)
 	}
 
-	if bs.namespace != nil {
-		if bs.user != nil {
+	if bs.Namespace != nil {
+		if bs.User != nil {
 			query += " AND namespace_id = $2"
 		} else {
 			query += " WHERE namespace_id = $1"
 		}
 
-		args = append(args, bs.namespace.ID)
+		args = append(args, bs.Namespace.ID)
 	}
 
 	query += " ORDER BY created_at DESC"
@@ -424,14 +424,8 @@ func (bs BuildStore) All() ([]*Build, error) {
 
 	for _, b := range bb {
 		b.DB = bs.DB
-
-		if bs.user != nil {
-			b.User = bs.user
-		}
-
-		if bs.namespace != nil {
-			b.Namespace = bs.namespace
-		}
+		b.User = bs.User
+		b.Namespace = bs.Namespace
 	}
 
 	return bb, errors.Err(err)
@@ -443,19 +437,19 @@ func (bs BuildStore) ByStatus(status string) ([]*Build, error) {
 	query := "SELECT * FROM builds WHERE status = $1"
 	args := []interface{}{status}
 
-	if bs.user != nil {
+	if bs.User != nil {
 		query += " AND user_id = $2"
-		args = append(args, bs.user.ID)
+		args = append(args, bs.User.ID)
 	}
 
-	if bs.namespace != nil {
-		if bs.user != nil {
+	if bs.Namespace != nil {
+		if bs.User != nil {
 			query += " AND namespace_id = $3"
 		} else {
 			query += " AND namespace_id = $2"
 		}
 
-		args = append(args, bs.namespace.ID)
+		args = append(args, bs.Namespace.ID)
 	}
 
 	query += " ORDER BY created_at DESC"
@@ -468,14 +462,8 @@ func (bs BuildStore) ByStatus(status string) ([]*Build, error) {
 
 	for _, b := range bb {
 		b.DB = bs.DB
-
-		if bs.user != nil {
-			b.User = bs.user
-		}
-
-		if bs.namespace != nil {
-			b.Namespace = bs.namespace
-		}
+		b.User = bs.User
+		b.Namespace = bs.Namespace
 	}
 
 	return bb, errors.Err(err)
@@ -486,28 +474,26 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 		model: model{
 			DB: bs.DB,
 		},
+		User:      bs.User,
+		Namespace: bs.Namespace,
 	}
 
 	query := "SELECT * FROM builds WHERE id = $1"
 	args := []interface{}{id}
 
-	if bs.user != nil {
+	if bs.User != nil {
 		query += " AND user_id = $2"
-		args = append(args, bs.user.ID)
-
-		b.User = bs.user
+		args = append(args, bs.User.ID)
 	}
 
-	if bs.namespace != nil {
-		if bs.user != nil {
+	if bs.Namespace != nil {
+		if bs.User != nil {
 			query += " AND namespace_id = $3"
 		} else {
 			query += " AND namespace_id = $2"
 		}
 
-		args = append(args, bs.namespace.ID)
-
-		b.Namespace = bs.namespace
+		args = append(args, bs.Namespace.ID)
 	}
 
 	err := bs.Get(b, query, args...)
@@ -651,17 +637,17 @@ func (bs BuildStore) New() *Build {
 		model: model{
 			DB: bs.DB,
 		},
-		User:      bs.user,
-		Namespace: bs.namespace,
+		User:      bs.User,
+		Namespace: bs.Namespace,
 	}
 
-	if bs.user != nil {
-		b.UserID = bs.user.ID
+	if bs.User != nil {
+		b.UserID = bs.User.ID
 	}
 
-	if bs.namespace != nil {
+	if bs.Namespace != nil {
 		b.NamespaceID = sql.NullInt64{
-			Int64: bs.namespace.ID,
+			Int64: bs.Namespace.ID,
 			Valid: true,
 		}
 	}

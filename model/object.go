@@ -41,20 +41,20 @@ type BuildObject struct {
 type ObjectStore struct {
 	*sqlx.DB
 
-	user *User
+	User *User
 }
 
 type BuildObjectStore struct {
 	*sqlx.DB
 
-	build  *Build
-	object *Object
+	Build  *Build
+	Object *Object
 }
 
 func (o *Object) BuildObjectStore() BuildObjectStore {
 	return BuildObjectStore{
 		DB:     o.DB,
-		object: o,
+		Object: o,
 	}
 }
 
@@ -128,16 +128,15 @@ func (os ObjectStore) Find(id int64) (*Object, error) {
 		model: model{
 			DB: os.DB,
 		},
+		User: os.User,
 	}
 
 	query := "SELECT * FROM objects WHERE id = $1"
 	args := []interface{}{id}
 
-	if os.user != nil {
+	if os.User != nil {
 		query += " AND user_id = $2"
-		args = append(args, os.user.ID)
-
-		o.User = os.user
+		args = append(args, os.User.ID)
 	}
 
 	err := os.Get(o, query, args...)
@@ -158,15 +157,15 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 		model: model{
 			DB: os.DB,
 		},
-		User: os.user,
+		User: os.User,
 	}
 
 	query := "SELECT * FROM objects WHERE name = $1"
 	args := []interface{}{name}
 
-	if os.user != nil {
+	if os.User != nil {
 		query += " AND user_id = $2"
-		args = append(args, os.user.ID)
+		args = append(args, os.User.ID)
 	}
 
 	err := os.Get(o, query, args...)
@@ -213,11 +212,11 @@ func (os ObjectStore) New() *Object {
 		model: model{
 			DB: os.DB,
 		},
-		User: os.user,
+		User: os.User,
 	}
 
-	if os.user != nil {
-		o.UserID = os.user.ID
+	if os.User != nil {
+		o.UserID = os.User.ID
 	}
 
 	return o
@@ -229,19 +228,19 @@ func (bos BuildObjectStore) All() ([]*BuildObject, error) {
 	query := "SELECT * FROM build_objects"
 	args := []interface{}{}
 
-	if bos.build != nil {
+	if bos.Build != nil {
 		query += " WHERE build_id = $1"
-		args = append(args, bos.build.ID)
+		args = append(args, bos.Build.ID)
 	}
 
-	if bos.object != nil {
-		if bos.build != nil {
+	if bos.Object != nil {
+		if bos.Build != nil {
 			query += " AND object_id = $2"
 		} else {
 			query += " WHERE object_id = $1"
 		}
 
-		args = append(args, bos.object.ID)
+		args = append(args, bos.Object.ID)
 	}
 
 	err := bos.Select(&bo, query, args...)
@@ -258,24 +257,26 @@ func (bos BuildObjectStore) First() (*BuildObject, error) {
 		model: model{
 			DB: bos.DB,
 		},
+		Build:  bos.Build,
+		Object: bos.Object,
 	}
 
 	query := "SELECT * FROM build_objects"
 	args := []interface{}{}
 
-	if bos.build != nil {
+	if bos.Build != nil {
 		query += " WHERE build_id = $1"
-		args = append(args, bos.build.ID)
+		args = append(args, bos.Build.ID)
 	}
 
-	if bos.object != nil {
-		if bos.build != nil {
+	if bos.Object != nil {
+		if bos.Build != nil {
 			query += " AND object_id = $2"
 		} else {
 			query += " WHERE object_id = $1"
 		}
 
-		args = append(args, bos.object.ID)
+		args = append(args, bos.Object.ID)
 	}
 
 	err := bos.Get(&bo, query, args...)
@@ -329,17 +330,17 @@ func (bos BuildObjectStore) New() *BuildObject {
 		model: model{
 			DB: bos.DB,
 		},
-		Build:  bos.build,
-		Object: bos.object,
+		Build:  bos.Build,
+		Object: bos.Object,
 	}
 
-	if bos.build != nil {
-		bo.BuildID = bos.build.ID
+	if bos.Build != nil {
+		bo.BuildID = bos.Build.ID
 	}
 
-	if bos.object != nil {
+	if bos.Object != nil {
 		bo.ObjectID = sql.NullInt64{
-			Int64: bos.object.ID,
+			Int64: bos.Object.ID,
 			Valid: true,
 		}
 	}

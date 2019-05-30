@@ -31,8 +31,8 @@ type Namespace struct {
 type NamespaceStore struct {
 	*sqlx.DB
 
-	user      *User
-	namespace *Namespace
+	User      *User
+	Namespace *Namespace
 }
 
 func NewNamespaceStore(db *sqlx.DB) *NamespaceStore {
@@ -44,14 +44,14 @@ func NewNamespaceStore(db *sqlx.DB) *NamespaceStore {
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
 		DB:        n.DB,
-		namespace: n,
+		Namespace: n,
 	}
 }
 
 func (n *Namespace) NamespaceStore() NamespaceStore {
 	return NamespaceStore{
 		DB:        n.DB,
-		namespace: n,
+		Namespace: n,
 	}
 }
 
@@ -144,7 +144,7 @@ func (n *Namespace) LoadChildren() error {
 
 	namespaces := NamespaceStore{
 		DB:   n.DB,
-		user: n.User,
+		User: n.User,
 	}
 
 	n.Children, err = namespaces.GetByRootID(n.ID)
@@ -163,7 +163,7 @@ func (n *Namespace) LoadParent() error {
 
 	namespaces := NamespaceStore{
 		DB:   n.DB,
-		user: n.User,
+		User: n.User,
 	}
 
 	n.Parent, err = namespaces.Find(n.ParentID.Int64)
@@ -220,19 +220,19 @@ func (ns NamespaceStore) All() ([]*Namespace, error) {
 	query := "SELECT * FROM namespaces"
 	args := []interface{}{}
 
-	if ns.user != nil {
+	if ns.User != nil {
 		query += " WHERE user_id = $1"
-		args = append(args, ns.user.ID)
+		args = append(args, ns.User.ID)
 	}
 
-	if ns.namespace != nil {
-		if ns.user != nil {
+	if ns.Namespace != nil {
+		if ns.User != nil {
 			query += " AND WHERE parent_id = $2"
 		} else {
 			query += " WHERE parent_id = $1"
 		}
 
-		args = append(args, ns.namespace.ID)
+		args = append(args, ns.Namespace.ID)
 	}
 
 	query += " ORDER BY path ASC"
@@ -245,14 +245,8 @@ func (ns NamespaceStore) All() ([]*Namespace, error) {
 
 	for _, n := range nn {
 		n.DB = ns.DB
-
-		if ns.user != nil {
-			n.User = ns.user
-		}
-
-		if ns.namespace != nil {
-			n.Parent = ns.namespace
-		}
+		n.User = ns.User
+		n.Parent = ns.Namespace
 	}
 
 	return nn, errors.Err(err)
@@ -263,28 +257,26 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 		model: model{
 			DB: ns.DB,
 		},
+		User:   ns.User,
+		Parent: ns.Namespace,
 	}
 
 	query := "SELECT * FROM namespaces WHERE id = $1"
 	args := []interface{}{id}
 
-	if ns.user != nil {
+	if ns.User != nil {
 		query += " AND user_id = $2"
-		args = append(args, ns.user.ID)
-
-		n.User = ns.user
+		args = append(args, ns.User.ID)
 	}
 
-	if ns.namespace != nil {
-		if ns.user != nil {
+	if ns.Namespace != nil {
+		if ns.User != nil {
 			query += " AND parent_id = $3"
 		} else {
 			query += " AND parent_id = $2"
 		}
 
-		args = append(args, ns.namespace.ID)
-
-		n.Parent = ns.namespace
+		args = append(args, ns.Namespace.ID)
 	}
 
 	err := ns.Get(n, query, args...)
@@ -305,9 +297,9 @@ func (ns NamespaceStore) GetByRootID(id int64) ([]*Namespace, error) {
 	query := "SELECT * FROM namespaces WHERE root_id = $1"
 	args := []interface{}{id}
 
-	if ns.user != nil {
+	if ns.User != nil {
 		query += " AND user_id = $2"
-		args = append(args, ns.user.ID)
+		args = append(args, ns.User.ID)
 	}
 
 	err := ns.Select(&nn, query, args...)
@@ -359,28 +351,26 @@ func (ns NamespaceStore) FindByPath(path string) (*Namespace, error) {
 		model: model{
 			DB: ns.DB,
 		},
+		User:   ns.User,
+		Parent: ns.Namespace,
 	}
 
 	query := "SELECT * FROM namespaces WHERE path = $1"
 	args := []interface{}{path}
 
-	if ns.user != nil {
+	if ns.User != nil {
 		query += " AND user_id = $2"
-		args = append(args, ns.user.ID)
-
-		n.User = ns.user
+		args = append(args, ns.User.ID)
 	}
 
-	if ns.namespace != nil {
-		if ns.user != nil {
+	if ns.Namespace != nil {
+		if ns.User != nil {
 			query += " AND parent_id = $3"
 		} else {
 			query += " AND parent_id = $2"
 		}
 
-		args = append(args, ns.namespace.ID)
-
-		n.Parent = ns.namespace
+		args = append(args, ns.Namespace.ID)
 	}
 
 	err := ns.Get(n, query, args...)
@@ -451,9 +441,7 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 		parent = n
 	}
 
-	if ns.user != nil {
-		n.User = ns.user
-	}
+	n.User = ns.User
 
 	return n, nil
 }
@@ -464,19 +452,19 @@ func (ns NamespaceStore) Like(like string) ([]*Namespace, error) {
 	query := "SELECT * FROM namespaces WHERE path LIKE $1"
 	args := []interface{}{"%" + like + "%"}
 
-	if ns.user != nil {
+	if ns.User != nil {
 		query += " AND user_id = $2"
-		args = append(args, ns.user.ID)
+		args = append(args, ns.User.ID)
 	}
 
-	if ns.namespace != nil {
-		if ns.user != nil {
+	if ns.Namespace != nil {
+		if ns.User != nil {
 			query += " AND parent_id = $3"
 		} else {
 			query += " AND parent_id = $2"
 		}
 
-		args = append(args, ns.namespace.ID)
+		args = append(args, ns.Namespace.ID)
 	}
 
 	err := ns.Select(&nn, query, args...)
@@ -487,14 +475,8 @@ func (ns NamespaceStore) Like(like string) ([]*Namespace, error) {
 
 	for _, n := range nn {
 		n.DB = ns.DB
-
-		if ns.user != nil {
-			n.User = ns.user
-		}
-
-		if ns.namespace != nil {
-			n.Parent = ns.namespace
-		}
+		n.User = ns.User
+		n.Parent = ns.Namespace
 	}
 
 	return nn, errors.Err(err)
@@ -537,17 +519,17 @@ func (ns NamespaceStore) New() *Namespace {
 		model: model{
 			DB: ns.DB,
 		},
-		User:   ns.user,
-		Parent: ns.namespace,
+		User:   ns.User,
+		Parent: ns.Namespace,
 	}
 
-	if ns.user != nil {
-		n.UserID = ns.user.ID
+	if ns.User != nil {
+		n.UserID = ns.User.ID
 	}
 
-	if ns.namespace != nil {
+	if ns.Namespace != nil {
 		n.ParentID = sql.NullInt64{
-			Int64: ns.namespace.ID,
+			Int64: ns.Namespace.ID,
 			Valid: true,
 		}
 	}

@@ -21,7 +21,7 @@ type Driver struct {
 type DriverStore struct {
 	*sqlx.DB
 
-	build *Build
+	Build *Build
 }
 
 func (d *Driver) Create() error {
@@ -47,15 +47,15 @@ func (ds DriverStore) Find(id int64) (*Driver, error) {
 		model: model{
 			DB: ds.DB,
 		},
-		Build: ds.build,
+		Build: ds.Build,
 	}
 
 	query := "SELECT * FROM drivers WHERE id = $1"
 	args := []interface{}{id}
 
-	if ds.build != nil {
+	if ds.Build != nil {
 		query += " AND build_id = $2"
-		args = append(args, ds.build.ID)
+		args = append(args, ds.Build.ID)
 	}
 
 	err := ds.Get(d, query, args...)
@@ -75,15 +75,15 @@ func (ds DriverStore) First() (*Driver, error) {
 		model: model{
 			DB: ds.DB,
 		},
-		Build: ds.build,
+		Build: ds.Build,
 	}
 
 	query := "SELECT * FROM drivers"
 	args := []interface{}{}
 
-	if ds.build != nil {
+	if ds.Build != nil {
 		query += " WHERE build_id = $1"
-		args = append(args, ds.build.ID)
+		args = append(args, ds.Build.ID)
 	}
 
 	err := ds.Get(d, query, args...)
@@ -100,11 +100,11 @@ func (ds DriverStore) New() *Driver {
 		model: model{
 			DB: ds.DB,
 		},
-		Build: ds.build,
+		Build: ds.Build,
 	}
 
-	if ds.build != nil {
-		d.BuildID = ds.build.ID
+	if ds.Build != nil {
+		d.BuildID = ds.Build.ID
 	}
 
 	return d

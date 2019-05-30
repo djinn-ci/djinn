@@ -28,8 +28,8 @@ type Artifact struct {
 type ArtifactStore struct {
 	*sqlx.DB
 
-	build *Build
-	job   *Job
+	Build *Build
+	Job   *Job
 }
 
 func (a *Artifact) Create() error {
@@ -74,28 +74,26 @@ func (as ArtifactStore) Find(id int64) (*Artifact, error) {
 		model: model{
 			DB: as.DB,
 		},
+		Build: as.Build,
+		Job:   as.Job,
 	}
 
 	query := "SELECT * FROM artifacts WHERE id = $1"
 	args := []interface{}{id}
 
-	if as.build != nil {
+	if as.Build != nil {
 		query += " AND build_id = $2"
-		args = append(args, as.build.ID)
-
-		a.Build = as.build
+		args = append(args, as.Build.ID)
 	}
 
-	if as.job != nil {
-		if as.build != nil {
+	if as.Job != nil {
+		if as.Build != nil {
 			query += " AND job_id = $3"
 		} else {
 			query += " AND job_id = $2"
 		}
 
-		args = append(args, as.job.ID)
-
-		a.Job = as.job
+		args = append(args, as.Job.ID)
 	}
 
 	err := as.Get(a, query, args...)
@@ -112,28 +110,26 @@ func (as ArtifactStore) FindByHash(hash string) (*Artifact, error) {
 		model: model{
 			DB: as.DB,
 		},
+		Build: as.Build,
+		Job:   as.Job,
 	}
 
 	query := "SELECT * FROM artifacts WHERE hash = $1"
 	args := []interface{}{hash}
 
-	if as.build != nil {
+	if as.Build != nil {
 		query += " AND build_id = $2"
-		args = append(args, as.build.ID)
-
-		a.Build = as.build
+		args = append(args, as.Build.ID)
 	}
 
-	if as.job != nil {
-		if as.build != nil {
+	if as.Job != nil {
+		if as.Build != nil {
 			query += " AND job_id = $3"
 		} else {
 			query += " AND job_id = $2"
 		}
 
-		args = append(args, as.job.ID)
-
-		a.Job = as.job
+		args = append(args, as.Job.ID)
 	}
 
 	err := as.Get(a, query, args...)
@@ -176,16 +172,16 @@ func (as ArtifactStore) New() *Artifact {
 		model: model{
 			DB: as.DB,
 		},
-		Build: as.build,
-		Job:   as.job,
+		Build: as.Build,
+		Job:   as.Job,
 	}
 
-	if as.build != nil {
-		a.BuildID = as.build.ID
+	if as.Build != nil {
+		a.BuildID = as.Build.ID
 	}
 
-	if as.job != nil {
-		a.JobID = as.job.ID
+	if as.Job != nil {
+		a.JobID = as.Job.ID
 	}
 
 	return a

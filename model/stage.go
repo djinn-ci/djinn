@@ -28,7 +28,7 @@ type Stage struct {
 type StageStore struct {
 	*sqlx.DB
 
-	build *Build
+	Build *Build
 }
 
 func (s *Stage) Create() error {
@@ -52,8 +52,8 @@ func (s *Stage) Create() error {
 func (s *Stage) JobStore() JobStore {
 	return JobStore{
 		DB:    s.DB,
-		build: s.Build,
-		stage: s,
+		Build: s.Build,
+		Stage: s,
 	}
 }
 
@@ -82,9 +82,9 @@ func (stgs StageStore) All() ([]*Stage, error) {
 	query := "SELECT * FROM stages"
 	args := []interface{}{}
 
-	if stgs.build != nil {
+	if stgs.Build != nil {
 		query += " WHERE build_id = $1"
-		args = append(args, stgs.build.ID)
+		args = append(args, stgs.Build.ID)
 	}
 
 	err := stgs.Select(&ss, query, args...)
@@ -96,8 +96,8 @@ func (stgs StageStore) All() ([]*Stage, error) {
 	for _, s := range ss {
 		s.DB = stgs.DB
 
-		if stgs.build != nil {
-			s.Build = stgs.build
+		if stgs.Build != nil {
+			s.Build = stgs.Build
 		}
 	}
 
@@ -114,11 +114,11 @@ func (stgs StageStore) Find(id int64) (*Stage, error) {
 	query := "SELECT * FROM stages WHERE id = $1"
 	args := []interface{}{id}
 
-	if stgs.build != nil {
+	if stgs.Build != nil {
 		query += " AND build_id = $2"
-		args = append(args, stgs.build.ID)
+		args = append(args, stgs.Build.ID)
 
-		s.Build = stgs.build
+		s.Build = stgs.Build
 	}
 
 	err := stgs.Get(s, query, args...)
@@ -138,15 +138,15 @@ func (stgs StageStore) FindByName(name string) (*Stage, error) {
 		model: model{
 			DB: stgs.DB,
 		},
-		Build: stgs.build,
+		Build: stgs.Build,
 	}
 
 	query := "SELECT * FROM stages WHERE name = $1"
 	args := []interface{}{name}
 
-	if stgs.build != nil {
+	if stgs.Build != nil {
 		query += " AND build_id = $2"
-		args = append(args, stgs.build.ID)
+		args = append(args, stgs.Build.ID)
 	}
 
 	err := stgs.Get(s, query, args...)
@@ -224,11 +224,11 @@ func (stgs StageStore) New() *Stage {
 		model: model{
 			DB: stgs.DB,
 		},
-		Build: stgs.build,
+		Build: stgs.Build,
 	}
 
-	if stgs.build != nil {
-		s.BuildID = stgs.build.ID
+	if stgs.Build != nil {
+		s.BuildID = stgs.Build.ID
 	}
 
 	return s

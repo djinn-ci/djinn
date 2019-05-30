@@ -116,28 +116,28 @@ func (u *User) BuildShow(id int64) (*Build, error) {
 func (u *User) BuildStore() BuildStore {
 	return BuildStore{
 		DB:   u.DB,
-		user: u,
+		User: u,
 	}
 }
 
 func (u *User) NamespaceStore() NamespaceStore {
 	return NamespaceStore{
 		DB:   u.DB,
-		user: u,
+		User: u,
 	}
 }
 
 func (u *User) ObjectStore() ObjectStore {
 	return ObjectStore{
 		DB:   u.DB,
-		user: u,
+		User: u,
 	}
 }
 
 func (u *User) VariableStore() VariableStore {
 	return VariableStore{
 		DB:   u.DB,
-		user: u,
+		User: u,
 	}
 }
 

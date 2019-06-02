@@ -96,8 +96,11 @@ type ShowPage struct {
 {% func (p *ShowPage) Navigation() %}
 	{% stripspace %}
 		<li>{%= template.RenderLink(p.Build.UIEndpoint(), p.URI) %}{% cat "../../svgs/eye.svg" %}<span>Overview</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/manifest", p.URI) %}{% cat "../../svgs/document.svg" %}<span>Manifest</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/output", p.URI) %}{% cat "../../svgs/code.svg" %}<span>Output</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/manifest", p.URI) %}{% cat "../../svgs/list.svg" %}<span>Manifest</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/objects", p.URI) %}{% cat "../../svgs/upload.svg" %}<span>Objects</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/artifacts", p.URI) %}{% cat "../../svgs/download.svg" %}<span>Artifacts</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/variables", p.URI) %}{% cat "../../svgs/code.svg" %}<span>Variables</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/output", p.URI) %}{% cat "../../svgs/document.svg" %}<span>Output</span></a></li>
 	{% endstripspace %}
 {% endfunc %}
 

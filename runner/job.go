@@ -81,10 +81,8 @@ func (s *JobStore) Put(j *Job) {
 	}
 
 	for _, d := range j.Depends {
-		before, ok := s.Get(d)
-
-		if ok {
-			before.After.Put(j)
+		if dep, ok := s.Get(d); ok {
+			dep.After.Put(j)
 			return
 		}
 	}

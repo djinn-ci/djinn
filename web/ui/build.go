@@ -57,7 +57,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &build.IndexPage{
-		Page: &template.Page{
+		Page: template.Page{
 			URI: r.URL.Path,
 		},
 		Builds: bb,
@@ -214,7 +214,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &build.ShowPage{
-		Page: &template.Page{
+		Page: template.Page{
 			URI: r.URL.Path,
 		},
 		Build:        b,

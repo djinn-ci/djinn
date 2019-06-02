@@ -7,7 +7,7 @@ import (
 
 {% code
 type IndexPage struct {
-	*template.Page
+	template.Page
 
 	Builds []*model.Build
 	Status string

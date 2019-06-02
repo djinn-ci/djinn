@@ -25,7 +25,7 @@ var (
 
 //line template/namespace/index.qtpl:9
 type IndexPage struct {
-	*template.Page
+	template.Page
 
 	Namespaces []*model.Namespace
 	Search     string

@@ -77,7 +77,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &namespace.IndexPage{
-		Page: &template.Page{
+		Page: template.Page{
 			URI: r.URL.Path,
 		},
 		Namespaces: nn,
@@ -252,8 +252,8 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := &namespace.ShowPage{
-		Page: &template.Page{
+	p := namespace.ShowPage{
+		Page: template.Page{
 			URI: r.URL.Path,
 		},
 		Namespace: n,
@@ -332,7 +332,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	p.Builds = bb
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(&p, r.URL.Path)
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

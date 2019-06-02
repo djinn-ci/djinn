@@ -7,7 +7,7 @@ import (
 
 {% code
 type EditPage struct {
-	*template.Page
+	template.Page
 	template.Form
 
 	Namespace *model.Namespace

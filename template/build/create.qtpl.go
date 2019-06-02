@@ -22,7 +22,7 @@ var (
 
 //line template/build/create.qtpl:6
 type CreatePage struct {
-	*template.Page
+	template.Page
 	template.Form
 }
 

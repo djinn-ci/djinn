@@ -28,14 +28,14 @@ var (
 
 //line template/namespace/show.qtpl:12
 type ShowPage struct {
-	*template.Page
+	template.Page
 
 	Namespace *model.Namespace
 	Builds    []*model.Build
 }
 
 type ShowNamespacesPage struct {
-	*ShowPage
+	ShowPage
 
 	Namespaces []*model.Namespace
 	Search     string

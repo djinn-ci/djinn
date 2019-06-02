@@ -7,7 +7,7 @@ import (
 
 {% code
 type IndexPage struct {
-	*template.Page
+	template.Page
 
 	Namespaces []*model.Namespace
 	Search     string

@@ -26,7 +26,7 @@ var (
 
 //line template/job/show.qtpl:10
 type ShowPage struct {
-	*template.Page
+	template.Page
 
 	Job *model.Job
 }

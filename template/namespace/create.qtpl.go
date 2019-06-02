@@ -25,7 +25,7 @@ var (
 
 //line template/namespace/create.qtpl:9
 type CreatePage struct {
-	*template.Page
+	template.Page
 	template.Form
 
 	Parent *model.Namespace

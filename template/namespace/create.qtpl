@@ -7,7 +7,7 @@ import (
 
 {% code
 type CreatePage struct {
-	*template.Page
+	template.Page
 	template.Form
 
 	Parent *model.Namespace

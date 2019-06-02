@@ -25,7 +25,7 @@ var (
 
 //line template/namespace/edit.qtpl:9
 type EditPage struct {
-	*template.Page
+	template.Page
 	template.Form
 
 	Namespace *model.Namespace

@@ -25,7 +25,7 @@ var (
 
 //line template/build/show.qtpl:9
 type ShowPage struct {
-	*template.Page
+	template.Page
 
 	Build *model.Build
 

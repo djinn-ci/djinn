@@ -25,7 +25,7 @@ var (
 
 //line template/build/index.qtpl:9
 type IndexPage struct {
-	*template.Page
+	template.Page
 
 	Builds []*model.Build
 	Status string

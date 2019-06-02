@@ -22,7 +22,7 @@ var (
 
 //line template/auth/login.qtpl:6
 type LoginPage struct {
-	*template.Page
+	template.Page
 	template.Form
 }
 

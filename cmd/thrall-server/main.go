@@ -119,6 +119,8 @@ func mainCommand(cmd cli.Command) {
 		srv.AddQueue(d, qsrv)
 	}
 
+	srv.CSRFToken = []byte(cfg.Crypto.Auth)
+
 	uiSrv := uiServer{
 		Server: srv,
 		db:     db,

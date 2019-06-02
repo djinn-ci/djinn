@@ -1,6 +1,5 @@
 {%
 import (
-	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -9,9 +8,8 @@ import (
 {% code
 type EditPage struct {
 	*template.Page
+	template.Form
 
-	Errors    form.Errors
-	Form      form.Form
 	Namespace *model.Namespace
 }
 %}
@@ -25,9 +23,10 @@ type EditPage struct {
 	<div class="panel">
 		<div class="panel-body slim">
 			<form method="POST" action="{%s p.Namespace.UIEndpoint() %}">
+				{%s= string(p.CSRF) %}
 				<input type="hidden" name="_method" value="PATCH"/>
 				{% if p.Errors.First("namespace") != "" %}
-					<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
+					{%= p.Error("namespace") %}
 				{% endif %}
 				<div class="form-field">
 					<label class="label" for="name">Name</label>
@@ -36,7 +35,7 @@ type EditPage struct {
 					{% else %}
 						<input class="form-text" type="text" name="name" value="{%s p.Namespace.Name %}" autocomplete="off"/>
 					{% endif %}
-					<div class="form-error">{%s p.Errors.First("name") %}</div>
+					{%= p.Error("name") %}
 				</div>
 				<div class="form-field">
 					<label class="label" for="name">Description <small>(optional)</small></label>
@@ -45,7 +44,7 @@ type EditPage struct {
 					{% else %}
 						<input class="form-text" type="text" name="description" value="{%s p.Namespace.Description %}" autocomplete="off"/>
 					{% endif %}
-					<div class="form-error">{%s p.Errors.First("description") %}</div>
+					{%= p.Error("description") %}
 				</div>
 				<div class="form-field">
 					<label class="form-option">

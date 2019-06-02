@@ -1,6 +1,5 @@
 {%
 import (
-	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -9,9 +8,8 @@ import (
 {% code
 type CreatePage struct {
 	*template.Page
+	template.Form
 
-	Errors form.Errors
-	Form   form.Form
 	Parent *model.Namespace
 }
 %}
@@ -24,21 +22,22 @@ type CreatePage struct {
 {% func (p *CreatePage) Body() %}
 	<div class="panel">
 		<form class="panel-body slim" method="POST" action="/namespaces">
+			{%s= string(p.CSRF) %}
 			{% if p.Parent != nil && !p.Parent.IsZero() %}
 				<input type="hidden" name="parent" value="{%s p.Parent.Path %}"/>
 			{% endif %}
 			{% if p.Errors.First("namespace") != "" %}
-				<div class="form-error">Failed to create namespace: {%s p.Errors.First("namespace") %}</div>
+				{%= p.Error("namespace") %}
 			{% endif %}
 			<div class="form-field">
 				<label class="label" for="name">Name</label>
 				<input class="form-text" type="text" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
-				<div class="form-error">{%s p.Errors.First("name") %}</div>
+				{%= p.Error("name") %}
 			</div>
 			<div class="form-field">
 				<label class="label" for="description">Description <small>(optional)</small></label>
 				<input class="form-text" type="text" name="description" value="{%s p.Form.Get("description") %}" autocomplete="off"/>
-				<div class="error">{%s p.Errors.First("description") %}</div>
+				{%= p.Error("description") %}
 			</div>
 			<div class="form-field">
 				<label class="form-option">

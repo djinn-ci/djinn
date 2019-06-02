@@ -8,6 +8,8 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/gorilla/csrf"
+
 	"github.com/RichardKnop/machinery/v1"
 )
 
@@ -17,6 +19,8 @@ type Server struct {
 
 	Queues map[string]*machinery.Server
 
+	CSRFToken []byte
+
 	HttpAddr  string
 	HttpsAddr string
 
@@ -25,6 +29,14 @@ type Server struct {
 }
 
 func (s *Server) Init(h http.Handler) {
+	if s.CSRFToken != nil {
+		h = csrf.Protect(
+			s.CSRFToken,
+			csrf.RequestHeader("X-CSRF-Token"),
+			csrf.FieldName("csrf_token"),
+		)(h)
+	}
+
 	s.http = &http.Server{
 		Addr:         s.HttpAddr,
 		WriteTimeout: time.Second * 15,

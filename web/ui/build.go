@@ -16,6 +16,7 @@ import (
 	"github.com/andrewpillar/thrall/template/build"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 
 	"github.com/RichardKnop/machinery/v1"
@@ -70,8 +71,11 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 
 func (h Build) Create(w http.ResponseWriter, r *http.Request) {
 	p := &build.CreatePage{
-		Errors: h.Errors(w, r),
-		Form:   h.Form(w, r),
+		Form: template.Form{
+			CSRF:   csrf.TemplateField(r),
+			Errors: h.Errors(w, r),
+			Form:   h.Form(w, r),
+		},
 	}
 
 	d := template.NewDashboard(p, r.URL.RequestURI())

@@ -12,6 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/template/auth"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/gorilla/csrf"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -30,8 +32,11 @@ func NewAuth(h web.Handler) Auth {
 func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &auth.RegisterPage{
-			Errors: h.Errors(w, r),
-			Form:   h.Form(w, r),
+			Form: template.Form{
+				CSRF: csrf.TemplateField(r),
+				Errors: h.Errors(w, r),
+				Form:   h.Form(w, r),
+			},
 		}
 
 		web.HTML(w, template.Render(p), http.StatusOK)
@@ -78,8 +83,11 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &auth.LoginPage{
-			Errors: h.Errors(w, r),
-			Form:   h.Form(w, r),
+			Form: template.Form{
+				CSRF: csrf.TemplateField(r),
+				Errors: h.Errors(w, r),
+				Form:   h.Form(w, r),
+			},
 		}
 
 		web.HTML(w, template.Render(p), http.StatusOK)

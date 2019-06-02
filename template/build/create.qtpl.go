@@ -5,113 +5,153 @@
 package build
 
 //line template/build/create.qtpl:2
-import (
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/template"
-)
+import "github.com/andrewpillar/thrall/template"
 
-//line template/build/create.qtpl:8
+//line template/build/create.qtpl:5
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line template/build/create.qtpl:8
+//line template/build/create.qtpl:5
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line template/build/create.qtpl:9
+//line template/build/create.qtpl:6
 type CreatePage struct {
 	*template.Page
-
-	Errors form.Errors
-	Form   form.Form
+	template.Form
 }
 
-//line template/build/create.qtpl:18
+//line template/build/create.qtpl:13
 func (p *CreatePage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/build/create.qtpl:18
+	//line template/build/create.qtpl:13
 	qw422016.N().S(` Submit Build - Thrall `)
-//line template/build/create.qtpl:20
+//line template/build/create.qtpl:15
 }
 
-//line template/build/create.qtpl:20
+//line template/build/create.qtpl:15
 func (p *CreatePage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/build/create.qtpl:20
+	//line template/build/create.qtpl:15
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/create.qtpl:20
+	//line template/build/create.qtpl:15
 	p.StreamTitle(qw422016)
-	//line template/build/create.qtpl:20
+	//line template/build/create.qtpl:15
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/create.qtpl:20
+//line template/build/create.qtpl:15
 }
 
-//line template/build/create.qtpl:20
+//line template/build/create.qtpl:15
 func (p *CreatePage) Title() string {
-	//line template/build/create.qtpl:20
+	//line template/build/create.qtpl:15
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/create.qtpl:20
+	//line template/build/create.qtpl:15
 	p.WriteTitle(qb422016)
-	//line template/build/create.qtpl:20
+	//line template/build/create.qtpl:15
 	qs422016 := string(qb422016.B)
-	//line template/build/create.qtpl:20
+	//line template/build/create.qtpl:15
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/create.qtpl:20
+	//line template/build/create.qtpl:15
 	return qs422016
-//line template/build/create.qtpl:20
+//line template/build/create.qtpl:15
 }
 
-//line template/build/create.qtpl:22
+//line template/build/create.qtpl:17
 func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/build/create.qtpl:22
+	//line template/build/create.qtpl:17
 	qw422016.N().S(` <div class="panel"> <form class="panel-body slim" method="POST" action="/builds"> `)
-	//line template/build/create.qtpl:25
+	//line template/build/create.qtpl:20
+	qw422016.N().S(string(p.CSRF))
+	//line template/build/create.qtpl:20
+	qw422016.N().S(` `)
+	//line template/build/create.qtpl:21
 	if p.Errors.First("build") != "" {
-		//line template/build/create.qtpl:25
-		qw422016.N().S(` <div class="form-error">Failed to submit build: `)
-		//line template/build/create.qtpl:26
-		qw422016.E().S(p.Errors.First("build"))
-		//line template/build/create.qtpl:26
-		qw422016.N().S(`</div> `)
-		//line template/build/create.qtpl:27
+		//line template/build/create.qtpl:21
+		qw422016.N().S(` `)
+		//line template/build/create.qtpl:22
+		p.StreamError(qw422016, "build")
+		//line template/build/create.qtpl:22
+		qw422016.N().S(` `)
+		//line template/build/create.qtpl:23
 	}
-	//line template/build/create.qtpl:27
+	//line template/build/create.qtpl:23
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> <input class="form-text" type="text" id="namespace" name="namespace" value="`)
-	//line template/build/create.qtpl:30
+	//line template/build/create.qtpl:26
 	qw422016.E().S(p.Form.Get("namespace"))
-	//line template/build/create.qtpl:30
+	//line template/build/create.qtpl:26
 	qw422016.N().S(`" autocomplete="off"/> </div> <div class="form-field"> <label class="label" for="manifest">Manifest</label> <textarea class="form-text form-code" id="manifest" name="manifest">`)
-	//line template/build/create.qtpl:34
+	//line template/build/create.qtpl:30
 	qw422016.E().S(p.Form.Get("manifest"))
-	//line template/build/create.qtpl:34
-	qw422016.N().S(`</textarea> <div class="form-error">`)
-	//line template/build/create.qtpl:35
-	qw422016.E().S(p.Errors.First("manifest"))
-	//line template/build/create.qtpl:35
-	qw422016.N().S(`</div> </div> <div class="form-field"> <label class="label" for="tags">Tags <small>(optional)</small></label> <input class="form-text" type="text" id="tags" name="tags" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Submit</button> </div> </form> </div> `)
+	//line template/build/create.qtpl:30
+	qw422016.N().S(`</textarea> `)
+	//line template/build/create.qtpl:31
+	p.StreamError(qw422016, "manifest")
+	//line template/build/create.qtpl:31
+	qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="tags">Tags <small>(optional)</small></label> <input class="form-text" type="text" id="tags" name="tags" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Submit</button> </div> </form> </div> `)
+//line template/build/create.qtpl:42
+}
+
+//line template/build/create.qtpl:42
+func (p *CreatePage) WriteBody(qq422016 qtio422016.Writer) {
+	//line template/build/create.qtpl:42
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/build/create.qtpl:42
+	p.StreamBody(qw422016)
+	//line template/build/create.qtpl:42
+	qt422016.ReleaseWriter(qw422016)
+//line template/build/create.qtpl:42
+}
+
+//line template/build/create.qtpl:42
+func (p *CreatePage) Body() string {
+	//line template/build/create.qtpl:42
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/build/create.qtpl:42
+	p.WriteBody(qb422016)
+	//line template/build/create.qtpl:42
+	qs422016 := string(qb422016.B)
+	//line template/build/create.qtpl:42
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/build/create.qtpl:42
+	return qs422016
+//line template/build/create.qtpl:42
+}
+
+//line template/build/create.qtpl:44
+func (p *CreatePage) StreamHeader(qw422016 *qt422016.Writer) {
+	//line template/build/create.qtpl:44
+	qw422016.N().S(` <a href="/" class="back">`)
+	//line template/build/create.qtpl:45
+	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
+</svg>
+`)
+	//line template/build/create.qtpl:45
+	qw422016.N().S(`</a> Submit Build `)
 //line template/build/create.qtpl:46
 }
 
 //line template/build/create.qtpl:46
-func (p *CreatePage) WriteBody(qq422016 qtio422016.Writer) {
+func (p *CreatePage) WriteHeader(qq422016 qtio422016.Writer) {
 	//line template/build/create.qtpl:46
 	qw422016 := qt422016.AcquireWriter(qq422016)
 	//line template/build/create.qtpl:46
-	p.StreamBody(qw422016)
+	p.StreamHeader(qw422016)
 	//line template/build/create.qtpl:46
 	qt422016.ReleaseWriter(qw422016)
 //line template/build/create.qtpl:46
 }
 
 //line template/build/create.qtpl:46
-func (p *CreatePage) Body() string {
+func (p *CreatePage) Header() string {
 	//line template/build/create.qtpl:46
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line template/build/create.qtpl:46
-	p.WriteBody(qb422016)
+	p.WriteHeader(qb422016)
 	//line template/build/create.qtpl:46
 	qs422016 := string(qb422016.B)
 	//line template/build/create.qtpl:46
@@ -122,104 +162,63 @@ func (p *CreatePage) Body() string {
 }
 
 //line template/build/create.qtpl:48
-func (p *CreatePage) StreamHeader(qw422016 *qt422016.Writer) {
-	//line template/build/create.qtpl:48
-	qw422016.N().S(` <a href="/" class="back">`)
-	//line template/build/create.qtpl:49
-	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
-</svg>
-`)
-	//line template/build/create.qtpl:49
-	qw422016.N().S(`</a> Submit Build `)
-//line template/build/create.qtpl:50
-}
-
-//line template/build/create.qtpl:50
-func (p *CreatePage) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/build/create.qtpl:50
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/create.qtpl:50
-	p.StreamHeader(qw422016)
-	//line template/build/create.qtpl:50
-	qt422016.ReleaseWriter(qw422016)
-//line template/build/create.qtpl:50
-}
-
-//line template/build/create.qtpl:50
-func (p *CreatePage) Header() string {
-	//line template/build/create.qtpl:50
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/create.qtpl:50
-	p.WriteHeader(qb422016)
-	//line template/build/create.qtpl:50
-	qs422016 := string(qb422016.B)
-	//line template/build/create.qtpl:50
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/create.qtpl:50
-	return qs422016
-//line template/build/create.qtpl:50
-}
-
-//line template/build/create.qtpl:52
 func (p *CreatePage) StreamActions(qw422016 *qt422016.Writer) {
-//line template/build/create.qtpl:52
+//line template/build/create.qtpl:48
 }
 
-//line template/build/create.qtpl:52
+//line template/build/create.qtpl:48
 func (p *CreatePage) WriteActions(qq422016 qtio422016.Writer) {
-	//line template/build/create.qtpl:52
+	//line template/build/create.qtpl:48
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/create.qtpl:52
+	//line template/build/create.qtpl:48
 	p.StreamActions(qw422016)
-	//line template/build/create.qtpl:52
+	//line template/build/create.qtpl:48
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/create.qtpl:52
+//line template/build/create.qtpl:48
 }
 
-//line template/build/create.qtpl:52
+//line template/build/create.qtpl:48
 func (p *CreatePage) Actions() string {
-	//line template/build/create.qtpl:52
+	//line template/build/create.qtpl:48
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/create.qtpl:52
+	//line template/build/create.qtpl:48
 	p.WriteActions(qb422016)
-	//line template/build/create.qtpl:52
+	//line template/build/create.qtpl:48
 	qs422016 := string(qb422016.B)
-	//line template/build/create.qtpl:52
+	//line template/build/create.qtpl:48
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/create.qtpl:52
+	//line template/build/create.qtpl:48
 	return qs422016
-//line template/build/create.qtpl:52
+//line template/build/create.qtpl:48
 }
 
-//line template/build/create.qtpl:53
+//line template/build/create.qtpl:49
 func (p *CreatePage) StreamNavigation(qw422016 *qt422016.Writer) {
-//line template/build/create.qtpl:53
+//line template/build/create.qtpl:49
 }
 
-//line template/build/create.qtpl:53
+//line template/build/create.qtpl:49
 func (p *CreatePage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/build/create.qtpl:53
+	//line template/build/create.qtpl:49
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/build/create.qtpl:53
+	//line template/build/create.qtpl:49
 	p.StreamNavigation(qw422016)
-	//line template/build/create.qtpl:53
+	//line template/build/create.qtpl:49
 	qt422016.ReleaseWriter(qw422016)
-//line template/build/create.qtpl:53
+//line template/build/create.qtpl:49
 }
 
-//line template/build/create.qtpl:53
+//line template/build/create.qtpl:49
 func (p *CreatePage) Navigation() string {
-	//line template/build/create.qtpl:53
+	//line template/build/create.qtpl:49
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/build/create.qtpl:53
+	//line template/build/create.qtpl:49
 	p.WriteNavigation(qb422016)
-	//line template/build/create.qtpl:53
+	//line template/build/create.qtpl:49
 	qs422016 := string(qb422016.B)
-	//line template/build/create.qtpl:53
+	//line template/build/create.qtpl:49
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/build/create.qtpl:53
+	//line template/build/create.qtpl:49
 	return qs422016
-//line template/build/create.qtpl:53
+//line template/build/create.qtpl:49
 }

@@ -1,7 +1,10 @@
 {%
 import (
+	"html/template"
 	"strings"
 	"regexp"
+
+	"github.com/andrewpillar/thrall/form"
 )
 %}
 
@@ -20,6 +23,16 @@ interface page {
 {% code
 type Page struct {
 	URI string
+}
+
+type Form struct {
+	CSRF   template.HTML
+	Errors form.Errors
+	Form   form.Form
+}
+
+func (f Form) Get(field string) string {
+	return f.Form.Get(field)
 }
 %}
 
@@ -61,6 +74,10 @@ type Page struct {
 	<code><span class="line-number"></span><span></span></code>
 {% endfunc %}
 {% endstripspace %}
+
+{% func (f Form) Error(field string) %}
+	<div class="form-error">{%s f.Errors.First(field) %}</div>
+{% endfunc %}
 
 {% func (p *Page) Title() %}
 	Thrall

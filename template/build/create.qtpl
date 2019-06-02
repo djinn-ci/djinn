@@ -1,16 +1,11 @@
 {%
-import (
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/template"
-)
+import "github.com/andrewpillar/thrall/template"
 %}
 
 {% code
 type CreatePage struct {
 	*template.Page
-
-	Errors form.Errors
-	Form   form.Form
+	template.Form
 }
 %}
 
@@ -22,8 +17,9 @@ type CreatePage struct {
 {% func (p *CreatePage) Body() %}
 	<div class="panel">
 		<form class="panel-body slim" method="POST" action="/builds">
+			{%s= string(p.CSRF) %}
 			{% if p.Errors.First("build") != "" %}
-				<div class="form-error">Failed to submit build: {%s p.Errors.First("build") %}</div>
+				{%= p.Error("build") %}
 			{% endif %}
 			<div class="form-field">
 				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
@@ -32,7 +28,7 @@ type CreatePage struct {
 			<div class="form-field">
 				<label class="label" for="manifest">Manifest</label>
 				<textarea class="form-text form-code" id="manifest" name="manifest">{%s p.Form.Get("manifest") %}</textarea>
-				<div class="form-error">{%s p.Errors.First("manifest") %}</div>
+				{%= p.Error("manifest") %}
 			</div>
 			<div class="form-field">
 				<label class="label" for="tags">Tags <small>(optional)</small></label>

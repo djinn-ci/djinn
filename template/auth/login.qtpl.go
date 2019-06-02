@@ -5,151 +5,150 @@
 package auth
 
 //line template/auth/login.qtpl:2
-import (
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/template"
-)
+import "github.com/andrewpillar/thrall/template"
 
-//line template/auth/login.qtpl:8
+//line template/auth/login.qtpl:5
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line template/auth/login.qtpl:8
+//line template/auth/login.qtpl:5
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line template/auth/login.qtpl:9
+//line template/auth/login.qtpl:6
 type LoginPage struct {
 	*template.Page
-
-	Errors form.Errors
-	Form   form.Form
+	template.Form
 }
 
-//line template/auth/login.qtpl:18
+//line template/auth/login.qtpl:13
 func (p *LoginPage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/auth/login.qtpl:18
+	//line template/auth/login.qtpl:13
 	qw422016.N().S(` Login - Thrall `)
-//line template/auth/login.qtpl:20
+//line template/auth/login.qtpl:15
 }
 
-//line template/auth/login.qtpl:20
+//line template/auth/login.qtpl:15
 func (p *LoginPage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/auth/login.qtpl:20
+	//line template/auth/login.qtpl:15
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/login.qtpl:20
+	//line template/auth/login.qtpl:15
 	p.StreamTitle(qw422016)
-	//line template/auth/login.qtpl:20
+	//line template/auth/login.qtpl:15
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/login.qtpl:20
+//line template/auth/login.qtpl:15
 }
 
-//line template/auth/login.qtpl:20
+//line template/auth/login.qtpl:15
 func (p *LoginPage) Title() string {
-	//line template/auth/login.qtpl:20
+	//line template/auth/login.qtpl:15
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/login.qtpl:20
+	//line template/auth/login.qtpl:15
 	p.WriteTitle(qb422016)
-	//line template/auth/login.qtpl:20
+	//line template/auth/login.qtpl:15
 	qs422016 := string(qb422016.B)
-	//line template/auth/login.qtpl:20
+	//line template/auth/login.qtpl:15
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/login.qtpl:20
+	//line template/auth/login.qtpl:15
 	return qs422016
-//line template/auth/login.qtpl:20
+//line template/auth/login.qtpl:15
 }
 
-//line template/auth/login.qtpl:22
+//line template/auth/login.qtpl:17
 func (p *LoginPage) StreamStyles(qw422016 *qt422016.Writer) {
-	//line template/auth/login.qtpl:22
+	//line template/auth/login.qtpl:17
 	qw422016.N().S(` <link rel="stylesheet" type="text/css" href="/assets/css/auth.css"> `)
-//line template/auth/login.qtpl:24
+//line template/auth/login.qtpl:19
 }
 
-//line template/auth/login.qtpl:24
+//line template/auth/login.qtpl:19
 func (p *LoginPage) WriteStyles(qq422016 qtio422016.Writer) {
-	//line template/auth/login.qtpl:24
+	//line template/auth/login.qtpl:19
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/login.qtpl:24
+	//line template/auth/login.qtpl:19
 	p.StreamStyles(qw422016)
-	//line template/auth/login.qtpl:24
+	//line template/auth/login.qtpl:19
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/login.qtpl:24
+//line template/auth/login.qtpl:19
 }
 
-//line template/auth/login.qtpl:24
+//line template/auth/login.qtpl:19
 func (p *LoginPage) Styles() string {
-	//line template/auth/login.qtpl:24
+	//line template/auth/login.qtpl:19
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/login.qtpl:24
+	//line template/auth/login.qtpl:19
 	p.WriteStyles(qb422016)
-	//line template/auth/login.qtpl:24
+	//line template/auth/login.qtpl:19
 	qs422016 := string(qb422016.B)
-	//line template/auth/login.qtpl:24
+	//line template/auth/login.qtpl:19
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/login.qtpl:24
+	//line template/auth/login.qtpl:19
 	return qs422016
-//line template/auth/login.qtpl:24
+//line template/auth/login.qtpl:19
 }
 
-//line template/auth/login.qtpl:26
+//line template/auth/login.qtpl:21
 func (p *LoginPage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/auth/login.qtpl:26
+	//line template/auth/login.qtpl:21
 	qw422016.N().S(` <div class="auth-page"> <div class="auth-form"> <div class="auth-header"> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> <h1>Login to Thrall</h1> </div> <form method="POST" action="/login"> `)
-	//line template/auth/login.qtpl:37
+	//line template/auth/login.qtpl:32
+	qw422016.N().S(string(p.CSRF))
+	//line template/auth/login.qtpl:32
+	qw422016.N().S(` `)
+	//line template/auth/login.qtpl:33
 	if p.Errors.First("login") != "" {
-		//line template/auth/login.qtpl:37
-		qw422016.N().S(` <span class="error">Failed to login: `)
-		//line template/auth/login.qtpl:38
-		qw422016.E().S(p.Errors.First("login"))
-		//line template/auth/login.qtpl:38
-		qw422016.N().S(`</span> `)
-		//line template/auth/login.qtpl:39
+		//line template/auth/login.qtpl:33
+		qw422016.N().S(` `)
+		//line template/auth/login.qtpl:34
+		p.StreamError(qw422016, "login")
+		//line template/auth/login.qtpl:34
+		qw422016.N().S(` `)
+		//line template/auth/login.qtpl:35
 	}
-	//line template/auth/login.qtpl:39
+	//line template/auth/login.qtpl:35
 	qw422016.N().S(` <div class="input-field"> <label>Email / Username</label> <input class="text" type="text" name="handle" value="`)
-	//line template/auth/login.qtpl:42
+	//line template/auth/login.qtpl:38
 	qw422016.E().S(p.Form.Get("handle"))
-	//line template/auth/login.qtpl:42
-	qw422016.N().S(`" autocomplete="off"/> <span class="error">`)
-	//line template/auth/login.qtpl:43
-	qw422016.E().S(p.Errors.First("handle"))
-	//line template/auth/login.qtpl:43
-	qw422016.N().S(`</span> </div> <div class="input-field"> <label>Password</label> <input class="text" type="password" name="password" autocomplete="off"/> <span class="error">`)
-	//line template/auth/login.qtpl:48
-	qw422016.E().S(p.Errors.First("password"))
-	//line template/auth/login.qtpl:48
-	qw422016.N().S(`</span> </div> <div class="input-field"> <label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label> </div> <div class="input-field"> <button type="submit" class="btn btn-primary">Login</button> </div> <div class="input-field">Don't have an account? <a href="/register">Register</a></div> </form> </div> </div> `)
-//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:38
+	qw422016.N().S(`" autocomplete="off"/> `)
+	//line template/auth/login.qtpl:39
+	p.StreamError(qw422016, "handle")
+	//line template/auth/login.qtpl:39
+	qw422016.N().S(` </div> <div class="input-field"> <label>Password</label> <input class="text" type="password" name="password" autocomplete="off"/> `)
+	//line template/auth/login.qtpl:44
+	p.StreamError(qw422016, "password")
+	//line template/auth/login.qtpl:44
+	qw422016.N().S(` </div> <div class="input-field"> <label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label> </div> <div class="input-field"> <button type="submit" class="btn btn-primary">Login</button> </div> <div class="input-field">Don't have an account? <a href="/register">Register</a></div> </form> </div> </div> `)
+//line template/auth/login.qtpl:56
 }
 
-//line template/auth/login.qtpl:60
+//line template/auth/login.qtpl:56
 func (p *LoginPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:56
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:56
 	p.StreamBody(qw422016)
-	//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:56
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/login.qtpl:60
+//line template/auth/login.qtpl:56
 }
 
-//line template/auth/login.qtpl:60
+//line template/auth/login.qtpl:56
 func (p *LoginPage) Body() string {
-	//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:56
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:56
 	p.WriteBody(qb422016)
-	//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:56
 	qs422016 := string(qb422016.B)
-	//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:56
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/auth/login.qtpl:60
+	//line template/auth/login.qtpl:56
 	return qs422016
-//line template/auth/login.qtpl:60
+//line template/auth/login.qtpl:56
 }

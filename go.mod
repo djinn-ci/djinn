@@ -12,6 +12,7 @@ require (
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/go-redis/redis v6.15.2+incompatible
+	github.com/gorilla/csrf v1.5.1
 	github.com/gorilla/mux v1.7.2
 	github.com/gorilla/schema v1.1.0
 	github.com/gorilla/securecookie v1.1.1

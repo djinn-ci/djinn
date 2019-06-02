@@ -1,16 +1,11 @@
 {%
-import (
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/template"
-)
+import "github.com/andrewpillar/thrall/template"
 %}
 
 {% code
 type RegisterPage struct {
 	*template.Page
-
-	Errors form.Errors
-	Form   form.Form
+	template.Form
 }
 %}
 
@@ -34,28 +29,29 @@ type RegisterPage struct {
 				<h1>Signup to Thrall</h1>
 			</div>
 			<form method="POST" action="/register">
+				{%s= string(p.CSRF) %}
 				{% if p.Errors.First("register") != "" %}
 					<span class="error">Failed to register account: {%s p.Errors.First("register") %}</span>
 				{% endif %}
 				<div class="input-field">
 					<label>Email</label>
 					<input class="text" type="text" name="email" value="{%s p.Form.Get("email") %}" autocomplete="off"/>
-					<span class="error">{%s p.Errors.First("email") %}</span>
+					{%= p.Error("email") %}
 				</div>
 				<div class="input-field">
 					<label>Username</label>
 					<input class="text" type="text" name="username" value="{%s p.Form.Get("username") %}" autocomplete="off"/>
-					<span class="error">{%s p.Errors.First("username") %}</span>
+					{%= p.Error("username") %}
 				</div>
 				<div class="input-field">
 					<label>Password</label>
 					<input class="text" type="password" name="password" autocomplete="off"/>
-					<span class="error">{%s p.Errors.First("password") %}</span>
+					{%= p.Error("password") %}
 				</div>
 				<div class="input-field">
 					<label>Verify Password</label>
 					<input class="text" type="password" name="verify_password" autocomplete="off"/>
-					<span class="error">{%s p.Errors.First("verify_password") %}</span>
+					{%= p.Error("verify_password") %}
 				</div>
 				<div class="input-field">
 					<button type="submit" class="btn btn-primary">Register</button>

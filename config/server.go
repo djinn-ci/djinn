@@ -25,6 +25,7 @@ type Server struct {
 		Hash string
 		Key  string
 		Salt string
+		Auth string
 	}
 
 	Database struct {

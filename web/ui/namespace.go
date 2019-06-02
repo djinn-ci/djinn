@@ -14,6 +14,7 @@ import (
 	"github.com/andrewpillar/thrall/template/namespace"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 )
 
@@ -106,8 +107,11 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &namespace.CreatePage{
-		Errors: h.Errors(w, r),
-		Form:   h.Form(w, r),
+		Form: template.Form{
+			CSRF:   csrf.TemplateField(r),
+			Errors: h.Errors(w, r),
+			Form:   h.Form(w, r),
+		},
 	}
 
 	if !parent.IsZero() {
@@ -362,8 +366,11 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &namespace.EditPage{
-		Errors:    h.Errors(w, r),
-		Form:      h.Form(w, r),
+		Form: template.Form{
+			CSRF:   csrf.TemplateField(r),
+			Errors: h.Errors(w, r),
+			Form:   h.Form(w, r),
+		},
 		Namespace: n,
 	}
 

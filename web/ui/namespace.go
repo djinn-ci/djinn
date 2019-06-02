@@ -106,7 +106,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := &namespace.CreatePage{
+	p := &namespace.Form{
 		Form: template.Form{
 			CSRF:   csrf.TemplateField(r),
 			Errors: h.Errors(w, r),
@@ -365,7 +365,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := &namespace.EditPage{
+	p := &namespace.Form{
 		Form: template.Form{
 			CSRF:   csrf.TemplateField(r),
 			Errors: h.Errors(w, r),

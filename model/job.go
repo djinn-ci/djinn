@@ -244,7 +244,9 @@ func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
 		return jj, nil
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM jobs WHERE stage_id IN (?)", ids)
+	query, args, err := sqlx.In(`
+		SELECT * FROM jobs WHERE stage_id IN (?) ORDER BY created_at ASC
+	`, ids)
 
 	if err != nil {
 		return jj, errors.Err(err)

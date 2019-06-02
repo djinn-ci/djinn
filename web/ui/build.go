@@ -213,13 +213,44 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	showObjects := filepath.Base(r.URL.Path) == "objects"
+	showArtifacts := filepath.Base(r.URL.Path) == "artifacts"
+	showVariables := filepath.Base(r.URL.Path) == "variables"
+
+	if showObjects {
+		if err := b.LoadObjects(); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if showArtifacts {
+		if err := b.LoadArtifacts(); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if showVariables {
+		if err := b.LoadVariables(); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
 	p := &build.ShowPage{
 		Page: template.Page{
 			URI: r.URL.Path,
 		},
-		Build:        b,
-		ShowManifest: filepath.Base(r.URL.Path) == "manifest",
-		ShowOutput:   filepath.Base(r.URL.Path) == "output",
+		Build:         b,
+		ShowManifest:  filepath.Base(r.URL.Path) == "manifest",
+		ShowObjects:   showObjects,
+		ShowArtifacts: showArtifacts,
+		ShowVariables: showVariables,
+		ShowOutput:    filepath.Base(r.URL.Path) == "output",
 	}
 
 	d := template.NewDashboard(p, r.URL.Path)

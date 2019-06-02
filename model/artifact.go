@@ -69,6 +69,42 @@ func (a *Artifact) Update() error {
 	return errors.Err(row.Scan(&a.UpdatedAt))
 }
 
+func (as ArtifactStore) All() ([]*Artifact, error) {
+	aa := make([]*Artifact, 0)
+
+	query := "SELECT * FROM artifacts"
+	args := []interface{}{}
+
+	if as.Build != nil {
+		query += " WHERE build_id = $1"
+		args = append(args, as.Build.ID)
+	}
+
+	if as.Job != nil {
+		if as.Build != nil {
+			query += " AND job_id = $2"
+		} else {
+			query += " WHERE job_id = $1"
+		}
+
+		args = append(args, as.Job.ID)
+	}
+
+	err := as.Select(&aa, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, a := range aa {
+		a.DB = as.DB
+		a.Build = as.Build
+		a.Job = as.Job
+	}
+
+	return aa, errors.Err(err)
+}
+
 func (as ArtifactStore) Find(id int64) (*Artifact, error) {
 	a := &Artifact{
 		model: model{

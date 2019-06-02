@@ -145,6 +145,14 @@ func (b *Build) Update() error {
 	return errors.Err(row.Scan(&b.UpdatedAt))
 }
 
+func (b *Build) LoadArtifacts() error {
+	var err error
+
+	b.Artifacts, err = b.ArtifactStore().All()
+
+	return errors.Err(err)
+}
+
 func (b *Build) LoadDriver() error {
 	var err error
 

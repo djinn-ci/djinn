@@ -11,8 +11,11 @@ type ShowPage struct {
 
 	Build  *model.Build
 
-	ShowManifest bool
-	ShowOutput   bool
+	ShowManifest  bool
+	ShowObjects   bool
+	ShowArtifacts bool
+	ShowVariables bool
+	ShowOutput    bool
 }
 %}
 

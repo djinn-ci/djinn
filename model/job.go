@@ -289,6 +289,18 @@ func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
 	return jj, errors.Err(err)
 }
 
+func (j *Job) LoadDependencies() error {
+	query := `
+		SELECT * FROM jobs
+		WHERE id IN (
+			SELECT dependency_id FROM job_dependencies
+			WHERE job_id = $1
+		)
+	`
+
+	return errors.Err(j.Select(&j.Dependencies, query, j.ID))
+}
+
 func (js JobStore) LoadDependencies(jj []*Job) error {
 	if len(jj) == 0 {
 		return nil

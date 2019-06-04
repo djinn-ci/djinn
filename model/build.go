@@ -306,8 +306,11 @@ func (b Build) Submit(srv *machinery.Server) error {
 		}
 	}
 
+	jdd := make([]*JobDependency, 0)
+
 	setupJobs := setupStage.JobStore()
-	parent := int64(0)
+
+	prev := createJob
 
 	for i, src := range m.Sources {
 		commands := []string{
@@ -324,18 +327,16 @@ func (b Build) Submit(srv *machinery.Server) error {
 		j.Name = fmt.Sprintf("clone.%d", i + 1)
 		j.Commands = strings.Join(commands, "\n")
 
-		if parent > 0 {
-			j.ParentID = sql.NullInt64{
-				Int64: parent,
-				Valid: true,
-			}
-		}
-
 		if err := j.Create(); err != nil {
 			return errors.Err(err)
 		}
 
-		parent = j.ID
+		jd := j.JobDependencyStore().New()
+		jd.DependencyID = prev.ID
+
+		jdd = append(jdd, jd)
+
+		prev = j
 	}
 
 	stages := b.StageStore()
@@ -365,6 +366,8 @@ func (b Build) Submit(srv *machinery.Server) error {
 	stage := ""
 	jobId := 0
 
+	stageJobs := make(map[string]*Job)
+
 	for _, job := range m.Jobs {
 		s, ok := stageModels[job.Stage]
 
@@ -388,6 +391,27 @@ func (b Build) Submit(srv *machinery.Server) error {
 		j.Commands = strings.Join(job.Commands, "\n")
 
 		if err := j.Create(); err != nil {
+			return errors.Err(err)
+		}
+
+		stageJobs[s.Name + j.Name] = j
+
+		for _, d := range job.Depends {
+			dep, ok := stageJobs[s.Name + d]
+
+			if !ok {
+				continue
+			}
+
+			jd := j.JobDependencyStore().New()
+			jd.DependencyID = dep.ID
+
+			jdd = append(jdd, jd)
+		}
+	}
+
+	for _, jd := range jdd {
+		if err := jd.Create(); err != nil {
 			return errors.Err(err)
 		}
 	}

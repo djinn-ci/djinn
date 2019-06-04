@@ -16,7 +16,6 @@ type Job struct {
 
 	BuildID    int64          `db:"build_id"`
 	StageID    int64          `db:"stage_id"`
-	ParentID   sql.NullInt64  `db:"parent_id"`
 	Name       string         `db:"name"`
 	Commands   string         `db:"commands"`
 	Status     runner.Status  `db:"status"`
@@ -30,11 +29,24 @@ type Job struct {
 	Dependencies []*Job
 }
 
+type JobDependency struct {
+	model
+
+	JobID        int64 `db:"job_id"`
+	DependencyID int64 `db:"dependency_id"`
+}
+
 type JobStore struct {
 	*sqlx.DB
 
 	Build *Build
 	Stage *Stage
+}
+
+type JobDependencyStore struct {
+	*sqlx.DB
+
+	Job *Job
 }
 
 func (j *Job) ArtifactStore() ArtifactStore {
@@ -45,10 +57,17 @@ func (j *Job) ArtifactStore() ArtifactStore {
 	}
 }
 
+func (j *Job) JobDependencyStore() JobDependencyStore {
+	return JobDependencyStore{
+		DB:  j.DB,
+		Job: j,
+	}
+}
+
 func (j *Job) Create() error {
 	stmt, err := j.Prepare(`
-		INSERT INTO jobs (build_id, stage_id, parent_id, name, commands)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO jobs (build_id, stage_id, name, commands)
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -58,7 +77,7 @@ func (j *Job) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(j.BuildID, j.StageID, j.ParentID, j.Name, j.Commands)
+	row := stmt.QueryRow(j.BuildID, j.StageID, j.Name, j.Commands)
 
 	return errors.Err(row.Scan(&j.ID, &j.CreatedAt, &j.UpdatedAt))
 }
@@ -67,7 +86,6 @@ func (j *Job) IsZero() bool {
 	return j.model.IsZero() &&
            j.BuildID == 0 &&
            j.StageID == 0 &&
-           !j.ParentID.Valid &&
            j.Name == "" &&
            j.Commands == "" &&
            j.Status == runner.Status(0) &&
@@ -93,6 +111,38 @@ func (j *Job) Update() error {
 	row := stmt.QueryRow(j.Output, j.Status, j.StartedAt, j.FinishedAt, j.ID)
 
 	return errors.Err(row.Scan(&j.UpdatedAt))
+}
+
+func (jd *JobDependency) Create() error {
+	stmt, err := jd.Prepare(`
+		INSERT INTO job_dependencies (job_id, dependency_id)
+		VALUES ($1, $2)
+		RETURNING id
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(jd.JobID, jd.DependencyID)
+
+	return errors.Err(row.Scan(&jd.ID))
+}
+
+func (jds JobDependencyStore) New() *JobDependency {
+	jd := &JobDependency{
+		model: model{
+			DB: jds.DB,
+		},
+	}
+
+	if jds.Job != nil {
+		jd.JobID = jds.Job.ID
+	}
+
+	return jd
 }
 
 func (js JobStore) All() ([]*Job, error) {
@@ -209,34 +259,6 @@ func (js JobStore) FindByName(name string) (*Job, error) {
 	return j, errors.Err(err)
 }
 
-func (js JobStore) InParentID(ids ...int64) ([]*Job, error) {
-	jj := make([]*Job, 0)
-
-	if len(ids) == 0 {
-		return jj, nil
-	}
-
-	query, args, err := sqlx.In("SELECT * FROM jobs WHERE parent_id IN (?)", ids)
-
-	if err != nil {
-		return jj, errors.Err(err)
-	}
-
-	err = js.Select(&jj, js.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, j := range jj {
-		j.DB = js.DB
-		j.Build = js.Build
-		j.Stage = js.Stage
-	}
-
-	return jj, errors.Err(err)
-}
-
 func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
 	jj := make([]*Job, 0)
 
@@ -273,38 +295,38 @@ func (js JobStore) LoadDependencies(jj []*Job) error {
 	}
 
 	ids := make([]int64, len(jj))
+	jobs := make(map[int64]*Job)
 
 	for i, j := range jj {
 		ids[i] = j.ID
+		jobs[j.ID] = j
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM jobs WHERE parent_id IN (?)", ids)
+	query, args, err := sqlx.In("SELECT * FROM job_dependencies WHERE job_id IN (?)")
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	deps := make([]*Job, 0)
+	jdd := make([]*JobDependency, 0)
 
-	err = js.Select(&deps, js.Rebind(query), args...)
+	err = js.Select(&jdd, js.Rebind(query), args...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
 
-	for _, j := range jj {
-		j.DB = js.DB
+	for _, jd := range jdd {
+		job, ok := jobs[jd.JobID]
 
-		for _, d := range deps {
-			d.DB = js.DB
-
-			if d.ID == j.ParentID.Int64 && j.ParentID.Valid {
-				j.Dependencies = append(j.Dependencies, d)
-			}
+		if !ok {
+			continue
 		}
+
+		job.Dependencies = append(job.Dependencies, jobs[jd.DependencyID])
 	}
 
-	return nil
+	return errors.Err(err)
 }
 
 func (js JobStore) New() *Job {

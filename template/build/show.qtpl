@@ -26,9 +26,15 @@ type ShowPage struct {
 
 {% func (p *ShowPage) Body() %}
 	{% if p.ShowManifest %}
-		{%= p.RenderManifest() %}
+		{%= p.renderManifest() %}
+	{% elseif p.ShowObjects %}
+		{%= p.renderObjects() %}
+	{% elseif p.ShowArtifacts %}
+		{%= p.renderArtifacts() %}
+	{% elseif p.ShowVariables %}
+		{%= p.renderVariables() %}
 	{% elseif p.ShowOutput %}
-		{%= p.RenderOutput() %}
+		{%= p.renderOutput() %}
 	{% else %}
 		<div class="panel">
 			<table class="table">
@@ -107,7 +113,7 @@ type ShowPage struct {
 	{% endstripspace %}
 {% endfunc %}
 
-{% func (p *ShowPage) RenderManifest() %}
+{% func (p *ShowPage) renderManifest() %}
 	<div class="panel">
 		<div class="panel-header">
 			<ul class="panel-actions">
@@ -118,7 +124,53 @@ type ShowPage struct {
 	</div>
 {% endfunc %}
 
-{% func (p *ShowPage) RenderOutput() %}
+{% func (p *ShowPage) renderObjects() %}
+	<div class="panel">
+		{% if len(p.Build.Objects) > 0 %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>SOURCE</th>
+						<th>NAME</th>
+						<th>PLACED</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, o := range p.Build.Objects %}
+						<tr>
+							<td>{%s o.Source %}</td>
+							<td><code>{%s o.Name %}</code></td>
+							<td>{% if o.Placed %}{% cat "../../svgs/check.svg" %}{% else %}{% cat "../../svgs/close.svg" %}{% endif %}</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% else %}
+			<div class="panel-message muted">No objects have been placed for this build.</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *ShowPage) renderArtifacts() %}
+	<div class="panel">
+		{% if len(p.Build.Artifacts) > 0 %}
+		{% else %}
+			<div class="panel-message muted">No artifacts have been collected from this build.</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *ShowPage) renderVariables() %}
+	<div class="panel">
+		{% if len(p.Build.Variables) > 0 %}
+
+		{% else %}
+			<div class="panel-message muted">No variables have been set for this build.</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *ShowPage) renderOutput() %}
 	<div class="panel">
 		{% if p.Build.Output.Valid %}
 			<div class="panel-header">

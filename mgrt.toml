@@ -1,0 +1,13 @@
+
+
+type = "postgres"
+
+address = "localhost:5432"
+
+username = "thrall"
+password = "secret"
+
+database = "thrall"
+
+[ssl]
+mode = "disable"

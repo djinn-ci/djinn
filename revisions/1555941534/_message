@@ -1,4 +1,3 @@
-Author: Andrew Pillar <andrewjohnpillar@gmail.com>
 Create objects tables
 
 build_objects will store the objects placed on to each build environment.

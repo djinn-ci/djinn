@@ -231,6 +231,12 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
+
+		if err := b.BuildObjectStore().LoadObjects(b.Objects); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	if showVariables {

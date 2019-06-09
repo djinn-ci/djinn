@@ -1,5 +1,7 @@
 {%
 import (
+	"fmt"
+
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -120,7 +122,7 @@ type ShowPage struct {
 				<li><a class="btn btn-primary" href="/builds/{%v p.Build.ID %}/manifest/raw">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
 			</ul>
 		</div>
-		<pre class="code">{%= template.RenderCode(p.Build.Manifest) %}</pre>
+		{%= template.RenderCode(p.Build.Manifest) %}
 	</div>
 {% endfunc %}
 
@@ -132,15 +134,32 @@ type ShowPage struct {
 					<tr>
 						<th>SOURCE</th>
 						<th>NAME</th>
-						<th>PLACED</th>
+						<th>HASHES</th>
+						<th></th>
 					</tr>
 				</thead>
 				<tbody>
 					{% for _, o := range p.Build.Objects %}
 						<tr>
-							<td>{%s o.Source %}</td>
+							<td>
+								{% if o.Object != nil %}
+									<a href="/objects/{%v o.Object.ID %}">{%s o.Source %}</a>
+								{% else %}
+									<a title="Object not found"><strike>{%s o.Source %}</strike></a>
+								{% endif %}
+							</td>
 							<td><code>{%s o.Name %}</code></td>
-							<td>{% if o.Placed %}{% cat "../../svgs/check.svg" %}{% else %}{% cat "../../svgs/close.svg" %}{% endif %}</td>
+							<td>
+								<div class="mb-10">MD5 <code class="right">{% if o.Object != nil %}{%s fmt.Sprintf("%x", o.Object.MD5) %}{% else %}--{% endif %}</code></div>
+								<div>SHA256 <code class="right">{% if o.Object != nil %}{%s fmt.Sprintf("%x", o.Object.SHA256) %}{% else %}--{% endif %}</code></div>
+							</td>
+							<td class="align-right">
+								{% if o.Placed %}
+									<span class="pill pill-green">{% cat "../../svgs/check.svg" %} Placed</span>
+								{% else %}
+									<span class="pill pill-red">{% cat "../../svgs/close.svg" %} Not Placed</span>
+								{% endif %}
+							</td>
 						</tr>
 					{% endfor %}
 				</tbody>
@@ -178,7 +197,7 @@ type ShowPage struct {
 					<li><a class="btn btn-primary" href="/builds/{%v p.Build.ID %}/output/raw">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
 				</ul>
 			</div>
-			<pre class="code">{%= template.RenderCode(p.Build.Output.String) %}</pre>
+			{%= template.RenderCode(p.Build.Output.String) %}
 		{% else %}
 			<div class="panel-message muted">No build output has been produced.</div>
 		{% endif %}

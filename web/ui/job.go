@@ -6,8 +6,8 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
-//	"github.com/andrewpillar/thrall/template"
-//	"github.com/andrewpillar/thrall/template/job"
+	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/job"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/mux"
@@ -61,7 +61,7 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	j, err := b.JobStore().Find(jobId)
+	j, err := b.JobShow(jobId)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -74,15 +74,14 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	web.Text(w, j.Output.String, http.StatusOK)
-//	p := &job.ShowPage{
-//		Page: &template.Page{
-//			URI: r.URL.Path,
-//		},
-//		Job: j,
-//	}
-//
-//	d := template.NewDashboard(p, r.URL.Path)
-//
-//	web.HTML(w, template.Render(d), http.StatusOK)
+	p := &job.ShowPage{
+		Page: template.Page{
+			URI: r.URL.Path,
+		},
+		Job: j,
+	}
+
+	d := template.NewDashboard(p, r.URL.Path)
+
+	web.HTML(w, template.Render(d), http.StatusOK)
 }

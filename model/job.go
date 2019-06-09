@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
@@ -92,6 +93,42 @@ func (j *Job) IsZero() bool {
            !j.Output.Valid &&
            j.StartedAt == nil &&
            j.FinishedAt == nil
+}
+
+func (j *Job) LoadArtifacts() error {
+	var err error
+
+	j.Artifacts, err = j.ArtifactStore().All()
+
+	return errors.Err(err)
+}
+
+func (j *Job) LoadDependencies() error {
+	query := `
+		SELECT * FROM jobs
+		WHERE id IN (
+			SELECT dependency_id FROM job_dependencies
+			WHERE job_id = $1
+		)
+	`
+
+	return errors.Err(j.Select(&j.Dependencies, query, j.ID))
+}
+
+func (j *Job) LoadStage() error {
+	var err error
+
+	stages := StageStore{
+		DB: j.DB,
+	}
+
+	j.Stage, err = stages.Find(j.StageID)
+
+	return errors.Err(err)
+}
+
+func (j Job) UIEndpoint() string {
+	return fmt.Sprintf("/builds/%v/jobs/%v", j.BuildID, j.ID)
 }
 
 func (j *Job) Update() error {
@@ -289,18 +326,6 @@ func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
 	return jj, errors.Err(err)
 }
 
-func (j *Job) LoadDependencies() error {
-	query := `
-		SELECT * FROM jobs
-		WHERE id IN (
-			SELECT dependency_id FROM job_dependencies
-			WHERE job_id = $1
-		)
-	`
-
-	return errors.Err(j.Select(&j.Dependencies, query, j.ID))
-}
-
 func (js JobStore) LoadDependencies(jj []*Job) error {
 	if len(jj) == 0 {
 		return nil
@@ -314,7 +339,7 @@ func (js JobStore) LoadDependencies(jj []*Job) error {
 		jobs[j.ID] = j
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM job_dependencies WHERE job_id IN (?)")
+	query, args, err := sqlx.In("SELECT * FROM job_dependencies WHERE job_id IN (?)", ids)
 
 	if err != nil {
 		return errors.Err(err)

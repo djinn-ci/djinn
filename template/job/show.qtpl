@@ -21,35 +21,21 @@ type ShowPage struct {
 
 {% func (p *ShowPage) Body() %}
 	<div class="panel">
-		<table class="table">
-			<tr>
-				<td>Status:</td>
-				<td class="align-right">{%= build.RenderStatus(p.Job.Status) %}</td>
-			</tr>
-			<tr>
-				<td>Started At:</td>
-				<td class="align-right">
-					{% if p.Job.StartedAt != nil && p.Job.StartedAt.Valid %}
-					{% else %}
-						--
-					{% endif %}
-				</td>
-			</tr>
-			<tr>
-				<td>Finished At:</td>
-				<td class="align-right">
-					{% if p.Job.FinishedAt != nil && p.Job.FinishedAt.Valid %}
-					{% else %}
-						--
-					{% endif %}
-				</td>
-			</tr>
-		</table>
+		{% if p.Job.Output.Valid && p.Job.Output.String != "" %}
+			<div class="panel-header">
+				<ul class="panel-actions">
+					<li><a class="btn btn-primary" href="/builds/{%v p.Job.BuildID %}/jobs/{%v p.Job.ID %}/output/raw">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
+				</ul>
+			</div>
+			{%= template.RenderCode(p.Job.Output.String) %}
+		{% else %}
+			<div class="panel-message muted">No job output has been produced.</div>
+		{% endif %}
 	</div>
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="/builds/{%v p.Job.Stage.BuildID %}" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
+	<a href="/builds/{%v p.Job.Stage.BuildID %}" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %} {%= build.RenderStatus(p.Job.Status) %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}

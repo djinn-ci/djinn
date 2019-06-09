@@ -126,6 +126,24 @@ func (b *Build) IsZero() bool {
            b.FinishedAt == nil
 }
 
+func (b *Build) JobShow(id int64) (*Job, error) {
+	j, err := b.JobStore().Find(id)
+
+	if err != nil {
+		return j, errors.Err(err)
+	}
+
+	if err := j.LoadStage(); err != nil {
+		return j, errors.Err(err)
+	}
+
+	if err := j.LoadDependencies(); err != nil {
+		return j, errors.Err(err)
+	}
+
+	return j, errors.Err(j.LoadArtifacts())
+}
+
 func (b *Build) Update() error {
 	stmt, err := b.Prepare(`
 		UPDATE builds

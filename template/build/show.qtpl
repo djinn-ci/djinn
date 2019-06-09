@@ -65,31 +65,33 @@ type ShowPage struct {
 			</table>
 		</div>
 		{% for _, s := range p.Build.Stages %}
-			<div class="panel">
-				<div class="panel-header">
-					<h3>{%s s.Name %}</h3>
+			{% if len(s.Jobs) > 0 %}
+				<div class="panel">
+					<div class="panel-header">
+						<h3>{%s s.Name %}</h3>
+					</div>
+						<table class="table">
+							<thead>
+								<tr>
+									<th class="cell-pill">STATUS</th>
+									<th>JOB</th>
+									<th class="cell-date">STARTED</th>
+									<th class="cell-date">FINISHED</th>
+								</tr>
+							</thead>
+							<tbody>
+								{% for _, j := range s.Jobs %}
+									<tr>
+										<td class="cell-pill">{%= RenderStatus(j.Status) %}</td>
+										<td><a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td>
+										<td class="cell-date"><span class="muted">--</span></td>
+										<td class="cell-date"><span class="muted">--</span></td>
+									</tr>
+								{% endfor %}
+							</tbody>
+						</table>
 				</div>
-				<table class="table">
-					<thead>
-						<tr>
-							<th class="cell-pill">STATUS</th>
-							<th>JOB</th>
-							<th class="cell-date">STARTED</th>
-							<th class="cell-date">FINISHED</th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for _, j := range s.Jobs %}
-							<tr>
-								<td class="cell-pill">{%= RenderStatus(j.Status) %}</td>
-								<td><a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td>
-								<td class="cell-date"><span class="muted">--</span></td>
-								<td class="cell-date"><span class="muted">--</span></td>
-							</tr>
-						{% endfor %}
-					</tbody>
-				</table>
-			</div>
+			{% endif %}
 		{% endfor %}
 	{% endif %}
 {% endfunc %}

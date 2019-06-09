@@ -9,15 +9,15 @@ import (
 {% func RenderStatus(s runner.Status) %}
 	{% switch s %}
 		{% case runner.Queued %}
-			<span class="pill pill-dark">{% cat "../../svgs/hourglass.svg" %} Queued</span>
+			<span class="pill pill-fixed pill-dark">{% cat "../../svgs/hourglass.svg" %} Queued</span>
 		{% case runner.Running %}
-			<span class="pill pill-blue">{% cat "../../svgs/timer.svg" %} Running</span>
+			<span class="pill pill-fixed pill-blue">{% cat "../../svgs/timer.svg" %} Running</span>
 		{% case runner.Passed %}
-			<span class="pill pill-green">{% cat "../../svgs/check.svg" %} Passed</span>
+			<span class="pill pill-fixed pill-green">{% cat "../../svgs/check.svg" %} Passed</span>
 		{% case runner.PassedWithFailures %}
-			<span class="pill pill-orange">{% cat "../../svgs/warning.svg" %} Passed</span>
+			<span class="pill pill-fixed pill-orange">{% cat "../../svgs/warning.svg" %} Passed</span>
 		{% case runner.Failed %}
-			<span class="pill pill-red">{% cat "../../svgs/close.svg" %} Failed</span>
+			<span class="pill pill-fixed pill-red">{% cat "../../svgs/close.svg" %} Failed</span>
 	{% endswitch %}
 {% endfunc %}
 

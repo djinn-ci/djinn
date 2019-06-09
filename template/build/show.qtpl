@@ -41,10 +41,6 @@ type ShowPage struct {
 		<div class="panel">
 			<table class="table">
 				<tr>
-					<td>Status:</td>
-					<td class="align-right">{%= RenderStatus(p.Build.Status) %}</td>
-				</tr>
-				<tr>
 					<td>Submitted by:</td>
 					<td class="align-right">{%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</td>
 				</tr>
@@ -99,7 +95,7 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Build.ID %}
+	<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Build.ID %} {%= RenderStatus(p.Build.Status) %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}

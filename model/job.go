@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
@@ -103,6 +104,18 @@ func (j *Job) LoadArtifacts() error {
 	return errors.Err(err)
 }
 
+func (j *Job) LoadBuild() error {
+	var err error
+
+	builds := BuildStore{
+		DB: j.DB,
+	}
+
+	j.Build, err = builds.Find(j.BuildID)
+
+	return errors.Err(err)
+}
+
 func (j *Job) LoadDependencies() error {
 	query := `
 		SELECT * FROM jobs
@@ -127,8 +140,14 @@ func (j *Job) LoadStage() error {
 	return errors.Err(err)
 }
 
-func (j Job) UIEndpoint() string {
-	return fmt.Sprintf("/builds/%v/jobs/%v", j.BuildID, j.ID)
+func (j Job) UIEndpoint(uri ...string) string {
+	endpoint :=  fmt.Sprintf("/builds/%v/jobs/%v", j.BuildID, j.ID)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
 }
 
 func (j *Job) Update() error {

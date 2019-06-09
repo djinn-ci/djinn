@@ -24,7 +24,7 @@ type ShowPage struct {
 		{% if p.Job.Output.Valid && p.Job.Output.String != "" %}
 			<div class="panel-header">
 				<ul class="panel-actions">
-					<li><a class="btn btn-primary" href="/builds/{%v p.Job.BuildID %}/jobs/{%v p.Job.ID %}/output/raw">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
+					<li><a class="btn btn-primary" href="{%s p.Job.UIEndpoint("output", "raw") %}">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
 				</ul>
 			</div>
 			{%= template.RenderCode(p.Job.Output.String) %}
@@ -35,7 +35,7 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="/builds/{%v p.Job.Stage.BuildID %}" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %} {%= build.RenderStatus(p.Job.Status) %}
+	<a href="{%s p.Job.Build.UIEndpoint() %}" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %} {%= build.RenderStatus(p.Job.Status) %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}

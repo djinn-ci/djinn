@@ -439,8 +439,14 @@ func (b Build) Submit(srv *machinery.Server) error {
 	return errors.Err(err)
 }
 
-func (b Build) UIEndpoint() string {
-	return fmt.Sprintf("/builds/%v", b.ID)
+func (b Build) UIEndpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/builds/%v", b.ID)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
 }
 
 func (bs BuildStore) All() ([]*Build, error) {

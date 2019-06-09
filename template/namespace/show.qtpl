@@ -60,7 +60,7 @@ type ShowNamespacesPage struct {
 
 {% func (p *ShowPage) Navigation() %}
 	<li>{%= template.RenderLink(p.Namespace.UIEndpoint(), p.URI) %}{% cat "../../svgs/build.svg" %}<span>Builds</span></a></li>
-	<li>{%= template.RenderLink(p.Namespace.UIEndpoint() + "/-/namespaces", p.URI) %}{% cat "../../svgs/folder.svg" %}<span>Namespaces</span></a></li>
+	<li>{%= template.RenderLink(p.Namespace.UIEndpoint("-", "namespaces"), p.URI) %}{% cat "../../svgs/folder.svg" %}<span>Namespaces</span></a></li>
 {% endfunc %}
 
 {% func (p *ShowNamespacesPage) Body() %}

@@ -2,6 +2,7 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -187,12 +188,18 @@ func (n *Namespace) LoadParents() error {
 	return errors.Err(n.Parent.LoadParents())
 }
 
-func (n Namespace) UIEndpoint() string {
+func (n Namespace) UIEndpoint(uri ...string) string {
 	if n.User == nil {
 		return ""
 	}
 
-	return "/u/" + n.User.Username + "/" + n.Path
+	endpoint := fmt.Sprintf("/u/%s/%s", n.User.Username, n.Path)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
 }
 
 func (n *Namespace) Update() error {

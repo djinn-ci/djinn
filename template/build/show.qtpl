@@ -82,7 +82,7 @@ type ShowPage struct {
 						{% for _, j := range s.Jobs %}
 							<tr>
 								<td class="cell-pill">{%= RenderStatus(j.Status) %}</td>
-								<td><a href="/builds/{%v p.Build.ID %}/jobs/{%v j.ID %}">{%s j.Name %}</a></td>
+								<td><a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td>
 								<td class="cell-date"><span class="muted">--</span></td>
 								<td class="cell-date"><span class="muted">--</span></td>
 							</tr>
@@ -103,11 +103,11 @@ type ShowPage struct {
 {% func (p *ShowPage) Navigation() %}
 	{% stripspace %}
 		<li>{%= template.RenderLink(p.Build.UIEndpoint(), p.URI) %}{% cat "../../svgs/eye.svg" %}<span>Overview</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/manifest", p.URI) %}{% cat "../../svgs/list.svg" %}<span>Manifest</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/objects", p.URI) %}{% cat "../../svgs/upload.svg" %}<span>Objects</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/artifacts", p.URI) %}{% cat "../../svgs/download.svg" %}<span>Artifacts</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/variables", p.URI) %}{% cat "../../svgs/code.svg" %}<span>Variables</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint() + "/output", p.URI) %}{% cat "../../svgs/document.svg" %}<span>Output</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint("manifest"), p.URI) %}{% cat "../../svgs/list.svg" %}<span>Manifest</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint("objects"), p.URI) %}{% cat "../../svgs/upload.svg" %}<span>Objects</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint("artifacts"), p.URI) %}{% cat "../../svgs/download.svg" %}<span>Artifacts</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint("variables"), p.URI) %}{% cat "../../svgs/code.svg" %}<span>Variables</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint("output"), p.URI) %}{% cat "../../svgs/document.svg" %}<span>Output</span></a></li>
 	{% endstripspace %}
 {% endfunc %}
 
@@ -115,7 +115,7 @@ type ShowPage struct {
 	<div class="panel">
 		<div class="panel-header">
 			<ul class="panel-actions">
-				<li><a class="btn btn-primary" href="/builds/{%v p.Build.ID %}/manifest/raw">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
+				<li><a class="btn btn-primary" href="{%s p.Build.UIEndpoint("manifest", "raw") %}">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
 			</ul>
 		</div>
 		{%= template.RenderCode(p.Build.Manifest) %}
@@ -190,7 +190,7 @@ type ShowPage struct {
 		{% if p.Build.Output.Valid %}
 			<div class="panel-header">
 				<ul class="panel-actions">
-					<li><a class="btn btn-primary" href="/builds/{%v p.Build.ID %}/output/raw">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
+					<li><a class="btn btn-primary" href="{%s p.Build.UIEndpoint("output", "raw") %}">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
 				</ul>
 			</div>
 			{%= template.RenderCode(p.Build.Output.String) %}

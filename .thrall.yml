@@ -14,8 +14,14 @@ allow_failures:
 jobs:
   - stage: test
     commands:
-      - cat src/some-file
-  - stage: build
+      - ls
+      - echo foo
+  - stage: test
+    commands:
+      - echo bar
+  - stage: test
     commands:
       - pwd
-      - ls -la
+      - echo zap
+    depends:
+      - test.1

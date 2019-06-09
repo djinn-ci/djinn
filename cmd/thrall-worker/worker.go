@@ -104,10 +104,12 @@ func (w worker) handleJobComplete(b *model.Build, rj runner.Job) {
 		return
 	}
 
+	output := strings.Trim(w.buffers[j.ID].String(), "\n")
+
 	j.Status = rj.Status
 	j.Output = sql.NullString{
-		String: w.buffers[j.ID].String(),
-		Valid:  true,
+		String: output,
+		Valid:  len(output) > 0,
 	}
 	j.FinishedAt = &pq.NullTime{
 		Time:  time.Now(),
@@ -126,10 +128,6 @@ func (w worker) runBuild(id int64) error {
 
 	if b.IsZero() {
 		return errors.Err(errors.New("build does not exist"))
-	}
-
-	if err := b.LoadUser(); err != nil {
-		return errors.Err(err)
 	}
 
 	if err := b.LoadDriver(); err != nil {
@@ -156,29 +154,14 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
-	jobs := make(map[int64]*model.Job)
+	jobs := make([]*model.Job, 0)
 
 	for _, s := range b.Stages {
-		for _, j := range s.Jobs {
-			if !j.ParentID.Valid {
-				jobs[j.ID] = j
-				continue
-			}
-
-			if parent, ok := jobs[j.ParentID.Int64]; ok {
-				parent.Dependencies = append(parent.Dependencies, j)
-			}
-		}
-
-		s.Jobs = make([]*model.Job, 0)
+		jobs = append(jobs, s.Jobs...)
 	}
 
-	for _, s := range b.Stages {
-		for _, j := range jobs {
-			if j.StageID == s.ID {
-				s.Jobs = append(s.Jobs, j)
-			}
-		}
+	if err := b.JobStore().LoadDependencies(jobs); err != nil {
+		return errors.Err(err)
 	}
 
 	objs := runner.NewPassthrough()

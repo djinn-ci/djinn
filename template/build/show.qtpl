@@ -42,7 +42,7 @@ type ShowPage struct {
 			<div class="col-75 pr-5 left">
 				<div class="panel">
 					<div class="panel-header">
-						Submitted by {%s p.Build.User.Username %} <{%s p.Build.User.Email %}>
+						Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;
 					</div>
 					<div class="panel-body">
 						<code>some commit message goes here</code>

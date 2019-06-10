@@ -126,11 +126,11 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/build/show.qtpl:45
 		qw422016.E().S(p.Build.User.Username)
 		//line template/build/show.qtpl:45
-		qw422016.N().S(` <`)
+		qw422016.N().S(` &lt;`)
 		//line template/build/show.qtpl:45
 		qw422016.E().S(p.Build.User.Email)
 		//line template/build/show.qtpl:45
-		qw422016.N().S(`> </div> <div class="panel-body"> <code>some commit message goes here</code> </div> <div class="panel-footer"> <code>Commit 1a2b3c4d...</code> </div> </div> </div> <div class="col-25 pl-5 right"> <div class="panel"> <table class="table"> <tr> <td>Started at:</td> <td class="align-right"> `)
+		qw422016.N().S(`&gt; </div> <div class="panel-body"> <code>some commit message goes here</code> </div> <div class="panel-footer"> <code>Commit 1a2b3c4d...</code> </div> </div> </div> <div class="col-25 pl-5 right"> <div class="panel"> <table class="table"> <tr> <td>Started at:</td> <td class="align-right"> `)
 		//line template/build/show.qtpl:61
 		if p.Build.StartedAt != nil && p.Build.StartedAt.Valid {
 			//line template/build/show.qtpl:61

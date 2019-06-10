@@ -38,31 +38,44 @@ type ShowPage struct {
 	{% elseif p.ShowOutput %}
 		{%= p.renderOutput() %}
 	{% else %}
-		<div class="panel">
-			<table class="table">
-				<tr>
-					<td>Submitted by:</td>
-					<td class="align-right">{%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</td>
-				</tr>
-				<tr>
-					<td>Started at:</td>
-					<td class="align-right">
-						{% if p.Build.StartedAt != nil && p.Build.StartedAt.Valid %}
-						{% else %}
-							--
-						{% endif %}
-					</td>
-				</tr>
-				<tr>
-					<td>Finished at:</td>
-					<td class="align-right">
-						{% if p.Build.FinishedAt != nil && p.Build.FinishedAt.Valid %}
-						{% else %}
-							--
-						{% endif %}
-					</td>
-				</tr>
-			</table>
+		<div class="mb-10 overflow">
+			<div class="col-75 pr-5 left">
+				<div class="panel">
+					<div class="panel-header">
+						Submitted by {%s p.Build.User.Username %} <{%s p.Build.User.Email %}>
+					</div>
+					<div class="panel-body">
+						<code>some commit message goes here</code>
+					</div>
+					<div class="panel-footer">
+						<code>Commit 1a2b3c4d...</code>
+					</div>
+				</div>
+			</div>
+			<div class="col-25 pl-5 right">
+				<div class="panel">
+					<table class="table">
+						<tr>
+							<td>Started at:</td>
+							<td class="align-right">
+								{% if p.Build.StartedAt != nil && p.Build.StartedAt.Valid %}
+								{% else %}
+									--
+								{% endif %}
+							</td>
+						</tr>
+						<tr>
+							<td>Finished at:</td>
+							<td class="align-right">
+								{% if p.Build.FinishedAt != nil && p.Build.FinishedAt.Valid %}
+								{% else %}
+									--
+								{% endif %}
+							</td>
+						</tr>
+					</table>
+				</div>
+			</div>
 		</div>
 		{% for _, s := range p.Build.Stages %}
 			{% if len(s.Jobs) > 0 %}

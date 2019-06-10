@@ -115,7 +115,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 			//line template/job/show.qtpl:51
 		}
 		//line template/job/show.qtpl:51
-		qw422016.N().S(` </td> </tr> </table> </div> <div class="col-75 pr-10 left"> <div class="panel"> <div class="panel-header"><h3>Artifacts</h3></div> `)
+		qw422016.N().S(` </td> </tr> </table> </div> <div class="col-75 pr-5 left"> <div class="panel"> <div class="panel-header"><h3>Artifacts</h3></div> `)
 		//line template/job/show.qtpl:59
 		if len(p.Job.Artifacts) > 0 {
 			//line template/job/show.qtpl:59
@@ -151,7 +151,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 			//line template/job/show.qtpl:83
 		}
 		//line template/job/show.qtpl:83
-		qw422016.N().S(` </div> </div> <div class="col-25 pl-10 right"> <div class="panel"> <div class="panel-header"><h3>Dependencies</h3></div> `)
+		qw422016.N().S(` </div> </div> <div class="col-25 pl-5 right"> <div class="panel"> <div class="panel-header"><h3>Dependencies</h3></div> `)
 		//line template/job/show.qtpl:89
 		if len(p.Job.Dependencies) > 0 {
 			//line template/job/show.qtpl:89

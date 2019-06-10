@@ -53,7 +53,7 @@ type ShowPage struct {
 				</tr>
 			</table>
 		</div>
-		<div class="col-75 pr-10 left">
+		<div class="col-75 pr-5 left">
 			<div class="panel">
 				<div class="panel-header"><h3>Artifacts</h3></div>
 				{% if len(p.Job.Artifacts) > 0 %}
@@ -83,7 +83,7 @@ type ShowPage struct {
 				{% endif %}
 			</div>
 		</div>
-		<div class="col-25 pl-10 right">
+		<div class="col-25 pl-5 right">
 			<div class="panel">
 				<div class="panel-header"><h3>Dependencies</h3></div>
 				{% if len(p.Job.Dependencies) > 0 %}

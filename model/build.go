@@ -133,6 +133,10 @@ func (b *Build) JobShow(id int64) (*Job, error) {
 		return j, errors.Err(err)
 	}
 
+	if err := j.LoadBuild(); err != nil {
+		return j, errors.Err(err)
+	}
+
 	if err := j.LoadStage(); err != nil {
 		return j, errors.Err(err)
 	}

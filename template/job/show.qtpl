@@ -27,7 +27,7 @@ type ShowPage struct {
 	{% if p.ShowOutput %}
 		{%= p.renderOutput() %}
 	{% else %}
-		<div class="panel">
+		<div class="panel mb-10">
 			<table class="table">
 				<tr>
 					<td>Status:</td>
@@ -53,45 +53,49 @@ type ShowPage struct {
 				</tr>
 			</table>
 		</div>
-		<div class="panel">
-			<div class="panel-header"><h3>Artifacts</h3></div>
-			{% if len(p.Job.Artifacts) > 0 %}
-				<table class="table">
-					<thead>
-						<tr>
-							<th>SOURCE</th>
-							<th>NAME</th>
-							<th>HASHES</th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for _, a := range p.Job.Artifacts %}
+		<div class="col-75 pr-10 left">
+			<div class="panel">
+				<div class="panel-header"><h3>Artifacts</h3></div>
+				{% if len(p.Job.Artifacts) > 0 %}
+					<table class="table">
+						<thead>
 							<tr>
-								<td><code>{%s a.Source %}</code></td>
-								<td>{%s a.Name %}</td>
-								<td>
-									<div class="mb-10">MD5 <code class="right">{%s fmt.Sprintf("%x", a.MD5) %}</code></div>
-									<div class="mb-10">SHA256 <code class="right">{%s fmt.Sprintf("%x", a.SHA256) %}</code></div>
-								</td>
+								<th>SOURCE</th>
+								<th>NAME</th>
+								<th>HASHES</th>
 							</tr>
-						{% endfor %}
-					</tbody>
-				</table>
-			{% else %}
-				<div class="panel-message muted">No artifacts have been collected for this job.</div>
-			{% endif %}
+						</thead>
+						<tbody>
+							{% for _, a := range p.Job.Artifacts %}
+								<tr>
+									<td><code>{%s a.Source %}</code></td>
+									<td>{%s a.Name %}</td>
+									<td>
+										<div class="mb-10">MD5 <code class="right">{%s fmt.Sprintf("%x", a.MD5) %}</code></div>
+										<div class="mb-10">SHA256 <code class="right">{%s fmt.Sprintf("%x", a.SHA256) %}</code></div>
+									</td>
+								</tr>
+							{% endfor %}
+						</tbody>
+					</table>
+				{% else %}
+					<div class="panel-message muted">No artifacts have been collected for this job.</div>
+				{% endif %}
+			</div>
 		</div>
-		<div class="panel">
-			<div class="panel-header"><h3>Dependencies</h3></div>
-			{% if len(p.Job.Dependencies) > 0 %}
-				<table class="table">
-					{% for _, j := range p.Job.Dependencies %}
-						<tr><td><a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td></tr>
-					{% endfor %}
-				</table>
-			{% else %}
-				<div class="panel-message muted">No job dependencies.</div>
-			{% endif %}
+		<div class="col-25 pl-10 right">
+			<div class="panel">
+				<div class="panel-header"><h3>Dependencies</h3></div>
+				{% if len(p.Job.Dependencies) > 0 %}
+					<table class="table">
+						{% for _, j := range p.Job.Dependencies %}
+							<tr><td><a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td></tr>
+						{% endfor %}
+					</table>
+				{% else %}
+					<div class="panel-message muted">No job dependencies.</div>
+				{% endif %}
+			</div>
 		</div>
 	{% endif %}
 {% endfunc %}

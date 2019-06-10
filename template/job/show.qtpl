@@ -1,5 +1,7 @@
 {%
 import (
+	"fmt"
+
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
@@ -11,6 +13,8 @@ type ShowPage struct {
 	template.Page
 
 	Job *model.Job
+
+	ShowOutput bool
 }
 %}
 
@@ -20,6 +24,79 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
+	{% if p.ShowOutput %}
+		{%= p.renderOutput() %}
+	{% else %}
+		<div class="panel">
+			<table class="table">
+				<tr>
+					<td>Status:</td>
+					<td class="align-right">{%= build.RenderStatus(p.Job.Status) %}</td>
+				</tr>
+				<tr>
+					<td>Started at:</td>
+					<td class="align-right">
+						{% if p.Job.StartedAt != nil && p.Job.StartedAt.Valid %}
+						{% else %}
+							--
+						{% endif %}
+					</td>
+				</tr>
+				<tr>
+					<td>Finished at:</td>
+					<td class="align-right">
+						{% if p.Job.FinishedAt != nil && p.Job.FinishedAt.Valid %}
+						{% else %}
+							--
+						{% endif %}
+					</td>
+				</tr>
+			</table>
+		</div>
+		<div class="panel">
+			<div class="panel-header"><h3>Artifacts</h3></div>
+			{% if len(p.Job.Artifacts) > 0 %}
+				<table class="table">
+					<thead>
+						<tr>
+							<th>SOURCE</th>
+							<th>NAME</th>
+							<th>HASHES</th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, a := range p.Job.Artifacts %}
+							<tr>
+								<td><code>{%s a.Source %}</code></td>
+								<td>{%s a.Name %}</td>
+								<td>
+									<div class="mb-10">MD5 <code class="right">{%s fmt.Sprintf("%x", a.MD5) %}</code></div>
+									<div class="mb-10">SHA256 <code class="right">{%s fmt.Sprintf("%x", a.SHA256) %}</code></div>
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			{% else %}
+				<div class="panel-message muted">No artifacts have been collected for this job.</div>
+			{% endif %}
+		</div>
+		<div class="panel">
+			<div class="panel-header"><h3>Dependencies</h3></div>
+			{% if len(p.Job.Dependencies) > 0 %}
+				<table class="table">
+					{% for _, j := range p.Job.Dependencies %}
+						<tr><td><a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td></tr>
+					{% endfor %}
+				</table>
+			{% else %}
+				<div class="panel-message muted">No job dependencies.</div>
+			{% endif %}
+		</div>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *ShowPage) renderOutput() %}
 	<div class="panel">
 		{% if p.Job.Output.Valid && p.Job.Output.String != "" %}
 			<div class="panel-header">
@@ -35,9 +112,15 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="{%s p.Job.Build.UIEndpoint() %}" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %} {%= build.RenderStatus(p.Job.Status) %}
+	<a href="{%s p.Job.Build.UIEndpoint() %}" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %} {%= build.RenderStatus(p.Job.Build.Status) %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}
-{% func (p *ShowPage) Navigation() %}{% endfunc %}
+
+{% func (p *ShowPage) Navigation() %}
+	{% stripspace %}
+		<li>{%= template.RenderLink(p.Job.UIEndpoint(), p.URI) %}{% cat "../../svgs/eye.svg" %}<span>Overview</span></a></li>
+		<li>{%= template.RenderLink(p.Job.UIEndpoint("output"), p.URI) %}{% cat "../../svgs/document.svg" %}<span>Output</span></a></li>
+	{% endstripspace %}
+{% endfunc %}
 {% endcollapsespace %}

@@ -188,6 +188,18 @@ func (n *Namespace) LoadParents() error {
 	return errors.Err(n.Parent.LoadParents())
 }
 
+func (n *Namespace) LoadUser() error {
+	var err error
+
+	users := UserStore{
+		DB: n.DB,
+	}
+
+	n.User, err = users.Find(n.UserID)
+
+	return errors.Err(err)
+}
+
 func (n Namespace) UIEndpoint(uri ...string) string {
 	if n.User == nil {
 		return ""

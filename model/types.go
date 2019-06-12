@@ -10,6 +10,8 @@ type Visibility uint8
 
 type DriverType uint8
 
+type TriggerType uint8
+
 const (
 	Private Visibility = iota
 	Internal
@@ -18,6 +20,8 @@ const (
 	SSH DriverType = iota
 	Qemu
 	Docker
+
+	Manual TriggerType = iota
 )
 
 func scan(val interface{}) ([]byte, error) {
@@ -83,6 +87,42 @@ func (t DriverType) Value() (driver.Value, error) {
 			return driver.Value("docker"), nil
 		default:
 			return driver.Value(""), errors.Err(errors.New("unknown driver"))
+	}
+}
+
+func (t *TriggerType) Scan(val interface{}) error {
+	b, err := scan(val)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if len(b) == 0 {
+		(*t) = TriggerType(0)
+		return nil
+	}
+
+	return errors.Err(t.UnmarshalText(b))
+}
+
+func (t *TriggerType) UnmarshalText(b []byte) error {
+	str := string(b)
+
+	switch str {
+		case "manual":
+			(*t) = Manual
+			return nil
+		default:
+			return errors.Err(errors.New("unknown trigger " + str))
+	}
+}
+
+func (t TriggerType) Value() (driver.Value, error) {
+	switch t {
+		case Manual:
+			return driver.Value("manual"), nil
+		default:
+			return driver.Value(""), errors.Err(errors.New("unknown trigger"))
 	}
 }
 

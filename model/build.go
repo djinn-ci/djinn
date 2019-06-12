@@ -33,6 +33,7 @@ type Build struct {
 	User      *User
 	Namespace *Namespace
 	Driver    *Driver
+	Trigger   *Trigger
 	Tags      []*Tag
 	Stages    []*Stage
 	Objects   []*BuildObject

@@ -201,42 +201,6 @@ func (jds JobDependencyStore) New() *JobDependency {
 	return jd
 }
 
-func (js JobStore) All() ([]*Job, error) {
-	jj := make([]*Job, 0)
-
-	query := "SELECT * FROM jobs"
-	args := []interface{}{}
-
-	if js.Build != nil {
-		query += " WHERE build_id = $1"
-		args = append(args, js.Build.ID)
-	}
-
-	if js.Stage != nil {
-		if js.Build != nil {
-			query += " AND WHERE stage_id = $2"
-		} else {
-			query += " WHERE stage_id = $1"
-		}
-
-		args = append(args, js.Stage.ID)
-	}
-
-	err := js.Select(&jj, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, j := range jj {
-		j.DB = js.DB
-		j.Build = js.Build
-		j.Stage = js.Stage
-	}
-
-	return jj, errors.Err(err)
-}
-
 func (js JobStore) Find(id int64) (*Job, error) {
 	j := &Job{
 		model: model{

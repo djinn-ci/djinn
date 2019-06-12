@@ -569,32 +569,6 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 	return b, errors.Err(err)
 }
 
-func (bs *BuildStore) In(ids ...int64) ([]*Build, error) {
-	bb := make([]*Build, 0)
-
-	if len(ids) == 0 {
-		return bb, nil
-	}
-
-	query, args, err := sqlx.In("SELECT * FROM builds WHERE id IN (?)", ids)
-
-	if err != nil {
-		return bb, errors.Err(err)
-	}
-
-	err = bs.Select(&bb, bs.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, b := range bb {
-		b.DB = bs.DB
-	}
-
-	return bb, errors.Err(err)
-}
-
 func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil

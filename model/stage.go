@@ -161,32 +161,6 @@ func (stgs StageStore) FindByName(name string) (*Stage, error) {
 	return s, errors.Err(err)
 }
 
-func (stgs StageStore) In(ids ...int64) ([]*Stage, error) {
-	ss := make([]*Stage, 0)
-
-	if len(ss) == 0 {
-		return ss, nil
-	}
-
-	query, args, err := sqlx.In("SELECT * FROM stages WHERE id IN (?)", ids)
-
-	if err != nil {
-		return ss, errors.Err(err)
-	}
-
-	err = stgs.Select(&ss, stgs.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, s := range ss {
-		s.DB = stgs.DB
-	}
-
-	return ss, errors.Err(err)
-}
-
 func (stgs StageStore) LoadJobs(ss []*Stage) error {
 	if len(ss) == 0 {
 		return nil

@@ -140,19 +140,6 @@ func (n *Namespace) IsZero() bool {
            n.UpdatedAt == nil
 }
 
-func (n *Namespace) LoadChildren() error {
-	var err error
-
-	namespaces := NamespaceStore{
-		DB:   n.DB,
-		User: n.User,
-	}
-
-	n.Children, err = namespaces.ByRootID(n.ID)
-
-	return errors.Err(err)
-}
-
 func (n *Namespace) LoadParent() error {
 	if !n.ParentID.Valid {
 		n.Parent = &Namespace{}
@@ -308,35 +295,6 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 	}
 
 	return n, errors.Err(err)
-}
-
-func (ns NamespaceStore) ByRootID(id int64) ([]*Namespace, error) {
-	nn := make([]*Namespace, 0)
-
-	query := "SELECT * FROM namespaces WHERE root_id = $1"
-	args := []interface{}{id}
-
-	if ns.User != nil {
-		query += " AND user_id = $2"
-		args = append(args, ns.User.ID)
-	}
-
-	err := ns.Select(&nn, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-
-		for _, n := range nn {
-			n.CreatedAt = nil
-			n.UpdatedAt = nil
-		}
-	}
-
-	for _, n := range nn {
-		n.DB = ns.DB
-	}
-
-	return nn, errors.Err(err)
 }
 
 func (ns NamespaceStore) In(ids ...int64) ([]*Namespace, error) {

@@ -123,35 +123,6 @@ func (bo *BuildObject) Update() error {
 	return errors.Err(row.Scan(&bo.UpdatedAt))
 }
 
-func (os ObjectStore) Find(id int64) (*Object, error) {
-	o := &Object{
-		model: model{
-			DB: os.DB,
-		},
-		User: os.User,
-	}
-
-	query := "SELECT * FROM objects WHERE id = $1"
-	args := []interface{}{id}
-
-	if os.User != nil {
-		query += " AND user_id = $2"
-		args = append(args, os.User.ID)
-	}
-
-	err := os.Get(o, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-
-		o.CreatedAt = nil
-		o.UpdatedAt = nil
-		o.DeletedAt = nil
-	}
-
-	return o, errors.Err(err)
-}
-
 func (os ObjectStore) FindByName(name string) (*Object, error) {
 	o := &Object{
 		model: model{
@@ -247,45 +218,6 @@ func (bos BuildObjectStore) All() ([]*BuildObject, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-	}
-
-	return bo, errors.Err(err)
-}
-
-func (bos BuildObjectStore) First() (*BuildObject, error) {
-	bo := &BuildObject{
-		model: model{
-			DB: bos.DB,
-		},
-		Build:  bos.Build,
-		Object: bos.Object,
-	}
-
-	query := "SELECT * FROM build_objects"
-	args := []interface{}{}
-
-	if bos.Build != nil {
-		query += " WHERE build_id = $1"
-		args = append(args, bos.Build.ID)
-	}
-
-	if bos.Object != nil {
-		if bos.Build != nil {
-			query += " AND object_id = $2"
-		} else {
-			query += " WHERE object_id = $1"
-		}
-
-		args = append(args, bos.Object.ID)
-	}
-
-	err := bos.Get(&bo, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-
-		bo.CreatedAt = nil
-		bo.UpdatedAt = nil
 	}
 
 	return bo, errors.Err(err)

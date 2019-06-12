@@ -42,34 +42,6 @@ func (d *Driver) Create() error {
 	return errors.Err(row.Scan(&d.ID, &d.CreatedAt, &d.UpdatedAt))
 }
 
-func (ds DriverStore) Find(id int64) (*Driver, error) {
-	d := &Driver{
-		model: model{
-			DB: ds.DB,
-		},
-		Build: ds.Build,
-	}
-
-	query := "SELECT * FROM drivers WHERE id = $1"
-	args := []interface{}{id}
-
-	if ds.Build != nil {
-		query += " AND build_id = $2"
-		args = append(args, ds.Build.ID)
-	}
-
-	err := ds.Get(d, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-
-		d.CreatedAt = nil
-		d.UpdatedAt = nil
-	}
-
-	return d, errors.Err(err)
-}
-
 func (ds DriverStore) First() (*Driver, error) {
 	d := &Driver{
 		model: model{

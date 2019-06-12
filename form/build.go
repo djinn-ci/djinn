@@ -17,6 +17,7 @@ type tags []string
 type Build struct {
 	Namespace string `schema:"namespace"`
 	Manifest  string `schema:"manifest"`
+	Comment   string `schema:"comment"`
 	Tags      tags   `schema:"tags"`
 }
 

@@ -102,6 +102,10 @@ func (u *User) BuildShow(id int64) (*Build, error) {
 		return b, errors.Err(err)
 	}
 
+	if err := b.LoadTrigger(); err != nil {
+		return b, errors.Err(err)
+	}
+
 	if err := b.LoadTags(); err != nil {
 		return b, errors.Err(err)
 	}

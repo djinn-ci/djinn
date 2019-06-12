@@ -98,6 +98,13 @@ func (b *Build) TagStore() TagStore {
 	}
 }
 
+func (b *Build) TriggerStore() TriggerStore {
+	return TriggerStore{
+		DB:    b.DB,
+		Build: b,
+	}
+}
+
 func (b *Build) Create() error {
 	stmt, err := b.Prepare(`
 		INSERT INTO builds (user_id, namespace_id, manifest)
@@ -216,6 +223,14 @@ func (b *Build) LoadTags() error {
 	var err error
 
 	b.Tags, err = b.TagStore().All()
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadTrigger() error {
+	var err error
+
+	b.Trigger, err = b.TriggerStore().First()
 
 	return errors.Err(err)
 }

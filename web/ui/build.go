@@ -145,6 +145,16 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	t := b.TriggerStore().New()
+	t.Type = model.Manual
+	t.Comment = f.Comment
+
+	if err := t.Create(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	if err := b.Submit(srv); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)

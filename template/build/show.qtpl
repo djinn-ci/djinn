@@ -39,43 +39,47 @@ type ShowPage struct {
 		{%= p.renderOutput() %}
 	{% else %}
 		<div class="mb-10 overflow">
-			<div class="col-75 pr-5 left">
-				<div class="panel">
-					<div class="panel-header">
-						Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;
-					</div>
-					<div class="panel-body">
-						<code>some commit message goes here</code>
-					</div>
-					<div class="panel-footer">
-						<code>Commit 1a2b3c4d...</code>
-					</div>
+		<div class="col-75 pr-5 left">
+			<div class="panel">
+				<div class="panel-header">
+					{% if p.Build.Namespace.IsZero() %}
+						<h3>Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</h3>
+					{% else %}
+						<h3>Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt; to <a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Path %}</a></h3>
+					{% endif %}
+				</div>
+				<div class="panel-body">
+					<pre class="code">some commit message goes here</pre>
+				</div>
+				<div class="panel-footer">
+					<span class="code">Commit 1a2b3c4d...</span>
 				</div>
 			</div>
-			<div class="col-25 pl-5 right">
-				<div class="panel">
-					<table class="table">
-						<tr>
-							<td>Started at:</td>
-							<td class="align-right">
-								{% if p.Build.StartedAt != nil && p.Build.StartedAt.Valid %}
-								{% else %}
-									--
-								{% endif %}
-							</td>
-						</tr>
-						<tr>
-							<td>Finished at:</td>
-							<td class="align-right">
-								{% if p.Build.FinishedAt != nil && p.Build.FinishedAt.Valid %}
-								{% else %}
-									--
-								{% endif %}
-							</td>
-						</tr>
-					</table>
-				</div>
+		</div>
+		<div class="col-25 pl-5 right">
+			<div class="panel">
+				<table class="table">
+					<tr>
+						<td>Started at:</td>
+						<td class="align-right">
+							{% if p.Build.StartedAt != nil && p.Build.StartedAt.Valid %}
+							{% else %}
+								--
+							{% endif %}
+						</td>
+					</tr>
+					<tr>
+						<td>Finished at:</td>
+						<td class="align-right">
+							{% if p.Build.FinishedAt != nil && p.Build.FinishedAt.Valid %}
+							{% else %}
+								--
+							{% endif %}
+						</td>
+					</tr>
+				</table>
 			</div>
+		</div>
 		</div>
 		{% for _, s := range p.Build.Stages %}
 			{% if len(s.Jobs) > 0 %}
@@ -161,8 +165,8 @@ type ShowPage struct {
 							</td>
 							<td><code>{%s o.Name %}</code></td>
 							<td>
-								<div class="mb-10">MD5 <code class="right">{% if o.Object != nil %}{%s fmt.Sprintf("%x", o.Object.MD5) %}{% else %}--{% endif %}</code></div>
-								<div>SHA256 <code class="right">{% if o.Object != nil %}{%s fmt.Sprintf("%x", o.Object.SHA256) %}{% else %}--{% endif %}</code></div>
+								<div class="mb-10">MD5 <span class="code right">{% if o.Object != nil %}{%s fmt.Sprintf("%x", o.Object.MD5) %}{% else %}--{% endif %}</span></div>
+								<div>SHA256 <span class="code right">{% if o.Object != nil %}{%s fmt.Sprintf("%x", o.Object.SHA256) %}{% else %}--{% endif %}</span></div>
 							</td>
 							<td class="align-right">
 								{% if o.Placed %}

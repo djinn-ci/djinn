@@ -64,16 +64,18 @@ func (f Form) Get(field string) string {
 	{% code
 		lines := strings.Split(code, "\n")
 	%}
-	<table class="code">
-		<tbody>
-			{% for i, l := range lines %}
-				<tr>
-					<td class="line-number"><a href="#L{%v i + 1 %}">{%v i + 1 %}</a></td>
-					<td id="L{%v i + 1 %}" class="line">{%s l %}</td>
-				</tr>
-			{% endfor %}
-		</tbody>
-	</table>
+	<div class="code-wrap">
+		<table class="code">
+			<tbody>
+				{% for i, l := range lines %}
+					<tr>
+						<td class="line-number"><a href="#L{%v i + 1 %}">{%v i + 1 %}</a></td>
+						<td id="L{%v i + 1 %}" class="line">{%s l %}</td>
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
 {% endfunc %}
 {% endstripspace %}
 

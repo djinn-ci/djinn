@@ -1,7 +1,16 @@
 .code {
+	padding: 3px;
+	border-radius: 3px;
+	background: @blue-pale;
+	font-family: monospace;
+}
+.code-wrap {
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+table.code {
 	background: @blue-gray-dark;
 	color: #fff;
-	white-space: pre-wrap;
 	width: 100%;
 	font-family: monospace;
 	font-size: 12px;
@@ -29,6 +38,9 @@
 		padding-left: 10px;
 		padding-right: 10px;
 		line-height: 20px;
+		white-space: pre;
+		overflow: visible;
+		word-wrap: normal;
 	}
 
 	.line:target {

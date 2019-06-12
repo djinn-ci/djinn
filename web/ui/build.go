@@ -148,6 +148,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 	t := b.TriggerStore().New()
 	t.Type = model.Manual
 	t.Comment = f.Comment
+	t.Data.User = u.Username
+	t.Data.Email = u.Email
 
 	if err := t.Create(); err != nil {
 		log.Error.Println(errors.Err(err))

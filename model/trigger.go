@@ -1,12 +1,21 @@
 package model
 
 import (
+	"bytes"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/json"
 
 	"github.com/andrewpillar/thrall/errors"
 
 	"github.com/jmoiron/sqlx"
 )
+
+type triggerData struct {
+	User   string
+	Email  string
+	Source string
+}
 
 type Trigger struct {
 	model
@@ -14,9 +23,37 @@ type Trigger struct {
 	BuildID int64       `db:"build_id"`
 	Type    TriggerType `db:"type"`
 	Comment string      `db:"comment"`
-	Data    string      `db:"data"`
+	Data    triggerData `db:"data"`
 
 	Build *Build
+}
+
+func (t *triggerData) Scan(val interface{}) error {
+	b, err := scan(val)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if len(b) == 0 {
+		return nil
+	}
+
+	buf := bytes.NewBuffer(b)
+	dec := json.NewDecoder(buf)
+
+	return errors.Err(dec.Decode(t))
+}
+
+func (t triggerData) Value() (driver.Value, error) {
+	buf := &bytes.Buffer{}
+	enc := json.NewEncoder(buf)
+
+	if err := enc.Encode(t); err != nil {
+		return driver.Value(""), errors.Err(err)
+	}
+
+	return driver.Value(buf.String()), nil
 }
 
 type TriggerStore struct {
@@ -28,7 +65,7 @@ type TriggerStore struct {
 func (t *Trigger) Create() error {
 	stmt, err := t.Prepare(`
 		INSERT INTO triggers (build_id, type, comment, data)
-		VALUES ($1, $2, $3, '{}')
+		VALUES ($1, $2, $3, $4)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -38,7 +75,7 @@ func (t *Trigger) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(t.BuildID, t.Type, t.Comment)
+	row := stmt.QueryRow(t.BuildID, t.Type, t.Comment, t.Data)
 
 	return errors.Err(row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
 }

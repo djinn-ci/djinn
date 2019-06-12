@@ -36,12 +36,6 @@ type NamespaceStore struct {
 	Namespace *Namespace
 }
 
-func NewNamespaceStore(db *sqlx.DB) *NamespaceStore {
-	return &NamespaceStore{
-		DB: db,
-	}
-}
-
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
 		DB:        n.DB,

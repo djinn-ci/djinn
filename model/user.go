@@ -24,12 +24,6 @@ type UserStore struct {
 	*sqlx.DB
 }
 
-func NewUserStore(db *sqlx.DB) *UserStore{
-	return &UserStore{
-		DB: db,
-	}
-}
-
 func (us UserStore) New() *User {
 	u := &User{
 		model: model{
@@ -82,7 +76,11 @@ func (u *User) BuildList(status string) ([]*Build, error) {
 		}
 	}
 
-	err = NewNamespaceStore(u.DB).LoadUsers(nn)
+	ns := NamespaceStore{
+		DB: u.DB,
+	}
+
+	err = ns.LoadUsers(nn)
 
 	return bb, errors.Err(err)
 }

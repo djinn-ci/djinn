@@ -41,7 +41,7 @@ func (s *uiServer) initAuth(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
-	namespace := ui.NewNamespace(h, model.NewNamespaceStore(s.db))
+	namespace := ui.NewNamespace(h, &model.NamespaceStore{DB: s.db})
 
 	s.router.HandleFunc("/namespaces", mw.Auth(namespace.Index)).Methods("GET")
 	s.router.HandleFunc("/namespaces/create", mw.Auth(namespace.Create)).Methods("GET")
@@ -55,7 +55,7 @@ func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
-	build := ui.NewBuild(h, s.Queues, model.NewNamespaceStore(s.db))
+	build := ui.NewBuild(h, s.Queues, &model.NamespaceStore{DB: s.db})
 
 	s.router.HandleFunc("/", mw.Auth(build.Index)).Methods("GET")
 	s.router.HandleFunc("/builds/create", mw.Auth(build.Create)).Methods("GET")
@@ -91,7 +91,7 @@ func (s *uiServer) init() {
 	wh := web.New(
 		securecookie.New(s.hash, s.key),
 		session.New(s.client, s.key),
-		model.NewUserStore(s.db),
+		&model.UserStore{DB: s.db},
 	)
 	mw := web.NewMiddleware(wh)
 

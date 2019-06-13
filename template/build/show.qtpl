@@ -49,10 +49,11 @@ type ShowPage struct {
 					{% endif %}
 				</div>
 				<div class="panel-body">
-					<pre class="code">some commit message goes here</pre>
-				</div>
-				<div class="panel-footer">
-					<span class="code">Commit 1a2b3c4d...</span>
+					{% if p.Build.Trigger.Comment != "" %}
+						<pre class="code">{%s p.Build.Trigger.Comment %}</pre>
+					{% else %}
+						<em class="muted">No build comment.</em>
+					{% endif %}
 				</div>
 			</div>
 		</div>

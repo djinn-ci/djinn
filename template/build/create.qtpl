@@ -31,6 +31,10 @@ type CreatePage struct {
 				{%= p.Error("manifest") %}
 			</div>
 			<div class="form-field">
+				<label class="label" for="comment">Comment <small>(optional)</small></label>
+				<textarea class="form-text form-code" id="comment" name="comment">{%s p.Form.Get("comment") %}</textarea>
+			</div>
+			<div class="form-field">
 				<label class="label" for="tags">Tags <small>(optional)</small></label>
 				<input class="form-text" type="text" id="tags" name="tags" autocomplete="off"/>
 			</div>

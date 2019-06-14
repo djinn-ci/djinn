@@ -223,6 +223,45 @@ func (bos BuildObjectStore) All() ([]*BuildObject, error) {
 	return bo, errors.Err(err)
 }
 
+func (bos BuildObjectStore) First() (*BuildObject, error) {
+	bo := &BuildObject{
+		model: model{
+			DB: bos.DB,
+		},
+		Build:  bos.Build,
+		Object: bos.Object,
+	}
+
+	query := "SELECT * FROM build_objects"
+	args := []interface{}{}
+
+	if bos.Build != nil {
+		query += " WHERE build_id = $1"
+		args = append(args, bos.Build.ID)
+	}
+
+	if bos.Object != nil {
+		if bos.Build != nil {
+			query += " AND object_id = $2"
+		} else {
+			query += " WHERE object_id = $1"
+		}
+
+		args = append(args, bos.Object.ID)
+	}
+
+	err := bos.Get(&bo, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		bo.CreatedAt = nil
+		bo.UpdatedAt = nil
+	}
+
+	return bo, errors.Err(err)
+}
+
 func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 	if len(boo) == 0 {
 		return nil

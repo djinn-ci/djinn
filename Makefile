@@ -13,6 +13,7 @@ $(SRCS):
 
 clean:
 	-rm -f *.out
+	-rm -f *.tar
 
 ui: template
 	qtc -dir $<

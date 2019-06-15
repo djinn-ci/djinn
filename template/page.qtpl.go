@@ -6,56 +6,58 @@ package template
 
 //line template/page.qtpl:2
 import (
+	"fmt"
 	"html/template"
 	"regexp"
 	"strings"
 
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/runner"
 )
 
-//line template/page.qtpl:12
+//line template/page.qtpl:14
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line template/page.qtpl:12
+//line template/page.qtpl:14
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line template/page.qtpl:12
+//line template/page.qtpl:14
 type page interface {
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	Title() string
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	StreamTitle(qw422016 *qt422016.Writer)
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	WriteTitle(qq422016 qtio422016.Writer)
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	Styles() string
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	StreamStyles(qw422016 *qt422016.Writer)
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	WriteStyles(qq422016 qtio422016.Writer)
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	Body() string
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	StreamBody(qw422016 *qt422016.Writer)
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	WriteBody(qq422016 qtio422016.Writer)
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	Footer() string
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	StreamFooter(qw422016 *qt422016.Writer)
-	//line template/page.qtpl:12
+	//line template/page.qtpl:14
 	WriteFooter(qq422016 qtio422016.Writer)
-//line template/page.qtpl:12
+//line template/page.qtpl:14
 }
 
-//line template/page.qtpl:24
+//line template/page.qtpl:26
 type Page struct {
 	URI string
 }
@@ -70,372 +72,489 @@ func (f Form) Get(field string) string {
 	return f.Form.Get(field)
 }
 
-//line template/page.qtpl:40
+func RenderSize(i int64) string {
+	unit := int64(1000)
+
+	if i < unit {
+		return fmt.Sprintf("%d B", i)
+	}
+
+	div := unit
+	exp := 0
+
+	for n := i / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	return fmt.Sprintf("%.1f %cB", float64(i)/float64(i), "KMGTPE"[exp])
+}
+
+//line template/page.qtpl:60
 func StreamRender(qw422016 *qt422016.Writer, p page) {
-	//line template/page.qtpl:40
+	//line template/page.qtpl:60
 	qw422016.N().S(` <!DOCTYPE HTML> <html lang="en"> <head> <meta charset="utf-8"> <meta content="width=device-width, initial-scale=1" name="viewport"> <title>`)
-	//line template/page.qtpl:46
+	//line template/page.qtpl:66
 	p.StreamTitle(qw422016)
-	//line template/page.qtpl:46
+	//line template/page.qtpl:66
 	qw422016.N().S(`</title> `)
-	//line template/page.qtpl:47
+	//line template/page.qtpl:67
 	p.StreamStyles(qw422016)
-	//line template/page.qtpl:47
+	//line template/page.qtpl:67
 	qw422016.N().S(` </head> <body>`)
-	//line template/page.qtpl:49
+	//line template/page.qtpl:69
 	p.StreamBody(qw422016)
-	//line template/page.qtpl:49
+	//line template/page.qtpl:69
 	qw422016.N().S(`</body> <footer>`)
-	//line template/page.qtpl:50
+	//line template/page.qtpl:70
 	p.StreamFooter(qw422016)
-	//line template/page.qtpl:50
+	//line template/page.qtpl:70
 	qw422016.N().S(`</footer> </html> `)
-//line template/page.qtpl:52
+//line template/page.qtpl:72
 }
 
-//line template/page.qtpl:52
+//line template/page.qtpl:72
 func WriteRender(qq422016 qtio422016.Writer, p page) {
-	//line template/page.qtpl:52
+	//line template/page.qtpl:72
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:52
+	//line template/page.qtpl:72
 	StreamRender(qw422016, p)
-	//line template/page.qtpl:52
+	//line template/page.qtpl:72
 	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:52
+//line template/page.qtpl:72
 }
 
-//line template/page.qtpl:52
+//line template/page.qtpl:72
 func Render(p page) string {
-	//line template/page.qtpl:52
+	//line template/page.qtpl:72
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:52
+	//line template/page.qtpl:72
 	WriteRender(qb422016, p)
-	//line template/page.qtpl:52
+	//line template/page.qtpl:72
 	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:52
+	//line template/page.qtpl:72
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:52
+	//line template/page.qtpl:72
 	return qs422016
-//line template/page.qtpl:52
+//line template/page.qtpl:72
 }
 
-//line template/page.qtpl:55
+//line template/page.qtpl:75
 func StreamRenderLink(qw422016 *qt422016.Writer, href, uri string, classes ...string) {
-	//line template/page.qtpl:55
+	//line template/page.qtpl:75
 	qw422016.N().S(`<a href="`)
-	//line template/page.qtpl:56
+	//line template/page.qtpl:76
 	qw422016.E().S(href)
-	//line template/page.qtpl:56
+	//line template/page.qtpl:76
 	qw422016.N().S(`" class="`)
-	//line template/page.qtpl:56
+	//line template/page.qtpl:76
 	if href == uri {
-		//line template/page.qtpl:56
+		//line template/page.qtpl:76
 		qw422016.N().S(`active`)
-		//line template/page.qtpl:56
+		//line template/page.qtpl:76
 	}
-	//line template/page.qtpl:56
+	//line template/page.qtpl:76
 	qw422016.E().S(strings.Join(classes, " "))
-	//line template/page.qtpl:56
+	//line template/page.qtpl:76
 	qw422016.N().S(`">`)
-//line template/page.qtpl:57
+//line template/page.qtpl:77
 }
 
-//line template/page.qtpl:57
+//line template/page.qtpl:77
 func WriteRenderLink(qq422016 qtio422016.Writer, href, uri string, classes ...string) {
-	//line template/page.qtpl:57
+	//line template/page.qtpl:77
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:57
+	//line template/page.qtpl:77
 	StreamRenderLink(qw422016, href, uri, classes...)
-	//line template/page.qtpl:57
+	//line template/page.qtpl:77
 	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:57
+//line template/page.qtpl:77
 }
 
-//line template/page.qtpl:57
+//line template/page.qtpl:77
 func RenderLink(href, uri string, classes ...string) string {
-	//line template/page.qtpl:57
+	//line template/page.qtpl:77
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:57
+	//line template/page.qtpl:77
 	WriteRenderLink(qb422016, href, uri, classes...)
-	//line template/page.qtpl:57
+	//line template/page.qtpl:77
 	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:57
+	//line template/page.qtpl:77
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:57
+	//line template/page.qtpl:77
 	return qs422016
-//line template/page.qtpl:57
+//line template/page.qtpl:77
 }
 
-//line template/page.qtpl:59
+//line template/page.qtpl:79
 func StreamRenderLinkPattern(qw422016 *qt422016.Writer, href, pattern, uri string, classes ...string) {
-	//line template/page.qtpl:59
+	//line template/page.qtpl:79
 	qw422016.N().S(`<a href="`)
-	//line template/page.qtpl:60
+	//line template/page.qtpl:80
 	qw422016.E().S(href)
-	//line template/page.qtpl:60
+	//line template/page.qtpl:80
 	qw422016.N().S(`" class="`)
-	//line template/page.qtpl:60
+	//line template/page.qtpl:80
 	if matched, _ := regexp.Match(pattern, []byte(uri)); matched {
-		//line template/page.qtpl:60
+		//line template/page.qtpl:80
 		qw422016.N().S(`active`)
-		//line template/page.qtpl:60
+		//line template/page.qtpl:80
 	}
-	//line template/page.qtpl:60
+	//line template/page.qtpl:80
 	qw422016.N().S(`">`)
-//line template/page.qtpl:61
+//line template/page.qtpl:81
 }
 
-//line template/page.qtpl:61
+//line template/page.qtpl:81
 func WriteRenderLinkPattern(qq422016 qtio422016.Writer, href, pattern, uri string, classes ...string) {
-	//line template/page.qtpl:61
+	//line template/page.qtpl:81
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:61
+	//line template/page.qtpl:81
 	StreamRenderLinkPattern(qw422016, href, pattern, uri, classes...)
-	//line template/page.qtpl:61
+	//line template/page.qtpl:81
 	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:61
+//line template/page.qtpl:81
 }
 
-//line template/page.qtpl:61
+//line template/page.qtpl:81
 func RenderLinkPattern(href, pattern, uri string, classes ...string) string {
-	//line template/page.qtpl:61
+	//line template/page.qtpl:81
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:61
+	//line template/page.qtpl:81
 	WriteRenderLinkPattern(qb422016, href, pattern, uri, classes...)
-	//line template/page.qtpl:61
+	//line template/page.qtpl:81
 	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:61
+	//line template/page.qtpl:81
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:61
+	//line template/page.qtpl:81
 	return qs422016
-//line template/page.qtpl:61
+//line template/page.qtpl:81
 }
 
-//line template/page.qtpl:63
+//line template/page.qtpl:83
 func StreamRenderCode(qw422016 *qt422016.Writer, code string) {
-	//line template/page.qtpl:65
+	//line template/page.qtpl:85
 	lines := strings.Split(code, "\n")
 
-	//line template/page.qtpl:66
-	qw422016.N().S(`<div class="code-wrap"><table class="code"><tbody>`)
-	//line template/page.qtpl:70
-	for i, l := range lines {
-		//line template/page.qtpl:70
-		qw422016.N().S(`<tr><td class="line-number"><a href="#L`)
-		//line template/page.qtpl:72
-		qw422016.E().V(i + 1)
-		//line template/page.qtpl:72
-		qw422016.N().S(`">`)
-		//line template/page.qtpl:72
-		qw422016.E().V(i + 1)
-		//line template/page.qtpl:72
-		qw422016.N().S(`</a></td><td id="L`)
-		//line template/page.qtpl:73
-		qw422016.E().V(i + 1)
-		//line template/page.qtpl:73
-		qw422016.N().S(`" class="line">`)
-		//line template/page.qtpl:73
-		qw422016.E().S(l)
-		//line template/page.qtpl:73
-		qw422016.N().S(`</td></tr>`)
-		//line template/page.qtpl:75
-	}
-	//line template/page.qtpl:75
-	qw422016.N().S(`</tbody></table></div>`)
-//line template/page.qtpl:79
-}
-
-//line template/page.qtpl:79
-func WriteRenderCode(qq422016 qtio422016.Writer, code string) {
-	//line template/page.qtpl:79
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:79
-	StreamRenderCode(qw422016, code)
-	//line template/page.qtpl:79
-	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:79
-}
-
-//line template/page.qtpl:79
-func RenderCode(code string) string {
-	//line template/page.qtpl:79
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:79
-	WriteRenderCode(qb422016, code)
-	//line template/page.qtpl:79
-	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:79
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:79
-	return qs422016
-//line template/page.qtpl:79
-}
-
-//line template/page.qtpl:82
-func (f Form) StreamError(qw422016 *qt422016.Writer, field string) {
-	//line template/page.qtpl:82
-	qw422016.N().S(` <div class="form-error">`)
-	//line template/page.qtpl:83
-	qw422016.E().S(f.Errors.First(field))
-	//line template/page.qtpl:83
-	qw422016.N().S(`</div> `)
-//line template/page.qtpl:84
-}
-
-//line template/page.qtpl:84
-func (f Form) WriteError(qq422016 qtio422016.Writer, field string) {
-	//line template/page.qtpl:84
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:84
-	f.StreamError(qw422016, field)
-	//line template/page.qtpl:84
-	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:84
-}
-
-//line template/page.qtpl:84
-func (f Form) Error(field string) string {
-	//line template/page.qtpl:84
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:84
-	f.WriteError(qb422016, field)
-	//line template/page.qtpl:84
-	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:84
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:84
-	return qs422016
-//line template/page.qtpl:84
-}
-
-//line template/page.qtpl:86
-func (p *Page) StreamTitle(qw422016 *qt422016.Writer) {
 	//line template/page.qtpl:86
-	qw422016.N().S(` Thrall `)
-//line template/page.qtpl:88
-}
-
-//line template/page.qtpl:88
-func (p *Page) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/page.qtpl:88
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:88
-	p.StreamTitle(qw422016)
-	//line template/page.qtpl:88
-	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:88
-}
-
-//line template/page.qtpl:88
-func (p *Page) Title() string {
-	//line template/page.qtpl:88
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:88
-	p.WriteTitle(qb422016)
-	//line template/page.qtpl:88
-	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:88
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:88
-	return qs422016
-//line template/page.qtpl:88
-}
-
-//line template/page.qtpl:90
-func (p *Page) StreamStyles(qw422016 *qt422016.Writer) {
+	qw422016.N().S(`<div class="code-wrap"><table class="code"><tbody>`)
 	//line template/page.qtpl:90
+	for i, l := range lines {
+		//line template/page.qtpl:90
+		qw422016.N().S(`<tr><td class="line-number"><a href="#L`)
+		//line template/page.qtpl:92
+		qw422016.E().V(i + 1)
+		//line template/page.qtpl:92
+		qw422016.N().S(`">`)
+		//line template/page.qtpl:92
+		qw422016.E().V(i + 1)
+		//line template/page.qtpl:92
+		qw422016.N().S(`</a></td><td id="L`)
+		//line template/page.qtpl:93
+		qw422016.E().V(i + 1)
+		//line template/page.qtpl:93
+		qw422016.N().S(`" class="line">`)
+		//line template/page.qtpl:93
+		qw422016.E().S(l)
+		//line template/page.qtpl:93
+		qw422016.N().S(`</td></tr>`)
+		//line template/page.qtpl:95
+	}
+	//line template/page.qtpl:95
+	qw422016.N().S(`</tbody></table></div>`)
+//line template/page.qtpl:99
+}
+
+//line template/page.qtpl:99
+func WriteRenderCode(qq422016 qtio422016.Writer, code string) {
+	//line template/page.qtpl:99
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/page.qtpl:99
+	StreamRenderCode(qw422016, code)
+	//line template/page.qtpl:99
+	qt422016.ReleaseWriter(qw422016)
+//line template/page.qtpl:99
+}
+
+//line template/page.qtpl:99
+func RenderCode(code string) string {
+	//line template/page.qtpl:99
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/page.qtpl:99
+	WriteRenderCode(qb422016, code)
+	//line template/page.qtpl:99
+	qs422016 := string(qb422016.B)
+	//line template/page.qtpl:99
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/page.qtpl:99
+	return qs422016
+//line template/page.qtpl:99
+}
+
+//line template/page.qtpl:102
+func StreamRenderStatus(qw422016 *qt422016.Writer, s runner.Status) {
+	//line template/page.qtpl:102
+	qw422016.N().S(` `)
+	//line template/page.qtpl:103
+	switch s {
+	//line template/page.qtpl:104
+	case runner.Queued:
+		//line template/page.qtpl:104
+		qw422016.N().S(` <span class="pill pill-fixed pill-dark">`)
+		//line template/page.qtpl:105
+		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M12 11.484l3.984-3.984v-3.516h-7.969v3.516zM15.984 16.5l-3.984-3.984-3.984 3.984v3.516h7.969v-3.516zM6 2.016h12v6l-3.984 3.984 3.984 3.984v6h-12v-6l3.984-3.984-3.984-3.984v-6z"></path>
+</svg>
+`)
+		//line template/page.qtpl:105
+		qw422016.N().S(` Queued</span> `)
+	//line template/page.qtpl:106
+	case runner.Running:
+		//line template/page.qtpl:106
+		qw422016.N().S(` <span class="pill pill-fixed pill-blue">`)
+		//line template/page.qtpl:107
+		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M21.984 12c0 5.156-3.938 9.422-8.953 9.938v-2.016c3.938-0.516 6.984-3.891 6.984-7.922s-3.047-7.406-6.984-7.922v-2.016c5.016 0.516 8.953 4.781 8.953 9.938zM5.672 19.734l1.406-1.406c1.125 0.844 2.484 1.406 3.938 1.594v2.016c-2.016-0.188-3.844-0.984-5.344-2.203zM4.078 12.984c0.188 1.453 0.75 2.813 1.594 3.891l-1.406 1.453c-1.219-1.5-2.016-3.328-2.203-5.344h2.016zM5.672 7.078c-0.844 1.125-1.406 2.484-1.594 3.938h-2.016c0.188-2.016 0.984-3.844 2.203-5.344zM11.016 4.078c-1.453 0.188-2.813 0.75-3.938 1.594l-1.406-1.406c1.5-1.219 3.328-2.016 5.344-2.203v2.016zM13.031 9.797l2.953 2.203c-2.007 1.493-4.007 2.993-6 4.5z"></path>
+</svg>
+`)
+		//line template/page.qtpl:107
+		qw422016.N().S(` Running</span> `)
+	//line template/page.qtpl:108
+	case runner.Passed:
+		//line template/page.qtpl:108
+		qw422016.N().S(` <span class="pill pill-fixed pill-green">`)
+		//line template/page.qtpl:109
+		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M9 16.172l10.594-10.594 1.406 1.406-12 12-5.578-5.578 1.406-1.406z"></path>
+</svg>
+`)
+		//line template/page.qtpl:109
+		qw422016.N().S(` Passed</span> `)
+	//line template/page.qtpl:110
+	case runner.PassedWithFailures:
+		//line template/page.qtpl:110
+		qw422016.N().S(` <span class="pill pill-fixed pill-orange">`)
+		//line template/page.qtpl:111
+		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M12.984 14.016v-4.031h-1.969v4.031h1.969zM12.984 18v-2.016h-1.969v2.016h1.969zM0.984 21l11.016-18.984 11.016 18.984h-22.031z"></path>
+</svg>
+`)
+		//line template/page.qtpl:111
+		qw422016.N().S(` Passed</span> `)
+	//line template/page.qtpl:112
+	case runner.Failed:
+		//line template/page.qtpl:112
+		qw422016.N().S(` <span class="pill pill-fixed pill-red">`)
+		//line template/page.qtpl:113
+		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M18.984 6.422l-5.578 5.578 5.578 5.578-1.406 1.406-5.578-5.578-5.578 5.578-1.406-1.406 5.578-5.578-5.578-5.578 1.406-1.406 5.578 5.578 5.578-5.578z"></path>
+</svg>
+`)
+		//line template/page.qtpl:113
+		qw422016.N().S(` Failed</span> `)
+		//line template/page.qtpl:114
+	}
+	//line template/page.qtpl:114
+	qw422016.N().S(` `)
+//line template/page.qtpl:115
+}
+
+//line template/page.qtpl:115
+func WriteRenderStatus(qq422016 qtio422016.Writer, s runner.Status) {
+	//line template/page.qtpl:115
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/page.qtpl:115
+	StreamRenderStatus(qw422016, s)
+	//line template/page.qtpl:115
+	qt422016.ReleaseWriter(qw422016)
+//line template/page.qtpl:115
+}
+
+//line template/page.qtpl:115
+func RenderStatus(s runner.Status) string {
+	//line template/page.qtpl:115
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/page.qtpl:115
+	WriteRenderStatus(qb422016, s)
+	//line template/page.qtpl:115
+	qs422016 := string(qb422016.B)
+	//line template/page.qtpl:115
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/page.qtpl:115
+	return qs422016
+//line template/page.qtpl:115
+}
+
+//line template/page.qtpl:117
+func (f Form) StreamError(qw422016 *qt422016.Writer, field string) {
+	//line template/page.qtpl:117
+	qw422016.N().S(` <div class="form-error">`)
+	//line template/page.qtpl:118
+	qw422016.E().S(f.Errors.First(field))
+	//line template/page.qtpl:118
+	qw422016.N().S(`</div> `)
+//line template/page.qtpl:119
+}
+
+//line template/page.qtpl:119
+func (f Form) WriteError(qq422016 qtio422016.Writer, field string) {
+	//line template/page.qtpl:119
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/page.qtpl:119
+	f.StreamError(qw422016, field)
+	//line template/page.qtpl:119
+	qt422016.ReleaseWriter(qw422016)
+//line template/page.qtpl:119
+}
+
+//line template/page.qtpl:119
+func (f Form) Error(field string) string {
+	//line template/page.qtpl:119
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/page.qtpl:119
+	f.WriteError(qb422016, field)
+	//line template/page.qtpl:119
+	qs422016 := string(qb422016.B)
+	//line template/page.qtpl:119
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/page.qtpl:119
+	return qs422016
+//line template/page.qtpl:119
+}
+
+//line template/page.qtpl:121
+func (p *Page) StreamTitle(qw422016 *qt422016.Writer) {
+	//line template/page.qtpl:121
+	qw422016.N().S(` Thrall `)
+//line template/page.qtpl:123
+}
+
+//line template/page.qtpl:123
+func (p *Page) WriteTitle(qq422016 qtio422016.Writer) {
+	//line template/page.qtpl:123
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/page.qtpl:123
+	p.StreamTitle(qw422016)
+	//line template/page.qtpl:123
+	qt422016.ReleaseWriter(qw422016)
+//line template/page.qtpl:123
+}
+
+//line template/page.qtpl:123
+func (p *Page) Title() string {
+	//line template/page.qtpl:123
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/page.qtpl:123
+	p.WriteTitle(qb422016)
+	//line template/page.qtpl:123
+	qs422016 := string(qb422016.B)
+	//line template/page.qtpl:123
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/page.qtpl:123
+	return qs422016
+//line template/page.qtpl:123
+}
+
+//line template/page.qtpl:125
+func (p *Page) StreamStyles(qw422016 *qt422016.Writer) {
+	//line template/page.qtpl:125
 	qw422016.N().S(` <link rel="stylesheet" type="text/css" href="/assets/css/main.css"> `)
-//line template/page.qtpl:92
+//line template/page.qtpl:127
 }
 
-//line template/page.qtpl:92
+//line template/page.qtpl:127
 func (p *Page) WriteStyles(qq422016 qtio422016.Writer) {
-	//line template/page.qtpl:92
+	//line template/page.qtpl:127
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:92
+	//line template/page.qtpl:127
 	p.StreamStyles(qw422016)
-	//line template/page.qtpl:92
+	//line template/page.qtpl:127
 	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:92
+//line template/page.qtpl:127
 }
 
-//line template/page.qtpl:92
+//line template/page.qtpl:127
 func (p *Page) Styles() string {
-	//line template/page.qtpl:92
+	//line template/page.qtpl:127
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:92
+	//line template/page.qtpl:127
 	p.WriteStyles(qb422016)
-	//line template/page.qtpl:92
+	//line template/page.qtpl:127
 	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:92
+	//line template/page.qtpl:127
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:92
+	//line template/page.qtpl:127
 	return qs422016
-//line template/page.qtpl:92
+//line template/page.qtpl:127
 }
 
-//line template/page.qtpl:94
+//line template/page.qtpl:129
 func (p *Page) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/page.qtpl:94
+	//line template/page.qtpl:129
 	qw422016.N().S(` `)
-//line template/page.qtpl:95
+//line template/page.qtpl:130
 }
 
-//line template/page.qtpl:95
+//line template/page.qtpl:130
 func (p *Page) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/page.qtpl:95
+	//line template/page.qtpl:130
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:95
+	//line template/page.qtpl:130
 	p.StreamBody(qw422016)
-	//line template/page.qtpl:95
+	//line template/page.qtpl:130
 	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:95
+//line template/page.qtpl:130
 }
 
-//line template/page.qtpl:95
+//line template/page.qtpl:130
 func (p *Page) Body() string {
-	//line template/page.qtpl:95
+	//line template/page.qtpl:130
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:95
+	//line template/page.qtpl:130
 	p.WriteBody(qb422016)
-	//line template/page.qtpl:95
+	//line template/page.qtpl:130
 	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:95
+	//line template/page.qtpl:130
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:95
+	//line template/page.qtpl:130
 	return qs422016
-//line template/page.qtpl:95
+//line template/page.qtpl:130
 }
 
-//line template/page.qtpl:97
+//line template/page.qtpl:132
 func (p *Page) StreamFooter(qw422016 *qt422016.Writer) {
-	//line template/page.qtpl:97
+	//line template/page.qtpl:132
 	qw422016.N().S(` `)
-//line template/page.qtpl:98
+//line template/page.qtpl:133
 }
 
-//line template/page.qtpl:98
+//line template/page.qtpl:133
 func (p *Page) WriteFooter(qq422016 qtio422016.Writer) {
-	//line template/page.qtpl:98
+	//line template/page.qtpl:133
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/page.qtpl:98
+	//line template/page.qtpl:133
 	p.StreamFooter(qw422016)
-	//line template/page.qtpl:98
+	//line template/page.qtpl:133
 	qt422016.ReleaseWriter(qw422016)
-//line template/page.qtpl:98
+//line template/page.qtpl:133
 }
 
-//line template/page.qtpl:98
+//line template/page.qtpl:133
 func (p *Page) Footer() string {
-	//line template/page.qtpl:98
+	//line template/page.qtpl:133
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/page.qtpl:98
+	//line template/page.qtpl:133
 	p.WriteFooter(qb422016)
-	//line template/page.qtpl:98
+	//line template/page.qtpl:133
 	qs422016 := string(qb422016.B)
-	//line template/page.qtpl:98
+	//line template/page.qtpl:133
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/page.qtpl:98
+	//line template/page.qtpl:133
 	return qs422016
-//line template/page.qtpl:98
+//line template/page.qtpl:133
 }

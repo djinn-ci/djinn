@@ -1,10 +1,12 @@
 {%
 import (
+	"fmt"
 	"html/template"
 	"strings"
 	"regexp"
 
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/runner"
 )
 %}
 
@@ -33,6 +35,24 @@ type Form struct {
 
 func (f Form) Get(field string) string {
 	return f.Form.Get(field)
+}
+
+func RenderSize(i int64) string {
+	unit := int64(1000)
+
+	if i < unit {
+		return fmt.Sprintf("%d B", i)
+	}
+
+	div := unit
+	exp := 0
+
+	for n := i / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+
+	return fmt.Sprintf("%.1f %cB", float64(i) / float64(i), "KMGTPE"[exp])
 }
 %}
 
@@ -78,6 +98,21 @@ func (f Form) Get(field string) string {
 	</div>
 {% endfunc %}
 {% endstripspace %}
+
+{% func RenderStatus(s runner.Status) %}
+	{% switch s %}
+		{% case runner.Queued %}
+			<span class="pill pill-fixed pill-dark">{% cat "../svgs/hourglass.svg" %} Queued</span>
+		{% case runner.Running %}
+			<span class="pill pill-fixed pill-blue">{% cat "../svgs/timer.svg" %} Running</span>
+		{% case runner.Passed %}
+			<span class="pill pill-fixed pill-green">{% cat "../svgs/check.svg" %} Passed</span>
+		{% case runner.PassedWithFailures %}
+			<span class="pill pill-fixed pill-orange">{% cat "../svgs/warning.svg" %} Passed</span>
+		{% case runner.Failed %}
+			<span class="pill pill-fixed pill-red">{% cat "../svgs/close.svg" %} Failed</span>
+	{% endswitch %}
+{% endfunc %}
 
 {% func (f Form) Error(field string) %}
 	<div class="form-error">{%s f.Errors.First(field) %}</div>

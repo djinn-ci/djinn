@@ -40,7 +40,7 @@ type ShowNamespacesPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-	{%= build.RenderBuildsTable(p.Builds, "", p.URI) %}
+	{%= build.RenderTable(p.Builds, "", p.URI) %}
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}

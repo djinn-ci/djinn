@@ -1,27 +1,12 @@
 {%
 import (
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/thrall/template"
 )
 %}
 
 {% collapsespace %}
-{% func RenderStatus(s runner.Status) %}
-	{% switch s %}
-		{% case runner.Queued %}
-			<span class="pill pill-fixed pill-dark">{% cat "../../svgs/hourglass.svg" %} Queued</span>
-		{% case runner.Running %}
-			<span class="pill pill-fixed pill-blue">{% cat "../../svgs/timer.svg" %} Running</span>
-		{% case runner.Passed %}
-			<span class="pill pill-fixed pill-green">{% cat "../../svgs/check.svg" %} Passed</span>
-		{% case runner.PassedWithFailures %}
-			<span class="pill pill-fixed pill-orange">{% cat "../../svgs/warning.svg" %} Passed</span>
-		{% case runner.Failed %}
-			<span class="pill pill-fixed pill-red">{% cat "../../svgs/close.svg" %} Failed</span>
-	{% endswitch %}
-{% endfunc %}
-
-{% func RenderBuildsTable(builds []*model.Build, status, uri string) %}
+{% func RenderTable(builds []*model.Build, status, uri string) %}
 	<div class="panel">
 		<div class="panel-header">
 			{% stripspace %}
@@ -59,7 +44,7 @@ import (
 				<tbody>
 				{% for _, b := range builds %}
 					<tr>
-						<td>{%= RenderStatus(b.Status) %}</td>
+						<td>{%= template.RenderStatus(b.Status) %}</td>
 						<td><a href="{%s b.UIEndpoint() %}">#{%v b.ID %}</a></td>
 						<td>
 							{% if b.Namespace != nil %}

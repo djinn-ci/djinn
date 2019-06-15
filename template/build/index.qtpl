@@ -20,7 +20,7 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	{%= RenderBuildsTable(p.Builds, p.Status, p.URI) %}
+	{%= RenderTable(p.Builds, p.Status, p.URI) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

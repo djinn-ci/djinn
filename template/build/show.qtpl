@@ -4,6 +4,7 @@ import (
 
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/job"
 )
 %}
 
@@ -85,29 +86,8 @@ type ShowPage struct {
 		{% for _, s := range p.Build.Stages %}
 			{% if len(s.Jobs) > 0 %}
 				<div class="panel">
-					<div class="panel-header">
-						<h3>{%s s.Name %}</h3>
-					</div>
-						<table class="table">
-							<thead>
-								<tr>
-									<th class="cell-pill">STATUS</th>
-									<th>JOB</th>
-									<th class="cell-date">STARTED</th>
-									<th class="cell-date">FINISHED</th>
-								</tr>
-							</thead>
-							<tbody>
-								{% for _, j := range s.Jobs %}
-									<tr>
-										<td class="cell-pill">{%= RenderStatus(j.Status) %}</td>
-										<td><a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td>
-										<td class="cell-date"><span class="muted">--</span></td>
-										<td class="cell-date"><span class="muted">--</span></td>
-									</tr>
-								{% endfor %}
-							</tbody>
-						</table>
+					<div class="panel-header"><h3>{%s s.Name %}</h3></div>
+					{%= job.RenderTable(s.Jobs) %}
 				</div>
 			{% endif %}
 		{% endfor %}
@@ -115,7 +95,7 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Build.ID %} {%= RenderStatus(p.Build.Status) %}
+	<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Build.ID %} {%= template.RenderStatus(p.Build.Status) %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}

@@ -84,8 +84,7 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		Page: template.Page{
 			URI: r.URL.Path,
 		},
-		Job:        j,
-		ShowOutput: filepath.Base(r.URL.Path) == "output",
+		Job: j,
 	}
 
 	d := template.NewDashboard(p, r.URL.Path)

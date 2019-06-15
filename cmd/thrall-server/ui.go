@@ -74,7 +74,6 @@ func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
 	job := ui.NewJob(h)
 
 	s.router.HandleFunc("/builds/{build}/jobs/{job}", mw.Auth(job.Show))
-	s.router.HandleFunc("/builds/{build}/jobs/{job}/output", mw.Auth(job.Show))
 	s.router.HandleFunc("/builds/{build}/jobs/{job}/output/raw", mw.Auth(job.Show))
 }
 

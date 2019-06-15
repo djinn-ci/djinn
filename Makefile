@@ -6,7 +6,7 @@ SRCS   := $(shell find . -name "main.go" | awk -F"/" '{ print $$3 }')
 
 .PHONY: all clean install
 
-all: $(SRCS) ui
+all: ui $(SRCS)
 
 $(SRCS):
 	go build $(LFLAGS) -tags $(TAGS) -o $@.out ./cmd/$@ 

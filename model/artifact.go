@@ -17,7 +17,6 @@ type Artifact struct {
 	Source  string         `db:"source"`
 	Name    string         `db:"name"`
 	Size    sql.NullInt64  `db:"size"`
-	Type    sql.NullString `db:"type"`
 	MD5     []byte         `db:"md5"`
 	SHA256  []byte         `db:"sha256"`
 
@@ -53,8 +52,8 @@ func (a *Artifact) Create() error {
 func (a *Artifact) Update() error {
 	stmt, err := a.Prepare(`
 		UPDATE artifacts
-		SET size = $1, type = $2, md5 = $3, sha256 = $4, updated_at = NOW()
-		WHERE id = $5
+		SET size = $1, md5 = $2, sha256 = $3, updated_at = NOW()
+		WHERE id = $4
 		RETURNING updated_at
 	`)
 
@@ -64,7 +63,7 @@ func (a *Artifact) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(a.Size, a.Type, a.MD5, a.SHA256, a.ID)
+	row := stmt.QueryRow(a.Size, a.MD5, a.SHA256, a.ID)
 
 	return errors.Err(row.Scan(&a.UpdatedAt))
 }

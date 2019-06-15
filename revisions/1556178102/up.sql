@@ -6,7 +6,6 @@ CREATE TABLE artifacts (
 	source     VARCHAR NOT NULL,
 	name       VARCHAR NOT NULL,
 	size       INT NULL,
-	type       VARCHAR NULL,
 	md5        BYTEA NULL,
 	sha256     BYTEA NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT NOW(),

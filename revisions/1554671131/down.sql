@@ -1,2 +1,2 @@
-DROP TABLE IF EXISTS jobs;
 DROP TABLE IF EXISTS job_dependencies;
+DROP TABLE IF EXISTS jobs;

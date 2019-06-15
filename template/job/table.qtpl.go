@@ -26,52 +26,100 @@ var (
 //line template/job/table.qtpl:9
 func StreamRenderTable(qw422016 *qt422016.Writer, jj []*model.Job) {
 	//line template/job/table.qtpl:9
-	qw422016.N().S(` <table class="table"> <thead> <tr> <th class="cell-pill">STATUS</th> <th>JOB</th> <th class="cell-date">STARTED</th> <th class="cell-date">FINISHED</th> </tr> </thead> <tbody> `)
-	//line template/job/table.qtpl:20
+	qw422016.N().S(` <table class="table"> <thead> <tr> <th class="cell-pill">STATUS</th> <th>JOB</th> <th class="cell-date">STARTED</th> <th class="cell-date">FINISHED</th> <th class="cell-date">DURATION</th> </tr> </thead> <tbody> `)
+	//line template/job/table.qtpl:21
 	for _, j := range jj {
-		//line template/job/table.qtpl:20
+		//line template/job/table.qtpl:21
 		qw422016.N().S(` <tr> <td class="cell-pill">`)
-		//line template/job/table.qtpl:22
+		//line template/job/table.qtpl:23
 		template.StreamRenderStatus(qw422016, j.Status)
-		//line template/job/table.qtpl:22
+		//line template/job/table.qtpl:23
 		qw422016.N().S(`</td> <td><a href="`)
-		//line template/job/table.qtpl:23
+		//line template/job/table.qtpl:24
 		qw422016.E().S(j.UIEndpoint())
-		//line template/job/table.qtpl:23
+		//line template/job/table.qtpl:24
 		qw422016.N().S(`">`)
-		//line template/job/table.qtpl:23
+		//line template/job/table.qtpl:24
 		qw422016.E().S(j.Name)
-		//line template/job/table.qtpl:23
-		qw422016.N().S(`</a></td> <td class="cell-date"><span class="muted">--</span></td> <td class="cell-date"><span class="muted">--</span></td> </tr> `)
-		//line template/job/table.qtpl:27
+		//line template/job/table.qtpl:24
+		qw422016.N().S(`</a></td> <td class="cell-date"> `)
+		//line template/job/table.qtpl:26
+		if !j.StartedAt.Valid {
+			//line template/job/table.qtpl:26
+			qw422016.N().S(` <span class="muted">--</span> `)
+			//line template/job/table.qtpl:28
+		} else {
+			//line template/job/table.qtpl:28
+			qw422016.N().S(` `)
+			//line template/job/table.qtpl:29
+			qw422016.E().S(j.StartedAt.Time.Format("2006-01-02T15:04:05"))
+			//line template/job/table.qtpl:29
+			qw422016.N().S(` `)
+			//line template/job/table.qtpl:30
+		}
+		//line template/job/table.qtpl:30
+		qw422016.N().S(` </td> <td class="cell-date"> `)
+		//line template/job/table.qtpl:33
+		if !j.FinishedAt.Valid {
+			//line template/job/table.qtpl:33
+			qw422016.N().S(` <span class="muted">--</span> `)
+			//line template/job/table.qtpl:35
+		} else {
+			//line template/job/table.qtpl:35
+			qw422016.N().S(` `)
+			//line template/job/table.qtpl:36
+			qw422016.E().S(j.FinishedAt.Time.Format("2006-01-02T15:04:05"))
+			//line template/job/table.qtpl:36
+			qw422016.N().S(` `)
+			//line template/job/table.qtpl:37
+		}
+		//line template/job/table.qtpl:37
+		qw422016.N().S(` </td> <td class="cell-date"> `)
+		//line template/job/table.qtpl:40
+		if !j.StartedAt.Valid || !j.FinishedAt.Valid {
+			//line template/job/table.qtpl:40
+			qw422016.N().S(` <span class="muted">--</span> `)
+			//line template/job/table.qtpl:42
+		} else {
+			//line template/job/table.qtpl:42
+			qw422016.N().S(` `)
+			//line template/job/table.qtpl:43
+			qw422016.E().V(j.FinishedAt.Time.Sub(j.StartedAt.Time))
+			//line template/job/table.qtpl:43
+			qw422016.N().S(` `)
+			//line template/job/table.qtpl:44
+		}
+		//line template/job/table.qtpl:44
+		qw422016.N().S(` </td> </tr> `)
+		//line template/job/table.qtpl:47
 	}
-	//line template/job/table.qtpl:27
+	//line template/job/table.qtpl:47
 	qw422016.N().S(` </tbody> </table> `)
-//line template/job/table.qtpl:30
+//line template/job/table.qtpl:50
 }
 
-//line template/job/table.qtpl:30
+//line template/job/table.qtpl:50
 func WriteRenderTable(qq422016 qtio422016.Writer, jj []*model.Job) {
-	//line template/job/table.qtpl:30
+	//line template/job/table.qtpl:50
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/job/table.qtpl:30
+	//line template/job/table.qtpl:50
 	StreamRenderTable(qw422016, jj)
-	//line template/job/table.qtpl:30
+	//line template/job/table.qtpl:50
 	qt422016.ReleaseWriter(qw422016)
-//line template/job/table.qtpl:30
+//line template/job/table.qtpl:50
 }
 
-//line template/job/table.qtpl:30
+//line template/job/table.qtpl:50
 func RenderTable(jj []*model.Job) string {
-	//line template/job/table.qtpl:30
+	//line template/job/table.qtpl:50
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/job/table.qtpl:30
+	//line template/job/table.qtpl:50
 	WriteRenderTable(qb422016, jj)
-	//line template/job/table.qtpl:30
+	//line template/job/table.qtpl:50
 	qs422016 := string(qb422016.B)
-	//line template/job/table.qtpl:30
+	//line template/job/table.qtpl:50
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/job/table.qtpl:30
+	//line template/job/table.qtpl:50
 	return qs422016
-//line template/job/table.qtpl:30
+//line template/job/table.qtpl:50
 }

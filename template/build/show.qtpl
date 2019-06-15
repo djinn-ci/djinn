@@ -40,48 +40,60 @@ type ShowPage struct {
 		{%= p.renderOutput() %}
 	{% else %}
 		<div class="mb-10 overflow">
-		<div class="col-75 pr-5 left">
-			<div class="panel">
-				<div class="panel-header">
-					{% if p.Build.Namespace.IsZero() %}
-						<h3>Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</h3>
-					{% else %}
-						<h3>Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt; to <a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Path %}</a></h3>
-					{% endif %}
-				</div>
-				<div class="panel-body">
-					{% if p.Build.Trigger.Comment != "" %}
-						<pre class="code">{%s p.Build.Trigger.Comment %}</pre>
-					{% else %}
-						<em class="muted">No build comment.</em>
-					{% endif %}
+			<div class="col-75 pr-5 left">
+				<div class="panel">
+					<div class="panel-header">
+						{% if p.Build.Namespace.IsZero() %}
+							<h3>Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</h3>
+						{% else %}
+							<h3>Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt; to <a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Path %}</a></h3>
+						{% endif %}
+					</div>
+					<div class="panel-body">
+						{% if p.Build.Trigger.Comment != "" %}
+							<pre class="code">{%s p.Build.Trigger.Comment %}</pre>
+						{% else %}
+							<em class="muted">No build comment.</em>
+						{% endif %}
+					</div>
 				</div>
 			</div>
-		</div>
-		<div class="col-25 pl-5 right">
-			<div class="panel">
-				<table class="table">
-					<tr>
-						<td>Started at:</td>
-						<td class="align-right">
-							{% if p.Build.StartedAt != nil && p.Build.StartedAt.Valid %}
-							{% else %}
-								--
-							{% endif %}
-						</td>
-					</tr>
-					<tr>
-						<td>Finished at:</td>
-						<td class="align-right">
-							{% if p.Build.FinishedAt != nil && p.Build.FinishedAt.Valid %}
-							{% else %}
-								--
-							{% endif %}
-						</td>
-					</tr>
-				</table>
+			<div class="col-25 pl-5 right">
+				<div class="panel">
+					<table class="table">
+						<tr>
+							<td>Started at:</td>
+							<td class="align-right">
+								{% if p.Build.StartedAt.Valid %}
+									{%s p.Build.StartedAt.Time.Format("2006-01-02T15:04:05") %}
+								{% else %}
+									<span class="muted">--</span>
+								{% endif %}
+							</td>
+						</tr>
+						<tr>
+							<td>Finished at:</td>
+							<td class="align-right">
+								{% if p.Build.FinishedAt.Valid %}
+									{%s p.Build.FinishedAt.Time.Format("2006-01-02T15:04:05") %}
+								{% else %}
+									<span class="muted">--</span>
+								{% endif %}
+							</td>
+						</tr>
+						<tr>
+							<td>Duration:</td>
+							<td class="align-right">
+								{% if !p.Build.FinishedAt.Valid || !p.Build.StartedAt.Valid %}
+									<span class="muted">--</span>
+								{% else %}
+									{%v p.Build.FinishedAt.Time.Sub(p.Build.StartedAt.Time) %}
+								{% endif %}
+							</td>
+						</tr>
+					</table>
+				</div>
 			</div>
-		</div>
 		</div>
 		{% for _, s := range p.Build.Stages %}
 			{% if len(s.Jobs) > 0 %}

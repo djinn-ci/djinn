@@ -31,7 +31,9 @@ type Collector interface {
 type Runner struct {
 	io.Writer
 
-	handleJob jobHandler
+	handleJobStart    jobHandler
+	handleJobComplete jobHandler
+
 	order     []string
 	lastJob   *Job
 	sigs      chan os.Signal
@@ -63,7 +65,7 @@ func NewRunner(
 	}
 }
 
-func runJobs(jobs JobStore, d Driver, c Collector) chan *Job {
+func runJobs(jobs JobStore, d Driver, c Collector, fn jobHandler) chan *Job {
 	wg := &sync.WaitGroup{}
 	done := make(chan *Job)
 
@@ -73,11 +75,15 @@ func runJobs(jobs JobStore, d Driver, c Collector) chan *Job {
 		go func(j *Job) {
 			defer wg.Done()
 
+			if fn != nil {
+				fn(*j)
+			}
+
 			d.Execute(j, c)
 
 			done <- j
 
-			after := runJobs(j.After, d, c)
+			after := runJobs(j.After, d, c, fn)
 
 			for a := range after {
 				done <- a
@@ -93,8 +99,12 @@ func runJobs(jobs JobStore, d Driver, c Collector) chan *Job {
 	return done
 }
 
-func (r *Runner) HandleJobFunc(f jobHandler) {
-	r.handleJob = f
+func (r *Runner) HandleJobComplete(f jobHandler) {
+	r.handleJobComplete = f
+}
+
+func (r *Runner) HandleJobStart(f jobHandler) {
+	r.handleJobStart = f
 }
 
 func (r *Runner) Add(stages ...*Stage) {
@@ -190,7 +200,7 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 		return nil
 	}
 
-	jobs := runJobs(stage.Jobs, d, r.collector)
+	jobs := runJobs(stage.Jobs, d, r.collector, r.handleJobStart)
 
 	for jobs != nil {
 		select {
@@ -203,8 +213,8 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 				if !ok {
 					jobs = nil
 				} else {
-					if r.handleJob != nil {
-						r.handleJob(*j)
+					if r.handleJobComplete != nil {
+						r.handleJobComplete(*j)
 					}
 
 					r.lastJob = j

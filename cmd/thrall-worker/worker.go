@@ -91,6 +91,27 @@ func (w *worker) serve() error {
 	return errors.Err(w.worker.Launch())
 }
 
+func (w worker) handleJobStart(b *model.Build, rj runner.Job) {
+	s, err := b.StageStore().FindByName(rj.Stage)
+
+	if err != nil || s.IsZero() {
+		return
+	}
+
+	j, err := s.JobStore().FindByName(rj.Name)
+
+	if err != nil || j.IsZero() {
+		return
+	}
+
+	j.StartedAt = &pq.NullTime{
+		Time:  time.Now(),
+		Valid: true,
+	}
+
+	j.Update()
+}
+
 func (w worker) handleJobComplete(b *model.Build, rj runner.Job) {
 	s, err := b.StageStore().FindByName(rj.Stage)
 
@@ -256,7 +277,11 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
-	r.HandleJobFunc(func(j runner.Job) {
+	r.HandleJobStart(func(j runner.Job) {
+		w.handleJobStart(b, j)
+	})
+
+	r.HandleJobComplete(func(j runner.Job) {
 		w.handleJobComplete(b, j)
 	})
 

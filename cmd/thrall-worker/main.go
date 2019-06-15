@@ -15,6 +15,8 @@ import (
 	"github.com/andrewpillar/thrall/server"
 )
 
+var Build string
+
 func mainCommand(c cli.Command) {
 	f, err := os.Open(c.Flags.GetString("config"))
 

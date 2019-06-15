@@ -15,7 +15,11 @@ import (
 	"github.com/andrewpillar/thrall/runner"
 )
 
-var setupStage = "setup"
+var (
+	setupStage = "setup"
+
+	Build string
+)
 
 func mainCommand(c cli.Command) {
 	f, err := os.Open(c.Flags.GetString("manifest"))

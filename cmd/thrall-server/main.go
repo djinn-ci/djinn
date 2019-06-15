@@ -21,11 +21,15 @@ import (
 	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
-var drivers = []string{
-	"docker",
-	"ssh",
-	"qemu",
-}
+var (
+	drivers = []string{
+		"docker",
+		"ssh",
+		"qemu",
+	}
+
+	Build string
+)
 
 func mainCommand(cmd cli.Command) {
 	f, err := os.Open(cmd.Flags.GetString("config"))

@@ -94,7 +94,11 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/create.qtpl:35
 	qw422016.E().S(p.Form.Get("comment"))
 	//line template/build/create.qtpl:35
-	qw422016.N().S(`</textarea> </div> <div class="form-field"> <label class="label" for="tags">Tags <small>(optional)</small></label> <input class="form-text" type="text" id="tags" name="tags" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Submit</button> </div> </form> </div> `)
+	qw422016.N().S(`</textarea> </div> <div class="form-field"> <label class="label" for="tags">Tags <small>(optional)</small></label> <input class="form-text" type="text" id="tags" name="tags" value="`)
+	//line template/build/create.qtpl:39
+	qw422016.E().S(p.Form.Get("tags"))
+	//line template/build/create.qtpl:39
+	qw422016.N().S(`" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Submit</button> </div> </form> </div> `)
 //line template/build/create.qtpl:46
 }
 

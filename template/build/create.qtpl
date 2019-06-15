@@ -36,7 +36,7 @@ type CreatePage struct {
 			</div>
 			<div class="form-field">
 				<label class="label" for="tags">Tags <small>(optional)</small></label>
-				<input class="form-text" type="text" id="tags" name="tags" autocomplete="off"/>
+				<input class="form-text" type="text" id="tags" name="tags" value="{%s p.Form.Get("tags") %}" autocomplete="off"/>
 			</div>
 			<div class="form-field">
 				<button type="submit" class="btn btn-primary">Submit</button>

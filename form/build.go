@@ -54,6 +54,10 @@ func (f Build) Get(key string) string {
 		return f.Manifest
 	}
 
+	if key == "comment" {
+		return f.Comment
+	}
+
 	if key == "tags" {
 		return f.Tags.String()
 	}

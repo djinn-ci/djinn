@@ -11,6 +11,7 @@ import (
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/server"
@@ -21,15 +22,7 @@ import (
 	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
-var (
-	drivers = []string{
-		"docker",
-		"ssh",
-		"qemu",
-	}
-
-	Build string
-)
+var Build string
 
 func mainCommand(cmd cli.Command) {
 	f, err := os.Open(cmd.Flags.GetString("config"))
@@ -102,7 +95,7 @@ func mainCommand(cmd cli.Command) {
 	broker += cfg.Redis.Addr
 
 	if len(cfg.Drivers) == 1 && cfg.Drivers[0] == "*" {
-		cfg.Drivers = drivers
+		cfg.Drivers = driver.All
 	}
 
 	for _, d := range cfg.Drivers {

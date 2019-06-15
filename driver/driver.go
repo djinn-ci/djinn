@@ -15,12 +15,20 @@ import (
 	"github.com/andrewpillar/thrall/runner"
 )
 
-var preamble = `#!/bin/sh
+var (
+	preamble = `#!/bin/sh
 exec 2>&1
 
 set -ex
 
 `
+
+	All = []string{
+		"docker",
+		"ssh",
+		"qemu",
+	}
+)
 
 func createScript(j *runner.Job) *bytes.Buffer {
 	buf := bytes.NewBufferString(preamble)

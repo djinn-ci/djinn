@@ -47,7 +47,7 @@ type ShowPage struct {
 					<tr>
 						<td>Started at:</td>
 						<td class="align-right">
-							{% if p.Job.StartedAt != nil && p.Job.StartedAt.Valid %}
+							{% if p.Job.StartedAt.Valid %}
 							{% else %}
 								--
 							{% endif %}
@@ -56,7 +56,7 @@ type ShowPage struct {
 					<tr>
 						<td>Finished at:</td>
 						<td class="align-right">
-							{% if p.Job.FinishedAt != nil && p.Job.FinishedAt.Valid %}
+							{% if p.Job.FinishedAt.Valid %}
 							{% else %}
 								--
 							{% endif %}

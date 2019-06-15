@@ -137,7 +137,7 @@ func (h Handler) User(r *http.Request) (*model.User, error) {
 
 	u, err := h.Users.Find(id)
 
-	if u.Deleted() {
+	if u.DeletedAt.Valid {
 		return &model.User{}, nil
 	}
 

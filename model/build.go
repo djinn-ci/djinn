@@ -29,8 +29,8 @@ type Build struct {
 	Manifest    string         `db:"manifest"`
 	Status      runner.Status  `db:"status"`
 	Output      sql.NullString `db:"output"`
-	StartedAt   *pq.NullTime   `db:"started_at"`
-	FinishedAt  *pq.NullTime   `db:"finished_at"`
+	StartedAt   pq.NullTime    `db:"started_at"`
+	FinishedAt  pq.NullTime    `db:"finished_at"`
 
 	User      *User
 	Namespace *Namespace
@@ -144,8 +144,8 @@ func (b *Build) IsZero() bool {
            b.Manifest == "" &&
            b.Status == runner.Status(0) &&
            !b.Output.Valid &&
-           b.StartedAt == nil &&
-           b.FinishedAt == nil
+           !b.StartedAt.Valid &&
+           !b.FinishedAt.Valid
 }
 
 func (b *Build) JobShow(id int64) (*Job, error) {

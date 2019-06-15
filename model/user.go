@@ -14,10 +14,10 @@ import (
 type User struct {
 	model
 
-	Email     string       `db:"email"`
-	Username  string       `db:"username"`
-	Password  []byte       `db:"password"`
-	DeletedAt *pq.NullTime `db:"deleted_at"`
+	Email     string      `db:"email"`
+	Username  string      `db:"username"`
+	Password  []byte      `db:"password"`
+	DeletedAt pq.NullTime `db:"deleted_at"`
 }
 
 type UserStore struct {
@@ -165,12 +165,8 @@ func (u *User) Create() error {
 	return errors.Err(row.Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt))
 }
 
-func (u *User) Deleted() bool {
-	return u.DeletedAt != nil && u.DeletedAt.Valid
-}
-
 func (u *User) Destroy() error {
-	u.DeletedAt = &pq.NullTime{
+	u.DeletedAt = pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
 	}
@@ -193,7 +189,7 @@ func (u *User) IsZero() bool {
            u.Email == "" &&
            u.Username == "" &&
            len(u.Password) == 0 &&
-           u.DeletedAt == nil
+           !u.DeletedAt.Valid
 }
 
 func (u *User) Update() error {
@@ -229,7 +225,6 @@ func (us UserStore) Find(id int64) (*User, error) {
 
 		u.CreatedAt = nil
 		u.UpdatedAt = nil
-		u.DeletedAt = nil
 	}
 
 	return u, errors.Err(err)
@@ -249,7 +244,6 @@ func (us UserStore) FindByEmail(email string) (*User, error) {
 
 		u.CreatedAt = nil
 		u.UpdatedAt = nil
-		u.DeletedAt = nil
 	}
 
 	return u, errors.Err(err)
@@ -269,7 +263,6 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 
 		u.CreatedAt = nil
 		u.UpdatedAt = nil
-		u.DeletedAt = nil
 	}
 
 	return u, errors.Err(err)
@@ -289,7 +282,6 @@ func (us UserStore) FindByUsername(username string) (*User, error) {
 
 		u.CreatedAt = nil
 		u.UpdatedAt = nil
-		u.DeletedAt = nil
 	}
 
 	return u, errors.Err(err)

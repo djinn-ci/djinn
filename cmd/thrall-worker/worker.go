@@ -104,7 +104,7 @@ func (w worker) handleJobStart(b *model.Build, rj runner.Job) {
 		return
 	}
 
-	j.StartedAt = &pq.NullTime{
+	j.StartedAt = pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
 	}
@@ -132,7 +132,7 @@ func (w worker) handleJobComplete(b *model.Build, rj runner.Job) {
 		String: output,
 		Valid:  len(output) > 0,
 	}
-	j.FinishedAt = &pq.NullTime{
+	j.FinishedAt = pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
 	}
@@ -268,7 +268,7 @@ func (w worker) runBuild(id int64) error {
 	}
 
 	b.Status = runner.Running
-	b.StartedAt = &pq.NullTime{
+	b.StartedAt = pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
 	}
@@ -292,7 +292,7 @@ func (w worker) runBuild(id int64) error {
 		String: buf.String(),
 		Valid:  true,
 	}
-	b.FinishedAt = &pq.NullTime{
+	b.FinishedAt = pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
 	}

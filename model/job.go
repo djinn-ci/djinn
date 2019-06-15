@@ -22,8 +22,8 @@ type Job struct {
 	Commands   string         `db:"commands"`
 	Status     runner.Status  `db:"status"`
 	Output     sql.NullString `db:"output"`
-	StartedAt  *pq.NullTime   `db:"started_at"`
-	FinishedAt *pq.NullTime   `db:"finished_at"`
+	StartedAt  pq.NullTime    `db:"started_at"`
+	FinishedAt pq.NullTime    `db:"finished_at"`
 
 	Build        *Build
 	Stage        *Stage
@@ -92,8 +92,8 @@ func (j *Job) IsZero() bool {
            j.Commands == "" &&
            j.Status == runner.Status(0) &&
            !j.Output.Valid &&
-           j.StartedAt == nil &&
-           j.FinishedAt == nil
+           !j.StartedAt.Valid &&
+           !j.FinishedAt.Valid
 }
 
 func (j *Job) LoadArtifacts() error {

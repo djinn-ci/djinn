@@ -106,7 +106,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/job/show.qtpl:45
 	qw422016.N().S(`</td> </tr> <tr> <td>Started at:</td> <td class="align-right"> `)
 	//line template/job/show.qtpl:50
-	if p.Job.StartedAt != nil && p.Job.StartedAt.Valid {
+	if p.Job.StartedAt.Valid {
 		//line template/job/show.qtpl:50
 		qw422016.N().S(` `)
 		//line template/job/show.qtpl:51
@@ -118,7 +118,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/job/show.qtpl:53
 	qw422016.N().S(` </td> </tr> <tr> <td>Finished at:</td> <td class="align-right"> `)
 	//line template/job/show.qtpl:59
-	if p.Job.FinishedAt != nil && p.Job.FinishedAt.Valid {
+	if p.Job.FinishedAt.Valid {
 		//line template/job/show.qtpl:59
 		qw422016.N().S(` `)
 		//line template/job/show.qtpl:60

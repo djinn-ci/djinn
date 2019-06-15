@@ -48,8 +48,9 @@ type ShowPage struct {
 						<td>Started at:</td>
 						<td class="align-right">
 							{% if p.Job.StartedAt.Valid %}
+								{%v p.Job.StartedAt.Time.Format("2006-01-02T15:04:05") %}
 							{% else %}
-								--
+								<span class="muted">--</span>
 							{% endif %}
 						</td>
 					</tr>
@@ -57,8 +58,19 @@ type ShowPage struct {
 						<td>Finished at:</td>
 						<td class="align-right">
 							{% if p.Job.FinishedAt.Valid %}
+								{%v p.Job.FinishedAt.Time.Format("2006-01-02T15:04:05") %}
 							{% else %}
-								--
+								<span class="muted">--</span>
+							{% endif %}
+						</td>
+					</tr>
+					<tr>
+						<td>Duration:</td>
+						<td class="align-right">
+							{% if !p.Job.FinishedAt.Valid || !p.Job.StartedAt.Valid %}
+								<span class="muted">--</span>
+							{% else %}
+								{%v p.Job.FinishedAt.Time.Sub(p.Job.StartedAt.Time) %}
 							{% endif %}
 						</td>
 					</tr>

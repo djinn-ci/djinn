@@ -58,10 +58,11 @@ import (
 								<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
 							{% endfor %}
 						</td>
-						<td class="align-right muted">
-							{% if b.FinishedAt != nil && b.FinishedAt.Valid %}
+						<td class="align-right">
+							{% if !b.FinishedAt.Valid || !b.StartedAt.Valid %}
+								<span class="muted">--</span>
 							{% else %}
-								--
+								{%v b.FinishedAt.Time.Sub(b.StartedAt.Time) %}
 							{% endif %}
 						</td>
 					</tr>

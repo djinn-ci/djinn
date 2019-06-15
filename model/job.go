@@ -309,6 +309,38 @@ func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
 	return jj, errors.Err(err)
 }
 
+func (js JobStore) LoadArtifacts(jj []*Job) error {
+	if len(jj) == 0 {
+		return nil
+	}
+
+	ids := make([]int64, len(jj))
+
+	for i, j := range jj {
+		ids[i] = j.ID
+	}
+
+	artifacts := ArtifactStore{
+		DB: js.DB,
+	}
+
+	aa, err := artifacts.InJobID(ids...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, j := range jj {
+		for _, a := range aa {
+			if j.ID == a.JobID {
+				j.Artifacts = append(j.Artifacts, a)
+			}
+		}
+	}
+
+	return nil
+}
+
 func (js JobStore) LoadDependencies(jj []*Job) error {
 	if len(jj) == 0 {
 		return nil

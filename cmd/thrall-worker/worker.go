@@ -164,6 +164,10 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
+	if err := b.JobStore().LoadArtifacts(jobs); err != nil {
+		return errors.Err(err)
+	}
+
 	objs := runner.NewPassthrough()
 
 	for _, o := range b.Objects {
@@ -212,12 +216,18 @@ func (w worker) runBuild(id int64) error {
 				depends[i] = d.Name
 			}
 
+			artifacts := runner.NewPassthrough()
+
+			for _, a := range j.Artifacts {
+				artifacts[a.Source] = a.Hash
+			}
+
 			rj := runner.NewJob(
 				io.MultiWriter(buf, w.buffers[j.ID]),
 				j.Name,
 				strings.Split(j.Commands, "\n"),
 				depends,
-				runner.NewPassthrough(),
+				artifacts,
 			)
 
 			rs.Add(rj)

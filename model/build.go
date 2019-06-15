@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"database/sql"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -46,6 +48,18 @@ type BuildStore struct {
 
 	User      *User
 	Namespace *Namespace
+}
+
+func spread(i int64) []int {
+	ret := make([]int, 0)
+
+	for i != 0 {
+		ret = append(ret, int(i % 10))
+
+		i /= 10
+	}
+
+	return ret
 }
 
 func (b *Build) ArtifactStore() ArtifactStore {
@@ -445,6 +459,23 @@ func (b Build) Submit(srv *machinery.Server) error {
 			jd.DependencyID = dep.ID
 
 			jdd = append(jdd, jd)
+		}
+
+		for src, dst := range job.Artifacts {
+			hash, err := crypto.Hash(spread(time.Now().UnixNano()))
+
+			if err != nil {
+				return errors.Err(err)
+			}
+
+			a := j.ArtifactStore().New()
+			a.Hash = hash
+			a.Source = src
+			a.Name = dst
+
+			if err := a.Create(); err != nil {
+				return errors.Err(err)
+			}
 		}
 	}
 

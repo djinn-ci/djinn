@@ -2,6 +2,8 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -59,6 +61,16 @@ func (a Artifact) IsZero() bool {
            !a.Size.Valid &&
            len(a.MD5) == 0 &&
            len(a.SHA256) == 0
+}
+
+func (a Artifact) UIEndpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/builds/%v/artifacts/%v", a.BuildID, a.ID)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
 }
 
 func (a *Artifact) Update() error {

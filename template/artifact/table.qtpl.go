@@ -51,7 +51,11 @@ func StreamRenderTable(qw422016 *qt422016.Writer, aa []*model.Artifact) {
 		qw422016.E().S(a.Source)
 		//line template/artifact/table.qtpl:24
 		qw422016.N().S(`</span></td>
-					<td><a href="">`)
+					<td><a href="`)
+		//line template/artifact/table.qtpl:25
+		qw422016.E().S(a.UIEndpoint("download"))
+		//line template/artifact/table.qtpl:25
+		qw422016.N().S(`">`)
 		//line template/artifact/table.qtpl:25
 		qw422016.E().S(a.Name)
 		//line template/artifact/table.qtpl:25

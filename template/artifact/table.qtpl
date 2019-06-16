@@ -22,7 +22,7 @@ import (
 			{% for _, a := range aa %}
 				<tr>
 					<td><span class="code">{%s a.Source %}</span></td>
-					<td><a href="">{%s a.Name %}</a></td>
+					<td><a href="{%s a.UIEndpoint("download") %}">{%s a.Name %}</a></td>
 					<td>{%s template.RenderSize(a.Size.Int64) %}</td>
 					<td><span class="code">{%s fmt.Sprintf("%x", a.MD5) %}</span></td>
 					<td><span class="code">{%s fmt.Sprintf("%x", a.SHA256) %}</span></td>

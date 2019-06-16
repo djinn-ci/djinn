@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -50,4 +51,10 @@ func (c *Database) Collect(name string, r io.Reader) (int64, error) {
 	a.SHA256 = hsha256.Sum(nil)
 
 	return n, errors.Err(a.Update())
+}
+
+func (c *Database) Open(name string) (*os.File, error) {
+	f, err := c.Collector.Open(name)
+
+	return f, errors.Err(err)
 }

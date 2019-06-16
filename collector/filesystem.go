@@ -35,3 +35,9 @@ func (c *FileSystem) Collect(name string, r io.Reader) (int64, error) {
 
 	return n, errors.Err(err)
 }
+
+func (c *FileSystem) Open(name string) (*os.File, error) {
+	f, err := os.Open(name)
+
+	return f, errors.Err(err)
+}

@@ -22,6 +22,8 @@ type Placer interface {
 
 type Collector interface {
 	Collect(name string, r io.Reader) (int64, error)
+
+	Open(name string) (*os.File, error)
 }
 
 type Runner struct {

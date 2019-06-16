@@ -9,11 +9,13 @@ import (
 
 	"github.com/andrewpillar/cli"
 
+	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/placer"
 	"github.com/andrewpillar/thrall/server"
 
 	"github.com/go-redis/redis"
@@ -84,6 +86,7 @@ func mainCommand(cmd cli.Command) {
 		HttpsAddr: cfg.Net.SSL.Listen,
 		SSLCert:   cfg.Net.SSL.Cert,
 		SSLKey:    cfg.Net.SSL.Key,
+		CSRFToken: []byte(cfg.Crypto.Auth),
 	}
 
 	broker := "redis://"
@@ -116,15 +119,27 @@ func mainCommand(cmd cli.Command) {
 		srv.AddQueue(d, qsrv)
 	}
 
-	srv.CSRFToken = []byte(cfg.Crypto.Auth)
+	cl, err := collector.New(cfg.Collector)
+
+	if err != nil {
+		log.Error.Fatalf("failed to create artifact collector: %s\n", err)
+	}
+
+	pl, err := placer.New(cfg.Placer)
+
+	if err != nil {
+		log.Error.Fatalf("failed to create object placer: %s\n", err)
+	}
 
 	uiSrv := uiServer{
-		Server: srv,
-		db:     db,
-		client: client,
-		hash:   []byte(cfg.Crypto.Hash),
-		key:    []byte(cfg.Crypto.Key),
-		assets: "public",
+		Server:    srv,
+		db:        db,
+		client:    client,
+		collector: cl,
+		placer:    pl,
+		hash:      []byte(cfg.Crypto.Hash),
+		key:       []byte(cfg.Crypto.Key),
+		assets:    "public",
 	}
 
 	uiSrv.init()

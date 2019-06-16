@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
+	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
 
@@ -24,6 +25,9 @@ type uiServer struct {
 
 	db     *sqlx.DB
 	client *redis.Client
+
+	collector runner.Collector
+	placer    runner.Placer
 
 	hash []byte
 	key  []byte
@@ -77,6 +81,12 @@ func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
 	s.router.HandleFunc("/builds/{build}/jobs/{job}/output/raw", mw.Auth(job.Show))
 }
 
+func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
+	artifact := ui.NewArtifact(h, s.collector)
+
+	s.router.HandleFunc("/builds/{build}/artifacts/{artifact}/download", mw.Auth(artifact.Download))
+}
+
 func (s *uiServer) init() {
 	gob.Register(web.Form(make(map[string]string)))
 	gob.Register(form.NewErrors())
@@ -110,6 +120,7 @@ func (s *uiServer) init() {
 	s.initNamespace(wh, mw)
 	s.initBuild(wh, mw)
 	s.initJob(wh, mw)
+	s.initArtifact(wh, mw)
 
 	s.Server.Init(web.NewLog(web.NewSpoof(s.router)))
 }

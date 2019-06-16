@@ -4,6 +4,7 @@ import (
 
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/artifact"
 	"github.com/andrewpillar/thrall/template/job"
 )
 %}
@@ -181,6 +182,7 @@ type ShowPage struct {
 {% func (p *ShowPage) renderArtifacts() %}
 	<div class="panel">
 		{% if len(p.Build.Artifacts) > 0 %}
+			{%= artifact.RenderTable(p.Build.Artifacts) %}
 		{% else %}
 			<div class="panel-message muted">No artifacts have been collected from this build.</div>
 		{% endif %}

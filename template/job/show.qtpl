@@ -1,9 +1,8 @@
 {%
 import (
-	"fmt"
-
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/artifact"
 )
 %}
 
@@ -81,29 +80,7 @@ type ShowPage struct {
 	<div class="panel">
 		<div class="panel-header"><h3>Artifacts</h3></div>
 		{% if len(p.Job.Artifacts) > 0 %}
-			<table class="table">
-				<thead>
-					<tr>
-						<th>SOURCE</th>
-						<th>NAME</th>
-						<tH>SIZE</th>
-						<th>HASHES</th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for _, a := range p.Job.Artifacts %}
-						<tr>
-							<td><span class="code">{%s a.Source %}</span></td>
-							<td>{%s a.Name %}</td>
-							<td>{%s template.RenderSize(a.Size.Int64) %}</td>
-							<td>
-								<div class="mb-10">MD5 <span class="code right">{%s fmt.Sprintf("%x", a.MD5) %}</span></div>
-								<div class="mb-10">SHA256 <span class="code right">{%s fmt.Sprintf("%x", a.SHA256) %}</span></div>
-							</td>
-						</tr>
-					{% endfor %}
-				</tbody>
-			</table>
+			{%= artifact.RenderTable(p.Job.Artifacts) %}
 		{% else %}
 			<div class="panel-message muted">No artifacts have been collected for this job.</div>
 		{% endif %}

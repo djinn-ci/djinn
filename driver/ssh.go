@@ -174,7 +174,7 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 
 		defer f.Close()
 
-		if err := c.Collect(dst, f); err != nil {
+		if _, err := c.Collect(dst, f); err != nil {
 			fmt.Fprintf(
 				w,
 				"Failed to collect artifact %s => %s: %s\n",
@@ -217,7 +217,7 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 
 		defer f.Close()
 
-		if err := p.Place(src, f); err != nil {
+		if _, err := p.Place(src, f); err != nil {
 			fmt.Fprintf(
 				d.Writer,
 				"Failed to place object %s => %s: %s\n",

@@ -17,15 +17,11 @@ var (
 type jobHandler func(j Job)
 
 type Placer interface {
-	Place(name string, w io.Writer) error
-
-	Stat(name string) (os.FileInfo, error)
+	Place(name string, w io.Writer) (int64, error)
 }
 
 type Collector interface {
-	Collect(name string, r io.Reader) error
-
-	Stat(name string) (os.FileInfo, error)
+	Collect(name string, r io.Reader) (int64, error)
 }
 
 type Runner struct {

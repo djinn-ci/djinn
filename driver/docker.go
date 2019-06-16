@@ -126,7 +126,6 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		Typeflag: tar.TypeReg,
 		Name:     "/bin/" + script,
 		Size:     int64(buf.Len()),
-		Mode:     755,
 	}
 
 	pr, pw := io.Pipe()
@@ -230,7 +229,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 		defer rc.Close()
 
-		if err := c.Collect(dst, rc); err != nil {
+		if _, err := c.Collect(dst, rc); err != nil {
 			fmt.Fprintf(
 				j.Writer,
 				"Failed to collect artifact %s => %s: %s\n",
@@ -291,33 +290,11 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 	for src, dst := range objects {
 		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
 
-		info, err := p.Stat(src)
-
-		if err != nil {
-			fmt.Fprintf(
-				d.Writer,
-				"Failed to place object %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
-			continue
+		header := &tar.Header{
+			Typeflag: tar.TypeReg,
+			Name:     strings.TrimPrefix(dst, d.workspace),
+			Mode:     755,
 		}
-
-		header, err := tar.FileInfoHeader(info, info.Name())
-
-		if err != nil {
-			fmt.Fprintf(
-				d.Writer,
-				"Failed to place object %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
-			continue
-		}
-
-		header.Name = strings.TrimPrefix(dst, d.workspace)
 
 		pr, pw := io.Pipe()
 		defer pr.Close()

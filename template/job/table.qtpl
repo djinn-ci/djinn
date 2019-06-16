@@ -12,8 +12,6 @@ import (
 			<tr>
 				<th class="cell-pill">STATUS</th>
 				<th>JOB</th>
-				<th class="cell-date">STARTED</th>
-				<th class="cell-date">FINISHED</th>
 				<th class="cell-date">DURATION</th>
 			</tr>
 		</thead>
@@ -22,20 +20,6 @@ import (
 				<tr>
 					<td class="cell-pill">{%= template.RenderStatus(j.Status) %}</td>
 					<td><a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td>
-					<td class="cell-date">
-						{% if !j.StartedAt.Valid %}
-							<span class="muted">--</span>
-						{% else %}
-							{%s j.StartedAt.Time.Format("2006-01-02T15:04:05") %}
-						{% endif %}
-					</td>
-					<td class="cell-date">
-						{% if !j.FinishedAt.Valid %}
-							<span class="muted">--</span>
-						{% else %}
-							{%s j.FinishedAt.Time.Format("2006-01-02T15:04:05") %}
-						{% endif %}
-					</td>
 					<td class="cell-date">
 						{% if !j.StartedAt.Valid || !j.FinishedAt.Valid %}
 							<span class="muted">--</span>

@@ -64,6 +64,18 @@ func mainCommand(c cli.Command) {
 		SSLKey:    cfg.Net.SSL.Key,
 	}
 
+	cl, err := collector.New(cfg.Collector)
+
+	if err != nil {
+		log.Error.Fatalf("failed to create artifact collector: %s\n", err)
+	}
+
+	pl, err := placer.New(cfg.Placer)
+
+	if err != nil {
+		log.Error.Fatalf("failed to create object placer: %s\n", err)
+	}
+
 	w := worker{
 		Server:        srv,
 		concurrency:   cfg.Parallelism,
@@ -71,8 +83,8 @@ func mainCommand(c cli.Command) {
 		redisAddr:     cfg.Redis.Addr,
 		redisPassword: cfg.Redis.Password,
 		db:            db,
-		placer:        placer.NewFileSystem("."),
-		collector:     collector.NewFileSystem("."),
+		placer:        pl,
+		collector:     cl,
 	}
 
 	if err := w.init(); err != nil {

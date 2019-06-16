@@ -35,15 +35,8 @@ type Worker struct {
 		Password string
 	}
 
-	Objects struct {
-		Type string
-		Dir  string
-	}
-
-	Artifacts struct {
-		Type string
-		Dir  string
-	}
+	Collector Collector
+	Placer    Placer
 
 	SSH struct {
 		Key     string

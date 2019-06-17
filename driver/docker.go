@@ -126,6 +126,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		Typeflag: tar.TypeReg,
 		Name:     "/bin/" + script,
 		Size:     int64(buf.Len()),
+		Mode:     755,
 	}
 
 	pr, pw := io.Pipe()
@@ -210,8 +211,6 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	}
 
 	for src, dst := range j.Artifacts {
-		dst += ".tar"
-
 		fmt.Fprintf(j.Writer, "Collecting artifact %s => %s\n", src, dst)
 
 		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, src)
@@ -229,14 +228,34 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 		defer rc.Close()
 
-		if _, err := c.Collect(dst, rc); err != nil {
-			fmt.Fprintf(
-				j.Writer,
-				"Failed to collect artifact %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
+		tr := tar.NewReader(rc)
+
+		for {
+			header, err := tr.Next()
+
+			if err != nil {
+				if err == io.EOF {
+					break
+				}
+
+				fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", src, dst, err)
+				break
+			}
+
+			switch header.Typeflag {
+				case tar.TypeDir:
+					break
+				case tar.TypeReg:
+					if _, err := c.Collect(dst, tr); err != nil {
+						fmt.Fprintf(
+							j.Writer,
+							"Failed to collect artifact %s => %s: %s\n",
+							src,
+							dst,
+							errors.Cause(err),
+						)
+					}
+			}
 		}
 	}
 

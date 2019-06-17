@@ -84,7 +84,7 @@ func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
 func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
 	artifact := ui.NewArtifact(h, s.collector)
 
-	s.router.HandleFunc("/builds/{build}/artifacts/{artifact}/download", mw.Auth(artifact.Download))
+	s.router.HandleFunc("/builds/{build}/artifacts/{artifact}/download/{name}", mw.Auth(artifact.Download))
 }
 
 func (s *uiServer) init() {

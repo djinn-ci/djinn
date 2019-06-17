@@ -22,10 +22,26 @@ import (
 			{% for _, a := range aa %}
 				<tr>
 					<td><span class="code">{%s a.Source %}</span></td>
-					<td><a href="{%s a.UIEndpoint("download") %}">{%s a.Name %}</a></td>
+					<td><a href="{%s a.UIEndpoint("download", a.Name) %}">{%s a.Name %}</a></td>
 					<td>{%s template.RenderSize(a.Size.Int64) %}</td>
-					<td><span class="code">{%s fmt.Sprintf("%x", a.MD5) %}</span></td>
-					<td><span class="code">{%s fmt.Sprintf("%x", a.SHA256) %}</span></td>
+					<td>
+						<span class="code">
+							{% if len(a.MD5) == 0 %}
+								--
+							{% else %}
+								{%s fmt.Sprintf("%x", a.MD5) %}
+							{% endif %}
+						</span>
+					</td>
+					<td>
+						<span class="code">
+							{% if len(a.SHA256) == 0 %}
+								--
+							{% else %}
+								{%s fmt.Sprintf("%x", a.SHA256) %}
+							{% endif %}
+						</span>
+					</td>
 				</tr>
 			{% endfor %}
 		</tbody>

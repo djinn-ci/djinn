@@ -72,7 +72,7 @@ func (h Artifact) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if a.IsZero() {
+	if a.IsZero() || a.Name != vars["name"] {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -80,7 +80,7 @@ func (h Artifact) Download(w http.ResponseWriter, r *http.Request) {
 	f, err := h.collector.Open(a.Hash)
 
 	if err != nil {
-		if err == os.ErrNotExist {
+		if os.IsNotExist(errors.Cause(err)) {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}

@@ -6,6 +6,27 @@ import (
 %}
 
 {% collapsespace %}
+{% func RenderVariablesTable(bvv []*model.BuildVariable) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>KEY</th>
+				<th>VALUE</th>
+				<th>FROM MANIFEST</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, bv := range bvv %}
+				<tr>
+					<td><span class="code">{%s bv.Key %}</span></td>
+					<td><span class="code">{%s bv.Value %}</span></td>
+					<td>{% if bv.VariableID.Valid %}False{% else %}True{% endif %}</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
 {% func RenderTable(builds []*model.Build, status, uri string) %}
 	<div class="panel">
 		<div class="panel-header">

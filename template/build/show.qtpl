@@ -192,7 +192,7 @@ type ShowPage struct {
 {% func (p *ShowPage) renderVariables() %}
 	<div class="panel">
 		{% if len(p.Build.Variables) > 0 %}
-
+			{%= RenderVariablesTable(p.Build.Variables) %}
 		{% else %}
 			<div class="panel-message muted">No variables have been set for this build.</div>
 		{% endif %}

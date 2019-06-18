@@ -698,6 +698,10 @@ func (p *ShowPage) streamrenderVariables(qw422016 *qt422016.Writer) {
 	if len(p.Build.Variables) > 0 {
 		//line template/build/show.qtpl:194
 		qw422016.N().S(` `)
+		//line template/build/show.qtpl:195
+		StreamRenderVariablesTable(qw422016, p.Build.Variables)
+		//line template/build/show.qtpl:195
+		qw422016.N().S(` `)
 		//line template/build/show.qtpl:196
 	} else {
 		//line template/build/show.qtpl:196

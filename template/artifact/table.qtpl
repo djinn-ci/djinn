@@ -7,6 +7,7 @@ import (
 )
 %}
 
+{% collapsespace %}
 {% func RenderTable(aa []*model.Artifact) %}
 	<table class="table">
 		<thead>
@@ -47,3 +48,4 @@ import (
 		</tbody>
 	</table>
 {% endfunc %}
+{% endcollapsespace %}

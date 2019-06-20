@@ -40,8 +40,8 @@ type Server struct {
 		Password string
 	}
 
-	Collector Collector
-	Placer    Placer
+	Artifacts FileStore
+	Objects   FileStore
 
 	Log struct {
 		Level  string
@@ -50,14 +50,10 @@ type Server struct {
 	}
 }
 
-type Collector struct {
-	Type string
-	Path string
-}
-
-type Placer struct {
-	Type string
-	Path string
+type FileStore struct {
+	Type  string
+	Path  string
+	Limit int64
 }
 
 func DecodeServer(r io.Reader) (Server, error) {

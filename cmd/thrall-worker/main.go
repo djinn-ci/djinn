@@ -6,12 +6,11 @@ import (
 
 	"github.com/andrewpillar/cli"
 
-	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/placer"
 	"github.com/andrewpillar/thrall/server"
 )
 
@@ -64,16 +63,16 @@ func mainCommand(c cli.Command) {
 		SSLKey:    cfg.Net.SSL.Key,
 	}
 
-	cl, err := collector.New(cfg.Collector)
+	artifacts, err := filestore.New(cfg.Artifacts)
 
 	if err != nil {
-		log.Error.Fatalf("failed to create artifact collector: %s\n", err)
+		log.Error.Fatalf("failed to create artifact store: %s\n", err)
 	}
 
-	pl, err := placer.New(cfg.Placer)
+	objects, err := filestore.New(cfg.Objects)
 
 	if err != nil {
-		log.Error.Fatalf("failed to create object placer: %s\n", err)
+		log.Error.Fatalf("failed to create object store: %s\n", err)
 	}
 
 	w := worker{
@@ -83,8 +82,8 @@ func mainCommand(c cli.Command) {
 		redisAddr:     cfg.Redis.Addr,
 		redisPassword: cfg.Redis.Password,
 		db:            db,
-		placer:        pl,
-		collector:     cl,
+		objects:       objects,
+		artifacts:     artifacts,
 	}
 
 	if err := w.init(); err != nil {

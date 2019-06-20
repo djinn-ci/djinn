@@ -8,9 +8,9 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
-	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
+	"github.com/andrewpillar/thrall/filestore"
 
 	"github.com/jmoiron/sqlx"
 
@@ -26,8 +26,10 @@ type uiServer struct {
 	db     *sqlx.DB
 	client *redis.Client
 
-	collector runner.Collector
-	placer    runner.Placer
+	limit int64
+
+	objects   filestore.FileStore
+	artifacts filestore.FileStore
 
 	hash []byte
 	key  []byte
@@ -82,9 +84,18 @@ func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
-	artifact := ui.NewArtifact(h, s.collector)
+	artifact := ui.NewArtifact(h, s.artifacts)
 
 	s.router.HandleFunc("/builds/{build}/artifacts/{artifact}/download/{name}", mw.Auth(artifact.Download))
+}
+
+func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
+	object := ui.NewObject(h, s.objects, s.limit)
+
+	s.router.HandleFunc("/objects", mw.Auth(object.Index)).Methods("GET")
+	s.router.HandleFunc("/objects/create", mw.Auth(object.Create)).Methods("GET")
+	s.router.HandleFunc("/objects", mw.Auth(object.Store)).Methods("POST")
+	s.router.HandleFunc("/objects/{object}", mw.Auth(object.Destroy)).Methods("DELETE")
 }
 
 func (s *uiServer) init() {

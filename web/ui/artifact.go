@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/mux"
@@ -16,13 +16,13 @@ import (
 type Artifact struct {
 	web.Handler
 
-	collector runner.Collector
+	filestore filestore.FileStore
 }
 
-func NewArtifact(h web.Handler, c runner.Collector) Artifact {
+func NewArtifact(h web.Handler, fs filestore.FileStore) Artifact {
 	return Artifact{
 		Handler:   h,
-		collector: c,
+		filestore: fs,
 	}
 }
 
@@ -77,7 +77,7 @@ func (h Artifact) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := h.collector.Open(a.Hash)
+	f, err := h.filestore.Open(a.Hash)
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {

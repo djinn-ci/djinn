@@ -16,14 +16,14 @@ var (
 
 type jobHandler func(j Job)
 
+// Placer allows for placing files into the given io.Writer.
 type Placer interface {
 	Place(name string, w io.Writer) (int64, error)
 }
 
+// Collector allows for collecting files from the given io.Reader.
 type Collector interface {
 	Collect(name string, r io.Reader) (int64, error)
-
-	Open(name string) (*os.File, error)
 }
 
 type Runner struct {

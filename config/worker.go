@@ -35,8 +35,8 @@ type Worker struct {
 		Password string
 	}
 
-	Collector Collector
-	Placer    Placer
+	Artifacts FileStore
+	Objects   FileStore
 
 	SSH struct {
 		Key     string

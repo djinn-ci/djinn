@@ -9,13 +9,12 @@ import (
 
 	"github.com/andrewpillar/cli"
 
-	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/driver"
+	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/placer"
 	"github.com/andrewpillar/thrall/server"
 
 	"github.com/go-redis/redis"
@@ -119,24 +118,25 @@ func mainCommand(cmd cli.Command) {
 		srv.AddQueue(d, qsrv)
 	}
 
-	cl, err := collector.New(cfg.Collector)
+	artifacts, err := filestore.New(cfg.Artifacts)
 
 	if err != nil {
-		log.Error.Fatalf("failed to create artifact collector: %s\n", err)
+		log.Error.Fatalf("failed to create artifact store: %s\n", err)
 	}
 
-	pl, err := placer.New(cfg.Placer)
+	objects, err := filestore.New(cfg.Objects)
 
 	if err != nil {
-		log.Error.Fatalf("failed to create object placer: %s\n", err)
+		log.Error.Fatalf("failed to create object store: %s\n", err)
 	}
 
 	uiSrv := uiServer{
 		Server:    srv,
 		db:        db,
 		client:    client,
-		collector: cl,
-		placer:    pl,
+		limit:     cfg.Objects.Limit,
+		artifacts: artifacts,
+		objects:   objects,
 		hash:      []byte(cfg.Crypto.Hash),
 		key:       []byte(cfg.Crypto.Key),
 		assets:    "public",

@@ -10,11 +10,10 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/placer"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/server"
 
@@ -40,8 +39,8 @@ type worker struct {
 	users   *model.UserStore
 	builds  *model.BuildStore
 
-	placer    runner.Placer
-	collector runner.Collector
+	objects   filestore.FileStore
+	artifacts filestore.FileStore
 
 	worker *machinery.Worker
 
@@ -203,17 +202,20 @@ func (w worker) runBuild(id int64) error {
 
 	buf := &bytes.Buffer{}
 
-	pl := placer.NewDatabase(w.placer)
-	cl := collector.NewDatabase(w.collector)
-
-	pl.Build = b
-	pl.Users = w.users
-
-	cl.Build = b
-
 	w.signals[b.ID] = make(chan os.Signal)
 
-	r := runner.NewRunner(buf, env, objs, pl, cl, w.signals[b.ID])
+	objDB := &database{
+		Placer: w.objects,
+		build:  b,
+	}
+
+	artDB := &database{
+		Collector: w.artifacts,
+		build:     b,
+		users:     w.users,
+	}
+
+	r := runner.NewRunner(buf, env, objs, objDB, artDB, w.signals[b.ID])
 
 	createDriverId := int64(0)
 

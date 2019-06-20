@@ -8,10 +8,9 @@ import (
 
 	"github.com/andrewpillar/cli"
 
-	"github.com/andrewpillar/thrall/collector"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/driver"
-	"github.com/andrewpillar/thrall/placer"
+	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/runner"
 )
 
@@ -49,8 +48,8 @@ func mainCommand(c cli.Command) {
 		os.Stdout,
 		manifest.Env,
 		manifest.Objects,
-		placer.NewFileSystem(c.Flags.GetString("objects")),
-		collector.NewFileSystem(c.Flags.GetString("artifacts")),
+		filestore.NewFileSystem(c.Flags.GetString("objects"), 0),
+		filestore.NewFileSystem(c.Flags.GetString("artifacts"), 0),
 		sigs,
 	)
 

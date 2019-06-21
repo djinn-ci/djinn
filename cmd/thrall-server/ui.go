@@ -132,6 +132,7 @@ func (s *uiServer) init() {
 	s.initBuild(wh, mw)
 	s.initJob(wh, mw)
 	s.initArtifact(wh, mw)
+	s.initObject(wh, mw)
 
 	s.Server.Init(web.NewLog(web.NewSpoof(s.router)))
 }

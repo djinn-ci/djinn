@@ -1,0 +1,49 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type CreatePage struct {
+	template.Page
+	template.Form
+}
+%}
+
+{% collapsespace %}
+{% func (p *CreatePage) Title() %}
+	Create Object - Thrall
+{% endfunc %}
+
+{% func (p *CreatePage) Body() %}
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="/objects" enctype="multipart/form-data">
+			{%s= string(p.CSRF) %}
+			{% if p.Errors.First("object") != "" %}
+				{%= p.Error("object") %}
+			{% endif %}
+			<div class="form-field">
+				<label class="label" for="name">Name</label>
+				<input class="form-text" type="text" id="name" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
+				{%= p.Error("name") %}
+			</div>
+			<div class="form-field">
+				<label class="label" for="file">File</label>
+				<input type="file" id="file" name="file"/>
+				{%= p.Error("file") %}
+			</div>
+			<div class="form-field">
+				<button type="submit" class="btn btn-primary">Create</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+
+{% func (p *CreatePage) Header() %}
+	<a href="/objects" class="back">{% cat "../../svgs/back.svg" %}</a> Create Object
+{% endfunc %}
+
+{% func (p *CreatePage) Actions() %}{% endfunc %}
+{% func (p *CreatePage) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

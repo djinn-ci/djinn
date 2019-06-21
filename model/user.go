@@ -85,6 +85,12 @@ func (u *User) BuildList(status string) ([]*Build, error) {
 	return bb, errors.Err(err)
 }
 
+func (u *User) ObjectList() ([]*Object, error) {
+	oo, err := u.ObjectStore().All()
+
+	return oo, errors.Err(err)
+}
+
 func (u *User) BuildShow(id int64) (*Build, error) {
 	b, err := u.BuildStore().Find(id)
 

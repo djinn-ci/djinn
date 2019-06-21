@@ -20,6 +20,7 @@ interface dashboardPage {
 
 var (
 	NamespacesURI = "(\\/namespaces\\/?|\\/u\\/[_-a-zA-Z0-9\\S.]+\\/[-a-zA-Z0-9\\/\\S]*\\/?[a-z]*)"
+	ObjectsURI    = "(^\\/objects\\/?[a-z0-9\\/?]*$)"
 	BuildsURI     = "(^\\/$|^\\/builds\\/?[a-z0-9\\/?]*$)"
 	SettingsURI   = "\\/settings\\/?"
 )
@@ -57,7 +58,7 @@ func NewDashboard(p dashboardPage, uri string) *Dashboard {
 				<li class="sidebar-nav-header">MANAGE</li>
 				<li>{%= RenderLinkPattern("/", BuildsURI, p.URI) %}{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
 				<li>{%= RenderLinkPattern("/namespaces", NamespacesURI, p.URI) %}{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
-				<li><a>{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
+				<li>{%= RenderLinkPattern("/objects", ObjectsURI, p.URI) %}{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
 				<li><a>{% cat "../svgs/download.svg" %}<span>Artifacts</span></a></li>
 				<li><a>{% cat "../svgs/key.svg" %}<span>SSH Keys</span></a></li>
 				<li><a>{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>

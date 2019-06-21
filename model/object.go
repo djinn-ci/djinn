@@ -60,8 +60,8 @@ func (o *Object) BuildObjectStore() BuildObjectStore {
 
 func (o *Object) Create() error {
 	stmt, err := o.Prepare(`
-		INSERT INTO objects (user_id, name, type, size, md5, sha256)
-		VALUES ($1, $2, $3, $4, $5, $6)
+		INSERT INTO objects (user_id, hash, name, type, size, md5, sha256)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at
 	`)
 
@@ -71,7 +71,7 @@ func (o *Object) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(o.UserID, o.Name, o.Type, o.Size, o.MD5, o.SHA256)
+	row := stmt.QueryRow(o.UserID, o.Hash, o.Name, o.Type, o.Size, o.MD5, o.SHA256)
 
 	return errors.Err(row.Scan(&o.ID, &o.CreatedAt, &o.UpdatedAt))
 }
@@ -121,6 +121,33 @@ func (bo *BuildObject) Update() error {
 	row := stmt.QueryRow(bo.Placed, bo.ID)
 
 	return errors.Err(row.Scan(&bo.UpdatedAt))
+}
+
+func (os ObjectStore) All() ([]*Object, error) {
+	oo := make([]*Object, 0)
+
+	query := "SELECT * FROM objects"
+	args := []interface{}{}
+
+	if os.User != nil {
+		query += " WHERE user_id = $1"
+		args = append(args, os.User.ID)
+	}
+
+	query += " ORDER BY name ASC"
+
+	err := os.Select(&oo, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, o := range oo {
+		o.DB = os.DB
+		o.User = os.User
+	}
+
+	return oo, errors.Err(err)
 }
 
 func (os ObjectStore) FindByName(name string) (*Object, error) {

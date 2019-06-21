@@ -32,7 +32,7 @@ func New(cfg config.FileStore) (FileStore, error) {
 		case "filesystem":
 			return NewFileSystem(cfg.Path, cfg.Limit), nil
 		default:
-			return nil, errors.Err(errors.New("unknown filestore " + cfg.Type))
+			return nil, errors.Err(errors.New("unknown filestore '" + cfg.Type + "'"))
 	}
 }
 
@@ -102,13 +102,13 @@ func (fs *FileSystem) Place(name string, w io.Writer) (int64, error) {
 }
 
 func (fs *FileSystem) Open(name string) (*os.File, error) {
-	f, err := os.Open(name)
+	f, err := os.Open(filepath.Join(fs.dir, name))
 
 	return f, errors.Err(err)
 }
 
 func (fs *FileSystem) OpenFile(name string, flag int, perm os.FileMode) (*os.File, error) {
-	f, err := os.OpenFile(name, flag, perm)
+	f, err := os.OpenFile(filepath.Join(fs.dir, name), flag, perm)
 
 	return f, errors.Err(err)
 }

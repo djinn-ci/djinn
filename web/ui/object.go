@@ -1,0 +1,158 @@
+package ui
+
+import (
+	"crypto/md5"
+	"crypto/sha256"
+	"io"
+	"net/http"
+	"os"
+
+	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/filestore"
+	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/object"
+	"github.com/andrewpillar/thrall/web"
+
+	"github.com/gorilla/csrf"
+)
+
+type Object struct {
+	web.Handler
+
+	limit     int64
+	filestore filestore.FileStore
+}
+
+func NewObject(h web.Handler, fs filestore.FileStore, l int64) Object {
+	return Object{
+		Handler:   h,
+		limit:     l,
+		filestore: fs,
+	}
+}
+
+func (h Object) Index(w http.ResponseWriter, r *http.Request) {
+	u, err := h.User(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	oo, err := u.ObjectList()
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	p := &object.IndexPage{
+		Page: template.Page{
+			URI: r.URL.Path,
+		},
+		Objects: oo,
+	}
+
+	d := template.NewDashboard(p, r.URL.Path)
+
+	web.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h Object) Create(w http.ResponseWriter, r *http.Request) {
+	p := &object.CreatePage{
+		Form: template.Form{
+			CSRF:   csrf.TemplateField(r),
+			Errors: h.Errors(w, r),
+			Form:   h.Form(w, r),
+		},
+	}
+
+	d := template.NewDashboard(p, r.URL.Path)
+
+	web.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h Object) Store(w http.ResponseWriter, r *http.Request) {
+	u, err := h.User(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	f := &form.Object{
+		Writer:  w,
+		Request: r,
+		Limit:   h.limit,
+	}
+
+	if err := h.ValidateForm(f, w, r); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	defer f.File.Close()
+
+	hash, err := crypto.HashNow()
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	hmd5 := md5.New()
+	hsha256 := sha256.New()
+
+	tee := io.TeeReader(f.File, io.MultiWriter(hmd5, hsha256))
+
+	dst, err := h.filestore.OpenFile(hash, os.O_CREATE|os.O_WRONLY, os.FileMode(0755))
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	defer dst.Close()
+
+	n, err := io.Copy(dst, tee)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	o := u.ObjectStore().New()
+	o.Name = f.Name
+	o.Hash = hash
+	o.Type = f.Info.Header.Get("Content-Type")
+	o.Size = n
+	o.MD5 = hmd5.Sum(nil)
+	o.SHA256 = hsha256.Sum(nil)
+
+	if err := o.Create(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/objects", http.StatusSeeOther)
+}
+
+func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
+
+}

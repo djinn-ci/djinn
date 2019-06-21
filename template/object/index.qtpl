@@ -1,0 +1,64 @@
+{%
+import (
+	"fmt"
+
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type IndexPage struct {
+	template.Page
+
+	Objects []*model.Object
+}
+%}
+
+{% collapsespace %}
+{% func (p *IndexPage) Title() %}
+	Objects - Thrall
+{% endfunc %}
+
+{% func (p *IndexPage) Body() %}
+	<div class="panel">
+		{% if len(p.Objects) > 0 %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th>TYPE</th>
+						<th>SIZE</th>
+						<th>MD5</th>
+						<th>SHA256</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, o := range p.Objects %}
+						<tr>
+							<td>{%s o.Name %}</td>
+							<td><span class="code">{%s o.Type %}</span></td>
+							<td>{%v o.Size %}</td>
+							<td><span class="code">{%s fmt.Sprintf("%x", o.MD5) %}</span></td>
+							<td><span class="code">{%s fmt.Sprintf("%x", o.SHA256) %}</span></td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% else %}
+			<div class="panel-message muted">No objects have been created.</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *IndexPage) Header() %}
+	Objects
+{% endfunc %}
+
+{% func (p *IndexPage) Actions() %}
+	<li><a href="/objects/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *IndexPage) Navigation() %}
+{% endfunc %}
+{% endcollapsespace %}

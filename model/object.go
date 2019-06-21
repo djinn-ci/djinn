@@ -2,6 +2,8 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -87,6 +89,16 @@ func (o *Object) IsZero() bool {
            o.DeletedAt == nil
 }
 
+func (o Object) UIEndpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/objects/%v", o.ID)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
+}
+
 func (bo *BuildObject) Create() error {
 	stmt, err := bo.Prepare(`
 		INSERT INTO build_objects (build_id, object_id, source, name)
@@ -148,6 +160,35 @@ func (os ObjectStore) All() ([]*Object, error) {
 	}
 
 	return oo, errors.Err(err)
+}
+
+func (os ObjectStore) Find(id int64) (*Object, error) {
+	o := &Object{
+		model: model{
+			DB: os.DB,
+		},
+		User: os.User,
+	}
+
+	query := "SELECT * FROM objects WHERE id = $1"
+	args := []interface{}{id}
+
+	if os.User != nil {
+		query += " AND user_id = $2"
+		args = append(args, os.User.ID)
+	}
+
+	err := os.Get(o, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		o.CreatedAt = nil
+		o.UpdatedAt = nil
+		o.DeletedAt = nil
+	}
+
+	return o, errors.Err(err)
 }
 
 func (os ObjectStore) FindByName(name string) (*Object, error) {

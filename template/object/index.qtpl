@@ -36,7 +36,7 @@ type IndexPage struct {
 				<tbody>
 					{% for _, o := range p.Objects %}
 						<tr>
-							<td>{%s o.Name %}</td>
+							<td><a href="{%s o.UIEndpoint("download", o.Name) %}">{%s o.Name %}</a></td>
 							<td><span class="code">{%s o.Type %}</span></td>
 							<td>{%s template.RenderSize(o.Size) %}</td>
 							<td><span class="code">{%s fmt.Sprintf("%x", o.MD5) %}</span></td>

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
@@ -17,6 +18,7 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/csrf"
+	"github.com/gorilla/mux"
 )
 
 type Object struct {
@@ -151,6 +153,50 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/objects", http.StatusSeeOther)
+}
+
+func (h Object) Download(w http.ResponseWriter, r *http.Request) {
+	u, err := h.User(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	vars := mux.Vars(r)
+
+	id, err := strconv.ParseInt(vars["object"], 10, 64)
+
+	if err != nil {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	o, err := u.ObjectStore().Find(id)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if o.IsZero() || o.Name != vars["name"] {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	f, err := h.filestore.Open(o.Hash)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	defer f.Close()
+
+	http.ServeContent(w, r, o.Name, *o.UpdatedAt, f)
 }
 
 func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {

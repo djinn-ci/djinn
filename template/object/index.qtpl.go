@@ -76,11 +76,15 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/object/index.qtpl:37
 		for _, o := range p.Objects {
 			//line template/object/index.qtpl:37
-			qw422016.N().S(` <tr> <td>`)
+			qw422016.N().S(` <tr> <td><a href="`)
+			//line template/object/index.qtpl:39
+			qw422016.E().S(o.UIEndpoint("download", o.Name))
+			//line template/object/index.qtpl:39
+			qw422016.N().S(`">`)
 			//line template/object/index.qtpl:39
 			qw422016.E().S(o.Name)
 			//line template/object/index.qtpl:39
-			qw422016.N().S(`</td> <td><span class="code">`)
+			qw422016.N().S(`</a></td> <td><span class="code">`)
 			//line template/object/index.qtpl:40
 			qw422016.E().S(o.Type)
 			//line template/object/index.qtpl:40

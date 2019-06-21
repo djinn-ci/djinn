@@ -37,22 +37,15 @@ func (f Form) Get(field string) string {
 	return f.Form.Get(field)
 }
 
-func RenderSize(i int64) string {
-	unit := int64(1000)
+func RenderSize(n int64) string {
+	units := []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	i := 0
 
-	if i < unit {
-		return fmt.Sprintf("%d B", i)
+	for ; n > 1024; i++ {
+		n /= 1024
 	}
 
-	div := unit
-	exp := 0
-
-	for n := i / unit; n >= unit; n /= unit {
-		div *= unit
-		exp++
-	}
-
-	return fmt.Sprintf("%.1f %cB", float64(i) / float64(i), "KMGTPE"[exp])
+	return fmt.Sprintf("%d %s", n, units[i])
 }
 %}
 

@@ -38,7 +38,7 @@ type IndexPage struct {
 						<tr>
 							<td>{%s o.Name %}</td>
 							<td><span class="code">{%s o.Type %}</span></td>
-							<td>{%v o.Size %}</td>
+							<td>{%s template.RenderSize(o.Size) %}</td>
 							<td><span class="code">{%s fmt.Sprintf("%x", o.MD5) %}</span></td>
 							<td><span class="code">{%s fmt.Sprintf("%x", o.SHA256) %}</span></td>
 						</tr>

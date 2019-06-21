@@ -86,7 +86,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 			//line template/object/index.qtpl:40
 			qw422016.N().S(`</span></td> <td>`)
 			//line template/object/index.qtpl:41
-			qw422016.E().V(o.Size)
+			qw422016.E().S(template.RenderSize(o.Size))
 			//line template/object/index.qtpl:41
 			qw422016.N().S(`</td> <td><span class="code">`)
 			//line template/object/index.qtpl:42

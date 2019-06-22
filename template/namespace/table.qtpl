@@ -1,26 +1,22 @@
-{% import "github.com/andrewpillar/thrall/model" %}
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
 
 {% collapsespace %}
-{% func renderSearch(uri, search string) %}
-	<form class="panel-search">
-		<input type="text" name="search" class="text" placeholder="Find a namespace..." autocomplete="off" value="{%s search %}"/>
-		{% if search != "" %}
-			<a class="muted" href="{%s uri %}">{% cat "../../svgs/close.svg" %}</a>
-		{% endif %}
-	</form>
-{% endfunc %}
-
-{% func renderNamespaces(namespaces []*model.Namespace, uri, search string) %}
+{% func RenderTable(namespaces []*model.Namespace, uri, search string) %}
 	<div class="panel">
 	{% if len(namespaces) == 0 %}
 		{% if search == "" %}
 			<div class="panel-message muted">Namespaces allow you to group related builds together.</div>
 		{% else %}
-			<div class="panel-header">{%= renderSearch(uri, search) %}</div>
+			<div class="panel-header">{%= template.RenderSearch(uri, search, "Find a namespace...") %}</div>
 			<div class="panel-message muted">No results found.</div>
 		{% endif %}
 	{% else %}
-		<div class="panel-header">{%= renderSearch(uri, search) %}</div>
+		<div class="panel-header">{%= template.RenderSearch(uri, search, "Find a namespace...") %}</div>
 		<table class="table">
 			<thead>
 				<tr>

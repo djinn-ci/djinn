@@ -85,6 +85,23 @@ func (u *User) BuildList(status string) ([]*Build, error) {
 	return bb, errors.Err(err)
 }
 
+func (u *User) NamespaceList(search string) ([]*Namespace, error) {
+	var (
+		nn  []*Namespace
+		err error
+	)
+
+	namespaces := u.NamespaceStore()
+
+	if search != "" {
+		nn, err = namespaces.Like(search)
+	} else {
+		nn, err = namespaces.All()
+	}
+
+	return nn, errors.Err(err)
+}
+
 func (u *User) ObjectList(search string) ([]*Object, error) {
 	var (
 		oo  []*Object

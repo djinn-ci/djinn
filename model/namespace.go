@@ -27,6 +27,7 @@ type Namespace struct {
 	Root     *Namespace
 	Parent   *Namespace
 	Children []*Namespace
+	Builds   []*Build
 }
 
 type NamespaceStore struct {
@@ -39,6 +40,7 @@ type NamespaceStore struct {
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
 		DB:        n.DB,
+		User:      n.User,
 		Namespace: n,
 	}
 }
@@ -46,6 +48,7 @@ func (n *Namespace) BuildStore() BuildStore {
 func (n *Namespace) NamespaceStore() NamespaceStore {
 	return NamespaceStore{
 		DB:        n.DB,
+		User:      n.User,
 		Namespace: n,
 	}
 }
@@ -66,6 +69,23 @@ func (n *Namespace) CascadeVisibility() error {
 	_, err = stmt.Exec(n.Visibility, n.RootID)
 
 	return errors.Err(err)
+}
+
+func (n *Namespace) ChildrenList(search string) ([]*Namespace, error) {
+	var (
+		nn  []*Namespace
+		err error
+	)
+
+	namespaces := n.NamespaceStore()
+
+	if search != "" {
+		nn, err = namespaces.Like(search)
+	} else {
+		nn, err = namespaces.All()
+	}
+
+	return nn, errors.Err(err)
 }
 
 func (n *Namespace) Create() error {

@@ -13,14 +13,11 @@ type ShowPage struct {
 	template.Page
 
 	Namespace *model.Namespace
-	Builds    []*model.Build
-}
 
-type ShowNamespacesPage struct {
-	ShowPage
+	ShowNamespaces bool
 
-	Namespaces []*model.Namespace
-	Search     string
+	Status string
+	Search string
 }
 %}
 
@@ -40,7 +37,11 @@ type ShowNamespacesPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-	{%= build.RenderTable(p.Builds, "", p.URI) %}
+	{% if p.ShowNamespaces %}
+		{%= RenderTable(p.Namespace.Children, p.URI, p.Search) %}
+	{% else %}
+		{%= build.RenderTable(p.Namespace.Builds, p.Status, p.URI) %}
+	{% endif %}
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
@@ -61,9 +62,5 @@ type ShowNamespacesPage struct {
 {% func (p *ShowPage) Navigation() %}
 	<li>{%= template.RenderLink(p.Namespace.UIEndpoint(), p.URI) %}{% cat "../../svgs/build.svg" %}<span>Builds</span></a></li>
 	<li>{%= template.RenderLink(p.Namespace.UIEndpoint("-", "namespaces"), p.URI) %}{% cat "../../svgs/folder.svg" %}<span>Namespaces</span></a></li>
-{% endfunc %}
-
-{% func (p *ShowNamespacesPage) Body() %}
-	{%= renderNamespaces(p.Namespaces, p.URI, p.Search) %}
 {% endfunc %}
 {% endcollapsespace %}

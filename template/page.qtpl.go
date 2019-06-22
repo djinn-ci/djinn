@@ -133,7 +133,7 @@ func Render(p page) string {
 }
 
 //line template/page.qtpl:67
-func StreamRenderSearch(qw422016 *qt422016.Writer, uri, query, prompt string) {
+func StreamRenderSearch(qw422016 *qt422016.Writer, uri, search, prompt string) {
 	//line template/page.qtpl:67
 	qw422016.N().S(` <form class="panel-search"> <input type="text" name="search" class="text" placeholder="`)
 	//line template/page.qtpl:69
@@ -141,11 +141,11 @@ func StreamRenderSearch(qw422016 *qt422016.Writer, uri, query, prompt string) {
 	//line template/page.qtpl:69
 	qw422016.N().S(`" autocomplete="off" value="`)
 	//line template/page.qtpl:69
-	qw422016.E().S(query)
+	qw422016.E().S(search)
 	//line template/page.qtpl:69
 	qw422016.N().S(`"/> `)
 	//line template/page.qtpl:70
-	if query != "" {
+	if search != "" {
 		//line template/page.qtpl:70
 		qw422016.N().S(` <a class="muted" href="`)
 		//line template/page.qtpl:71
@@ -168,22 +168,22 @@ func StreamRenderSearch(qw422016 *qt422016.Writer, uri, query, prompt string) {
 }
 
 //line template/page.qtpl:74
-func WriteRenderSearch(qq422016 qtio422016.Writer, uri, query, prompt string) {
+func WriteRenderSearch(qq422016 qtio422016.Writer, uri, search, prompt string) {
 	//line template/page.qtpl:74
 	qw422016 := qt422016.AcquireWriter(qq422016)
 	//line template/page.qtpl:74
-	StreamRenderSearch(qw422016, uri, query, prompt)
+	StreamRenderSearch(qw422016, uri, search, prompt)
 	//line template/page.qtpl:74
 	qt422016.ReleaseWriter(qw422016)
 //line template/page.qtpl:74
 }
 
 //line template/page.qtpl:74
-func RenderSearch(uri, query, prompt string) string {
+func RenderSearch(uri, search, prompt string) string {
 	//line template/page.qtpl:74
 	qb422016 := qt422016.AcquireByteBuffer()
 	//line template/page.qtpl:74
-	WriteRenderSearch(qb422016, uri, query, prompt)
+	WriteRenderSearch(qb422016, uri, search, prompt)
 	//line template/page.qtpl:74
 	qs422016 := string(qb422016.B)
 	//line template/page.qtpl:74

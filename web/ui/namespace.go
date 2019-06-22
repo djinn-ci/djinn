@@ -62,7 +62,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	nn, err := u.NamespaceList(search)
+	nn, err := u.NamespaceStore().List(search)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -262,7 +262,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if showNamespaces {
-		n.Children, err = n.ChildrenList(search)
+		n.Children, err = n.NamespaceStore().List(search)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

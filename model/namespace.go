@@ -71,23 +71,6 @@ func (n *Namespace) CascadeVisibility() error {
 	return errors.Err(err)
 }
 
-func (n *Namespace) ChildrenList(search string) ([]*Namespace, error) {
-	var (
-		nn  []*Namespace
-		err error
-	)
-
-	namespaces := n.NamespaceStore()
-
-	if search != "" {
-		nn, err = namespaces.Like(search)
-	} else {
-		nn, err = namespaces.All()
-	}
-
-	return nn, errors.Err(err)
-}
-
 func (n *Namespace) Create() error {
 	stmt, err := n.Prepare(`
 		INSERT INTO namespaces (user_id, root_id, parent_id, name, path, description, level, visibility)
@@ -468,6 +451,21 @@ func (ns NamespaceStore) Like(like string) ([]*Namespace, error) {
 		n.DB = ns.DB
 		n.User = ns.User
 		n.Parent = ns.Namespace
+	}
+
+	return nn, errors.Err(err)
+}
+
+func (ns NamespaceStore) List(search string) ([]*Namespace, error) {
+	var (
+		nn  []*Namespace
+		err error
+	)
+
+	if search != "" {
+		nn, err = ns.Like(search)
+	} else {
+		nn, err = ns.All()
 	}
 
 	return nn, errors.Err(err)

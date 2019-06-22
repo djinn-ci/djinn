@@ -247,7 +247,7 @@ func (ns NamespaceStore) All() ([]*Namespace, error) {
 
 	if ns.Namespace != nil {
 		if ns.User != nil {
-			query += " AND WHERE parent_id = $2"
+			query += " AND parent_id = $2"
 		} else {
 			query += " WHERE parent_id = $1"
 		}

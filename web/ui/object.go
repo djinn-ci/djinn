@@ -74,7 +74,9 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	oo, err := u.ObjectList()
+	search := r.URL.Query().Get("search")
+
+	oo, err := u.ObjectList(search)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -88,6 +90,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 		},
 		CSRF:    csrf.TemplateField(r),
 		Objects: oo,
+		Search:  search,
 	}
 
 	d := template.NewDashboard(p, r.URL.Path)

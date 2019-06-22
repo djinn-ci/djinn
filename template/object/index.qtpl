@@ -14,6 +14,7 @@ type IndexPage struct {
 
 	CSRF    htmltemplate.HTML
 	Objects []*model.Object
+	Search  string
 }
 %}
 
@@ -25,6 +26,7 @@ type IndexPage struct {
 {% func (p *IndexPage) Body() %}
 	<div class="panel">
 		{% if len(p.Objects) > 0 %}
+			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an object...") %}</div>
 			<table class="table">
 				<thead>
 					<tr>
@@ -56,7 +58,12 @@ type IndexPage struct {
 				</tbody>
 			</table>
 		{% else %}
-			<div class="panel-message muted">No objects have been created.</div>
+			{% if p.Search == "" %}
+				<div class="panel-message muted">No objects have been created.</div>
+			{% else %}
+				<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an object...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% endif %}
 		{% endif %}
 	</div>
 {% endfunc %}

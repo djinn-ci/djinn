@@ -265,6 +265,31 @@ func (os ObjectStore) In(ids ...int64) ([]*Object, error) {
 	return oo, errors.Err(err)
 }
 
+func (os ObjectStore) Like(like string) ([]*Object, error) {
+	oo := make([]*Object, 0)
+
+	query := "SELECT * FROM objects WHERE deleted_at IS NULL AND name LIKE $1"
+	args := []interface{}{"%" + like + "%"}
+
+	if os.User != nil {
+		query += " AND user_id = $2"
+		args = append(args, os.User.ID)
+	}
+
+	err := os.Select(&oo, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, o := range oo {
+		o.DB = os.DB
+		o.User = os.User
+	}
+
+	return oo, errors.Err(err)
+}
+
 func (os ObjectStore) New() *Object {
 	o := &Object{
 		model: model{

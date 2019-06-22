@@ -64,6 +64,15 @@ func RenderSize(n int64) string {
 	</html>
 {% endfunc %}
 
+{% func RenderSearch(uri, search, prompt string) %}
+	<form class="panel-search">
+		<input type="text" name="search" class="text" placeholder="{%s prompt %}" autocomplete="off" value="{%s search %}"/>
+		{% if search != "" %}
+			<a class="muted" href="{%s uri %}">{% cat "../svgs/close.svg" %}</a>
+		{% endif %}
+	</form>
+{% endfunc %}
+
 {% stripspace %}
 {% func RenderLink(href, uri string, classes ...string) %}
 	<a href="{%s href %}" class="{% if href == uri %}active{% endif %} {%s strings.Join(classes, " ") %}">

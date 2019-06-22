@@ -85,8 +85,19 @@ func (u *User) BuildList(status string) ([]*Build, error) {
 	return bb, errors.Err(err)
 }
 
-func (u *User) ObjectList() ([]*Object, error) {
-	oo, err := u.ObjectStore().All()
+func (u *User) ObjectList(search string) ([]*Object, error) {
+	var (
+		oo  []*Object
+		err error
+	)
+
+	objects := u.ObjectStore()
+
+	if search != "" {
+		oo, err = objects.Like(search)
+	} else {
+		oo, err = objects.All()
+	}
 
 	return oo, errors.Err(err)
 }

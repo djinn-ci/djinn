@@ -114,5 +114,5 @@ func (fs *FileSystem) OpenFile(name string, flag int, perm os.FileMode) (*os.Fil
 }
 
 func (fs *FileSystem) Remove(name string) error {
-	return errors.Err(os.Remove(name))
+	return errors.Err(os.Remove(filepath.Join(fs.dir, name)))
 }

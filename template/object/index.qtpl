@@ -1,6 +1,7 @@
 {%
 import (
 	"fmt"
+	htmltemplate "html/template"
 
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
@@ -11,6 +12,7 @@ import (
 type IndexPage struct {
 	template.Page
 
+	CSRF    htmltemplate.HTML
 	Objects []*model.Object
 }
 %}
@@ -31,6 +33,7 @@ type IndexPage struct {
 						<th>SIZE</th>
 						<th>MD5</th>
 						<th>SHA256</th>
+						<th></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -41,6 +44,13 @@ type IndexPage struct {
 							<td>{%s template.RenderSize(o.Size) %}</td>
 							<td><span class="code">{%s fmt.Sprintf("%x", o.MD5) %}</span></td>
 							<td><span class="code">{%s fmt.Sprintf("%x", o.SHA256) %}</span></td>
+							<td class="align-right">
+								<form method="POST" action="{%s o.UIEndpoint() %}">
+									{%s= string(p.CSRF) %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Delete</button>
+								</form>
+							</td>
 						</tr>
 					{% endfor %}
 				</tbody>

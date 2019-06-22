@@ -13,6 +13,7 @@ import (
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/object"
 	"github.com/andrewpillar/thrall/web"
@@ -36,6 +37,34 @@ func NewObject(h web.Handler, fs filestore.FileStore, l int64) Object {
 	}
 }
 
+func (h Object) object(r *http.Request) (*model.Object, map[string]string, error) {
+	vars := mux.Vars(r)
+
+	u, err := h.User(r)
+
+	if err != nil {
+		return &model.Object{}, vars, errors.Err(err)
+	}
+
+	id, err := strconv.ParseInt(vars["object"], 10, 64)
+
+	if err != nil {
+		return &model.Object{}, vars, nil
+	}
+
+	o, err := u.ObjectStore().Find(id)
+
+	if err != nil {
+		return &model.Object{}, vars, errors.Err(err)
+	}
+
+	if o.DeletedAt != nil && o.DeletedAt.Valid {
+		return &model.Object{}, vars, nil
+	}
+
+	return o, vars, nil
+}
+
 func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
@@ -57,6 +86,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 		Page: template.Page{
 			URI: r.URL.Path,
 		},
+		CSRF:    csrf.TemplateField(r),
 		Objects: oo,
 	}
 
@@ -156,24 +186,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Download(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	vars := mux.Vars(r)
-
-	id, err := strconv.ParseInt(vars["object"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	o, err := u.ObjectStore().Find(id)
+	o, vars, err := h.object(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -189,6 +202,11 @@ func (h Object) Download(w http.ResponseWriter, r *http.Request) {
 	f, err := h.filestore.Open(o.Hash)
 
 	if err != nil {
+		if os.IsNotExist(err) {
+			web.HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -200,5 +218,23 @@ func (h Object) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
+	o, _, err := h.object(r)
 
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := o.Destroy(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.filestore.Remove(o.Hash); err != nil {
+		log.Error.Println(errors.Err(err))
+	}
+
+	http.Redirect(w, r, "/objects", http.StatusSeeOther)
 }

@@ -78,6 +78,25 @@ func (o *Object) Create() error {
 	return errors.Err(row.Scan(&o.ID, &o.CreatedAt, &o.UpdatedAt))
 }
 
+func (o *Object) Destroy() error {
+	stmt, err := o.Prepare(`
+		UPDATE objects
+		SET deleted_at = NOW()
+		WHERE id = $1
+		RETURNING deleted_at
+	`)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	row := stmt.QueryRow(o.ID)
+
+	return errors.Err(row.Scan(&o.DeletedAt))
+}
+
 func (o *Object) IsZero() bool {
 	return o.model.IsZero() &&
            o.UserID == 0 &&
@@ -138,11 +157,11 @@ func (bo *BuildObject) Update() error {
 func (os ObjectStore) All() ([]*Object, error) {
 	oo := make([]*Object, 0)
 
-	query := "SELECT * FROM objects"
+	query := "SELECT * FROM objects WHERE deleted_at IS NULL "
 	args := []interface{}{}
 
 	if os.User != nil {
-		query += " WHERE user_id = $1"
+		query += " AND user_id = $1"
 		args = append(args, os.User.ID)
 	}
 

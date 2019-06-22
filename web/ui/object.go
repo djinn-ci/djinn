@@ -76,7 +76,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	oo, err := u.ObjectList(search)
+	oo, err := u.ObjectStore().List(search)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

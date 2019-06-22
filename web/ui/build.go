@@ -197,7 +197,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, err := u.BuildShow(id)
+	b, err := u.BuildStore().Show(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

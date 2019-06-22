@@ -34,57 +34,6 @@ func (us UserStore) New() *User {
 	return u
 }
 
-func (u *User) ObjectList(search string) ([]*Object, error) {
-	var (
-		oo  []*Object
-		err error
-	)
-
-	objects := u.ObjectStore()
-
-	if search != "" {
-		oo, err = objects.Like(search)
-	} else {
-		oo, err = objects.All()
-	}
-
-	return oo, errors.Err(err)
-}
-
-func (u *User) BuildShow(id int64) (*Build, error) {
-	b, err := u.BuildStore().Find(id)
-
-	if err != nil {
-		return b, errors.Err(err)
-	}
-
-	b.User = u
-
-	if err := b.LoadNamespace(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.Namespace.LoadUser(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadTrigger(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadTags(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadStages(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	err = b.StageStore().LoadJobs(b.Stages)
-
-	return b, errors.Err(err)
-}
-
 func (u *User) BuildStore() BuildStore {
 	return BuildStore{
 		DB:   u.DB,

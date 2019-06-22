@@ -290,6 +290,21 @@ func (os ObjectStore) Like(like string) ([]*Object, error) {
 	return oo, errors.Err(err)
 }
 
+func (os ObjectStore) List(search string) ([]*Object, error) {
+	var (
+		oo  []*Object
+		err error
+	)
+
+	if search != "" {
+		oo, err = os.Like(search)
+	} else {
+		oo, err = os.All()
+	}
+
+	return oo, errors.Err(err)
+}
+
 func (os ObjectStore) New() *Object {
 	o := &Object{
 		model: model{

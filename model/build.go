@@ -785,6 +785,38 @@ func (bs BuildStore) New() *Build {
 	return b
 }
 
+func (bs BuildStore) Show(id int64) (*Build, error) {
+	b, err := bs.Find(id)
+
+	if err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadNamespace(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.Namespace.LoadUser(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadTrigger(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadTags(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadStages(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	err = b.StageStore().LoadJobs(b.Stages)
+
+	return b, errors.Err(err)
+}
+
 func (bv *BuildVariable) Create() error {
 	stmt, err := bv.Prepare(`
 		INSERT INTO build_variables (build_id, variable_id, key, value)

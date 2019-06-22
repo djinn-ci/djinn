@@ -615,6 +615,55 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 	return b, errors.Err(err)
 }
 
+func (bs BuildStore) List(status string) ([]*Build, error) {
+	var (
+		bb  []*Build
+		err error
+	)
+
+	if status != "" {
+		bb, err = bs.ByStatus(status)
+	} else {
+		bb, err = bs.All()
+	}
+
+	if err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := bs.LoadNamespaces(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := bs.LoadTags(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := bs.LoadUsers(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	nn := make([]*Namespace, 0, len(bb))
+
+	for _, b := range bb {
+		if b.Namespace != nil {
+			nn = append(nn, b.Namespace)
+		}
+	}
+
+	ns := NamespaceStore{
+		DB: bs.DB,
+	}
+
+	err = ns.LoadUsers(nn)
+
+	return bb, errors.Err(err)
+}
+
 func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil

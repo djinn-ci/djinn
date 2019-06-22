@@ -262,54 +262,21 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if showNamespaces {
-		children, err := n.ChildrenList(search)
+		n.Children, err = n.ChildrenList(search)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-
-		n.Children = children
 	} else {
-		builds := n.BuildStore()
-
-		var (
-			bb  []*model.Build
-			err error
-		)
-
-		if status != "" {
-			bb, err = builds.ByStatus(status)
-		} else {
-			bb, err = builds.All()
-		}
+		n.Builds, err = n.BuildStore().List(status)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-
-		if err := builds.LoadNamespaces(bb); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if err := builds.LoadTags(bb); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if err := builds.LoadUsers(bb); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		n.Builds = bb
 	}
 
 	d := template.NewDashboard(&p, r.URL.Path)

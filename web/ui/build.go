@@ -48,7 +48,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 
 	status := r.URL.Query().Get("status")
 
-	bb, err := u.BuildList(status)
+	bb, err := u.BuildStore().List(status)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

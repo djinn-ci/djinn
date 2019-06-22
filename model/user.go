@@ -34,57 +34,6 @@ func (us UserStore) New() *User {
 	return u
 }
 
-func (u *User) BuildList(status string) ([]*Build, error) {
-	var (
-		bb  []*Build
-		err error
-	)
-
-	builds := u.BuildStore()
-
-	if status != "" {
-		bb, err = builds.ByStatus(status)
-	} else {
-		bb, err = builds.All()
-	}
-
-	if err != nil {
-		return bb, errors.Err(err)
-	}
-
-	if err != nil {
-		return bb, errors.Err(err)
-	}
-
-	if err := builds.LoadNamespaces(bb); err != nil {
-		return bb, errors.Err(err)
-	}
-
-	if err := builds.LoadTags(bb); err != nil {
-		return bb, errors.Err(err)
-	}
-
-	if err := builds.LoadUsers(bb); err != nil {
-		return bb, errors.Err(err)
-	}
-
-	nn := make([]*Namespace, 0, len(bb))
-
-	for _, b := range bb {
-		if b.Namespace != nil {
-			nn = append(nn, b.Namespace)
-		}
-	}
-
-	ns := NamespaceStore{
-		DB: u.DB,
-	}
-
-	err = ns.LoadUsers(nn)
-
-	return bb, errors.Err(err)
-}
-
 func (u *User) NamespaceList(search string) ([]*Namespace, error) {
 	var (
 		nn  []*Namespace

@@ -20,7 +20,23 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	{%= renderNamespaces(p.Namespaces, p.URI, p.Search) %}
+	<div class="panel">
+		{% if len(p.Namespaces) == 0 %}
+			{% if p.Search == "" %}
+				<div class="panel-message muted">Namespaces allow you to group related builds together.</div>
+			{% else %}
+				<div class="panel-header">
+					{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}
+				</div>
+				<div class="panel-message muted">No results found.</div>
+			{% endif %}
+		{% else %}
+			<div class="panel-header">
+				{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}
+			</div>
+			{%= RenderTable(p.Namespaces) %}
+		{% endif %}
+	</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

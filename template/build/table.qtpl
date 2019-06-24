@@ -6,6 +6,79 @@ import (
 %}
 
 {% collapsespace %}
+{% func RenderStatusNav(uri, status string) %}
+	{% stripspace %}
+		<ul class="panel-nav">
+			<li>
+				<a href="{%s uri %}" {% if status == "" %}class="active"{% endif %}>
+					{% cat "../../svgs/build.svg" %}<span>All</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=queued" {% if status == "queued" %}class="active"{% endif %}>
+					{% cat "../../svgs/hourglass.svg" %}<span>Queued</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=running" {% if status == "running" %}class="active"{% endif %}>
+					{% cat "../../svgs/timer.svg" %}<span>Running</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=passed" {% if status == "passed" %}class="active"{% endif %}>
+					{% cat "../../svgs/check.svg" %}<span>Passed</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=failed" {% if status == "failed" %}class="active"{% endif %}>
+					{% cat "../../svgs/close.svg" %}<span>Failed</span>
+				</a>
+			</li>
+		</ul>
+	{% endstripspace %}
+{% endfunc %}
+
+{% func RenderTable(builds []*model.Build) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>STATUS</th>
+				<th>BUILD</th>
+				<th>NAMESPACE</th>
+				<th></th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+		{% for _, b := range builds %}
+			<tr>
+				<td>{%= template.RenderStatus(b.Status) %}</td>
+				<td><a href="{%s b.UIEndpoint() %}">#{%v b.ID %}</a></td>
+				<td>
+					{% if b.Namespace != nil %}
+						<a href="{%s b.Namespace.UIEndpoint() %}">{%s b.Namespace.Path %}</a>
+					{% else %}
+						<span class="muted">--</span>
+					{% endif %}
+				</td>
+				<td class="align-right">
+					{% for _, t := range b.Tags %}
+						<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
+					{% endfor %}
+				</td>
+				<td class="align-right">
+					{% if !b.FinishedAt.Valid || !b.StartedAt.Valid %}
+						<span class="muted">--</span>
+					{% else %}
+						{%v b.FinishedAt.Time.Sub(b.StartedAt.Time) %}
+					{% endif %}
+				</td>
+			</tr>
+		{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
 {% func RenderVariablesTable(bvv []*model.BuildVariable) %}
 	<table class="table">
 		<thead>
@@ -25,72 +98,5 @@ import (
 			{% endfor %}
 		</tbody>
 	</table>
-{% endfunc %}
-
-{% func RenderTable(builds []*model.Build, status, uri string) %}
-	<div class="panel">
-		<div class="panel-header">
-			{% stripspace %}
-				<ul class="panel-nav">
-					<li><a href="{%s uri %}" {% if status == "" %}class="active"{% endif %}>{% cat "../../svgs/build.svg" %}<span>All</span></a></li>
-					<li><a href="?status=queued" {% if status == "queued" %}class="active"{% endif %}>{% cat "../../svgs/hourglass.svg" %}<span>Queued</span></a></li>
-					<li><a href="?status=running" {% if status == "running" %}class="active"{% endif %}>{% cat "../../svgs/timer.svg" %}<span>Running</span></a></li>
-					<li><a href="?status=passed" {% if status == "passed" %}class="active"{% endif %}>{% cat "../../svgs/check.svg" %}<span>Passed</span></a></li>
-					<li><a href="?status=failed" {% if status == "failed" %}class="active"{% endif %}>{% cat "../../svgs/close.svg" %}<span>Failed</span></a></li>
-				</ul>
-			{% endstripspace %}
-			<form class="panel-search">
-				<input type="text" name="search" class="text" placeholder="Find a build..." autocomplete="off"/>
-			</form>
-		</div>
-		{% if len(builds) == 0 %}
-			<div class="panel-message muted">
-				{% if status == "" %}
-					No builds have been submitted yet.
-				{% else %}
-					No {%s status %} builds.
-				{% endif %}
-			</div>
-		{% else %}
-			<table class="table">
-				<thead>
-					<tr>
-						<th>STATUS</th>
-						<th>BUILD</th>
-						<th>NAMESPACE</th>
-						<th></th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-				{% for _, b := range builds %}
-					<tr>
-						<td>{%= template.RenderStatus(b.Status) %}</td>
-						<td><a href="{%s b.UIEndpoint() %}">#{%v b.ID %}</a></td>
-						<td>
-							{% if b.Namespace != nil %}
-								<a href="{%s b.Namespace.UIEndpoint() %}">{%s b.Namespace.Path %}</a>
-							{% else %}
-								<span class="muted">--</span>
-							{% endif %}
-						</td>
-						<td class="align-right">
-							{% for _, t := range b.Tags %}
-								<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
-							{% endfor %}
-						</td>
-						<td class="align-right">
-							{% if !b.FinishedAt.Valid || !b.StartedAt.Valid %}
-								<span class="muted">--</span>
-							{% else %}
-								{%v b.FinishedAt.Time.Sub(b.StartedAt.Time) %}
-							{% endif %}
-						</td>
-					</tr>
-				{% endfor %}
-				</tbody>
-			</table>
-		{% endif %}
-	</div>
 {% endfunc %}
 {% endcollapsespace %}

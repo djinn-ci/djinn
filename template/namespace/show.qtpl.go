@@ -144,219 +144,287 @@ func (p *ShowPage) Title() string {
 //line template/namespace/show.qtpl:39
 func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:39
-	qw422016.N().S(` `)
-	//line template/namespace/show.qtpl:40
+	qw422016.N().S(` <div class="panel"> `)
+	//line template/namespace/show.qtpl:41
 	if p.ShowNamespaces {
-		//line template/namespace/show.qtpl:40
-		qw422016.N().S(` `)
-		//line template/namespace/show.qtpl:41
-		StreamRenderTable(qw422016, p.Namespace.Children, p.URI, p.Search)
 		//line template/namespace/show.qtpl:41
 		qw422016.N().S(` `)
 		//line template/namespace/show.qtpl:42
+		if len(p.Namespace.Children) == 0 {
+			//line template/namespace/show.qtpl:42
+			qw422016.N().S(` `)
+			//line template/namespace/show.qtpl:43
+			if p.Search == "" {
+				//line template/namespace/show.qtpl:43
+				qw422016.N().S(` <div class="panel-message muted">Namespaces allow you to group related builds together.</div> `)
+				//line template/namespace/show.qtpl:45
+			} else {
+				//line template/namespace/show.qtpl:45
+				qw422016.N().S(` <div class="panel-header"> `)
+				//line template/namespace/show.qtpl:47
+				template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find a namespace...")
+				//line template/namespace/show.qtpl:47
+				qw422016.N().S(` </div> <div class="panel-message muted">No results found.</div> `)
+				//line template/namespace/show.qtpl:50
+			}
+			//line template/namespace/show.qtpl:50
+			qw422016.N().S(` `)
+			//line template/namespace/show.qtpl:51
+		} else {
+			//line template/namespace/show.qtpl:51
+			qw422016.N().S(` <div class="panel-header"> `)
+			//line template/namespace/show.qtpl:53
+			template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find a namespace...")
+			//line template/namespace/show.qtpl:53
+			qw422016.N().S(` </div> `)
+			//line template/namespace/show.qtpl:55
+			StreamRenderTable(qw422016, p.Namespace.Children)
+			//line template/namespace/show.qtpl:55
+			qw422016.N().S(` `)
+			//line template/namespace/show.qtpl:56
+		}
+		//line template/namespace/show.qtpl:56
+		qw422016.N().S(` `)
+		//line template/namespace/show.qtpl:57
 	} else {
-		//line template/namespace/show.qtpl:42
+		//line template/namespace/show.qtpl:57
+		qw422016.N().S(` <div class="panel-header"> `)
+		//line template/namespace/show.qtpl:59
+		build.StreamRenderStatusNav(qw422016, p.URI, p.Status)
+		//line template/namespace/show.qtpl:59
 		qw422016.N().S(` `)
-		//line template/namespace/show.qtpl:43
-		build.StreamRenderTable(qw422016, p.Namespace.Builds, p.Status, p.URI)
-		//line template/namespace/show.qtpl:43
+		//line template/namespace/show.qtpl:60
+		template.StreamRenderSearch(qw422016, p.URI, "", "Find a build...")
+		//line template/namespace/show.qtpl:60
+		qw422016.N().S(` </div> `)
+		//line template/namespace/show.qtpl:62
+		if len(p.Namespace.Builds) == 0 {
+			//line template/namespace/show.qtpl:62
+			qw422016.N().S(` <div class="panel-message muted"> `)
+			//line template/namespace/show.qtpl:64
+			if p.Status == "" {
+				//line template/namespace/show.qtpl:64
+				qw422016.N().S(`No builds have been submitted yet.`)
+				//line template/namespace/show.qtpl:64
+			} else {
+				//line template/namespace/show.qtpl:64
+				qw422016.N().S(`No `)
+				//line template/namespace/show.qtpl:64
+				qw422016.E().S(p.Status)
+				//line template/namespace/show.qtpl:64
+				qw422016.N().S(` builds.`)
+				//line template/namespace/show.qtpl:64
+			}
+			//line template/namespace/show.qtpl:64
+			qw422016.N().S(` </div> `)
+			//line template/namespace/show.qtpl:66
+		} else {
+			//line template/namespace/show.qtpl:66
+			qw422016.N().S(` `)
+			//line template/namespace/show.qtpl:67
+			build.StreamRenderTable(qw422016, p.Namespace.Builds)
+			//line template/namespace/show.qtpl:67
+			qw422016.N().S(` `)
+			//line template/namespace/show.qtpl:68
+		}
+		//line template/namespace/show.qtpl:68
 		qw422016.N().S(` `)
-		//line template/namespace/show.qtpl:44
+		//line template/namespace/show.qtpl:69
 	}
-	//line template/namespace/show.qtpl:44
-	qw422016.N().S(` `)
-//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:69
+	qw422016.N().S(` </div> `)
+//line template/namespace/show.qtpl:71
 }
 
-//line template/namespace/show.qtpl:45
+//line template/namespace/show.qtpl:71
 func (p *ShowPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:71
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:71
 	p.StreamBody(qw422016)
-	//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:71
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/show.qtpl:45
+//line template/namespace/show.qtpl:71
 }
 
-//line template/namespace/show.qtpl:45
+//line template/namespace/show.qtpl:71
 func (p *ShowPage) Body() string {
-	//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:71
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:71
 	p.WriteBody(qb422016)
-	//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:71
 	qs422016 := string(qb422016.B)
-	//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:71
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/show.qtpl:45
+	//line template/namespace/show.qtpl:71
 	return qs422016
-//line template/namespace/show.qtpl:45
+//line template/namespace/show.qtpl:71
 }
 
-//line template/namespace/show.qtpl:47
+//line template/namespace/show.qtpl:73
 func (p *ShowPage) StreamHeader(qw422016 *qt422016.Writer) {
-	//line template/namespace/show.qtpl:47
+	//line template/namespace/show.qtpl:73
 	qw422016.N().S(` `)
-	//line template/namespace/show.qtpl:48
+	//line template/namespace/show.qtpl:74
 	if p.Namespace.Parent != nil {
-		//line template/namespace/show.qtpl:48
+		//line template/namespace/show.qtpl:74
 		qw422016.N().S(` <a class="back" href="`)
-		//line template/namespace/show.qtpl:49
+		//line template/namespace/show.qtpl:75
 		qw422016.E().S(p.Namespace.Parent.UIEndpoint())
-		//line template/namespace/show.qtpl:49
+		//line template/namespace/show.qtpl:75
 		qw422016.N().S(`">`)
-		//line template/namespace/show.qtpl:49
+		//line template/namespace/show.qtpl:75
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-		//line template/namespace/show.qtpl:49
+		//line template/namespace/show.qtpl:75
 		qw422016.N().S(`</a> `)
-		//line template/namespace/show.qtpl:50
+		//line template/namespace/show.qtpl:76
 	} else {
-		//line template/namespace/show.qtpl:50
+		//line template/namespace/show.qtpl:76
 		qw422016.N().S(` <a class="back" href="/namespaces">`)
-		//line template/namespace/show.qtpl:51
+		//line template/namespace/show.qtpl:77
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-		//line template/namespace/show.qtpl:51
+		//line template/namespace/show.qtpl:77
 		qw422016.N().S(`</a> `)
-		//line template/namespace/show.qtpl:52
+		//line template/namespace/show.qtpl:78
 	}
-	//line template/namespace/show.qtpl:52
+	//line template/namespace/show.qtpl:78
 	qw422016.N().S(` `)
-	//line template/namespace/show.qtpl:53
+	//line template/namespace/show.qtpl:79
 	streamrenderPath(qw422016, p.Namespace.User.Username, p.Namespace.Path)
-	//line template/namespace/show.qtpl:53
+	//line template/namespace/show.qtpl:79
 	qw422016.N().S(` <small>`)
-	//line template/namespace/show.qtpl:54
+	//line template/namespace/show.qtpl:80
 	qw422016.E().S(p.Namespace.Description)
-	//line template/namespace/show.qtpl:54
+	//line template/namespace/show.qtpl:80
 	qw422016.N().S(`</small> `)
-//line template/namespace/show.qtpl:55
+//line template/namespace/show.qtpl:81
 }
 
-//line template/namespace/show.qtpl:55
+//line template/namespace/show.qtpl:81
 func (p *ShowPage) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/namespace/show.qtpl:55
+	//line template/namespace/show.qtpl:81
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/show.qtpl:55
+	//line template/namespace/show.qtpl:81
 	p.StreamHeader(qw422016)
-	//line template/namespace/show.qtpl:55
+	//line template/namespace/show.qtpl:81
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/show.qtpl:55
+//line template/namespace/show.qtpl:81
 }
 
-//line template/namespace/show.qtpl:55
+//line template/namespace/show.qtpl:81
 func (p *ShowPage) Header() string {
-	//line template/namespace/show.qtpl:55
+	//line template/namespace/show.qtpl:81
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/show.qtpl:55
+	//line template/namespace/show.qtpl:81
 	p.WriteHeader(qb422016)
-	//line template/namespace/show.qtpl:55
+	//line template/namespace/show.qtpl:81
 	qs422016 := string(qb422016.B)
-	//line template/namespace/show.qtpl:55
+	//line template/namespace/show.qtpl:81
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/show.qtpl:55
+	//line template/namespace/show.qtpl:81
 	return qs422016
-//line template/namespace/show.qtpl:55
+//line template/namespace/show.qtpl:81
 }
 
-//line template/namespace/show.qtpl:57
+//line template/namespace/show.qtpl:83
 func (p *ShowPage) StreamActions(qw422016 *qt422016.Writer) {
-	//line template/namespace/show.qtpl:57
+	//line template/namespace/show.qtpl:83
 	qw422016.N().S(` <li><a href="`)
-	//line template/namespace/show.qtpl:58
+	//line template/namespace/show.qtpl:84
 	qw422016.E().S(p.Namespace.UIEndpoint())
-	//line template/namespace/show.qtpl:58
+	//line template/namespace/show.qtpl:84
 	qw422016.N().S(`/-/edit" class="btn btn-primary">Edit</a></li> <li><a href="/namespaces/create?parent=`)
-	//line template/namespace/show.qtpl:59
+	//line template/namespace/show.qtpl:85
 	qw422016.E().S(p.Namespace.Path)
-	//line template/namespace/show.qtpl:59
+	//line template/namespace/show.qtpl:85
 	qw422016.N().S(`" class="btn btn-primary">Create</a></li> `)
-//line template/namespace/show.qtpl:60
+//line template/namespace/show.qtpl:86
 }
 
-//line template/namespace/show.qtpl:60
+//line template/namespace/show.qtpl:86
 func (p *ShowPage) WriteActions(qq422016 qtio422016.Writer) {
-	//line template/namespace/show.qtpl:60
+	//line template/namespace/show.qtpl:86
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/show.qtpl:60
+	//line template/namespace/show.qtpl:86
 	p.StreamActions(qw422016)
-	//line template/namespace/show.qtpl:60
+	//line template/namespace/show.qtpl:86
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/show.qtpl:60
+//line template/namespace/show.qtpl:86
 }
 
-//line template/namespace/show.qtpl:60
+//line template/namespace/show.qtpl:86
 func (p *ShowPage) Actions() string {
-	//line template/namespace/show.qtpl:60
+	//line template/namespace/show.qtpl:86
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/show.qtpl:60
+	//line template/namespace/show.qtpl:86
 	p.WriteActions(qb422016)
-	//line template/namespace/show.qtpl:60
+	//line template/namespace/show.qtpl:86
 	qs422016 := string(qb422016.B)
-	//line template/namespace/show.qtpl:60
+	//line template/namespace/show.qtpl:86
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/show.qtpl:60
+	//line template/namespace/show.qtpl:86
 	return qs422016
-//line template/namespace/show.qtpl:60
+//line template/namespace/show.qtpl:86
 }
 
-//line template/namespace/show.qtpl:62
+//line template/namespace/show.qtpl:88
 func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
-	//line template/namespace/show.qtpl:62
+	//line template/namespace/show.qtpl:88
 	qw422016.N().S(` <li>`)
-	//line template/namespace/show.qtpl:63
+	//line template/namespace/show.qtpl:89
 	template.StreamRenderLink(qw422016, p.Namespace.UIEndpoint(), p.URI)
-	//line template/namespace/show.qtpl:63
+	//line template/namespace/show.qtpl:89
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M22.688 18.984c0.422 0.281 0.422 0.984-0.094 1.406l-2.297 2.297c-0.422 0.422-0.984 0.422-1.406 0l-9.094-9.094c-2.297 0.891-4.969 0.422-6.891-1.5-2.016-2.016-2.531-5.016-1.313-7.406l4.406 4.313 3-3-4.313-4.313c2.391-1.078 5.391-0.703 7.406 1.313 1.922 1.922 2.391 4.594 1.5 6.891z"></path>
 </svg>
 `)
-	//line template/namespace/show.qtpl:63
+	//line template/namespace/show.qtpl:89
 	qw422016.N().S(`<span>Builds</span></a></li> <li>`)
-	//line template/namespace/show.qtpl:64
+	//line template/namespace/show.qtpl:90
 	template.StreamRenderLink(qw422016, p.Namespace.UIEndpoint("-", "namespaces"), p.URI)
-	//line template/namespace/show.qtpl:64
+	//line template/namespace/show.qtpl:90
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M9.984 3.984l2.016 2.016h8.016c1.078 0 1.969 0.938 1.969 2.016v9.984c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h6z"></path>
 </svg>
 `)
-	//line template/namespace/show.qtpl:64
+	//line template/namespace/show.qtpl:90
 	qw422016.N().S(`<span>Namespaces</span></a></li> `)
-//line template/namespace/show.qtpl:65
+//line template/namespace/show.qtpl:91
 }
 
-//line template/namespace/show.qtpl:65
+//line template/namespace/show.qtpl:91
 func (p *ShowPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/namespace/show.qtpl:65
+	//line template/namespace/show.qtpl:91
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/show.qtpl:65
+	//line template/namespace/show.qtpl:91
 	p.StreamNavigation(qw422016)
-	//line template/namespace/show.qtpl:65
+	//line template/namespace/show.qtpl:91
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/show.qtpl:65
+//line template/namespace/show.qtpl:91
 }
 
-//line template/namespace/show.qtpl:65
+//line template/namespace/show.qtpl:91
 func (p *ShowPage) Navigation() string {
-	//line template/namespace/show.qtpl:65
+	//line template/namespace/show.qtpl:91
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/show.qtpl:65
+	//line template/namespace/show.qtpl:91
 	p.WriteNavigation(qb422016)
-	//line template/namespace/show.qtpl:65
+	//line template/namespace/show.qtpl:91
 	qs422016 := string(qb422016.B)
-	//line template/namespace/show.qtpl:65
+	//line template/namespace/show.qtpl:91
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/show.qtpl:65
+	//line template/namespace/show.qtpl:91
 	return qs422016
-//line template/namespace/show.qtpl:65
+//line template/namespace/show.qtpl:91
 }

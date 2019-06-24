@@ -163,7 +163,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/job/show.qtpl:84
 	} else {
 		//line template/job/show.qtpl:84
-		qw422016.N().S(` <div class="panel-message muted">No artifacts have been collected for this job.</div> `)
+		qw422016.N().S(` <div class="panel-message muted">No artifacts have been collected from this job.</div> `)
 		//line template/job/show.qtpl:86
 	}
 	//line template/job/show.qtpl:86

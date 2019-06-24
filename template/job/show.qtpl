@@ -82,7 +82,7 @@ type ShowPage struct {
 		{% if len(p.Job.Artifacts) > 0 %}
 			{%= artifact.RenderTable(p.Job.Artifacts) %}
 		{% else %}
-			<div class="panel-message muted">No artifacts have been collected for this job.</div>
+			<div class="panel-message muted">No artifacts have been collected from this job.</div>
 		{% endif %}
 	</div>
 	<div class="panel">

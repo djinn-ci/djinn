@@ -37,11 +37,37 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-	{% if p.ShowNamespaces %}
-		{%= RenderTable(p.Namespace.Children, p.URI, p.Search) %}
-	{% else %}
-		{%= build.RenderTable(p.Namespace.Builds, p.Status, p.URI) %}
-	{% endif %}
+	<div class="panel">
+		{% if p.ShowNamespaces %}
+			{% if len(p.Namespace.Children) == 0 %}
+				{% if p.Search == "" %}
+					<div class="panel-message muted">Namespaces allow you to group related builds together.</div>
+				{% else %}
+					<div class="panel-header">
+						{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}
+					</div>
+					<div class="panel-message muted">No results found.</div>
+				{% endif %}
+			{% else %}
+				<div class="panel-header">
+					{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}
+				</div>
+				{%= RenderTable(p.Namespace.Children) %}
+			{% endif %}
+		{% else %}
+			<div class="panel-header">
+				{%= build.RenderStatusNav(p.URI, p.Status) %}
+				{%= template.RenderSearch(p.URI, "", "Find a build...") %}
+			</div>
+			{% if len(p.Namespace.Builds) == 0 %}
+				<div class="panel-message muted">
+					{% if p.Status == "" %}No builds have been submitted yet.{% else %}No {%s p.Status %} builds.{% endif %}
+				</div>
+			{% else %}
+				{%= build.RenderTable(p.Namespace.Builds) %}
+			{% endif %}
+		{% endif %}
+	</div>
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}

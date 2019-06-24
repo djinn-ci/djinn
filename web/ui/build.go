@@ -246,7 +246,9 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if showArtifacts {
-		if err := b.LoadArtifacts(); err != nil {
+		b.Artifacts, err = b.ArtifactStore().List(search)
+
+		if err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return

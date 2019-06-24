@@ -222,6 +222,57 @@ func (as ArtifactStore) InJobID(ids ...int64) ([]*Artifact, error) {
 	return aa, errors.Err(err)
 }
 
+func (as ArtifactStore) Like(like string) ([]*Artifact, error) {
+	aa := make([]*Artifact, 0)
+
+	query := "SELECT * FROM artifacts WHERE name LIKE $1"
+	args := []interface{}{"%" + like + "%"}
+
+	if as.Build != nil {
+		query += " AND build_id = $2"
+		args = append(args, as.Build.ID)
+	}
+
+	if as.Job != nil {
+		if as.Build != nil {
+			query += " AND job_id = $3"
+		} else {
+			query += " AND job_id = $2"
+		}
+
+		args = append(args, as.Job.ID)
+	}
+
+	err := as.Select(&aa, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, a := range aa {
+		a.DB = as.DB
+		a.Build = as.Build
+		a.Job = as.Job
+	}
+
+	return aa, errors.Err(err)
+}
+
+func (as ArtifactStore) List(search string) ([]*Artifact, error) {
+	var (
+		aa  []*Artifact
+		err error
+	)
+
+	if search != "" {
+		aa, err = as.Like(search)
+	} else {
+		aa, err = as.All()
+	}
+
+	return aa, errors.Err(err)
+}
+
 func (as ArtifactStore) New() *Artifact {
 	a := &Artifact{
 		model: model{

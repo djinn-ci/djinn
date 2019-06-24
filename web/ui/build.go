@@ -225,6 +225,8 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	search := r.URL.Query().Get("search")
+
 	showObjects := filepath.Base(r.URL.Path) == "objects"
 	showArtifacts := filepath.Base(r.URL.Path) == "artifacts"
 	showVariables := filepath.Base(r.URL.Path) == "variables"
@@ -264,6 +266,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			URI: r.URL.Path,
 		},
 		Build:         b,
+		Search:        search,
 		ShowManifest:  filepath.Base(r.URL.Path) == "manifest",
 		ShowObjects:   showObjects,
 		ShowArtifacts: showArtifacts,

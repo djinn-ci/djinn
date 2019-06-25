@@ -335,7 +335,10 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 			defer pw.Close()
 
 			tw.WriteHeader(header)
-			p.Place(src, tw)
+
+			if _, err := p.Place(src, tw); err != nil {
+				fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
+			}
 		}(src)
 
 		err = d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})

@@ -377,7 +377,7 @@ func (bos BuildObjectStore) First() (*BuildObject, error) {
 		args = append(args, bos.Object.ID)
 	}
 
-	err := bos.Get(&bo, query, args...)
+	err := bos.Get(bo, query, args...)
 
 	if err == sql.ErrNoRows {
 		err = nil

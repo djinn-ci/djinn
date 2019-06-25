@@ -78,7 +78,7 @@ func (d *database) Place(name string, w io.Writer) (int64, error) {
 		return 0, errors.Err(err)
 	}
 
-	n, placeErr := d.Placer.Place(name, w)
+	n, placeErr := d.Placer.Place(o.Hash, w)
 
 	bo.Placed = placeErr == nil
 

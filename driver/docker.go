@@ -309,11 +309,21 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 	for src, dst := range objects {
 		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
 
-		header := &tar.Header{
-			Typeflag: tar.TypeReg,
-			Name:     strings.TrimPrefix(dst, d.workspace),
-			Mode:     755,
+		info, err := p.Stat(src)
+
+		if err != nil {
+			fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
+			continue
 		}
+
+		header, err := tar.FileInfoHeader(info, info.Name())
+
+		if err != nil {
+			fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
+			continue
+		}
+
+		header.Name = strings.TrimPrefix(dst, d.workspace)
 
 		pr, pw := io.Pipe()
 		defer pr.Close()
@@ -328,7 +338,11 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 			p.Place(src, tw)
 		}(src)
 
-		d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
+		err = d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
+
+		if err != nil {
+			fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
+		}
 	}
 
 	d.client.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{})

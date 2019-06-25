@@ -207,6 +207,7 @@ func (w worker) runBuild(id int64) error {
 	objDB := &database{
 		Placer: w.objects,
 		build:  b,
+		users:  w.users,
 	}
 
 	artDB := &database{

@@ -78,6 +78,12 @@ func (fs *FileSystem) OpenFile(name string, flag int, perm os.FileMode) (*os.Fil
 	return f, errors.Err(err)
 }
 
+func (fs *FileSystem) Stat(name string) (os.FileInfo, error) {
+	info, err := os.Stat(filepath.Join(fs.dir, name))
+
+	return info, errors.Err(err)
+}
+
 func (fs *FileSystem) Remove(name string) error {
 	return errors.Err(os.Remove(filepath.Join(fs.dir, name)))
 }

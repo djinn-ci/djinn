@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"database/sql"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -18,6 +19,18 @@ type database struct {
 
 	build *model.Build
 	users *model.UserStore
+}
+
+func (d *database) findObject(name string) (*model.Object, error) {
+	u, err := d.users.Find(d.build.UserID)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	o, err := u.ObjectStore().FindByName(name)
+
+	return o, errors.Err(err)
 }
 
 func (d *database) Collect(name string, r io.Reader) (int64, error) {
@@ -49,13 +62,7 @@ func (d *database) Collect(name string, r io.Reader) (int64, error) {
 }
 
 func (d *database) Place(name string, w io.Writer) (int64, error) {
-	u, err := d.users.Find(d.build.UserID)
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	o, err := u.ObjectStore().FindByName(name)
+	o, err := d.findObject(name)
 
 	if err != nil {
 		return 0, errors.Err(err)
@@ -80,4 +87,20 @@ func (d *database) Place(name string, w io.Writer) (int64, error) {
 	}
 
 	return n, errors.Err(placeErr)
+}
+
+func (d *database) Stat(name string) (os.FileInfo, error) {
+	o, err := d.findObject(name)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if o.IsZero() {
+		return nil, errors.Err(errors.New("could not find object '" + name + "'"))
+	}
+
+	info, err := d.Placer.Stat(o.Hash)
+
+	return info, errors.Err(err)
 }

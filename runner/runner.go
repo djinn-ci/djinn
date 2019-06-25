@@ -19,6 +19,8 @@ type jobHandler func(j Job)
 // Placer allows for placing files into the given io.Writer.
 type Placer interface {
 	Place(name string, w io.Writer) (int64, error)
+
+	Stat(name string) (os.FileInfo, error)
 }
 
 // Collector allows for collecting files from the given io.Reader.

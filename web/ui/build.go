@@ -37,6 +37,26 @@ func NewBuild(h web.Handler, queues map[string]*machinery.Server, namespaces *mo
 	}
 }
 
+func (h Build) build(r *http.Request) (*model.Build, error) {
+	u, err := h.User(r)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	vars := mux.Vars(r)
+
+	id, err := strconv.ParseInt(vars["build"], 10, 64)
+
+	if err != nil {
+		return &model.Build{}, nil
+	}
+
+	b, err := u.BuildStore().Find(id)
+
+	return b, errors.Err(err)
+}
+
 func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
@@ -210,6 +230,33 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	p := &build.ShowPage{
+		Page: template.Page{
+			URI: r.URL.Path,
+		},
+		Build: b,
+	}
+
+	d := template.NewDashboard(p, r.URL.Path)
+
+	web.HTML(w, template.Render(d), http.StatusOK)
+}
+
+// ShowMeta displays meta information about the build, manifest, output, etc.
+func (h Build) ShowMeta(w http.ResponseWriter, r *http.Request) {
+	b, err := h.build(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if b.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
 	if filepath.Base(r.URL.Path) == "raw" {
 		parts := strings.Split(r.URL.Path, "/")
 		field := parts[len(parts) - 2]
@@ -225,58 +272,85 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	search := r.URL.Query().Get("search")
-
-	showObjects := filepath.Base(r.URL.Path) == "objects"
-	showArtifacts := filepath.Base(r.URL.Path) == "artifacts"
-	showVariables := filepath.Base(r.URL.Path) == "variables"
-
-	if showObjects {
-		if err := b.LoadObjects(); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if err := b.BuildObjectStore().LoadObjects(b.Objects); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
+	p := &build.ShowPage{
+		Page: template.Page{
+			URI: r.URL.Path,
+		},
+		Build:        b,
+		ShowManifest: filepath.Base(r.URL.Path) == "manifest",
+		ShowOutput:   filepath.Base(r.URL.Path) == "output",
 	}
 
-	if showArtifacts {
-		b.Artifacts, err = b.ArtifactStore().List(search)
+	d := template.NewDashboard(p, r.URL.Path)
+
+	web.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h Build) IndexRelation(w http.ResponseWriter, r *http.Request) {
+	b, err := h.build(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if b.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if filepath.Base(r.URL.Path) == "objects" {
+		objects := b.BuildObjectStore()
+
+		oo, err := objects.All()
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-	}
 
-	if showVariables {
-		if err := b.LoadVariables(); err != nil {
+		if err := objects.LoadObjects(oo); err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
+
+		p := &build.ObjectIndexPage{
+			ShowPage: build.ShowPage{
+				Page: template.Page{
+					URI: r.URL.Path,
+				},
+				Build: b,
+			},
+			Objects: oo,
+		}
+
+		d := template.NewDashboard(p, r.URL.Path)
+
+		web.HTML(w, template.Render(d), http.StatusOK)
+	} else if filepath.Base(r.URL.Path) == "variables" {
+		vv, err := b.BuildVariableStore().All()
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p := &build.VariableIndexPage{
+			ShowPage: build.ShowPage{
+				Page: template.Page{
+					URI: r.URL.Path,
+				},
+				Build: b,
+			},
+			Variables: vv,
+		}
+
+		d := template.NewDashboard(p, r.URL.Path)
+
+		web.HTML(w, template.Render(d), http.StatusOK)
 	}
-
-	p := &build.ShowPage{
-		Page: template.Page{
-			URI: r.URL.Path,
-		},
-		Build:         b,
-		Search:        search,
-		ShowManifest:  filepath.Base(r.URL.Path) == "manifest",
-		ShowObjects:   showObjects,
-		ShowArtifacts: showArtifacts,
-		ShowVariables: showVariables,
-		ShowOutput:    filepath.Base(r.URL.Path) == "output",
-	}
-
-	d := template.NewDashboard(p, r.URL.Path)
-
-	web.HTML(w, template.Render(d), http.StatusOK)
 }

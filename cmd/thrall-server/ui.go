@@ -66,14 +66,16 @@ func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
 	s.router.HandleFunc("/", mw.Auth(build.Index)).Methods("GET")
 	s.router.HandleFunc("/builds/create", mw.Auth(build.Create)).Methods("GET")
 	s.router.HandleFunc("/builds", mw.Auth(build.Store)).Methods("POST")
+
 	s.router.HandleFunc("/builds/{build}", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/manifest", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/objects", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/artifacts", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/variables", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/output", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/output/raw", mw.Auth(build.Show)).Methods("GET")
+
+	s.router.HandleFunc("/builds/{build}/manifest", mw.Auth(build.ShowMeta)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.ShowMeta)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/output", mw.Auth(build.ShowMeta)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/output/raw", mw.Auth(build.ShowMeta)).Methods("GET")
+
+	s.router.HandleFunc("/builds/{build}/objects", mw.Auth(build.IndexRelation)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/variables", mw.Auth(build.IndexRelation)).Methods("GET")
 }
 
 func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
@@ -86,7 +88,8 @@ func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
 func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
 	artifact := ui.NewArtifact(h, s.artifacts)
 
-	s.router.HandleFunc("/builds/{build}/artifacts/{artifact}/download/{name}", mw.Auth(artifact.Download))
+	s.router.HandleFunc("/builds/{build}/artifacts", mw.Auth(artifact.Index))
+	s.router.HandleFunc("/builds/{build}/artifacts/{artifact}/download/{name}", mw.Auth(artifact.Show))
 }
 
 func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {

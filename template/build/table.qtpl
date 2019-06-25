@@ -1,5 +1,7 @@
 {%
 import (
+	"fmt"
+
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -79,7 +81,64 @@ import (
 	</table>
 {% endfunc %}
 
-{% func RenderVariablesTable(bvv []*model.BuildVariable) %}
+{% func RenderObjectTable(oo []*model.BuildObject) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>SOURCE</th>
+				<th>NAME</th>
+				<th>TYPE</th>
+				<th>MD5</th>
+				<th>SHA256</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, o := range oo %}
+				<tr>
+					<td>
+						{% if o.Object != nil %}
+							<a href="{%s o.Object.UIEndpoint() %}">{%s o.Source %}</a>
+						{% else %}
+							<a title="Object not found"><strike>{%s o.Source %}</strike></a>
+						{% endif %}
+					</td>
+					<td><span class="code">{%s o.Name %}</span></td>
+					<td>
+						{% if o.Object != nil %}
+							<span class="code">{%s o.Object.Type %}</span>
+						{% else %}
+							<span class="code">--</span>
+						{% endif %}
+					</td>
+					<td>
+						{% if o.Object != nil %}
+							<span class="code">{%s fmt.Sprintf("%x", o.Object.MD5) %}</span>
+						{% else %}
+							<span class="code">--</span>
+						{% endif %}
+					</td>
+					<td>
+						{% if o.Object != nil %}
+							<span class="code">{%s fmt.Sprintf("%x", o.Object.SHA256) %}</span>
+						{% else %}
+							<span class="code">--</span>
+						{% endif %}
+					</td>
+					<td class="align-right">
+						{% if o.Placed %}
+							<span class="pill pill-green">{% cat "../../svgs/check.svg"  %} Placed</span>
+						{% else %}
+							<span class="pill pill-red">{% cat "../../svgs/close.svg" %} Not Placed</span>
+						{% endif %}
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func RenderVariableTable(vv []*model.BuildVariable) %}
 	<table class="table">
 		<thead>
 			<tr>
@@ -89,11 +148,11 @@ import (
 			</tr>
 		</thead>
 		<tbody>
-			{% for _, bv := range bvv %}
+			{% for _, v := range vv %}
 				<tr>
-					<td><span class="code">{%s bv.Key %}</span></td>
-					<td><span class="code">{%s bv.Value %}</span></td>
-					<td>{% if bv.VariableID.Valid %}False{% else %}True{% endif %}</td>
+					<td><span class="code">{%s v.Key %}</span></td>
+					<td><span class="code">{%s v.Value %}</span></td>
+					<td>{% if v.VariableID.Valid %}False{% else %}True{% endif %}</td>
 				</tr>
 			{% endfor %}
 		</tbody>

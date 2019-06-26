@@ -59,9 +59,8 @@ func NewDashboard(p dashboardPage, uri string) *Dashboard {
 				<li>{%= RenderLinkPattern("/", BuildsURI, p.URI) %}{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
 				<li>{%= RenderLinkPattern("/namespaces", NamespacesURI, p.URI) %}{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
 				<li>{%= RenderLinkPattern("/objects", ObjectsURI, p.URI) %}{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
-				<li><a>{% cat "../svgs/download.svg" %}<span>Artifacts</span></a></li>
-				<li><a>{% cat "../svgs/key.svg" %}<span>SSH Keys</span></a></li>
 				<li><a>{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
+				<li><a>{% cat "../svgs/key.svg" %}<span>SSH Keys</span></a></li>
 				<li class="sidebar-nav-header">ACCOUNT</li>
 				<li>{%= RenderLinkPattern("/settings", SettingsURI, p.URI) %}{% cat "../svgs/settings.svg" %}<span>Settings</span></a></li>
 				<li><form method="POST" action="/logout"><button type="submit">{% cat "../svgs/logout.svg" %}<span>Logout</span></button></form></li>

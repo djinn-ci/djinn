@@ -189,7 +189,7 @@ func (os ObjectStore) Find(id int64) (*Object, error) {
 		User: os.User,
 	}
 
-	query := "SELECT * FROM objects WHERE id = $1"
+	query := "SELECT * FROM objects WHERE id = $1 AND deleted_at IS NULL"
 	args := []interface{}{id}
 
 	if os.User != nil {
@@ -218,7 +218,7 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 		User: os.User,
 	}
 
-	query := "SELECT * FROM objects WHERE name = $1"
+	query := "SELECT * FROM objects WHERE name = $1 AND deleted_at IS NULL"
 	args := []interface{}{name}
 
 	if os.User != nil {

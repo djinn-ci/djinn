@@ -72,7 +72,10 @@ func (d *database) Place(name string, w io.Writer) (int64, error) {
 		return 0, errors.Err(errors.New("could not find object '" + name + "'"))
 	}
 
-	bo, err := o.BuildObjectStore().First()
+	buildObjects := o.BuildObjectStore()
+	buildObjects.Build = d.build
+
+	bo, err := buildObjects.First()
 
 	if err != nil {
 		return 0, errors.Err(err)
@@ -81,6 +84,8 @@ func (d *database) Place(name string, w io.Writer) (int64, error) {
 	n, placeErr := d.Placer.Place(o.Hash, w)
 
 	bo.Placed = placeErr == nil
+
+	println(bo.ID, bo.BuildID)
 
 	if err := bo.Update(); err != nil {
 		return n, errors.Err(err)

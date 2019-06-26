@@ -23,11 +23,12 @@ type Namespace struct {
 	Level       int64         `db:"level"`
 	Visibility  Visibility    `db:"visibility"`
 
-	User     *User
-	Root     *Namespace
-	Parent   *Namespace
-	Children []*Namespace
-	Builds   []*Build
+	User      *User
+	Root      *Namespace
+	Parent    *Namespace
+	Children  []*Namespace
+	Builds    []*Build
+	LastBuild *Build
 }
 
 type NamespaceStore struct {
@@ -468,7 +469,43 @@ func (ns NamespaceStore) List(search string) ([]*Namespace, error) {
 		nn, err = ns.All()
 	}
 
+	if err := ns.LoadLastBuild(nn); err != nil {
+		return nn, errors.Err(err)
+	}
+
 	return nn, errors.Err(err)
+}
+
+func (ns NamespaceStore) LoadLastBuild(nn []*Namespace) error {
+	if len(nn) == 0 {
+		return nil
+	}
+
+	ids := make([]int64, len(nn), len(nn))
+
+	for i, n := range nn {
+		ids[i] = n.ID
+	}
+
+	builds := BuildStore{
+		DB: ns.DB,
+	}
+
+	bb, err := builds.InNamespaceID(ids...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, n := range nn {
+		for _, b := range bb {
+			if n.ID == b.NamespaceID.Int64 {
+				n.LastBuild = b
+			}
+		}
+	}
+
+	return errors.Err(err)
 }
 
 func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {

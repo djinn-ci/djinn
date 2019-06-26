@@ -1,5 +1,8 @@
 {%
-import "github.com/andrewpillar/thrall/model"
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
 %}
 
 {% collapsespace %}
@@ -9,6 +12,7 @@ import "github.com/andrewpillar/thrall/model"
 			<tr>
 				<th>NAME</th>
 				<th>LAST BUILD</th>
+				<th></th>
 				<th></th>
 			</tr>
 		</thead>
@@ -25,7 +29,18 @@ import "github.com/andrewpillar/thrall/model"
 						{% endif %}
 					</div>
 				</td>
-				<td class="muted">--</td>
+				<td class="muted">
+					{% if n.LastBuild != nil %}
+						<a href="{%s n.LastBuild.UIEndpoint() %}">#{%v n.LastBuild.ID %}</a>
+					{% else %}
+						--
+					{% endif %}
+				</td>
+				<td>
+					{% if n.LastBuild != nil %}
+						{%= template.RenderStatus(n.LastBuild.Status) %}
+					{% endif %}
+				</td>
 				<td class="align-right muted">
 					{% switch n.Visibility %}
 						{% case model.Private %}

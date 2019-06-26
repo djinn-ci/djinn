@@ -98,6 +98,40 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+func (h Object) Show(w http.ResponseWriter, r *http.Request) {
+	o, _, err := h.object(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	status := r.URL.Query().Get("status")
+
+	// TODO: Refactor this.
+	bb, err := o.LoadBuilds(status)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	p := &object.ShowPage{
+		Page:   template.Page{
+			URI: r.URL.Path,
+		},
+		Object: o,
+		Status: status,
+		Builds: bb,
+	}
+
+	d := template.NewDashboard(p, r.URL.Path)
+
+	web.HTML(w, template.Render(d), http.StatusOK)
+}
+
 func (h Object) Create(w http.ResponseWriter, r *http.Request) {
 	p := &object.CreatePage{
 		Form: template.Form{

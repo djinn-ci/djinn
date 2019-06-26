@@ -108,6 +108,66 @@ func (o *Object) IsZero() bool {
            o.DeletedAt == nil
 }
 
+// TODO: Refactor this.
+func (o *Object) LoadBuilds(status string) ([]*Build, error) {
+	bb := make([]*Build, 0)
+
+	query := `
+		SELECT * FROM builds
+		WHERE id IN (
+			SELECT build_id FROM build_objects
+			WHERE object_id = $1
+		)`
+	args := []interface{}{o.ID}
+
+	if status != "" {
+		query += " AND status = $2"
+		args = append(args, status)
+	}
+
+	err := o.Select(&bb, query, args...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, b := range bb {
+		b.DB = o.DB
+	}
+
+	bs := BuildStore{
+		DB: o.DB,
+	}
+
+	if err := bs.LoadNamespaces(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := bs.LoadTags(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := bs.LoadUsers(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	nn := make([]*Namespace, 0, len(bb))
+
+	for _, b := range bb {
+		if b.Namespace != nil {
+			nn = append(nn, b.Namespace)
+		}
+	}
+
+	ns := NamespaceStore{
+		DB: bs.DB,
+	}
+
+	err = ns.LoadUsers(nn)
+
+	return bb, errors.Err(err)
+}
+
 func (o Object) UIEndpoint(uri ...string) string {
 	endpoint := fmt.Sprintf("/objects/%v", o.ID)
 

@@ -98,6 +98,7 @@ func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
 	s.router.HandleFunc("/objects", mw.Auth(object.Index)).Methods("GET")
 	s.router.HandleFunc("/objects/create", mw.Auth(object.Create)).Methods("GET")
 	s.router.HandleFunc("/objects", mw.Auth(object.Store)).Methods("POST")
+	s.router.HandleFunc("/objects/{object}", mw.Auth(object.Show)).Methods("GET")
 	s.router.HandleFunc("/objects/{object}/download/{name}", mw.Auth(object.Download))
 	s.router.HandleFunc("/objects/{object}", mw.Auth(object.Destroy)).Methods("DELETE")
 }

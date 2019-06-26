@@ -1,0 +1,75 @@
+{%
+import (
+	"fmt"
+
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/build"
+)
+%}
+
+{% code
+type ShowPage struct {
+	template.Page
+
+	Object *model.Object
+	Status string
+	Builds []*model.Build
+}
+%}
+
+{% collapsespace %}
+{% func (p *ShowPage) Title() %}
+	Objects {%s p.Object.Name %} - Thrall
+{% endfunc %}
+
+{% func (p *ShowPage) Body() %}
+	<div class="panel">
+		<table class="table">
+			<tr>
+				<td>Name</td>
+				<td class="align-right">{%s p.Object.Name %}</td>
+			</tr>
+			<tr>
+				<td>Type</td>
+				<td class="align-right"><span class="code">{%s p.Object.Type %}</span></td>
+			</tr>
+			<tr>
+				<td>Size</td>
+				<td class="align-right">{%s template.RenderSize(p.Object.Size) %}</td>
+			</tr>
+			<tr>
+				<td>MD5</td>
+				<td class="align-right">{%s fmt.Sprintf("%x", p.Object.MD5) %}</td>
+			</tr>
+			<tr>
+				<td>SHA256</td>
+				<td class="align-right">{%s fmt.Sprintf("%x", p.Object.SHA256) %}</td>
+			</tr>
+		</table>
+	</div>
+	<div class="panel">
+		<div class="panel-header">
+			{%= build.RenderStatusNav(p.URI, p.Status) %}
+			{%= template.RenderSearch(p.URI, "", "Find a build...") %}
+		</div>
+		{% if len(p.Builds) == 0 %}
+			<div class="panel-message muted">
+				{% if p.Status == "" %}No builds have been submitted yet.{% else %}No {%s p.Status %} builds.{% endif %}
+			</div>
+		{% else %}
+			{%= build.RenderTable(p.Builds) %}
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *ShowPage) Header() %}
+	<a href="/objects" class="back">{% cat "../../svgs/back.svg" %}</a> {%s p.Object.Name %}
+{% endfunc %}
+
+{% func (p *ShowPage) Actions() %}
+	<li><a href="{%s p.Object.UIEndpoint("download", p.Object.Name) %}" class="btn btn-primary">Download</a></li>
+{% endfunc %}
+
+{% func (p *ShowPage) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

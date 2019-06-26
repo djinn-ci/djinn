@@ -41,7 +41,7 @@ type IndexPage struct {
 				<tbody>
 					{% for _, o := range p.Objects %}
 						<tr>
-							<td><a href="{%s o.UIEndpoint("download", o.Name) %}">{%s o.Name %}</a></td>
+							<td><a href="{%s o.UIEndpoint() %}">{%s o.Name %}</a></td>
 							<td><span class="code">{%s o.Type %}</span></td>
 							<td>{%s template.RenderSize(o.Size) %}</td>
 							<td><span class="code">{%s fmt.Sprintf("%x", o.MD5) %}</span></td>
@@ -76,6 +76,5 @@ type IndexPage struct {
 	<li><a href="/objects/create" class="btn btn-primary">Create</a></li>
 {% endfunc %}
 
-{% func (p *IndexPage) Navigation() %}
-{% endfunc %}
+{% func (p *IndexPage) Navigation() %}{% endfunc %}
 {% endcollapsespace %}

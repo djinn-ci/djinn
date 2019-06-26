@@ -85,7 +85,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 			//line template/object/index.qtpl:42
 			qw422016.N().S(` <tr> <td><a href="`)
 			//line template/object/index.qtpl:44
-			qw422016.E().S(o.UIEndpoint("download", o.Name))
+			qw422016.E().S(o.UIEndpoint())
 			//line template/object/index.qtpl:44
 			qw422016.N().S(`">`)
 			//line template/object/index.qtpl:44
@@ -241,33 +241,31 @@ func (p *IndexPage) Actions() string {
 
 //line template/object/index.qtpl:79
 func (p *IndexPage) StreamNavigation(qw422016 *qt422016.Writer) {
-	//line template/object/index.qtpl:79
-	qw422016.N().S(` `)
-//line template/object/index.qtpl:80
+//line template/object/index.qtpl:79
 }
 
-//line template/object/index.qtpl:80
+//line template/object/index.qtpl:79
 func (p *IndexPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/object/index.qtpl:80
+	//line template/object/index.qtpl:79
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/object/index.qtpl:80
+	//line template/object/index.qtpl:79
 	p.StreamNavigation(qw422016)
-	//line template/object/index.qtpl:80
+	//line template/object/index.qtpl:79
 	qt422016.ReleaseWriter(qw422016)
-//line template/object/index.qtpl:80
+//line template/object/index.qtpl:79
 }
 
-//line template/object/index.qtpl:80
+//line template/object/index.qtpl:79
 func (p *IndexPage) Navigation() string {
-	//line template/object/index.qtpl:80
+	//line template/object/index.qtpl:79
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/object/index.qtpl:80
+	//line template/object/index.qtpl:79
 	p.WriteNavigation(qb422016)
-	//line template/object/index.qtpl:80
+	//line template/object/index.qtpl:79
 	qs422016 := string(qb422016.B)
-	//line template/object/index.qtpl:80
+	//line template/object/index.qtpl:79
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/object/index.qtpl:80
+	//line template/object/index.qtpl:79
 	return qs422016
-//line template/object/index.qtpl:80
+//line template/object/index.qtpl:79
 }

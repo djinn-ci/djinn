@@ -40,11 +40,11 @@ type ShowPage struct {
 			</tr>
 			<tr>
 				<td>MD5</td>
-				<td class="align-right">{%s fmt.Sprintf("%x", p.Object.MD5) %}</td>
+				<td class="align-right"><span class="code">{%s fmt.Sprintf("%x", p.Object.MD5) %}</span></td>
 			</tr>
 			<tr>
 				<td>SHA256</td>
-				<td class="align-right">{%s fmt.Sprintf("%x", p.Object.SHA256) %}</td>
+				<td class="align-right"><span class="code">{%s fmt.Sprintf("%x", p.Object.SHA256) %}</span></td>
 			</tr>
 		</table>
 	</div>

@@ -87,15 +87,15 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/object/show.qtpl:39
 	qw422016.E().S(template.RenderSize(p.Object.Size))
 	//line template/object/show.qtpl:39
-	qw422016.N().S(`</td> </tr> <tr> <td>MD5</td> <td class="align-right">`)
+	qw422016.N().S(`</td> </tr> <tr> <td>MD5</td> <td class="align-right"><span class="code">`)
 	//line template/object/show.qtpl:43
 	qw422016.E().S(fmt.Sprintf("%x", p.Object.MD5))
 	//line template/object/show.qtpl:43
-	qw422016.N().S(`</td> </tr> <tr> <td>SHA256</td> <td class="align-right">`)
+	qw422016.N().S(`</span></td> </tr> <tr> <td>SHA256</td> <td class="align-right"><span class="code">`)
 	//line template/object/show.qtpl:47
 	qw422016.E().S(fmt.Sprintf("%x", p.Object.SHA256))
 	//line template/object/show.qtpl:47
-	qw422016.N().S(`</td> </tr> </table> </div> <div class="panel"> <div class="panel-header"> `)
+	qw422016.N().S(`</span></td> </tr> </table> </div> <div class="panel"> <div class="panel-header"> `)
 	//line template/object/show.qtpl:53
 	build.StreamRenderStatusNav(qw422016, p.URI, p.Status)
 	//line template/object/show.qtpl:53

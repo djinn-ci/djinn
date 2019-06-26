@@ -65,8 +65,8 @@ type VariableIndexPage struct {
 
 {% func (p *ArtifactIndexPage) Body() %}
 	<div class="panel">
-		<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an artifact...") %}</div>
 		{% if len(p.Artifacts) > 0 %}
+			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an artifact...") %}</div>
 			{%= artifact.RenderTable(p.Artifacts) %}
 		{% else %}
 			<div class="panel-message muted">No artifacts have been collected from this build.</div>

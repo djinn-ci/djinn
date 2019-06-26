@@ -234,15 +234,15 @@ func (p *IndexPage) Body() string {
 //line template/build/index.qtpl:66
 func (p *ArtifactIndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/index.qtpl:66
-	qw422016.N().S(` <div class="panel"> <div class="panel-header">`)
+	qw422016.N().S(` <div class="panel"> `)
 	//line template/build/index.qtpl:68
-	template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find an artifact...")
-	//line template/build/index.qtpl:68
-	qw422016.N().S(`</div> `)
-	//line template/build/index.qtpl:69
 	if len(p.Artifacts) > 0 {
+		//line template/build/index.qtpl:68
+		qw422016.N().S(` <div class="panel-header">`)
 		//line template/build/index.qtpl:69
-		qw422016.N().S(` `)
+		template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find an artifact...")
+		//line template/build/index.qtpl:69
+		qw422016.N().S(`</div> `)
 		//line template/build/index.qtpl:70
 		artifact.StreamRenderTable(qw422016, p.Artifacts)
 		//line template/build/index.qtpl:70

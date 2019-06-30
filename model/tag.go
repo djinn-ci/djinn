@@ -27,11 +27,14 @@ type TagStore struct {
 }
 
 func (t *Tag) Create() error {
-	stmt, err := t.Prepare(`
-		INSERT INTO tags (user_id, build_id, name)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Table("tags"),
+		Columns("user_id", "build_id", "name"),
+		Values(t.UserID, t.BuildID, t.Name),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := t.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -39,25 +42,19 @@ func (t *Tag) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(t.UserID, t.BuildID, t.Name)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
 }
 
-func (ts TagStore) All() ([]*Tag, error) {
+func (ts TagStore) All(opts ...Option) ([]*Tag, error) {
 	tt := make([]*Tag, 0)
 
-	query := "SELECT * FROM tags"
-	args := []interface{}{}
+	opts = append([]Option{Columns("*")}, opts...)
 
-	if ts.Build != nil {
-		query += " WHERE build_id = $1"
-		args = append(args, ts.Build.ID)
-	}
+	q := Select(append(opts, ForBuild(ts.Build), Table("tags"))...)
 
-	query += " ORDER BY name ASC"
-
-	err := ts.Select(&tt, query, args...)
+	err := ts.Select(&tt, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -69,32 +66,6 @@ func (ts TagStore) All() ([]*Tag, error) {
 		if ts.Build != nil {
 			t.Build = ts.Build
 		}
-	}
-
-	return tt, errors.Err(err)
-}
-
-func (ts TagStore) InBuildID(ids ...int64) ([]*Tag, error) {
-	tt := make([]*Tag, 0)
-
-	if len(ids) == 0 {
-		return tt, nil
-	}
-
-	query, args, err := sqlx.In("SELECT * FROM tags WHERE build_id IN (?)", ids)
-
-	if err != nil {
-		return tt, errors.Err(err)
-	}
-
-	err = ts.Select(&tt, ts.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, t := range tt {
-		t.DB = ts.DB
 	}
 
 	return tt, errors.Err(err)

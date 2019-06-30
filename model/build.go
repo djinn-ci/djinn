@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"database/sql"
 	"strings"
-	"time"
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
@@ -50,16 +49,45 @@ type BuildStore struct {
 	Namespace *Namespace
 }
 
-func spread(i int64) []int {
-	ret := make([]int, 0)
+func BuildSearch(search string) Option {
+	return func(q Query) Query {
+		if search == "" {
+			return q
+		}
 
-	for i != 0 {
-		ret = append(ret, int(i % 10))
-
-		i /= 10
+		return WhereInQuery("id", Select(
+				Columns("build_id"),
+				Table("tags"),
+				WhereLike("name", "%" + search + "%"),
+			),
+		)(q)
 	}
+}
 
-	return ret
+func BuildStatus(status string) Option {
+	return func(q Query) Query {
+		if status == "" {
+			return q
+		}
+
+		return WhereEq("status", status)(q)
+	}
+}
+
+func BuildTag(tag string) Option {
+	return func(q Query) Query {
+		if tag == "" {
+			return q
+		}
+
+		return WhereInQuery("id",
+			Select(
+				Columns("build_id"),
+				Table("tags"),
+				WhereEq("name", tag),
+			),
+		)(q)
+	}
 }
 
 func (b *Build) ArtifactStore() ArtifactStore {
@@ -120,11 +148,14 @@ func (b *Build) TriggerStore() TriggerStore {
 }
 
 func (b *Build) Create() error {
-	stmt, err := b.Prepare(`
-		INSERT INTO builds (user_id, namespace_id, manifest)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Columns("user_id", "namespace_id", "manifest"),
+		Table("builds"),
+		Values(b.UserID, b.NamespaceID, b.Manifest),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := b.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -132,7 +163,7 @@ func (b *Build) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(b.UserID, b.NamespaceID, b.Manifest)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&b.ID, &b.CreatedAt, &b.UpdatedAt))
 }
@@ -155,10 +186,6 @@ func (b *Build) JobShow(id int64) (*Job, error) {
 		return j, errors.Err(err)
 	}
 
-	if err := j.LoadBuild(); err != nil {
-		return j, errors.Err(err)
-	}
-
 	if err := j.LoadStage(); err != nil {
 		return j, errors.Err(err)
 	}
@@ -171,12 +198,17 @@ func (b *Build) JobShow(id int64) (*Job, error) {
 }
 
 func (b *Build) Update() error {
-	stmt, err := b.Prepare(`
-		UPDATE builds
-		SET status = $1, output = $2, started_at = $3, finished_at = $4, updated_at = NOW()
-		WHERE id = $5
-		RETURNING updated_at
-	`)
+	q := Update(
+		Table("builds"),
+		Set("status", b.Status),
+		Set("output", b.Output),
+		Set("started_at", b.StartedAt),
+		Set("finished_at", b.FinishedAt),
+		SetRaw("updated_at", "NOW()"),
+		Returning("updated_at"),
+	)
+
+	stmt, err := b.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -184,89 +216,9 @@ func (b *Build) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(b.Status, b.Output, b.StartedAt, b.FinishedAt, b.ID)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&b.UpdatedAt))
-}
-
-func (b *Build) LoadArtifacts() error {
-	var err error
-
-	b.Artifacts, err = b.ArtifactStore().All()
-
-	return errors.Err(err)
-}
-
-func (b *Build) LoadDriver() error {
-	var err error
-
-	b.Driver, err = b.DriverStore().First()
-
-	return errors.Err(err)
-}
-
-func (b *Build) LoadNamespace() error {
-	var err error
-
-	namespaces := NamespaceStore{
-		DB: b.DB,
-	}
-
-	b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
-
-	return errors.Err(err)
-}
-
-func (b *Build) LoadObjects() error {
-	var err error
-
-	b.Objects, err = b.BuildObjectStore().All()
-
-	return errors.Err(err)
-}
-
-func (b *Build) LoadStages() error {
-	var err error
-
-	b.Stages, err = b.StageStore().All()
-
-	return errors.Err(err)
-}
-
-func (b *Build) LoadTags() error {
-	var err error
-
-	b.Tags, err = b.TagStore().All()
-
-	return errors.Err(err)
-}
-
-func (b *Build) LoadTrigger() error {
-	var err error
-
-	b.Trigger, err = b.TriggerStore().First()
-
-	return errors.Err(err)
-}
-
-func (b *Build) LoadUser() error {
-	var err error
-
-	users := UserStore{
-		DB: b.DB,
-	}
-
-	b.User, err = users.Find(b.UserID)
-
-	return errors.Err(err)
-}
-
-func (b *Build) LoadVariables() error {
-	var err error
-
-	b.Variables, err = b.BuildVariableStore().All()
-
-	return errors.Err(err)
 }
 
 func (b Build) Signature() *tasks.Signature {
@@ -462,7 +414,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 		}
 
 		for src, dst := range job.Artifacts {
-			hash, err := crypto.Hash(spread(time.Now().UnixNano()))
+			hash, err := crypto.HashNow()
 
 			if err != nil {
 				return errors.Err(err)
@@ -490,43 +442,19 @@ func (b Build) Submit(srv *machinery.Server) error {
 	return errors.Err(err)
 }
 
-func (b Build) UIEndpoint(uri ...string) string {
-	endpoint := fmt.Sprintf("/builds/%v", b.ID)
-
-	if len(uri) > 0 {
-		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
-	}
-
-	return endpoint
-}
-
-func (bs BuildStore) All() ([]*Build, error) {
+func (bs BuildStore) All(opts ...Option) ([]*Build, error) {
 	bb := make([]*Build, 0)
 
-	query := "SELECT * FROM builds"
-	args := []interface{}{}
+	opts = append([]Option{Columns("*")}, opts...)
 
-	if bs.User != nil {
-		query += " WHERE user_id = $1"
-		args = append(args, bs.User.ID)
-	}
+	q := Select(append(opts, ForUser(bs.User), ForNamespace(bs.Namespace), Table("builds"))...)
 
-	if bs.Namespace != nil {
-		if bs.User != nil {
-			query += " AND namespace_id = $2"
-		} else {
-			query += " WHERE namespace_id = $1"
+	if err := bs.Select(&bb, q.Build(), q.Args()...); err != nil {
+		if err == sql.ErrNoRows {
+			return bb, nil
 		}
 
-		args = append(args, bs.Namespace.ID)
-	}
-
-	query += " ORDER BY created_at DESC"
-
-	err := bs.Select(&bb, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+		return bb, errors.Err(err)
 	}
 
 	for _, b := range bb {
@@ -535,45 +463,7 @@ func (bs BuildStore) All() ([]*Build, error) {
 		b.Namespace = bs.Namespace
 	}
 
-	return bb, errors.Err(err)
-}
-
-func (bs BuildStore) ByStatus(status string) ([]*Build, error) {
-	bb := make([]*Build, 0)
-
-	query := "SELECT * FROM builds WHERE status = $1"
-	args := []interface{}{status}
-
-	if bs.User != nil {
-		query += " AND user_id = $2"
-		args = append(args, bs.User.ID)
-	}
-
-	if bs.Namespace != nil {
-		if bs.User != nil {
-			query += " AND namespace_id = $3"
-		} else {
-			query += " AND namespace_id = $2"
-		}
-
-		args = append(args, bs.Namespace.ID)
-	}
-
-	query += " ORDER BY created_at DESC"
-
-	err := bs.Select(&bb, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, b := range bb {
-		b.DB = bs.DB
-		b.User = bs.User
-		b.Namespace = bs.Namespace
-	}
-
-	return bb, errors.Err(err)
+	return bb, nil
 }
 
 func (bs BuildStore) Find(id int64) (*Build, error) {
@@ -585,25 +475,15 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 		Namespace: bs.Namespace,
 	}
 
-	query := "SELECT * FROM builds WHERE id = $1"
-	args := []interface{}{id}
+	q := Select(
+		Columns("*"),
+		Table("builds"),
+		WhereEq("id", id),
+		ForUser(bs.User),
+		ForNamespace(bs.Namespace),
+	)
 
-	if bs.User != nil {
-		query += " AND user_id = $2"
-		args = append(args, bs.User.ID)
-	}
-
-	if bs.Namespace != nil {
-		if bs.User != nil {
-			query += " AND namespace_id = $3"
-		} else {
-			query += " AND namespace_id = $2"
-		}
-
-		args = append(args, bs.Namespace.ID)
-	}
-
-	err := bs.Get(b, query, args...)
+	err := bs.Get(b, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -615,43 +495,8 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 	return b, errors.Err(err)
 }
 
-func (bs BuildStore) InNamespaceID(ids ...int64) ([]*Build, error) {
-	bb := make([]*Build, 0)
-
-	if len(ids) == 0 {
-		return bb, nil
-	}
-
-	query, args, err := sqlx.In("SELECT * FROM builds WHERE namespace_id IN (?)", ids)
-
-	if err != nil {
-		return bb, errors.Err(err)
-	}
-
-	err = bs.Select(&bb, bs.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, b := range bb {
-		b.DB = bs.DB
-	}
-
-	return bb, errors.Err(err)
-}
-
-func (bs BuildStore) List(status string) ([]*Build, error) {
-	var (
-		bb  []*Build
-		err error
-	)
-
-	if status != "" {
-		bb, err = bs.ByStatus(status)
-	} else {
-		bb, err = bs.All()
-	}
+func (bs BuildStore) Index(opts ...Option) ([]*Build, error) {
+	bb, err := bs.All(opts...)
 
 	if err != nil {
 		return bb, errors.Err(err)
@@ -690,12 +535,135 @@ func (bs BuildStore) List(status string) ([]*Build, error) {
 	return bb, errors.Err(err)
 }
 
+func (bs BuildStore) Show(id int64) (*Build, error) {
+	b, err := bs.Find(id)
+
+	if err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadNamespace(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.Namespace.LoadUser(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadTrigger(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadTags(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadStages(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	err = b.StageStore().LoadJobs(b.Stages)
+
+	return b, errors.Err(err)
+}
+
+func (b *Build) LoadArtifacts() error {
+	var err error
+
+	b.Artifacts, err = b.ArtifactStore().All()
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadDriver() error {
+	var err error
+
+	b.Driver, err = b.DriverStore().First()
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadNamespace() error {
+	var err error
+
+	namespaces := NamespaceStore{
+		DB: b.DB,
+	}
+
+	b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadObjects() error {
+	var err error
+
+	b.Objects, err = b.BuildObjectStore().All()
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadStages() error {
+	var err error
+
+	b.Stages, err = b.StageStore().All()
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadTags() error {
+	var err error
+
+	b.Tags, err = b.TagStore().All()
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadTrigger() error {
+	var err error
+
+	b.Trigger, err = b.TriggerStore().First()
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadUser() error {
+	var err error
+
+	users := UserStore{
+		DB: b.DB,
+	}
+
+	b.User, err = users.Find(b.UserID)
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadVariables() error {
+	var err error
+
+	b.Variables, err = b.BuildVariableStore().All()
+
+	return errors.Err(err)
+}
+
+
+func (b Build) UIEndpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/builds/%v", b.ID)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
+}
+
 func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil
 	}
 
-	ids := make([]int64, len(bb), len(bb))
+	ids := make([]interface{}, len(bb), len(bb))
 
 	for i, b := range bb {
 		if b.NamespaceID.Valid {
@@ -707,7 +675,7 @@ func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 		DB: bs.DB,
 	}
 
-	nn, err := namespaces.In(ids...)
+	nn, err := namespaces.All(WhereIn("id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -729,7 +697,7 @@ func (bs *BuildStore) LoadTags(bb []*Build) error {
 		return nil
 	}
 
-	ids := make([]int64, len(bb), len(bb))
+	ids := make([]interface{}, len(bb), len(bb))
 
 	for i, b := range bb {
 		ids[i] = b.ID
@@ -739,7 +707,7 @@ func (bs *BuildStore) LoadTags(bb []*Build) error {
 		DB: bs.DB,
 	}
 
-	tt, err := tags.InBuildID(ids...)
+	tt, err := tags.All(WhereIn("build_id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -761,7 +729,7 @@ func (bs *BuildStore) LoadUsers(bb []*Build) error {
 		return nil
 	}
 
-	ids := make([]int64, len(bb), len(bb))
+	ids := make([]interface{}, len(bb), len(bb))
 
 	for i, b := range bb {
 		ids[i] = b.UserID
@@ -771,7 +739,7 @@ func (bs *BuildStore) LoadUsers(bb []*Build) error {
 		DB: bs.DB,
 	}
 
-	uu, err := users.In(ids...)
+	uu, err := users.All(WhereIn("id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -811,44 +779,15 @@ func (bs BuildStore) New() *Build {
 	return b
 }
 
-func (bs BuildStore) Show(id int64) (*Build, error) {
-	b, err := bs.Find(id)
-
-	if err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadNamespace(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.Namespace.LoadUser(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadTrigger(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadTags(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadStages(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	err = b.StageStore().LoadJobs(b.Stages)
-
-	return b, errors.Err(err)
-}
-
 func (bv *BuildVariable) Create() error {
-	stmt, err := bv.Prepare(`
-		INSERT INTO build_variables (build_id, variable_id, key, value)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Columns("build_id", "variable_id", "key", "value"),
+		Table("build_variables"),
+		Values(bv.BuildID, bv.VariableID, bv.Key, bv.Value),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := bv.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -856,7 +795,7 @@ func (bv *BuildVariable) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(bv.BuildID, bv.VariableID, bv.Key, bv.Value)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&bv.ID, &bv.CreatedAt, &bv.UpdatedAt))
 }

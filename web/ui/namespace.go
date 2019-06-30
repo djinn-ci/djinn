@@ -62,7 +62,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	nn, err := u.NamespaceStore().List(search)
+	nn, err := u.NamespaceStore().Index(model.Search(search, "path"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -262,7 +262,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if showNamespaces {
-		n.Children, err = n.NamespaceStore().List(search)
+		n.Children, err = n.NamespaceStore().Index(model.Search(search, "path"))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -270,7 +270,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		n.Builds, err = n.BuildStore().List(status)
+		n.Builds, err = n.BuildStore().Index(model.BuildStatus(status))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

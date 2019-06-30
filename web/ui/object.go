@@ -76,7 +76,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	oo, err := u.ObjectStore().List(search)
+	oo, err := u.ObjectStore().Index(model.Search(search, "name"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -99,7 +99,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Show(w http.ResponseWriter, r *http.Request) {
-	o, _, err := h.object(r)
+	u, err := h.User(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -107,10 +107,34 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	vars := mux.Vars(r)
+
+	id, err := strconv.ParseInt(vars["object"], 10, 64)
+
+	if err != nil {
+		web.HTML(w, "Not found", http.StatusNotFound)
+		return
+	}
+
 	status := r.URL.Query().Get("status")
 
-	// TODO: Refactor this.
-	bb, err := o.LoadBuilds(status)
+	o, err := u.ObjectStore().Show(id)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	bb, err := u.BuildStore().All(
+		model.WhereInQuery("id",
+				model.Select(
+				model.Columns("build_id"),
+				model.Table("build_objects"),
+				model.WhereEq("object_id", o.ID),
+			),
+		),
+	)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

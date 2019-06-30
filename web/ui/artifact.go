@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
 	"github.com/andrewpillar/thrall/web"
@@ -56,7 +57,7 @@ func (h Artifact) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	aa, err := b.ArtifactStore().List(search)
+	aa, err := b.ArtifactStore().Index(model.Search(search, "name"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

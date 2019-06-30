@@ -66,15 +66,16 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tag := r.URL.Query().Get("tag")
+	search := r.URL.Query().Get("search")
 	status := r.URL.Query().Get("status")
 
-	bb, err := u.BuildStore().List(status)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	bb, err := u.BuildStore().Index(
+		model.BuildTag(tag),
+		model.BuildSearch(search),
+		model.BuildStatus(status),
+		model.OrderDesc("created_at"),
+	)
 
 	p := &build.IndexPage{
 		Page: template.Page{

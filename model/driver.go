@@ -25,11 +25,14 @@ type DriverStore struct {
 }
 
 func (d *Driver) Create() error {
-	stmt, err := d.Prepare(`
-		INSERT INTO drivers (build_id, type, config)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Table("drivers"),
+		Columns("build_id", "type", "config"),
+		Values(d.BuildID, d.Type, d.Config),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := d.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -37,7 +40,7 @@ func (d *Driver) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(d.BuildID, d.Type, d.Config)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&d.ID, &d.CreatedAt, &d.UpdatedAt))
 }
@@ -50,15 +53,13 @@ func (ds DriverStore) First() (*Driver, error) {
 		Build: ds.Build,
 	}
 
-	query := "SELECT * FROM drivers"
-	args := []interface{}{}
+	q := Select(
+		Columns("*"),
+		Table("drivers"),
+		ForBuild(ds.Build),
+	)
 
-	if ds.Build != nil {
-		query += " WHERE build_id = $1"
-		args = append(args, ds.Build.ID)
-	}
-
-	err := ds.Get(d, query, args...)
+	err := ds.Get(d, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

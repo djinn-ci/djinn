@@ -67,11 +67,14 @@ func (j *Job) JobDependencyStore() JobDependencyStore {
 }
 
 func (j *Job) Create() error {
-	stmt, err := j.Prepare(`
-		INSERT INTO jobs (build_id, stage_id, name, commands)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Table("jobs"),
+		Columns("build_id", "stage_id", "name", "commands"),
+		Values(j.BuildID, j.StageID, j.Name, j.Commands),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := j.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -79,7 +82,7 @@ func (j *Job) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(j.BuildID, j.StageID, j.Name, j.Commands)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&j.ID, &j.CreatedAt, &j.UpdatedAt))
 }
@@ -117,15 +120,18 @@ func (j *Job) LoadBuild() error {
 }
 
 func (j *Job) LoadDependencies() error {
-	query := `
-		SELECT * FROM jobs
-		WHERE id IN (
-			SELECT dependency_id FROM job_dependencies
-			WHERE job_id = $1
-		)
-	`
+	q := Select(
+		Columns("*"),
+		Table("jobs"),
+		WhereInQuery("id", Select(
+				Columns("dependency_id"),
+				Table("job_dependencies"),
+				WhereEq("job_id", j.ID),
+			),
+		),
+	)
 
-	return errors.Err(j.Select(&j.Dependencies, query, j.ID))
+	return errors.Err(j.Select(&j.Dependencies, q.Build(), q.Args()...))
 }
 
 func (j *Job) LoadStage() error {
@@ -151,12 +157,16 @@ func (j Job) UIEndpoint(uri ...string) string {
 }
 
 func (j *Job) Update() error {
-	stmt, err := j.Prepare(`
-		UPDATE jobs
-		SET output = $1, status = $2, started_at = $3, finished_at = $4, updated_at = NOW()
-		WHERE id = $5
-		RETURNING updated_at
-	`)
+	q := Update(
+		Table("jobs"),
+		Set("output", j.Output),
+		Set("status", j.Status),
+		Set("started_at", j.StartedAt),
+		Set("finished_at", j.FinishedAt),
+		SetRaw("updated_at", "NOW()"),
+	)
+
+	stmt, err := j.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -164,17 +174,20 @@ func (j *Job) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(j.Output, j.Status, j.StartedAt, j.FinishedAt, j.ID)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&j.UpdatedAt))
 }
 
 func (jd *JobDependency) Create() error {
-	stmt, err := jd.Prepare(`
-		INSERT INTO job_dependencies (job_id, dependency_id)
-		VALUES ($1, $2)
-		RETURNING id
-	`)
+	q := Insert(
+		Table("job_dependencies"),
+		Columns("job_id", "dependency_id"),
+		Values(jd.JobID, jd.DependencyID),
+		Returning("id"),
+	)
+
+	stmt, err := jd.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -182,7 +195,7 @@ func (jd *JobDependency) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(jd.JobID, jd.DependencyID)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&jd.ID))
 }
@@ -201,6 +214,26 @@ func (jds JobDependencyStore) New() *JobDependency {
 	return jd
 }
 
+func (js JobStore) All(opts ...Option) ([]*Job, error) {
+	jj := make([]*Job, 0)
+
+	opts = append([]Option{Columns("*")}, opts...)
+
+	q := Select(append(opts, ForBuild(js.Build), ForStage(js.Stage), Table("jobs"))...)
+
+	err := js.Select(&jj, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, j := range jj {
+		j.DB = js.DB
+	}
+
+	return jj, errors.Err(err)
+}
+
 func (js JobStore) Find(id int64) (*Job, error) {
 	j := &Job{
 		model: model{
@@ -210,25 +243,15 @@ func (js JobStore) Find(id int64) (*Job, error) {
 		Stage: js.Stage,
 	}
 
-	query := "SELECT * FROM jobs WHERE id = $1"
-	args := []interface{}{id}
+	q := Select(
+		Columns("*"),
+		Table("jobs"),
+		WhereEq("id", id),
+		ForBuild(js.Build),
+		ForStage(js.Stage),
+	)
 
-	if js.Build != nil {
-		query += " AND build_id = $2"
-		args = append(args, js.Build.ID)
-	}
-
-	if js.Stage != nil {
-		if js.Build != nil {
-			query += " AND stage_id = $3"
-		} else {
-			query += " AND stage_id = $2"
-		}
-
-		args = append(args, js.Stage.ID)
-	}
-
-	err := js.Get(j, query, args...)
+	err := js.Get(j, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -249,25 +272,15 @@ func (js JobStore) FindByName(name string) (*Job, error) {
 		Stage: js.Stage,
 	}
 
-	query := "SELECT * FROM jobs WHERE name = $1"
-	args := []interface{}{name}
+	q := Select(
+		Columns("*"),
+		Table("jobs"),
+		WhereEq("name", name),
+		ForBuild(js.Build),
+		ForStage(js.Stage),
+	)
 
-	if js.Build != nil {
-		query += " AND build_id = $2"
-		args = append(args, js.Build.ID)
-	}
-
-	if js.Stage != nil {
-		if js.Build != nil {
-			query += " AND stage_id = $3"
-		} else {
-			query += " AND stage_id = $2"
-		}
-
-		args = append(args, js.Stage.ID)
-	}
-
-	err := js.Get(j, query, args...)
+	err := js.Get(j, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -279,42 +292,12 @@ func (js JobStore) FindByName(name string) (*Job, error) {
 	return j, errors.Err(err)
 }
 
-func (js JobStore) InStageID(ids ...int64) ([]*Job, error) {
-	jj := make([]*Job, 0)
-
-	if len(ids) == 0 {
-		return jj, nil
-	}
-
-	query, args, err := sqlx.In(`
-		SELECT * FROM jobs WHERE stage_id IN (?) ORDER BY created_at ASC
-	`, ids)
-
-	if err != nil {
-		return jj, errors.Err(err)
-	}
-
-	err = js.Select(&jj, js.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, j := range jj {
-		j.DB = js.DB
-		j.Build = js.Build
-		j.Stage = js.Stage
-	}
-
-	return jj, errors.Err(err)
-}
-
 func (js JobStore) LoadArtifacts(jj []*Job) error {
 	if len(jj) == 0 {
 		return nil
 	}
 
-	ids := make([]int64, len(jj))
+	ids := make([]interface{}, len(jj))
 
 	for i, j := range jj {
 		ids[i] = j.ID
@@ -324,7 +307,7 @@ func (js JobStore) LoadArtifacts(jj []*Job) error {
 		DB: js.DB,
 	}
 
-	aa, err := artifacts.InJobID(ids...)
+	aa, err := artifacts.All(WhereIn("job_id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -346,7 +329,7 @@ func (js JobStore) LoadDependencies(jj []*Job) error {
 		return nil
 	}
 
-	ids := make([]int64, len(jj))
+	ids := make([]interface{}, len(jj))
 	jobs := make(map[int64]*Job)
 
 	for i, j := range jj {
@@ -354,18 +337,14 @@ func (js JobStore) LoadDependencies(jj []*Job) error {
 		jobs[j.ID] = j
 	}
 
-	query, args, err := sqlx.In("SELECT * FROM job_dependencies WHERE job_id IN (?)", ids)
+	dependencies := JobDependencyStore{
+		DB: js.DB,
+	}
+
+	jdd, err := dependencies.All(WhereIn("job_id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
-	}
-
-	jdd := make([]*JobDependency, 0)
-
-	err = js.Select(&jdd, js.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
 	}
 
 	for _, jd := range jdd {
@@ -401,28 +380,22 @@ func (js JobStore) New() *Job {
 	return j
 }
 
-func (js JobStore) NotCompleted() ([]*Job, error) {
-	jj := make([]*Job, 0)
+func (jds JobDependencyStore) All(opts ...Option) ([]*JobDependency, error) {
+	jdd := make([]*JobDependency, 0)
 
-	query := "SELECT * FROM jobs WHERE started_at IS NULL AND finished_at IS NULL"
-	args := []interface{}{}
+	opts = append([]Option{Columns("*")}, opts...)
 
-	if js.Build != nil {
-		query += " AND build_id = $1"
-		args = append(args, js.Build.ID)
-	}
+	q := Select(append(opts, ForJob(jds.Job), Table("job_dependencies"))...)
 
-	err := js.Select(&jj, query, args...)
+	err := jds.Select(&jdd, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
 
-	for _, j := range jj {
-		j.DB = js.DB
-		j.Build = js.Build
-		j.Stage = js.Stage
+	for _, d := range jdd {
+		d.DB = jds.DB
 	}
 
-	return jj, errors.Err(err)
+	return jdd, errors.Err(err)
 }

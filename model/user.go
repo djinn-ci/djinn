@@ -2,7 +2,6 @@ package model
 
 import (
 	"database/sql"
-	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -63,11 +62,14 @@ func (u *User) VariableStore() VariableStore {
 }
 
 func (u *User) Create() error {
-	stmt, err := u.Prepare(`
-		INSERT INTO users (email, username, password)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Table("users"),
+		Columns("email", "username", "password"),
+		Values(u.Email, u.Username, u.Password),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := u.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -75,18 +77,20 @@ func (u *User) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(u.Email, u.Username, u.Password)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&u.ID, &u.CreatedAt, &u.UpdatedAt))
 }
 
 func (u *User) Destroy() error {
-	u.DeletedAt = pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
+	q := Update(
+		Table("users"),
+		SetRaw("deleted_at", "NOW()"),
+		WhereEq("id", u.ID),
+		Returning("deleted_at"),
+	)
 
-	stmt, err := u.Prepare("UPDATE users SET deleted_at = $1 WHERE id = $2")
+	stmt, err := u.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -94,9 +98,9 @@ func (u *User) Destroy() error {
 
 	defer stmt.Close()
 
-	_, err = stmt.Exec(u.DeletedAt)
+	row := stmt.QueryRow(q.Args()...)
 
-	return errors.Err(err)
+	return errors.Err(row.Scan(&u.DeletedAt))
 }
 
 func (u *User) IsZero() bool {
@@ -108,12 +112,16 @@ func (u *User) IsZero() bool {
 }
 
 func (u *User) Update() error {
-	stmt, err := u.Prepare(`
-		UPDATE users
-		SET email = $1, username = $2, password = $3, updated_at = NOW()
-		WHERE id = $4
-		RETURNING updated_at
-	`)
+	q := Update(
+		Table("users"),
+		Set("email", u.Email),
+		Set("password", u.Password),
+		SetRaw("updated_at", "NOW()"),
+		WhereEq("id", u.ID),
+		Returning("updated_at"),
+	)
+
+	stmt, err := u.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -121,9 +129,29 @@ func (u *User) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(u.Email, u.Username, u.Password, u.ID)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&u.UpdatedAt))
+}
+
+func (us UserStore) All(opts ...Option) ([]*User, error) {
+	uu := make([]*User, 0)
+
+	opts = append([]Option{Columns("*")}, opts...)
+
+	q := Select(append(opts, Table("users"))...)
+
+	err := us.Select(&uu, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, u := range uu {
+		u.DB = us.DB
+	}
+
+	return uu, nil
 }
 
 func (us UserStore) Find(id int64) (*User, error) {
@@ -133,7 +161,9 @@ func (us UserStore) Find(id int64) (*User, error) {
 		},
 	}
 
-	err := us.Get(u, "SELECT * FROM users WHERE id = $1", id)
+	q := Select(Columns("*"), Table("users"), WhereEq("id", id))
+
+	err := us.Get(u, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -152,7 +182,9 @@ func (us UserStore) FindByEmail(email string) (*User, error) {
 		},
 	}
 
-	err := us.Get(u, "SELECT * FROM users WHERE email = $1", email)
+	q := Select(Columns("*"), Table("users"), WhereEq("email", u.Email))
+
+	err := us.Get(u, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -171,7 +203,16 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 		},
 	}
 
-	err := us.Get(u, "SELECT * FROM users WHERE username = $1 OR email = $2", handle, handle)
+	q := Select(
+		Columns("*"),
+		Table("users"),
+		Or(
+			WhereEq("username", handle),
+			WhereEq("email", handle),
+		),
+	)
+
+	err := us.Get(u, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -190,7 +231,9 @@ func (us UserStore) FindByUsername(username string) (*User, error) {
 		},
 	}
 
-	err := us.Get(u, "SELECT * FROM users WHERE username = $1", username)
+	q := Select(Columns("*"), Table("users"), WhereEq("username", username))
+
+	err := us.Get(u, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -200,30 +243,4 @@ func (us UserStore) FindByUsername(username string) (*User, error) {
 	}
 
 	return u, errors.Err(err)
-}
-
-func (us UserStore) In(ids ...int64) ([]*User, error) {
-	uu := make([]*User, 0)
-
-	if len(ids) == 0 {
-		return uu, nil
-	}
-
-	query, args, err := sqlx.In("SELECT * FROM users WHERE id IN (?)", ids)
-
-	if err != nil {
-		return uu, errors.Err(err)
-	}
-
-	err = us.Select(&uu, us.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, u := range uu {
-		u.DB = us.DB
-	}
-
-	return uu, errors.Err(err)
 }

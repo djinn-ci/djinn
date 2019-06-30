@@ -32,11 +32,14 @@ type StageStore struct {
 }
 
 func (s *Stage) Create() error {
-	stmt, err := s.Prepare(`
-		INSERT INTO stages (build_id, name, can_fail)
-		VALUES ($1, $2, $3)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Table("stages"),
+		Columns("build_id", "name", "can_fail"),
+		Values(s.BuildID, s.Name, s.CanFail),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := s.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -44,7 +47,7 @@ func (s *Stage) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(s.BuildID, s.Name, s.CanFail)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&s.ID, &s.CreatedAt, &s.UpdatedAt))
 }
@@ -58,12 +61,16 @@ func (s *Stage) JobStore() JobStore {
 }
 
 func (s *Stage) Update() error {
-	stmt, err := s.Prepare(`
-		UPDATE stages
-		SET status = $1, started_at = $2, finished_at = $3, updated_at = NOW()
-		WHERE id = $4
-		RETURNING updated_at
-	`)
+	q := Update(
+		Table("stages"),
+		Set("status", s.Status),
+		Set("started_at", s.StartedAt),
+		Set("finished_at", s.FinishedAt),
+		SetRaw("updated_at", "NOW()"),
+		Returning("updated_at"),
+	)
+
+	stmt, err := s.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -71,23 +78,19 @@ func (s *Stage) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(s.Status, s.StartedAt, s.FinishedAt, s.ID)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&s.UpdatedAt))
 }
 
-func (stgs StageStore) All() ([]*Stage, error) {
+func (stgs StageStore) All(opts ...Option) ([]*Stage, error) {
 	ss := make([]*Stage, 0)
 
-	query := "SELECT * FROM stages"
-	args := []interface{}{}
+	opts = append([]Option{Columns("*")}, opts...)
 
-	if stgs.Build != nil {
-		query += " WHERE build_id = $1"
-		args = append(args, stgs.Build.ID)
-	}
+	q := Select(append(opts, ForBuild(stgs.Build), Table("stages"))...)
 
-	err := stgs.Select(&ss, query, args...)
+	err := stgs.Select(&ss, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -111,17 +114,14 @@ func (stgs StageStore) Find(id int64) (*Stage, error) {
 		},
 	}
 
-	query := "SELECT * FROM stages WHERE id = $1"
-	args := []interface{}{id}
+	q := Select(
+		Columns("*"),
+		Table("stages"),
+		WhereEq("id", id),
+		ForBuild(stgs.Build),
+	)
 
-	if stgs.Build != nil {
-		query += " AND build_id = $2"
-		args = append(args, stgs.Build.ID)
-
-		s.Build = stgs.Build
-	}
-
-	err := stgs.Get(s, query, args...)
+	err := stgs.Get(s, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -141,15 +141,14 @@ func (stgs StageStore) FindByName(name string) (*Stage, error) {
 		Build: stgs.Build,
 	}
 
-	query := "SELECT * FROM stages WHERE name = $1"
-	args := []interface{}{name}
+	q := Select(
+		Columns("*"),
+		Table("stages"),
+		WhereEq("name", name),
+		ForBuild(stgs.Build),
+	)
 
-	if stgs.Build != nil {
-		query += " AND build_id = $2"
-		args = append(args, stgs.Build.ID)
-	}
-
-	err := stgs.Get(s, query, args...)
+	err := stgs.Get(s, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -166,7 +165,7 @@ func (stgs StageStore) LoadJobs(ss []*Stage) error {
 		return nil
 	}
 
-	ids := make([]int64, len(ss), len(ss))
+	ids := make([]interface{}, len(ss), len(ss))
 
 	for i, s := range ss {
 		ids[i] = s.ID
@@ -176,7 +175,7 @@ func (stgs StageStore) LoadJobs(ss []*Stage) error {
 		DB: stgs.DB,
 	}
 
-	jj, err := jobs.InStageID(ids...)
+	jj, err := jobs.All(WhereIn("stage_id", ids...))
 
 	if err != nil {
 		return errors.Err(err)

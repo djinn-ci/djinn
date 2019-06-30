@@ -63,11 +63,14 @@ type TriggerStore struct {
 }
 
 func (t *Trigger) Create() error {
-	stmt, err := t.Prepare(`
-		INSERT INTO triggers (build_id, type, comment, data)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Table("triggers"),
+		Columns("build_id", "type", "comment", "data"),
+		Values(t.BuildID, t.Type, t.Comment, t.Data),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := t.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -75,7 +78,7 @@ func (t *Trigger) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(t.BuildID, t.Type, t.Comment, t.Data)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
 }
@@ -88,15 +91,13 @@ func (ts TriggerStore) First() (*Trigger, error) {
 		Build: ts.Build,
 	}
 
-	query := "SELECT * FROM triggers"
-	args := []interface{}{}
+	q := Select(
+		Columns("*"),
+		Table("triggers"),
+		ForBuild(ts.Build),
+	)
 
-	if ts.Build != nil {
-		query += " WHERE build_id = $1"
-		args = append(args, ts.Build.ID)
-	}
-
-	err := ts.Get(t, query, args...)
+	err := ts.Get(t, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

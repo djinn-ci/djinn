@@ -34,11 +34,14 @@ type ArtifactStore struct {
 }
 
 func (a *Artifact) Create() error {
-	stmt, err := a.Prepare(`
-		INSERT INTO artifacts (build_id, job_id, hash, source, name)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, created_at, updated_at
-	`)
+	q := Insert(
+		Table("artifacts"),
+		Columns("build_id", "job_id", "hash", "source", "name"),
+		Values(a.BuildID, a.JobID, a.Hash, a.Source, a.Name),
+		Returning("id", "created_at", "updated_at"),
+	)
+
+	stmt, err := a.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -46,7 +49,7 @@ func (a *Artifact) Create() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(a.BuildID, a.JobID, a.Hash, a.Source, a.Name)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&a.ID, &a.CreatedAt, &a.UpdatedAt))
 }
@@ -74,12 +77,16 @@ func (a Artifact) UIEndpoint(uri ...string) string {
 }
 
 func (a *Artifact) Update() error {
-	stmt, err := a.Prepare(`
-		UPDATE artifacts
-		SET size = $1, md5 = $2, sha256 = $3, updated_at = NOW()
-		WHERE id = $4
-		RETURNING updated_at
-	`)
+	q := Update(
+		Table("artifacts"),
+		Set("size", a.Size),
+		Set("md5", a.MD5),
+		Set("sha256", a.SHA256),
+		SetRaw("updated_at", "NOW()"),
+		Returning("updated_at"),
+	)
+
+	stmt, err := a.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -87,33 +94,19 @@ func (a *Artifact) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(a.Size, a.MD5, a.SHA256, a.ID)
+	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&a.UpdatedAt))
 }
 
-func (as ArtifactStore) All() ([]*Artifact, error) {
+func (as ArtifactStore) All(opts ...Option) ([]*Artifact, error) {
 	aa := make([]*Artifact, 0)
 
-	query := "SELECT * FROM artifacts"
-	args := []interface{}{}
+	opts = append([]Option{Columns("*")}, opts...)
 
-	if as.Build != nil {
-		query += " WHERE build_id = $1"
-		args = append(args, as.Build.ID)
-	}
+	q := Select(append(opts, ForBuild(as.Build), ForJob(as.Job), Table("artifacts"))...)
 
-	if as.Job != nil {
-		if as.Build != nil {
-			query += " AND job_id = $2"
-		} else {
-			query += " WHERE job_id = $1"
-		}
-
-		args = append(args, as.Job.ID)
-	}
-
-	err := as.Select(&aa, query, args...)
+	err := as.Select(&aa, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -137,25 +130,15 @@ func (as ArtifactStore) Find(id int64) (*Artifact, error) {
 		Job:   as.Job,
 	}
 
-	query := "SELECT * FROM artifacts WHERE id = $1"
-	args := []interface{}{id}
+	q := Select(
+		Columns("*"),
+		Table("artifacts"),
+		WhereEq("id", id),
+		ForBuild(as.Build),
+		ForJob(as.Job),
+	)
 
-	if as.Build != nil {
-		query += " AND build_id = $2"
-		args = append(args, as.Build.ID)
-	}
-
-	if as.Job != nil {
-		if as.Build != nil {
-			query += " AND job_id = $3"
-		} else {
-			query += " AND job_id = $2"
-		}
-
-		args = append(args, as.Job.ID)
-	}
-
-	err := as.Get(a, query, args...)
+	err := as.Get(a, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -173,25 +156,15 @@ func (as ArtifactStore) FindByHash(hash string) (*Artifact, error) {
 		Job:   as.Job,
 	}
 
-	query := "SELECT * FROM artifacts WHERE hash = $1"
-	args := []interface{}{hash}
+	q := Select(
+		Columns("*"),
+		Table("artifacts"),
+		WhereEq("hash", hash),
+		ForBuild(as.Build),
+		ForJob(as.Job),
+	)
 
-	if as.Build != nil {
-		query += " AND build_id = $2"
-		args = append(args, as.Build.ID)
-	}
-
-	if as.Job != nil {
-		if as.Build != nil {
-			query += " AND job_id = $3"
-		} else {
-			query += " AND job_id = $2"
-		}
-
-		args = append(args, as.Job.ID)
-	}
-
-	err := as.Get(a, query, args...)
+	err := as.Get(a, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -200,75 +173,8 @@ func (as ArtifactStore) FindByHash(hash string) (*Artifact, error) {
 	return a, errors.Err(err)
 }
 
-func (as ArtifactStore) InJobID(ids ...int64) ([]*Artifact, error) {
-	aa := make([]*Artifact, 0)
-
-	query, args, err := sqlx.In("SELECT * FROM artifacts WHERE job_id IN (?)", ids)
-
-	if err != nil {
-		return aa, errors.Err(err)
-	}
-
-	err = as.Select(&aa, as.Rebind(query), args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, a := range aa {
-		a.DB = as.DB
-	}
-
-	return aa, errors.Err(err)
-}
-
-func (as ArtifactStore) Like(like string) ([]*Artifact, error) {
-	aa := make([]*Artifact, 0)
-
-	query := "SELECT * FROM artifacts WHERE name LIKE $1"
-	args := []interface{}{"%" + like + "%"}
-
-	if as.Build != nil {
-		query += " AND build_id = $2"
-		args = append(args, as.Build.ID)
-	}
-
-	if as.Job != nil {
-		if as.Build != nil {
-			query += " AND job_id = $3"
-		} else {
-			query += " AND job_id = $2"
-		}
-
-		args = append(args, as.Job.ID)
-	}
-
-	err := as.Select(&aa, query, args...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, a := range aa {
-		a.DB = as.DB
-		a.Build = as.Build
-		a.Job = as.Job
-	}
-
-	return aa, errors.Err(err)
-}
-
-func (as ArtifactStore) List(search string) ([]*Artifact, error) {
-	var (
-		aa  []*Artifact
-		err error
-	)
-
-	if search != "" {
-		aa, err = as.Like(search)
-	} else {
-		aa, err = as.All()
-	}
+func (as ArtifactStore) Index(opts ...Option) ([]*Artifact, error) {
+	aa, err := as.All(opts...)
 
 	return aa, errors.Err(err)
 }

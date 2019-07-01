@@ -299,7 +299,7 @@ func WhereLike(col string, val interface{}) Option {
 		w := where{
 			col: col,
 			op:  "LIKE",
-			val: val,
+			val: fmt.Sprintf("$%d", len(q.args) + 1),
 			cat: " AND ",
 		}
 

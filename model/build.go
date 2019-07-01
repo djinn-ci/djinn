@@ -55,7 +55,8 @@ func BuildSearch(search string) Option {
 			return q
 		}
 
-		return WhereInQuery("id", Select(
+		return WhereInQuery("id",
+			Select(
 				Columns("build_id"),
 				Table("tags"),
 				WhereLike("name", "%" + search + "%"),

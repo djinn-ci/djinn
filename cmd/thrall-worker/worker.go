@@ -304,7 +304,7 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
-	jj, err := b.JobStore().NotCompleted()
+	jj, err := b.JobStore().All(model.WhereIs("finished_at", "NULL"))
 
 	if err != nil {
 		return errors.Err(err)

@@ -11,6 +11,7 @@ type IndexPage struct {
 	template.Page
 
 	Builds []*model.Build
+	Search string
 	Status string
 	Tag    string
 }
@@ -52,7 +53,7 @@ type VariableIndexPage struct {
 	<div class="panel">
 		<div class="panel-header">
 			{%= RenderStatusNav(p.URI, p.Status) %}
-			{%= template.RenderSearch(p.URI, "", "Find a build...") %}
+			{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
 		</div>
 		{% if len(p.Builds) == 0 %}
 			<div class="panel-message muted">

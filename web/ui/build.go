@@ -82,6 +82,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 			URI: r.URL.Path,
 		},
 		Builds: bb,
+		Search: search,
 		Status: status,
 		Tag:    tag,
 	}

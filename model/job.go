@@ -164,6 +164,8 @@ func (j *Job) Update() error {
 		Set("started_at", j.StartedAt),
 		Set("finished_at", j.FinishedAt),
 		SetRaw("updated_at", "NOW()"),
+		WhereEq("id", j.ID),
+		Returning("updated_at"),
 	)
 
 	stmt, err := j.Prepare(q.Build())

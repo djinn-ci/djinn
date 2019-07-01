@@ -206,6 +206,7 @@ func (b *Build) Update() error {
 		Set("started_at", b.StartedAt),
 		Set("finished_at", b.FinishedAt),
 		SetRaw("updated_at", "NOW()"),
+		WhereEq("id", b.ID),
 		Returning("updated_at"),
 	)
 

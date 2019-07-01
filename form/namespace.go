@@ -23,9 +23,8 @@ var (
 )
 
 type Namespace struct {
-	// Unexported, we don't want them encoded via gob.
-	ns model.NamespaceStore
-	n  *model.Namespace
+	Namespaces model.NamespaceStore
+	Namespace  *model.Namespace
 
 	UserID      int64
 	Parent      string           `schema:"parent"`
@@ -34,21 +33,12 @@ type Namespace struct {
 	Visibility  model.Visibility `schema:"visibility"`
 }
 
-func (f *Namespace) Bind(ns model.NamespaceStore, n *model.Namespace) {
-	f.ns = ns
-	f.n = n
-}
+func (f Namespace) Fields() map[string]string {
+	m := make(map[string]string)
+	m["name"] = f.Name
+	m["description"] = f.Description
 
-func (f Namespace) Get(key string) string {
-	if key == "name" {
-		return f.Name
-	}
-
-	if key == "description" {
-		return f.Description
-	}
-
-	return ""
+	return m
 }
 
 func (f Namespace) Validate() error {
@@ -68,11 +58,11 @@ func (f Namespace) Validate() error {
 
 	checkUnique := true
 
-	if f.n != nil && !f.n.IsZero() {
-		parts := strings.Split(f.n.Path, "/")
+	if f.Namespace != nil && !f.Namespace.IsZero() {
+		parts := strings.Split(f.Namespace.Path, "/")
 		parts[len(parts) - 1] = f.Name
 
-		if f.n.Name == f.Name {
+		if f.Namespace.Name == f.Name {
 			checkUnique = false
 		}
 
@@ -82,7 +72,7 @@ func (f Namespace) Validate() error {
 	}
 
 	if checkUnique {
-		n, err := f.ns.FindByPath(f.Name)
+		n, err := f.Namespaces.FindByPath(f.Name)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

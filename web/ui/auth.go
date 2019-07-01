@@ -33,7 +33,7 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &auth.RegisterPage{
 			Form: template.Form{
-				CSRF: csrf.TemplateField(r),
+				CSRF:   csrf.TemplateField(r),
 				Errors: h.Errors(w, r),
 				Form:   h.Form(w, r),
 			},
@@ -43,9 +43,9 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := &form.Register{}
-
-	f.Bind(*h.Users)
+	f := &form.Register{
+		Users: h.Users,
+	}
 
 	if err := h.ValidateForm(f, w, r); err != nil {
 		if _, ok := err.(form.Errors); ok {

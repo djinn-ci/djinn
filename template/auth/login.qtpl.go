@@ -113,7 +113,7 @@ func (p *LoginPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/auth/login.qtpl:35
 	qw422016.N().S(` <div class="input-field"> <label>Email / Username</label> <input class="text" type="text" name="handle" value="`)
 	//line template/auth/login.qtpl:38
-	qw422016.E().S(p.Form.Get("handle"))
+	qw422016.E().S(p.Field("handle"))
 	//line template/auth/login.qtpl:38
 	qw422016.N().S(`" autocomplete="off"/> `)
 	//line template/auth/login.qtpl:39

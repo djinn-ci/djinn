@@ -24,12 +24,11 @@ type Object struct {
 	Info    *multipart.FileHeader `schema:"-"`
 }
 
-func (f *Object) Get(key string) string {
-	if key == "name" {
-		return f.Name
-	}
+func (f Object) Fields() map[string]string {
+	m := make(map[string]string)
+	m["name"] = f.Name
 
-	return ""
+	return m
 }
 
 func (f *Object) Validate() error {

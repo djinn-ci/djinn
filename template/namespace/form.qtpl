@@ -22,8 +22,8 @@ func (p *Form) action() string {
 	return p.Namespace.UIEndpoint()
 }
 
-func (p *Form) value(field string) string {
-	old := p.Form.Get(field)
+func (p *Form) Field(field string) string {
+	old := p.Form.Field(field)
 
 	if p.Namespace != nil {
 		if old != "" {
@@ -100,12 +100,12 @@ func (p *Form) disabled(vis model.Visibility) string {
 				{%= p.Error("namespace") %}
 				<div class="form-field">
 					<label class="label" for="name">Name</label>
-					<input class="form-text" type="text" name="name" value="{%s p.value("name") %}" autocomplete="off"/>
+					<input class="form-text" type="text" name="name" value="{%s p.Field("name") %}" autocomplete="off"/>
 					{%= p.Error("name") %}
 				</div>
 				<div class="form-field">
 					<label class="label" for="name">Description</label>
-					<input class="form-text" type="text" name="description" value="{%s p.value("description") %}" autocomplete="off"/>
+					<input class="form-text" type="text" name="description" value="{%s p.Field("description") %}" autocomplete="off"/>
 					{%= p.Error("description") %}
 				</div>
 				<div class="form-field">

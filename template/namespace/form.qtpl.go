@@ -40,8 +40,8 @@ func (p *Form) action() string {
 	return p.Namespace.UIEndpoint()
 }
 
-func (p *Form) value(field string) string {
-	old := p.Form.Get(field)
+func (p *Form) Field(field string) string {
+	old := p.Form.Field(field)
 
 	if p.Namespace != nil {
 		if old != "" {
@@ -138,7 +138,7 @@ func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/form.qtpl:100
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Name</label> <input class="form-text" type="text" name="name" value="`)
 	//line template/namespace/form.qtpl:103
-	qw422016.E().S(p.value("name"))
+	qw422016.E().S(p.Field("name"))
 	//line template/namespace/form.qtpl:103
 	qw422016.N().S(`" autocomplete="off"/> `)
 	//line template/namespace/form.qtpl:104
@@ -146,7 +146,7 @@ func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/form.qtpl:104
 	qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="name">Description</label> <input class="form-text" type="text" name="description" value="`)
 	//line template/namespace/form.qtpl:108
-	qw422016.E().S(p.value("description"))
+	qw422016.E().S(p.Field("description"))
 	//line template/namespace/form.qtpl:108
 	qw422016.N().S(`" autocomplete="off"/> `)
 	//line template/namespace/form.qtpl:109

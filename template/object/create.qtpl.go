@@ -82,7 +82,7 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/object/create.qtpl:25
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Name</label> <input class="form-text" type="text" id="name" name="name" value="`)
 	//line template/object/create.qtpl:28
-	qw422016.E().S(p.Form.Get("name"))
+	qw422016.E().S(p.Field("name"))
 	//line template/object/create.qtpl:28
 	qw422016.N().S(`" autocomplete="off"/> `)
 	//line template/object/create.qtpl:29

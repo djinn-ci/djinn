@@ -25,7 +25,7 @@ type CreatePage struct {
 			{% endif %}
 			<div class="form-field">
 				<label class="label" for="name">Name</label>
-				<input class="form-text" type="text" id="name" name="name" value="{%s p.Form.Get("name") %}" autocomplete="off"/>
+				<input class="form-text" type="text" id="name" name="name" value="{%s p.Field("name") %}" autocomplete="off"/>
 				{%= p.Error("name") %}
 			</div>
 			<div class="form-field">

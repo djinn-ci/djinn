@@ -45,24 +45,14 @@ func (t *tags) String() string {
 	return strings.Join((*t), ",")
 }
 
-func (f Build) Get(key string) string {
-	if key == "namespace" {
-		return f.Namespace
-	}
+func (f Build) Fields() map[string]string {
+	m := make(map[string]string)
+	m["namespace"] = f.Namespace
+	m["manifest"] = f.Manifest
+	m["comment"] = f.Comment
+	m["tags"] = f.Tags.String()
 
-	if key == "manifest" {
-		return f.Manifest
-	}
-
-	if key == "comment" {
-		return f.Comment
-	}
-
-	if key == "tags" {
-		return f.Tags.String()
-	}
-
-	return ""
+	return m
 }
 
 func (f Build) Validate() error {

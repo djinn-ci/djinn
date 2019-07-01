@@ -15,30 +15,19 @@ import (
 
 var sessionName = "session"
 
-// Zero-value form implementation.
-type Form map[string]string
-
 type Handler struct {
 	store sessions.Store
 
 	SecureCookie *securecookie.SecureCookie
-	Users        *model.UserStore
+	Users        model.UserStore
 }
 
-func New(sc *securecookie.SecureCookie, store sessions.Store, users *model.UserStore) Handler {
+func New(sc *securecookie.SecureCookie, store sessions.Store, users model.UserStore) Handler {
 	return Handler{
 		store:        store,
 		SecureCookie: sc,
 		Users:        users,
 	}
-}
-
-func (f Form) Get(key string) string {
-	return f[key]
-}
-
-func (f Form) Validate() error {
-	return nil
 }
 
 func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Errors) {
@@ -54,7 +43,7 @@ func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Err
 func (h *Handler) FlashForm(w http.ResponseWriter, r *http.Request, f form.Form) {
 	sess, _ := h.store.Get(r, sessionName)
 
-	sess.Values["form"] = f
+	sess.Values["form"] = f.Fields()
 
 	if err := sess.Save(r, w); err != nil {
 		log.Error.Println(errors.Err(err))
@@ -79,7 +68,7 @@ func (h *Handler) Errors(w http.ResponseWriter, r *http.Request) form.Errors {
 	return form.NewErrors()
 }
 
-func (h *Handler) Form(w http.ResponseWriter, r *http.Request) form.Form {
+func (h *Handler) Form(w http.ResponseWriter, r *http.Request) map[string]string {
 	sess, _ := h.store.Get(r, sessionName)
 
 	f, ok := sess.Values["form"]
@@ -91,10 +80,10 @@ func (h *Handler) Form(w http.ResponseWriter, r *http.Request) form.Form {
 			log.Error.Println(errors.Err(err))
 		}
 
-		return f.(form.Form)
+		return f.(map[string]string)
 	}
 
-	return Form(make(map[string]string))
+	return make(map[string]string)
 }
 
 func (h *Handler) ValidateForm(f form.Form, w http.ResponseWriter, r *http.Request) error {

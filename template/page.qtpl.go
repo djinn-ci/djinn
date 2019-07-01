@@ -65,11 +65,7 @@ type Page struct {
 type Form struct {
 	CSRF   template.HTML
 	Errors form.Errors
-	Form   form.Form
-}
-
-func (f Form) Get(field string) string {
-	return f.Form.Get(field)
+	Form   map[string]string
 }
 
 func RenderSize(n int64) string {
@@ -81,6 +77,10 @@ func RenderSize(n int64) string {
 	}
 
 	return fmt.Sprintf("%d %s", n, units[i])
+}
+
+func (f Form) Field(field string) string {
+	return f.Form[field]
 }
 
 //line template/page.qtpl:53

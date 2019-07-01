@@ -104,19 +104,15 @@ func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) init() {
-	gob.Register(web.Form(make(map[string]string)))
 	gob.Register(form.NewErrors())
-	gob.Register(form.Register{})
-	gob.Register(form.Login{})
-	gob.Register(form.Namespace{})
-	gob.Register(form.Build{})
+	gob.Register(make(map[string]string))
 
 	s.router = mux.NewRouter()
 
 	wh := web.New(
 		securecookie.New(s.hash, s.key),
 		session.New(s.client, s.key),
-		&model.UserStore{DB: s.db},
+		model.UserStore{DB: s.db},
 	)
 	mw := web.NewMiddleware(wh)
 

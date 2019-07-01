@@ -10,12 +10,11 @@ type Login struct {
 	RememberMe bool   `schema:"remember_me"`
 }
 
-func (f Login) Get(key string) string {
-	if key == "handle" {
-		return f.Handle
-	}
+func (f Login) Fields() map[string]string {
+	m := make(map[string]string)
+	m["handle"] = f.Handle
 
-	return ""
+	return m
 }
 
 func (f Login) Validate() error {

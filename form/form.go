@@ -11,7 +11,7 @@ import (
 type Form interface {
 	Validate() error
 
-	Get(key string) string
+	Fields() map[string]string
 }
 
 func Unmarshal(f Form, r *http.Request) error {

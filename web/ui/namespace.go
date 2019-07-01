@@ -129,10 +129,9 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	namespaces := u.NamespaceStore()
 
 	f := &form.Namespace{
-		UserID: u.ID,
+		Namespaces: namespaces,
+		UserID:     u.ID,
 	}
-
-	f.Bind(namespaces, nil)
 
 	if err := h.ValidateForm(f, w, r); err != nil {
 		if _, ok := err.(form.Errors); ok {
@@ -349,10 +348,10 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f := &form.Namespace{
-		UserID: n.UserID,
+		Namespaces: u.NamespaceStore(),
+		Namespace:  n,
+		UserID:     n.UserID,
 	}
-
-	f.Bind(*h.Namespaces, n)
 
 	if err := h.ValidateForm(f, w, r); err != nil {
 		if _, ok := err.(form.Errors); ok {

@@ -12,6 +12,7 @@ type IndexPage struct {
 
 	Builds []*model.Build
 	Status string
+	Tag    string
 }
 
 type ArtifactIndexPage struct {
@@ -96,6 +97,9 @@ type VariableIndexPage struct {
 
 {% func (p *IndexPage) Header() %}
 	Builds
+	{% if p.Tag != "" %}
+		<span class="pill pill-light">{%s p.Tag %}<a href="{%s p.URI %}">{% cat "../../svgs/close.svg" %}</a></span>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *IndexPage) Actions() %}

@@ -83,6 +83,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		},
 		Builds: bb,
 		Status: status,
+		Tag:    tag,
 	}
 
 	d := template.NewDashboard(p, r.URL.Path)

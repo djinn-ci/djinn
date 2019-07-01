@@ -169,12 +169,9 @@ func (bo *BuildObject) Update() error {
 func (os ObjectStore) All(opts ...Option) ([]*Object, error) {
 	oo := make([]*Object, 0)
 
-	q := Select(
-		Columns("*"),
-		Table("objects"),
-		WhereIs("deleted_at", "NULL"),
-		ForUser(os.User),
-	)
+	opts = append([]Option{Columns("*")}, opts...)
+
+	q := Select(append(opts, ForUser(os.User), WhereIs("deleted_at", "NULL"), Table("objects"))...)
 
 	err := os.Select(&oo, q.Build(), q.Args()...)
 

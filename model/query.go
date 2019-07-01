@@ -267,7 +267,7 @@ func WhereIs(col string, val interface{}) Option {
 			col: col,
 			op:  "IS",
 			val: val,
-			cat: "AND",
+			cat: " AND ",
 		}
 
 		q.wheres = append(q.wheres, w)

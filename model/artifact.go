@@ -83,6 +83,7 @@ func (a *Artifact) Update() error {
 		Set("md5", a.MD5),
 		Set("sha256", a.SHA256),
 		SetRaw("updated_at", "NOW()"),
+		WhereEq("id", a.ID),
 		Returning("updated_at"),
 	)
 

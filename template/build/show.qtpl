@@ -70,13 +70,15 @@ type ShowPage struct {
 							<em class="muted">No build comment.</em>
 						{% endif %}
 					</div>
-					{% if len(p.Build.Tags) > 0 %}
-						<div class="panel-footer">
+					<div class="panel-footer">
+						{% if len(p.Build.Tags) > 0 %}
 							{% for _, t := range p.Build.Tags %}
 								<a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a>
 							{% endfor %}
-						</div>
-					{% endif %}
+						{% else %}
+							<em class="muted">No build tags.</em>
+						{% endif %}
+					</div>
 				</div>
 			</div>
 			<div class="col-25 pl-5 right">

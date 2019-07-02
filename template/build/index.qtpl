@@ -51,15 +51,25 @@ type VariableIndexPage struct {
 
 {% func (p *IndexPage) Body() %}
 	<div class="panel">
-		<div class="panel-header">
-			{%= RenderStatusNav(p.URI, p.Status) %}
-			{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
-		</div>
-		{% if len(p.Builds) == 0 %}
-			<div class="panel-message muted">
-				{% if p.Status == "" %}No builds have been submitted yet.{% else %}No {%s p.Status %} builds.{% endif %}
+		{% if len(p.Builds) == 0 && p.Search == "" && p.Status == "" %}
+			<div class="panel-message muted">No builds have been submitted yet.</div>
+		{% elseif len(p.Builds) == 0 && p.Search != "" %}
+			<div class="panel-header">
+				{%= RenderStatusNav(p.URI, p.Status) %}
+				{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
 			</div>
+			<div class="panel-message muted">No results found.</div>
+		{% elseif len(p.Builds) == 0 && p.Status != "" %}
+			<div class="panel-header">
+				{%= RenderStatusNav(p.URI, p.Status) %}
+				{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
+			</div>
+			<div class="panel-message muted">No {%s p.Status %} builds.</div>
 		{% else %}
+			<div class="panel-header">
+				{%= RenderStatusNav(p.URI, p.Status) %}
+				{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
+			</div>
 			{%= RenderTable(p.Builds) %}
 		{% endif %}
 	</div>

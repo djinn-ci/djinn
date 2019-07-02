@@ -67,6 +67,7 @@ func (s *Stage) Update() error {
 		Set("started_at", s.StartedAt),
 		Set("finished_at", s.FinishedAt),
 		SetRaw("updated_at", "NOW()"),
+		WhereEq("id", s.ID),
 		Returning("updated_at"),
 	)
 

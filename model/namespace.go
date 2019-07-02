@@ -102,28 +102,33 @@ func (n *Namespace) Create() error {
 }
 
 func (n *Namespace) Destroy() error {
-	nn, err := n.NamespaceStore().All(Columns("id"))
+	nn := make([]*Namespace, 0)
 
-	if err != nil {
-		return errors.Err(err)
-	}
+	q := Select(
+		Columns("id"),
+		Table("namespaces"),
+		WhereEq("root_id", n.ID),
+	)
+
+	err := n.Select(&nn, q.Build(), q.Args()...)
 
 	opts := []Option{
 		Table("namespaces"),
-		WhereEq("id", n.ID),
 	}
 
 	if len(nn) > 0 {
-		ids := make([]int64, len(nn))
+		ids := make([]interface{}, len(nn))
 
 		for i, n := range nn {
 			ids[i] = n.ID
 		}
 
-		opts = append(opts, WhereIn("id", ids))
+		opts = append(opts, Or(WhereEq("id", n.ID), WhereIn("id", ids...)))
+	} else {
+		opts = append(opts, WhereEq("id", n.ID))
 	}
 
-	q := Delete(opts...)
+	q = Delete(opts...)
 
 	stmt, err := n.Prepare(q.Build())
 
@@ -221,6 +226,7 @@ func (n *Namespace) Update() error {
 		Set("description", n.Description),
 		Set("visibility", n.Visibility),
 		SetRaw("updated_at", "NOW()"),
+		WhereEq("id", n.ID),
 		Returning("updated_at"),
 	)
 

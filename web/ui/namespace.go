@@ -18,8 +18,6 @@ import (
 	"github.com/gorilla/mux"
 )
 
-var namespaceMaxLevel int64 = 20
-
 type Namespace struct {
 	web.Handler
 
@@ -100,6 +98,11 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if parent.Level + 1 > model.NamespaceMaxDepth {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
 	p := &namespace.Form{
 		Form: template.Form{
 			CSRF:   csrf.TemplateField(r),
@@ -169,7 +172,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		n.Visibility = parent.Visibility
 	}
 
-	if n.Level >= namespaceMaxLevel {
+	if n.Level >= model.NamespaceMaxDepth {
 		errs := form.NewErrors()
 		errs.Put("namespace", form.ErrNamespaceTooDeep)
 

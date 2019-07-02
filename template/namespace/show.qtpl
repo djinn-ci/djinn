@@ -82,7 +82,9 @@ type ShowPage struct {
 
 {% func (p *ShowPage) Actions() %}
 	<li><a href="{%s p.Namespace.UIEndpoint() %}/-/edit" class="btn btn-primary">Edit</a></li>
+	{% if p.Namespace.Level + 1 < model.NamespaceMaxDepth %}
 	<li><a href="/namespaces/create?parent={%s p.Namespace.Path %}" class="btn btn-primary">Create</a></li>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *ShowPage) Navigation() %}

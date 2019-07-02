@@ -11,6 +11,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+var NamespaceMaxDepth int64 = 20
+
 type Namespace struct {
 	model
 
@@ -328,7 +330,7 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 	parts := strings.Split(path, "/")
 
 	for _, name := range parts {
-		if parent.Level + 1 > 20 {
+		if parent.Level + 1 > NamespaceMaxDepth {
 			break
 		}
 

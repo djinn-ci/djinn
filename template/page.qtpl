@@ -30,7 +30,7 @@ type Page struct {
 type Form struct {
 	CSRF   template.HTML
 	Errors form.Errors
-	Form    map[string]string
+	Form   map[string]string
 }
 
 func RenderSize(n int64) string {

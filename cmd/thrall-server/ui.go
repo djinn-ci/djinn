@@ -69,6 +69,7 @@ func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
 
 	s.router.HandleFunc("/builds/{build}", mw.Auth(build.Show)).Methods("GET")
 
+	s.router.HandleFunc("/builds/{build}/tags", mw.Auth(build.Tag)).Methods("POST")
 	s.router.HandleFunc("/builds/{build}/manifest", mw.Auth(build.ShowMeta)).Methods("GET")
 	s.router.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.ShowMeta)).Methods("GET")
 	s.router.HandleFunc("/builds/{build}/output", mw.Auth(build.ShowMeta)).Methods("GET")

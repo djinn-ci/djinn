@@ -237,6 +237,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		Page: template.Page{
 			URI: r.URL.Path,
 		},
+		CSRF:  csrf.TemplateField(r),
 		Build: b,
 	}
 
@@ -356,4 +357,42 @@ func (h Build) IndexRelation(w http.ResponseWriter, r *http.Request) {
 
 		web.HTML(w, template.Render(d), http.StatusOK)
 	}
+}
+
+func (h Build) Tag(w http.ResponseWriter, r *http.Request) {
+	b, err := h.build(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if b.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	f := &form.Build{}
+
+	if err := form.Unmarshal(f, r); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	tags := b.TagStore()
+
+	for _, name := range f.Tags {
+		t := tags.New()
+		t.Name = name
+
+		if err := t.Create(); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

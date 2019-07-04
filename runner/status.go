@@ -14,6 +14,7 @@ const (
 	Passed
 	PassedWithFailures
 	Failed
+	Killed
 )
 
 func scan(val interface{}) ([]byte, error) {
@@ -63,6 +64,8 @@ func (s Status) String() string {
 			return "failed"
 		case PassedWithFailures:
 			return "passed with failures"
+		case Killed:
+			return "killed"
 		default:
 			return "unknown status"
 	}
@@ -86,6 +89,9 @@ func (s *Status) UnmarshalText(b []byte) error {
 			return nil
 		case "passed_with_failures":
 			(*s) = PassedWithFailures
+			return nil
+		case "killed":
+			(*s) = Killed
 			return nil
 		default:
 			return errors.Err(errors.New("unknown status " + str))

@@ -32,6 +32,7 @@ type worker struct {
 
 	concurrency int
 	driver      string
+	timeout     time.Duration
 
 	redisAddr     string
 	redisPassword string
@@ -288,7 +289,19 @@ func (w worker) runBuild(id int64) error {
 		w.handleJobComplete(b, j)
 	})
 
-	r.Run(d)
+	done := make(chan bool)
+	after := time.After(w.timeout)
+
+	go func() {
+		r.Run(d)
+		done <- true
+	}()
+
+	select {
+		case <-after:
+			w.signals[b.ID] <- os.Kill
+		case <-done:
+	}
 
 	b.Status = r.Status
 	b.Output = sql.NullString{

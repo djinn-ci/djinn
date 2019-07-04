@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/andrewpillar/cli"
 
@@ -75,10 +76,17 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to create object store: %s\n", err)
 	}
 
+	duration, err := time.ParseDuration(cfg.Timeout)
+
+	if err != nil {
+		log.Error.Fatalf("failed to parse timeout duration: %s\n", err)
+	}
+
 	w := worker{
 		Server:        srv,
 		concurrency:   cfg.Parallelism,
 		driver:        cfg.Driver,
+		timeout:       duration,
 		redisAddr:     cfg.Redis.Addr,
 		redisPassword: cfg.Redis.Password,
 		db:            db,

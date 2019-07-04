@@ -206,6 +206,7 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 		select {
 			case sig := <-r.sigs:
 				if sig == os.Kill || sig == os.Interrupt {
+					r.Status = Killed
 					fmt.Fprintf(r.Writer, "%s\n", sig)
 					return errors.New("interrupt")
 				}

@@ -299,7 +299,7 @@ func (w worker) runBuild(id int64) error {
 
 	select {
 		case <-after:
-			w.signals[b.ID] <- os.Kill
+			w.signals[b.ID] <- runner.TimedOut
 		case <-done:
 	}
 

@@ -15,6 +15,7 @@ const (
 	PassedWithFailures
 	Failed
 	Killed
+	TimedOut
 )
 
 func scan(val interface{}) ([]byte, error) {
@@ -52,6 +53,8 @@ func (s *Status) Scan(val interface{}) error {
 	return errors.Err(s.UnmarshalText(b))
 }
 
+func (s Status) Signal() {}
+
 func (s Status) String() string {
 	switch s {
 		case Queued:
@@ -66,6 +69,8 @@ func (s Status) String() string {
 			return "passed with failures"
 		case Killed:
 			return "killed"
+		case TimedOut:
+			return "timed out"
 		default:
 			return "unknown status"
 	}
@@ -92,6 +97,9 @@ func (s *Status) UnmarshalText(b []byte) error {
 			return nil
 		case "killed":
 			(*s) = Killed
+			return nil
+		case "timed_out":
+			(*s) = TimedOut
 			return nil
 		default:
 			return errors.Err(errors.New("unknown status " + str))

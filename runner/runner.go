@@ -205,8 +205,13 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 	for jobs != nil {
 		select {
 			case sig := <-r.sigs:
-				if sig == os.Kill || sig == os.Interrupt {
-					r.Status = Killed
+				if sig == os.Kill || sig == os.Interrupt || sig == TimedOut {
+					if sig == TimedOut {
+						r.Status = TimedOut
+					} else {
+						r.Status = Killed
+					}
+
 					fmt.Fprintf(r.Writer, "%s\n", sig)
 					return errors.New("interrupt")
 				}

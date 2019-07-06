@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 )
@@ -34,40 +35,28 @@ type Runner struct {
 	handleJobStart    jobHandler
 	handleJobComplete jobHandler
 
-	order     []string
-	lastJob   *Job
-	sigs      chan os.Signal
-	env       []string
-	objs      Passthrough
-	placer    Placer
-	collector Collector
+	order   []string
+	stages  map[string]*Stage
+	lastJob Job
 
-	Status Status
-	Stages map[string]*Stage
+	Env       []string
+	Objects   Passthrough
+	Placer    Placer
+	Collector Collector
+	Signals   chan os.Signal
+	Status    Status
 }
 
-func NewRunner(
-	w    io.Writer,
-	env  []string,
-	objs Passthrough,
-	p    Placer,
-	c    Collector,
-	sigs chan os.Signal,
-) *Runner {
-	return &Runner{
-		Writer:    w,
-		sigs:      sigs,
-		env:       env,
-		objs:      objs,
-		placer:    p,
-		collector: c,
-		Stages:    make(map[string]*Stage),
-	}
+type Stage struct {
+	jobs jobStore
+
+	Name    string
+	CanFail bool
 }
 
-func runJobs(jobs JobStore, d Driver, c Collector, fn jobHandler) chan *Job {
+func runJobs(jobs jobStore, d Driver, c Collector, fn jobHandler) chan Job {
 	wg := &sync.WaitGroup{}
-	done := make(chan *Job)
+	done := make(chan Job)
 
 	for _, j := range jobs {
 		wg.Add(1)
@@ -81,9 +70,9 @@ func runJobs(jobs JobStore, d Driver, c Collector, fn jobHandler) chan *Job {
 
 			d.Execute(j, c)
 
-			done <- j
+			done <- *j
 
-			after := runJobs(j.After, d, c, fn)
+			after := runJobs(j.after, d, c, fn)
 
 			for a := range after {
 				done <- a
@@ -108,11 +97,15 @@ func (r *Runner) HandleJobStart(f jobHandler) {
 }
 
 func (r *Runner) Add(stages ...*Stage) {
+	if r.stages == nil {
+		r.stages = make(map[string]*Stage)
+	}
+
 	for _, s := range stages {
-		_, ok := r.Stages[s.Name]
+		_, ok := r.stages[s.Name]
 
 		if !ok {
-			r.Stages[s.Name] = s
+			r.stages[s.Name] = s
 			r.order = append(r.order, s.Name)
 		}
 	}
@@ -120,11 +113,11 @@ func (r *Runner) Add(stages ...*Stage) {
 
 func (r *Runner) Remove(stages ...string) {
 	for _, s := range stages {
-		if _, ok := r.Stages[s]; !ok {
+		if _, ok := r.stages[s]; !ok {
 			continue
 		}
 
-		delete(r.Stages, s)
+		delete(r.stages, s)
 
 		i := 0
 
@@ -140,11 +133,9 @@ func (r *Runner) Remove(stages ...string) {
 }
 
 func (r *Runner) Run(d Driver) error {
-	r.Status = Running
-
 	defer d.Destroy()
 
-	if err := d.Create(r.env, r.objs, r.placer); err != nil {
+	if err := d.Create(r.Env, r.Objects, r.Placer); err != nil {
 		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 
@@ -172,17 +163,61 @@ func (r *Runner) Run(d Driver) error {
 	return nil
 }
 
+func (r *Runner) RunWithTimeout(d Driver, duration time.Duration) error {
+	defer d.Destroy()
+
+	if err := d.Create(r.Env, r.Objects, r.Placer); err != nil {
+		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
+		r.printLastJobStatus()
+
+		r.Status = Failed
+
+		return errRunFailed
+	}
+
+	done := make(chan bool)
+
+	go func() {
+		for _, name := range r.order {
+			if err := r.realRunStage(name, d); err != nil {
+				if err == errStageNotFound {
+					done <- true
+					return
+				}
+
+				break
+			}
+		}
+
+		done <- true
+	}()
+
+	select {
+		case <-time.After(duration):
+			r.Signals <- TimedOut
+		case <-done:
+	}
+
+	r.printLastJobStatus()
+
+	if r.Status == Failed {
+		return errRunFailed
+	}
+
+	return nil
+}
+
 func (r Runner) printLastJobStatus() {
-	if r.lastJob == nil {
+	if r.lastJob.isZero() {
 		fmt.Fprintf(r.Writer, "Done. No jobs run.\n")
 		return
 	}
 
-	for _, err := range r.lastJob.Errors {
+	for _, err := range r.lastJob.errs {
 		fmt.Fprintf(r.Writer, "error: %s\n", err)
 	}
 
-	if len(r.lastJob.Errors) > 0 {
+	if len(r.lastJob.errs) > 0 {
 		fmt.Fprintf(r.Writer, "\n")
 	}
 
@@ -190,21 +225,21 @@ func (r Runner) printLastJobStatus() {
 }
 
 func (r *Runner) realRunStage(name string, d Driver) error {
-	stage, ok := r.Stages[name]
+	stage, ok := r.stages[name]
 
 	if !ok {
 		return errStageNotFound
 	}
 
-	if len(stage.Jobs) == 0 {
+	if len(stage.jobs) == 0 {
 		return nil
 	}
 
-	jobs := runJobs(stage.Jobs, d, r.collector, r.handleJobStart)
+	jobs := runJobs(stage.jobs, d, r.Collector, r.handleJobStart)
 
 	for jobs != nil {
 		select {
-			case sig := <-r.sigs:
+			case sig := <-r.Signals:
 				if sig == os.Kill || sig == os.Interrupt || sig == TimedOut {
 					if sig == TimedOut {
 						r.Status = TimedOut
@@ -213,14 +248,14 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 					}
 
 					fmt.Fprintf(r.Writer, "%s\n", sig)
-					return errors.New("interrupt")
+					return errors.New(sig.String())
 				}
 			case j, ok := <-jobs:
 				if !ok {
 					jobs = nil
 				} else {
 					if r.handleJobComplete != nil {
-						r.handleJobComplete(*j)
+						r.handleJobComplete(j)
 					}
 
 					r.lastJob = j
@@ -240,4 +275,17 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 	fmt.Fprintf(r.Writer, "\n")
 
 	return nil
+}
+
+func (r Runner) Stages() map[string]*Stage {
+	return r.stages
+}
+
+func (s *Stage) Add(jobs ...*Job) {
+	for _, j := range jobs {
+		j.Stage = s.Name
+		j.canFail = s.CanFail
+
+		s.jobs.Put(j)
+	}
 }

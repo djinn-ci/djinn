@@ -44,16 +44,19 @@ func mainCommand(c cli.Command) {
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
 
-	r := runner.NewRunner(
-		os.Stdout,
-		manifest.Env,
-		manifest.Objects,
-		filestore.NewFileSystem(c.Flags.GetString("objects"), 0),
-		filestore.NewFileSystem(c.Flags.GetString("artifacts"), 0),
-		sigs,
-	)
+	r := runner.Runner{
+		Writer:    os.Stdout,
+		Env:       manifest.Env,
+		Objects:   manifest.Objects,
+		Placer:    filestore.NewFileSystem(c.Flags.GetString("objects"), 0),
+		Collector: filestore.NewFileSystem(c.Flags.GetString("artifacts"), 0),
+		Signals:   sigs,
+	}
 
-	setup := runner.NewStage(setupStage, false)
+	setup := &runner.Stage{
+		Name:    setupStage,
+		CanFail: false,
+	}
 
 	for i, src := range manifest.Sources {
 		name := fmt.Sprintf("clone.%d", i + 1)
@@ -74,7 +77,13 @@ func mainCommand(c cli.Command) {
 			depends = append(depends, fmt.Sprintf("clone.%d", i))
 		}
 
-		setup.Add(runner.NewJob(os.Stdout, name, commands, depends, runner.NewPassthrough()))
+		setup.Add(&runner.Job{
+			Writer:    os.Stdout,
+			Name:      name,
+			Commands:  commands,
+			Depends:   depends,
+			Artifacts: runner.NewPassthrough(),
+		})
 	}
 
 	r.Add(setup)
@@ -89,16 +98,15 @@ func mainCommand(c cli.Command) {
 			}
 		}
 
-		r.Add(runner.NewStage(name, canFail))
+		r.Add(&runner.Stage{
+			Name:    name,
+			CanFail: canFail,
+		})
 	}
 
-	for _, j := range manifest.Jobs {
-		if _, ok := r.Stages[j.Stage]; !ok {
-			fmt.Fprintf(r.Writer, "warning: unknown stage %s\n", j.Stage)
-		}
-	}
+	stages := r.Stages()
 
-	for _, s := range r.Stages {
+	for _, s := range stages {
 		jobId := 1
 
 		for _, j := range manifest.Jobs {
@@ -111,7 +119,13 @@ func mainCommand(c cli.Command) {
 				jobId++
 			}
 
-			s.Add(runner.NewJob(os.Stdout, j.Name, j.Commands, j.Depends, j.Artifacts))
+			s.Add(&runner.Job{
+				Writer:    os.Stdout,
+				Name:      j.Name,
+				Commands:  j.Commands,
+				Depends:   j.Depends,
+				Artifacts: j.Artifacts,
+			})
 		}
 	}
 
@@ -122,15 +136,15 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	stages := c.Flags.GetAll("stage")
+	only := c.Flags.GetAll("stage")
 
-	if len(stages) > 0 {
-		remove := make([]string, 0, len(r.Stages))
+	if len(only) > 0 {
+		remove := make([]string, 0, len(stages))
 
-		for runnerStage := range r.Stages {
+		for runnerStage := range stages {
 			keep := false
 
-			for _, flag := range stages {
+			for _, flag := range only {
 				if runnerStage == flag.GetString() || runnerStage == setupStage {
 					keep = true
 				}

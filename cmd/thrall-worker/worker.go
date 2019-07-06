@@ -205,27 +205,29 @@ func (w worker) runBuild(id int64) error {
 
 	w.signals[b.ID] = make(chan os.Signal)
 
-	objDB := &database{
-		Placer: w.objects,
-		build:  b,
-		users:  w.users,
+	r := runner.Runner{
+		Writer:    buf,
+		Env:       env,
+		Objects:   objs,
+		Placer:    &database{
+			Placer: w.objects,
+			build:  b,
+			users:  w.users,
+		},
+		Collector: &database{
+			Collector: w.artifacts,
+			build:     b,
+			users:     w.users,
+		},
+		Signals: w.signals[b.ID],
 	}
-
-	artDB := &database{
-		Collector: w.artifacts,
-		build:     b,
-		users:     w.users,
-	}
-
-	r := runner.NewRunner(buf, env, objs, objDB, artDB, w.signals[b.ID])
 
 	createDriverId := int64(0)
 
 	for _, s := range b.Stages {
-		rs := runner.NewStage(s.Name, s.CanFail)
-
-		if err := s.JobStore().LoadDependencies(s.Jobs); err != nil {
-			return errors.Err(err)
+		rs := &runner.Stage{
+			Name:    s.Name,
+			CanFail: s.CanFail,
 		}
 
 		for _, j := range s.Jobs {
@@ -247,13 +249,13 @@ func (w worker) runBuild(id int64) error {
 				artifacts[a.Source] = a.Hash
 			}
 
-			rj := runner.NewJob(
-				io.MultiWriter(buf, w.buffers[j.ID]),
-				j.Name,
-				strings.Split(j.Commands, "\n"),
-				depends,
-				artifacts,
-			)
+			rj := &runner.Job{
+				Writer:    io.MultiWriter(buf, w.buffers[j.ID]),
+				Name:      j.Name,
+				Commands:  strings.Split(j.Commands, "\n"),
+				Depends:   depends,
+				Artifacts: artifacts,
+			}
 
 			rs.Add(rj)
 		}
@@ -289,19 +291,7 @@ func (w worker) runBuild(id int64) error {
 		w.handleJobComplete(b, j)
 	})
 
-	done := make(chan bool)
-	after := time.After(w.timeout)
-
-	go func() {
-		r.Run(d)
-		done <- true
-	}()
-
-	select {
-		case <-after:
-			w.signals[b.ID] <- runner.TimedOut
-		case <-done:
-	}
+	r.RunWithTimeout(d, w.timeout)
 
 	b.Status = r.Status
 	b.Output = sql.NullString{

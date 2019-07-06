@@ -118,6 +118,10 @@ func (s Status) Value() (driver.Value, error) {
 			return driver.Value("failed"), nil
 		case PassedWithFailures:
 			return driver.Value("passed_with_failures"), nil
+		case Killed:
+			return driver.Value("killed"), nil
+		case TimedOut:
+			return driver.Value("timed_out"), nil
 		default:
 			return driver.Value(""), errors.Err(errors.New("unknown status"))
 	}

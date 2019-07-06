@@ -3,68 +3,57 @@ package runner
 import "io"
 
 type Job struct {
-	Stage string
-	Name  string
+	io.Writer
 
-	Commands []string
+	errs    []error
+	canFail bool
+	after   jobStore
 
-	Errors []error
-
-	Status Status
-
-	CanFail bool
-
+	Stage     string
+	Name      string
+	Commands  []string
 	Depends   []string
 	Artifacts Passthrough
-
-	After  JobStore
-	Writer io.Writer
+	Status    Status
 }
 
-type JobStore map[string]*Job
-
-func NewJob(w io.Writer, name string, commands, depends []string, artifacts Passthrough) *Job {
-	j := &Job{
-		Name:      name,
-		Commands:  commands,
-		Depends:   depends,
-		Artifacts: artifacts,
-		Errors:    make([]error, 0),
-		After:     NewJobStore(),
-		Writer:    w,
-	}
-
-	return j
+func (j Job) isZero() bool {
+	return j.Writer == nil &&
+           len(j.errs) == 0 &&
+           !j.canFail &&
+           j.after == nil &&
+           j.Stage == "" &&
+           j.Name == "" &&
+           len(j.Commands) == 0 &&
+           len(j.Depends) == 0 &&
+           j.Artifacts == nil &&
+           j.Status == Status(0)
 }
 
-func NewJobStore() JobStore {
-	return JobStore(make(map[string]*Job))
-}
+type jobStore map[string]*Job
 
 // Mark a job as failed. The only errors that should be passed to this method
 // should be errors pertaining to the functionality of the driver executing
 // the job.
 func (j *Job) Failed(err error) {
 	if err != nil {
-		j.Errors = append(j.Errors, err)
+		j.errs = append(j.errs, err)
 	}
 
-	if j.CanFail {
+	if j.canFail {
 		j.Status = PassedWithFailures
 	} else {
 		j.Status = Failed
 	}
 }
 
-func (s JobStore) Get(name string) (*Job, bool) {
-	j, ok := s[name]
-
-	if ok {
+func (s jobStore) Get(name string) (*Job, bool) {
+	if j, ok := s[name]; ok {
 		return j, ok
 	}
 
 	for _, j := range s {
-		after, ok := j.After.Get(name)
+		after, ok := j.after.Get(name)
 
 		if ok {
 			return after, ok
@@ -74,15 +63,14 @@ func (s JobStore) Get(name string) (*Job, bool) {
 	return nil, false
 }
 
-func (s *JobStore) Put(j *Job) {
-	if len(j.Depends) == 0 {
-		(*s)[j.Name] = j
-		return
+func (s *jobStore) Put(j *Job) {
+	if (*s) == nil {
+		(*s) = make(map[string]*Job)
 	}
 
 	for _, d := range j.Depends {
 		if dep, ok := s.Get(d); ok {
-			dep.After.Put(j)
+			dep.after.Put(j)
 			return
 		}
 	}

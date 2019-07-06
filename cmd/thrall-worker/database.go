@@ -85,8 +85,6 @@ func (d *database) Place(name string, w io.Writer) (int64, error) {
 
 	bo.Placed = placeErr == nil
 
-	println(bo.ID, bo.BuildID)
-
 	if err := bo.Update(); err != nil {
 		return n, errors.Err(err)
 	}

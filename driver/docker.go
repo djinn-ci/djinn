@@ -271,8 +271,13 @@ func (d *Docker) Destroy() {
 
 	ctx := context.Background()
 
+	opts := types.ContainerRemoveOptions{
+		RemoveVolumes: true,
+		Force:         true,
+	}
+
 	for _, ctr := range d.containers {
-		d.client.ContainerRemove(ctx, ctr, types.ContainerRemoveOptions{})
+		d.client.ContainerRemove(ctx, ctr, opts)
 	}
 
 	d.client.VolumeRemove(ctx, d.volume.Name, true)

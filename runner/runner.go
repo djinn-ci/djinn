@@ -175,27 +175,19 @@ func (r *Runner) RunWithTimeout(d Driver, duration time.Duration) error {
 		return errRunFailed
 	}
 
-	done := make(chan bool)
-
 	go func() {
-		for _, name := range r.order {
-			if err := r.realRunStage(name, d); err != nil {
-				if err == errStageNotFound {
-					done <- true
-					return
-				}
-
-				break
-			}
-		}
-
-		done <- true
+		<-time.After(duration)
+		r.Signals <- TimedOut
 	}()
 
-	select {
-		case <-time.After(duration):
-			r.Signals <- TimedOut
-		case <-done:
+	for _, name := range r.order {
+		if err := r.realRunStage(name, d); err != nil {
+			if err == errStageNotFound {
+				return err
+			}
+
+			break
+		}
 	}
 
 	r.printLastJobStatus()
@@ -247,7 +239,6 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 						r.Status = Killed
 					}
 
-					fmt.Fprintf(r.Writer, "%s\n", sig)
 					return errors.New(sig.String())
 				}
 			case j, ok := <-jobs:

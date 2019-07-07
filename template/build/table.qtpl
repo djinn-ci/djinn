@@ -1,6 +1,7 @@
 {%
 import (
 	"fmt"
+	"strings"
 
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
@@ -36,8 +37,42 @@ import (
 					{% cat "../../svgs/close.svg" %}<span>Failed</span>
 				</a>
 			</li>
+			<li>
+				<a href="?status=killed" {% if status == "killed" %}class="active"{% endif %}>
+					{% cat "../../svgs/stop.svg" %}<span>Killed</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=timed_out" {% if status == "timed_out" %}class="active"{% endif %}>
+					{% cat "../../svgs/stopwatch.svg" %}<span>Timed Out</span>
+				</a>
+			</li>
 		</ul>
 	{% endstripspace %}
+{% endfunc %}
+
+{% func RenderIndex(bb []*model.Build, uri, status, search string) %}
+	{% if len(bb) == 0 && search == "" && status == "" %}
+		<div class="panel-message muted">No builds have been submitted yet.</div>
+	{% elseif len(bb) == 0 && search != "" %}
+		<div class="panel-header">
+			{%= RenderStatusNav(uri, status) %}
+			{%= template.RenderSearch(uri, search, "Find a build...") %}
+		</div>
+		<div class="panel-message muted">No results found.</div>
+	{% elseif len(bb) == 0 && status != "" %}
+		<div class="panel-header">
+			{%= RenderStatusNav(uri, status) %}
+			{%= template.RenderSearch(uri, search, "Find a build...") %}
+		</div>
+		<div class="panel-message muted">No {%s strings.Replace(status, "_", " ", -1) %} builds.</div>
+	{% else %}
+		<div class="panel-header">
+			{%= RenderStatusNav(uri, status) %}
+			{%= template.RenderSearch(uri, search, "Find a build...") %}
+		</div>
+		{%= RenderTable(bb) %}
+	{% endif %}
 {% endfunc %}
 
 {% func RenderTable(builds []*model.Build) %}

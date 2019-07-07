@@ -55,17 +55,7 @@ type ShowPage struct {
 				{%= RenderTable(p.Namespace.Children) %}
 			{% endif %}
 		{% else %}
-			<div class="panel-header">
-				{%= build.RenderStatusNav(p.URI, p.Status) %}
-				{%= template.RenderSearch(p.URI, "", "Find a build...") %}
-			</div>
-			{% if len(p.Namespace.Builds) == 0 %}
-				<div class="panel-message muted">
-					{% if p.Status == "" %}No builds have been submitted yet.{% else %}No {%s p.Status %} builds.{% endif %}
-				</div>
-			{% else %}
-				{%= build.RenderTable(p.Namespace.Builds) %}
-			{% endif %}
+			{%= build.RenderIndex(p.Namespace.Builds, p.URI, p.Status, "") %}
 		{% endif %}
 	</div>
 {% endfunc %}

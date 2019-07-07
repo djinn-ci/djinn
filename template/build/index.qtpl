@@ -50,29 +50,7 @@ type VariableIndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	<div class="panel">
-		{% if len(p.Builds) == 0 && p.Search == "" && p.Status == "" %}
-			<div class="panel-message muted">No builds have been submitted yet.</div>
-		{% elseif len(p.Builds) == 0 && p.Search != "" %}
-			<div class="panel-header">
-				{%= RenderStatusNav(p.URI, p.Status) %}
-				{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
-			</div>
-			<div class="panel-message muted">No results found.</div>
-		{% elseif len(p.Builds) == 0 && p.Status != "" %}
-			<div class="panel-header">
-				{%= RenderStatusNav(p.URI, p.Status) %}
-				{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
-			</div>
-			<div class="panel-message muted">No {%s p.Status %} builds.</div>
-		{% else %}
-			<div class="panel-header">
-				{%= RenderStatusNav(p.URI, p.Status) %}
-				{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
-			</div>
-			{%= RenderTable(p.Builds) %}
-		{% endif %}
-	</div>
+	<div class="panel">{%= RenderIndex(p.Builds, p.URI, p.Status, p.Search) %}</div>
 {% endfunc %}
 
 {% func (p *ArtifactIndexPage) Body() %}

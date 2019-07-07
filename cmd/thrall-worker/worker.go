@@ -314,7 +314,7 @@ func (w worker) runBuild(id int64) error {
 	}
 
 	for _, j := range jj {
-		j.Status = runner.Failed
+		j.Status = r.Status
 		j.Output = sql.NullString{
 			String: w.buffers[j.ID].String(),
 			Valid:  true,

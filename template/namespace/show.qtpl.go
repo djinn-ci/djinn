@@ -190,7 +190,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/show.qtpl:57
 		qw422016.N().S(` `)
 		//line template/namespace/show.qtpl:58
-		build.StreamRenderIndex(qw422016, p.Namespace.Builds, p.URI, p.Status, "")
+		build.StreamRenderIndex(qw422016, p.Namespace.Builds, p.URI, p.Status, p.Search)
 		//line template/namespace/show.qtpl:58
 		qw422016.N().S(` `)
 		//line template/namespace/show.qtpl:59

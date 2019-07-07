@@ -55,7 +55,7 @@ type ShowPage struct {
 				{%= RenderTable(p.Namespace.Children) %}
 			{% endif %}
 		{% else %}
-			{%= build.RenderIndex(p.Namespace.Builds, p.URI, p.Status, "") %}
+			{%= build.RenderIndex(p.Namespace.Builds, p.URI, p.Status, p.Search) %}
 		{% endif %}
 	</div>
 {% endfunc %}

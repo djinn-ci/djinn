@@ -272,7 +272,10 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		n.Builds, err = n.BuildStore().Index(model.BuildStatus(status))
+		n.Builds, err = n.BuildStore().Index(
+			model.BuildStatus(status),
+			model.BuildSearch(search),
+		)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

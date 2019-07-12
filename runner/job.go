@@ -17,6 +17,8 @@ type Job struct {
 	Status    Status
 }
 
+type jobStore map[string]*Job
+
 func (j Job) isZero() bool {
 	return j.Writer == nil &&
            len(j.errs) == 0 &&
@@ -29,8 +31,6 @@ func (j Job) isZero() bool {
            j.Artifacts == nil &&
            j.Status == Status(0)
 }
-
-type jobStore map[string]*Job
 
 // Mark a job as failed. The only errors that should be passed to this method
 // should be errors pertaining to the functionality of the driver executing

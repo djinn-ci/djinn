@@ -3,25 +3,18 @@ driver:
   image: golang
   workspace: /go
 sources:
-  - https://github.com/andrewpillar/mgrt
-objects:
-  - .thrall.yml => /go/src/some-file
+  - https://github.com/andrewpillar/jrnl
 stages:
   - test
   - build
-allow_failures:
-  - test
 jobs:
   - stage: test
     commands:
-      - ls
-      - echo foo
-  - stage: test
+      - cd /go/jrnl
+      - go test ./... -v -cover
+  - stage: build
     commands:
-      - echo bar
-  - stage: test
-    commands:
-      - pwd
-      - echo zap
-    depends:
-      - test.1
+      - cd /go/jrnl
+      - go build -tags 'netgo osusergo' -o jrnl.out
+    artifacts:
+      - /go/jrnl/jrnl.out

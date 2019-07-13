@@ -69,7 +69,6 @@ func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
 
 	s.router.HandleFunc("/builds/{build}", mw.Auth(build.Show)).Methods("GET")
 
-	s.router.HandleFunc("/builds/{build}/tags", mw.Auth(build.Tag)).Methods("POST")
 	s.router.HandleFunc("/builds/{build}/manifest", mw.Auth(build.ShowMeta)).Methods("GET")
 	s.router.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.ShowMeta)).Methods("GET")
 	s.router.HandleFunc("/builds/{build}/output", mw.Auth(build.ShowMeta)).Methods("GET")
@@ -91,6 +90,14 @@ func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
 
 	s.router.HandleFunc("/builds/{build}/artifacts", mw.Auth(artifact.Index))
 	s.router.HandleFunc("/builds/{build}/artifacts/{artifact}/download/{name}", mw.Auth(artifact.Show))
+}
+
+func (s *uiServer) initTag(h web.Handler, mw web.Middleware) {
+	tag := ui.NewTag(h)
+
+	s.router.HandleFunc("/builds/{build}/tags", mw.Auth(tag.Index)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/tags", mw.Auth(tag.Store)).Methods("POST")
+	s.router.HandleFunc("/builds/{build}/tags/{tag}", mw.Auth(tag.Destroy)).Methods("DELETE")
 }
 
 func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {

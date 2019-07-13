@@ -57,7 +57,7 @@ func (h Artifact) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	aa, err := b.ArtifactStore().Index(model.Search(search, "name"))
+	aa, err := b.ArtifactStore().Index(model.Search("name", search))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

@@ -115,7 +115,7 @@ func ForUser(u *User) Option {
 	}
 }
 
-func Search(search, col string) Option {
+func Search(col, search string) Option {
 	return func(q Query) Query {
 		if search == "" {
 			return q

@@ -154,6 +154,7 @@ type ShowPage struct {
 		<li>{%= template.RenderLink(p.Build.UIEndpoint("artifacts"), p.URI) %}{% cat "../../svgs/download.svg" %}<span>Artifacts</span></a></li>
 		<li>{%= template.RenderLink(p.Build.UIEndpoint("variables"), p.URI) %}{% cat "../../svgs/code.svg" %}<span>Variables</span></a></li>
 		<li>{%= template.RenderLink(p.Build.UIEndpoint("output"), p.URI) %}{% cat "../../svgs/document.svg" %}<span>Output</span></a></li>
+		<li>{%= template.RenderLink(p.Build.UIEndpoint("tags"), p.URI) %}{% cat "../../svgs/tag.svg" %}<span>Tag</span></a></li>
 	{% endstripspace %}
 {% endfunc %}
 {% endcollapsespace %}

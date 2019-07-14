@@ -1,5 +1,7 @@
 {%
 import (
+	htmltemplate "html/template"
+
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/artifact"
@@ -27,6 +29,13 @@ type ObjectIndexPage struct {
 	ShowPage
 
 	Objects []*model.BuildObject
+}
+
+type TagIndexPage struct {
+	ShowPage
+
+	CSRF htmltemplate.HTML
+	Tags []*model.Tag
 }
 
 type VariableIndexPage struct {
@@ -70,6 +79,25 @@ type VariableIndexPage struct {
 			<div class="panel-message muted">No objects have been placed for this build.</div>
 		{% else %}
 			{%= RenderObjectTable(p.Objects) %}
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *TagIndexPage) Body() %}
+	<div class="panel">
+		<div class="panel-header panel-body">
+			<form method="POST" action="{%s p.Build.UIEndpoint("tags") %}">
+				{%s= string(p.CSRF) %}
+				<div class="form-field form-field-inline">
+					<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
+					<button type="submit" class="btn btn-primary">Tag</button>
+				</div>
+			</form>
+		</div>
+		{% if len(p.Tags) == 0 %}
+			<div class="panel-message muted">No tags have been set for this build.</div>
+		{% else %}
+			{%= RenderTagTable(p.Tags, p.CSRF) %}
 		{% endif %}
 	</div>
 {% endfunc %}

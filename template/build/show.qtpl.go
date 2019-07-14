@@ -481,7 +481,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 </svg>
 `)
 	//line template/build/show.qtpl:157
-	qw422016.N().S(`<span>Tag</span></a></li>`)
+	qw422016.N().S(`<span>Tags</span></a></li>`)
 	//line template/build/show.qtpl:158
 	qw422016.N().S(` `)
 //line template/build/show.qtpl:159

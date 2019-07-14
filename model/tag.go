@@ -2,6 +2,8 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -47,6 +49,35 @@ func (t *Tag) Create() error {
 	return errors.Err(row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
 }
 
+func (t *Tag) Destroy() error {
+	q := Delete(
+		Table("tags"),
+		WhereEq("id", t.ID),
+	)
+
+	stmt, err := t.Prepare(q.Build())
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(q.Args()...)
+
+	return errors.Err(err)
+}
+
+func (t Tag) UIEndpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/builds/%v/tags/%v", t.BuildID, t.ID)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
+}
+
 func (ts TagStore) All(opts ...Option) ([]*Tag, error) {
 	tt := make([]*Tag, 0)
 
@@ -69,6 +100,78 @@ func (ts TagStore) All(opts ...Option) ([]*Tag, error) {
 	}
 
 	return tt, errors.Err(err)
+}
+
+func (ts TagStore) Find(id int64) (*Tag, error) {
+	t := &Tag{
+		model: model{
+			DB: ts.DB,
+		},
+		Build: ts.Build,
+		User:  ts.User,
+	}
+
+	q := Select(
+		Columns("*"),
+		Table("tags"),
+		WhereEq("id", id),
+		ForBuild(ts.Build),
+	)
+
+	err := ts.Get(t, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		t.CreatedAt = nil
+		t.UpdatedAt = nil
+	}
+
+	return t, errors.Err(err)
+}
+
+func (ts TagStore) Index(opts ...Option) ([]*Tag, error) {
+	tt, err := ts.All(opts...)
+
+	if err != nil {
+		return tt, errors.Err(err)
+	}
+
+	err = ts.LoadUsers(tt)
+
+	return tt, errors.Err(err)
+}
+
+func (ts TagStore) LoadUsers(tt []*Tag) error {
+	if len(tt) == 0 {
+		return nil
+	}
+
+	ids := make([]interface{}, len(tt), len(tt))
+
+	for i, t := range tt {
+		ids[i] = t.UserID
+	}
+
+	users := UserStore{
+		DB: ts.DB,
+	}
+
+	uu, err := users.All(WhereIn("id", ids...))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, t := range tt {
+		for _, u := range uu {
+			if t.UserID == u.ID {
+				t.User = u
+			}
+		}
+	}
+
+	return nil
 }
 
 func (ts TagStore) New() *Tag {

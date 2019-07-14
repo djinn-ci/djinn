@@ -93,7 +93,12 @@ func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
 }
 
 func (s *uiServer) initTag(h web.Handler, mw web.Middleware) {
-	tag := ui.NewTag(h)
+	tag := ui.Tag{
+		Handler: h,
+		Builds:  &model.BuildStore{
+			DB: s.db,
+		},
+	}
 
 	s.router.HandleFunc("/builds/{build}/tags", mw.Auth(tag.Index)).Methods("GET")
 	s.router.HandleFunc("/builds/{build}/tags", mw.Auth(tag.Store)).Methods("POST")
@@ -142,6 +147,7 @@ func (s *uiServer) init() {
 	s.initJob(wh, mw)
 	s.initArtifact(wh, mw)
 	s.initObject(wh, mw)
+	s.initTag(wh, mw)
 
 	s.Server.Init(web.NewLog(web.NewSpoof(s.router)))
 }

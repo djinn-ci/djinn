@@ -65,8 +65,8 @@ func (f Form) Field(field string) string {
 {% endfunc %}
 
 {% func RenderSearch(uri, search, prompt string) %}
-	<form class="panel-search">
-		<input type="text" name="search" class="text" placeholder="{%s prompt %}" autocomplete="off" value="{%s search %}"/>
+	<form class="form-field form-search">
+		<input type="text" name="search" class="form-text" placeholder="{%s prompt %}" autocomplete="off" value="{%s search %}"/>
 		{% if search != "" %}
 			<a class="muted" href="{%s uri %}">{% cat "../svgs/close.svg" %}</a>
 		{% endif %}

@@ -135,7 +135,7 @@ func Render(p page) string {
 //line template/page.qtpl:67
 func StreamRenderSearch(qw422016 *qt422016.Writer, uri, search, prompt string) {
 	//line template/page.qtpl:67
-	qw422016.N().S(` <form class="panel-search"> <input type="text" name="search" class="text" placeholder="`)
+	qw422016.N().S(` <form class="form-field form-search"> <input type="text" name="search" class="form-text" placeholder="`)
 	//line template/page.qtpl:69
 	qw422016.E().S(prompt)
 	//line template/page.qtpl:69

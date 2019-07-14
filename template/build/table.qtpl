@@ -1,6 +1,7 @@
 {%
 import (
 	"fmt"
+	htmltemplate "html/template"
 	"strings"
 
 	"github.com/andrewpillar/thrall/model"
@@ -166,6 +167,33 @@ import (
 						{% else %}
 							<span class="pill pill-red">{% cat "../../svgs/close.svg" %} Not Placed</span>
 						{% endif %}
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func RenderTagTable(tt []*model.Tag, csrf htmltemplate.HTML) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>TAG</th>
+				<th>TAGGED BY</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, t := range tt %}
+				<tr>
+					<td><a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a></td>
+					<td>{%s t.User.Username %} &lt;{%s t.User.Email %}&gt;</td>
+					<td class="align-right">
+						<form method="POST" action="{%s t.UIEndpoint() %}">
+							{%s= string(csrf) %}
+							<input type="hidden" name="_method" value="DELETE">
+							<button type="submit" class="btn btn-danger">Delete</button>
+						</form>
 					</td>
 				</tr>
 			{% endfor %}

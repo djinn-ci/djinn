@@ -29,6 +29,18 @@ type Build struct {
 	namespaces *model.NamespaceStore
 }
 
+type BuildObject struct {
+	web.Handler
+
+	Builds *model.BuildStore
+}
+
+type BuildVariable struct {
+	web.Handler
+
+	Builds *model.BuildStore
+}
+
 func NewBuild(h web.Handler, queues map[string]*machinery.Server, namespaces *model.NamespaceStore) Build {
 	return Build{
 		Handler:    h,
@@ -233,34 +245,6 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p := &build.ShowPage{
-		Page: template.Page{
-			URI: r.URL.Path,
-		},
-		CSRF:  csrf.TemplateField(r),
-		Build: b,
-	}
-
-	d := template.NewDashboard(p, r.URL.Path)
-
-	web.HTML(w, template.Render(d), http.StatusOK)
-}
-
-// ShowMeta displays meta information about the build, manifest, output, etc.
-func (h Build) ShowMeta(w http.ResponseWriter, r *http.Request) {
-	b, err := h.build(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
 	if filepath.Base(r.URL.Path) == "raw" {
 		parts := strings.Split(r.URL.Path, "/")
 		field := parts[len(parts) - 2]
@@ -280,6 +264,7 @@ func (h Build) ShowMeta(w http.ResponseWriter, r *http.Request) {
 		Page: template.Page{
 			URI: r.URL.Path,
 		},
+		CSRF:         csrf.TemplateField(r),
 		Build:        b,
 		ShowManifest: filepath.Base(r.URL.Path) == "manifest",
 		ShowOutput:   filepath.Base(r.URL.Path) == "output",
@@ -290,8 +275,17 @@ func (h Build) ShowMeta(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
-func (h Build) IndexRelation(w http.ResponseWriter, r *http.Request) {
-	b, err := h.build(r)
+func (h BuildObject) Index(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	id, err := strconv.ParseInt(vars["build"], 10, 64)
+
+	if err != nil {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	b, err := h.Builds.Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -304,63 +298,48 @@ func (h Build) IndexRelation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if filepath.Base(r.URL.Path) == "objects" {
-		objects := b.BuildObjectStore()
+	objects := b.BuildObjectStore()
 
-		oo, err := objects.All()
+	oo, err := objects.All()
 
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if err := objects.LoadObjects(oo); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		p := &build.ObjectIndexPage{
-			ShowPage: build.ShowPage{
-				Page: template.Page{
-					URI: r.URL.Path,
-				},
-				Build: b,
-			},
-			Objects: oo,
-		}
-
-		d := template.NewDashboard(p, r.URL.Path)
-
-		web.HTML(w, template.Render(d), http.StatusOK)
-	} else if filepath.Base(r.URL.Path) == "variables" {
-		vv, err := b.BuildVariableStore().All()
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		p := &build.VariableIndexPage{
-			ShowPage: build.ShowPage{
-				Page: template.Page{
-					URI: r.URL.Path,
-				},
-				Build: b,
-			},
-			Variables: vv,
-		}
-
-		d := template.NewDashboard(p, r.URL.Path)
-
-		web.HTML(w, template.Render(d), http.StatusOK)
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
 	}
+
+	if err := objects.LoadObjects(oo); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	p := &build.ObjectIndexPage{
+		ShowPage: build.ShowPage{
+			Page: template.Page{
+				URI: r.URL.Path,
+			},
+			Build: b,
+		},
+		Objects: oo,
+	}
+
+	d := template.NewDashboard(p, r.URL.Path)
+
+	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
-func (h Build) Tag(w http.ResponseWriter, r *http.Request) {
-	b, err := h.build(r)
+func (h BuildVariable) Index(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	id, err := strconv.ParseInt(vars["build"], 10, 64)
+
+	if err != nil {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	b, err := h.Builds.Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -373,26 +352,25 @@ func (h Build) Tag(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := &form.Build{}
+	vv, err := b.BuildVariableStore().All()
 
-	if err := form.Unmarshal(f, r); err != nil {
+	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	tags := b.TagStore()
-
-	for _, name := range f.Tags {
-		t := tags.New()
-		t.Name = name
-
-		if err := t.Create(); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
+	p := &build.VariableIndexPage{
+		ShowPage: build.ShowPage{
+			Page: template.Page{
+				URI: r.URL.Path,
+			},
+			Build: b,
+		},
+		Variables: vv,
 	}
 
-	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+	d := template.NewDashboard(p, r.URL.Path)
+
+	web.HTML(w, template.Render(d), http.StatusOK)
 }

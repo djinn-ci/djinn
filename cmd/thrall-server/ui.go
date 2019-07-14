@@ -68,14 +68,27 @@ func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
 	s.router.HandleFunc("/builds", mw.Auth(build.Store)).Methods("POST")
 
 	s.router.HandleFunc("/builds/{build}", mw.Auth(build.Show)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/manifest", mw.Auth(build.Show)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.Show)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/output", mw.Auth(build.Show)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/output/raw", mw.Auth(build.Show)).Methods("GET")
 
-	s.router.HandleFunc("/builds/{build}/manifest", mw.Auth(build.ShowMeta)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.ShowMeta)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/output", mw.Auth(build.ShowMeta)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/output/raw", mw.Auth(build.ShowMeta)).Methods("GET")
+	object := ui.BuildObject{
+		Handler: h,
+		Builds:  &model.BuildStore{
+			DB: s.db,
+		},
+	}
 
-	s.router.HandleFunc("/builds/{build}/objects", mw.Auth(build.IndexRelation)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/variables", mw.Auth(build.IndexRelation)).Methods("GET")
+	variable := ui.BuildVariable{
+		Handler: h,
+		Builds:  &model.BuildStore{
+			DB: s.db,
+		},
+	}
+
+	s.router.HandleFunc("/builds/{build}/objects", mw.Auth(object.Index)).Methods("GET")
+	s.router.HandleFunc("/builds/{build}/variables", mw.Auth(variable.Index)).Methods("GET")
 }
 
 func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {

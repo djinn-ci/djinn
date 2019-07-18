@@ -20,15 +20,6 @@ import (
 
 type Namespace struct {
 	web.Handler
-
-	Namespaces *model.NamespaceStore
-}
-
-func NewNamespace(h web.Handler, namespaces *model.NamespaceStore) Namespace {
-	return Namespace{
-		Handler:    h,
-		Namespaces: namespaces,
-	}
 }
 
 func (h Namespace) namespace(r *http.Request) (*model.Namespace, error) {
@@ -40,7 +31,7 @@ func (h Namespace) namespace(r *http.Request) (*model.Namespace, error) {
 		return nil, errors.Err(err)
 	}
 
-	n, err := u.NamespaceStore().FindByPath(vars["namespace"])
+	n, err := u.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
 
 	if err != nil {
 		return nil, errors.Err(err)
@@ -60,7 +51,10 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	nn, err := u.NamespaceStore().Index(model.Search("path", search))
+	nn, err := u.NamespaceStore().Index(
+		model.Search("path", search),
+		model.OrderAsc("path"),
+	)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -212,34 +206,6 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
-	}
-
-	if n.IsZero() || n.User.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	switch n.Visibility {
-		case model.Private:
-			if n.UserID != u.ID {
-				web.HTMLError(w, "Not found", http.StatusNotFound)
-				return
-			}
-		case model.Internal:
-			if u.IsZero() {
-				web.HTMLError(w, "Not found", http.StatusNotFound)
-				return
-			}
-		case model.Public:
-			break
 	}
 
 	if err := n.LoadParents(); err != nil {

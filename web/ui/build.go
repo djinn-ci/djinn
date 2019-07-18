@@ -25,48 +25,20 @@ import (
 type Build struct {
 	web.Handler
 
-	queues     map[string]*machinery.Server
-	namespaces *model.NamespaceStore
+	Builds model.BuildStore
+	Queues map[string]*machinery.Server
 }
 
 type BuildObject struct {
 	web.Handler
 
-	Builds *model.BuildStore
+	Builds model.BuildStore
 }
 
 type BuildVariable struct {
 	web.Handler
 
-	Builds *model.BuildStore
-}
-
-func NewBuild(h web.Handler, queues map[string]*machinery.Server, namespaces *model.NamespaceStore) Build {
-	return Build{
-		Handler:    h,
-		queues:     queues,
-		namespaces: namespaces,
-	}
-}
-
-func (h Build) build(r *http.Request) (*model.Build, error) {
-	u, err := h.User(r)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	vars := mux.Vars(r)
-
-	id, err := strconv.ParseInt(vars["build"], 10, 64)
-
-	if err != nil {
-		return &model.Build{}, nil
-	}
-
-	b, err := u.BuildStore().Find(id)
-
-	return b, errors.Err(err)
+	Builds model.BuildStore
 }
 
 func (h Build) Index(w http.ResponseWriter, r *http.Request) {
@@ -142,7 +114,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 	m, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
 
-	srv, ok := h.queues[m.Driver.Type]
+	srv, ok := h.Queues[m.Driver.Type]
 
 	if !ok {
 		errs := form.NewErrors()
@@ -225,12 +197,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	id, err := strconv.ParseInt(vars["build"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
+	id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
 	b, err := u.BuildStore().Show(id)
 
@@ -264,7 +231,6 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		Page: template.Page{
 			URI: r.URL.Path,
 		},
-		CSRF:         csrf.TemplateField(r),
 		Build:        b,
 		ShowManifest: filepath.Base(r.URL.Path) == "manifest",
 		ShowOutput:   filepath.Base(r.URL.Path) == "output",
@@ -278,23 +244,13 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 func (h BuildObject) Index(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	id, err := strconv.ParseInt(vars["build"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
+	id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
 	b, err := h.Builds.Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -332,23 +288,13 @@ func (h BuildObject) Index(w http.ResponseWriter, r *http.Request) {
 func (h BuildVariable) Index(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
-	id, err := strconv.ParseInt(vars["build"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
+	id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
 	b, err := h.Builds.Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 

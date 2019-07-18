@@ -7,7 +7,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
@@ -18,21 +17,10 @@ import (
 
 type Tag struct {
 	web.Handler
-
-	Builds *model.BuildStore
 }
 
 func (h Tag) Index(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	id, err := strconv.ParseInt(vars["build"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	b, err := h.Builds.Find(id)
+	u, err := h.User(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -40,8 +28,15 @@ func (h Tag) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
+	vars := mux.Vars(r)
+
+	id, _ := strconv.ParseInt(vars["build"], 10, 64)
+
+	b, err := u.BuildStore().Find(id)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -80,23 +75,13 @@ func (h Tag) Store(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	id, err := strconv.ParseInt(vars["build"], 10, 64)
+	id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	b, err := h.Builds.Find(id)
+	b, err := u.BuildStore().Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -131,16 +116,7 @@ func (h Tag) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	buildId, err := strconv.ParseInt(vars["build"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	b, err := h.Builds.Find(buildId)
+	u, err := h.User(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -148,8 +124,15 @@ func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
+	vars := mux.Vars(r)
+
+	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
+
+	b, err := u.BuildStore().Find(buildId)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 

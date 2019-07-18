@@ -25,16 +25,8 @@ import (
 type Object struct {
 	web.Handler
 
-	limit     int64
-	filestore filestore.FileStore
-}
-
-func NewObject(h web.Handler, fs filestore.FileStore, l int64) Object {
-	return Object{
-		Handler:   h,
-		limit:     l,
-		filestore: fs,
-	}
+	Limit     int64
+	FileStore filestore.FileStore
 }
 
 func (h Object) object(r *http.Request) (*model.Object, map[string]string, error) {
@@ -182,7 +174,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 	f := &form.Object{
 		Writer:  w,
 		Request: r,
-		Limit:   h.limit,
+		Limit:   h.Limit,
 	}
 
 	if err := h.ValidateForm(f, w, r); err != nil {
@@ -211,7 +203,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 
 	tee := io.TeeReader(f.File, io.MultiWriter(hmd5, hsha256))
 
-	dst, err := h.filestore.OpenFile(hash, os.O_CREATE|os.O_WRONLY, os.FileMode(0755))
+	dst, err := h.FileStore.OpenFile(hash, os.O_CREATE|os.O_WRONLY, os.FileMode(0755))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -260,7 +252,7 @@ func (h Object) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := h.filestore.Open(o.Hash)
+	f, err := h.FileStore.Open(o.Hash)
 
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -293,7 +285,7 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.filestore.Remove(o.Hash); err != nil {
+	if err := h.FileStore.Remove(o.Hash); err != nil {
 		log.Error.Println(errors.Err(err))
 	}
 

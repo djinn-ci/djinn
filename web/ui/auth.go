@@ -23,12 +23,6 @@ type Auth struct {
 	web.Handler
 }
 
-func NewAuth(h web.Handler) Auth {
-	return Auth{
-		Handler: h,
-	}
-}
-
 func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &auth.RegisterPage{

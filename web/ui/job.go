@@ -18,12 +18,6 @@ type Job struct {
 	web.Handler
 }
 
-func NewJob(h web.Handler) Job {
-	return Job{
-		Handler: h,
-	}
-}
-
 func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
@@ -35,12 +29,7 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	buildId, err := strconv.ParseInt(vars["build"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
+	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
 
 	b, err := u.BuildStore().Find(buildId)
 
@@ -50,19 +39,9 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
+	jobId, _ := strconv.ParseInt(vars["job"], 10, 64)
 
-	jobId, err := strconv.ParseInt(vars["job"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	j, err := b.JobShow(jobId)
+	j, err := b.JobStore().Show(jobId)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

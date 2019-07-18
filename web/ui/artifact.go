@@ -19,14 +19,8 @@ import (
 type Artifact struct {
 	web.Handler
 
-	filestore filestore.FileStore
-}
-
-func NewArtifact(h web.Handler, fs filestore.FileStore) Artifact {
-	return Artifact{
-		Handler:   h,
-		filestore: fs,
-	}
+	Artifacts model.ArtifactStore
+	FileStore filestore.FileStore
 }
 
 func (h Artifact) Index(w http.ResponseWriter, r *http.Request) {
@@ -40,14 +34,9 @@ func (h Artifact) Index(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	id, err := strconv.ParseInt(vars["build"], 10, 64)
+	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
 
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	b, err := u.BuildStore().Find(id)
+	b, err := u.BuildStore().Find(buildId)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -92,12 +81,7 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 
 	vars := mux.Vars(r)
 
-	buildId, err := strconv.ParseInt(vars["build"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
+	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
 
 	artifactId, err := strconv.ParseInt(vars["artifact"], 10, 64)
 
@@ -114,11 +98,6 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
 	a, err := b.ArtifactStore().Find(artifactId)
 
 	if err != nil {
@@ -132,7 +111,7 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := h.filestore.Open(a.Hash)
+	f, err := h.FileStore.Open(a.Hash)
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {

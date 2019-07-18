@@ -382,6 +382,24 @@ func (js JobStore) New() *Job {
 	return j
 }
 
+func (js JobStore) Show(id int64) (*Job, error) {
+	j, err := js.Find(id)
+
+	if err != nil {
+		return j, errors.Err(err)
+	}
+
+	if err := j.LoadStage(); err != nil {
+		return j, errors.Err(err)
+	}
+
+	if err := j.LoadDependencies(); err != nil {
+		return j, errors.Err(err)
+	}
+
+	return j, errors.Err(j.LoadArtifacts())
+}
+
 func (jds JobDependencyStore) All(opts ...Option) ([]*JobDependency, error) {
 	jdd := make([]*JobDependency, 0)
 

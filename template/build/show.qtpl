@@ -1,7 +1,5 @@
 {%
 import (
-	htmltemplate "html/template"
-
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/job"
@@ -12,7 +10,6 @@ import (
 type ShowPage struct {
 	template.Page
 
-	CSRF         htmltemplate.HTML
 	Build        *model.Build
 	ShowManifest bool
 	ShowOutput   bool
@@ -83,12 +80,6 @@ type ShowPage struct {
 							<em class="muted">No build tags.</em>
 						{% endif %}
 						</div>
-						<form method="POST" action="{%s p.Build.UIEndpoint("tags") %}">
-							<div class="form-field">
-								{%s= string(p.CSRF) %}
-								<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
-							</div>
-						</form>
 					</div>
 				</div>
 			</div>

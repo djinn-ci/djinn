@@ -120,10 +120,11 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 
 	bb, err := u.BuildStore().All(
 		model.WhereInQuery("id",
-				model.Select(
+			model.Select(
 				model.Columns("build_id"),
 				model.Table("build_objects"),
 				model.WhereEq("object_id", o.ID),
+				model.BuildStatus(status),
 			),
 		),
 	)

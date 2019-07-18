@@ -39,94 +39,126 @@ type uiServer struct {
 }
 
 func (s *uiServer) initAuth(h web.Handler, mw web.Middleware) {
-	auth := ui.NewAuth(h)
+	auth := ui.Auth{
+		Handler: h,
+	}
 
-	s.router.HandleFunc("/register", mw.Guest(auth.Register)).Methods("GET", "POST")
-	s.router.HandleFunc("/login", mw.Guest(auth.Login)).Methods("GET", "POST")
-	s.router.HandleFunc("/logout", mw.Auth(auth.Logout)).Methods("POST")
+	s.router.HandleFunc("/register", auth.Register).Methods("GET", "POST")
+	s.router.HandleFunc("/login", auth.Login).Methods("GET", "POST")
+	s.router.HandleFunc("/logout", auth.Logout).Methods("POST")
 }
 
 func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
-	namespace := ui.NewNamespace(h, &model.NamespaceStore{DB: s.db})
+	namespace := ui.Namespace{
+		Handler:    h,
+	}
 
-	s.router.HandleFunc("/namespaces", mw.Auth(namespace.Index)).Methods("GET")
-	s.router.HandleFunc("/namespaces/create", mw.Auth(namespace.Create)).Methods("GET")
-	s.router.HandleFunc("/namespaces", mw.Auth(namespace.Store)).Methods("POST")
+	authRouter := s.router.PathPrefix("/namespaces").Subrouter()
+	authRouter.HandleFunc("", namespace.Index).Methods("GET")
+	authRouter.HandleFunc("/create", namespace.Create).Methods("GET")
+	authRouter.HandleFunc("", namespace.Store).Methods("POST")
+	authRouter.Use(mw.Auth)
 
-	s.router.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}/-/edit", mw.Auth(namespace.Edit)).Methods("GET")
-	s.router.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}/-/namespaces", namespace.Show).Methods("GET")
-	s.router.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Show).Methods("GET")
-	s.router.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}", mw.Auth(namespace.Update)).Methods("PATCH")
-	s.router.HandleFunc("/u/{username}/{namespace:[a-zA-Z0-9\\/?\\S]+}", mw.Auth(namespace.Destroy)).Methods("DELETE")
+	r := s.router.PathPrefix("/u/{username}").Subrouter()
+	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}/-/edit", namespace.Edit).Methods("GET")
+	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}/-/namespaces", namespace.Show).Methods("GET")
+	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Show).Methods("GET")
+	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Update).Methods("PATCH")
+	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Destroy).Methods("DELETE")
+	r.Use(mw.AuthNamespace)
 }
 
 func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
-	build := ui.NewBuild(h, s.Queues, &model.NamespaceStore{DB: s.db})
+	builds := model.BuildStore{
+		DB: s.db,
+	}
 
-	s.router.HandleFunc("/", mw.Auth(build.Index)).Methods("GET")
-	s.router.HandleFunc("/builds/create", mw.Auth(build.Create)).Methods("GET")
-	s.router.HandleFunc("/builds", mw.Auth(build.Store)).Methods("POST")
-
-	s.router.HandleFunc("/builds/{build}", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/manifest", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/manifest/raw", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/output", mw.Auth(build.Show)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/output/raw", mw.Auth(build.Show)).Methods("GET")
+	build := ui.Build{
+		Handler: h,
+		Builds:  builds,
+		Queues:  s.Queues,
+	}
 
 	object := ui.BuildObject{
 		Handler: h,
-		Builds:  &model.BuildStore{
-			DB: s.db,
-		},
+		Builds:  builds,
 	}
 
 	variable := ui.BuildVariable{
 		Handler: h,
-		Builds:  &model.BuildStore{
-			DB: s.db,
-		},
+		Builds:  builds,
 	}
 
-	s.router.HandleFunc("/builds/{build}/objects", mw.Auth(object.Index)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/variables", mw.Auth(variable.Index)).Methods("GET")
+	s.router.HandleFunc("/", build.Index).Methods("GET")
+
+	r := s.router.PathPrefix("/builds").Subrouter()
+	r.HandleFunc("/create", build.Create).Methods("GET")
+	r.HandleFunc("", build.Store).Methods("POST")
+	r.HandleFunc("/{build:[0-9]+}", build.Show).Methods("GET")
+	r.HandleFunc("/{build:[0-9]+}/manifest", build.Show).Methods("GET")
+	r.HandleFunc("/{build:[0-9]+}/manifest/raw", build.Show).Methods("GET")
+	r.HandleFunc("/{build:[0-9]+}/output", build.Show).Methods("GET")
+	r.HandleFunc("/{build:[0-9]+}/output/raw", build.Show).Methods("GET")
+	r.HandleFunc("/{build:[0-9]+}/objects", object.Index).Methods("GET")
+	r.HandleFunc("/{build:[0-9]+}/variables", variable.Index).Methods("GET")
+	r.Use(mw.AuthBuild)
 }
 
 func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
-	job := ui.NewJob(h)
+	job := ui.Job{
+		Handler: h,
+	}
 
-	s.router.HandleFunc("/builds/{build}/jobs/{job}", mw.Auth(job.Show))
-	s.router.HandleFunc("/builds/{build}/jobs/{job}/output/raw", mw.Auth(job.Show))
+	r := s.router.PathPrefix("/builds/{build:[0-9]+}").Subrouter()
+	r.HandleFunc("/jobs/{job:[0-9]+}", job.Show)
+	r.HandleFunc("/jobs/{job:[0-9]+}/output/raw", job.Show)
+	r.Use(mw.AuthBuild)
 }
 
 func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
-	artifact := ui.NewArtifact(h, s.artifacts)
+	artifacts := model.ArtifactStore{
+		DB: s.db,
+	}
 
-	s.router.HandleFunc("/builds/{build}/artifacts", mw.Auth(artifact.Index))
-	s.router.HandleFunc("/builds/{build}/artifacts/{artifact}/download/{name}", mw.Auth(artifact.Show))
+	artifact := ui.Artifact{
+		Handler:   h,
+		Artifacts: artifacts,
+		FileStore: s.artifacts,
+	}
+
+	r := s.router.PathPrefix("/builds/{build:[0-9]+}").Subrouter()
+	r.HandleFunc("/artifacts", artifact.Index)
+	r.HandleFunc("/artifacts/{artifact:[0-9]+}/download/{name}", artifact.Show)
+	r.Use(mw.AuthBuild)
 }
 
 func (s *uiServer) initTag(h web.Handler, mw web.Middleware) {
 	tag := ui.Tag{
 		Handler: h,
-		Builds:  &model.BuildStore{
-			DB: s.db,
-		},
 	}
 
-	s.router.HandleFunc("/builds/{build}/tags", mw.Auth(tag.Index)).Methods("GET")
-	s.router.HandleFunc("/builds/{build}/tags", mw.Auth(tag.Store)).Methods("POST")
-	s.router.HandleFunc("/builds/{build}/tags/{tag}", mw.Auth(tag.Destroy)).Methods("DELETE")
+	r := s.router.PathPrefix("/builds/{build:[0-9]+}").Subrouter()
+	r.HandleFunc("/tags", tag.Index).Methods("GET")
+	r.HandleFunc("/tags", tag.Store).Methods("POST")
+	r.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
+	r.Use(mw.AuthBuild)
 }
 
 func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
-	object := ui.NewObject(h, s.objects, s.limit)
+	object := ui.Object{
+		Handler:   h,
+		FileStore: s.objects,
+		Limit:     s.limit,
+	}
 
-	s.router.HandleFunc("/objects", mw.Auth(object.Index)).Methods("GET")
-	s.router.HandleFunc("/objects/create", mw.Auth(object.Create)).Methods("GET")
-	s.router.HandleFunc("/objects", mw.Auth(object.Store)).Methods("POST")
-	s.router.HandleFunc("/objects/{object}", mw.Auth(object.Show)).Methods("GET")
-	s.router.HandleFunc("/objects/{object}/download/{name}", mw.Auth(object.Download))
-	s.router.HandleFunc("/objects/{object}", mw.Auth(object.Destroy)).Methods("DELETE")
+	r := s.router.PathPrefix("/objects").Subrouter()
+	r.HandleFunc("", object.Index).Methods("GET")
+	r.HandleFunc("/create", object.Create).Methods("GET")
+	r.HandleFunc("", object.Store).Methods("POST")
+	r.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
+	r.HandleFunc("/{object:[0-9]+}/download/{name}", object.Download)
+	r.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
+	r.Use(mw.AuthObject)
 }
 
 func (s *uiServer) init() {
@@ -135,12 +167,25 @@ func (s *uiServer) init() {
 
 	s.router = mux.NewRouter()
 
-	wh := web.New(
-		securecookie.New(s.hash, s.key),
-		session.New(s.client, s.key),
-		model.UserStore{DB: s.db},
-	)
-	mw := web.NewMiddleware(wh)
+	builds := model.BuildStore{
+		DB: s.db,
+	}
+
+	objects := model.ObjectStore{
+		DB: s.db,
+	}
+
+	users := model.UserStore{
+		DB: s.db,
+	}
+
+	wh := web.New(securecookie.New(s.hash, s.key), session.New(s.client, s.key), users)
+	mw := web.Middleware{
+		Handler: wh,
+		Builds:  builds,
+		Objects: objects,
+		Users:   users,
+	}
 
 	s.router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		web.HTMLError(w, "Not found", http.StatusNotFound)

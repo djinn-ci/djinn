@@ -13,6 +13,7 @@ type ShowPage struct {
 	template.Page
 
 	Object *model.Object
+	Search string
 	Status string
 	Builds []*model.Build
 }
@@ -51,7 +52,7 @@ type ShowPage struct {
 	<div class="panel">
 		<div class="panel-header">
 			{%= build.RenderStatusNav(p.URI, p.Status) %}
-			{%= template.RenderSearch(p.URI, "", "Find a build...") %}
+			{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
 		</div>
 		{% if len(p.Builds) == 0 %}
 			<div class="panel-message muted">

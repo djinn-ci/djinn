@@ -108,6 +108,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	search := r.URL.Query().Get("search")
 	status := r.URL.Query().Get("status")
 
 	o, err := u.ObjectStore().Show(id)
@@ -127,6 +128,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 				model.BuildStatus(status),
 			),
 		),
+		model.BuildSearch(search),
 	)
 
 	if err != nil {
@@ -140,6 +142,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 			URI: r.URL.Path,
 		},
 		Object: o,
+		Search: search,
 		Status: status,
 		Builds: bb,
 	}

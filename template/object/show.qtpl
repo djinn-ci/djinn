@@ -49,19 +49,7 @@ type ShowPage struct {
 			</tr>
 		</table>
 	</div>
-	<div class="panel">
-		<div class="panel-header">
-			{%= build.RenderStatusNav(p.URI, p.Status) %}
-			{%= template.RenderSearch(p.URI, p.Search, "Find a build...") %}
-		</div>
-		{% if len(p.Builds) == 0 %}
-			<div class="panel-message muted">
-				{% if p.Status == "" %}No builds have been submitted yet.{% else %}No {%s p.Status %} builds.{% endif %}
-			</div>
-		{% else %}
-			{%= build.RenderTable(p.Builds) %}
-		{% endif %}
-	</div>
+	<div class="panel">{%= build.RenderIndex(p.Builds, p.URI, p.Status, p.Search) %}</div>
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}

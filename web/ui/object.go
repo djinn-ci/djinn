@@ -259,7 +259,7 @@ func (h Object) Download(w http.ResponseWriter, r *http.Request) {
 	f, err := h.FileStore.Open(o.Hash)
 
 	if err != nil {
-		if os.IsNotExist(err) {
+		if os.IsNotExist(errors.Cause(err)) {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}

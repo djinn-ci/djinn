@@ -3,23 +3,15 @@ package model
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
-type Statement uint8
-
-type Option func(q Query) Query
+type direction uint8
 
 type order struct {
-	columns   []string
-	direction string
-}
-
-type where struct {
-	col string
-	op  string
-	val interface{}
-	cat string
+	cols []string
+	dir  direction
 }
 
 type set struct {
@@ -27,38 +19,43 @@ type set struct {
 	val interface{}
 }
 
+type statement uint8
+
+type where struct {
+	col   string
+	op    string
+	val   interface{}
+	cat   string
+	query Query
+}
+
 type Query struct {
-	statement Statement
-	table     string
-	columns   []string
-	wheres    []where
-	sets      []set
-	order     order
-	limit     int
-	returning []string
-	args      []interface{}
+	stmt   statement
+	table  string
+	cols   []string
+	wheres []where
+	sets   []set
+	order  order
+	limit  int
+	offset int
+	ret    []string
+	args   []interface{}
+	bind   int
 }
 
 const (
-	SELECT Statement = iota
-	INSERT
-	UPDATE
-	DELETE
+	asc direction = iota
+	desc
+
+	_select statement = iota
+	_insert
+	_update
+	_delete
 )
 
-func Returning(cols ...string) Option {
-	return func(q Query) Query {
-		if q.statement == INSERT || q.statement == UPDATE || q.statement == DELETE {
-			q.returning = append(q.returning, cols...)
-		}
-
-		return q
-	}
-}
-
-func Select(opts ...Option) Query {
+func Delete(opts ...Option) Query {
 	q := Query{
-		statement: SELECT,
+		stmt: _delete,
 	}
 
 	for _, opt := range opts {
@@ -70,7 +67,19 @@ func Select(opts ...Option) Query {
 
 func Insert(opts ...Option) Query {
 	q := Query{
-		statement: INSERT,
+		stmt: _insert,
+	}
+
+	for _, opt := range opts {
+		q = opt(q)
+	}
+
+	return q
+}
+
+func Select(opts ...Option) Query {
+	q := Query{
+		stmt: _select,
 	}
 
 	for _, opt := range opts {
@@ -82,7 +91,7 @@ func Insert(opts ...Option) Query {
 
 func Update(opts ...Option) Query {
 	q := Query{
-		statement: UPDATE,
+		stmt: _update,
 	}
 
 	for _, opt := range opts {
@@ -92,250 +101,85 @@ func Update(opts ...Option) Query {
 	return q
 }
 
-func Delete(opts ...Option) Query {
-	q := Query{
-		statement: DELETE,
-	}
-
-	for _, opt := range opts {
-		q = opt(q)
-	}
-
-	return q
-}
-
-func Values(vals ...interface{}) Option {
-	return func(q Query) Query {
-		if q.statement == INSERT {
-			q.args = vals
-		}
-
-		return q
-	}
-}
-
-func Columns(cols ...string) Option {
-	return func(q Query) Query {
-		q.columns = cols
-
-		return q
-	}
-}
-
-func Limit(l int) Option {
-	return func(q Query) Query {
-		if q.statement == SELECT {
-			q.limit = l
-		}
-
-		return q
-	}
-}
-
-// Or will apply all given options to the query, and modify any newly added
-// WHERE clauses to be treated as an OR, instead of the default AND.
-func Or(opts ...Option) Option {
-	return func(q Query) Query {
-		l := len(q.wheres)
-
-		for _, opt := range opts {
-			q = opt(q)
-		}
-
-		diff := len(q.wheres) - l
-
-		if l == diff {
-			return q
-		}
-
-		changed := make([]where, 0)
-
-		for i, w := range q.wheres {
-			if i >= l {
-				w.cat = " OR "
-			}
-
-			changed = append(changed, w)
-		}
-
-		q.wheres = changed
-
-		return q
-	}
-}
-
-func OrderAsc(cols ...string) Option {
-	return func(q Query) Query {
-		q.order.columns = cols
-		q.order.direction = "ASC"
-
-		return q
-	}
-}
-
-func OrderDesc(cols ...string) Option {
-	return func(q Query) Query {
-		q.order.columns = cols
-		q.order.direction = "DESC"
-
-		return q
-	}
-}
-
-func Set(col string, val interface{}) Option {
-	return func(q Query) Query {
-		q = SetRaw(col, fmt.Sprintf("$%d", len(q.args) + 1))(q)
-		q.args = append(q.args, val)
-
-		return q
-	}
-}
-
-func SetRaw(col string, val interface{}) Option {
-	return func(q Query) Query {
-		if q.statement != UPDATE {
-			return q
-		}
-
-		s := set{
-			col: col,
-			val: val,
-		}
-
-		q.sets = append(q.sets, s)
-
-		return q
-	}
-}
-
-func Table(table string) Option {
-	return func(q Query) Query {
-		q.table = table
-
-		return q
-	}
-}
-
-func WhereEq(col string, val interface{}) Option {
-	return func(q Query) Query {
-		w := where{
-			col: col,
-			op:  "=",
-			val: fmt.Sprintf("$%d", len(q.args) + 1),
-			cat: " AND ",
-		}
-
-		q.wheres = append(q.wheres, w)
-		q.args = append(q.args, val)
-
-		return q
-	}
-}
-
-func WhereIn(col string, vals ...interface{}) Option {
-	return func(q Query) Query {
-		if len(vals) == 0 {
-			return q
-		}
-
-		in := make([]string, len(vals), len(vals))
-		larg := len(q.args)
-
-		for i := range vals {
-			in[i] = fmt.Sprintf("$%d", larg + i + 1)
-		}
-
-		val := "(" + strings.Join(in, ", ") + ")"
-
-		w := where{
-			col: col,
-			op:  "IN",
-			val: val,
-			cat: " AND ",
-		}
-
-		q.wheres = append(q.wheres, w)
-		q.args = append(q.args, vals...)
-
-		return q
-	}
-}
-
-func WhereIs(col string, val interface{}) Option {
-	return func(q Query) Query {
-		w := where{
-			col: col,
-			op:  "IS",
-			val: val,
-			cat: " AND ",
-		}
-
-		q.wheres = append(q.wheres, w)
-
-		return q
-	}
-}
-
-func WhereInQuery(col string, q1 Query) Option {
-	return func(q2 Query) Query {
-		val := "(" + q1.Build() + ")"
-
-		w := where{
-			col: col,
-			op:  "IN",
-			val: val,
-			cat: " AND ",
-		}
-
-		q2.wheres = append(q2.wheres, w)
-		q2.args = append(q2.args, q1.Args()...)
-
-		return q2
-	}
-}
-
-func WhereLike(col string, val interface{}) Option {
-	return func(q Query) Query {
-		w := where{
-			col: col,
-			op:  "LIKE",
-			val: fmt.Sprintf("$%d", len(q.args) + 1),
-			cat: " AND ",
-		}
-
-		q.wheres = append(q.wheres, w)
-		q.args = append(q.args, val)
-
-		return q
-	}
-}
-
-func (q Query) buildReturning() string {
-	if len(q.returning) == 0 {
+func (d direction) String() string {
+	switch d {
+	case asc:
+		return "ASC"
+	case desc:
+		return "DESC"
+	default:
 		return ""
 	}
-
-	return " RETURNING " + strings.Join(q.returning, ", ")
 }
 
-func (q Query) buildWheres() string {
+func (o order) isZero() bool {
+	return len(o.cols) == 0 && o.dir == direction(0)
+}
+
+func (q Query) Args() []interface{} {
+	return q.args
+}
+
+func (q Query) buildReturning(buf *bytes.Buffer) {
+	if len(q.ret) == 0 {
+		return
+	}
+
+	buf.WriteString(" RETURNING ")
+	buf.WriteString(strings.Join(q.ret, ", "))
+}
+
+func (q *Query) buildWheres(buf *bytes.Buffer) {
 	if len(q.wheres) == 0 {
-		return ""
+		return
 	}
 
-	buf := bytes.NewBufferString(" WHERE ")
+	buf.WriteString(" WHERE ")
 
 	wheres := make([]string, 0)
 	end := len(q.wheres) - 1
 
 	for i, w := range q.wheres {
-		wheres = append(wheres, fmt.Sprintf("%s %s %v", w.col, w.op, w.val))
+		where := bytes.NewBufferString(w.col)
+		where.WriteString(" ")
+		where.WriteString(w.op)
+		where.WriteString(" ")
+
+		if w.val == nil {
+			if !w.query.isZero() {
+				w.query.bind += q.bind
+				w.val = "(" + w.query.Build() + ")"
+				q.bind++
+			} else {
+				if w.op == "IN" {
+					in := make([]string, 0)
+
+					for q.bind != len(q.args) {
+						q.bind++
+						in = append(in, param(q.bind))
+					}
+
+					w.val = "(" + strings.Join(in, ", ") + ")"
+				} else {
+					q.bind++
+					w.val = param(q.bind)
+				}
+			}
+		}
+
+		fmt.Fprintf(where, "%v", w.val)
+
+		wheres = append(wheres, where.String())
 
 		if i != end {
-			next := q.wheres[i + 1]
+			next := q.wheres[i+1]
 
 			if next.cat != w.cat {
-				buf.WriteString("(" + strings.Join(wheres, w.cat) + ")" + next.cat)
+				buf.WriteString("(")
+				buf.WriteString(strings.Join(wheres, w.cat))
+				buf.WriteString(")")
+				buf.WriteString(next.cat)
+
 				wheres = make([]string, 0)
 			}
 
@@ -344,85 +188,120 @@ func (q Query) buildWheres() string {
 
 		buf.WriteString(strings.Join(wheres, w.cat))
 	}
-
-	return buf.String()
 }
 
-func (q Query) buildSelect() string {
-	buf := bytes.NewBufferString("SELECT ")
-
-	buf.WriteString(strings.Join(q.columns, ", "))
-	buf.WriteString(" FROM " + q.table)
-	buf.WriteString(q.buildWheres())
-
-	if len(q.order.columns) > 0 && q.order.direction != "" {
-		fmt.Fprintf(buf, " ORDER BY %s %s", strings.Join(q.order.columns, ", "), q.order.direction)
-	}
-
-	if q.limit > 0 {
-		fmt.Fprintf(buf, " LIMIT %d", q.limit)
-	}
-
-	return buf.String()
+func (q Query) isZero() bool {
+	return q.stmt == statement(0) &&
+		q.table == "" &&
+		len(q.cols) == 0 &&
+		len(q.wheres) == 0 &&
+		len(q.sets) == 0 &&
+		len(q.wheres) == 0 &&
+		len(q.sets) == 0 &&
+		q.order.isZero() &&
+		q.limit == 0 &&
+		len(q.ret) == 0 &&
+		len(q.args) == 0
 }
 
-func (q Query) buildInsert() string {
-	buf := &bytes.Buffer{}
+func (q *Query) Build() string {
+	buf := bytes.NewBufferString("")
 
-	fmt.Fprintf(buf, "INSERT INTO %s (%s)", q.table, strings.Join(q.columns, ", "))
+	switch q.stmt {
+	case _select:
+		buf.WriteString("SELECT ")
+		buf.WriteString(strings.Join(q.cols, ", "))
+		buf.WriteString(" FROM ")
+		buf.WriteString(q.table)
 
-	vals := make([]string, len(q.columns), len(q.columns))
+		q.buildWheres(buf)
 
-	for i := range q.columns {
-		vals[i] = fmt.Sprintf("$%d", i + 1)
-	}
+		if !q.order.isZero() {
+			buf.WriteString(" ORDER BY ")
+			buf.WriteString(strings.Join(q.order.cols, ", "))
+			buf.WriteString(" ")
+			buf.WriteString(q.order.dir.String())
+		}
 
-	fmt.Fprintf(buf, " VALUES (%s)", strings.Join(vals, ", "))
-	buf.WriteString(q.buildReturning())
+		if q.limit > 0 {
+			buf.WriteString(" LIMIT ")
+			buf.WriteString(strconv.FormatInt(int64(q.limit), 10))
+		}
 
-	return buf.String()
-}
+		if q.offset > 0 {
+			buf.WriteString(" OFFSET ")
+			buf.WriteString(strconv.FormatInt(int64(q.offset), 10))
+		}
 
-func (q Query) buildUpdate() string {
-	buf := bytes.NewBufferString("UPDATE " + q.table)
+		return buf.String()
+	case _insert:
+		buf.WriteString("INSERT INTO ")
+		buf.WriteString(q.table)
+		buf.WriteString(" (")
+		buf.WriteString(strings.Join(q.cols, ", "))
 
-	sets := make([]string, 0)
+		vals := make([]string, len(q.cols), len(q.cols))
 
-	for _, s := range q.sets {
-		sets = append(sets, fmt.Sprintf("%s = %v", s.col, s.val))
-	}
+		for i := range q.cols {
+			vals[i] = param(i + 1)
+		}
 
-	buf.WriteString(" SET ")
-	buf.WriteString(strings.Join(sets, ", "))
-	buf.WriteString(q.buildWheres())
-	buf.WriteString(q.buildReturning())
+		buf.WriteString(") VALUES (")
+		buf.WriteString(strings.Join(vals, ", "))
+		buf.WriteString(")")
 
-	return buf.String()
-}
+		q.buildReturning(buf)
 
-func (q Query) buildDelete() string {
-	buf := bytes.NewBufferString("DELETE FROM " + q.table)
-	buf.WriteString(q.buildWheres())
-	buf.WriteString(q.buildReturning())
+		return buf.String()
+	case _update:
+		buf.WriteString("UPDATE ")
+		buf.WriteString(q.table)
 
-	return buf.String()
-}
+		sets := make([]string, len(q.sets), len(q.sets))
 
-func (q Query) Args() []interface{} {
-	return q.args
-}
+		for i, s := range q.sets {
+			if s.val == nil {
+				q.bind++
+				s.val = param(q.bind)
+			}
 
-func (q Query) Build() string {
-	switch q.statement {
-		case SELECT:
-			return q.buildSelect()
-		case INSERT:
-			return q.buildInsert()
-		case UPDATE:
-			return q.buildUpdate()
-		case DELETE:
-			return q.buildDelete()
-		default:
-			return ""
+			sets[i] = fmt.Sprintf("%s = %v", s.col, s.val)
+		}
+
+		buf.WriteString(" SET ")
+		buf.WriteString(strings.Join(sets, ", "))
+
+		q.buildWheres(buf)
+
+		if q.limit > 0 {
+			buf.WriteString(" LIMIT ")
+			buf.WriteString(strconv.FormatInt(int64(q.limit), 10))
+		}
+
+		if q.offset > 0 {
+			buf.WriteString(" OFFSET ")
+			buf.WriteString(strconv.FormatInt(int64(q.offset), 10))
+		}
+
+		return buf.String()
+	case _delete:
+		buf.WriteString("DELETE FROM ")
+		buf.WriteString(q.table)
+
+		q.buildWheres(buf)
+
+		if q.limit > 0 {
+			buf.WriteString(" LIMIT ")
+			buf.WriteString(strconv.FormatInt(int64(q.limit), 10))
+		}
+
+		if q.offset > 0 {
+			buf.WriteString(" OFFSET ")
+			buf.WriteString(strconv.FormatInt(int64(q.offset), 10))
+		}
+
+		return buf.String()
+	default:
+		return buf.String()
 	}
 }

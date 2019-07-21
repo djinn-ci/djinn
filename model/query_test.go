@@ -1,30 +1,21 @@
 package model
 
-import (
-	"testing"
-)
+import "testing"
 
 type testQuery struct {
-	expectedQuery string
-	expectedArgs  []interface{}
-	query         Query
+	expected string
+	query    Query
 }
 
-func checkQueries(testQueries []testQuery, t *testing.T) {
-	for _, tq := range testQueries {
-		if tq.query.Build() != tq.expectedQuery {
-			t.Fatalf(
-				"query not as expected:\n\texpected = '%s'\n\tactual = '%s'",
-				tq.expectedQuery,
-				tq.query.Build(),
-			)
-		}
+func checkQueries(tqq []testQuery, t *testing.T) {
+	for _, tq := range tqq {
+		built := tq.query.Build()
 
-		if len(tq.query.Args()) != len(tq.expectedArgs) {
+		if built != tq.expected {
 			t.Fatalf(
-				"query args len not as expected:\n\texpected = '%d'\n\tactual = '%d'",
-				len(tq.expectedArgs),
-				len(tq.query.Args()),
+				"query not as expected:\n\texpected = '%s'\n\t  actual = '%s'",
+				tq.expected,
+				built,
 			)
 		}
 	}
@@ -34,22 +25,21 @@ func TestSelect(t *testing.T) {
 	testQueries := []testQuery{
 		{
 			"SELECT * FROM users WHERE username = $1",
-			[]interface{}{"me"},
 			Select(Columns("*"), Table("users"), WhereEq("username", "me")),
 		},
 		{
-			"SELECT id, username FROM users WHERE id IN ($1, $2, $3, $4) AND username = $5",
-			[]interface{}{10, 11, 12, 13, "me"},
+			"SELECT * FROM users WHERE username = $1 OR email = $2",
 			Select(
-				Columns("id", "username"),
+				Columns("*"),
 				Table("users"),
-				WhereIn("id", 10, 11, 12, 13),
-				WhereEq("username", "me"),
+				Or(
+					WhereEq("username", "me"),
+					WhereEq("email", "me@example.com"),
+				),
 			),
 		},
 		{
 			"SELECT * FROM posts WHERE user_id IN (SELECT id FROM users WHERE username = $1)",
-			[]interface{}{"me"},
 			Select(
 				Columns("*"),
 				Table("posts"),
@@ -63,48 +53,66 @@ func TestSelect(t *testing.T) {
 			),
 		},
 		{
-			"SELECT * FROM posts ORDER BY created_at, updated_at ASC",
-			[]interface{}{},
+			"SELECT * FROM posts WHERE title LIKE $1 LIMIT 5 OFFSET 2",
 			Select(
 				Columns("*"),
 				Table("posts"),
-				OrderAsc("created_at", "updated_at"),
-			),
-		},
-		{
-			"SELECT * FROM posts WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5",
-			[]interface{}{10},
-			Select(
-				Columns("*"),
-				Table("posts"),
-				WhereEq("user_id", 10),
-				OrderDesc("created_at"),
+				WhereLike("title", "%foo%"),
 				Limit(5),
+				Offset(2),
 			),
 		},
 		{
-			"SELECT * FROM users WHERE email = $1 OR username = $2",
-			[]interface{}{"me@domain.com", "me"},
+			"SELECT * FROM posts ORDER BY created_at DESC",
 			Select(
 				Columns("*"),
-				Table("users"),
-				Or(
-					WhereEq("email", "me@domain.com"),
-					WhereEq("username", "me"),
+				Table("posts"),
+				OrderDesc("created_at"),
+			),
+		},
+		{
+			"SELECT * FROM posts WHERE user_id = $1 AND id IN (SELECT post_id FROM tags WHERE title LIKE $2)",
+			Select(
+				Columns("*"),
+				Table("posts"),
+				WhereEq("user_id", 1234),
+				WhereInQuery("id",
+					Select(
+						Columns("post_id"),
+						Table("tags"),
+						WhereLike("title", "some title"),
+					),
 				),
 			),
 		},
 		{
-			"SELECT * FROM users WHERE (email = $1 OR username = $2) AND password = $3",
-			[]interface{}{"me@domain.com", "me", "secret"},
+			"SELECT * FROM posts WHERE id IN (SELECT post_id FROM tags WHERE title LIKE $1) AND category_id IN (SELECT id FROM categories WHERE name LIKE $2) AND user_id = $3",
+			Select(
+				Columns("*"),
+				Table("posts"),
+				WhereInQuery("id",
+					Select(
+						Columns("post_id"),
+						Table("tags"),
+						WhereLike("title", "some title"),
+					),
+				),
+				WhereInQuery("category_id",
+					Select(
+						Columns("id"),
+						Table("categories"),
+						WhereLike("name", "some category"),
+					),
+				),
+				WhereEq("user_id", 1234),
+			),
+		},
+		{
+			"SELECT * FROM users WHERE id IN ($1, $2, $3, $4, $5)",
 			Select(
 				Columns("*"),
 				Table("users"),
-				Or(
-					WhereEq("email", "me@domain.com"),
-					WhereEq("username", "me"),
-				),
-				WhereEq("password", "secret"),
+				WhereIn("id", 1, 2, 3, 4, 5),
 			),
 		},
 	}
@@ -115,12 +123,20 @@ func TestSelect(t *testing.T) {
 func TestInsert(t *testing.T) {
 	testQueries := []testQuery{
 		{
-			"INSERT INTO users (username, email, password) VALUES ($1, $2, $3)",
-			[]interface{}{"me", "me@domain.com", "secret"},
+			"INSERT INTO users (email, username, password) VALUES ($1, $2, $3)",
 			Insert(
-				Columns("username", "email", "password"),
+				Columns("email", "username", "password"),
 				Table("users"),
-				Values("me", "me@domain.com", "secret"),
+				Values("me@example.com", "me", "secret"),
+			),
+		},
+		{
+			"INSERT INTO users (email, username, password) VALUES ($1, $2, $3) RETURNING id, created_at",
+			Insert(
+				Columns("email", "username", "password"),
+				Table("users"),
+				Values("me@example.com", "me", "secret"),
+				Returning("id", "created_at"),
 			),
 		},
 	}
@@ -131,32 +147,25 @@ func TestInsert(t *testing.T) {
 func TestUpdate(t *testing.T) {
 	testQueries := []testQuery{
 		{
-			"UPDATE users SET username = $1 WHERE id = $2",
-			[]interface{}{"me", 10},
+			"UPDATE users SET email = $1 WHERE id = $2",
 			Update(
 				Table("users"),
-				Set("username", "me"),
-				WhereEq("id", 10),
+				Set("email", "me@example.com"),
+				WhereEq("id", 1234),
 			),
 		},
 		{
-			"UPDATE users SET username = $1, email = $2 WHERE id = $3",
-			[]interface{}{"me", "me@domain.com", 10},
+			"UPDATE posts SET deleted_at = NOW() WHERE user_id IN (SELECT id FROM users WHERE username = $1)",
 			Update(
-				Table("users"),
-				Set("username", "me"),
-				Set("email", "me@domain.com"),
-				WhereEq("id", 10),
-			),
-		},
-		{
-			"UPDATE users SET username = $1, updated_at = NOW() WHERE id = $2",
-			[]interface{}{"me", 10},
-			Update(
-				Table("users"),
-				Set("username", "me"),
-				SetRaw("updated_at", "NOW()"),
-				WhereEq("id", 10),
+				Table("posts"),
+				SetRaw("deleted_at", "NOW()"),
+				WhereInQuery("user_id",
+					Select(
+						Columns("id"),
+						Table("users"),
+						WhereEq("username", "me"),
+					),
+				),
 			),
 		},
 	}
@@ -167,12 +176,10 @@ func TestUpdate(t *testing.T) {
 func TestDelete(t *testing.T) {
 	testQueries := []testQuery{
 		{
-			"DELETE FROM users WHERE email = $1 AND username = $2",
-			[]interface{}{"me@domain.com", "me"},
+			"DELETE FROM posts WHERE id = $1",
 			Delete(
-				Table("users"),
-				WhereEq("email", "me@domain.com"),
-				WhereEq("username", "me"),
+				Table("posts"),
+				WhereEq("id", 1234),
 			),
 		},
 	}

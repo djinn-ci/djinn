@@ -283,10 +283,7 @@ func (q *Query) Build() string {
 			buf.WriteString(strconv.FormatInt(int64(q.offset), 10))
 		}
 
-		if len(q.ret) > 0 {
-			buf.WriteString(" RETURNING ")
-			buf.WriteString(strings.Join(q.ret, ", "))
-		}
+		q.buildReturning(buf)
 
 		return buf.String()
 	case _delete:

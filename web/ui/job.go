@@ -66,7 +66,7 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		Job: j,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

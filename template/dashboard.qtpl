@@ -18,6 +18,21 @@ interface dashboardPage {
 
 {% code
 
+type Alert struct {
+	Level   level
+	Message string
+}
+
+type Dashboard struct {
+	dashboardPage
+
+	alert Alert
+
+	URI string
+}
+
+type level uint8
+
 var (
 	NamespacesURI = "(\\/namespaces\\/?|\\/u\\/[_-a-zA-Z0-9\\S.]+\\/[-a-zA-Z0-9\\/\\S]*\\/?[a-z]*)"
 	ObjectsURI    = "(^\\/objects\\/?[a-z0-9\\/?]*$)"
@@ -25,14 +40,56 @@ var (
 	SettingsURI   = "\\/settings\\/?"
 )
 
-type Dashboard struct {
-	dashboardPage
+const (
+	success level = iota
+	warn
+	danger
+)
 
-	URI string
+func NewDashboard(p dashboardPage, uri string, a Alert) *Dashboard {
+	return &Dashboard{
+		dashboardPage: p,
+		alert:         a,
+		URI:           uri,
+	}
 }
 
-func NewDashboard(p dashboardPage, uri string) *Dashboard {
-	return &Dashboard{dashboardPage: p, URI: uri}
+func Danger(msg string) Alert {
+	return Alert{
+		Level:   danger,
+		Message: msg,
+	}
+}
+
+func Success(msg string) Alert {
+	return Alert{
+		Level:   success,
+		Message: msg,
+	}
+}
+
+func Warn(msg string) Alert {
+	return Alert{
+		Level:   warn,
+		Message: msg,
+	}
+}
+
+func (a Alert) IsZero() bool {
+	return a.Level == level(0) && a.Message == ""
+}
+
+func (l level) String() string {
+	switch l {
+	case success:
+		return "success"
+	case warn:
+		return "warn"
+	case danger:
+		return "danger"
+	default:
+		return ""
+	}
 }
 %}
 
@@ -40,14 +97,22 @@ func NewDashboard(p dashboardPage, uri string) *Dashboard {
 {% func (p *Dashboard) Body() %}
 	<div class="dashboard">
 		<div class="dashboard-content">
-			<div class="dashboard-header">
-				<div class="overflow">
-					<h1>{%= p.dashboardPage.Header() %}</h1>
-					<ul class="dashboard-actions">{%= p.dashboardPage.Actions() %}</ul>
+			{% if !p.alert.IsZero() %}
+				<div class="alert alert-{%s p.alert.Level.String() %}">
+					<div class="alert-message">{%s p.alert.Message %}</div>
+					<a href="{%s p.URI %}">{% cat "../svgs/close.svg" %}</a>
 				</div>
-				<ul class="dashboard-nav">{%= p.dashboardPage.Navigation() %}</ul>
+			{% endif %}
+			<div class="dashboard-wrap">
+				<div class="dashboard-header">
+					<div class="overflow">
+						<h1>{%= p.dashboardPage.Header() %}</h1>
+						<ul class="dashboard-actions">{%= p.dashboardPage.Actions() %}</ul>
+					</div>
+					<ul class="dashboard-nav">{%= p.dashboardPage.Navigation() %}</ul>
+				</div>
+				<div class="dashboard-body">{%= p.dashboardPage.Body() %}</div>
 			</div>
-			<div class="dashboard-body">{%= p.dashboardPage.Body() %}</div>
 		</div>
 		<div class="sidebar">
 			<div class="sidebar-header">

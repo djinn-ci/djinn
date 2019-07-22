@@ -71,7 +71,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		Tag:    tag,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -85,7 +85,7 @@ func (h Build) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI())
+	d := template.NewDashboard(p, r.URL.RequestURI(), h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -236,7 +236,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		ShowOutput:   filepath.Base(r.URL.Path) == "output",
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -280,7 +280,7 @@ func (h BuildObject) Index(w http.ResponseWriter, r *http.Request) {
 		Objects: oo,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -316,7 +316,7 @@ func (h BuildVariable) Index(w http.ResponseWriter, r *http.Request) {
 		Variables: vv,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

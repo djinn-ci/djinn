@@ -85,7 +85,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 		Search:  search,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -147,7 +147,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 		Builds: bb,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -161,7 +161,7 @@ func (h Object) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -238,6 +238,8 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
+
+	h.FlashAlert(w, r, template.Success(`Object has been added: <a href="` + o.UIEndpoint() + `">` + o.Name + `</a>`))
 
 	http.Redirect(w, r, "/objects", http.StatusSeeOther)
 }

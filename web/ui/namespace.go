@@ -70,7 +70,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		Search:     search,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -109,7 +109,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		p.Parent = parent
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI())
+	d := template.NewDashboard(p, r.URL.RequestURI(), h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -250,7 +250,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	d := template.NewDashboard(&p, r.URL.Path)
+	d := template.NewDashboard(&p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -292,7 +292,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		Namespace: n,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -362,6 +362,8 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.FlashAlert(w, r, template.Success("Namespace changes saved"))
+
 	http.Redirect(w, r, n.UIEndpoint(), http.StatusSeeOther)
 }
 
@@ -392,6 +394,8 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
+
+	h.FlashAlert(w, r, template.Success("Deleted namespace: " + n.Path))
 
 	http.Redirect(w, r, "/namespaces", http.StatusSeeOther)
 }

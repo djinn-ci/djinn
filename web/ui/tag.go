@@ -59,7 +59,7 @@ func (h Tag) Index(w http.ResponseWriter, r *http.Request) {
 		Tags: tt,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path)
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -161,6 +161,8 @@ func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
+
+	h.FlashAlert(w, r, template.Success("Tag has been deleted:" + t.Name))
 
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

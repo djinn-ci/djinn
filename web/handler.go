@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -30,6 +31,16 @@ func New(sc *securecookie.SecureCookie, store sessions.Store, users model.UserSt
 	}
 }
 
+func (h *Handler) FlashAlert(w http.ResponseWriter, r *http.Request, a template.Alert) {
+	sess, _ := h.store.Get(r, sessionName)
+
+	sess.Values["alert"] = a
+
+	if err := sess.Save(r, w); err != nil {
+		log.Error.Println(errors.Err(err))
+	}
+}
+
 func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Errors) {
 	sess, _ := h.store.Get(r, sessionName)
 
@@ -48,6 +59,24 @@ func (h *Handler) FlashForm(w http.ResponseWriter, r *http.Request, f form.Form)
 	if err := sess.Save(r, w); err != nil {
 		log.Error.Println(errors.Err(err))
 	}
+}
+
+func (h *Handler) Alert(w http.ResponseWriter, r *http.Request) template.Alert {
+	sess, _ := h.store.Get(r, sessionName)
+
+	a, ok := sess.Values["alert"]
+
+	if ok {
+		delete(sess.Values, "alert")
+
+		if err := sess.Save(r, w); err != nil {
+			log.Error.Println(errors.Err(err))
+		}
+
+		return a.(template.Alert)
+	}
+
+	return template.Alert{}
 }
 
 func (h *Handler) Errors(w http.ResponseWriter, r *http.Request) form.Errors {

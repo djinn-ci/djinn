@@ -4,13 +4,14 @@ import (
 	"encoding/gob"
 	"net/http"
 
+	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
-	"github.com/andrewpillar/thrall/filestore"
+	"github.com/andrewpillar/thrall/template"
 
 	"github.com/jmoiron/sqlx"
 
@@ -163,6 +164,7 @@ func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
 
 func (s *uiServer) init() {
 	gob.Register(form.NewErrors())
+	gob.Register(template.Alert{})
 	gob.Register(make(map[string]string))
 
 	s.router = mux.NewRouter()

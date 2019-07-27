@@ -119,7 +119,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bb, err := u.BuildStore().All(
+	bb, err := u.BuildStore().Index(
 		model.WhereInQuery("id",
 			model.Select(
 				model.Columns("build_id"),

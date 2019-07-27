@@ -44,40 +44,52 @@ func NewDocker(w io.Writer, image, workspace string) *Docker {
 	}
 }
 
-func (d *Docker) Create(env []string, objects runner.Passthrough, p runner.Placer) error {
+func (d *Docker) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with Docker driver...\n")
 
-	cli, err := client.NewEnvClient()
+	var err error
+
+	d.client, err = client.NewEnvClient()
 
 	if err != nil {
 		return err
 	}
 
-	d.client = cli
+	done := make(chan struct{})
+	errs := make(chan error)
 
-	ctx := context.Background()
+	go func() {
+		d.volume, err = d.client.VolumeCreate(c, volume.VolumeCreateBody{})
 
-	vol, err := d.client.VolumeCreate(ctx, volume.VolumeCreateBody{})
+		if err != nil {
+			errs <- err
+			return
+		}
 
-	if err != nil {
+		rc, err := d.client.ImagePull(c, d.image, types.ImagePullOptions{})
+
+		if err != nil {
+			errs <- err
+			return
+		}
+
+		defer rc.Close()
+
+		io.Copy(ioutil.Discard, rc)
+
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-c.Done():
+		return c.Err()
+	case <-done:
+		break
+	case err = <-errs:
 		return err
 	}
 
-	d.volume = vol
-
-	fmt.Fprintf(d.Writer, "Pulling Docker image %s...\n", d.image)
-
-	rc, err := d.client.ImagePull(ctx, d.image, types.ImagePullOptions{})
-
-	if err != nil {
-		return err
-	}
-
-	defer rc.Close()
-
-	io.Copy(ioutil.Discard, rc)
-
-	image, _, err := d.client.ImageInspectWithRaw(ctx, d.image)
+	image, _, err := d.client.ImageInspectWithRaw(c, d.image)
 
 	if err != nil {
 		return err

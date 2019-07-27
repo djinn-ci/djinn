@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/andrewpillar/cli"
 
@@ -40,17 +42,12 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	sigs := make(chan os.Signal)
-
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
-
 	r := runner.Runner{
 		Writer:    os.Stdout,
 		Env:       manifest.Env,
 		Objects:   manifest.Objects,
 		Placer:    filestore.NewFileSystem(c.Flags.GetString("objects"), 0),
 		Collector: filestore.NewFileSystem(c.Flags.GetString("artifacts"), 0),
-		Signals:   sigs,
 	}
 
 	setup := &runner.Stage{
@@ -158,7 +155,19 @@ func mainCommand(c cli.Command) {
 		r.Remove(remove...)
 	}
 
-	if err := r.Run(d); err != nil {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigs := make(chan os.Signal)
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
+
+	go func() {
+		<-sigs
+		cancel()
+	}()
+
+	if err := r.Run(ctx, d); err != nil {
 		os.Exit(1)
 	}
 }

@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -28,7 +29,7 @@ type SSH struct {
 	timeout  time.Duration
 }
 
-func (d *SSH) Create(env []string, objects runner.Passthrough, p runner.Placer) error {
+func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with SSH driver...\n")
 
 	key, err := ioutil.ReadFile(d.keyFile)
@@ -43,27 +44,52 @@ func (d *SSH) Create(env []string, objects runner.Passthrough, p runner.Placer) 
 		return err
 	}
 
-	cfg := &ssh.ClientConfig{
-		User: d.username,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		Timeout:         d.timeout,
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
+	done := make(chan struct{})
+	errs := make(chan error)
 
-	fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)
+	go func() {
+		for {
+			cfg := &ssh.ClientConfig{
+				User: d.username,
+				Auth: []ssh.AuthMethod{
+					ssh.PublicKeys(signer),
+				},
+				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			}
 
-	cli, err := ssh.Dial("tcp", d.address, cfg)
+			fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)
 
-	if err != nil {
+			d.client, err = ssh.Dial("tcp", d.address, cfg)
+
+			if err != nil {
+				s := err.Error()
+
+				if strings.Contains(s, "connection reset by peer") || strings.Contains(s, "EOF") {
+					continue
+				}
+
+				errs <- err
+				return
+			}
+
+			break
+		}
+
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-c.Done():
+		return c.Err()
+	case <-done:
+		break
+	case err := <-errs:
 		return err
 	}
 
 	fmt.Fprintf(d.Writer, "Established SSH connection to %s...\n\n", d.address)
 
 	d.env = env
-	d.client = cli
 
 	return d.placeObjects(objects, p)
 }

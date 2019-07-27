@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"io"
@@ -203,8 +204,6 @@ func (w worker) runBuild(id int64) error {
 
 	buf := &bytes.Buffer{}
 
-	w.signals[b.ID] = make(chan os.Signal)
-
 	r := runner.Runner{
 		Writer:    buf,
 		Env:       env,
@@ -219,7 +218,6 @@ func (w worker) runBuild(id int64) error {
 			build:     b,
 			users:     w.users,
 		},
-		Signals: w.signals[b.ID],
 	}
 
 	createDriverId := int64(0)
@@ -291,7 +289,17 @@ func (w worker) runBuild(id int64) error {
 		w.handleJobComplete(b, j)
 	})
 
-	r.RunWithTimeout(d, w.timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
+	defer cancel()
+
+	w.signals[b.ID] = make(chan os.Signal)
+
+	go func() {
+		<-w.signals[b.ID]
+		cancel()
+	}()
+
+	r.Run(ctx, d)
 
 	b.Status = r.Status
 	b.Output = sql.NullString{

@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -9,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
@@ -68,7 +68,7 @@ type QEMU struct {
 	hostfwd string
 }
 
-func (d *QEMU) Create(env []string, objects runner.Passthrough, p runner.Placer) error {
+func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with QEMU driver...\n")
 
 	supported := false
@@ -147,25 +147,7 @@ func (d *QEMU) Create(env []string, objects runner.Passthrough, p runner.Placer)
 		return errors.New("SSH driver for QEMU not initialized")
 	}
 
-	var attempts int
-
-	for {
-		if attempts == 5 {
-			break
-		}
-
-		err = d.SSH.Create(env, runner.NewPassthrough(), p)
-
-		if err == nil {
-			break
-		}
-
-		time.Sleep(time.Second * 5)
-
-		attempts++
-	}
-
-	if err != nil {
+	if err := d.SSH.Create(c, env, runner.NewPassthrough(), p); err != nil {
 		return err
 	}
 

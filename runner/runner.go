@@ -1,11 +1,11 @@
 package runner
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 )
@@ -43,7 +43,6 @@ type Runner struct {
 	Objects   Passthrough
 	Placer    Placer
 	Collector Collector
-	Signals   chan os.Signal
 	Status    Status
 }
 
@@ -132,11 +131,11 @@ func (r *Runner) Remove(stages ...string) {
 	}
 }
 
-func (r *Runner) Run(d Driver) error {
+func (r *Runner) Run(c context.Context, d Driver) error {
 	defer d.Destroy()
 
-	if err := d.Create(r.Env, r.Objects, r.Placer); err != nil {
-		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
+	if err := d.Create(c, r.Env, r.Objects, r.Placer); err != nil {
+		fmt.Fprintf(d, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 
 		r.Status = Failed
@@ -144,59 +143,35 @@ func (r *Runner) Run(d Driver) error {
 		return errRunFailed
 	}
 
-	for _, name := range r.order {
-		if err := r.realRunStage(name, d); err != nil {
-			if err == errStageNotFound {
-				return err
-			}
-
-			break
-		}
-	}
-
-	r.printLastJobStatus()
-
-	if r.Status == Failed {
-		return errRunFailed
-	}
-
-	return nil
-}
-
-func (r *Runner) RunWithTimeout(d Driver, duration time.Duration) error {
-	defer d.Destroy()
-
-	if err := d.Create(r.Env, r.Objects, r.Placer); err != nil {
-		fmt.Fprintf(r.Writer, "%s\n", errors.Cause(err))
-		r.printLastJobStatus()
-
-		r.Status = Failed
-
-		return errRunFailed
-	}
+	done := make(chan struct{})
 
 	go func() {
-		<-time.After(duration)
-		r.Signals <- TimedOut
+		for _, name := range r.order {
+			if err := r.realRunStage(name, d); err != nil {
+				if err == errStageNotFound {
+					done <- struct{}{}
+					return
+				}
+
+				break
+			}
+		}
+
+		done <- struct{}{}
 	}()
 
-	for _, name := range r.order {
-		if err := r.realRunStage(name, d); err != nil {
-			if err == errStageNotFound {
-				return err
-			}
+	select {
+	case <-c.Done():
+		r.printLastJobStatus()
 
-			break
+		return c.Err()
+	case <-done:
+		if r.Status == Failed {
+			return errRunFailed
 		}
+
+		return nil
 	}
-
-	r.printLastJobStatus()
-
-	if r.Status == Failed {
-		return errRunFailed
-	}
-
-	return nil
 }
 
 func (r Runner) printLastJobStatus() {
@@ -229,37 +204,20 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 
 	jobs := runJobs(stage.jobs, d, r.Collector, r.handleJobStart)
 
-	for jobs != nil {
-		select {
-			case sig := <-r.Signals:
-				if sig == os.Kill || sig == os.Interrupt || sig == TimedOut {
-					if sig == TimedOut {
-						r.Status = TimedOut
-					} else {
-						r.Status = Killed
-					}
+	for j := range jobs {
+		if r.handleJobComplete != nil {
+			r.handleJobComplete(j)
+		}
 
-					return errors.New(sig.String())
-				}
-			case j, ok := <-jobs:
-				if !ok {
-					jobs = nil
-				} else {
-					if r.handleJobComplete != nil {
-						r.handleJobComplete(j)
-					}
+		r.lastJob = j
 
-					r.lastJob = j
+		if j.Status >= r.Status {
+			r.Status = j.Status
+		}
 
-					if j.Status >= r.Status {
-						r.Status = j.Status
-					}
-
-					if r.Status == Failed {
-						fmt.Fprintf(r.Writer, "\n")
-						return errors.New("failed to run job: " + j.Name)
-					}
-				}
+		if r.Status == Failed {
+			fmt.Fprintf(r.Writer, "\n")
+			return errors.New("failed to run job: " + j.Name)
 		}
 	}
 

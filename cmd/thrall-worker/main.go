@@ -113,7 +113,7 @@ func main() {
 		Long:      "--version",
 		Exclusive: true,
 		Handler:   func(f cli.Flag, c cli.Command) {
-			fmt.Println("thrall", Build)
+			fmt.Println("thrall-worker", Build)
 		},
 	})
 

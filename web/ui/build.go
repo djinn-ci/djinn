@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
@@ -13,6 +14,7 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/auth"
 	"github.com/andrewpillar/thrall/template/build"
 	"github.com/andrewpillar/thrall/web"
 
@@ -45,8 +47,32 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		if strings.Contains(errors.Cause(err).Error(), "expired timestamp") {
+			c := &http.Cookie{
+				Name:     "user",
+				HttpOnly: true,
+				Path:     "/",
+				Expires:  time.Unix(0, 0),
+			}
+
+			http.SetCookie(w, c)
+		} else {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	if u.IsZero() {
+		p := &auth.LoginPage{
+			Form: template.Form{
+				CSRF: csrf.TemplateField(r),
+				Errors: h.Errors(w, r),
+				Form:   h.Form(w, r),
+			},
+		}
+
+		web.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 

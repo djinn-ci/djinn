@@ -175,6 +175,15 @@ func main() {
 		},
 	})
 
+	c.AddFlag(&cli.Flag{
+		Name:      "version",
+		Long:      "--version",
+		Exclusive: true,
+		Handler:   func(f cli.Flag, c cli.Command) {
+			fmt.Println("thrall", Build)
+		},
+	})
+
 	cmd := c.MainCommand(mainCommand)
 
 	cmd.AddFlag(&cli.Flag{

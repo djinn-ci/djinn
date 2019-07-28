@@ -162,7 +162,7 @@ func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Tag has been deleted:" + t.Name))
+	h.FlashAlert(w, r, template.Success("Tag has been deleted: " + t.Name))
 
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

@@ -282,10 +282,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 		}
 
 		bo := b.BuildObjectStore().New()
-		bo.ObjectID = sql.NullInt64{
-			Int64: o.ID,
-			Valid: o.ID > 0,
-		}
+		bo.ObjectID = o.ID
 		bo.Source = src
 		bo.Name = dst
 

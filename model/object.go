@@ -30,11 +30,11 @@ type Object struct {
 type BuildObject struct {
 	model
 
-	BuildID     int64         `db:"build_id"`
-	ObjectID    sql.NullInt64 `db:"object_id"`
-	Source      string        `db:"source"`
-	Name        string        `db:"name"`
-	Placed      bool          `db:"placed"`
+	BuildID     int64  `db:"build_id"`
+	ObjectID    int64  `db:"object_id"`
+	Source      string `db:"source"`
+	Name        string `db:"name"`
+	Placed      bool   `db:"placed"`
 
 	Build  *Build
 	Object *Object
@@ -171,7 +171,7 @@ func (os ObjectStore) All(opts ...Option) ([]*Object, error) {
 
 	opts = append([]Option{Columns("*")}, opts...)
 
-	q := Select(append(opts, ForUser(os.User), WhereIs("deleted_at", "NULL"), Table("objects"))...)
+	q := Select(append(opts, ForUser(os.User), Table("objects"))...)
 
 	err := os.Select(&oo, q.Build(), q.Args()...)
 
@@ -188,7 +188,7 @@ func (os ObjectStore) All(opts ...Option) ([]*Object, error) {
 }
 
 func (os ObjectStore) Index(opts ...Option) ([]*Object, error) {
-	oo, err := os.All(opts...)
+	oo, err := os.All(append(opts, WhereIs("deleted_at", "NULL"))...)
 
 	return oo, errors.Err(err)
 }
@@ -245,7 +245,6 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 
 		o.CreatedAt = nil
 		o.UpdatedAt = nil
-		o.DeletedAt = nil
 	}
 
 	return o, errors.Err(err)
@@ -328,9 +327,7 @@ func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 	ids := make([]interface{}, 0, len(boo))
 
 	for _, bo := range boo {
-		if bo.ObjectID.Valid {
-			ids = append(ids, bo.ObjectID.Int64)
-		}
+		ids = append(ids, bo.ObjectID)
 	}
 
 	objects := ObjectStore{
@@ -345,7 +342,7 @@ func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 
 	for _, bo := range boo {
 		for _, o := range oo {
-			if bo.ObjectID.Int64 == o.ID {
+			if bo.ObjectID == o.ID {
 				bo.Object = o
 			}
 		}
@@ -368,10 +365,7 @@ func (bos BuildObjectStore) New() *BuildObject {
 	}
 
 	if bos.Object != nil {
-		bo.ObjectID = sql.NullInt64{
-			Int64: bos.Object.ID,
-			Valid: true,
-		}
+		bo.ObjectID = bos.Object.ID
 	}
 
 	return bo

@@ -104,13 +104,13 @@ func (o *Object) Destroy() error {
 
 func (o *Object) IsZero() bool {
 	return o.model.IsZero() &&
-           o.UserID == 0 &&
-           o.Name == "" &&
-           o.Type == "" &&
-           o.Size == 0 &&
-           len(o.MD5) == 0 &&
-           len(o.SHA256) == 0 &&
-           !o.DeletedAt.Valid
+		o.UserID == 0 &&
+		o.Name == "" &&
+		o.Type == "" &&
+		o.Size == 0 &&
+		len(o.MD5) == 0 &&
+		len(o.SHA256) == 0 &&
+		o.DeletedAt == nil || !o.DeletedAt.Valid
 }
 
 func (o Object) UIEndpoint(uri ...string) string {
@@ -171,7 +171,7 @@ func (os ObjectStore) All(opts ...Option) ([]*Object, error) {
 
 	opts = append([]Option{Columns("*")}, opts...)
 
-	q := Select(append(opts, ForUser(os.User), WhereIs("deleted_at", "NULL"), Table("objects"))...)
+	q := Select(append(opts, ForUser(os.User), Table("objects"))...)
 
 	err := os.Select(&oo, q.Build(), q.Args()...)
 
@@ -188,7 +188,7 @@ func (os ObjectStore) All(opts ...Option) ([]*Object, error) {
 }
 
 func (os ObjectStore) Index(opts ...Option) ([]*Object, error) {
-	oo, err := os.All(opts...)
+	oo, err := os.All(append(opts, WhereIs("deleted_at", "NULL"))...)
 
 	return oo, errors.Err(err)
 }

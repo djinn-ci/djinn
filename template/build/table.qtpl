@@ -133,7 +133,7 @@ import (
 			{% for _, o := range oo %}
 				<tr>
 					<td>
-						{% if o.Object != nil && !o.Object.DeletedAt.Valid %}
+						{% if o.Object != nil && o.Object.DeletedAt == nil %}
 							<a href="{%s o.Object.UIEndpoint() %}">{%s o.Source %}</a>
 						{% else %}
 							<a title="Object not found"><strike>{%s o.Source %}</strike></a>

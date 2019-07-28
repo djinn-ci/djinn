@@ -8,9 +8,8 @@ func NewErrors() Errors {
 	return Errors(make(map[string][]string))
 }
 
-// Final returns the final set of errors that have been put together. If there
-// are none, then nil is returned.
-func (e Errors) Final() error {
+// Err return the final error if there are any
+func (e Errors) Err() error {
 	if len(e) == 0 {
 		return nil
 	}

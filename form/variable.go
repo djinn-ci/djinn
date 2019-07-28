@@ -6,12 +6,6 @@ import (
 	"github.com/andrewpillar/thrall/model"
 )
 
-var (
-	ErrVariableKeyRequired   = errors.New("Key can't be blank")
-	ErrVariableKeyExists     = errors.New("Variable already exists")
-	ErrVariableValueRequired = errors.New("Value can't be blank")
-)
-
 type Variable struct {
 	Variables model.VariableStore
 
@@ -31,7 +25,11 @@ func (f Variable) Validate() error {
 	errs := NewErrors()
 
 	if f.Key == "" {
-		errs.Put("key", ErrVariableKeyRequired)
+		errs.Put("key", ErrFieldRequired("Key"))
+	}
+
+	if !reAlphaNumDotDash.Match([]byte(f.Key)) {
+		errs.Put("key", ErrFieldInvalid("Key", "can only contain letters, numbers, dashes, and dots"))
 	}
 
 	v, err := f.Variables.FindByKey(f.Key)
@@ -43,12 +41,12 @@ func (f Variable) Validate() error {
 	}
 
 	if !v.IsZero() {
-		errs.Put("key", ErrVariableKeyExists)
+		errs.Put("key", ErrFieldExists("Key"))
 	}
 
 	if f.Value == "" {
-		errs.Put("value", ErrVariableValueRequired)
+		errs.Put("value", ErrFieldRequired("Value"))
 	}
 
-	return errs.Final()
+	return errs.Err()
 }

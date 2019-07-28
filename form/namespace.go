@@ -10,16 +10,9 @@ import (
 )
 
 var (
-	namespacePattern = "^[a-zA-Z0-9]+$"
-	namespaceRegex   = regexp.MustCompile(namespacePattern)
+	reNamespace = regexp.MustCompile("^[a-zA-Z0-9]+$")
 
-	ErrNamespaceNameRequired = errors.New("Name can't be blank")
-	ErrNamespaceNameLen      = errors.New("Name must be between 3 and 32 characters")
-	ErrNamespaceInvalid      = errors.New("Name can only contain numbers and letters")
-	ErrNamespaceExists       = errors.New("Namespace already exists")
-	ErrNamespaceTooDeep      = errors.New("Namespaces can only be nested to 20 levels")
-
-	ErrDescriptionTooLong = errors.New("Description can't be longer than 255 characters")
+	ErrNamespaceTooDeep = errors.New("Namespaces can only be nested to 20 levels")
 )
 
 type Namespace struct {
@@ -45,15 +38,15 @@ func (f Namespace) Validate() error {
 	errs := NewErrors()
 
 	if f.Name == "" {
-		errs.Put("name", ErrNamespaceNameRequired)
+		errs.Put("name", ErrFieldRequired("Name"))
 	}
 
 	if len(f.Name) < 3 || len(f.Name) > 32 {
-		errs.Put("name", ErrNamespaceNameLen)
+		errs.Put("name", ErrFieldInvalid("Name", "must be between 3 and 32 characters in length"))
 	}
 
-	if !namespaceRegex.Match([]byte(f.Name)) {
-		errs.Put("name", ErrNamespaceInvalid)
+	if !reNamespace.Match([]byte(f.Name)) {
+		errs.Put("name", ErrFieldInvalid("Name", "can only contain numbers and letters"))
 	}
 
 	checkUnique := true
@@ -79,13 +72,13 @@ func (f Namespace) Validate() error {
 
 			errs.Put("namespace", errors.Cause(err))
 		} else if !n.IsZero() {
-			errs.Put("name", ErrNamespaceExists)
+			errs.Put("name", ErrFieldExists("Name"))
 		}
 	}
 
 	if len(f.Description) > 255 {
-		errs.Put("description", ErrDescriptionTooLong)
+		errs.Put("description", ErrFieldInvalid("Description", "must be shorted than 255 characters in length"))
 	}
 
-	return errs.Final()
+	return errs.Err()
 }

@@ -1,9 +1,5 @@
 package form
 
-import "github.com/andrewpillar/thrall/errors"
-
-var ErrHandleRequired = errors.New("Email or username can't be blank")
-
 type Login struct {
 	Handle     string `schema:"handle"`
 	Password   string `schema:"password"`
@@ -21,12 +17,12 @@ func (f Login) Validate() error {
 	errs := NewErrors()
 
 	if f.Handle == "" {
-		errs.Put("handle", ErrHandleRequired)
+		errs.Put("handle", ErrFieldRequired("Email or username"))
 	}
 
 	if f.Password == "" {
-		errs.Put("password", ErrPasswordRequired)
+		errs.Put("password", ErrFieldRequired("Password"))
 	}
 
-	return errs.Final()
+	return errs.Err()
 }

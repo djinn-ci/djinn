@@ -8,27 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/model"
 )
 
-var (
-	emailPattern = "@"
-	emailRegex   = regexp.MustCompile(emailPattern)
-
-	usernamePattern = "^[_-a-zA-Z0-9\\S.]+$"
-	usernameRegex   = regexp.MustCompile(usernamePattern)
-
-	ErrEmailRequired = errors.New("Email can't be blank")
-	ErrEmailLen      = errors.New("Email must be less than 254 characters")
-	ErrEmailInvalid  = errors.New("Email is not valid")
-	ErrEmailTaken    = errors.New("Email is already taken")
-
-	ErrUsernameRequired = errors.New("Username can't be blank")
-	ErrUsernameLen      = errors.New("Username must be between 3 and 32 characters")
-	ErrUsernameInvalid  = errors.New("Username can only contain letters, numbers, dashes, and dots")
-	ErrUsernameTaken    = errors.New("Username is already taken")
-
-	ErrPasswordRequired = errors.New("Password can't be blank")
-	ErrPasswordLen      = errors.New("Password must be between 6 and 60 characters")
-	ErrPasswordMismatch = errors.New("Passwords do not match")
-)
+var reEmail = regexp.MustCompile("@")
 
 type Register struct {
 	Users model.UserStore
@@ -51,15 +31,15 @@ func (f Register) Validate() error {
 	errs := NewErrors()
 
 	if f.Email == "" {
-		errs.Put("email", ErrEmailRequired)
+		errs.Put("email", ErrFieldRequired("Email"))
 	}
 
 	if len(f.Email) > 254 {
-		errs.Put("email", ErrEmailLen)
+		errs.Put("email", ErrFieldInvalid("Email", "must be less than 254 characters"))
 	}
 
-	if !emailRegex.Match([]byte(f.Email)) {
-		errs.Put("email", ErrEmailInvalid)
+	if !reEmail.Match([]byte(f.Email)) {
+		errs.Put("email", ErrFieldInvalid("Email", ""))
 	}
 
 	u, err := f.Users.FindByEmail(f.Email)
@@ -69,19 +49,19 @@ func (f Register) Validate() error {
 
 		errs.Put("register", errors.Cause(err))
 	} else if !u.IsZero() {
-		errs.Put("email", ErrEmailTaken)
+		errs.Put("email", ErrFieldExists("Email"))
 	}
 
 	if f.Username == "" {
-		errs.Put("username", ErrUsernameRequired)
+		errs.Put("username", ErrFieldRequired("Username"))
 	}
 
 	if len(f.Username) < 3 || len(f.Username) > 64 {
-		errs.Put("username", ErrUsernameLen)
+		errs.Put("username", ErrFieldInvalid("Username", "must be between 3 and 32 characters in length"))
 	}
 
-	if !usernameRegex.Match([]byte(f.Username)) {
-		errs.Put("username", ErrUsernameInvalid)
+	if !reAlphaNumDotDash.Match([]byte(f.Username)) {
+		errs.Put("username", ErrFieldInvalid("Username", "can only contain letters, numbers, dashes, and dots"))
 	}
 
 	u, err = f.Users.FindByUsername(f.Username)
@@ -91,25 +71,25 @@ func (f Register) Validate() error {
 
 		errs.Put("register", errors.Cause(err))
 	} else if !u.IsZero() {
-		errs.Put("username", ErrUsernameTaken)
+		errs.Put("username", ErrFieldExists("Username"))
 	}
 
 	if f.Password == "" {
-		errs.Put("password", ErrPasswordRequired)
+		errs.Put("password", ErrFieldRequired("Password"))
 	}
 
 	if len(f.Password) < 6 || len(f.Password) > 60 {
-		errs.Put("password", ErrPasswordLen)
+		errs.Put("password", ErrFieldInvalid("Password", "must be between 6 and 60 characters in length"))
 	}
 
 	if f.VerifyPassword == "" {
-		errs.Put("verify_password", ErrPasswordRequired)
+		errs.Put("verify_password", ErrFieldRequired("Verify password"))
 	}
 
 	if f.Password != f.VerifyPassword {
-		errs.Put("password", ErrPasswordMismatch)
-		errs.Put("verify_password", ErrPasswordMismatch)
+		errs.Put("password", ErrFieldInvalid("Password", "does not match"))
+		errs.Put("verify_password", ErrFieldInvalid("Verify Password", "does not match"))
 	}
 
-	return errs.Final()
+	return errs.Err()
 }

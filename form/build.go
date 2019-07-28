@@ -7,11 +7,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 )
 
-var (
-	ErrBuildManifestRequired = errors.New("Build manifest can't be blank")
-	ErrBuildManifestInvalid  = errors.New("Build manifest is not valid YAML")
-)
-
 type tags []string
 
 type Build struct {
@@ -59,18 +54,18 @@ func (f Build) Validate() error {
 	errs := NewErrors()
 
 	if f.Manifest == "" {
-		errs.Put("manifest", ErrBuildManifestRequired)
+		errs.Put("manifest", ErrFieldRequired("Build manifest"))
 	}
 
 	m, err := config.DecodeManifest(strings.NewReader(f.Manifest))
 
 	if err != nil {
-		errs.Put("manifest", ErrBuildManifestInvalid)
+		errs.Put("manifest", ErrFieldInvalid("Build manifest", errors.Cause(err).Error()))
 	}
 
 	if err := m.Validate(); err != nil {
-		errs.Put("manifest", err)
+		errs.Put("manifest", ErrFieldInvalid("Build manifest", err.Error()))
 	}
 
-	return errs.Final()
+	return errs.Err()
 }

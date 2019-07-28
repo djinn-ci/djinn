@@ -1,0 +1,72 @@
+{%
+import (
+	htmltemplate "html/template"
+
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type IndexPage struct {
+	template.Page
+
+	CSRF      htmltemplate.HTML
+	Search    string
+	Variables []*model.Variable
+}
+%}
+
+{% collapsespace %}
+{% func (p *IndexPage) Title() %}
+	Variables - Thrall
+{% endfunc %}
+
+{% func (p *IndexPage) Body() %}
+	<div class="panel">
+		<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find a variable...") %}</div>
+		{% if len(p.Variables) > 0 %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>KEY</th>
+						<th>VALUE</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, v := range p.Variables %}
+						<tr>
+							<td><span class="code">{%s v.Key %}</span></td>
+							<td><span class="code">{%s v.Value %}</span></td>
+							<td class="align-right">
+								<form method="POST" action="{%s v.UIEndpoint() %}">
+									{%s= string(p.CSRF) %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Delete</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% else %}
+			{% if p.Search != "" %}
+				<div class="panel-message muted">No variables have been created.</div>
+			{% else %}
+				<div class="panel-message muted">No results found.</div>
+			{% endif %}
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *IndexPage) Header() %}
+	Variables
+{% endfunc %}
+
+{% func (p *IndexPage) Actions() %}
+	<li><a href="/variables/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *IndexPage) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

@@ -2,6 +2,8 @@ package model
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -144,9 +146,10 @@ func (bvs BuildVariableStore) New() *BuildVariable {
 }
 
 func (v *Variable) Create() error {
-	q := Select(
+	q := Insert(
 		Table("variables"),
 		Columns("user_id", "key", "value"),
+		Values(v.UserID, v.Key, v.Value),
 		Returning("id", "created_at", "updated_at"),
 	)
 
@@ -161,6 +164,53 @@ func (v *Variable) Create() error {
 	row := stmt.QueryRow(q.Args()...)
 
 	return errors.Err(row.Scan(&v.ID, &v.CreatedAt, &v.UpdatedAt))
+}
+
+func (v *Variable) Destroy() error {
+	q := Update(
+		Table("build_variables"),
+		SetRaw("variable_id", "NULL"),
+		WhereEq("variable_id", v.ID),
+	)
+
+	stmt1, err := v.Prepare(q.Build())
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt1.Close()
+
+	if _, err := stmt1.Exec(q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+
+	q = Delete(
+		Table("variables"),
+		WhereEq("id", v.ID),
+	)
+
+	stmt2, err := v.Prepare(q.Build())
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt2.Close()
+
+	_, err = stmt2.Exec(q.Args()...)
+
+	return errors.Err(err)
+}
+
+func (v Variable) UIEndpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/variables/%v", v.ID)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
 }
 
 func (vs VariableStore) All(opts ...Option) ([]*Variable, error) {
@@ -186,6 +236,46 @@ func (vs VariableStore) All(opts ...Option) ([]*Variable, error) {
 
 	return vv, errors.Err(err)
 }
+
+func (vs VariableStore) findBy(col string, val interface{}) (*Variable, error) {
+	v := &Variable{
+		model: model{
+			DB: vs.DB,
+		},
+		User: vs.User,
+	}
+
+	q := Select(
+		Columns("*"),
+		Table("variables"),
+		WhereEq(col, val),
+		ForUser(vs.User),
+	)
+
+	err := vs.Get(v, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+
+		v.CreatedAt = nil
+		v.UpdatedAt = nil
+	}
+
+	return v, errors.Err(err)
+}
+
+func (vs VariableStore) Find(id int64) (*Variable, error) {
+	v, err := vs.findBy("id", id)
+
+	return v, errors.Err(err)
+}
+
+func (vs VariableStore) FindByKey(key string) (*Variable, error) {
+	v, err := vs.findBy("key", key)
+
+	return v, errors.Err(err)
+}
+
 
 func (vs VariableStore) New() *Variable {
 	v := &Variable{

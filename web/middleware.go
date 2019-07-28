@@ -16,9 +16,10 @@ import (
 type Middleware struct {
 	Handler
 
-	Builds  model.BuildStore
-	Objects model.ObjectStore
-	Users   model.UserStore
+	Builds    model.BuildStore
+	Objects   model.ObjectStore
+	Users     model.UserStore
+	Variables model.VariableStore
 }
 
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, bool) {
@@ -188,6 +189,41 @@ func (h Middleware) AuthObject(next http.Handler) http.Handler {
 		}
 
 		if o.IsZero() || u.ID != o.UserID {
+			HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (h Middleware) AuthVariable(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, ok := h.auth(w, r)
+
+		if !ok {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		vars := mux.Vars(r)
+
+		if _, ok := vars["variable"]; !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		id, _ := strconv.ParseInt(vars["variable"], 10, 64)
+
+		v, err := h.Variables.Find(id)
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		if v.IsZero() || u.ID != v.UserID {
 			HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}

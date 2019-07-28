@@ -162,6 +162,19 @@ func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
 	r.Use(mw.AuthObject)
 }
 
+func (s *uiServer) initVariable(h web.Handler, mw web.Middleware) {
+	variable := ui.Variable{
+		Handler: h,
+	}
+
+	r := s.router.PathPrefix("/variables").Subrouter()
+	r.HandleFunc("", variable.Index).Methods("GET")
+	r.HandleFunc("/create", variable.Create).Methods("GET")
+	r.HandleFunc("", variable.Store).Methods("POST")
+	r.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
+	r.Use(mw.AuthVariable)
+}
+
 func (s *uiServer) init() {
 	gob.Register(form.NewErrors())
 	gob.Register(template.Alert{})
@@ -181,12 +194,17 @@ func (s *uiServer) init() {
 		DB: s.db,
 	}
 
+	vars := model.VariableStore{
+		DB: s.db,
+	}
+
 	wh := web.New(securecookie.New(s.hash, s.key), session.New(s.client, s.key), users)
 	mw := web.Middleware{
-		Handler: wh,
-		Builds:  builds,
-		Objects: objects,
-		Users:   users,
+		Handler:   wh,
+		Builds:    builds,
+		Objects:   objects,
+		Users:     users,
+		Variables: vars,
 	}
 
 	s.router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -208,6 +226,7 @@ func (s *uiServer) init() {
 	s.initArtifact(wh, mw)
 	s.initObject(wh, mw)
 	s.initTag(wh, mw)
+	s.initVariable(wh, mw)
 
 	s.Server.Init(web.NewLog(web.NewSpoof(s.router)))
 }

@@ -110,7 +110,7 @@ func (o *Object) IsZero() bool {
            o.Size == 0 &&
            len(o.MD5) == 0 &&
            len(o.SHA256) == 0 &&
-           o.DeletedAt == nil
+           !o.DeletedAt.Valid
 }
 
 func (o Object) UIEndpoint(uri ...string) string {

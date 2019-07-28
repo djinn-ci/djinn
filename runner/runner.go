@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 )
@@ -13,6 +14,8 @@ import (
 var (
 	errStageNotFound = errors.New("stage could not be found")
 	errRunFailed     = errors.New("run failed")
+
+	createTimeout = time.Duration(time.Minute * 5)
 )
 
 type jobHandler func(j Job)
@@ -134,7 +137,10 @@ func (r *Runner) Remove(stages ...string) {
 func (r *Runner) Run(c context.Context, d Driver) error {
 	defer d.Destroy()
 
-	if err := d.Create(c, r.Env, r.Objects, r.Placer); err != nil {
+	ct, cancel := context.WithTimeout(context.Background(), createTimeout)
+	defer cancel()
+
+	if err := d.Create(ct, r.Env, r.Objects, r.Placer); err != nil {
 		fmt.Fprintf(d, "%s\n", errors.Cause(err))
 		r.printLastJobStatus()
 

@@ -379,7 +379,7 @@ func StreamRenderObjectTable(qw422016 *qt422016.Writer, oo []*model.BuildObject)
 		//line template/build/table.qtpl:133
 		qw422016.N().S(` <tr> <td> `)
 		//line template/build/table.qtpl:136
-		if o.Object != nil {
+		if o.Object != nil && !o.Object.DeletedAt.Valid {
 			//line template/build/table.qtpl:136
 			qw422016.N().S(` <a href="`)
 			//line template/build/table.qtpl:137

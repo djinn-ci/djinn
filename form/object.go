@@ -7,12 +7,7 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
-)
-
-var (
-	ErrFileRequired = errors.New("File is required")
-	ErrFileTooLarge = errors.New("File is too big")
-	ErrNameRequired = errors.New("Object name can't be blank")
+	"github.com/andrewpillar/thrall/model"
 )
 
 type Object struct {
@@ -22,6 +17,7 @@ type Object struct {
 	Name    string                `schema:"name"`
 	File    multipart.File        `schema:"-"`
 	Info    *multipart.FileHeader `schema:"-"`
+	Objects model.ObjectStore     `schema:"-"`
 }
 
 func (f Object) Fields() map[string]string {
@@ -35,35 +31,49 @@ func (f *Object) Validate() error {
 	errs := NewErrors()
 
 	if f.Name == "" {
-		errs.Put("name", ErrNameRequired)
+		errs.Put("name", ErrFieldRequired("Name"))
+	}
+
+	if !reAlphaNumDotDash.Match([]byte(f.Name)) {
+		errs.Put("name", ErrFieldInvalid("Name", "can only contain letters, numbers, dashes, and dots"))
+	}
+
+	o, err := f.Objects.FindByName(f.Name)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+
+		errs.Put("object", errors.Cause(err))
+	}
+
+	if !o.IsZero() {
+		errs.Put("name", ErrFieldExists("Name"))
 	}
 
 	f.Request.Body = http.MaxBytesReader(f.Writer, f.Request.Body, f.Limit)
 
 	if err := f.Request.ParseMultipartForm(f.Limit); err != nil {
 		if strings.Contains(err.Error(), "request body too large") {
-			errs.Put("file", ErrFileTooLarge)
+			errs.Put("file", ErrFieldInvalid("File", "too big"))
 			return errs
 		}
 
 		log.Error.Println(errors.Err(err))
-		errs.Put("file", errors.New("Failed to upload file"))
+		errs.Put("file", ErrField("File", err))
 
 		return errs
 	}
-
-	var err error
 
 	f.File, f.Info, err = f.Request.FormFile("file")
 
 	if err != nil {
 		if strings.Contains(err.Error(), "no such file") {
-			errs.Put("file", ErrFileRequired)
+			errs.Put("file", ErrFieldRequired("File"))
 			return errs
 		}
 
-		errs.Put("file", err)
+		errs.Put("file", ErrField("File", err))
 	}
 
-	return errs.Final()
+	return errs.Err()
 }

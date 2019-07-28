@@ -179,6 +179,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 		Writer:  w,
 		Request: r,
 		Limit:   h.Limit,
+		Objects: u.ObjectStore(),
 	}
 
 	if err := h.ValidateForm(f, w, r); err != nil {
@@ -239,7 +240,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success(`Object has been added: <a href="` + o.UIEndpoint() + `">` + o.Name + `</a>`))
+	h.FlashAlert(w, r, template.Success("Object has been added: " + o.Name))
 
 	http.Redirect(w, r, "/objects", http.StatusSeeOther)
 }

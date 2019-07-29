@@ -56,14 +56,14 @@ func (a *Artifact) Create() error {
 
 func (a Artifact) IsZero() bool {
 	return a.model.IsZero() &&
-           a.BuildID == 0 &&
-           a.JobID == 0 &&
-           a.Hash == "" &&
-           a.Source == "" &&
-           a.Name == "" &&
-           !a.Size.Valid &&
-           len(a.MD5) == 0 &&
-           len(a.SHA256) == 0
+		a.BuildID == 0 &&
+		a.JobID == 0 &&
+		a.Hash == "" &&
+		a.Source == "" &&
+		a.Name == "" &&
+		!a.Size.Valid &&
+		len(a.MD5) == 0 &&
+		len(a.SHA256) == 0
 }
 
 func (a Artifact) UIEndpoint(uri ...string) string {

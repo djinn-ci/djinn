@@ -18,8 +18,8 @@ type Stage struct {
 	Name       string        `db:"name"`
 	CanFail    bool          `db:"can_fail"`
 	Status     runner.Status `db:"status"`
-	StartedAt  *pq.NullTime  `db:"started_at"`
-	FinishedAt *pq.NullTime  `db:"finished_at"`
+	StartedAt  pq.NullTime   `db:"started_at"`
+	FinishedAt pq.NullTime   `db:"finished_at"`
 
 	Build *Build
 	Jobs  []*Job
@@ -126,9 +126,6 @@ func (stgs StageStore) Find(id int64) (*Stage, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		s.CreatedAt = nil
-		s.UpdatedAt = nil
 	}
 
 	return s, errors.Err(err)
@@ -153,9 +150,6 @@ func (stgs StageStore) FindByName(name string) (*Stage, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		s.CreatedAt = nil
-		s.UpdatedAt = nil
 	}
 
 	return s, errors.Err(err)

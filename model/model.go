@@ -18,9 +18,9 @@ var sourceFmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=disable"
 type model struct {
 	*sqlx.DB
 
-	ID        int64      `db:"id,omitcreate"`
-	CreatedAt *time.Time `db:"created_at,omitcreate"`
-	UpdatedAt *time.Time `db:"updated_at"`
+	ID        int64     `db:"id,omitcreate"`
+	CreatedAt time.Time `db:"created_at,omitcreate"`
+	UpdatedAt time.Time `db:"updated_at"`
 }
 
 func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
@@ -126,5 +126,5 @@ func Search(col, search string) Option {
 }
 
 func (m model) IsZero() bool {
-	return m.ID == 0 && m.CreatedAt == nil && m.UpdatedAt == nil
+	return m.ID == 0 && m.CreatedAt == time.Time{} && m.UpdatedAt == time.Time{}
 }

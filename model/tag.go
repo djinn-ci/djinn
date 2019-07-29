@@ -122,9 +122,6 @@ func (ts TagStore) Find(id int64) (*Tag, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		t.CreatedAt = nil
-		t.UpdatedAt = nil
 	}
 
 	return t, errors.Err(err)

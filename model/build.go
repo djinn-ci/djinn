@@ -171,13 +171,13 @@ func (b *Build) Create() error {
 
 func (b *Build) IsZero() bool {
 	return b.model.IsZero() &&
-           b.UserID == 0 &&
-           !b.NamespaceID.Valid &&
-           b.Manifest == "" &&
-           b.Status == runner.Status(0) &&
-           !b.Output.Valid &&
-           !b.StartedAt.Valid &&
-           !b.FinishedAt.Valid
+		b.UserID == 0 &&
+		!b.NamespaceID.Valid &&
+		b.Manifest == "" &&
+		b.Status == runner.Status(0) &&
+		!b.Output.Valid &&
+		!b.StartedAt.Valid &&
+		!b.FinishedAt.Valid
 }
 
 func (b *Build) Update() error {
@@ -471,9 +471,6 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		b.CreatedAt = nil
-		b.UpdatedAt = nil
 	}
 
 	return b, errors.Err(err)

@@ -89,14 +89,14 @@ func (j *Job) Create() error {
 
 func (j *Job) IsZero() bool {
 	return j.model.IsZero() &&
-           j.BuildID == 0 &&
-           j.StageID == 0 &&
-           j.Name == "" &&
-           j.Commands == "" &&
-           j.Status == runner.Status(0) &&
-           !j.Output.Valid &&
-           !j.StartedAt.Valid &&
-           !j.FinishedAt.Valid
+		j.BuildID == 0 &&
+		j.StageID == 0 &&
+		j.Name == "" &&
+		j.Commands == "" &&
+		j.Status == runner.Status(0) &&
+		!j.Output.Valid &&
+		!j.StartedAt.Valid &&
+		!j.FinishedAt.Valid
 }
 
 func (j *Job) LoadArtifacts() error {
@@ -257,9 +257,6 @@ func (js JobStore) Find(id int64) (*Job, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		j.CreatedAt = nil
-		j.UpdatedAt = nil
 	}
 
 	return j, errors.Err(err)
@@ -286,9 +283,6 @@ func (js JobStore) FindByName(name string) (*Job, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		j.CreatedAt = nil
-		j.UpdatedAt = nil
 	}
 
 	return j, errors.Err(err)

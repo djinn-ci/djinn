@@ -15,14 +15,14 @@ import (
 type Object struct {
 	model
 
-	UserID    int64        `db:"user_id"`
-	Hash      string       `db:"hash"`
-	Name      string       `db:"name"`
-	Type      string       `db:"type"`
-	Size      int64        `db:"size"`
-	MD5       []byte       `db:"md5"`
-	SHA256    []byte       `db:"sha256"`
-	DeletedAt *pq.NullTime `db:"deleted_at"`
+	UserID    int64       `db:"user_id"`
+	Hash      string      `db:"hash"`
+	Name      string      `db:"name"`
+	Type      string      `db:"type"`
+	Size      int64       `db:"size"`
+	MD5       []byte      `db:"md5"`
+	SHA256    []byte      `db:"sha256"`
+	DeletedAt pq.NullTime `db:"deleted_at"`
 
 	User *User
 }
@@ -110,7 +110,7 @@ func (o *Object) IsZero() bool {
 		o.Size == 0 &&
 		len(o.MD5) == 0 &&
 		len(o.SHA256) == 0 &&
-		o.DeletedAt == nil
+		!o.DeletedAt.Valid
 }
 
 func (o Object) UIEndpoint(uri ...string) string {
@@ -213,10 +213,6 @@ func (os ObjectStore) Find(id int64) (*Object, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		o.CreatedAt = nil
-		o.UpdatedAt = nil
-		o.DeletedAt = nil
 	}
 
 	return o, errors.Err(err)
@@ -242,10 +238,6 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		o.CreatedAt = nil
-		o.UpdatedAt = nil
-		o.DeletedAt = nil
 	}
 
 	return o, errors.Err(err)

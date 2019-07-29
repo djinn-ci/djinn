@@ -256,9 +256,6 @@ func (vs VariableStore) findBy(col string, val interface{}) (*Variable, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		v.CreatedAt = nil
-		v.UpdatedAt = nil
 	}
 
 	return v, errors.Err(err)

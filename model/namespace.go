@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -144,16 +145,16 @@ func (n *Namespace) Destroy() error {
 }
 
 func (n *Namespace) IsZero() bool {
-	return n.ID == 0 &&
-           n.UserID == 0 &&
-           !n.ParentID.Valid &&
-           n.Name == "" &&
-           n.Path == "" &&
-           n.Description == "" &&
-           n.Level == 0 &&
-           n.Visibility == Visibility(0) &&
-           n.CreatedAt == nil &&
-           n.UpdatedAt == nil
+	return n.model.IsZero() &&
+		n.UserID == 0 &&
+		!n.ParentID.Valid &&
+		n.Name == "" &&
+		n.Path == ""&&
+		n.Description == "" &&
+		n.Level == 0 &&
+		n.Visibility == Visibility(0) &&
+		n.CreatedAt == time.Time{} &&
+		n.UpdatedAt == time.Time{}
 }
 
 func (n *Namespace) LoadParent() error {
@@ -284,9 +285,6 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		n.CreatedAt = nil
-		n.UpdatedAt = nil
 	}
 
 	return n, errors.Err(err)
@@ -313,9 +311,6 @@ func (ns NamespaceStore) FindByPath(path string) (*Namespace, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		n.CreatedAt = nil
-		n.UpdatedAt = nil
 	}
 
 	return n, errors.Err(err)

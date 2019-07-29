@@ -105,10 +105,10 @@ func (u *User) Destroy() error {
 
 func (u *User) IsZero() bool {
 	return u.model.IsZero() &&
-           u.Email == "" &&
-           u.Username == "" &&
-           len(u.Password) == 0 &&
-           !u.DeletedAt.Valid
+		u.Email == "" &&
+		u.Username == "" &&
+		len(u.Password) == 0 &&
+		!u.DeletedAt.Valid
 }
 
 func (u *User) Update() error {
@@ -167,9 +167,6 @@ func (us UserStore) Find(id int64) (*User, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		u.CreatedAt = nil
-		u.UpdatedAt = nil
 	}
 
 	return u, errors.Err(err)
@@ -188,9 +185,6 @@ func (us UserStore) FindByEmail(email string) (*User, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		u.CreatedAt = nil
-		u.UpdatedAt = nil
 	}
 
 	return u, errors.Err(err)
@@ -216,9 +210,6 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		u.CreatedAt = nil
-		u.UpdatedAt = nil
 	}
 
 	return u, errors.Err(err)
@@ -237,9 +228,6 @@ func (us UserStore) FindByUsername(username string) (*User, error) {
 
 	if err == sql.ErrNoRows {
 		err = nil
-
-		u.CreatedAt = nil
-		u.UpdatedAt = nil
 	}
 
 	return u, errors.Err(err)

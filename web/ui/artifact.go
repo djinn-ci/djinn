@@ -126,5 +126,5 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 
 	defer f.Close()
 
-	http.ServeContent(w, r, a.Name, *a.UpdatedAt, f)
+	http.ServeContent(w, r, a.Name, a.UpdatedAt, f)
 }

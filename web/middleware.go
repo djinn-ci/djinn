@@ -188,7 +188,7 @@ func (h Middleware) AuthObject(next http.Handler) http.Handler {
 			return
 		}
 
-		if o.IsZero() || u.ID != o.UserID {
+		if o.IsZero() || u.ID != o.UserID || o.DeletedAt.Valid {
 			HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}

@@ -24,7 +24,6 @@ type IndexPage struct {
 
 {% func (p *IndexPage) Body() %}
 	<div class="panel">
-		<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find a variable...") %}</div>
 		{% if len(p.Variables) > 0 %}
 			<table class="table">
 				<thead>
@@ -51,9 +50,10 @@ type IndexPage struct {
 				</tbody>
 			</table>
 		{% else %}
-			{% if p.Search != "" %}
+			{% if p.Search == "" %}
 				<div class="panel-message muted">No variables have been created.</div>
 			{% else %}
+				<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find a variable...") %}</div>
 				<div class="panel-message muted">No results found.</div>
 			{% endif %}
 		{% endif %}

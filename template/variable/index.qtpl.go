@@ -70,51 +70,51 @@ func (p *IndexPage) Title() string {
 //line template/variable/index.qtpl:25
 func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/variable/index.qtpl:25
-	qw422016.N().S(` <div class="panel"> <div class="panel-header">`)
+	qw422016.N().S(` <div class="panel"> `)
 	//line template/variable/index.qtpl:27
-	template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find a variable...")
-	//line template/variable/index.qtpl:27
-	qw422016.N().S(`</div> `)
-	//line template/variable/index.qtpl:28
 	if len(p.Variables) > 0 {
-		//line template/variable/index.qtpl:28
+		//line template/variable/index.qtpl:27
 		qw422016.N().S(` <table class="table"> <thead> <tr> <th>KEY</th> <th>VALUE</th> <th></th> </tr> </thead> <tbody> `)
-		//line template/variable/index.qtpl:38
+		//line template/variable/index.qtpl:37
 		for _, v := range p.Variables {
-			//line template/variable/index.qtpl:38
+			//line template/variable/index.qtpl:37
 			qw422016.N().S(` <tr> <td><span class="code">`)
-			//line template/variable/index.qtpl:40
+			//line template/variable/index.qtpl:39
 			qw422016.E().S(v.Key)
-			//line template/variable/index.qtpl:40
+			//line template/variable/index.qtpl:39
 			qw422016.N().S(`</span></td> <td><span class="code">`)
-			//line template/variable/index.qtpl:41
+			//line template/variable/index.qtpl:40
 			qw422016.E().S(v.Value)
-			//line template/variable/index.qtpl:41
+			//line template/variable/index.qtpl:40
 			qw422016.N().S(`</span></td> <td class="align-right"> <form method="POST" action="`)
-			//line template/variable/index.qtpl:43
+			//line template/variable/index.qtpl:42
 			qw422016.E().S(v.UIEndpoint())
-			//line template/variable/index.qtpl:43
+			//line template/variable/index.qtpl:42
 			qw422016.N().S(`"> `)
-			//line template/variable/index.qtpl:44
+			//line template/variable/index.qtpl:43
 			qw422016.N().S(string(p.CSRF))
-			//line template/variable/index.qtpl:44
+			//line template/variable/index.qtpl:43
 			qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> </td> </tr> `)
-			//line template/variable/index.qtpl:50
+			//line template/variable/index.qtpl:49
 		}
-		//line template/variable/index.qtpl:50
+		//line template/variable/index.qtpl:49
 		qw422016.N().S(` </tbody> </table> `)
-		//line template/variable/index.qtpl:53
+		//line template/variable/index.qtpl:52
 	} else {
-		//line template/variable/index.qtpl:53
+		//line template/variable/index.qtpl:52
 		qw422016.N().S(` `)
-		//line template/variable/index.qtpl:54
-		if p.Search != "" {
-			//line template/variable/index.qtpl:54
+		//line template/variable/index.qtpl:53
+		if p.Search == "" {
+			//line template/variable/index.qtpl:53
 			qw422016.N().S(` <div class="panel-message muted">No variables have been created.</div> `)
-			//line template/variable/index.qtpl:56
+			//line template/variable/index.qtpl:55
 		} else {
+			//line template/variable/index.qtpl:55
+			qw422016.N().S(` <div class="panel-header">`)
 			//line template/variable/index.qtpl:56
-			qw422016.N().S(` <div class="panel-message muted">No results found.</div> `)
+			template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find a variable...")
+			//line template/variable/index.qtpl:56
+			qw422016.N().S(`</div> <div class="panel-message muted">No results found.</div> `)
 			//line template/variable/index.qtpl:58
 		}
 		//line template/variable/index.qtpl:58

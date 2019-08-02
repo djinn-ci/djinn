@@ -52,6 +52,8 @@ func mainCommand(cmd cli.Command) {
 
 	log.SetLogger(log.NewStdLog(logf))
 
+	crypto.Key = []byte(cfg.Crypto.Key)
+
 	if err := crypto.InitHashing(cfg.Crypto.Salt, 8); err != nil {
 		log.Error.Fatalf("failed to initialize hashing mechanism: %s\n", err)
 	}

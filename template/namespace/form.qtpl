@@ -85,7 +85,6 @@ func (p *Form) disabled(vis model.Visibility) string {
 %}
 
 {% collapsespace %}
-
 {% func (p *Form) Body() %}
 	<div class="panel">
 		<div class="panel-body slim">

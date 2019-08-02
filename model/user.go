@@ -40,6 +40,13 @@ func (u *User) BuildStore() BuildStore {
 	}
 }
 
+func (u *User) KeyStore() KeyStore {
+	return KeyStore{
+		DB:   u.DB,
+		User: u,
+	}
+}
+
 func (u *User) NamespaceStore() NamespaceStore {
 	return NamespaceStore{
 		DB:   u.DB,

@@ -1,6 +1,10 @@
 package crypto
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"io"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -10,6 +14,8 @@ import (
 
 var (
 	hd *hashids.HashID
+
+	Key []byte
 
 	Alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
@@ -24,6 +30,55 @@ func InitHashing(salt string, l int) error {
 	})
 
 	return errors.Err(err)
+}
+
+func Decrypt(b []byte) ([]byte, error) {
+	ciph, err := aes.NewCipher(Key)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	gcm, err := cipher.NewGCM(ciph)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	size := gcm.NonceSize()
+
+	if len(b) < size {
+		return nil, errors.Err(errors.New("cipher text is too short"))
+	}
+
+	nonce := b[:size]
+	text := b[size:]
+
+	d, err := gcm.Open(nil, nonce, text, nil)
+
+	return d, errors.Err(err)
+}
+
+func Encrypt(b []byte) ([]byte, error) {
+	ciph, err := aes.NewCipher(Key)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	gcm, err := cipher.NewGCM(ciph)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	nonce := make([]byte, gcm.NonceSize())
+
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return gcm.Seal(nonce, nonce, b, nil), nil
 }
 
 func Hash(i []int) (string, error) {

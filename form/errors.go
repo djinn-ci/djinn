@@ -8,7 +8,6 @@ func NewErrors() Errors {
 	return Errors(make(map[string][]string))
 }
 
-// Err return the final error if there are any
 func (e Errors) Err() error {
 	if len(e) == 0 {
 		return nil

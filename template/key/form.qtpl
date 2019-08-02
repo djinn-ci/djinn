@@ -1,0 +1,77 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type Form struct {
+	template.Page
+	template.Form
+
+	Key *model.Key
+}
+
+func (p *Form) action() string {
+	if p.Key == nil {
+		return "/keys"
+	}
+
+	return p.Key.UIEndpoint()
+}
+%}
+
+{% collapsespace %}
+{% func (p *Form) Body() %}
+	<div class="panel">
+		<div class="panel-body slim">
+			<form method="POST" action="{%s p.action() %}">
+				{%s= string(p.CSRF) %}
+				{% if p.Key != nil %}
+					<input type="hidden" name="_method" value="PATCH"/>
+				{% endif %}
+				{% if p.Key == nil %}
+				<div class="form-field">
+					<label class="label" for="name">Name</label>
+					<input class="form-text" type="text" id="name" name="name" value="{%s p.Field("name") %}" autocomplete="off"/>
+					{%= p.Error("name") %}
+				</div>
+				<div class="form-field">
+					<label class="label" for="key">Key</label>
+					<textarea class="form-text form-code" id="key" name="key">{%s p.Field("key") %}</textarea>
+					{%= p.Error("key") %}
+				</div>
+				{% endif %}
+				<div class="form-field">
+					<label class="label" for="config">Config <small>(optional)</small></label>
+					{% if p.Key != nil %}
+						<textarea class="form-text form-code" id="config" name="config">{%s p.Key.Config %}</textarea>
+					{% else %}
+						<textarea class="form-text form-code" id="config" name="config">{%s p.Field("config") %}</textarea>
+					{% endif %}
+				</div>
+				<div class="form-field">
+					{% if p.Key != nil %}
+						<button type="submit" class="btn btn-primary">Save</button>
+					{% else %}
+						<button type="submit" class="btn btn-primary">Submit</button>
+					{% endif %}
+				</div>
+			</form>
+		</div>
+	</div>
+{% endfunc %}
+
+{% func (p *Form) Header() %}
+	<a class="back" href="/keys">{% cat "../../svgs/back.svg" %}</a>
+	{% if p.Key != nil %}
+		{%s p.Key.Name %} - Edit
+	{% else %}
+		Create SSH Key
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Form) Actions() %}{% endfunc %}
+{% func (p *Form) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

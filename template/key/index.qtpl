@@ -1,0 +1,71 @@
+{%
+import (
+	htmltemplate "html/template"
+
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type IndexPage struct {
+	template.Page
+
+	CSRF   htmltemplate.HTML
+	Search string
+	Keys   []*model.Key
+}
+%}
+
+{% collapsespace %}
+{% func (p *IndexPage) Title() %}
+	SSH Keys - Thrall
+{% endfunc %}
+
+{% func (p *IndexPage) Body() %}
+	<div class="panel">
+		{% if len(p.Keys) > 0 %}
+			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an SSH key...") %}</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, k := range p.Keys %}
+						<tr>
+							<td><a href="{%s k.UIEndpoint("edit") %}">{%s k.Name %}</a></td>
+							<td class="align-right">
+								<form method="POST" action="{%s k.UIEndpoint() %}">
+									{%s= string(p.CSRF) %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Delete</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% else %}
+			{% if p.Search == "" %}
+				<div class="panel-message muted">No SSH keys have been created.</div>
+			{% else %}
+				<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an SSH key...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% endif %}
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *IndexPage) Header() %}
+	SSH Keys
+{% endfunc %}
+
+{% func (p *IndexPage) Actions() %}
+	<li><a href="/keys/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *IndexPage) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

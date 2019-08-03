@@ -66,7 +66,7 @@ func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Show).Methods("GET")
 	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Update).Methods("PATCH")
 	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Destroy).Methods("DELETE")
-	r.Use(mw.AuthNamespace)
+	r.Use(mw.AuthResource("namespace"))
 }
 
 func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
@@ -209,24 +209,60 @@ func (s *uiServer) init() {
 		DB: s.db,
 	}
 
+	m := model.Model{
+		DB: s.db,
+	}
+
 	resources.Register("build", model.Type{
 		Table:    "builds",
-		Resource: &model.Build{},
+		Resource: &model.Build{
+			Model: m,
+		},
 	})
 
 	resources.Register("object", model.Type{
 		Table:    "objects",
-		Resource: &model.Object{},
+		Resource: &model.Object{
+			Model: m,
+		},
 	})
 
 	resources.Register("variable", model.Type{
 		Table:    "variables",
-		Resource: &model.Variable{},
+		Resource: &model.Variable{
+			Model: m,
+		},
 	})
 
 	resources.Register("key", model.Type{
 		Table:    "keys",
-		Resource: &model.Key{},
+		Resource: &model.Key{
+			Model: m,
+		},
+	})
+
+	resources.Register("namespace", model.Type{
+		Table:    "namespaces",
+		Resource: &model.Namespace{
+			Model: m,
+		},
+		HandleFind: func(name string, vars map[string]string) []model.Option {
+			username := vars["username"]
+			path := vars[name]
+
+			return []model.Option{
+				model.Columns("*"),
+				model.Table("namespaces"),
+				model.WhereEqQuery("user_id",
+					model.Select(
+						model.Columns("id"),
+						model.Table("users"),
+						model.WhereEq("username", username),
+					),
+				),
+				model.WhereEq("path", path),
+			}
+		},
 	})
 
 	wh := web.New(securecookie.New(s.hash, s.key), session.New(s.client, s.key), users)

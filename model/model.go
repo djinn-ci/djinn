@@ -1,8 +1,10 @@
 package model
 
 import (
+	"database/sql"
 	"fmt"
 	"net"
+	"strconv"
 	"time"
 
 	"github.com/andrewpillar/thrall/log"
@@ -29,10 +31,12 @@ type Resource interface {
 	AccessibleBy(u *User) bool
 }
 
+type ResourceFinder func(name string, vars map[string]string) []Option
+
 type Type struct {
 	Table      string
 	Resource   Resource
-	HandleFind func(key interface{}) []Option
+	HandleFind ResourceFinder
 }
 
 type ResourceStore struct {
@@ -153,11 +157,13 @@ func (rs *ResourceStore) Register(name string, t Type) {
 	}
 
 	if t.HandleFind == nil {
-		t.HandleFind = func(key interface{}) []Option {
+		t.HandleFind = func(name string, vars map[string]string) []Option {
+			id, _ := strconv.ParseInt(vars[name], 10, 64)
+
 			return []Option{
 				Columns("*"),
 				Table(t.Table),
-				WhereEq("id", key),
+				WhereEq("id", id),
 			}
 		}
 	}
@@ -165,16 +171,20 @@ func (rs *ResourceStore) Register(name string, t Type) {
 	rs.types[name] = t
 }
 
-func (rs ResourceStore) Find(name string, key interface{}) (Resource, error) {
+func (rs ResourceStore) Find(name string, vars map[string]string) (Resource, error) {
 	t, ok := rs.types[name]
 
 	if !ok {
 		return nil, errors.Err(errors.New("unknown resource model " + name))
 	}
 
-	q := Select(t.HandleFind(key)...)
+	q := Select(t.HandleFind(name, vars)...)
 
 	err := rs.Get(t.Resource, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 
 	return t.Resource, errors.Err(err)
 }

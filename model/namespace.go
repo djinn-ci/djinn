@@ -41,6 +41,19 @@ type NamespaceStore struct {
 	Namespace *Namespace
 }
 
+func (n Namespace) AccessibleBy(u *User) bool {
+	switch n.Visibility {
+	case Public:
+		return true
+	case Internal:
+		return u != nil && !u.IsZero()
+	case Private:
+		return u != nil && u.ID == n.UserID
+	default:
+		return false
+	}
+}
+
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
 		DB:        n.DB,

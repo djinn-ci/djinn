@@ -2,7 +2,6 @@ package web
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -66,66 +65,6 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 	})
 }
 
-func (h Middleware) AuthNamespace(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := h.auth(w, r)
-
-		if !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		vars := mux.Vars(r)
-
-		owner, err := h.Users.FindByUsername(vars["username"])
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if owner.IsZero() {
-			HTMLError(w, "Not found", http.StatusNotFound)
-			return
-		}
-
-		n, err := owner.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if n.IsZero() {
-			HTMLError(w, "Not found", http.StatusNotFound)
-			return
-		}
-
-		switch n.Visibility {
-			case model.Private:
-				if n.UserID != u.ID {
-					HTMLError(w, "Not found", http.StatusNotFound)
-					return
-				}
-
-				break
-			case model.Internal:
-				if u.IsZero() {
-					HTMLError(w, "Not found", http.StatusNotFound)
-					return
-				}
-
-				break
-			case model.Public:
-				break
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
 func (h Middleware) AuthResource(name string) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -143,9 +82,7 @@ func (h Middleware) AuthResource(name string) mux.MiddlewareFunc {
 				return
 			}
 
-			id, _ := strconv.ParseInt(vars[name], 10, 64)
-
-			res, err := h.Resources.Find(name, id)
+			res, err := h.Resources.Find(name, vars)
 
 			if err != nil {
 				log.Error.Println(errors.Err(err))

@@ -160,6 +160,22 @@ func WhereEqRaw(col string, val interface{}) Option {
 	}
 }
 
+func WhereEqQuery(col string, q2 Query) Option {
+	return func(q1 Query) Query {
+		w := where{
+			col:   col,
+			op:    "=",
+			cat:   " AND ",
+			query: q2,
+		}
+
+		q1.wheres = append(q1.wheres, w)
+		q1.args = append(q1.args, q2.args...)
+
+		return q1
+	}
+}
+
 func WhereIn(col string, vals ...interface{}) Option {
 	return func(q Query) Query {
 		if len(vals) == 0 {

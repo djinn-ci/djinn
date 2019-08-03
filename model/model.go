@@ -7,8 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model/query"
 
 	"github.com/jmoiron/sqlx"
 
@@ -16,6 +17,15 @@ import (
 )
 
 var sourceFmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=disable"
+
+type Action uint8
+
+const (
+	Create Action = iota
+	Edit
+	Show
+	Delete
+)
 
 type Model struct {
 	*sqlx.DB `db:"-"`
@@ -28,10 +38,10 @@ type Model struct {
 type Resource interface {
 	IsZero() bool
 
-	AccessibleBy(u *User) bool
+	AccessibleBy(u *User, a Action) bool
 }
 
-type ResourceFinder func(name string, vars map[string]string) []Option
+type ResourceFinder func(name string, vars map[string]string) []query.Option
 
 type Type struct {
 	Table      string
@@ -67,83 +77,83 @@ func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
 	return db, errors.Err(db.Ping())
 }
 
-func ForBuild(b *Build) Option {
-	return func(q Query) Query {
+func ForBuild(b *Build) query.Option {
+	return func(q query.Query) query.Query {
 		if b == nil || b.IsZero() {
 			return q
 		}
 
-		return WhereEq("build_id", b.ID)(q)
+		return query.WhereEq("build_id", b.ID)(q)
 	}
 }
 
-func ForJob(j *Job) Option {
-	return func(q Query) Query {
+func ForJob(j *Job) query.Option {
+	return func(q query.Query) query.Query {
 		if j == nil || j.IsZero() {
 			return q
 		}
 
-		return WhereEq("job_id", j.ID)(q)
+		return query.WhereEq("job_id", j.ID)(q)
 	}
 }
 
-func ForNamespace(n *Namespace) Option {
-	return func(q Query) Query {
+func ForNamespace(n *Namespace) query.Option {
+	return func(q query.Query) query.Query {
 		if n == nil || n.IsZero() {
 			return q
 		}
 
-		return WhereEq("namespace_id", n.ID)(q)
+		return query.WhereEq("namespace_id", n.ID)(q)
 	}
 }
 
-func ForObject(o *Object) Option {
-	return func(q Query) Query {
+func ForObject(o *Object) query.Option {
+	return func(q query.Query) query.Query {
 		if o == nil || o.IsZero() {
 			return q
 		}
 
-		return WhereEq("object_id", o.ID)(q)
+		return query.WhereEq("object_id", o.ID)(q)
 	}
 }
 
-func ForParent(n *Namespace) Option {
-	return func(q Query) Query {
+func ForParent(n *Namespace) query.Option {
+	return func(q query.Query) query.Query {
 		if n == nil || n.IsZero() {
 			return q
 		}
 
-		return WhereEq("parent_id", n.ID)(q)
+		return query.WhereEq("parent_id", n.ID)(q)
 	}
 }
 
-func ForStage(s *Stage) Option {
-	return func(q Query) Query {
+func ForStage(s *Stage) query.Option {
+	return func(q query.Query) query.Query {
 		if s == nil || s.IsZero() {
 			return q
 		}
 
-		return WhereEq("stage_id", s.ID)(q)
+		return query.WhereEq("stage_id", s.ID)(q)
 	}
 }
 
-func ForUser(u *User) Option {
-	return func(q Query) Query {
+func ForUser(u *User) query.Option {
+	return func(q query.Query) query.Query {
 		if u == nil || u.IsZero() {
 			return q
 		}
 
-		return WhereEq("user_id", u.ID)(q)
+		return query.WhereEq("user_id", u.ID)(q)
 	}
 }
 
-func Search(col, search string) Option {
-	return func(q Query) Query {
+func Search(col, search string) query.Option {
+	return func(q query.Query) query.Query {
 		if search == "" {
 			return q
 		}
 
-		return WhereLike(col, "%" + search + "%")(q)
+		return query.WhereLike(col, "%" + search + "%")(q)
 	}
 }
 
@@ -157,13 +167,13 @@ func (rs *ResourceStore) Register(name string, t Type) {
 	}
 
 	if t.HandleFind == nil {
-		t.HandleFind = func(name string, vars map[string]string) []Option {
+		t.HandleFind = func(name string, vars map[string]string) []query.Option {
 			id, _ := strconv.ParseInt(vars[name], 10, 64)
 
-			return []Option{
-				Columns("*"),
-				Table(t.Table),
-				WhereEq("id", id),
+			return []query.Option{
+				query.Columns("*"),
+				query.Table(t.Table),
+				query.WhereEq("id", id),
 			}
 		}
 	}
@@ -178,7 +188,7 @@ func (rs ResourceStore) Find(name string, vars map[string]string) (Resource, err
 		return nil, errors.Err(errors.New("unknown resource model " + name))
 	}
 
-	q := Select(t.HandleFind(name, vars)...)
+	q := query.Select(t.HandleFind(name, vars)...)
 
 	err := rs.Get(t.Resource, q.Build(), q.Args()...)
 

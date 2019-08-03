@@ -1,6 +1,7 @@
 {%
 import (
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/template"
 )
 %}
@@ -43,7 +44,7 @@ func (p *Form) Field(field string) string {
 	return old
 }
 
-func (p *Form) checked(vis model.Visibility) string {
+func (p *Form) checked(vis types.Visibility) string {
 	if p.Namespace != nil {
 		if p.Namespace.Visibility == vis {
 			return `checked="true"`
@@ -58,14 +59,14 @@ func (p *Form) checked(vis model.Visibility) string {
 		}
 	}
 
-	if vis == model.Private {
+	if vis == types.Private {
 		return `checked="true"`
 	}
 
 	return ``
 }
 
-func (p *Form) disabled(vis model.Visibility) string {
+func (p *Form) disabled(vis types.Visibility) string {
 	if p.Namespace != nil {
 		if p.Namespace.ParentID.Valid && p.Namespace.Visibility != vis {
 			return "disabled"
@@ -108,20 +109,20 @@ func (p *Form) disabled(vis model.Visibility) string {
 					{%= p.Error("description") %}
 				</div>
 				<div class="form-field">
-					<label class="form-option {%s p.disabled(model.Private) %}">
-						<input class="form-selector" type="radio" name="visibility" value="private" {%s p.checked(model.Private) %} {%s p.disabled(model.Private) %}/>
+					<label class="form-option {%s p.disabled(types.Private) %}">
+						<input class="form-selector" type="radio" name="visibility" value="private" {%s p.checked(types.Private) %} {%s p.disabled(types.Private) %}/>
 						<strong>Private</strong>
 						{% cat "../../svgs/lock.svg" %}
 						<div class="form-desc">You choose who can view builds in the namespace.</div>
 					</label>
-					<label class="form-option {%s p.disabled(model.Internal) %}">
-						<input class="form-selector" type="radio" name="visibility" value="internal" {%s p.checked(model.Internal) %} {%s p.disabled(model.Internal) %}/>
+					<label class="form-option {%s p.disabled(types.Internal) %}">
+						<input class="form-selector" type="radio" name="visibility" value="internal" {%s p.checked(types.Internal) %} {%s p.disabled(types.Internal) %}/>
 						<strong>Internal</strong>
 						{% cat "../../svgs/security.svg" %}
 						<div class="form-desc">Anyone with an account will be able to view builds in the namespace.</div>
 					</label>
-					<label class="form-option {%s p.disabled(model.Public) %}">
-						<input class="form-selector" type="radio" name="visibility" value="public" {%s p.checked(model.Public) %} {%s p.disabled(model.Public) %}/>
+					<label class="form-option {%s p.disabled(types.Public) %}">
+						<input class="form-selector" type="radio" name="visibility" value="public" {%s p.checked(types.Public) %} {%s p.disabled(types.Public) %}/>
 						<strong>Public</strong>
 						{% cat "../../svgs/public.svg" %}
 						<div class="form-desc">Anyone will be able to view builds in the namespace.</div>

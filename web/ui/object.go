@@ -14,6 +14,7 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/object"
 	"github.com/andrewpillar/thrall/web"
@@ -92,11 +93,11 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bb, err := u.BuildStore().Index(
-		model.WhereInQuery("id",
-			model.Select(
-				model.Columns("build_id"),
-				model.Table("build_objects"),
-				model.WhereEq("object_id", o.ID),
+		query.WhereInQuery("id",
+			query.Select(
+				query.Columns("build_id"),
+				query.Table("build_objects"),
+				query.WhereEq("object_id", o.ID),
 			),
 		),
 		model.BuildSearch(search),

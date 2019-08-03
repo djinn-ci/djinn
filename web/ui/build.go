@@ -13,6 +13,8 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/query"
+	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/auth"
 	"github.com/andrewpillar/thrall/template/build"
@@ -84,7 +86,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		model.BuildTag(tag),
 		model.BuildSearch(search),
 		model.BuildStatus(status),
-		model.OrderDesc("created_at"),
+		query.OrderDesc("created_at"),
 	)
 
 	p := &build.IndexPage{
@@ -179,7 +181,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	t := b.TriggerStore().New()
-	t.Type = model.Manual
+	t.Type = types.Manual
 	t.Comment = f.Comment
 	t.Data.User = u.Username
 	t.Data.Email = u.Email

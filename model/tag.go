@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -29,11 +30,11 @@ type TagStore struct {
 }
 
 func (t *Tag) Create() error {
-	q := Insert(
-		Table("tags"),
-		Columns("user_id", "build_id", "name"),
-		Values(t.UserID, t.BuildID, t.Name),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("tags"),
+		query.Columns("user_id", "build_id", "name"),
+		query.Values(t.UserID, t.BuildID, t.Name),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := t.Prepare(q.Build())
@@ -50,9 +51,9 @@ func (t *Tag) Create() error {
 }
 
 func (t *Tag) Destroy() error {
-	q := Delete(
-		Table("tags"),
-		WhereEq("id", t.ID),
+	q := query.Delete(
+		query.Table("tags"),
+		query.WhereEq("id", t.ID),
 	)
 
 	stmt, err := t.Prepare(q.Build())
@@ -78,12 +79,13 @@ func (t Tag) UIEndpoint(uri ...string) string {
 	return endpoint
 }
 
-func (ts TagStore) All(opts ...Option) ([]*Tag, error) {
+func (ts TagStore) All(opts ...query.Option) ([]*Tag, error) {
 	tt := make([]*Tag, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForBuild(ts.Build), query.Table("tags"))
 
-	q := Select(append(opts, ForBuild(ts.Build), Table("tags"))...)
+	q := query.Select(opts...)
 
 	err := ts.Select(&tt, q.Build(), q.Args()...)
 
@@ -111,10 +113,10 @@ func (ts TagStore) Find(id int64) (*Tag, error) {
 		User:  ts.User,
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("tags"),
-		WhereEq("id", id),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("tags"),
+		query.WhereEq("id", id),
 		ForBuild(ts.Build),
 	)
 
@@ -127,7 +129,7 @@ func (ts TagStore) Find(id int64) (*Tag, error) {
 	return t, errors.Err(err)
 }
 
-func (ts TagStore) Index(opts ...Option) ([]*Tag, error) {
+func (ts TagStore) Index(opts ...query.Option) ([]*Tag, error) {
 	tt, err := ts.All(opts...)
 
 	if err != nil {
@@ -154,7 +156,7 @@ func (ts TagStore) LoadUsers(tt []*Tag) error {
 		DB: ts.DB,
 	}
 
-	uu, err := users.All(WhereIn("id", ids...))
+	uu, err := users.All(query.WhereIn("id", ids...))
 
 	if err != nil {
 		return errors.Err(err)

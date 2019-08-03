@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
 
 	"github.com/jmoiron/sqlx"
 
@@ -69,11 +70,11 @@ func (u *User) VariableStore() VariableStore {
 }
 
 func (u *User) Create() error {
-	q := Insert(
-		Table("users"),
-		Columns("email", "username", "password"),
-		Values(u.Email, u.Username, u.Password),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("users"),
+		query.Columns("email", "username", "password"),
+		query.Values(u.Email, u.Username, u.Password),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := u.Prepare(q.Build())
@@ -90,11 +91,11 @@ func (u *User) Create() error {
 }
 
 func (u *User) Destroy() error {
-	q := Update(
-		Table("users"),
-		SetRaw("deleted_at", "NOW()"),
-		WhereEq("id", u.ID),
-		Returning("deleted_at"),
+	q := query.Update(
+		query.Table("users"),
+		query.SetRaw("deleted_at", "NOW()"),
+		query.WhereEq("id", u.ID),
+		query.Returning("deleted_at"),
 	)
 
 	stmt, err := u.Prepare(q.Build())
@@ -119,13 +120,13 @@ func (u *User) IsZero() bool {
 }
 
 func (u *User) Update() error {
-	q := Update(
-		Table("users"),
-		Set("email", u.Email),
-		Set("password", u.Password),
-		SetRaw("updated_at", "NOW()"),
-		WhereEq("id", u.ID),
-		Returning("updated_at"),
+	q := query.Update(
+		query.Table("users"),
+		query.Set("email", u.Email),
+		query.Set("password", u.Password),
+		query.SetRaw("updated_at", "NOW()"),
+		query.WhereEq("id", u.ID),
+		query.Returning("updated_at"),
 	)
 
 	stmt, err := u.Prepare(q.Build())
@@ -141,12 +142,13 @@ func (u *User) Update() error {
 	return errors.Err(row.Scan(&u.UpdatedAt))
 }
 
-func (us UserStore) All(opts ...Option) ([]*User, error) {
+func (us UserStore) All(opts ...query.Option) ([]*User, error) {
 	uu := make([]*User, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, query.Table("users"))
 
-	q := Select(append(opts, Table("users"))...)
+	q := query.Select(opts...)
 
 	err := us.Select(&uu, q.Build(), q.Args()...)
 
@@ -161,14 +163,14 @@ func (us UserStore) All(opts ...Option) ([]*User, error) {
 	return uu, nil
 }
 
-func (us UserStore) Find(id int64) (*User, error) {
+func (us UserStore) findBy(col string, val interface{}) (*User, error) {
 	u := &User{
 		Model: Model{
 			DB: us.DB,
 		},
 	}
 
-	q := Select(Columns("*"), Table("users"), WhereEq("id", id))
+	q := query.Select(query.Columns("*"), query.Table("users"), query.WhereEq(col, val))
 
 	err := us.Get(u, q.Build(), q.Args()...)
 
@@ -179,20 +181,14 @@ func (us UserStore) Find(id int64) (*User, error) {
 	return u, errors.Err(err)
 }
 
+func (us UserStore) Find(id int64) (*User, error) {
+	u, err := us.findBy("id", id)
+
+	return u, errors.Err(err)
+}
+
 func (us UserStore) FindByEmail(email string) (*User, error) {
-	u := &User{
-		Model: Model{
-			DB: us.DB,
-		},
-	}
-
-	q := Select(Columns("*"), Table("users"), WhereEq("email", u.Email))
-
-	err := us.Get(u, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
+	u, err := us.findBy("email", email)
 
 	return u, errors.Err(err)
 }
@@ -204,12 +200,12 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 		},
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("users"),
-		Or(
-			WhereEq("username", handle),
-			WhereEq("email", handle),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("users"),
+		query.Or(
+			query.WhereEq("username", handle),
+			query.WhereEq("email", handle),
 		),
 	)
 
@@ -223,19 +219,7 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 }
 
 func (us UserStore) FindByUsername(username string) (*User, error) {
-	u := &User{
-		Model: Model{
-			DB: us.DB,
-		},
-	}
-
-	q := Select(Columns("*"), Table("users"), WhereEq("username", username))
-
-	err := us.Get(u, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
+	u, err := us.findBy("username", username)
 
 	return u, errors.Err(err)
 }

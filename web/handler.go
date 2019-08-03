@@ -144,7 +144,6 @@ func (h Handler) User(r *http.Request) (*model.User, error) {
 	var s string
 
 	if err := h.SecureCookie.Decode("user", c.Value, &s); err != nil {
-
 		return &model.User{}, errors.Err(err)
 	}
 

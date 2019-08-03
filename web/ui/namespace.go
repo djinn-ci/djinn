@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/namespace"
 	"github.com/andrewpillar/thrall/web"
@@ -53,7 +54,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	nn, err := u.NamespaceStore().Index(
 		model.Search("path", search),
-		model.OrderAsc("path"),
+		query.OrderAsc("path"),
 	)
 
 	if err != nil {

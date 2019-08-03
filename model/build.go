@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/jmoiron/sqlx"
@@ -49,43 +50,43 @@ type BuildStore struct {
 	Namespace *Namespace
 }
 
-func BuildSearch(search string) Option {
-	return func(q Query) Query {
+func BuildSearch(search string) query.Option {
+	return func(q query.Query) query.Query {
 		if search == "" {
 			return q
 		}
 
-		return WhereInQuery("id",
-			Select(
-				Columns("build_id"),
-				Table("tags"),
-				WhereLike("name", "%" + search + "%"),
+		return query.WhereInQuery("id",
+			query.Select(
+				query.Columns("build_id"),
+				query.Table("tags"),
+				query.WhereLike("name", "%" + search + "%"),
 			),
 		)(q)
 	}
 }
 
-func BuildStatus(status string) Option {
-	return func(q Query) Query {
+func BuildStatus(status string) query.Option {
+	return func(q query.Query) query.Query {
 		if status == "" {
 			return q
 		}
 
-		return WhereEq("status", status)(q)
+		return query.WhereEq("status", status)(q)
 	}
 }
 
-func BuildTag(tag string) Option {
-	return func(q Query) Query {
+func BuildTag(tag string) query.Option {
+	return func(q query.Query) query.Query {
 		if tag == "" {
 			return q
 		}
 
-		return WhereInQuery("id",
-			Select(
-				Columns("build_id"),
-				Table("tags"),
-				WhereEq("name", tag),
+		return query.WhereInQuery("id",
+			query.Select(
+				query.Columns("build_id"),
+				query.Table("tags"),
+				query.WhereEq("name", tag),
 			),
 		)(q)
 	}
@@ -148,7 +149,7 @@ func (b *Build) TriggerStore() TriggerStore {
 	}
 }
 
-func (b Build) AccessibleBy(u *User) bool {
+func (b Build) AccessibleBy(u *User, a Action) bool {
 	if u == nil {
 		return false
 	}
@@ -157,11 +158,11 @@ func (b Build) AccessibleBy(u *User) bool {
 }
 
 func (b *Build) Create() error {
-	q := Insert(
-		Columns("user_id", "namespace_id", "manifest"),
-		Table("builds"),
-		Values(b.UserID, b.NamespaceID, b.Manifest),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Columns("user_id", "namespace_id", "manifest"),
+		query.Table("builds"),
+		query.Values(b.UserID, b.NamespaceID, b.Manifest),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := b.Prepare(q.Build())
@@ -189,15 +190,15 @@ func (b *Build) IsZero() bool {
 }
 
 func (b *Build) Update() error {
-	q := Update(
-		Table("builds"),
-		Set("status", b.Status),
-		Set("output", b.Output),
-		Set("started_at", b.StartedAt),
-		Set("finished_at", b.FinishedAt),
-		SetRaw("updated_at", "NOW()"),
-		WhereEq("id", b.ID),
-		Returning("updated_at"),
+	q := query.Update(
+		query.Table("builds"),
+		query.Set("status", b.Status),
+		query.Set("output", b.Output),
+		query.Set("started_at", b.StartedAt),
+		query.Set("finished_at", b.FinishedAt),
+		query.SetRaw("updated_at", "NOW()"),
+		query.WhereEq("id", b.ID),
+		query.Returning("updated_at"),
 	)
 
 	stmt, err := b.Prepare(q.Build())
@@ -434,12 +435,13 @@ func (b Build) Submit(srv *machinery.Server) error {
 	return errors.Err(err)
 }
 
-func (bs BuildStore) All(opts ...Option) ([]*Build, error) {
+func (bs BuildStore) All(opts ...query.Option) ([]*Build, error) {
 	bb := make([]*Build, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForUser(bs.User), ForNamespace(bs.Namespace), query.Table("builds"))
 
-	q := Select(append(opts, ForUser(bs.User), ForNamespace(bs.Namespace), Table("builds"))...)
+	q := query.Select(opts...)
 
 	if err := bs.Select(&bb, q.Build(), q.Args()...); err != nil {
 		if err == sql.ErrNoRows {
@@ -467,10 +469,10 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 		Namespace: bs.Namespace,
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("builds"),
-		WhereEq("id", id),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("builds"),
+		query.WhereEq("id", id),
 		ForUser(bs.User),
 		ForNamespace(bs.Namespace),
 	)
@@ -484,7 +486,7 @@ func (bs BuildStore) Find(id int64) (*Build, error) {
 	return b, errors.Err(err)
 }
 
-func (bs BuildStore) Index(opts ...Option) ([]*Build, error) {
+func (bs BuildStore) Index(opts ...query.Option) ([]*Build, error) {
 	bb, err := bs.All(opts...)
 
 	if err != nil {
@@ -664,7 +666,7 @@ func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 		DB: bs.DB,
 	}
 
-	nn, err := namespaces.All(WhereIn("id", ids...))
+	nn, err := namespaces.All(query.WhereIn("id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -696,7 +698,7 @@ func (bs *BuildStore) LoadTags(bb []*Build) error {
 		DB: bs.DB,
 	}
 
-	tt, err := tags.All(WhereIn("build_id", ids...))
+	tt, err := tags.All(query.WhereIn("build_id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -728,7 +730,7 @@ func (bs *BuildStore) LoadUsers(bb []*Build) error {
 		DB: bs.DB,
 	}
 
-	uu, err := users.All(WhereIn("id", ids...))
+	uu, err := users.All(query.WhereIn("id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -769,11 +771,11 @@ func (bs BuildStore) New() *Build {
 }
 
 func (bv *BuildVariable) Create() error {
-	q := Insert(
-		Columns("build_id", "variable_id", "key", "value"),
-		Table("build_variables"),
-		Values(bv.BuildID, bv.VariableID, bv.Key, bv.Value),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Columns("build_id", "variable_id", "key", "value"),
+		query.Table("build_variables"),
+		query.Values(bv.BuildID, bv.VariableID, bv.Key, bv.Value),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := bv.Prepare(q.Build())

@@ -4,6 +4,8 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
+	"github.com/andrewpillar/thrall/model/types"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -11,9 +13,9 @@ import (
 type Driver struct {
 	Model
 
-	BuildID int64      `db:"build_id"`
-	Type    DriverType `db:"type"`
-	Config  string     `db:"config"`
+	BuildID int64        `db:"build_id"`
+	Type    types.Driver `db:"type"`
+	Config  string       `db:"config"`
 
 	Build *Build
 }
@@ -25,11 +27,11 @@ type DriverStore struct {
 }
 
 func (d *Driver) Create() error {
-	q := Insert(
-		Table("drivers"),
-		Columns("build_id", "type", "config"),
-		Values(d.BuildID, d.Type, d.Config),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("drivers"),
+		query.Columns("build_id", "type", "config"),
+		query.Values(d.BuildID, d.Type, d.Config),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := d.Prepare(q.Build())
@@ -53,9 +55,9 @@ func (ds DriverStore) First() (*Driver, error) {
 		Build: ds.Build,
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("drivers"),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("drivers"),
 		ForBuild(ds.Build),
 	)
 

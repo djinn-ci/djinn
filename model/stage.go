@@ -4,6 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/jmoiron/sqlx"
@@ -32,11 +33,11 @@ type StageStore struct {
 }
 
 func (s *Stage) Create() error {
-	q := Insert(
-		Table("stages"),
-		Columns("build_id", "name", "can_fail"),
-		Values(s.BuildID, s.Name, s.CanFail),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("stages"),
+		query.Columns("build_id", "name", "can_fail"),
+		query.Values(s.BuildID, s.Name, s.CanFail),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := s.Prepare(q.Build())
@@ -61,14 +62,14 @@ func (s *Stage) JobStore() JobStore {
 }
 
 func (s *Stage) Update() error {
-	q := Update(
-		Table("stages"),
-		Set("status", s.Status),
-		Set("started_at", s.StartedAt),
-		Set("finished_at", s.FinishedAt),
-		SetRaw("updated_at", "NOW()"),
-		WhereEq("id", s.ID),
-		Returning("updated_at"),
+	q := query.Update(
+		query.Table("stages"),
+		query.Set("status", s.Status),
+		query.Set("started_at", s.StartedAt),
+		query.Set("finished_at", s.FinishedAt),
+		query.SetRaw("updated_at", "NOW()"),
+		query.WhereEq("id", s.ID),
+		query.Returning("updated_at"),
 	)
 
 	stmt, err := s.Prepare(q.Build())
@@ -84,12 +85,13 @@ func (s *Stage) Update() error {
 	return errors.Err(row.Scan(&s.UpdatedAt))
 }
 
-func (stgs StageStore) All(opts ...Option) ([]*Stage, error) {
+func (stgs StageStore) All(opts ...query.Option) ([]*Stage, error) {
 	ss := make([]*Stage, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForBuild(stgs.Build), query.Table("stages"))
 
-	q := Select(append(opts, ForBuild(stgs.Build), Table("stages"))...)
+	q := query.Select(opts...)
 
 	err := stgs.Select(&ss, q.Build(), q.Args()...)
 
@@ -108,17 +110,17 @@ func (stgs StageStore) All(opts ...Option) ([]*Stage, error) {
 	return ss, errors.Err(err)
 }
 
-func (stgs StageStore) Find(id int64) (*Stage, error) {
+func (stgs StageStore) findBy(col string, val interface{}) (*Stage, error) {
 	s := &Stage{
 		Model: Model{
 			DB: stgs.DB,
 		},
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("stages"),
-		WhereEq("id", id),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("stages"),
+		query.WhereEq(col, val),
 		ForBuild(stgs.Build),
 	)
 
@@ -131,26 +133,14 @@ func (stgs StageStore) Find(id int64) (*Stage, error) {
 	return s, errors.Err(err)
 }
 
+func (stgs StageStore) Find(id int64) (*Stage, error) {
+	s, err := stgs.findBy("id", id)
+
+	return s, errors.Err(err)
+}
+
 func (stgs StageStore) FindByName(name string) (*Stage, error) {
-	s := &Stage{
-		Model: Model{
-			DB: stgs.DB,
-		},
-		Build: stgs.Build,
-	}
-
-	q := Select(
-		Columns("*"),
-		Table("stages"),
-		WhereEq("name", name),
-		ForBuild(stgs.Build),
-	)
-
-	err := stgs.Get(s, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
+	s, err := stgs.findBy("name", name)
 
 	return s, errors.Err(err)
 }
@@ -170,7 +160,7 @@ func (stgs StageStore) LoadJobs(ss []*Stage) error {
 		DB: stgs.DB,
 	}
 
-	jj, err := jobs.All(WhereIn("stage_id", ids...))
+	jj, err := jobs.All(query.WhereIn("stage_id", ids...))
 
 	if err != nil {
 		return errors.Err(err)

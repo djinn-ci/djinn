@@ -7,157 +7,158 @@ package namespace
 //line template/namespace/table.qtpl:2
 import (
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/template"
 )
 
-//line template/namespace/table.qtpl:9
+//line template/namespace/table.qtpl:10
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line template/namespace/table.qtpl:9
+//line template/namespace/table.qtpl:10
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line template/namespace/table.qtpl:9
+//line template/namespace/table.qtpl:10
 func StreamRenderTable(qw422016 *qt422016.Writer, namespaces []*model.Namespace) {
-	//line template/namespace/table.qtpl:9
+	//line template/namespace/table.qtpl:10
 	qw422016.N().S(` <table class="table"> <thead> <tr> <th>NAME</th> <th>LAST BUILD</th> <th></th> <th></th> </tr> </thead> <tbody> `)
-	//line template/namespace/table.qtpl:20
+	//line template/namespace/table.qtpl:21
 	for _, n := range namespaces {
-		//line template/namespace/table.qtpl:20
+		//line template/namespace/table.qtpl:21
 		qw422016.N().S(` <tr> <td> <a href="`)
-		//line template/namespace/table.qtpl:23
+		//line template/namespace/table.qtpl:24
 		qw422016.E().S(n.UIEndpoint())
-		//line template/namespace/table.qtpl:23
+		//line template/namespace/table.qtpl:24
 		qw422016.N().S(`">`)
-		//line template/namespace/table.qtpl:23
+		//line template/namespace/table.qtpl:24
 		qw422016.E().S(n.Path)
-		//line template/namespace/table.qtpl:23
+		//line template/namespace/table.qtpl:24
 		qw422016.N().S(`</a> <div class="muted"> `)
-		//line template/namespace/table.qtpl:25
+		//line template/namespace/table.qtpl:26
 		if n.Description == "" {
-			//line template/namespace/table.qtpl:25
+			//line template/namespace/table.qtpl:26
 			qw422016.N().S(` <em>No description</em> `)
-			//line template/namespace/table.qtpl:27
-		} else {
-			//line template/namespace/table.qtpl:27
-			qw422016.N().S(` `)
 			//line template/namespace/table.qtpl:28
-			qw422016.E().S(n.Description)
+		} else {
 			//line template/namespace/table.qtpl:28
 			qw422016.N().S(` `)
 			//line template/namespace/table.qtpl:29
-		}
-		//line template/namespace/table.qtpl:29
-		qw422016.N().S(` </div> </td> <td class="muted"> `)
-		//line template/namespace/table.qtpl:33
-		if n.LastBuild != nil {
-			//line template/namespace/table.qtpl:33
-			qw422016.N().S(` <a href="`)
-			//line template/namespace/table.qtpl:34
-			qw422016.E().S(n.LastBuild.UIEndpoint())
-			//line template/namespace/table.qtpl:34
-			qw422016.N().S(`">#`)
-			//line template/namespace/table.qtpl:34
-			qw422016.E().V(n.LastBuild.ID)
-			//line template/namespace/table.qtpl:34
-			qw422016.N().S(`</a> `)
-			//line template/namespace/table.qtpl:35
-		} else {
-			//line template/namespace/table.qtpl:35
-			qw422016.N().S(` -- `)
-			//line template/namespace/table.qtpl:37
-		}
-		//line template/namespace/table.qtpl:37
-		qw422016.N().S(` </td> <td> `)
-		//line template/namespace/table.qtpl:40
-		if n.LastBuild != nil {
-			//line template/namespace/table.qtpl:40
+			qw422016.E().S(n.Description)
+			//line template/namespace/table.qtpl:29
 			qw422016.N().S(` `)
-			//line template/namespace/table.qtpl:41
-			template.StreamRenderStatus(qw422016, n.LastBuild.Status)
+			//line template/namespace/table.qtpl:30
+		}
+		//line template/namespace/table.qtpl:30
+		qw422016.N().S(` </div> </td> <td class="muted"> `)
+		//line template/namespace/table.qtpl:34
+		if n.LastBuild != nil {
+			//line template/namespace/table.qtpl:34
+			qw422016.N().S(` <a href="`)
+			//line template/namespace/table.qtpl:35
+			qw422016.E().S(n.LastBuild.UIEndpoint())
+			//line template/namespace/table.qtpl:35
+			qw422016.N().S(`">#`)
+			//line template/namespace/table.qtpl:35
+			qw422016.E().V(n.LastBuild.ID)
+			//line template/namespace/table.qtpl:35
+			qw422016.N().S(`</a> `)
+			//line template/namespace/table.qtpl:36
+		} else {
+			//line template/namespace/table.qtpl:36
+			qw422016.N().S(` -- `)
+			//line template/namespace/table.qtpl:38
+		}
+		//line template/namespace/table.qtpl:38
+		qw422016.N().S(` </td> <td> `)
+		//line template/namespace/table.qtpl:41
+		if n.LastBuild != nil {
 			//line template/namespace/table.qtpl:41
 			qw422016.N().S(` `)
 			//line template/namespace/table.qtpl:42
-		}
-		//line template/namespace/table.qtpl:42
-		qw422016.N().S(` </td> <td class="align-right muted"> `)
-		//line template/namespace/table.qtpl:45
-		switch n.Visibility {
-		//line template/namespace/table.qtpl:46
-		case model.Private:
-			//line template/namespace/table.qtpl:46
+			template.StreamRenderStatus(qw422016, n.LastBuild.Status)
+			//line template/namespace/table.qtpl:42
 			qw422016.N().S(` `)
+			//line template/namespace/table.qtpl:43
+		}
+		//line template/namespace/table.qtpl:43
+		qw422016.N().S(` </td> <td class="align-right muted"> `)
+		//line template/namespace/table.qtpl:46
+		switch n.Visibility {
+		//line template/namespace/table.qtpl:47
+		case types.Private:
 			//line template/namespace/table.qtpl:47
+			qw422016.N().S(` `)
+			//line template/namespace/table.qtpl:48
 			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M15.094 8.016v-2.016c0-1.688-1.406-3.094-3.094-3.094s-3.094 1.406-3.094 3.094v2.016h6.188zM12 17.016c1.078 0 2.016-0.938 2.016-2.016s-0.938-2.016-2.016-2.016-2.016 0.938-2.016 2.016 0.938 2.016 2.016 2.016zM18 8.016c1.078 0 2.016 0.891 2.016 1.969v10.031c0 1.078-0.938 1.969-2.016 1.969h-12c-1.078 0-2.016-0.891-2.016-1.969v-10.031c0-1.078 0.938-1.969 2.016-1.969h0.984v-2.016c0-2.766 2.25-5.016 5.016-5.016s5.016 2.25 5.016 5.016v2.016h0.984z"></path>
 </svg>
 `)
-			//line template/namespace/table.qtpl:47
-			qw422016.N().S(` `)
-		//line template/namespace/table.qtpl:48
-		case model.Internal:
 			//line template/namespace/table.qtpl:48
 			qw422016.N().S(` `)
+		//line template/namespace/table.qtpl:49
+		case types.Internal:
 			//line template/namespace/table.qtpl:49
+			qw422016.N().S(` `)
+			//line template/namespace/table.qtpl:50
 			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M12 0.984l9 4.031v6c0 5.531-3.844 10.734-9 12-5.156-1.266-9-6.469-9-12v-6zM12 12v8.953c3.703-1.172 6.469-4.828 6.984-8.953h-6.984zM12 12v-8.813l-6.984 3.094v5.719h6.984z"></path>
 </svg>
 `)
-			//line template/namespace/table.qtpl:49
-			qw422016.N().S(` `)
-		//line template/namespace/table.qtpl:50
-		case model.Public:
 			//line template/namespace/table.qtpl:50
 			qw422016.N().S(` `)
+		//line template/namespace/table.qtpl:51
+		case types.Public:
 			//line template/namespace/table.qtpl:51
+			qw422016.N().S(` `)
+			//line template/namespace/table.qtpl:52
 			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M17.906 17.391c1.313-1.406 2.109-3.328 2.109-5.391 0-3.328-2.063-6.234-5.016-7.406v0.422c0 1.078-0.938 1.969-2.016 1.969h-1.969v2.016c0 0.563-0.469 0.984-1.031 0.984h-1.969v2.016h6c0.563 0 0.984 0.422 0.984 0.984v3h0.984c0.891 0 1.641 0.609 1.922 1.406zM11.016 19.922v-1.922c-1.078 0-2.016-0.938-2.016-2.016v-0.984l-4.781-4.781c-0.141 0.563-0.234 1.172-0.234 1.781 0 4.078 3.094 7.453 7.031 7.922zM12 2.016c5.531 0 9.984 4.453 9.984 9.984s-4.453 9.984-9.984 9.984-9.984-4.453-9.984-9.984 4.453-9.984 9.984-9.984z"></path>
 </svg>
 `)
-			//line template/namespace/table.qtpl:51
-			qw422016.N().S(` `)
 			//line template/namespace/table.qtpl:52
+			qw422016.N().S(` `)
+			//line template/namespace/table.qtpl:53
 		}
-		//line template/namespace/table.qtpl:52
+		//line template/namespace/table.qtpl:53
 		qw422016.N().S(` </td> </tr> `)
-		//line template/namespace/table.qtpl:55
+		//line template/namespace/table.qtpl:56
 	}
-	//line template/namespace/table.qtpl:55
+	//line template/namespace/table.qtpl:56
 	qw422016.N().S(` </tbody> </table> `)
-//line template/namespace/table.qtpl:58
+//line template/namespace/table.qtpl:59
 }
 
-//line template/namespace/table.qtpl:58
+//line template/namespace/table.qtpl:59
 func WriteRenderTable(qq422016 qtio422016.Writer, namespaces []*model.Namespace) {
-	//line template/namespace/table.qtpl:58
+	//line template/namespace/table.qtpl:59
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/namespace/table.qtpl:58
+	//line template/namespace/table.qtpl:59
 	StreamRenderTable(qw422016, namespaces)
-	//line template/namespace/table.qtpl:58
+	//line template/namespace/table.qtpl:59
 	qt422016.ReleaseWriter(qw422016)
-//line template/namespace/table.qtpl:58
+//line template/namespace/table.qtpl:59
 }
 
-//line template/namespace/table.qtpl:58
+//line template/namespace/table.qtpl:59
 func RenderTable(namespaces []*model.Namespace) string {
-	//line template/namespace/table.qtpl:58
+	//line template/namespace/table.qtpl:59
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/namespace/table.qtpl:58
+	//line template/namespace/table.qtpl:59
 	WriteRenderTable(qb422016, namespaces)
-	//line template/namespace/table.qtpl:58
+	//line template/namespace/table.qtpl:59
 	qs422016 := string(qb422016.B)
-	//line template/namespace/table.qtpl:58
+	//line template/namespace/table.qtpl:59
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/namespace/table.qtpl:58
+	//line template/namespace/table.qtpl:59
 	return qs422016
-//line template/namespace/table.qtpl:58
+//line template/namespace/table.qtpl:59
 }

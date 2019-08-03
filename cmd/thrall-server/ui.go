@@ -7,6 +7,7 @@ import (
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
 	"github.com/andrewpillar/thrall/server"
@@ -66,7 +67,7 @@ func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Show).Methods("GET")
 	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Update).Methods("PATCH")
 	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Destroy).Methods("DELETE")
-	r.Use(mw.AuthResource("namespace"))
+	r.Use(mw.GateResource("namespace"))
 }
 
 func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
@@ -246,21 +247,21 @@ func (s *uiServer) init() {
 		Resource: &model.Namespace{
 			Model: m,
 		},
-		HandleFind: func(name string, vars map[string]string) []model.Option {
+		HandleFind: func(name string, vars map[string]string) []query.Option {
 			username := vars["username"]
 			path := vars[name]
 
-			return []model.Option{
-				model.Columns("*"),
-				model.Table("namespaces"),
-				model.WhereEqQuery("user_id",
-					model.Select(
-						model.Columns("id"),
-						model.Table("users"),
-						model.WhereEq("username", username),
+			return []query.Option{
+				query.Columns("*"),
+				query.Table("namespaces"),
+				query.WhereEqQuery("user_id",
+					query.Select(
+						query.Columns("id"),
+						query.Table("users"),
+						query.WhereEq("username", username),
 					),
 				),
-				model.WhereEq("path", path),
+				query.WhereEq("path", path),
 			}
 		},
 	})

@@ -1,6 +1,7 @@
 {%
 import (
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/template"
 )
 %}
@@ -43,11 +44,11 @@ import (
 				</td>
 				<td class="align-right muted">
 					{% switch n.Visibility %}
-						{% case model.Private %}
+						{% case types.Private %}
 							{% cat "../../svgs/lock.svg" %}
-						{% case model.Internal %}
+						{% case types.Internal %}
 							{% cat "../../svgs/security.svg" %}
-						{% case model.Public %}
+						{% case types.Public %}
 							{% cat "../../svgs/public.svg" %}
 					{% endswitch %}
 				</td>

@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/jmoiron/sqlx"
@@ -67,11 +68,11 @@ func (j *Job) JobDependencyStore() JobDependencyStore {
 }
 
 func (j *Job) Create() error {
-	q := Insert(
-		Table("jobs"),
-		Columns("build_id", "stage_id", "name", "commands"),
-		Values(j.BuildID, j.StageID, j.Name, j.Commands),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("jobs"),
+		query.Columns("build_id", "stage_id", "name", "commands"),
+		query.Values(j.BuildID, j.StageID, j.Name, j.Commands),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := j.Prepare(q.Build())
@@ -120,13 +121,13 @@ func (j *Job) LoadBuild() error {
 }
 
 func (j *Job) LoadDependencies() error {
-	q := Select(
-		Columns("*"),
-		Table("jobs"),
-		WhereInQuery("id", Select(
-				Columns("dependency_id"),
-				Table("job_dependencies"),
-				WhereEq("job_id", j.ID),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("jobs"),
+		query.WhereInQuery("id", query.Select(
+				query.Columns("dependency_id"),
+				query.Table("job_dependencies"),
+				query.WhereEq("job_id", j.ID),
 			),
 		),
 	)
@@ -157,15 +158,15 @@ func (j Job) UIEndpoint(uri ...string) string {
 }
 
 func (j *Job) Update() error {
-	q := Update(
-		Table("jobs"),
-		Set("output", j.Output),
-		Set("status", j.Status),
-		Set("started_at", j.StartedAt),
-		Set("finished_at", j.FinishedAt),
-		SetRaw("updated_at", "NOW()"),
-		WhereEq("id", j.ID),
-		Returning("updated_at"),
+	q := query.Update(
+		query.Table("jobs"),
+		query.Set("output", j.Output),
+		query.Set("status", j.Status),
+		query.Set("started_at", j.StartedAt),
+		query.Set("finished_at", j.FinishedAt),
+		query.SetRaw("updated_at", "NOW()"),
+		query.WhereEq("id", j.ID),
+		query.Returning("updated_at"),
 	)
 
 	stmt, err := j.Prepare(q.Build())
@@ -182,11 +183,11 @@ func (j *Job) Update() error {
 }
 
 func (jd *JobDependency) Create() error {
-	q := Insert(
-		Table("job_dependencies"),
-		Columns("job_id", "dependency_id"),
-		Values(jd.JobID, jd.DependencyID),
-		Returning("id"),
+	q := query.Insert(
+		query.Table("job_dependencies"),
+		query.Columns("job_id", "dependency_id"),
+		query.Values(jd.JobID, jd.DependencyID),
+		query.Returning("id"),
 	)
 
 	stmt, err := jd.Prepare(q.Build())
@@ -216,12 +217,13 @@ func (jds JobDependencyStore) New() *JobDependency {
 	return jd
 }
 
-func (js JobStore) All(opts ...Option) ([]*Job, error) {
+func (js JobStore) All(opts ...query.Option) ([]*Job, error) {
 	jj := make([]*Job, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForBuild(js.Build), ForStage(js.Stage), query.Table("jobs"))
 
-	q := Select(append(opts, ForBuild(js.Build), ForStage(js.Stage), Table("jobs"))...)
+	q := query.Select(opts...)
 
 	err := js.Select(&jj, q.Build(), q.Args()...)
 
@@ -236,7 +238,7 @@ func (js JobStore) All(opts ...Option) ([]*Job, error) {
 	return jj, errors.Err(err)
 }
 
-func (js JobStore) Find(id int64) (*Job, error) {
+func (js JobStore) findBy(col string, val interface{}) (*Job, error) {
 	j := &Job{
 		Model: Model{
 			DB: js.DB,
@@ -245,10 +247,10 @@ func (js JobStore) Find(id int64) (*Job, error) {
 		Stage: js.Stage,
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("jobs"),
-		WhereEq("id", id),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("jobs"),
+		query.WhereEq(col, val),
 		ForBuild(js.Build),
 		ForStage(js.Stage),
 	)
@@ -262,28 +264,14 @@ func (js JobStore) Find(id int64) (*Job, error) {
 	return j, errors.Err(err)
 }
 
+func (js JobStore) Find(id int64) (*Job, error) {
+	j, err := js.findBy("id", id)
+
+	return j, errors.Err(err)
+}
+
 func (js JobStore) FindByName(name string) (*Job, error) {
-	j := &Job{
-		Model: Model{
-			DB: js.DB,
-		},
-		Build: js.Build,
-		Stage: js.Stage,
-	}
-
-	q := Select(
-		Columns("*"),
-		Table("jobs"),
-		WhereEq("name", name),
-		ForBuild(js.Build),
-		ForStage(js.Stage),
-	)
-
-	err := js.Get(j, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
+	j, err := js.findBy("name", name)
 
 	return j, errors.Err(err)
 }
@@ -303,7 +291,7 @@ func (js JobStore) LoadArtifacts(jj []*Job) error {
 		DB: js.DB,
 	}
 
-	aa, err := artifacts.All(WhereIn("job_id", ids...))
+	aa, err := artifacts.All(query.WhereIn("job_id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -337,7 +325,7 @@ func (js JobStore) LoadDependencies(jj []*Job) error {
 		DB: js.DB,
 	}
 
-	jdd, err := dependencies.All(WhereIn("job_id", ids...))
+	jdd, err := dependencies.All(query.WhereIn("job_id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -394,12 +382,13 @@ func (js JobStore) Show(id int64) (*Job, error) {
 	return j, errors.Err(j.LoadArtifacts())
 }
 
-func (jds JobDependencyStore) All(opts ...Option) ([]*JobDependency, error) {
+func (jds JobDependencyStore) All(opts ...query.Option) ([]*JobDependency, error) {
 	jdd := make([]*JobDependency, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForJob(jds.Job), query.Table("job_dependencies"))
 
-	q := Select(append(opts, ForJob(jds.Job), Table("job_dependencies"))...)
+	q := query.Select(opts...)
 
 	err := jds.Select(&jdd, q.Build(), q.Args()...)
 

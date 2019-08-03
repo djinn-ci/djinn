@@ -7,6 +7,7 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/types"
 )
 
 var (
@@ -23,7 +24,7 @@ type Namespace struct {
 	Parent      string           `schema:"parent"`
 	Name        string           `schema:"name"`
 	Description string           `schema:"description"`
-	Visibility  model.Visibility `schema:"visibility"`
+	Visibility  types.Visibility `schema:"visibility"`
 }
 
 func (f Namespace) Fields() map[string]string {

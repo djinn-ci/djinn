@@ -15,6 +15,7 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/server"
 
@@ -315,7 +316,7 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
-	jj, err := b.JobStore().All(model.WhereIs("finished_at", "NULL"))
+	jj, err := b.JobStore().All(query.WhereIs("finished_at", "NULL"))
 
 	if err != nil {
 		return errors.Err(err)

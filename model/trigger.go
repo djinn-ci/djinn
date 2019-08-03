@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
+	"github.com/andrewpillar/thrall/model/types"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -20,16 +22,16 @@ type triggerData struct {
 type Trigger struct {
 	Model
 
-	BuildID int64       `db:"build_id"`
-	Type    TriggerType `db:"type"`
-	Comment string      `db:"comment"`
-	Data    triggerData `db:"data"`
+	BuildID int64         `db:"build_id"`
+	Type    types.Trigger `db:"type"`
+	Comment string        `db:"comment"`
+	Data    triggerData   `db:"data"`
 
 	Build *Build
 }
 
 func (t *triggerData) Scan(val interface{}) error {
-	b, err := scan(val)
+	b, err := types.Scan(val)
 
 	if err != nil {
 		return errors.Err(err)
@@ -63,11 +65,11 @@ type TriggerStore struct {
 }
 
 func (t *Trigger) Create() error {
-	q := Insert(
-		Table("triggers"),
-		Columns("build_id", "type", "comment", "data"),
-		Values(t.BuildID, t.Type, t.Comment, t.Data),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("triggers"),
+		query.Columns("build_id", "type", "comment", "data"),
+		query.Values(t.BuildID, t.Type, t.Comment, t.Data),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := t.Prepare(q.Build())
@@ -91,9 +93,9 @@ func (ts TriggerStore) First() (*Trigger, error) {
 		Build: ts.Build,
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("triggers"),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("triggers"),
 		ForBuild(ts.Build),
 	)
 

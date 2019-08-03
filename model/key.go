@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -27,7 +28,7 @@ type KeyStore struct {
 	User *User
 }
 
-func (k Key) AccessibleBy(u *User) bool {
+func (k Key) AccessibleBy(u *User, a Action) bool {
 	if u == nil {
 		return false
 	}
@@ -36,11 +37,11 @@ func (k Key) AccessibleBy(u *User) bool {
 }
 
 func (k *Key) Create() error {
-	q := Insert(
-		Table("keys"),
-		Columns("user_id", "name", "key", "config"),
-		Values(k.UserID, k.Name, k.Key, k.Config),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("keys"),
+		query.Columns("user_id", "name", "key", "config"),
+		query.Values(k.UserID, k.Name, k.Key, k.Config),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := k.Prepare(q.Build())
@@ -57,9 +58,9 @@ func (k *Key) Create() error {
 }
 
 func (k *Key) Destroy() error {
-	q := Delete(
-		Table("keys"),
-		WhereEq("id", k.ID),
+	q := query.Delete(
+		query.Table("keys"),
+		query.WhereEq("id", k.ID),
 	)
 
 	stmt, err := k.Prepare(q.Build())
@@ -86,11 +87,11 @@ func (k Key) UIEndpoint(uri ...string) string {
 }
 
 func (k *Key) Update() error {
-	q := Update(
-		Table("keys"),
-		Set("config", k.Config),
-		WhereEq("id", k.ID),
-		Returning("updated_at"),
+	q := query.Update(
+		query.Table("keys"),
+		query.Set("config", k.Config),
+		query.WhereEq("id", k.ID),
+		query.Returning("updated_at"),
 	)
 
 	stmt, err := k.Prepare(q.Build())
@@ -106,12 +107,13 @@ func (k *Key) Update() error {
 	return errors.Err(row.Scan(&k.UpdatedAt))
 }
 
-func (ks KeyStore) All(opts ...Option) ([]*Key, error) {
+func (ks KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	kk := make([]*Key, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForUser(ks.User), query.Table("keys"))
 
-	q := Select(append(opts, ForUser(ks.User), Table("keys"))...)
+	q := query.Select(opts...)
 
 	err := ks.Select(&kk, q.Build(), q.Args()...)
 
@@ -153,10 +155,10 @@ func (ks KeyStore) findBy(col string, val interface{}) (*Key, error) {
 		User: ks.User,
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("keys"),
-		WhereEq(col, val),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("keys"),
+		query.WhereEq(col, val),
 		ForUser(ks.User),
 	)
 

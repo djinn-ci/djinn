@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -34,11 +35,11 @@ type ArtifactStore struct {
 }
 
 func (a *Artifact) Create() error {
-	q := Insert(
-		Table("artifacts"),
-		Columns("build_id", "job_id", "hash", "source", "name"),
-		Values(a.BuildID, a.JobID, a.Hash, a.Source, a.Name),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("artifacts"),
+		query.Columns("build_id", "job_id", "hash", "source", "name"),
+		query.Values(a.BuildID, a.JobID, a.Hash, a.Source, a.Name),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := a.Prepare(q.Build())
@@ -77,14 +78,14 @@ func (a Artifact) UIEndpoint(uri ...string) string {
 }
 
 func (a *Artifact) Update() error {
-	q := Update(
-		Table("artifacts"),
-		Set("size", a.Size),
-		Set("md5", a.MD5),
-		Set("sha256", a.SHA256),
-		SetRaw("updated_at", "NOW()"),
-		WhereEq("id", a.ID),
-		Returning("updated_at"),
+	q := query.Update(
+		query.Table("artifacts"),
+		query.Set("size", a.Size),
+		query.Set("md5", a.MD5),
+		query.Set("sha256", a.SHA256),
+		query.SetRaw("updated_at", "NOW()"),
+		query.WhereEq("id", a.ID),
+		query.Returning("updated_at"),
 	)
 
 	stmt, err := a.Prepare(q.Build())
@@ -100,12 +101,13 @@ func (a *Artifact) Update() error {
 	return errors.Err(row.Scan(&a.UpdatedAt))
 }
 
-func (as ArtifactStore) All(opts ...Option) ([]*Artifact, error) {
+func (as ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
 	aa := make([]*Artifact, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForBuild(as.Build), ForJob(as.Job), query.Table("artifacts"))
 
-	q := Select(append(opts, ForBuild(as.Build), ForJob(as.Job), Table("artifacts"))...)
+	q := query.Select(opts...)
 
 	err := as.Select(&aa, q.Build(), q.Args()...)
 
@@ -122,7 +124,7 @@ func (as ArtifactStore) All(opts ...Option) ([]*Artifact, error) {
 	return aa, errors.Err(err)
 }
 
-func (as ArtifactStore) Find(id int64) (*Artifact, error) {
+func (as ArtifactStore) findBy(col string, val interface{}) (*Artifact, error) {
 	a := &Artifact{
 		Model: Model{
 			DB: as.DB,
@@ -131,10 +133,10 @@ func (as ArtifactStore) Find(id int64) (*Artifact, error) {
 		Job:   as.Job,
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("artifacts"),
-		WhereEq("id", id),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("artifacts"),
+		query.WhereEq(col, val),
 		ForBuild(as.Build),
 		ForJob(as.Job),
 	)
@@ -144,37 +146,23 @@ func (as ArtifactStore) Find(id int64) (*Artifact, error) {
 	if err == sql.ErrNoRows {
 		err = nil
 	}
+
+	return a, errors.Err(err)
+}
+
+func (as ArtifactStore) Find(id int64) (*Artifact, error) {
+	a, err := as.findBy("id", id)
 
 	return a, errors.Err(err)
 }
 
 func (as ArtifactStore) FindByHash(hash string) (*Artifact, error) {
-	a := &Artifact{
-		Model: Model{
-			DB: as.DB,
-		},
-		Build: as.Build,
-		Job:   as.Job,
-	}
-
-	q := Select(
-		Columns("*"),
-		Table("artifacts"),
-		WhereEq("hash", hash),
-		ForBuild(as.Build),
-		ForJob(as.Job),
-	)
-
-	err := as.Get(a, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
+	a, err := as.findBy("hash", hash)
 
 	return a, errors.Err(err)
 }
 
-func (as ArtifactStore) Index(opts ...Option) ([]*Artifact, error) {
+func (as ArtifactStore) Index(opts ...query.Option) ([]*Artifact, error) {
 	aa, err := as.All(opts...)
 
 	return aa, errors.Err(err)

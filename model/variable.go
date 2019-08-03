@@ -6,9 +6,12 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model/query"
 
 	"github.com/jmoiron/sqlx"
 )
+
+var _ Resource = Variable{}
 
 type Variable struct {
 	Model
@@ -45,12 +48,13 @@ type BuildVariableStore struct {
 	Variable *Variable
 }
 
-func (bvs BuildVariableStore) All(opts ...Option) ([]*BuildVariable, error) {
+func (bvs BuildVariableStore) All(opts ...query.Option) ([]*BuildVariable, error) {
 	vv := make([]*BuildVariable, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForBuild(bvs.Build), query.Table("build_variables"))
 
-	q := Select(append(opts, ForBuild(bvs.Build), Table("build_variables"))...)
+	q := query.Select(opts...)
 
 	err := bvs.Select(&vv, q.Build(), q.Args()...)
 
@@ -105,7 +109,7 @@ func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
 		}
 	}
 
-	vv, err := variables.All(WhereIn("id", ids...))
+	vv, err := variables.All(query.WhereIn("id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -146,11 +150,11 @@ func (bvs BuildVariableStore) New() *BuildVariable {
 }
 
 func (v *Variable) Create() error {
-	q := Insert(
-		Table("variables"),
-		Columns("user_id", "key", "value"),
-		Values(v.UserID, v.Key, v.Value),
-		Returning("id", "created_at", "updated_at"),
+	q := query.Insert(
+		query.Table("variables"),
+		query.Columns("user_id", "key", "value"),
+		query.Values(v.UserID, v.Key, v.Value),
+		query.Returning("id", "created_at", "updated_at"),
 	)
 
 	stmt, err := v.Prepare(q.Build())
@@ -167,10 +171,10 @@ func (v *Variable) Create() error {
 }
 
 func (v *Variable) Destroy() error {
-	q := Update(
-		Table("build_variables"),
-		SetRaw("variable_id", "NULL"),
-		WhereEq("variable_id", v.ID),
+	q := query.Update(
+		query.Table("build_variables"),
+		query.SetRaw("variable_id", "NULL"),
+		query.WhereEq("variable_id", v.ID),
 	)
 
 	stmt1, err := v.Prepare(q.Build())
@@ -185,9 +189,9 @@ func (v *Variable) Destroy() error {
 		return errors.Err(err)
 	}
 
-	q = Delete(
-		Table("variables"),
-		WhereEq("id", v.ID),
+	q = query.Delete(
+		query.Table("variables"),
+		query.WhereEq("id", v.ID),
 	)
 
 	stmt2, err := v.Prepare(q.Build())
@@ -207,7 +211,7 @@ func (v Variable) IsZero() bool {
 	return v.Model.IsZero() && v.UserID == 0 && v.Key == "" && v.Value == ""
 }
 
-func (v Variable) AccessibleBy(u *User) bool {
+func (v Variable) AccessibleBy(u *User, a Action) bool {
 	if u == nil {
 		return false
 	}
@@ -225,12 +229,13 @@ func (v Variable) UIEndpoint(uri ...string) string {
 	return endpoint
 }
 
-func (vs VariableStore) All(opts ...Option) ([]*Variable, error) {
+func (vs VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 	vv := make([]*Variable, 0)
 
-	opts = append([]Option{Columns("*")}, opts...)
+	opts = append([]query.Option{query.Columns("*")}, opts...)
+	opts = append(opts, ForUser(vs.User), query.Table("variables"))
 
-	q := Select(append(opts, ForUser(vs.User), Table("variables"))...)
+	q := query.Select(opts...)
 
 	err := vs.Select(&vv, q.Build(), q.Args()...)
 
@@ -257,10 +262,10 @@ func (vs VariableStore) findBy(col string, val interface{}) (*Variable, error) {
 		User: vs.User,
 	}
 
-	q := Select(
-		Columns("*"),
-		Table("variables"),
-		WhereEq(col, val),
+	q := query.Select(
+		query.Columns("*"),
+		query.Table("variables"),
+		query.WhereEq(col, val),
 		ForUser(vs.User),
 	)
 

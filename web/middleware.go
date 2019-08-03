@@ -17,10 +17,8 @@ type Middleware struct {
 	Handler
 
 	Builds    model.BuildStore
-	Objects   model.ObjectStore
+	Resources model.ResourceStore
 	Users     model.UserStore
-	Variables model.VariableStore
-	Keys      model.KeyStore
 }
 
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, bool) {
@@ -61,41 +59,6 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := h.auth(w, r); !ok {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (h Middleware) AuthBuild(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := h.auth(w, r)
-
-		if !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		vars := mux.Vars(r)
-
-		if _, ok := vars["build"]; !ok {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		id, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-		b, err := h.Builds.Find(id)
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if b.IsZero() || u.ID != b.UserID {
-			HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}
 
@@ -163,107 +126,39 @@ func (h Middleware) AuthNamespace(next http.Handler) http.Handler {
 	})
 }
 
-func (h Middleware) AuthObject(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := h.auth(w, r)
+func (h Middleware) AuthResource(name string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			u, ok := h.auth(w, r)
 
-		if !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
+			if !ok {
+				http.Redirect(w, r, "/login", http.StatusSeeOther)
+				return
+			}
 
-		vars := mux.Vars(r)
+			vars := mux.Vars(r)
 
-		if _, ok := vars["object"]; !ok {
+			if _, ok := vars[name]; !ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			id, _ := strconv.ParseInt(vars[name], 10, 64)
+
+			res, err := h.Resources.Find(name, id)
+
+			if err != nil {
+				log.Error.Println(errors.Err(err))
+				HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+				return
+			}
+
+			if res.IsZero() || !res.AccessibleBy(u) {
+				HTMLError(w, "Not found", http.StatusNotFound)
+				return
+			}
+
 			next.ServeHTTP(w, r)
-			return
-		}
-
-		id, _ := strconv.ParseInt(vars["object"], 10, 64)
-
-		o, err := h.Objects.Find(id)
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if o.IsZero() || u.ID != o.UserID || o.DeletedAt.Valid {
-			HTMLError(w, "Not found", http.StatusNotFound)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (h Middleware) AuthVariable(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := h.auth(w, r)
-
-		if !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		vars := mux.Vars(r)
-
-		if _, ok := vars["variable"]; !ok {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		id, _ := strconv.ParseInt(vars["variable"], 10, 64)
-
-		v, err := h.Variables.Find(id)
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if v.IsZero() || u.ID != v.UserID {
-			HTMLError(w, "Not found", http.StatusNotFound)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
-}
-
-func (h Middleware) AuthKey(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := h.auth(w, r)
-
-		if !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		vars := mux.Vars(r)
-
-		if _, ok := vars["key"]; !ok {
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		id , _ := strconv.ParseInt(vars["key"], 10, 64)
-
-		k, err := h.Keys.Find(id)
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if k.IsZero() || u.ID != k.UserID {
-			HTMLError(w, "Not found", http.StatusNotFound)
-			return
-		}
-
-		next.ServeHTTP(w, r)
-	})
+		})
+	}
 }

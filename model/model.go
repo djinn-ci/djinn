@@ -15,12 +15,30 @@ import (
 
 var sourceFmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=disable"
 
-type model struct {
+type Model struct {
+	*sqlx.DB `db:"-"`
+
+	ID        int64     `db:"id"`
+	CreatedAt time.Time `db:"created_at"`
+	UpdatedAt time.Time `db:"updated_at"`
+}
+
+type Resource interface {
+	IsZero() bool
+
+	AccessibleBy(u *User) bool
+}
+
+type Type struct {
+	Table      string
+	Resource   Resource
+	HandleFind func(key interface{}) []Option
+}
+
+type ResourceStore struct {
 	*sqlx.DB
 
-	ID        int64     `db:"id,omitcreate"`
-	CreatedAt time.Time `db:"created_at,omitcreate"`
-	UpdatedAt time.Time `db:"updated_at"`
+	types map[string]Type
 }
 
 func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
@@ -125,6 +143,38 @@ func Search(col, search string) Option {
 	}
 }
 
-func (m model) IsZero() bool {
+func (m Model) IsZero() bool {
 	return m.ID == 0 && m.CreatedAt == time.Time{} && m.UpdatedAt == time.Time{}
+}
+
+func (rs *ResourceStore) Register(name string, t Type) {
+	if rs.types == nil {
+		rs.types = make(map[string]Type)
+	}
+
+	if t.HandleFind == nil {
+		t.HandleFind = func(key interface{}) []Option {
+			return []Option{
+				Columns("*"),
+				Table(t.Table),
+				WhereEq("id", key),
+			}
+		}
+	}
+
+	rs.types[name] = t
+}
+
+func (rs ResourceStore) Find(name string, key interface{}) (Resource, error) {
+	t, ok := rs.types[name]
+
+	if !ok {
+		return nil, errors.Err(errors.New("unknown resource model " + name))
+	}
+
+	q := Select(t.HandleFind(key)...)
+
+	err := rs.Get(t.Resource, q.Build(), q.Args()...)
+
+	return t.Resource, errors.Err(err)
 }

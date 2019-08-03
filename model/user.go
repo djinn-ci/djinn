@@ -11,7 +11,7 @@ import (
 )
 
 type User struct {
-	model
+	Model
 
 	Email     string      `db:"email"`
 	Username  string      `db:"username"`
@@ -25,7 +25,7 @@ type UserStore struct {
 
 func (us UserStore) New() *User {
 	u := &User{
-		model: model{
+		Model: Model{
 			DB: us.DB,
 		},
 	}
@@ -111,7 +111,7 @@ func (u *User) Destroy() error {
 }
 
 func (u *User) IsZero() bool {
-	return u.model.IsZero() &&
+	return u.Model.IsZero() &&
 		u.Email == "" &&
 		u.Username == "" &&
 		len(u.Password) == 0 &&
@@ -163,7 +163,7 @@ func (us UserStore) All(opts ...Option) ([]*User, error) {
 
 func (us UserStore) Find(id int64) (*User, error) {
 	u := &User{
-		model: model{
+		Model: Model{
 			DB: us.DB,
 		},
 	}
@@ -181,7 +181,7 @@ func (us UserStore) Find(id int64) (*User, error) {
 
 func (us UserStore) FindByEmail(email string) (*User, error) {
 	u := &User{
-		model: model{
+		Model: Model{
 			DB: us.DB,
 		},
 	}
@@ -199,7 +199,7 @@ func (us UserStore) FindByEmail(email string) (*User, error) {
 
 func (us UserStore) FindByHandle(handle string) (*User, error) {
 	u := &User{
-		model: model{
+		Model: Model{
 			DB: us.DB,
 		},
 	}
@@ -224,7 +224,7 @@ func (us UserStore) FindByHandle(handle string) (*User, error) {
 
 func (us UserStore) FindByUsername(username string) (*User, error) {
 	u := &User{
-		model: model{
+		Model: Model{
 			DB: us.DB,
 		},
 	}

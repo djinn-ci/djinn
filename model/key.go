@@ -11,7 +11,7 @@ import (
 )
 
 type Key struct {
-	model
+	Model
 
 	UserID  int64  `db:"user_id"`
 	Name    string `db:"name"`
@@ -25,6 +25,14 @@ type KeyStore struct {
 	*sqlx.DB
 
 	User *User
+}
+
+func (k Key) AccessibleBy(u *User) bool {
+	if u == nil {
+		return false
+	}
+
+	return k.UserID == u.ID
 }
 
 func (k *Key) Create() error {
@@ -124,7 +132,7 @@ func (ks KeyStore) All(opts ...Option) ([]*Key, error) {
 
 func (ks KeyStore) New() *Key {
 	k := &Key{
-		model: model{
+		Model: Model{
 			DB: ks.DB,
 		},
 		User: ks.User,
@@ -139,7 +147,7 @@ func (ks KeyStore) New() *Key {
 
 func (ks KeyStore) findBy(col string, val interface{}) (*Key, error) {
 	k := &Key{
-		model: model{
+		Model: Model{
 			DB: ks.DB,
 		},
 		User: ks.User,

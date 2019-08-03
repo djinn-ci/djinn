@@ -18,7 +18,7 @@ type triggerData struct {
 }
 
 type Trigger struct {
-	model
+	Model
 
 	BuildID int64       `db:"build_id"`
 	Type    TriggerType `db:"type"`
@@ -85,7 +85,7 @@ func (t *Trigger) Create() error {
 
 func (ts TriggerStore) First() (*Trigger, error) {
 	t := &Trigger{
-		model: model{
+		Model: Model{
 			DB: ts.DB,
 		},
 		Build: ts.Build,
@@ -108,7 +108,7 @@ func (ts TriggerStore) First() (*Trigger, error) {
 
 func (ts TriggerStore) New() *Trigger {
 	t := &Trigger{
-		model: model{
+		Model: Model{
 			DB:    ts.DB,
 		},
 		Build: ts.Build,

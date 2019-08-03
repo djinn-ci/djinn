@@ -9,7 +9,7 @@ import (
 )
 
 type Driver struct {
-	model
+	Model
 
 	BuildID int64      `db:"build_id"`
 	Type    DriverType `db:"type"`
@@ -47,7 +47,7 @@ func (d *Driver) Create() error {
 
 func (ds DriverStore) First() (*Driver, error) {
 	d := &Driver{
-		model: model{
+		Model: Model{
 			DB: ds.DB,
 		},
 		Build: ds.Build,
@@ -70,7 +70,7 @@ func (ds DriverStore) First() (*Driver, error) {
 
 func (ds DriverStore) New() *Driver {
 	d := &Driver{
-		model: model{
+		Model: Model{
 			DB: ds.DB,
 		},
 		Build: ds.Build,

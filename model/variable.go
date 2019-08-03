@@ -11,7 +11,7 @@ import (
 )
 
 type Variable struct {
-	model
+	Model
 
 	UserID int64  `db:"user_id"`
 	Key    string `db:"key"`
@@ -21,7 +21,7 @@ type Variable struct {
 }
 
 type BuildVariable struct {
-	model
+	Model
 
 	BuildID      int64         `db:"build_id"`
 	VariableID   sql.NullInt64 `db:"variable_id"`
@@ -124,7 +124,7 @@ func (bvs BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
 
 func (bvs BuildVariableStore) New() *BuildVariable {
 	bv := &BuildVariable{
-		model: model{
+		Model: Model{
 			DB: bvs.DB,
 		},
 		Build:    bvs.Build,
@@ -203,6 +203,18 @@ func (v *Variable) Destroy() error {
 	return errors.Err(err)
 }
 
+func (v Variable) IsZero() bool {
+	return v.Model.IsZero() && v.UserID == 0 && v.Key == "" && v.Value == ""
+}
+
+func (v Variable) AccessibleBy(u *User) bool {
+	if u == nil {
+		return false
+	}
+
+	return v.UserID == u.ID
+}
+
 func (v Variable) UIEndpoint(uri ...string) string {
 	endpoint := fmt.Sprintf("/variables/%v", v.ID)
 
@@ -239,7 +251,7 @@ func (vs VariableStore) All(opts ...Option) ([]*Variable, error) {
 
 func (vs VariableStore) findBy(col string, val interface{}) (*Variable, error) {
 	v := &Variable{
-		model: model{
+		Model: Model{
 			DB: vs.DB,
 		},
 		User: vs.User,
@@ -276,7 +288,7 @@ func (vs VariableStore) FindByKey(key string) (*Variable, error) {
 
 func (vs VariableStore) New() *Variable {
 	v := &Variable{
-		model: model{
+		Model: Model{
 			DB: vs.DB,
 		},
 		User:  vs.User,

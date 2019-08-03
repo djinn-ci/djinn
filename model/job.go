@@ -14,7 +14,7 @@ import (
 )
 
 type Job struct {
-	model
+	Model
 
 	BuildID    int64          `db:"build_id"`
 	StageID    int64          `db:"stage_id"`
@@ -32,7 +32,7 @@ type Job struct {
 }
 
 type JobDependency struct {
-	model
+	Model
 
 	JobID        int64 `db:"job_id"`
 	DependencyID int64 `db:"dependency_id"`
@@ -88,7 +88,7 @@ func (j *Job) Create() error {
 }
 
 func (j *Job) IsZero() bool {
-	return j.model.IsZero() &&
+	return j.Model.IsZero() &&
 		j.BuildID == 0 &&
 		j.StageID == 0 &&
 		j.Name == "" &&
@@ -204,7 +204,7 @@ func (jd *JobDependency) Create() error {
 
 func (jds JobDependencyStore) New() *JobDependency {
 	jd := &JobDependency{
-		model: model{
+		Model: Model{
 			DB: jds.DB,
 		},
 	}
@@ -238,7 +238,7 @@ func (js JobStore) All(opts ...Option) ([]*Job, error) {
 
 func (js JobStore) Find(id int64) (*Job, error) {
 	j := &Job{
-		model: model{
+		Model: Model{
 			DB: js.DB,
 		},
 		Build: js.Build,
@@ -264,7 +264,7 @@ func (js JobStore) Find(id int64) (*Job, error) {
 
 func (js JobStore) FindByName(name string) (*Job, error) {
 	j := &Job{
-		model: model{
+		Model: Model{
 			DB: js.DB,
 		},
 		Build: js.Build,
@@ -358,7 +358,7 @@ func (js JobStore) LoadDependencies(jj []*Job) error {
 
 func (js JobStore) New() *Job {
 	j := &Job{
-		model: model{
+		Model: Model{
 			DB: js.DB,
 		},
 		Build: js.Build,

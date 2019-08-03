@@ -21,7 +21,7 @@ import (
 )
 
 type Build struct {
-	model
+	Model
 
 	UserID      int64          `db:"user_id"`
 	NamespaceID sql.NullInt64  `db:"namespace_id"`
@@ -148,6 +148,14 @@ func (b *Build) TriggerStore() TriggerStore {
 	}
 }
 
+func (b Build) AccessibleBy(u *User) bool {
+	if u == nil {
+		return false
+	}
+
+	return b.UserID == u.ID
+}
+
 func (b *Build) Create() error {
 	q := Insert(
 		Columns("user_id", "namespace_id", "manifest"),
@@ -170,7 +178,7 @@ func (b *Build) Create() error {
 }
 
 func (b *Build) IsZero() bool {
-	return b.model.IsZero() &&
+	return b.Model.IsZero() &&
 		b.UserID == 0 &&
 		!b.NamespaceID.Valid &&
 		b.Manifest == "" &&
@@ -452,7 +460,7 @@ func (bs BuildStore) All(opts ...Option) ([]*Build, error) {
 
 func (bs BuildStore) Find(id int64) (*Build, error) {
 	b := &Build{
-		model: model{
+		Model: Model{
 			DB: bs.DB,
 		},
 		User:      bs.User,
@@ -739,7 +747,7 @@ func (bs *BuildStore) LoadUsers(bb []*Build) error {
 
 func (bs BuildStore) New() *Build {
 	b := &Build{
-		model: model{
+		Model: Model{
 			DB: bs.DB,
 		},
 		User:      bs.User,

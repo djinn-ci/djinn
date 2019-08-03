@@ -102,7 +102,7 @@ func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/{build:[0-9]+}/output/raw", build.Show).Methods("GET")
 	r.HandleFunc("/{build:[0-9]+}/objects", object.Index).Methods("GET")
 	r.HandleFunc("/{build:[0-9]+}/variables", variable.Index).Methods("GET")
-	r.Use(mw.AuthBuild)
+	r.Use(mw.AuthResource("build"))
 }
 
 func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
@@ -113,7 +113,7 @@ func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
 	r := s.router.PathPrefix("/builds/{build:[0-9]+}").Subrouter()
 	r.HandleFunc("/jobs/{job:[0-9]+}", job.Show)
 	r.HandleFunc("/jobs/{job:[0-9]+}/output/raw", job.Show)
-	r.Use(mw.AuthBuild)
+	r.Use(mw.AuthResource("build"))
 }
 
 func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
@@ -130,7 +130,7 @@ func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
 	r := s.router.PathPrefix("/builds/{build:[0-9]+}").Subrouter()
 	r.HandleFunc("/artifacts", artifact.Index)
 	r.HandleFunc("/artifacts/{artifact:[0-9]+}/download/{name}", artifact.Show)
-	r.Use(mw.AuthBuild)
+	r.Use(mw.AuthResource("build"))
 }
 
 func (s *uiServer) initTag(h web.Handler, mw web.Middleware) {
@@ -142,7 +142,7 @@ func (s *uiServer) initTag(h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/tags", tag.Index).Methods("GET")
 	r.HandleFunc("/tags", tag.Store).Methods("POST")
 	r.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
-	r.Use(mw.AuthBuild)
+	r.Use(mw.AuthResource("build"))
 }
 
 func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
@@ -159,7 +159,7 @@ func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
 	r.HandleFunc("/{object:[0-9]+}/download/{name}", object.Download)
 	r.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
-	r.Use(mw.AuthObject)
+	r.Use(mw.AuthResource("object"))
 }
 
 func (s *uiServer) initVariable(h web.Handler, mw web.Middleware) {
@@ -172,7 +172,7 @@ func (s *uiServer) initVariable(h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/create", variable.Create).Methods("GET")
 	r.HandleFunc("", variable.Store).Methods("POST")
 	r.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
-	r.Use(mw.AuthVariable)
+	r.Use(mw.AuthResource("variable"))
 }
 
 func (s *uiServer) initKey(h web.Handler, mw web.Middleware) {
@@ -187,7 +187,7 @@ func (s *uiServer) initKey(h web.Handler, mw web.Middleware) {
 	r.HandleFunc("/{key:[0-9]+}/edit", key.Edit).Methods("GET")
 	r.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
 	r.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
-	r.Use(mw.AuthKey)
+	r.Use(mw.AuthResource("key"))
 }
 
 func (s *uiServer) init() {
@@ -201,30 +201,40 @@ func (s *uiServer) init() {
 		DB: s.db,
 	}
 
-	objects := model.ObjectStore{
-		DB: s.db,
-	}
-
 	users := model.UserStore{
 		DB: s.db,
 	}
 
-	vars := model.VariableStore{
+	resources := model.ResourceStore{
 		DB: s.db,
 	}
 
-	keys := model.KeyStore{
-		DB: s.db,
-	}
+	resources.Register("build", model.Type{
+		Table:    "builds",
+		Resource: &model.Build{},
+	})
+
+	resources.Register("object", model.Type{
+		Table:    "objects",
+		Resource: &model.Object{},
+	})
+
+	resources.Register("variable", model.Type{
+		Table:    "variables",
+		Resource: &model.Variable{},
+	})
+
+	resources.Register("key", model.Type{
+		Table:    "keys",
+		Resource: &model.Key{},
+	})
 
 	wh := web.New(securecookie.New(s.hash, s.key), session.New(s.client, s.key), users)
 	mw := web.Middleware{
 		Handler:   wh,
 		Builds:    builds,
-		Objects:   objects,
+		Resources: resources,
 		Users:     users,
-		Variables: vars,
-		Keys:      keys,
 	}
 
 	s.router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -11,7 +11,7 @@ import (
 )
 
 type Tag struct {
-	model
+	Model
 
 	UserID  int64  `db:"user_id"`
 	BuildID int64  `db:"build_id"`
@@ -104,7 +104,7 @@ func (ts TagStore) All(opts ...Option) ([]*Tag, error) {
 
 func (ts TagStore) Find(id int64) (*Tag, error) {
 	t := &Tag{
-		model: model{
+		Model: Model{
 			DB: ts.DB,
 		},
 		Build: ts.Build,
@@ -173,7 +173,7 @@ func (ts TagStore) LoadUsers(tt []*Tag) error {
 
 func (ts TagStore) New() *Tag {
 	t := &Tag{
-		model: model{
+		Model: Model{
 			DB: ts.DB,
 		},
 		User:  ts.User,

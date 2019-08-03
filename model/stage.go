@@ -12,7 +12,7 @@ import (
 )
 
 type Stage struct {
-	model
+	Model
 
 	BuildID    int64         `db:"build_id"`
 	Name       string        `db:"name"`
@@ -110,7 +110,7 @@ func (stgs StageStore) All(opts ...Option) ([]*Stage, error) {
 
 func (stgs StageStore) Find(id int64) (*Stage, error) {
 	s := &Stage{
-		model: model{
+		Model: Model{
 			DB: stgs.DB,
 		},
 	}
@@ -133,7 +133,7 @@ func (stgs StageStore) Find(id int64) (*Stage, error) {
 
 func (stgs StageStore) FindByName(name string) (*Stage, error) {
 	s := &Stage{
-		model: model{
+		Model: Model{
 			DB: stgs.DB,
 		},
 		Build: stgs.Build,
@@ -189,7 +189,7 @@ func (stgs StageStore) LoadJobs(ss []*Stage) error {
 
 func (stgs StageStore) New() *Stage {
 	s := &Stage{
-		model: model{
+		Model: Model{
 			DB: stgs.DB,
 		},
 		Build: stgs.Build,

@@ -13,7 +13,7 @@ import (
 )
 
 type Object struct {
-	model
+	Model
 
 	UserID    int64       `db:"user_id"`
 	Hash      string      `db:"hash"`
@@ -28,7 +28,7 @@ type Object struct {
 }
 
 type BuildObject struct {
-	model
+	Model
 
 	BuildID     int64         `db:"build_id"`
 	ObjectID    sql.NullInt64 `db:"object_id"`
@@ -51,6 +51,14 @@ type BuildObjectStore struct {
 
 	Build  *Build
 	Object *Object
+}
+
+func (o Object) AccessibleBy(u *User) bool {
+	if u == nil {
+		return false
+	}
+
+	return o.UserID == u.ID
 }
 
 func (o *Object) BuildObjectStore() BuildObjectStore {
@@ -103,7 +111,7 @@ func (o *Object) Destroy() error {
 }
 
 func (o *Object) IsZero() bool {
-	return o.model.IsZero() &&
+	return o.Model.IsZero() &&
 		o.UserID == 0 &&
 		o.Name == "" &&
 		o.Type == "" &&
@@ -195,7 +203,7 @@ func (os ObjectStore) Index(opts ...Option) ([]*Object, error) {
 
 func (os ObjectStore) Find(id int64) (*Object, error) {
 	o := &Object{
-		model: model{
+		Model: Model{
 			DB: os.DB,
 		},
 		User: os.User,
@@ -220,7 +228,7 @@ func (os ObjectStore) Find(id int64) (*Object, error) {
 
 func (os ObjectStore) FindByName(name string) (*Object, error) {
 	o := &Object{
-		model: model{
+		Model: Model{
 			DB: os.DB,
 		},
 		User: os.User,
@@ -245,7 +253,7 @@ func (os ObjectStore) FindByName(name string) (*Object, error) {
 
 func (os ObjectStore) New() *Object {
 	o := &Object{
-		model: model{
+		Model: Model{
 			DB: os.DB,
 		},
 		User: os.User,
@@ -294,7 +302,7 @@ func (bos BuildObjectStore) All(opts ...Option) ([]*BuildObject, error) {
 
 func (bos BuildObjectStore) First() (*BuildObject, error) {
 	empty := &BuildObject{
-		model: model{
+		Model: Model{
 			DB: bos.DB,
 		},
 	}
@@ -348,7 +356,7 @@ func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 
 func (bos BuildObjectStore) New() *BuildObject {
 	bo := &BuildObject{
-		model: model{
+		Model: Model{
 			DB: bos.DB,
 		},
 		Build:  bos.Build,

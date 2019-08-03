@@ -15,7 +15,7 @@ import (
 var NamespaceMaxDepth int64 = 20
 
 type Namespace struct {
-	model
+	Model
 
 	UserID      int64         `db:"user_id"`
 	RootID      sql.NullInt64 `db:"root_id"`
@@ -145,7 +145,7 @@ func (n *Namespace) Destroy() error {
 }
 
 func (n *Namespace) IsZero() bool {
-	return n.model.IsZero() &&
+	return n.Model.IsZero() &&
 		n.UserID == 0 &&
 		!n.ParentID.Valid &&
 		n.Name == "" &&
@@ -266,7 +266,7 @@ func (ns NamespaceStore) All(opts ...Option) ([]*Namespace, error) {
 
 func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 	n := &Namespace{
-		model: model{
+		Model: Model{
 			DB: ns.DB,
 		},
 		User:   ns.User,
@@ -292,7 +292,7 @@ func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
 
 func (ns NamespaceStore) FindByPath(path string) (*Namespace, error) {
 	n := &Namespace{
-		model: model{
+		Model: Model{
 			DB: ns.DB,
 		},
 		User:   ns.User,
@@ -457,7 +457,7 @@ func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {
 
 func (ns NamespaceStore) New() *Namespace {
 	n := &Namespace{
-		model: model{
+		Model: Model{
 			DB: ns.DB,
 		},
 		User:   ns.User,

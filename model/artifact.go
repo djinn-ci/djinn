@@ -11,7 +11,7 @@ import (
 )
 
 type Artifact struct {
-	model
+	Model
 
 	BuildID int64          `db:"build_id"`
 	JobID   int64          `db:"job_id"`
@@ -55,7 +55,7 @@ func (a *Artifact) Create() error {
 }
 
 func (a Artifact) IsZero() bool {
-	return a.model.IsZero() &&
+	return a.Model.IsZero() &&
 		a.BuildID == 0 &&
 		a.JobID == 0 &&
 		a.Hash == "" &&
@@ -124,7 +124,7 @@ func (as ArtifactStore) All(opts ...Option) ([]*Artifact, error) {
 
 func (as ArtifactStore) Find(id int64) (*Artifact, error) {
 	a := &Artifact{
-		model: model{
+		Model: Model{
 			DB: as.DB,
 		},
 		Build: as.Build,
@@ -150,7 +150,7 @@ func (as ArtifactStore) Find(id int64) (*Artifact, error) {
 
 func (as ArtifactStore) FindByHash(hash string) (*Artifact, error) {
 	a := &Artifact{
-		model: model{
+		Model: Model{
 			DB: as.DB,
 		},
 		Build: as.Build,
@@ -182,7 +182,7 @@ func (as ArtifactStore) Index(opts ...Option) ([]*Artifact, error) {
 
 func (as ArtifactStore) New() *Artifact {
 	a := &Artifact{
-		model: model{
+		Model: Model{
 			DB: as.DB,
 		},
 		Build: as.Build,

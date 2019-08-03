@@ -144,7 +144,8 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -162,7 +163,8 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -172,7 +174,8 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -185,7 +188,8 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -195,7 +199,8 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -209,7 +214,8 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := o.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -267,7 +273,8 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -279,18 +286,22 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
 	if err := o.Destroy(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
 	if err := h.FileStore.Remove(o.Hash); err != nil {
-		log.Error.Println(errors.Err(err))
+		if !os.IsNotExist(errors.Cause(err)) {
+			log.Error.Println(errors.Err(err))
+		}
 	}
 
 	http.Redirect(w, r, "/objects", http.StatusSeeOther)

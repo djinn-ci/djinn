@@ -123,7 +123,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -136,7 +137,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -164,7 +166,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 
@@ -176,7 +179,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := b.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -206,10 +210,13 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 		if err := t.Create(); err != nil {
 			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 	}
+
+	h.FlashAlert(w, r, template.Success("Build submitted: #" + strconv.FormatInt(b.ID, 10)))
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

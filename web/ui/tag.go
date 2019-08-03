@@ -132,7 +132,8 @@ func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete tag: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -147,7 +148,8 @@ func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete tag: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -158,7 +160,8 @@ func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := t.Destroy(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete tag: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 

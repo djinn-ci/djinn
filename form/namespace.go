@@ -5,16 +5,11 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/model/types"
 )
 
-var (
-	reNamespace = regexp.MustCompile("^[a-zA-Z0-9]+$")
-
-	ErrNamespaceTooDeep = errors.New("Namespaces can only be nested to 20 levels")
-)
+var reNamespace = regexp.MustCompile("^[a-zA-Z0-9]+$")
 
 type Namespace struct {
 	Namespaces model.NamespaceStore
@@ -69,10 +64,10 @@ func (f Namespace) Validate() error {
 		n, err := f.Namespaces.FindByPath(f.Name)
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			return errors.Err(err)
+		}
 
-			errs.Put("namespace", errors.Cause(err))
-		} else if !n.IsZero() {
+		if !n.IsZero() {
 			errs.Put("name", ErrFieldExists("Name"))
 		}
 	}

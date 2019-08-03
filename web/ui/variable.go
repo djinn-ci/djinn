@@ -72,7 +72,8 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create variable: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -89,7 +90,8 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create variable: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -99,7 +101,8 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := v.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create variable: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -111,7 +114,8 @@ func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete variable: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -123,7 +127,8 @@ func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete variable: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -134,7 +139,8 @@ func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := v.Destroy(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete variable: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 

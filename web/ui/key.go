@@ -73,7 +73,8 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -90,7 +91,8 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -98,7 +100,8 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -109,7 +112,8 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := k.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -161,7 +165,8 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -175,7 +180,8 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -188,7 +194,8 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err := form.Unmarshal(f, r); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -201,7 +208,8 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err := k.Update(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -215,7 +223,8 @@ func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -227,7 +236,8 @@ func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -238,7 +248,8 @@ func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := k.Destroy(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 

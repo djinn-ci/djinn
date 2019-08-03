@@ -120,7 +120,8 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -138,7 +139,8 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -146,7 +148,8 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -168,10 +171,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if n.Level >= model.NamespaceMaxDepth {
-		errs := form.NewErrors()
-		errs.Put("namespace", form.ErrNamespaceTooDeep)
-
-		h.FlashErrors(w, r, errs)
+		h.FlashAlert(w, r, template.Warn("Namespaces can only be nested to 20 levels"))
 		h.FlashForm(w, r, f)
 
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -180,7 +180,8 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := n.Create(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -192,7 +193,8 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 		if err := n.Update(); err != nil {
 			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 	}
@@ -303,7 +305,8 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -311,7 +314,8 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -333,13 +337,15 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		}
 
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
 	if err := n.LoadParent(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -352,14 +358,16 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 	} else {
 		if err := n.CascadeVisibility(); err != nil {
 			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 	}
 
 	if err := n.Update(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -373,7 +381,8 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -381,7 +390,8 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -392,7 +402,8 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := n.Destroy(); err != nil {
 		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 

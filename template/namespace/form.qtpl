@@ -154,7 +154,7 @@ func (p *Form) disabled(vis types.Visibility) string {
 
 {% func (p *Form) Header() %}
 	{% if p.Namespace != nil %}
-		<a class="back" href="/u/{%s p.Namespace.User.Username %}/{%s p.Namespace.Path %}">{% cat "../../svgs/back.svg" %}</a>
+		<a class="back" href="{%s p.Namespace.UIEndpoint() %}">{% cat "../../svgs/back.svg" %}</a>
 		{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %} - Edit
 	{% else %}
 		{% if p.Parent != nil && !p.Parent.IsZero() %}

@@ -274,13 +274,9 @@ func (p *Form) StreamHeader(qw422016 *qt422016.Writer) {
 	//line template/namespace/form.qtpl:156
 	if p.Namespace != nil {
 		//line template/namespace/form.qtpl:156
-		qw422016.N().S(` <a class="back" href="/u/`)
+		qw422016.N().S(` <a class="back" href="`)
 		//line template/namespace/form.qtpl:157
-		qw422016.E().S(p.Namespace.User.Username)
-		//line template/namespace/form.qtpl:157
-		qw422016.N().S(`/`)
-		//line template/namespace/form.qtpl:157
-		qw422016.E().S(p.Namespace.Path)
+		qw422016.E().S(p.Namespace.UIEndpoint())
 		//line template/namespace/form.qtpl:157
 		qw422016.N().S(`">`)
 		//line template/namespace/form.qtpl:157

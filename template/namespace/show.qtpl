@@ -27,7 +27,7 @@ type ShowPage struct {
 		parts := strings.Split(fullName, "/")
 	%}
 	{% for i, p := range parts %}
-		<a href="/u/{%s username %}/{%s strings.Join(parts[:i + 1], "/") %}">{%s p %}</a>
+		<a href="/n/{%s username %}/{%s strings.Join(parts[:i + 1], "/") %}">{%s p %}</a>
 		{% if i != len(parts) - 1 %}<span> / </span>{% endif %}
 	{% endfor %}
 {% endfunc %}

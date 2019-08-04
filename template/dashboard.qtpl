@@ -35,10 +35,7 @@ type level uint8
 
 var (
 	NamespacesURI = "(\\/namespaces\\/?|\\/u\\/[_-a-zA-Z0-9\\S.]+\\/[-a-zA-Z0-9\\/\\S]*\\/?[a-z]*)"
-	ObjectsURI    = "(^\\/objects\\/?[a-z0-9\\/?]*$)"
-	VariablesURI  = "(^\\/variables\\/?[a-z0-9\\/?]*$)"
-	BuildsURI     = "(^\\/$|^\\/builds\\/?[a-z0-9\\/?]*$)"
-	KeysURI       = "(^\\/keys\\/?[a-z0-9\\/?]*$)"
+	BuildsURI     = "(^\\/$|^\\/b/[_-a-zA-Z0-9\\S.]+/[0-9]+\\/?[a-z]*)"
 	SettingsURI   = "\\/settings\\/?"
 )
 
@@ -47,6 +44,10 @@ const (
 	warn
 	danger
 )
+
+func pattern(name string) string {
+	return "(^\\/" + name + "\\/?[a-z0-9\\/?]*$)"
+}
 
 func NewDashboard(p dashboardPage, uri string, a Alert) *Dashboard {
 	return &Dashboard{
@@ -125,9 +126,9 @@ func (l level) String() string {
 				<li class="sidebar-nav-header">MANAGE</li>
 				<li>{%= RenderLinkPattern("/", BuildsURI, p.URI) %}{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
 				<li>{%= RenderLinkPattern("/namespaces", NamespacesURI, p.URI) %}{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
-				<li>{%= RenderLinkPattern("/objects", ObjectsURI, p.URI) %}{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
-				<li>{%= RenderLinkPattern("/variables", VariablesURI, p.URI) %}{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
-				<li>{%= RenderLinkPattern("/keys", KeysURI, p.URI) %}{% cat "../svgs/key.svg" %}<span>SSH Keys</span></a></li>
+				<li>{%= RenderLinkPattern("/objects", pattern("objects"), p.URI) %}{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
+				<li>{%= RenderLinkPattern("/variables", pattern("variables"), p.URI) %}{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
+				<li>{%= RenderLinkPattern("/keys", pattern("keys"), p.URI) %}{% cat "../svgs/key.svg" %}<span>SSH Keys</span></a></li>
 				<li class="sidebar-nav-header">ACCOUNT</li>
 				<li>{%= RenderLinkPattern("/settings", SettingsURI, p.URI) %}{% cat "../svgs/settings.svg" %}<span>Settings</span></a></li>
 				<li><form method="POST" action="/logout"><button type="submit">{% cat "../svgs/logout.svg" %}<span>Logout</span></button></form></li>

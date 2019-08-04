@@ -50,7 +50,7 @@ func streamrenderPath(qw422016 *qt422016.Writer, username, fullName string) {
 	//line template/namespace/show.qtpl:29
 	for i, p := range parts {
 		//line template/namespace/show.qtpl:29
-		qw422016.N().S(` <a href="/u/`)
+		qw422016.N().S(` <a href="/n/`)
 		//line template/namespace/show.qtpl:30
 		qw422016.E().S(username)
 		//line template/namespace/show.qtpl:30

@@ -640,7 +640,11 @@ func (b *Build) LoadVariables() error {
 
 
 func (b Build) UIEndpoint(uri ...string) string {
-	endpoint := fmt.Sprintf("/builds/%v", b.ID)
+	if b.User == nil || b.User.IsZero() {
+		return ""
+	}
+
+	endpoint := fmt.Sprintf("/b/%s/%v", b.User.Username, b.ID)
 
 	if len(uri) > 0 {
 		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))

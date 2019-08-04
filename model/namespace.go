@@ -224,7 +224,7 @@ func (n Namespace) UIEndpoint(uri ...string) string {
 		return ""
 	}
 
-	endpoint := fmt.Sprintf("/u/%s/%s", n.User.Username, n.Path)
+	endpoint := fmt.Sprintf("/n/%s/%s", n.User.Username, n.Path)
 
 	if len(uri) > 0 {
 		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
@@ -411,6 +411,10 @@ func (ns NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 	bb, err := builds.All(query.WhereIn("namespace_id", ids...))
 
 	if err != nil {
+		return errors.Err(err)
+	}
+
+	if err := builds.LoadUsers(bb); err != nil {
 		return errors.Err(err)
 	}
 

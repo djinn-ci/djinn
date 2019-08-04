@@ -16,9 +16,7 @@ import (
 type Middleware struct {
 	Handler
 
-	Builds    model.BuildStore
 	Resources model.ResourceStore
-	Users     model.UserStore
 }
 
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, bool) {

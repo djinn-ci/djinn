@@ -3,6 +3,8 @@ package main
 import (
 	"encoding/gob"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/form"
@@ -50,157 +52,12 @@ func (s *uiServer) initAuth(h web.Handler, mw web.Middleware) {
 	s.router.HandleFunc("/logout", auth.Logout).Methods("POST")
 }
 
-func (s *uiServer) initNamespace(h web.Handler, mw web.Middleware) {
-	namespace := ui.Namespace{
-		Handler:    h,
-	}
-
-	authRouter := s.router.PathPrefix("/namespaces").Subrouter()
-	authRouter.HandleFunc("", namespace.Index).Methods("GET")
-	authRouter.HandleFunc("/create", namespace.Create).Methods("GET")
-	authRouter.HandleFunc("", namespace.Store).Methods("POST")
-	authRouter.Use(mw.Auth)
-
-	r := s.router.PathPrefix("/u/{username}").Subrouter()
-	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}/-/edit", namespace.Edit).Methods("GET")
-	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}/-/namespaces", namespace.Show).Methods("GET")
-	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Show).Methods("GET")
-	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Update).Methods("PATCH")
-	r.HandleFunc("/{namespace:[a-zA-Z0-9\\/?\\S]+}", namespace.Destroy).Methods("DELETE")
-	r.Use(mw.GateResource("namespace"))
-}
-
-func (s *uiServer) initBuild(h web.Handler, mw web.Middleware) {
-	builds := model.BuildStore{
-		DB: s.db,
-	}
-
-	build := ui.Build{
-		Handler: h,
-		Builds:  builds,
-		Queues:  s.Queues,
-	}
-
-	object := ui.BuildObject{
-		Handler: h,
-		Builds:  builds,
-	}
-
-	variable := ui.BuildVariable{
-		Handler: h,
-		Builds:  builds,
-	}
-
-	s.router.HandleFunc("/", build.Index).Methods("GET")
-
-	r := s.router.PathPrefix("/builds").Subrouter()
-	r.HandleFunc("/create", build.Create).Methods("GET")
-	r.HandleFunc("", build.Store).Methods("POST")
-	r.HandleFunc("/{build:[0-9]+}", build.Show).Methods("GET")
-	r.HandleFunc("/{build:[0-9]+}/manifest", build.Show).Methods("GET")
-	r.HandleFunc("/{build:[0-9]+}/manifest/raw", build.Show).Methods("GET")
-	r.HandleFunc("/{build:[0-9]+}/output", build.Show).Methods("GET")
-	r.HandleFunc("/{build:[0-9]+}/output/raw", build.Show).Methods("GET")
-	r.HandleFunc("/{build:[0-9]+}/objects", object.Index).Methods("GET")
-	r.HandleFunc("/{build:[0-9]+}/variables", variable.Index).Methods("GET")
-	r.Use(mw.AuthResource("build"))
-}
-
-func (s *uiServer) initJob(h web.Handler, mw web.Middleware) {
-	job := ui.Job{
-		Handler: h,
-	}
-
-	r := s.router.PathPrefix("/builds/{build:[0-9]+}").Subrouter()
-	r.HandleFunc("/jobs/{job:[0-9]+}", job.Show)
-	r.HandleFunc("/jobs/{job:[0-9]+}/output/raw", job.Show)
-	r.Use(mw.AuthResource("build"))
-}
-
-func (s *uiServer) initArtifact(h web.Handler, mw web.Middleware) {
-	artifacts := model.ArtifactStore{
-		DB: s.db,
-	}
-
-	artifact := ui.Artifact{
-		Handler:   h,
-		Artifacts: artifacts,
-		FileStore: s.artifacts,
-	}
-
-	r := s.router.PathPrefix("/builds/{build:[0-9]+}").Subrouter()
-	r.HandleFunc("/artifacts", artifact.Index)
-	r.HandleFunc("/artifacts/{artifact:[0-9]+}/download/{name}", artifact.Show)
-	r.Use(mw.AuthResource("build"))
-}
-
-func (s *uiServer) initTag(h web.Handler, mw web.Middleware) {
-	tag := ui.Tag{
-		Handler: h,
-	}
-
-	r := s.router.PathPrefix("/builds/{build:[0-9]+}").Subrouter()
-	r.HandleFunc("/tags", tag.Index).Methods("GET")
-	r.HandleFunc("/tags", tag.Store).Methods("POST")
-	r.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
-	r.Use(mw.AuthResource("build"))
-}
-
-func (s *uiServer) initObject(h web.Handler, mw web.Middleware) {
-	object := ui.Object{
-		Handler:   h,
-		FileStore: s.objects,
-		Limit:     s.limit,
-	}
-
-	r := s.router.PathPrefix("/objects").Subrouter()
-	r.HandleFunc("", object.Index).Methods("GET")
-	r.HandleFunc("/create", object.Create).Methods("GET")
-	r.HandleFunc("", object.Store).Methods("POST")
-	r.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
-	r.HandleFunc("/{object:[0-9]+}/download/{name}", object.Download)
-	r.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
-	r.Use(mw.AuthResource("object"))
-}
-
-func (s *uiServer) initVariable(h web.Handler, mw web.Middleware) {
-	variable := ui.Variable{
-		Handler: h,
-	}
-
-	r := s.router.PathPrefix("/variables").Subrouter()
-	r.HandleFunc("", variable.Index).Methods("GET")
-	r.HandleFunc("/create", variable.Create).Methods("GET")
-	r.HandleFunc("", variable.Store).Methods("POST")
-	r.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
-	r.Use(mw.AuthResource("variable"))
-}
-
-func (s *uiServer) initKey(h web.Handler, mw web.Middleware) {
-	key := ui.Key{
-		Handler: h,
-	}
-
-	r := s.router.PathPrefix("/keys").Subrouter()
-	r.HandleFunc("", key.Index).Methods("GET")
-	r.HandleFunc("/create", key.Create).Methods("GET")
-	r.HandleFunc("", key.Store).Methods("POST")
-	r.HandleFunc("/{key:[0-9]+}/edit", key.Edit).Methods("GET")
-	r.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
-	r.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
-	r.Use(mw.AuthResource("key"))
-}
-
 func (s *uiServer) init() {
 	gob.Register(form.NewErrors())
 	gob.Register(template.Alert{})
 	gob.Register(make(map[string]string))
 
 	s.router = mux.NewRouter()
-
-	builds := model.BuildStore{
-		DB: s.db,
-	}
 
 	users := model.UserStore{
 		DB: s.db,
@@ -218,6 +75,23 @@ func (s *uiServer) init() {
 		Table:    "builds",
 		Resource: &model.Build{
 			Model: m,
+		},
+		HandleFind: func(name string, vars map[string]string) []query.Option {
+			username := vars["username"]
+			id, _ := strconv.ParseInt(vars[name], 10, 64)
+
+			return []query.Option{
+				query.Columns("*"),
+				query.Table("builds"),
+				query.WhereEqQuery("user_id",
+					query.Select(
+						query.Columns("id"),
+						query.Table("users"),
+						query.WhereEq("username", username),
+					),
+				),
+				query.WhereEq("id", id),
+			}
 		},
 	})
 
@@ -249,7 +123,7 @@ func (s *uiServer) init() {
 		},
 		HandleFind: func(name string, vars map[string]string) []query.Option {
 			username := vars["username"]
-			path := vars[name]
+			path := strings.TrimSuffix(vars[name], "/")
 
 			return []query.Option{
 				query.Columns("*"),
@@ -266,35 +140,151 @@ func (s *uiServer) init() {
 		},
 	})
 
-	wh := web.New(securecookie.New(s.hash, s.key), session.New(s.client, s.key), users)
-	mw := web.Middleware{
-		Handler:   wh,
-		Builds:    builds,
-		Resources: resources,
-		Users:     users,
+	wh := web.Handler{
+		Store:        session.New(s.client, s.key),
+		SecureCookie: securecookie.New(s.hash, s.key),
+		Users:        users,
 	}
 
-	s.router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-	})
+	mw := web.Middleware{
+		Handler:   wh,
+		Resources: resources,
+	}
 
-	s.router.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
-	})
+	s.router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
+	s.router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowedHandler)
 
 	assets := http.StripPrefix("/assets/", http.FileServer(http.Dir(s.assets)))
 
 	s.router.PathPrefix("/assets/").Handler(assets)
 
-	s.initAuth(wh, mw)
-	s.initNamespace(wh, mw)
-	s.initBuild(wh, mw)
-	s.initJob(wh, mw)
-	s.initArtifact(wh, mw)
-	s.initObject(wh, mw)
-	s.initTag(wh, mw)
-	s.initVariable(wh, mw)
-	s.initKey(wh, mw)
+	auth := ui.Auth{
+		Handler: wh,
+	}
 
-	s.Server.Init(web.NewLog(web.NewSpoof(s.router)))
+	build := ui.Build{
+		Handler: wh,
+		Queues:  s.Queues,
+	}
+
+	namespace := ui.Namespace{
+		Handler: wh,
+	}
+
+	object := ui.Object{
+		Handler:   wh,
+		FileStore: s.objects,
+		Limit:     s.limit,
+	}
+
+	variable := ui.Variable{
+		Handler: wh,
+	}
+
+	key := ui.Key{
+		Handler: wh,
+	}
+
+	job := ui.Job{
+		Handler: wh,
+	}
+
+	artifact := ui.Artifact{
+		Handler: wh,
+	}
+
+	tag := ui.Tag{
+		Handler: wh,
+	}
+
+	buildObject := ui.BuildObject{
+		Build: build,
+	}
+
+	buildVariable := ui.BuildVariable{
+		Build: build,
+	}
+
+	guestRouter := s.router.PathPrefix("/").Subrouter()
+	guestRouter.HandleFunc("/register", auth.Register).Methods("GET", "POST")
+	guestRouter.HandleFunc("/login", auth.Login).Methods("GET", "POST")
+	guestRouter.Use(mw.Guest)
+
+	authRouter := s.router.PathPrefix("/").Subrouter()
+
+	authRouter.HandleFunc("/", build.Index).Methods("GET", "POST")
+	authRouter.HandleFunc("/builds/create", build.Create).Methods("GET")
+	authRouter.HandleFunc("/builds", build.Store).Methods("POST")
+
+	authRouter.HandleFunc("/namespaces", namespace.Index).Methods("GET")
+	authRouter.HandleFunc("/namespaces/create", namespace.Create).Methods("GET")
+	authRouter.HandleFunc("/namespaces", namespace.Store).Methods("POST")
+
+	authRouter.HandleFunc("/objects", object.Index).Methods("GET")
+	authRouter.HandleFunc("/objects/create", object.Create).Methods("GET")
+	authRouter.HandleFunc("/objects", object.Store).Methods("POST")
+
+	authRouter.HandleFunc("/variables", variable.Index).Methods("GET")
+	authRouter.HandleFunc("/variables/create", variable.Create).Methods("GET")
+	authRouter.HandleFunc("/variables", variable.Store).Methods("POST")
+
+	authRouter.HandleFunc("/keys", key.Index).Methods("GET")
+	authRouter.HandleFunc("/keys/create", key.Create).Methods("GET")
+	authRouter.HandleFunc("/keys", key.Store).Methods("POST")
+
+	authRouter.HandleFunc("/logout", auth.Logout).Methods("POST")
+
+	authRouter.Use(mw.Auth)
+
+	namespaceRouter := s.router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
+	namespaceRouter.HandleFunc("/-/edit", namespace.Edit).Methods("GET")
+	namespaceRouter.HandleFunc("/-/namespaces", namespace.Show).Methods("GET")
+	namespaceRouter.HandleFunc("", namespace.Show).Methods("GET")
+	namespaceRouter.HandleFunc("", namespace.Update).Methods("PATCH")
+	namespaceRouter.HandleFunc("", namespace.Destroy).Methods("DELETE")
+	namespaceRouter.Use(mw.GateResource("namespace"))
+
+	buildRouter := s.router.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
+	buildRouter.HandleFunc("", build.Show).Methods("GET")
+	buildRouter.HandleFunc("/manifest", build.Show).Methods("GET")
+	buildRouter.HandleFunc("/manifest/raw", build.Show).Methods("GET")
+	buildRouter.HandleFunc("/output", build.Show).Methods("GET")
+	buildRouter.HandleFunc("/output/raw", build.Show).Methods("GET")
+	buildRouter.HandleFunc("/objects", buildObject.Index).Methods("GET")
+	buildRouter.HandleFunc("/variables", buildVariable.Index).Methods("GET")
+	buildRouter.HandleFunc("/jobs/{job:[0-9]+}", job.Show).Methods("GET")
+	buildRouter.HandleFunc("/jobs/{job:[0-9]+}/output/raw", job.Show).Methods("GET")
+	buildRouter.HandleFunc("/artifacts", artifact.Index).Methods("GET")
+	buildRouter.HandleFunc("/artifacts/{artifact:[0-9]+}/download/{name}", artifact.Index).Methods("GET")
+	buildRouter.HandleFunc("/tags", tag.Index).Methods("GET")
+	buildRouter.HandleFunc("/tags", tag.Store).Methods("POST")
+	buildRouter.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
+	buildRouter.Use(mw.GateResource("build"))
+
+	objectRouter := s.router.PathPrefix("/objects").Subrouter()
+	objectRouter.HandleFunc("", object.Index).Methods("GET")
+	objectRouter.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
+	objectRouter.HandleFunc("/{object:[0-9]+}/download/{name}", object.Download).Methods("GET")
+	objectRouter.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
+	objectRouter.Use(mw.GateResource("object"))
+
+	variableRouter := s.router.PathPrefix("/variables").Subrouter()
+	variableRouter.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
+	variableRouter.Use(mw.GateResource("variable"))
+
+	keyRouter := s.router.PathPrefix("/keys").Subrouter()
+	keyRouter.HandleFunc("/{key:[0-9]+}/edit", key.Edit).Methods("GET")
+	keyRouter.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
+	keyRouter.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
+	keyRouter.Use(mw.GateResource("key"))
+
+	s.Server.Init(web.NewSpoof(s.router))
+}
+
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	web.HTMLError(w, "Not found", http.StatusNotFound)
+}
+
+func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
+	web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
 }

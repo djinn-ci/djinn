@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
@@ -16,7 +15,6 @@ import (
 	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/template/auth"
 	"github.com/andrewpillar/thrall/template/build"
 	"github.com/andrewpillar/thrall/web"
 
@@ -29,52 +27,39 @@ import (
 type Build struct {
 	web.Handler
 
-	Builds model.BuildStore
 	Queues map[string]*machinery.Server
 }
 
 type BuildObject struct {
-	web.Handler
-
-	Builds model.BuildStore
+	Build
 }
 
 type BuildVariable struct {
-	web.Handler
+	Build
+}
 
-	Builds model.BuildStore
+func (h Build) build(r *http.Request) (*model.Build, error) {
+	vars := mux.Vars(r)
+
+	u, err := h.Users.FindByUsername(vars["username"])
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	id, _ := strconv.ParseInt(vars["build"], 10, 64)
+
+	b, err := u.BuildStore().Find(id)
+
+	return b, errors.Err(err)
 }
 
 func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
 	if err != nil {
-		if strings.Contains(errors.Cause(err).Error(), "expired timestamp") {
-			c := &http.Cookie{
-				Name:     "user",
-				HttpOnly: true,
-				Path:     "/",
-				Expires:  time.Unix(0, 0),
-			}
-
-			http.SetCookie(w, c)
-		} else {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	if u.IsZero() {
-		p := &auth.LoginPage{
-			Form: template.Form{
-				CSRF: csrf.TemplateField(r),
-				Errors: h.Errors(w, r),
-				Form:   h.Form(w, r),
-			},
-		}
-
-		web.HTML(w, template.Render(p), http.StatusOK)
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
@@ -222,15 +207,15 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Build) Show(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
+	vars := mux.Vars(r)
+
+	u, err := h.Users.FindByUsername(vars["username"])
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-
-	vars := mux.Vars(r)
 
 	id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
@@ -242,7 +227,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b.IsZero() || u.ID != b.UserID {
+	if b.IsZero() {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -277,15 +262,16 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h BuildObject) Index(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := h.Builds.Find(id)
+	b, err := h.build(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if b.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -321,15 +307,16 @@ func (h BuildObject) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h BuildVariable) Index(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := h.Builds.Find(id)
+	b, err := h.build(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if b.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 

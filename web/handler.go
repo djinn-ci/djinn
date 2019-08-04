@@ -17,22 +17,13 @@ import (
 var sessionName = "session"
 
 type Handler struct {
-	store sessions.Store
-
+	Store        sessions.Store
 	SecureCookie *securecookie.SecureCookie
 	Users        model.UserStore
 }
 
-func New(sc *securecookie.SecureCookie, store sessions.Store, users model.UserStore) Handler {
-	return Handler{
-		store:        store,
-		SecureCookie: sc,
-		Users:        users,
-	}
-}
-
 func (h *Handler) FlashAlert(w http.ResponseWriter, r *http.Request, a template.Alert) {
-	sess, _ := h.store.Get(r, sessionName)
+	sess, _ := h.Store.Get(r, sessionName)
 
 	sess.Values["alert"] = a
 
@@ -42,7 +33,7 @@ func (h *Handler) FlashAlert(w http.ResponseWriter, r *http.Request, a template.
 }
 
 func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Errors) {
-	sess, _ := h.store.Get(r, sessionName)
+	sess, _ := h.Store.Get(r, sessionName)
 
 	sess.Values["Errors"] = e
 
@@ -52,7 +43,7 @@ func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Err
 }
 
 func (h *Handler) FlashForm(w http.ResponseWriter, r *http.Request, f form.Form) {
-	sess, _ := h.store.Get(r, sessionName)
+	sess, _ := h.Store.Get(r, sessionName)
 
 	sess.Values["form"] = f.Fields()
 
@@ -62,7 +53,7 @@ func (h *Handler) FlashForm(w http.ResponseWriter, r *http.Request, f form.Form)
 }
 
 func (h *Handler) Alert(w http.ResponseWriter, r *http.Request) template.Alert {
-	sess, _ := h.store.Get(r, sessionName)
+	sess, _ := h.Store.Get(r, sessionName)
 
 	a, ok := sess.Values["alert"]
 
@@ -80,7 +71,7 @@ func (h *Handler) Alert(w http.ResponseWriter, r *http.Request) template.Alert {
 }
 
 func (h *Handler) Errors(w http.ResponseWriter, r *http.Request) form.Errors {
-	sess, _ := h.store.Get(r, sessionName)
+	sess, _ := h.Store.Get(r, sessionName)
 
 	e, ok := sess.Values["Errors"]
 
@@ -98,7 +89,7 @@ func (h *Handler) Errors(w http.ResponseWriter, r *http.Request) form.Errors {
 }
 
 func (h *Handler) Form(w http.ResponseWriter, r *http.Request) map[string]string {
-	sess, _ := h.store.Get(r, sessionName)
+	sess, _ := h.Store.Get(r, sessionName)
 
 	f, ok := sess.Values["form"]
 

@@ -407,7 +407,7 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Deleted namespace: " + n.Path))
+	h.FlashAlert(w, r, template.Success("Namespace has been deleted: " + n.Path))
 
 	http.Redirect(w, r, "/namespaces", http.StatusSeeOther)
 }

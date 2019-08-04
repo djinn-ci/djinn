@@ -106,7 +106,9 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+	h.FlashAlert(w, r, template.Success("Variable has been added: " + v.Key))
+
+	http.Redirect(w, r, "/variables", http.StatusSeeOther)
 }
 
 func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {

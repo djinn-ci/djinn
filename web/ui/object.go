@@ -304,5 +304,7 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	h.FlashAlert(w, r, template.Success("Object has been deleted: " + o.Name))
+
 	http.Redirect(w, r, "/objects", http.StatusSeeOther)
 }

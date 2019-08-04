@@ -117,6 +117,8 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.FlashAlert(w, r, template.Success("Key has been added: " + k.Name))
+
 	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }
 
@@ -199,11 +201,6 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if f.Config == "" {
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
 	k.Config = f.Config
 
 	if err := k.Update(); err != nil {
@@ -213,7 +210,7 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Key changes saved for key: " + k.Name))
+	h.FlashAlert(w, r, template.Success("Key changes saved for: " + k.Name))
 
 	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }

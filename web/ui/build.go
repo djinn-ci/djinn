@@ -151,8 +151,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 

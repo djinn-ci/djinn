@@ -1,0 +1,242 @@
+{%
+import (
+	"regexp"
+
+	"github.com/andrewpillar/thrall/form"
+)
+%}
+
+{%
+interface Dashboard {
+	Title()
+
+	Styles()
+
+	Body()
+
+	Footer()
+
+	Actions()
+
+	Header()
+
+	Navigation()
+}
+%}
+
+{%
+interface Page {
+	Title()
+
+	Styles()
+
+	Body()
+
+	Footer()
+}
+%}
+
+{% code
+type Alert struct {
+	Level   level
+	Message string
+}
+
+type BasePage struct {
+	URI string
+}
+
+type baseDashboard struct {
+	Dashboard
+
+	alert Alert
+	URI   string
+}
+
+type Form struct {
+	CSRF   string
+	Errors form.Errors
+	Fields map[string]string
+}
+
+type level uint8
+
+const (
+	success level = iota
+	warn
+	danger
+)
+
+var (
+	NamespacesURI = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
+	BuildsURI     = "(^\\/$|^\\/builds\\/create$|^\\/b/[_-a-zA-Z0-9.]+/[0-9]+\\/?[a-z]*)"
+	SettingsURI   = "\\/settings\\/?"
+)
+
+func pattern(name string) string {
+	return "(^\\/" + name + "\\/?[a-z0-9\\/?]*$)"
+}
+
+func NewDashboard(d Dashboard, uri string, a Alert) *baseDashboard {
+	return &baseDashboard{
+		Dashboard: d,
+		alert:     a,
+		URI:       uri,
+	}
+}
+
+func Active(condition bool) string {
+	if condition {
+		return "active"
+	}
+
+	return ""
+}
+
+func Danger(msg string) Alert {
+	return Alert{
+		Level:   danger,
+		Message: msg,
+	}
+}
+
+func Match(uri, pattern string) bool {
+	matched, err := regexp.Match(pattern, []byte(uri))
+
+	if err != nil {
+		return false
+	}
+
+	return matched
+}
+
+func Success(msg string) Alert {
+	return Alert{
+		Level:   success,
+		Message: msg,
+	}
+}
+
+func Warn(msg string) Alert {
+	return Alert{
+		Level:   warn,
+		Message: msg,
+	}
+}
+
+func (a Alert) IsZero() bool {
+	return a.Level == level(0) && a.Message == ""
+}
+
+func (l level) String() string {
+	switch l {
+	case success:
+		return "success"
+	case warn:
+		return "warn"
+	case danger:
+		return "danger"
+	default:
+		return ""
+	}
+}
+%}
+
+{% collapsespace %}
+{% func Render(p Page) %}
+	<!DOCTYPE HTML>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8">
+			<meta content="width=device-width, initial-scal=1" name="viewport">
+			<title>{%= p.Title() %}</title>
+			{%= p.Styles() %}
+		</head>
+		<body>{%= p.Body() %}</body>
+		<footer>{%= p.Footer() %}</footer>
+	</html>
+{% endfunc %}
+
+{% func (f Form) Error(field string) %}
+	<div class="form-error">{%s f.Errors.First(field) %}</div>
+{% endfunc %}
+
+{% func (p *BasePage) Title() %}
+	Thrall
+{% endfunc %}
+
+{% func (p *BasePage) Styles() %}
+	<link rel="stylesheet" type="text/css" href="/assets/css/main.css">
+{% endfunc %}
+
+{% func (p *BasePage) Body() %}{% endfunc %}
+{% func (p *BasePage) Footer() %}{% endfunc %}
+
+{% func (p *baseDashboard) Body() %}
+	<div class="dashboard">
+		<div class="dashboard-content">
+			{% if !p.alert.IsZero() %}
+				<div class="alert alert-{%s p.alert.Level.String() %}">
+					<div class="alert-message">{%s p.alert.Message %}</div>
+					<a href="{%s p.URI %}">{% cat "../svgs/close.svg" %}</div>
+				</div>
+			{% endif %}
+			<div class="dashboard-wrap">
+				<div class="dashboard-header">
+					<div class="overflow">
+						<h1>{%= p.Dashboard.Header() %}</h1>
+						<ul class="dashboard-actions">{%= p.Dashboard.Actions() %}</ul>
+					</div>
+					<ul class="dashboard-nav">{%= p.Dashboard.Navigation() %}</ul>
+				</div>
+				<div class="dashboard-body">{%= p.Dashboard.Body() %}</div>
+			</div>
+		</div>
+		<div class="sidebar">
+			<div class="sidebar-header">
+				<div class="logo"><div class="left"></div><div class="right"></div></div>
+				<h2>Thrall</h2>
+			</div>
+			<ul class="sidebar-nav">
+				<li class="sidebar-nav-header">MANAGE</li>
+				{% if Match(p.URI, BuildsURI) %}
+					<li><a href="/" class="active">{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
+				{% else %}
+					<li><a href="/">{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
+				{% endif %}
+				{% if Match(p.URI, NamespacesURI) %}
+					<li><a href="/namespaces" class="active">{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
+				{% else %}
+					<li><a href="/namespaces">{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
+				{% endif %}
+				{% if Match(p.URI, pattern("objects")) %}
+					<li><a href="/objects" class="active">{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
+				{% else %}
+					<li><a href="/objects">{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
+				{% endif %}
+				{% if Match(p.URI, pattern("variables")) %}
+					<li><a href="/variables" class="active">{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
+				{% else %}
+					<li><a href="/variables">{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
+				{% endif %}
+				{% if Match(p.URI, pattern("keys")) %}
+					<li><a href="/keys" class="active">{% cat "../svgs/key.svg" %}<span>Keys</span></a></li>
+				{% else %}
+					<li><a href="/keys">{% cat "../svgs/key.svg" %}<span>Keys</span></a></li>
+				{% endif %}
+				<li class="sidebar-nav-header">ACCOUNT</li>
+				{% if Match(p.URI, SettingsURI) %}
+					<li><a href="/settings" class="active">{% cat "../svgs/settings.svg" %}<span>Settings</span></a></li>
+				{% else %}
+					<li><a href="/settings">{% cat "../svgs/settings.svg" %}<span>Settings</span></a></li>
+				{% endif %}
+				<li>
+					<form method="POST" action="/logout">
+						<button type="submit">{% cat "../svgs/logout.svg" %}<span>Logout</span></button>
+					</form>
+				</li>
+			</ul>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

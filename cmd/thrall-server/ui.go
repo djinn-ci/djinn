@@ -42,6 +42,14 @@ type uiServer struct {
 	router *mux.Router
 }
 
+func notFoundHandler(w http.ResponseWriter, r *http.Request) {
+	web.HTMLError(w, "Not found", http.StatusNotFound)
+}
+
+func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
+	web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
 func (s *uiServer) initAuth(h web.Handler, mw web.Middleware) {
 	auth := ui.Auth{
 		Handler: h,
@@ -237,9 +245,12 @@ func (s *uiServer) init() {
 	authRouter.Use(mw.Auth)
 
 	namespaceRouter := s.router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
+	namespaceRouter.HandleFunc("", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("/-/edit", namespace.Edit).Methods("GET")
 	namespaceRouter.HandleFunc("/-/namespaces", namespace.Show).Methods("GET")
-	namespaceRouter.HandleFunc("", namespace.Show).Methods("GET")
+	namespaceRouter.HandleFunc("/-/objects", namespace.Show).Methods("GET")
+	namespaceRouter.HandleFunc("/-/variables", namespace.Show).Methods("GET")
+	namespaceRouter.HandleFunc("/-/keys", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("", namespace.Update).Methods("PATCH")
 	namespaceRouter.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	namespaceRouter.Use(mw.GateResource("namespace"))
@@ -279,12 +290,4 @@ func (s *uiServer) init() {
 	keyRouter.Use(mw.GateResource("key"))
 
 	s.Server.Init(web.NewSpoof(s.router))
-}
-
-func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	web.HTMLError(w, "Not found", http.StatusNotFound)
-}
-
-func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
-	web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
 }

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"database/sql"
 	"net/http"
 	"strconv"
 
@@ -40,10 +41,10 @@ func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &variable.IndexPage{
-		Page: template.Page{
+		BasePage: template.BasePage{
 			URI: r.URL.Path,
 		},
-		CSRF:      csrf.TemplateField(r),
+		CSRF:      string(csrf.TemplateField(r)),
 		Search:    search,
 		Variables: vv,
 	}
@@ -56,9 +57,9 @@ func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
 func (h Variable) Create(w http.ResponseWriter, r *http.Request) {
 	p := &variable.CreatePage{
 		Form: template.Form{
-			CSRF:   csrf.TemplateField(r),
+			CSRF:   string(csrf.TemplateField(r)),
 			Errors: h.Errors(w, r),
-			Form:   h.Form(w, r),
+			Fields: h.Form(w, r),
 		},
 	}
 
@@ -78,24 +79,53 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	variables := u.VariableStore()
+	namespaces := u.NamespaceStore()
 
 	f := &form.Variable{
 		Variables: variables,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
-		if _, ok := err.(form.Errors); ok {
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-			return
-		}
-
+	if err := form.Unmarshal(f, r); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to create variable: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
+	n := &model.Namespace{}
+
+	if f.Namespace != "" {
+		n, err = namespaces.FindOrCreate(f.Namespace)
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			h.FlashAlert(w, r, template.Danger("Failed to create variable: " + errors.Cause(err).Error()))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
+		f.Variables = n.VariableStore()
+	}
+
+	if err := f.Validate(); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			h.FlashErrors(w, r, err.(form.Errors))
+			h.FlashForm(w, r, f)
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
+		log.Error.Println(errors.Err(err))
+		h.FlashAlert(w, r, template.Danger("Failed to create SSH key: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
 	v := variables.New()
+	v.NamespaceID = sql.NullInt64{
+		Int64: n.ID,
+		Valid: n.ID > 0,
+	}
 	v.Key = f.Key
 	v.Value = f.Value
 

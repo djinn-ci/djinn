@@ -75,7 +75,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 	)
 
 	p := &build.IndexPage{
-		Page: template.Page{
+		BasePage: template.BasePage{
 			URI: r.URL.Path,
 		},
 		Builds: bb,
@@ -92,9 +92,9 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 func (h Build) Create(w http.ResponseWriter, r *http.Request) {
 	p := &build.CreatePage{
 		Form: template.Form{
-			CSRF:   csrf.TemplateField(r),
+			CSRF:   string(csrf.TemplateField(r)),
 			Errors: h.Errors(w, r),
-			Form:   h.Form(w, r),
+			Fields: h.Form(w, r),
 		},
 	}
 
@@ -248,7 +248,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &build.ShowPage{
-		Page: template.Page{
+		BasePage: template.BasePage{
 			URI: r.URL.Path,
 		},
 		Build:        b,
@@ -293,7 +293,7 @@ func (h BuildObject) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &build.ObjectIndexPage{
 		ShowPage: build.ShowPage{
-			Page: template.Page{
+			BasePage: template.BasePage{
 				URI: r.URL.Path,
 			},
 			Build: b,
@@ -330,7 +330,7 @@ func (h BuildVariable) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &build.VariableIndexPage{
 		ShowPage: build.ShowPage{
-			Page: template.Page{
+			BasePage: template.BasePage{
 				URI: r.URL.Path,
 			},
 			Build: b,

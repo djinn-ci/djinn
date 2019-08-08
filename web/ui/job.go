@@ -60,7 +60,7 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &job.ShowPage{
-		Page: template.Page{
+		BasePage: template.BasePage{
 			URI: r.URL.Path,
 		},
 		Job: j,

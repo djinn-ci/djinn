@@ -56,7 +56,7 @@ func (h Artifact) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &build.ArtifactIndexPage{
 		ShowPage: build.ShowPage{
-			Page: template.Page{
+			BasePage: template.BasePage{
 				URI: r.URL.Path,
 			},
 			Build:  b,

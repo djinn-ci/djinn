@@ -27,9 +27,9 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &auth.RegisterPage{
 			Form: template.Form{
-				CSRF:   csrf.TemplateField(r),
+				CSRF:   string(csrf.TemplateField(r)),
 				Errors: h.Errors(w, r),
-				Form:   h.Form(w, r),
+				Fields: h.Form(w, r),
 			},
 		}
 
@@ -78,9 +78,9 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &auth.LoginPage{
 			Form: template.Form{
-				CSRF: csrf.TemplateField(r),
+				CSRF:   string(csrf.TemplateField(r)),
 				Errors: h.Errors(w, r),
-				Form:   h.Form(w, r),
+				Fields: h.Form(w, r),
 			},
 		}
 

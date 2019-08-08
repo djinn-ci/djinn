@@ -16,11 +16,13 @@ var _ Resource = Variable{}
 type Variable struct {
 	Model
 
-	UserID int64  `db:"user_id"`
-	Key    string `db:"key"`
-	Value  string `db:"value"`
+	UserID      int64         `db:"user_id"`
+	NamespaceID sql.NullInt64 `db:"namespace_id"`
+	Key         string        `db:"key"`
+	Value       string        `db:"value"`
 
-	User  *User
+	User      *User
+	Namespace *Namespace
 }
 
 type BuildVariable struct {
@@ -38,7 +40,8 @@ type BuildVariable struct {
 type VariableStore struct {
 	*sqlx.DB
 
-	User *User
+	User      *User
+	Namespace *Namespace
 }
 
 type BuildVariableStore struct {
@@ -152,8 +155,8 @@ func (bvs BuildVariableStore) New() *BuildVariable {
 func (v *Variable) Create() error {
 	q := query.Insert(
 		query.Table("variables"),
-		query.Columns("user_id", "key", "value"),
-		query.Values(v.UserID, v.Key, v.Value),
+		query.Columns("user_id", "namespace_id", "key", "value"),
+		query.Values(v.UserID, v.NamespaceID, v.Key, v.Value),
 		query.Returning("id", "created_at", "updated_at"),
 	)
 
@@ -233,7 +236,7 @@ func (vs VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 	vv := make([]*Variable, 0)
 
 	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForUser(vs.User), query.Table("variables"))
+	opts = append(opts, ForUser(vs.User), ForNamespace(vs.Namespace), query.Table("variables"))
 
 	q := query.Select(opts...)
 
@@ -267,6 +270,7 @@ func (vs VariableStore) findBy(col string, val interface{}) (*Variable, error) {
 		query.Table("variables"),
 		query.WhereEq(col, val),
 		ForUser(vs.User),
+		ForNamespace(vs.Namespace),
 	)
 
 	err := vs.Get(v, q.Build(), q.Args()...)

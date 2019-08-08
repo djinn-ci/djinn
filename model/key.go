@@ -14,18 +14,21 @@ import (
 type Key struct {
 	Model
 
-	UserID  int64  `db:"user_id"`
-	Name    string `db:"name"`
-	Key     []byte `db:"key"`
-	Config  string `db:"config"`
+	UserID      int64         `db:"user_id"`
+	NamespaceID sql.NullInt64 `db:"namespace_id"`
+	Name        string        `db:"name"`
+	Key         []byte        `db:"key"`
+	Config      string        `db:"config"`
 
-	User *User
+	User      *User
+	Namespace *Namespace
 }
 
 type KeyStore struct {
 	*sqlx.DB
 
-	User *User
+	User      *User
+	Namespace *Namespace
 }
 
 func (k Key) AccessibleBy(u *User, a Action) bool {
@@ -39,8 +42,8 @@ func (k Key) AccessibleBy(u *User, a Action) bool {
 func (k *Key) Create() error {
 	q := query.Insert(
 		query.Table("keys"),
-		query.Columns("user_id", "name", "key", "config"),
-		query.Values(k.UserID, k.Name, k.Key, k.Config),
+		query.Columns("user_id", "namespace_id", "name", "key", "config"),
+		query.Values(k.UserID, k.NamespaceID, k.Name, k.Key, k.Config),
 		query.Returning("id", "created_at", "updated_at"),
 	)
 
@@ -76,6 +79,18 @@ func (k *Key) Destroy() error {
 	return errors.Err(err)
 }
 
+func (k *Key) LoadNamespace() error {
+	var err error
+
+	namespaces := NamespaceStore{
+		DB: k.DB,
+	}
+
+	k.Namespace, err = namespaces.Find(k.NamespaceID.Int64)
+
+	return errors.Err(err)
+}
+
 func (k Key) UIEndpoint(uri ...string) string {
 	endpoint := fmt.Sprintf("/keys/%v", k.ID)
 
@@ -89,6 +104,7 @@ func (k Key) UIEndpoint(uri ...string) string {
 func (k *Key) Update() error {
 	q := query.Update(
 		query.Table("keys"),
+		query.Set("namespace_id", k.NamespaceID),
 		query.Set("config", k.Config),
 		query.WhereEq("id", k.ID),
 		query.Returning("updated_at"),
@@ -111,7 +127,7 @@ func (ks KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	kk := make([]*Key, 0)
 
 	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForUser(ks.User), query.Table("keys"))
+	opts = append(opts, ForUser(ks.User), ForNamespace(ks.Namespace), query.Table("keys"))
 
 	q := query.Select(opts...)
 
@@ -160,6 +176,7 @@ func (ks KeyStore) findBy(col string, val interface{}) (*Key, error) {
 		query.Table("keys"),
 		query.WhereEq(col, val),
 		ForUser(ks.User),
+		ForNamespace(ks.Namespace),
 	)
 
 	err := ks.Get(k, q.Build(), q.Args()...)

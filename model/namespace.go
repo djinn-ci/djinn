@@ -59,7 +59,27 @@ func (n Namespace) AccessibleBy(u *User, a Action) bool {
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
 		DB:        n.DB,
-		User:      n.User,
+		Namespace: n,
+	}
+}
+
+func (n *Namespace) KeyStore() KeyStore {
+	return KeyStore{
+		DB:        n.DB,
+		Namespace: n,
+	}
+}
+
+func (n *Namespace) ObjectStore() ObjectStore {
+	return ObjectStore{
+		DB:        n.DB,
+		Namespace: n,
+	}
+}
+
+func (n *Namespace) VariableStore() VariableStore {
+	return VariableStore{
+		DB:        n.DB,
 		Namespace: n,
 	}
 }

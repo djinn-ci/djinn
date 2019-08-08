@@ -50,12 +50,12 @@ func (h Tag) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &build.TagIndexPage{
 		ShowPage: build.ShowPage{
-			Page: template.Page{
+			BasePage: template.BasePage{
 				URI: r.URL.Path,
 			},
 			Build: b,
 		},
-		CSRF: csrf.TemplateField(r),
+		CSRF: string(csrf.TemplateField(r)),
 		Tags: tt,
 	}
 

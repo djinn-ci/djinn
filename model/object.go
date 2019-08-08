@@ -16,16 +16,18 @@ import (
 type Object struct {
 	Model
 
-	UserID    int64       `db:"user_id"`
-	Hash      string      `db:"hash"`
-	Name      string      `db:"name"`
-	Type      string      `db:"type"`
-	Size      int64       `db:"size"`
-	MD5       []byte      `db:"md5"`
-	SHA256    []byte      `db:"sha256"`
-	DeletedAt pq.NullTime `db:"deleted_at"`
+	UserID      int64         `db:"user_id"`
+	NamespaceID sql.NullInt64 `db:"namespace_id"`
+	Hash        string        `db:"hash"`
+	Name        string        `db:"name"`
+	Type        string        `db:"type"`
+	Size        int64         `db:"size"`
+	MD5         []byte        `db:"md5"`
+	SHA256      []byte        `db:"sha256"`
+	DeletedAt   pq.NullTime   `db:"deleted_at"`
 
-	User *User
+	User      *User
+	Namespace *Namespace
 }
 
 type BuildObject struct {
@@ -44,7 +46,8 @@ type BuildObject struct {
 type ObjectStore struct {
 	*sqlx.DB
 
-	User *User
+	User      *User
+	Namespace *Namespace
 }
 
 type BuildObjectStore struct {
@@ -72,8 +75,8 @@ func (o *Object) BuildObjectStore() BuildObjectStore {
 func (o *Object) Create() error {
 	q := query.Insert(
 		query.Table("objects"),
-		query.Columns("user_id", "hash", "name", "type", "size", "md5", "sha256"),
-		query.Values(o.UserID, o.Hash, o.Name, o.Type, o.Size, o.MD5, o.SHA256),
+		query.Columns("user_id", "namespace_id", "hash", "name", "type", "size", "md5", "sha256"),
+		query.Values(o.UserID, o.NamespaceID, o.Hash, o.Name, o.Type, o.Size, o.MD5, o.SHA256),
 		query.Returning("id", "created_at", "updated_at"),
 	)
 
@@ -179,7 +182,7 @@ func (os ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 	oo := make([]*Object, 0)
 
 	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForUser(os.User), query.Table("objects"))
+	opts = append(opts, ForUser(os.User), ForNamespace(os.Namespace), query.Table("objects"))
 
 	q := query.Select(opts...)
 
@@ -203,7 +206,7 @@ func (os ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
 	return oo, errors.Err(err)
 }
 
-func (os ObjectStore) Find(id int64) (*Object, error) {
+func (os ObjectStore) findBy(col string, val interface{}) (*Object, error) {
 	o := &Object{
 		Model: Model{
 			DB: os.DB,
@@ -214,9 +217,10 @@ func (os ObjectStore) Find(id int64) (*Object, error) {
 	q := query.Select(
 		query.Columns("*"),
 		query.Table("objects"),
-		query.WhereEq("id", id),
+		query.WhereEq(col, val),
 		query.WhereIs("deleted_at", "NULL"),
 		ForUser(os.User),
+		ForNamespace(os.Namespace),
 	)
 
 	err := os.Get(o, q.Build(), q.Args()...)
@@ -228,27 +232,14 @@ func (os ObjectStore) Find(id int64) (*Object, error) {
 	return o, errors.Err(err)
 }
 
+func (os ObjectStore) Find(id int64) (*Object, error) {
+	o, err := os.findBy("id", id)
+
+	return o, errors.Err(err)
+}
+
 func (os ObjectStore) FindByName(name string) (*Object, error) {
-	o := &Object{
-		Model: Model{
-			DB: os.DB,
-		},
-		User: os.User,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.Table("objects"),
-		query.WhereEq("name", name),
-		query.WhereIs("deleted_at", "NULL"),
-		ForUser(os.User),
-	)
-
-	err := os.Get(o, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
+	o, err := os.findBy("name", name)
 
 	return o, errors.Err(err)
 }

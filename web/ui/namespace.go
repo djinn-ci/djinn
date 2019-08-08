@@ -64,7 +64,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &namespace.IndexPage{
-		Page: template.Page{
+		BasePage: template.BasePage{
 			URI: r.URL.Path,
 		},
 		Namespaces: nn,
@@ -100,9 +100,9 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 
 	p := &namespace.Form{
 		Form: template.Form{
-			CSRF:   csrf.TemplateField(r),
+			CSRF:   string(csrf.TemplateField(r)),
 			Errors: h.Errors(w, r),
-			Form:   h.Form(w, r),
+			Fields: h.Form(w, r),
 		},
 	}
 
@@ -211,37 +211,99 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if n.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
 	if err := n.LoadParents(); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	showNamespaces := filepath.Base(r.URL.Path) == "namespaces"
+	base := filepath.Base(r.URL.Path)
 
 	status := r.URL.Query().Get("status")
 	search := r.URL.Query().Get("search")
 
-	p := namespace.ShowPage{
-		Page: template.Page{
+	var p template.Dashboard
+
+	sp := namespace.ShowPage{
+		BasePage: template.BasePage{
 			URI: r.URL.Path,
 		},
-		Namespace:      n,
-		ShowNamespaces: showNamespaces,
-		Status:         status,
-		Search:         search,
+		Namespace: n,
+		Status:    status,
+		Search:    search,
 	}
 
-	if showNamespaces {
-		n.Children, err = n.NamespaceStore().Index(model.Search("path", search))
+	switch base {
+	case "namespaces":
+		nn, err := n.NamespaceStore().Index(model.Search("path", search))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-	} else {
-		n.Builds, err = n.BuildStore().Index(
+
+		p = &namespace.ShowNamespaces{
+			ShowPage:   sp,
+			Namespaces: nn,
+		}
+
+		break
+	case "objects":
+		oo, err := n.ObjectStore().All(model.Search("name", search))
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p = &namespace.ShowObjects{
+			ShowPage: sp,
+			CSRF:     string(csrf.TemplateField(r)),
+			Objects:  oo,
+		}
+
+		break
+	case "variables":
+		vv, err := n.VariableStore().All(model.Search("key", search))
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p = &namespace.ShowVariables{
+			ShowPage:  sp,
+			CSRF:      string(csrf.TemplateField(r)),
+			Variables: vv,
+		}
+
+		break
+	case "keys":
+		kk, err := n.KeyStore().All(model.Search("name", search))
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p = &namespace.ShowKeys{
+			ShowPage: sp,
+			CSRF:     string(csrf.TemplateField(r)),
+			Keys:     kk,
+		}
+
+		break
+	default:
+		sp.Builds, err = n.BuildStore().Index(
 			model.BuildStatus(status),
 			model.BuildSearch(search),
 		)
@@ -251,9 +313,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
+
+		p = &sp
+
+		break
 	}
 
-	d := template.NewDashboard(&p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -288,9 +354,9 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 
 	p := &namespace.Form{
 		Form: template.Form{
-			CSRF:   csrf.TemplateField(r),
+			CSRF:   string(csrf.TemplateField(r)),
 			Errors: h.Errors(w, r),
-			Form:   h.Form(w, r),
+			Fields: h.Form(w, r),
 		},
 		Namespace: n,
 	}

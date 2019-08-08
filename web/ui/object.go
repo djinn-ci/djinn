@@ -3,6 +3,7 @@ package ui
 import (
 	"crypto/md5"
 	"crypto/sha256"
+	"database/sql"
 	"io"
 	"net/http"
 	"os"
@@ -50,10 +51,10 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &object.IndexPage{
-		Page: template.Page{
+		BasePage: template.BasePage{
 			URI: r.URL.Path,
 		},
-		CSRF:    csrf.TemplateField(r),
+		CSRF:    string(csrf.TemplateField(r)),
 		Objects: oo,
 		Search:  search,
 	}
@@ -111,7 +112,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p := &object.ShowPage{
-		Page:   template.Page{
+		BasePage: template.BasePage{
 			URI: r.URL.Path,
 		},
 		Object: o,
@@ -128,9 +129,9 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 func (h Object) Create(w http.ResponseWriter, r *http.Request) {
 	p := &object.CreatePage{
 		Form: template.Form{
-			CSRF:   csrf.TemplateField(r),
+			CSRF:   string(csrf.TemplateField(r)),
 			Errors: h.Errors(w, r),
-			Form:   h.Form(w, r),
+			Fields: h.Form(w, r),
 		},
 	}
 
@@ -149,15 +150,42 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	objects := u.ObjectStore()
+	namespaces := u.NamespaceStore()
+
 	f := &form.Object{
 		Writer:  w,
 		Request: r,
 		Limit:   h.Limit,
-		Objects: u.ObjectStore(),
+		Objects: objects,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
+	if err := form.Unmarshal(f, r); err != nil {
+		log.Error.Println(errors.Err(err))
+		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	n := &model.Namespace{}
+
+	if f.Namespace != "" {
+		n, err = namespaces.FindOrCreate(f.Namespace)
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
+		f.Objects = n.ObjectStore()
+	}
+
+	if err := f.Validate(); err != nil {
 		if _, ok := err.(form.Errors); ok {
+			h.FlashErrors(w, r, err.(form.Errors))
+			h.FlashForm(w, r, f)
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
@@ -195,7 +223,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 
 	defer dst.Close()
 
-	n, err := io.Copy(dst, tee)
+	size, err := io.Copy(dst, tee)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -204,11 +232,15 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	o := u.ObjectStore().New()
+	o := objects.New()
+	o.NamespaceID = sql.NullInt64{
+		Int64: n.ID,
+		Valid: n.ID > 0,
+	}
 	o.Name = f.Name
 	o.Hash = hash
 	o.Type = f.Info.Header.Get("Content-Type")
-	o.Size = n
+	o.Size = size
 	o.MD5 = hmd5.Sum(nil)
 	o.SHA256 = hsha256.Sum(nil)
 

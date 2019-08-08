@@ -26,7 +26,7 @@ var (
 
 //line template/namespace/form.qtpl:10
 type Form struct {
-	template.Page
+	template.BasePage
 	template.Form
 
 	Parent    *model.Namespace
@@ -42,7 +42,7 @@ func (p *Form) action() string {
 }
 
 func (p *Form) Field(field string) string {
-	old := p.Form.Field(field)
+	old := p.Form.Fields[field]
 
 	if p.Namespace != nil {
 		if old != "" {

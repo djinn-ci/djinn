@@ -1,5 +1,7 @@
 {%
 import (
+	"strings"
+
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/template"
@@ -7,7 +9,17 @@ import (
 %}
 
 {% collapsespace %}
-{% func RenderTable(namespaces []*model.Namespace) %}
+{% func renderPath(username, fullName string) %}
+	{% code
+		parts := strings.Split(fullName, "/")
+	%}
+	{% for i, p := range parts %}
+		<a href="/n/{%s username %}/{%s strings.Join(parts[:i + 1], "/") %}">{%s p %}</a>
+		{% if i != len(parts) - 1 %}<span> / </span>{% endif %}
+	{% endfor %}
+{% endfunc %}
+
+{% func RenderTable(nn []*model.Namespace) %}
 	<table class="table">
 		<thead>
 			<tr>
@@ -18,7 +30,7 @@ import (
 			</tr>
 		</thead>
 		<tbody>
-		{% for _, n := range namespaces %}
+		{% for _, n := range nn %}
 			<tr>
 				<td>
 					<a href="{%s n.UIEndpoint() %}">{%s n.Path %}</a>
@@ -56,5 +68,18 @@ import (
 		{% endfor %}
 		</tbody>
 	</table>
+{% endfunc %}
+
+{% func RenderIndex(nn []*model.Namespace, uri, search string) %}
+	{% if len(nn) == 0 && search == "" %}
+		<div class="panel-message muted">Namespaces allow you to group related build resources together.</div>
+	{% else %}
+		<div class="panel-header">{%= template.RenderSearch(uri, search, "Find a namespace...") %}</div>
+		{% if len(nn) == 0 && search != "" %}
+			<div class="panel-message muted">No results found.</div>
+		{% else %}
+			{%= RenderTable(nn) %}
+		{% endif %}
+	{% endif %}
 {% endfunc %}
 {% endcollapsespace %}

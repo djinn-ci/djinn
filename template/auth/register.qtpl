@@ -4,7 +4,7 @@ import "github.com/andrewpillar/thrall/template"
 
 {% code
 type RegisterPage struct {
-	template.Page
+	template.BasePage
 	template.Form
 }
 %}
@@ -35,12 +35,12 @@ type RegisterPage struct {
 				{% endif %}
 				<div class="input-field">
 					<label>Email</label>
-					<input class="text" type="text" name="email" value="{%v p.Field("email") %}" autocomplete="off"/>
+					<input class="text" type="text" name="email" value="{%v p.Fields["email"] %}" autocomplete="off"/>
 					{%= p.Error("email") %}
 				</div>
 				<div class="input-field">
 					<label>Username</label>
-					<input class="text" type="text" name="username" value="{%v p.Field("username") %}" autocomplete="off"/>
+					<input class="text" type="text" name="username" value="{%v p.Fields["username"] %}" autocomplete="off"/>
 					{%= p.Error("username") %}
 				</div>
 				<div class="input-field">

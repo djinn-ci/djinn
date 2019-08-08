@@ -22,7 +22,7 @@ var (
 
 //line template/auth/register.qtpl:6
 type RegisterPage struct {
-	template.Page
+	template.BasePage
 	template.Form
 }
 
@@ -113,7 +113,7 @@ func (p *RegisterPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/auth/register.qtpl:35
 	qw422016.N().S(` <div class="input-field"> <label>Email</label> <input class="text" type="text" name="email" value="`)
 	//line template/auth/register.qtpl:38
-	qw422016.E().V(p.Field("email"))
+	qw422016.E().V(p.Fields["email"])
 	//line template/auth/register.qtpl:38
 	qw422016.N().S(`" autocomplete="off"/> `)
 	//line template/auth/register.qtpl:39
@@ -121,7 +121,7 @@ func (p *RegisterPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/auth/register.qtpl:39
 	qw422016.N().S(` </div> <div class="input-field"> <label>Username</label> <input class="text" type="text" name="username" value="`)
 	//line template/auth/register.qtpl:43
-	qw422016.E().V(p.Field("username"))
+	qw422016.E().V(p.Fields["username"])
 	//line template/auth/register.qtpl:43
 	qw422016.N().S(`" autocomplete="off"/> `)
 	//line template/auth/register.qtpl:44

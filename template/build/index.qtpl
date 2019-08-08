@@ -1,7 +1,5 @@
 {%
 import (
-	htmltemplate "html/template"
-
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/artifact"
@@ -10,7 +8,7 @@ import (
 
 {% code
 type IndexPage struct {
-	template.Page
+	template.BasePage
 
 	Builds []*model.Build
 	Search string
@@ -34,7 +32,7 @@ type ObjectIndexPage struct {
 type TagIndexPage struct {
 	ShowPage
 
-	CSRF htmltemplate.HTML
+	CSRF string
 	Tags []*model.Tag
 }
 
@@ -87,7 +85,7 @@ type VariableIndexPage struct {
 	<div class="panel">
 		<div class="panel-header panel-body">
 			<form method="POST" action="{%s p.Build.UIEndpoint("tags") %}">
-				{%s= string(p.CSRF) %}
+				{%s= p.CSRF %}
 				<div class="form-field form-field-inline">
 					<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
 					<button type="submit" class="btn btn-primary">Tag</button>

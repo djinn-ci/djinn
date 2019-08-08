@@ -2,7 +2,7 @@
 
 {% code
 type Error struct {
-	*Page
+	BasePage
 
 	Code    int
 	Message string

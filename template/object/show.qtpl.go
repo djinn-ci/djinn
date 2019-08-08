@@ -28,7 +28,7 @@ var (
 
 //line template/object/show.qtpl:12
 type ShowPage struct {
-	template.Page
+	template.BasePage
 
 	Object *model.Object
 	Search string

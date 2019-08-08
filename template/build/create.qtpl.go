@@ -22,7 +22,7 @@ var (
 
 //line template/build/create.qtpl:6
 type CreatePage struct {
-	template.Page
+	template.BasePage
 	template.Form
 }
 
@@ -80,11 +80,11 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/create.qtpl:23
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> <input class="form-text" type="text" id="namespace" name="namespace" value="`)
 	//line template/build/create.qtpl:26
-	qw422016.E().S(p.Field("namespace"))
+	qw422016.E().S(p.Fields["namespace"])
 	//line template/build/create.qtpl:26
 	qw422016.N().S(`" autocomplete="off"/> </div> <div class="form-field"> <label class="label" for="manifest">Manifest</label> <textarea class="form-text form-code" id="manifest" name="manifest">`)
 	//line template/build/create.qtpl:30
-	qw422016.E().S(p.Field("manifest"))
+	qw422016.E().S(p.Fields["manifest"])
 	//line template/build/create.qtpl:30
 	qw422016.N().S(`</textarea> `)
 	//line template/build/create.qtpl:31
@@ -92,11 +92,11 @@ func (p *CreatePage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/create.qtpl:31
 	qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="comment">Comment <small>(optional)</small></label> <textarea class="form-text form-code" id="comment" name="comment">`)
 	//line template/build/create.qtpl:35
-	qw422016.E().S(p.Field("comment"))
+	qw422016.E().S(p.Fields["comment"])
 	//line template/build/create.qtpl:35
 	qw422016.N().S(`</textarea> </div> <div class="form-field"> <label class="label" for="tags">Tags <small>(optional)</small></label> <input class="form-text" type="text" id="tags" name="tags" value="`)
 	//line template/build/create.qtpl:39
-	qw422016.E().S(p.Field("tags"))
+	qw422016.E().S(p.Fields["tags"])
 	//line template/build/create.qtpl:39
 	qw422016.N().S(`" autocomplete="off"/> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Submit</button> </div> </form> </div> `)
 //line template/build/create.qtpl:46

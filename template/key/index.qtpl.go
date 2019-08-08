@@ -6,249 +6,195 @@ package key
 
 //line template/key/index.qtpl:2
 import (
-	htmltemplate "html/template"
-
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
 
-//line template/key/index.qtpl:10
+//line template/key/index.qtpl:8
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line template/key/index.qtpl:10
+//line template/key/index.qtpl:8
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line template/key/index.qtpl:11
+//line template/key/index.qtpl:9
 type IndexPage struct {
-	template.Page
+	template.BasePage
 
-	CSRF   htmltemplate.HTML
+	CSRF   string
 	Search string
 	Keys   []*model.Key
 }
 
-//line template/key/index.qtpl:21
+//line template/key/index.qtpl:19
 func (p *IndexPage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/key/index.qtpl:21
+	//line template/key/index.qtpl:19
 	qw422016.N().S(` SSH Keys - Thrall `)
-//line template/key/index.qtpl:23
+//line template/key/index.qtpl:21
 }
 
-//line template/key/index.qtpl:23
+//line template/key/index.qtpl:21
 func (p *IndexPage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/key/index.qtpl:23
+	//line template/key/index.qtpl:21
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/key/index.qtpl:23
+	//line template/key/index.qtpl:21
 	p.StreamTitle(qw422016)
-	//line template/key/index.qtpl:23
+	//line template/key/index.qtpl:21
 	qt422016.ReleaseWriter(qw422016)
-//line template/key/index.qtpl:23
+//line template/key/index.qtpl:21
+}
+
+//line template/key/index.qtpl:21
+func (p *IndexPage) Title() string {
+	//line template/key/index.qtpl:21
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/key/index.qtpl:21
+	p.WriteTitle(qb422016)
+	//line template/key/index.qtpl:21
+	qs422016 := string(qb422016.B)
+	//line template/key/index.qtpl:21
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/key/index.qtpl:21
+	return qs422016
+//line template/key/index.qtpl:21
 }
 
 //line template/key/index.qtpl:23
-func (p *IndexPage) Title() string {
+func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/key/index.qtpl:23
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/key/index.qtpl:23
-	p.WriteTitle(qb422016)
-	//line template/key/index.qtpl:23
-	qs422016 := string(qb422016.B)
-	//line template/key/index.qtpl:23
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/key/index.qtpl:23
-	return qs422016
-//line template/key/index.qtpl:23
+	qw422016.N().S(` <div class="panel">`)
+	//line template/key/index.qtpl:24
+	StreamRenderIndex(qw422016, p.Keys, p.URI, p.Search, p.CSRF)
+	//line template/key/index.qtpl:24
+	qw422016.N().S(`</div> `)
+//line template/key/index.qtpl:25
 }
 
 //line template/key/index.qtpl:25
-func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/key/index.qtpl:25
-	qw422016.N().S(` <div class="panel"> `)
-	//line template/key/index.qtpl:27
-	if len(p.Keys) > 0 {
-		//line template/key/index.qtpl:27
-		qw422016.N().S(` <div class="panel-header">`)
-		//line template/key/index.qtpl:28
-		template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find an SSH key...")
-		//line template/key/index.qtpl:28
-		qw422016.N().S(`</div> <table class="table"> <thead> <tr> <th>NAME</th> <th></th> </tr> </thead> <tbody> `)
-		//line template/key/index.qtpl:37
-		for _, k := range p.Keys {
-			//line template/key/index.qtpl:37
-			qw422016.N().S(` <tr> <td><a href="`)
-			//line template/key/index.qtpl:39
-			qw422016.E().S(k.UIEndpoint("edit"))
-			//line template/key/index.qtpl:39
-			qw422016.N().S(`">`)
-			//line template/key/index.qtpl:39
-			qw422016.E().S(k.Name)
-			//line template/key/index.qtpl:39
-			qw422016.N().S(`</a></td> <td class="align-right"> <form method="POST" action="`)
-			//line template/key/index.qtpl:41
-			qw422016.E().S(k.UIEndpoint())
-			//line template/key/index.qtpl:41
-			qw422016.N().S(`"> `)
-			//line template/key/index.qtpl:42
-			qw422016.N().S(string(p.CSRF))
-			//line template/key/index.qtpl:42
-			qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> </td> </tr> `)
-			//line template/key/index.qtpl:48
-		}
-		//line template/key/index.qtpl:48
-		qw422016.N().S(` </tbody> </table> `)
-		//line template/key/index.qtpl:51
-	} else {
-		//line template/key/index.qtpl:51
-		qw422016.N().S(` `)
-		//line template/key/index.qtpl:52
-		if p.Search == "" {
-			//line template/key/index.qtpl:52
-			qw422016.N().S(` <div class="panel-message muted">No SSH keys have been created.</div> `)
-			//line template/key/index.qtpl:54
-		} else {
-			//line template/key/index.qtpl:54
-			qw422016.N().S(` <div class="panel-header">`)
-			//line template/key/index.qtpl:55
-			template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find an SSH key...")
-			//line template/key/index.qtpl:55
-			qw422016.N().S(`</div> <div class="panel-message muted">No results found.</div> `)
-			//line template/key/index.qtpl:57
-		}
-		//line template/key/index.qtpl:57
-		qw422016.N().S(` `)
-		//line template/key/index.qtpl:58
-	}
-	//line template/key/index.qtpl:58
-	qw422016.N().S(` </div> `)
-//line template/key/index.qtpl:60
-}
-
-//line template/key/index.qtpl:60
 func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/key/index.qtpl:60
+	//line template/key/index.qtpl:25
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/key/index.qtpl:60
+	//line template/key/index.qtpl:25
 	p.StreamBody(qw422016)
-	//line template/key/index.qtpl:60
+	//line template/key/index.qtpl:25
 	qt422016.ReleaseWriter(qw422016)
-//line template/key/index.qtpl:60
+//line template/key/index.qtpl:25
 }
 
-//line template/key/index.qtpl:60
+//line template/key/index.qtpl:25
 func (p *IndexPage) Body() string {
-	//line template/key/index.qtpl:60
+	//line template/key/index.qtpl:25
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/key/index.qtpl:60
+	//line template/key/index.qtpl:25
 	p.WriteBody(qb422016)
-	//line template/key/index.qtpl:60
+	//line template/key/index.qtpl:25
 	qs422016 := string(qb422016.B)
-	//line template/key/index.qtpl:60
+	//line template/key/index.qtpl:25
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/key/index.qtpl:60
+	//line template/key/index.qtpl:25
 	return qs422016
-//line template/key/index.qtpl:60
+//line template/key/index.qtpl:25
 }
 
-//line template/key/index.qtpl:62
+//line template/key/index.qtpl:27
 func (p *IndexPage) StreamHeader(qw422016 *qt422016.Writer) {
-	//line template/key/index.qtpl:62
+	//line template/key/index.qtpl:27
 	qw422016.N().S(` SSH Keys `)
-//line template/key/index.qtpl:64
+//line template/key/index.qtpl:29
 }
 
-//line template/key/index.qtpl:64
+//line template/key/index.qtpl:29
 func (p *IndexPage) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/key/index.qtpl:64
+	//line template/key/index.qtpl:29
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/key/index.qtpl:64
+	//line template/key/index.qtpl:29
 	p.StreamHeader(qw422016)
-	//line template/key/index.qtpl:64
+	//line template/key/index.qtpl:29
 	qt422016.ReleaseWriter(qw422016)
-//line template/key/index.qtpl:64
+//line template/key/index.qtpl:29
 }
 
-//line template/key/index.qtpl:64
+//line template/key/index.qtpl:29
 func (p *IndexPage) Header() string {
-	//line template/key/index.qtpl:64
+	//line template/key/index.qtpl:29
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/key/index.qtpl:64
+	//line template/key/index.qtpl:29
 	p.WriteHeader(qb422016)
-	//line template/key/index.qtpl:64
+	//line template/key/index.qtpl:29
 	qs422016 := string(qb422016.B)
-	//line template/key/index.qtpl:64
+	//line template/key/index.qtpl:29
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/key/index.qtpl:64
+	//line template/key/index.qtpl:29
 	return qs422016
-//line template/key/index.qtpl:64
+//line template/key/index.qtpl:29
 }
 
-//line template/key/index.qtpl:66
+//line template/key/index.qtpl:31
 func (p *IndexPage) StreamActions(qw422016 *qt422016.Writer) {
-	//line template/key/index.qtpl:66
+	//line template/key/index.qtpl:31
 	qw422016.N().S(` <li><a href="/keys/create" class="btn btn-primary">Create</a></li> `)
-//line template/key/index.qtpl:68
+//line template/key/index.qtpl:33
 }
 
-//line template/key/index.qtpl:68
+//line template/key/index.qtpl:33
 func (p *IndexPage) WriteActions(qq422016 qtio422016.Writer) {
-	//line template/key/index.qtpl:68
+	//line template/key/index.qtpl:33
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/key/index.qtpl:68
+	//line template/key/index.qtpl:33
 	p.StreamActions(qw422016)
-	//line template/key/index.qtpl:68
+	//line template/key/index.qtpl:33
 	qt422016.ReleaseWriter(qw422016)
-//line template/key/index.qtpl:68
+//line template/key/index.qtpl:33
 }
 
-//line template/key/index.qtpl:68
+//line template/key/index.qtpl:33
 func (p *IndexPage) Actions() string {
-	//line template/key/index.qtpl:68
+	//line template/key/index.qtpl:33
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/key/index.qtpl:68
+	//line template/key/index.qtpl:33
 	p.WriteActions(qb422016)
-	//line template/key/index.qtpl:68
+	//line template/key/index.qtpl:33
 	qs422016 := string(qb422016.B)
-	//line template/key/index.qtpl:68
+	//line template/key/index.qtpl:33
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/key/index.qtpl:68
+	//line template/key/index.qtpl:33
 	return qs422016
-//line template/key/index.qtpl:68
+//line template/key/index.qtpl:33
 }
 
-//line template/key/index.qtpl:70
+//line template/key/index.qtpl:35
 func (p *IndexPage) StreamNavigation(qw422016 *qt422016.Writer) {
-//line template/key/index.qtpl:70
+//line template/key/index.qtpl:35
 }
 
-//line template/key/index.qtpl:70
+//line template/key/index.qtpl:35
 func (p *IndexPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/key/index.qtpl:70
+	//line template/key/index.qtpl:35
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/key/index.qtpl:70
+	//line template/key/index.qtpl:35
 	p.StreamNavigation(qw422016)
-	//line template/key/index.qtpl:70
+	//line template/key/index.qtpl:35
 	qt422016.ReleaseWriter(qw422016)
-//line template/key/index.qtpl:70
+//line template/key/index.qtpl:35
 }
 
-//line template/key/index.qtpl:70
+//line template/key/index.qtpl:35
 func (p *IndexPage) Navigation() string {
-	//line template/key/index.qtpl:70
+	//line template/key/index.qtpl:35
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/key/index.qtpl:70
+	//line template/key/index.qtpl:35
 	p.WriteNavigation(qb422016)
-	//line template/key/index.qtpl:70
+	//line template/key/index.qtpl:35
 	qs422016 := string(qb422016.B)
-	//line template/key/index.qtpl:70
+	//line template/key/index.qtpl:35
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/key/index.qtpl:70
+	//line template/key/index.qtpl:35
 	return qs422016
-//line template/key/index.qtpl:70
+//line template/key/index.qtpl:35
 }

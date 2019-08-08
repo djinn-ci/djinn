@@ -10,7 +10,7 @@ import (
 
 {% code
 type ShowPage struct {
-	template.Page
+	template.BasePage
 
 	Object *model.Object
 	Search string

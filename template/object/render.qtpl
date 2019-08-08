@@ -1,0 +1,54 @@
+{%
+import (
+	"fmt"
+
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% func RenderTable(oo []*model.Object, csrf string) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>NAME</th>
+				<th>TYPE</th>
+				<th>SIZE</th>
+				<th>MD5</th>
+				<th>SHA256</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, o := range oo %}
+				<tr>
+					<td><a href="{%s o.UIEndpoint() %}">{%s o.Name %}</a></td>
+					<td><span class="code">{%s o.Type %}</span></td>
+					<td>{%s template.RenderSize(o.Size) %}</td>
+					<td><span class="code">{%s fmt.Sprintf("%x", o.MD5) %}</span></td>
+					<td><span class="code">{%s fmt.Sprintf("%x", o.SHA256) %}</span></td>
+					<td class="align-right">
+						<form method="POST" action="{%s o.UIEndpoint() %}">
+							{%s= string(csrf) %}
+							<input type="hidden" name="_method" value="DELETE"/>
+							<button type="submit" class="btn btn-danger">Delete</button>
+						</form>
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func RenderIndex(oo []*model.Object, uri, search, csrf string) %}
+	{% if len(oo) == 0 && search == "" %}
+		<div class="panel-message muted">Objects are files that can be used in build environments.</div>
+	{% else %}
+		<div class="panel-header">{%= template.RenderSearch(uri, search, "Find an object...") %}</div>
+		{% if len(oo) == 0 && search != "" %}
+			<div class="panel-message muted">No results found.</div>
+		{% else %}
+			{%= RenderTable(oo, csrf) %}
+		{% endif %}
+	{% endif %}
+{% endfunc %}

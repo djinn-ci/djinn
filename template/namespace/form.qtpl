@@ -8,7 +8,7 @@ import (
 
 {% code
 type Form struct {
-	template.Page
+	template.BasePage
 	template.Form
 
 	Parent    *model.Namespace
@@ -24,7 +24,7 @@ func (p *Form) action() string {
 }
 
 func (p *Form) Field(field string) string {
-	old := p.Form.Field(field)
+	old := p.Form.Fields[field]
 
 	if p.Namespace != nil {
 		if old != "" {
@@ -32,12 +32,12 @@ func (p *Form) Field(field string) string {
 		}
 
 		switch field {
-			case "name":
-				return p.Namespace.Name
-			case "description":
-				return p.Namespace.Description
-			default:
-				return ""
+		case "name":
+			return p.Namespace.Name
+		case "description":
+			return p.Namespace.Description
+		default:
+			return ""
 		}
 	}
 

@@ -1,7 +1,5 @@
 {%
 import (
-	htmltemplate "html/template"
-
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -9,9 +7,9 @@ import (
 
 {% code
 type IndexPage struct {
-	template.Page
+	template.BasePage
 
-	CSRF      htmltemplate.HTML
+	CSRF      string
 	Search    string
 	Variables []*model.Variable
 }
@@ -23,41 +21,7 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	<div class="panel">
-		{% if len(p.Variables) > 0 %}
-			<table class="table">
-				<thead>
-					<tr>
-						<th>KEY</th>
-						<th>VALUE</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for _, v := range p.Variables %}
-						<tr>
-							<td><span class="code">{%s v.Key %}</span></td>
-							<td><span class="code">{%s v.Value %}</span></td>
-							<td class="align-right">
-								<form method="POST" action="{%s v.UIEndpoint() %}">
-									{%s= string(p.CSRF) %}
-									<input type="hidden" name="_method" value="DELETE"/>
-									<button type="submit" class="btn btn-danger">Delete</button>
-								</form>
-							</td>
-						</tr>
-					{% endfor %}
-				</tbody>
-			</table>
-		{% else %}
-			{% if p.Search == "" %}
-				<div class="panel-message muted">No variables have been created.</div>
-			{% else %}
-				<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find a variable...") %}</div>
-				<div class="panel-message muted">No results found.</div>
-			{% endif %}
-		{% endif %}
-	</div>
+	<div class="panel">{%= RenderIndex(p.Variables, p.URI, p.Search, p.CSRF) %}</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

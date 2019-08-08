@@ -7,7 +7,7 @@ import (
 
 {% code
 type IndexPage struct {
-	template.Page
+	template.BasePage
 
 	Namespaces []*model.Namespace
 	Search     string
@@ -20,23 +20,7 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	<div class="panel">
-		{% if len(p.Namespaces) == 0 %}
-			{% if p.Search == "" %}
-				<div class="panel-message muted">Namespaces allow you to group related builds together.</div>
-			{% else %}
-				<div class="panel-header">
-					{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}
-				</div>
-				<div class="panel-message muted">No results found.</div>
-			{% endif %}
-		{% else %}
-			<div class="panel-header">
-				{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}
-			</div>
-			{%= RenderTable(p.Namespaces) %}
-		{% endif %}
-	</div>
+	<div class="panel">{%= RenderIndex(p.Namespaces, p.URI, p.Search) %}</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

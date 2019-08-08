@@ -4,7 +4,7 @@ import "github.com/andrewpillar/thrall/template"
 
 {% code
 type LoginPage struct {
-	template.Page
+	template.BasePage
 	template.Form
 }
 %}
@@ -35,7 +35,7 @@ type LoginPage struct {
 				{% endif %}
 				<div class="input-field">
 					<label>Email / Username</label>
-					<input class="text" type="text" name="handle" value="{%s p.Field("handle") %}" autocomplete="off"/>
+					<input class="text" type="text" name="handle" value="{%s p.Fields["handle"] %}" autocomplete="off"/>
 					{%= p.Error("handle") %}
 				</div>
 				<div class="input-field">

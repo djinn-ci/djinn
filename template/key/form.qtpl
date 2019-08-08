@@ -7,7 +7,7 @@ import (
 
 {% code
 type Form struct {
-	template.Page
+	template.BasePage
 	template.Form
 
 	Key *model.Key
@@ -31,15 +31,23 @@ func (p *Form) action() string {
 				{% if p.Key != nil %}
 					<input type="hidden" name="_method" value="PATCH"/>
 				{% endif %}
+				<div class="form-field">
+					<label class="label" for="namespace">Namespace <small>(optional)</small></label>
+					{% if p.Key != nil %}
+						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Key.Namespace.Name %}"/>
+					{% else %}
+						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Fields["namespace"] %}"/>
+					{% endif %}
+				</div>
 				{% if p.Key == nil %}
 				<div class="form-field">
 					<label class="label" for="name">Name</label>
-					<input class="form-text" type="text" id="name" name="name" value="{%s p.Field("name") %}" autocomplete="off"/>
+					<input class="form-text" type="text" id="name" name="name" value="{%s p.Fields["name"] %}" autocomplete="off"/>
 					{%= p.Error("name") %}
 				</div>
 				<div class="form-field">
 					<label class="label" for="key">Key</label>
-					<textarea class="form-text form-code" id="key" name="key">{%s p.Field("key") %}</textarea>
+					<textarea class="form-text form-code" id="key" name="key">{%s p.Fields["key"] %}</textarea>
 					{%= p.Error("key") %}
 				</div>
 				{% endif %}
@@ -48,7 +56,7 @@ func (p *Form) action() string {
 					{% if p.Key != nil %}
 						<textarea class="form-text form-code" id="config" name="config">{%s p.Key.Config %}</textarea>
 					{% else %}
-						<textarea class="form-text form-code" id="config" name="config">{%s p.Field("config") %}</textarea>
+						<textarea class="form-text form-code" id="config" name="config">{%s p.Fields["config"] %}</textarea>
 					{% endif %}
 				</div>
 				<div class="form-field">

@@ -8,7 +8,7 @@ import (
 
 {% code
 type ShowPage struct {
-	template.Page
+	template.BasePage
 
 	Job *model.Job
 }

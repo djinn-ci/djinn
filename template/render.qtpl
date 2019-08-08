@@ -1,0 +1,71 @@
+{%
+import (
+	"fmt"
+	"strings"
+
+	"github.com/andrewpillar/thrall/runner"
+)
+%}
+
+{% code
+func RenderSize(n int64) string {
+	units := []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	i := 0
+
+	for ; n > 1024; i++ {
+		n /= 1024
+	}
+
+	return fmt.Sprintf("%d %s", n, units[i])
+}
+%}
+
+{% collapsespace %}
+{% stripspace %}
+{% func RenderCode(c string) %}
+	{% code
+		lines := strings.Split(c, "\n")
+	%}
+	<div class="code-wrap">
+		<table class="code">
+			<tbody>
+				{% for i, l := range lines %}
+					<tr>
+						<td class="line-number"><a href="#L{%v i + 1 %}">{%v i + 1 %}</a></td>
+						<td id="L{%v i + 1 %}" class="line">{%s l %}</td>
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
+	</div>
+{% endfunc %}
+{% endstripspace %}
+
+{% func RenderSearch(uri, search, prompt string) %}
+	<form class="form-field form-search">
+		<input type="text" name="search" class="form-text" placeholder="{%s prompt %}" autocomplete="off" value="{%s search %}"/>
+		{% if search != "" %}
+			<a class="muted" href="{%s uri %}">{% cat "../svgs/close.svg" %}</a>
+		{% endif %}
+	</form>
+{% endfunc %}
+
+{% func RenderStatus(s runner.Status) %}
+	{% switch s %}
+		{% case runner.Queued %}
+			<span class="pill w-90 pill-dark">{% cat "../svgs/hourglass.svg" %} Queued</span>
+		{% case runner.Running %}
+			<span class="pill w-90 pill-blue">{% cat "../svgs/timer.svg" %} Running</span>
+		{% case runner.Passed %}
+			<span class="pill w-90 pill-green">{% cat "../svgs/check.svg" %} Passed</span>
+		{% case runner.PassedWithFailures %}
+			<span class="pill w-90 pill-orange">{% cat "../svgs/warning.svg" %} Passed</span>
+		{% case runner.Failed %}
+			<span class="pill w-90 pill-red">{% cat "../svgs/close.svg" %} Failed</span>
+		{% case runner.Killed %}
+			<span class="pill w-90 pill-red">{% cat "../svgs/stop.svg" %} Killed</span>
+		{% case runner.TimedOut %}
+			<span class="pill w-90 pill-gray">{% cat "../svgs/stopwatch.svg" %} Timed Out</span>
+	{% endswitch %}
+{% endfunc %}
+{% endcollapsespace %}

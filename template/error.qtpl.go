@@ -19,7 +19,7 @@ var (
 
 //line template/error.qtpl:4
 type Error struct {
-	*Page
+	BasePage
 
 	Code    int
 	Message string

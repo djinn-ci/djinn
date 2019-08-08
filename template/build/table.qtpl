@@ -1,7 +1,6 @@
 {%
 import (
 	"fmt"
-	htmltemplate "html/template"
 	"strings"
 
 	"github.com/andrewpillar/thrall/model"
@@ -174,7 +173,7 @@ import (
 	</table>
 {% endfunc %}
 
-{% func RenderTagTable(tt []*model.Tag, csrf htmltemplate.HTML) %}
+{% func RenderTagTable(tt []*model.Tag, csrf string) %}
 	<table class="table">
 		<thead>
 			<tr>
@@ -190,7 +189,7 @@ import (
 					<td>{%s t.User.Username %} &lt;{%s t.User.Email %}&gt;</td>
 					<td class="align-right">
 						<form method="POST" action="{%s t.UIEndpoint() %}">
-							{%s= string(csrf) %}
+							{%s= csrf %}
 							<input type="hidden" name="_method" value="DELETE">
 							<button type="submit" class="btn btn-danger">Delete</button>
 						</form>

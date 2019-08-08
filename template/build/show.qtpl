@@ -8,7 +8,7 @@ import (
 
 {% code
 type ShowPage struct {
-	template.Page
+	template.BasePage
 
 	Build        *model.Build
 	ShowManifest bool
@@ -137,15 +137,38 @@ type ShowPage struct {
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}
 
+{% stripspace %}
 {% func (p *ShowPage) Navigation() %}
-	{% stripspace %}
-		<li>{%= template.RenderLink(p.Build.UIEndpoint(), p.URI) %}{% cat "../../svgs/eye.svg" %}<span>Overview</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint("manifest"), p.URI) %}{% cat "../../svgs/list.svg" %}<span>Manifest</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint("objects"), p.URI) %}{% cat "../../svgs/upload.svg" %}<span>Objects</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint("artifacts"), p.URI) %}{% cat "../../svgs/download.svg" %}<span>Artifacts</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint("variables"), p.URI) %}{% cat "../../svgs/code.svg" %}<span>Variables</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint("output"), p.URI) %}{% cat "../../svgs/document.svg" %}<span>Output</span></a></li>
-		<li>{%= template.RenderLink(p.Build.UIEndpoint("tags"), p.URI) %}{% cat "../../svgs/tag.svg" %}<span>Tags</span></a></li>
-	{% endstripspace %}
+	<li>
+		<a href="{%s p.Build.UIEndpoint() %}" class="{%s template.Active(p.Build.UIEndpoint() == p.URI) %}">
+			{% cat "../../svgs/eye.svg" %}<span>Overview</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Build.UIEndpoint("manifest") %}" class="{%s template.Active(p.Build.UIEndpoint("manifest") == p.URI) %}">
+			{% cat "../../svgs/list.svg" %}<span>Manifest</span>
+		</a>
+	</li>
+		<a href="{%s p.Build.UIEndpoint("objects") %}" class="{%s template.Active(p.Build.UIEndpoint("objects") == p.URI) %}">
+			{% cat "../../svgs/upload.svg" %}<span>Objects</span>
+		</a>
+	</li>
+		<a href="{%s p.Build.UIEndpoint("artifacts") %}" class="{%s template.Active(p.Build.UIEndpoint("artifacts") == p.URI) %}">
+			{% cat "../../svgs/download.svg" %}<span>Artifacts</span>
+		</a>
+	</li>
+		<a href="{%s p.Build.UIEndpoint("variables") %}" class="{%s template.Active(p.Build.UIEndpoint("variables") == p.URI) %}">
+			{% cat "../../svgs/code.svg" %}<span>Variables</span>
+		</a>
+	</li>
+		<a href="{%s p.Build.UIEndpoint("output") %}" class="{%s template.Active(p.Build.UIEndpoint("output") == p.URI) %}">
+			{% cat "../../svgs/document.svg" %}<span>Output</span>
+		</a>
+	</li>
+		<a href="{%s p.Build.UIEndpoint("tags") %}" class="{%s template.Active(p.Build.UIEndpoint("tags") == p.URI) %}">
+			{% cat "../../svgs/tag.svg" %}<span>Tags</span>
+		</a>
+	</li>
 {% endfunc %}
+{% endstripspace %}
 {% endcollapsespace %}

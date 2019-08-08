@@ -1,0 +1,44 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% func RenderTable(kk []*model.Key, csrf string) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>NAME</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, k := range kk %}
+				<tr>
+					<td><a href="{%s k.UIEndpoint("edit") %}">{%s k.Name %}</a></td>
+					<td class="align-right">
+						<form method="POST" action="{%s k.UIEndpoint() %}">
+							{%s= csrf %}
+							<input type="hidden" name="_method" value="DELETE"/>
+							<button type="submit" class="btn btn-danger">Delete</button>
+						</form>
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func RenderIndex(kk []*model.Key, uri, search, csrf string) %}
+	{% if len(kk) == 0 && search == "" %}
+		<div class="panel-message muted">SSH keys can allow build environments to access other environments.</div>
+	{% else %}
+		<div class="panel-header">{%= template.RenderSearch(uri, search, "Find an SSH key...") %}</div>
+		{% if len(kk) == 0 && search != "" %}
+			<div class="panel-message muted">No results found.</div>
+		{% else %}
+			{%= RenderTable(kk, csrf) %}
+		{% endif %}
+	{% endif %}
+{% endfunc %}

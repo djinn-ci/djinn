@@ -1,63 +1,93 @@
 {%
 import (
-	"strings"
-
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
+	"github.com/andrewpillar/thrall/template/key"
+	"github.com/andrewpillar/thrall/template/object"
+	"github.com/andrewpillar/thrall/template/variable"
 )
 %}
 
 {% code
 type ShowPage struct {
-	template.Page
+	template.BasePage
 
 	Namespace *model.Namespace
 
-	ShowNamespaces bool
-
 	Status string
 	Search string
+
+	Builds []*model.Build
+}
+
+type ShowNamespaces struct {
+	ShowPage
+
+	Namespaces []*model.Namespace
+}
+
+type ShowObjects struct {
+	ShowPage
+
+	CSRF    string
+	Objects []*model.Object
+}
+
+type ShowVariables struct {
+	ShowPage
+
+	CSRF      string
+	Variables []*model.Variable
+}
+
+type ShowKeys struct {
+	ShowPage
+
+	CSRF string
+	Keys []*model.Key
 }
 %}
 
 {% collapsespace %}
-{% func renderPath(username, fullName string) %}
-	{% code
-		parts := strings.Split(fullName, "/")
-	%}
-	{% for i, p := range parts %}
-		<a href="/n/{%s username %}/{%s strings.Join(parts[:i + 1], "/") %}">{%s p %}</a>
-		{% if i != len(parts) - 1 %}<span> / </span>{% endif %}
-	{% endfor %}
-{% endfunc %}
-
 {% func (p *ShowPage) Title() %}
 	{%s p.Namespace.Path %} - Thrall
 {% endfunc %}
 
+{% func (p *ShowNamespaces) Title() %}
+	{%s p.Namespace.Path %} - Namespaces
+{% endfunc %}
+
+{% func (p *ShowObjects) Title() %}
+	{%s p.Namespace.Path %} - Objects
+{% endfunc %}
+
+{% func (p *ShowVariables) Title() %}
+	{%s p.Namespace.Path %} - Variables
+{% endfunc %}
+
+{% func (p *ShowKeys) Title() %}
+	{%s p.Namespace.Path %} - Keys
+{% endfunc %}
+
 {% func (p *ShowPage) Body() %}
-	<div class="panel">
-		{% if p.ShowNamespaces %}
-			{% if len(p.Namespace.Children) == 0 %}
-				{% if p.Search == "" %}
-					<div class="panel-message muted">Namespaces allow you to group related builds together.</div>
-				{% else %}
-					<div class="panel-header">
-						{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}
-					</div>
-					<div class="panel-message muted">No results found.</div>
-				{% endif %}
-			{% else %}
-				<div class="panel-header">
-					{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}
-				</div>
-				{%= RenderTable(p.Namespace.Children) %}
-			{% endif %}
-		{% else %}
-			{%= build.RenderIndex(p.Namespace.Builds, p.URI, p.Status, p.Search) %}
-		{% endif %}
-	</div>
+	<div class="panel">{%= build.RenderIndex(p.Builds, p.URI, p.Status, p.Search) %}</div>
+{% endfunc %}
+
+{% func (p *ShowNamespaces) Body() %}
+	<div class="panel">{%= RenderIndex(p.Namespaces, p.URI, p.Search) %}</div>
+{% endfunc %}
+
+{% func (p *ShowObjects) Body() %}
+	<div class="panel">{%= object.RenderIndex(p.Objects, p.URI, p.Search, p.CSRF) %}</div>
+{% endfunc %}
+
+{% func (p *ShowVariables) Body() %}
+	<div class="panel">{%= variable.RenderIndex(p.Variables, p.URI, p.Search, p.CSRF) %}</div>
+{% endfunc %}
+
+{% func (p *ShowKeys) Body() %}
+	<div class="panel">{%= key.RenderIndex(p.Keys, p.URI, p.Search, p.CSRF) %}</div>
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
@@ -78,7 +108,30 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Navigation() %}
-	<li>{%= template.RenderLink(p.Namespace.UIEndpoint(), p.URI) %}{% cat "../../svgs/build.svg" %}<span>Builds</span></a></li>
-	<li>{%= template.RenderLink(p.Namespace.UIEndpoint("-", "namespaces"), p.URI) %}{% cat "../../svgs/folder.svg" %}<span>Namespaces</span></a></li>
+	<li>
+		<a href="{%s p.Namespace.UIEndpoint() %}" class="{%s template.Active(p.Namespace.UIEndpoint() == p.URI) %}">
+			{% cat "../../svgs/build.svg" %}<span>Builds</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.UIEndpoint("-", "namespaces") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "namespaces") == p.URI) %}">
+			{% cat "../../svgs/folder.svg" %}<span>Namespaces</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.UIEndpoint("-", "objects") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "objects") == p.URI) %}">
+			{% cat "../../svgs/upload.svg" %}<span>Objects</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.UIEndpoint("-", "variables") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "variables") == p.URI) %}">
+			{% cat "../../svgs/code.svg" %}<span>Variables</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.UIEndpoint("-", "keys") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "keys") == p.URI) %}">
+			{% cat "../../svgs/key.svg" %}<span>SSH Keys</span>
+		</a>
+	</li>
 {% endfunc %}
 {% endcollapsespace %}

@@ -1,16 +1,21 @@
 package form
 
 import (
+	"regexp"
+
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 )
 
-type Variable struct {
-	Variables model.VariableStore
+var reVariable = regexp.MustCompile("^[^0-9]+[a-zA-Z0-9_]+$")
 
-	Key   string
-	Value string
+type Variable struct {
+	Variables model.VariableStore `schema:"-"`
+
+	Namespace string `schema:"namespace"`
+	Key       string `schema:"key"`
+	Value     string `schema:"value"`
 }
 
 func (f Variable) Fields() map[string]string {
@@ -28,8 +33,8 @@ func (f Variable) Validate() error {
 		errs.Put("key", ErrFieldRequired("Key"))
 	}
 
-	if !reAlphaNumDotDash.Match([]byte(f.Key)) {
-		errs.Put("key", ErrFieldInvalid("Key", "can only contain letters, numbers, dashes, and dots"))
+	if !reVariable.Match([]byte(f.Key)) {
+		errs.Put("key", ErrFieldInvalid("Key", "can only contain letters, numbers, dashes, and have not leading numbers"))
 	}
 
 	v, err := f.Variables.FindByKey(f.Key)

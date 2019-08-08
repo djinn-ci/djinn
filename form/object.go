@@ -6,18 +6,20 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 )
 
 type Object struct {
+	Objects model.ObjectStore `schema:"-"`
+
 	Writer  http.ResponseWriter   `schame:"-"`
 	Request *http.Request         `schema:"-"`
 	Limit   int64                 `schema:"-"`
-	Name    string                `schema:"name"`
 	File    multipart.File        `schema:"-"`
 	Info    *multipart.FileHeader `schema:"-"`
-	Objects model.ObjectStore     `schema:"-"`
+
+	Namespace string `schema:"namespace"`
+	Name      string `schema:"name"`
 }
 
 func (f Object) Fields() map[string]string {
@@ -41,9 +43,7 @@ func (f *Object) Validate() error {
 	o, err := f.Objects.FindByName(f.Name)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-
-		errs.Put("object", errors.Cause(err))
+		return errors.Err(err)
 	}
 
 	if !o.IsZero() {
@@ -58,10 +58,7 @@ func (f *Object) Validate() error {
 			return errs
 		}
 
-		log.Error.Println(errors.Err(err))
-		errs.Put("file", ErrField("File", err))
-
-		return errs
+		return errors.Err(err)
 	}
 
 	f.File, f.Info, err = f.Request.FormFile("file")

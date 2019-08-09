@@ -205,14 +205,6 @@ func (s *uiServer) init() {
 		Handler: wh,
 	}
 
-	buildObject := ui.BuildObject{
-		Build: build,
-	}
-
-	buildVariable := ui.BuildVariable{
-		Build: build,
-	}
-
 	guestRouter := s.router.PathPrefix("/").Subrouter()
 	guestRouter.HandleFunc("/register", auth.Register).Methods("GET", "POST")
 	guestRouter.HandleFunc("/login", auth.Login).Methods("GET", "POST")
@@ -261,8 +253,8 @@ func (s *uiServer) init() {
 	buildRouter.HandleFunc("/manifest/raw", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/output", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/output/raw", build.Show).Methods("GET")
-	buildRouter.HandleFunc("/objects", buildObject.Index).Methods("GET")
-	buildRouter.HandleFunc("/variables", buildVariable.Index).Methods("GET")
+	buildRouter.HandleFunc("/objects", build.Show).Methods("GET")
+	buildRouter.HandleFunc("/variables", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/jobs/{job:[0-9]+}", job.Show).Methods("GET")
 	buildRouter.HandleFunc("/jobs/{job:[0-9]+}/output/raw", job.Show).Methods("GET")
 	buildRouter.HandleFunc("/artifacts", artifact.Index).Methods("GET")

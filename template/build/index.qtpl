@@ -2,7 +2,6 @@
 import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/template/artifact"
 )
 %}
 
@@ -16,30 +15,11 @@ type IndexPage struct {
 	Tag    string
 }
 
-type ArtifactIndexPage struct {
-	ShowPage
-
-	Search    string
-	Artifacts []*model.Artifact
-}
-
-type ObjectIndexPage struct {
-	ShowPage
-
-	Objects []*model.BuildObject
-}
-
 type TagIndexPage struct {
 	ShowPage
 
 	CSRF string
 	Tags []*model.Tag
-}
-
-type VariableIndexPage struct {
-	ShowPage
-
-	Variables []*model.BuildVariable
 }
 %}
 
@@ -48,37 +28,8 @@ type VariableIndexPage struct {
 	Builds - Thrall
 {% endfunc %}
 
-{% func (p *ObjectIndexPage) Title() %}
-	Build #{%v p.Build.ID %} Objects - Thrall
-{% endfunc %}
-
-{% func (p *VariableIndexPage) Title() %}
-	Build #{%v p.Build.ID %} Variables - Thrall
-{% endfunc %}
-
 {% func (p *IndexPage) Body() %}
 	<div class="panel">{%= RenderIndex(p.Builds, p.URI, p.Status, p.Search) %}</div>
-{% endfunc %}
-
-{% func (p *ArtifactIndexPage) Body() %}
-	<div class="panel">
-		{% if len(p.Artifacts) > 0 %}
-			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an artifact...") %}</div>
-			{%= artifact.RenderTable(p.Artifacts) %}
-		{% else %}
-			<div class="panel-message muted">No artifacts have been collected from this build.</div>
-		{% endif %}
-	</div>
-{% endfunc %}
-
-{% func (p *ObjectIndexPage) Body() %}
-	<div class="panel">
-		{% if len(p.Objects) == 0 %}
-			<div class="panel-message muted">No objects have been placed for this build.</div>
-		{% else %}
-			{%= RenderObjectTable(p.Objects) %}
-		{% endif %}
-	</div>
 {% endfunc %}
 
 {% func (p *TagIndexPage) Body() %}
@@ -96,16 +47,6 @@ type VariableIndexPage struct {
 			<div class="panel-message muted">No tags have been set for this build.</div>
 		{% else %}
 			{%= RenderTagTable(p.Tags, p.CSRF) %}
-		{% endif %}
-	</div>
-{% endfunc %}
-
-{% func (p *VariableIndexPage) Body() %}
-	<div class="panel">
-		{% if len(p.Variables) == 0 %}
-			<div class="panel-message muted">No variables have been set for this build.</div>
-		{% else %}
-			{%= RenderVariableTable(p.Variables) %}
 		{% endif %}
 	</div>
 {% endfunc %}

@@ -1,0 +1,26 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/build"
+)
+%}
+
+{% code
+type IndexPage struct {
+	build.ShowPage
+
+	Search    string
+	Artifacts []*model.Artifact
+}
+%}
+
+{% collapsespace %}
+{% func (p *IndexPage) Title() %}
+	Build #{%v p.Build.ID %} - Artifacts
+{% endfunc %}
+
+{% func (p *IndexPage) Body() %}
+	<div class="panel">{%= RenderIndex(p.Artifacts, p.URI, p.Search) %}</div>
+{% endfunc %}
+{% endcollapsespace %}

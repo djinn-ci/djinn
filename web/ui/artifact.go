@@ -8,9 +8,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/template/build"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/mux"
@@ -19,55 +16,7 @@ import (
 type Artifact struct {
 	web.Handler
 
-	Artifacts model.ArtifactStore
 	FileStore filestore.FileStore
-}
-
-func (h Artifact) Index(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	vars := mux.Vars(r)
-
-	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := u.BuildStore().Find(buildId)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	search := r.URL.Query().Get("search")
-
-	aa, err := b.ArtifactStore().Index(model.Search("name", search))
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	p := &artifact.IndexPage{
-		ShowPage: build.ShowPage{
-			BasePage: template.BasePage{
-				URI: r.URL.Path,
-			},
-			Build:  b,
-		},
-		Search:    search,
-		Artifacts: aa,
-	}
-
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
-
-	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {

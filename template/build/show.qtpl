@@ -2,6 +2,7 @@
 import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/artifact"
 	"github.com/andrewpillar/thrall/template/job"
 )
 %}
@@ -27,10 +28,24 @@ type ShowObjects struct {
 	Objects []*model.BuildObject
 }
 
+type ShowArtifacts struct {
+	ShowPage
+
+	Search    string
+	Artifacts []*model.Artifact
+}
+
 type ShowVariables struct {
 	ShowPage
 
 	Variables []*model.BuildVariable
+}
+
+type ShowTags struct {
+	ShowPage
+
+	CSRF string
+	Tags []*model.Tag
 }
 %}
 
@@ -177,12 +192,35 @@ type ShowVariables struct {
 	</div>
 {% endfunc %}
 
+{% func (p *ShowArtifacts) Body() %}
+	<div class="panel">{%= artifact.RenderIndex(p.Artifacts, p.URI, p.Search) %}</div>
+{% endfunc %}
+
 {% func (p *ShowVariables) Body() %}
 	<div class="panel">
 		{% if len(p.Variables) == 0 %}
 			<div class="panel-message muted">No variables have been set for this build.</div>
 		{% else %}
 			{%= RenderVariableTable(p.Variables) %}
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *ShowTags) Body() %}
+	<div class="panel">
+		<div class="panel-header panel-body">
+			<form method="POST" action="{%s p.Build.UIEndpoint("tags") %}">
+				{%s= p.CSRF %}
+				<div class="form-field form-field-inline">
+					<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
+					<button type="submit" class="btn btn-primary">Tag</button>
+				</div>
+			</form>
+		</div>
+		{% if len(p.Tags) == 0 %}
+			<div class="panel-message muted">No tags have been set for this build.</div>
+		{% else %}
+			{%= RenderTagTable(p.Tags, p.CSRF) %}
 		{% endif %}
 	</div>
 {% endfunc %}

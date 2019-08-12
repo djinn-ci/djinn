@@ -446,7 +446,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 		//line template/template.qtpl:181
-		qw422016.N().S(`</div> </div> `)
+		qw422016.N().S(`</a> </div> `)
 		//line template/template.qtpl:183
 	}
 	//line template/template.qtpl:183

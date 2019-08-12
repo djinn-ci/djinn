@@ -178,7 +178,7 @@ func (l level) String() string {
 			{% if !p.alert.IsZero() %}
 				<div class="alert alert-{%s p.alert.Level.String() %}">
 					<div class="alert-message">{%s p.alert.Message %}</div>
-					<a href="{%s p.URI %}">{% cat "../svgs/close.svg" %}</div>
+					<a href="{%s p.URI %}">{% cat "../svgs/close.svg" %}</a>
 				</div>
 			{% endif %}
 			<div class="dashboard-wrap">

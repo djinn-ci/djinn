@@ -9,7 +9,7 @@ import (
 
 {% collapsespace %}
 {% func RenderIndex(aa []*model.Artifact, uri, search string) %}
-	{% if len(oo) == 0 && search == "" %}
+	{% if len(aa) == 0 && search == "" %}
 		<div class="panel-message muted">No artifacts have been collected from this build.</div> 
 	{% else %}
 		<div class="panel-header">{%= template.RenderSearch(uri, search, "Find an artifact...") %}</div>

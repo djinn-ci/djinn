@@ -285,6 +285,24 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		break
+	case "artifacts":
+		search := r.URL.Query().Get("search")
+
+		aa, err := b.ArtifactStore().Index(model.Search("name", search))
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p = &build.ShowArtifacts{
+			ShowPage:  sp,
+			Search:    search,
+			Artifacts: aa,
+		}
+
+		break
 	case "variables":
 		vv, err := b.BuildVariableStore().All()
 
@@ -300,7 +318,21 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		break
-	default:
+	case "tags":
+		tt, err := b.TagStore().All()
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p = &build.ShowTags{
+			ShowPage: sp,
+			CSRF:     string(csrf.TemplateField(r)),
+			Tags:     tt,
+		}
+
 		break
 	}
 

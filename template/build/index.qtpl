@@ -14,13 +14,6 @@ type IndexPage struct {
 	Status string
 	Tag    string
 }
-
-type TagIndexPage struct {
-	ShowPage
-
-	CSRF string
-	Tags []*model.Tag
-}
 %}
 
 {% collapsespace %}
@@ -30,25 +23,6 @@ type TagIndexPage struct {
 
 {% func (p *IndexPage) Body() %}
 	<div class="panel">{%= RenderIndex(p.Builds, p.URI, p.Status, p.Search) %}</div>
-{% endfunc %}
-
-{% func (p *TagIndexPage) Body() %}
-	<div class="panel">
-		<div class="panel-header panel-body">
-			<form method="POST" action="{%s p.Build.UIEndpoint("tags") %}">
-				{%s= p.CSRF %}
-				<div class="form-field form-field-inline">
-					<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
-					<button type="submit" class="btn btn-primary">Tag</button>
-				</div>
-			</form>
-		</div>
-		{% if len(p.Tags) == 0 %}
-			<div class="panel-message muted">No tags have been set for this build.</div>
-		{% else %}
-			{%= RenderTagTable(p.Tags, p.CSRF) %}
-		{% endif %}
-	</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

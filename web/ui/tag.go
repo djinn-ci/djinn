@@ -9,59 +9,12 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/template/build"
 
-	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 )
 
 type Tag struct {
 	web.Handler
-}
-
-func (h Tag) Index(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := u.BuildStore().Find(id)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	tt, err := b.TagStore().Index()
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	p := &build.TagIndexPage{
-		ShowPage: build.ShowPage{
-			BasePage: template.BasePage{
-				URI: r.URL.Path,
-			},
-			Build: b,
-		},
-		CSRF: string(csrf.TemplateField(r)),
-		Tags: tt,
-	}
-
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
-
-	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Tag) Store(w http.ResponseWriter, r *http.Request) {

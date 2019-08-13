@@ -148,6 +148,58 @@ func (ks KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	return kk, errors.Err(err)
 }
 
+func (ks KeyStore) Index(opts ...query.Option) ([]*Key, error) {
+	kk, err := ks.All(opts...)
+
+	if err != nil {
+		return kk, errors.Err(err)
+	}
+
+	namespaces := NamespaceStore{
+		DB: ks.DB,
+	}
+
+	ids := make([]interface{}, len(kk), len(kk))
+
+	for i, k := range kk {
+		if k.NamespaceID.Valid {
+			ids[i] = k.NamespaceID.Int64
+		}
+	}
+
+	nn := make([]*Namespace, 0, len(ids))
+	userIds := make([]interface{}, 0, len(ids))
+
+	err = namespaces.Load(ids, func(i int, n *Namespace) {
+		k := kk[i]
+
+		if k.NamespaceID.Int64 == n.ID {
+			nn = append(nn, n)
+			userIds = append(userIds, n.UserID)
+
+			k.Namespace = n
+		}
+	})
+
+	if err != nil {
+		return kk, errors.Err(err)
+	}
+
+	users := UserStore{
+		DB: ks.DB,
+	}
+
+	err = users.Load(userIds, func(i int, u *User) {
+		n := nn[i]
+
+		if n.UserID == u.ID {
+			n.User = u
+		}
+	})
+
+	return kk, errors.Err(err)
+}
+
 func (ks KeyStore) New() *Key {
 	k := &Key{
 		Model: Model{

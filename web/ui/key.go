@@ -33,7 +33,7 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	kk, err := u.KeyStore().All(model.Search("name", search))
+	kk, err := u.KeyStore().Index(model.Search("name", search))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -250,7 +250,10 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		f.Keys = n.KeyStore()
+		k.NamespaceID = sql.NullInt64{
+			Int64: n.ID,
+			Valid: true,
+		}
 	}
 
 	k.Config = f.Config

@@ -16,6 +16,7 @@ import (
 				<th>SIZE</th>
 				<th>MD5</th>
 				<th>SHA256</th>
+				<th>NAMESPACE</th>
 				<th></th>
 			</tr>
 		</thead>
@@ -27,6 +28,13 @@ import (
 					<td>{%s template.RenderSize(o.Size) %}</td>
 					<td><span class="code">{%s fmt.Sprintf("%x", o.MD5) %}</span></td>
 					<td><span class="code">{%s fmt.Sprintf("%x", o.SHA256) %}</span></td>
+					<td>
+						{% if o.Namespace != nil %}
+							<a href="{%s o.Namespace.UIEndpoint() %}">{%s o.Namespace.Path %}</a>
+						{% else %}
+							<span class="muted">--</span>
+						{% endif %}
+					</td>
 					<td class="align-right">
 						<form method="POST" action="{%s o.UIEndpoint() %}">
 							{%s= string(csrf) %}

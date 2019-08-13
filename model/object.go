@@ -203,6 +203,52 @@ func (os ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 func (os ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
 	oo, err := os.All(append(opts, query.WhereIs("deleted_at", "NULL"))...)
 
+	if err != nil {
+		return oo, errors.Err(err)
+	}
+
+	namespaces := NamespaceStore{
+		DB: os.DB,
+	}
+
+	ids := make([]interface{}, len(oo), len(oo))
+
+	for i, o := range oo {
+		if o.NamespaceID.Valid {
+			ids[i] = o.NamespaceID.Int64
+		}
+	}
+
+	nn := make([]*Namespace, 0, len(ids))
+	userIds := make([]interface{}, 0, len(ids))
+
+	err = namespaces.Load(ids, func(i int, n *Namespace) {
+		o := oo[i]
+
+		if o.NamespaceID.Int64 == n.ID {
+			nn = append(nn, n)
+			userIds = append(userIds, n.UserID)
+
+			o.Namespace = n
+		}
+	})
+
+	if err != nil {
+		return oo, errors.Err(err)
+	}
+
+	users := UserStore{
+		DB: os.DB,
+	}
+
+	err = users.Load(userIds, func(i int, u *User) {
+		n := nn[i]
+
+		if n.UserID == u.ID {
+			n.User = u
+		}
+	})
+
 	return oo, errors.Err(err)
 }
 

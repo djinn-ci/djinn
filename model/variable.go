@@ -294,6 +294,57 @@ func (vs VariableStore) FindByKey(key string) (*Variable, error) {
 	return v, errors.Err(err)
 }
 
+func (vs VariableStore) Index(opts ...query.Option) ([]*Variable, error) {
+	vv, err := vs.All(opts...)
+
+	if err != nil {
+		return vv, errors.Err(err)
+	}
+
+	namespaces := NamespaceStore{
+		DB: vs.DB,
+	}
+
+	ids := make([]interface{}, len(vv), len(vv))
+
+	for i, v := range vv {
+		if v.NamespaceID.Valid {
+			ids[i] = v.NamespaceID.Int64
+		}
+	}
+
+	nn := make([]*Namespace, 0, len(ids))
+	userIds := make([]interface{}, 0, len(ids))
+
+	err = namespaces.Load(ids, func(i int, n *Namespace) {
+		v := vv[i]
+
+		if v.NamespaceID.Int64 == n.ID {
+			nn = append(nn, n)
+			userIds = append(userIds, n.UserID)
+
+			v.Namespace = n
+		}
+	})
+
+	if err != nil {
+		return vv, errors.Err(err)
+	}
+
+	users := UserStore{
+		DB: vs.DB,
+	}
+
+	err = users.Load(userIds, func(i int, u *User) {
+		n := nn[i]
+
+		if n.UserID == u.ID {
+			n.User = u
+		}
+	})
+
+	return vv, errors.Err(err)
+}
 
 func (vs VariableStore) New() *Variable {
 	v := &Variable{

@@ -32,7 +32,7 @@ func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	vv, err := u.VariableStore().All(model.Search("key", search))
+	vv, err := u.VariableStore().Index(model.Search("key", search))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

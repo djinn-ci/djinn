@@ -493,10 +493,6 @@ func (bs BuildStore) Index(opts ...query.Option) ([]*Build, error) {
 		return bb, errors.Err(err)
 	}
 
-	if err != nil {
-		return bb, errors.Err(err)
-	}
-
 	if err := bs.LoadNamespaces(bb); err != nil {
 		return bb, errors.Err(err)
 	}

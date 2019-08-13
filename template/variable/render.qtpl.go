@@ -32,36 +32,64 @@ func StreamRenderTable(qw422016 *qt422016.Writer, vv []*model.Variable, csrf str
 			<tr>
 				<th>KEY</th>
 				<th>VALUE</th>
+				<th>NAMESPACE</th>
 				<th></th>
 			</tr>
 		</thead>
 		<tbody>
 			`)
-	//line template/variable/render.qtpl:18
+	//line template/variable/render.qtpl:19
 	for _, v := range vv {
-		//line template/variable/render.qtpl:18
+		//line template/variable/render.qtpl:19
 		qw422016.N().S(`
 				<tr>
 					<td><span class="code">`)
-		//line template/variable/render.qtpl:20
+		//line template/variable/render.qtpl:21
 		qw422016.E().S(v.Key)
-		//line template/variable/render.qtpl:20
+		//line template/variable/render.qtpl:21
 		qw422016.N().S(`</span></td>
 					<td><span class="code">`)
-		//line template/variable/render.qtpl:21
+		//line template/variable/render.qtpl:22
 		qw422016.E().S(v.Value)
-		//line template/variable/render.qtpl:21
+		//line template/variable/render.qtpl:22
 		qw422016.N().S(`</span></td>
+					<td>
+						`)
+		//line template/variable/render.qtpl:24
+		if v.Namespace != nil {
+			//line template/variable/render.qtpl:24
+			qw422016.N().S(`
+							<a href="`)
+			//line template/variable/render.qtpl:25
+			qw422016.E().S(v.Namespace.UIEndpoint())
+			//line template/variable/render.qtpl:25
+			qw422016.N().S(`">`)
+			//line template/variable/render.qtpl:25
+			qw422016.E().S(v.Namespace.Path)
+			//line template/variable/render.qtpl:25
+			qw422016.N().S(`</a>
+						`)
+			//line template/variable/render.qtpl:26
+		} else {
+			//line template/variable/render.qtpl:26
+			qw422016.N().S(`
+							<span class="muted">--</span>
+						`)
+			//line template/variable/render.qtpl:28
+		}
+		//line template/variable/render.qtpl:28
+		qw422016.N().S(`
+					</td>
 					<td class="align-right">
 						<form method="POST" action="`)
-		//line template/variable/render.qtpl:23
+		//line template/variable/render.qtpl:31
 		qw422016.E().S(v.UIEndpoint())
-		//line template/variable/render.qtpl:23
+		//line template/variable/render.qtpl:31
 		qw422016.N().S(`">
 							`)
-		//line template/variable/render.qtpl:24
+		//line template/variable/render.qtpl:32
 		qw422016.N().S(csrf)
-		//line template/variable/render.qtpl:24
+		//line template/variable/render.qtpl:32
 		qw422016.N().S(`
 							<input type="hidden" name="_method" value="DELETE"/>
 							<button type="submit" class="btn btn-danger">Delete</button>
@@ -69,114 +97,114 @@ func StreamRenderTable(qw422016 *qt422016.Writer, vv []*model.Variable, csrf str
 					</td>
 				</tr>
 			`)
-		//line template/variable/render.qtpl:30
+		//line template/variable/render.qtpl:38
 	}
-	//line template/variable/render.qtpl:30
+	//line template/variable/render.qtpl:38
 	qw422016.N().S(`
 		</tbody>
 	</table>
 `)
-//line template/variable/render.qtpl:33
+//line template/variable/render.qtpl:41
 }
 
-//line template/variable/render.qtpl:33
+//line template/variable/render.qtpl:41
 func WriteRenderTable(qq422016 qtio422016.Writer, vv []*model.Variable, csrf string) {
-	//line template/variable/render.qtpl:33
+	//line template/variable/render.qtpl:41
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/variable/render.qtpl:33
+	//line template/variable/render.qtpl:41
 	StreamRenderTable(qw422016, vv, csrf)
-	//line template/variable/render.qtpl:33
+	//line template/variable/render.qtpl:41
 	qt422016.ReleaseWriter(qw422016)
-//line template/variable/render.qtpl:33
+//line template/variable/render.qtpl:41
 }
 
-//line template/variable/render.qtpl:33
+//line template/variable/render.qtpl:41
 func RenderTable(vv []*model.Variable, csrf string) string {
-	//line template/variable/render.qtpl:33
+	//line template/variable/render.qtpl:41
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/variable/render.qtpl:33
+	//line template/variable/render.qtpl:41
 	WriteRenderTable(qb422016, vv, csrf)
-	//line template/variable/render.qtpl:33
+	//line template/variable/render.qtpl:41
 	qs422016 := string(qb422016.B)
-	//line template/variable/render.qtpl:33
+	//line template/variable/render.qtpl:41
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/variable/render.qtpl:33
+	//line template/variable/render.qtpl:41
 	return qs422016
-//line template/variable/render.qtpl:33
+//line template/variable/render.qtpl:41
 }
 
-//line template/variable/render.qtpl:35
+//line template/variable/render.qtpl:43
 func StreamRenderIndex(qw422016 *qt422016.Writer, vv []*model.Variable, uri, search, csrf string) {
-	//line template/variable/render.qtpl:35
+	//line template/variable/render.qtpl:43
 	qw422016.N().S(`
 	`)
-	//line template/variable/render.qtpl:36
+	//line template/variable/render.qtpl:44
 	if len(vv) == 0 && search == "" {
-		//line template/variable/render.qtpl:36
+		//line template/variable/render.qtpl:44
 		qw422016.N().S(`
 		<div class="panel-message muted">Set variables that can be used throughout build environments.</div>
 	`)
-		//line template/variable/render.qtpl:38
+		//line template/variable/render.qtpl:46
 	} else {
-		//line template/variable/render.qtpl:38
+		//line template/variable/render.qtpl:46
 		qw422016.N().S(`
 		<div class="panel-header">`)
-		//line template/variable/render.qtpl:39
+		//line template/variable/render.qtpl:47
 		template.StreamRenderSearch(qw422016, uri, search, "Find a variable...")
-		//line template/variable/render.qtpl:39
+		//line template/variable/render.qtpl:47
 		qw422016.N().S(`</div>
 		`)
-		//line template/variable/render.qtpl:40
+		//line template/variable/render.qtpl:48
 		if len(vv) == 0 && search != "" {
-			//line template/variable/render.qtpl:40
+			//line template/variable/render.qtpl:48
 			qw422016.N().S(`
 			<div class="panel-message muted">No results found.</div>
 		`)
-			//line template/variable/render.qtpl:42
+			//line template/variable/render.qtpl:50
 		} else {
-			//line template/variable/render.qtpl:42
+			//line template/variable/render.qtpl:50
 			qw422016.N().S(`
 			`)
-			//line template/variable/render.qtpl:43
+			//line template/variable/render.qtpl:51
 			StreamRenderTable(qw422016, vv, csrf)
-			//line template/variable/render.qtpl:43
+			//line template/variable/render.qtpl:51
 			qw422016.N().S(`
 		`)
-			//line template/variable/render.qtpl:44
+			//line template/variable/render.qtpl:52
 		}
-		//line template/variable/render.qtpl:44
+		//line template/variable/render.qtpl:52
 		qw422016.N().S(`
 	`)
-		//line template/variable/render.qtpl:45
+		//line template/variable/render.qtpl:53
 	}
-	//line template/variable/render.qtpl:45
+	//line template/variable/render.qtpl:53
 	qw422016.N().S(`
 `)
-//line template/variable/render.qtpl:46
+//line template/variable/render.qtpl:54
 }
 
-//line template/variable/render.qtpl:46
+//line template/variable/render.qtpl:54
 func WriteRenderIndex(qq422016 qtio422016.Writer, vv []*model.Variable, uri, search, csrf string) {
-	//line template/variable/render.qtpl:46
+	//line template/variable/render.qtpl:54
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/variable/render.qtpl:46
+	//line template/variable/render.qtpl:54
 	StreamRenderIndex(qw422016, vv, uri, search, csrf)
-	//line template/variable/render.qtpl:46
+	//line template/variable/render.qtpl:54
 	qt422016.ReleaseWriter(qw422016)
-//line template/variable/render.qtpl:46
+//line template/variable/render.qtpl:54
 }
 
-//line template/variable/render.qtpl:46
+//line template/variable/render.qtpl:54
 func RenderIndex(vv []*model.Variable, uri, search, csrf string) string {
-	//line template/variable/render.qtpl:46
+	//line template/variable/render.qtpl:54
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/variable/render.qtpl:46
+	//line template/variable/render.qtpl:54
 	WriteRenderIndex(qb422016, vv, uri, search, csrf)
-	//line template/variable/render.qtpl:46
+	//line template/variable/render.qtpl:54
 	qs422016 := string(qb422016.B)
-	//line template/variable/render.qtpl:46
+	//line template/variable/render.qtpl:54
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/variable/render.qtpl:46
+	//line template/variable/render.qtpl:54
 	return qs422016
-//line template/variable/render.qtpl:46
+//line template/variable/render.qtpl:54
 }

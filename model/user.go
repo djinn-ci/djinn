@@ -223,3 +223,23 @@ func (us UserStore) FindByUsername(username string) (*User, error) {
 
 	return u, errors.Err(err)
 }
+
+func (us UserStore) Load(ids []interface{}, load func(i int, u *User)) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	uu, err := us.All(query.WhereIn("id", ids...))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for i := range ids {
+		for _, u := range uu {
+			load(i, u)
+		}
+	}
+
+	return nil
+}

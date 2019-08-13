@@ -413,6 +413,26 @@ func (ns NamespaceStore) Index(opts ...query.Option) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
+func (ns NamespaceStore) Load(ids []interface{}, load func(i int, n *Namespace)) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	nn, err := ns.All(query.WhereIn("id", ids...))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for i := range ids {
+		for _, n := range nn {
+			load(i, n)
+		}
+	}
+
+	return nil
+}
+
 func (ns NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 	if len(nn) == 0 {
 		return nil

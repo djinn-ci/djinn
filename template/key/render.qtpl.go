@@ -31,35 +31,63 @@ func StreamRenderTable(qw422016 *qt422016.Writer, kk []*model.Key, csrf string) 
 		<thead>
 			<tr>
 				<th>NAME</th>
+				<th>NAMESPACE</th>
 				<th></th>
 			</tr>
 		</thead>
 		<tbody>
 			`)
-	//line template/key/render.qtpl:17
+	//line template/key/render.qtpl:18
 	for _, k := range kk {
-		//line template/key/render.qtpl:17
+		//line template/key/render.qtpl:18
 		qw422016.N().S(`
 				<tr>
 					<td><a href="`)
-		//line template/key/render.qtpl:19
+		//line template/key/render.qtpl:20
 		qw422016.E().S(k.UIEndpoint("edit"))
-		//line template/key/render.qtpl:19
+		//line template/key/render.qtpl:20
 		qw422016.N().S(`">`)
-		//line template/key/render.qtpl:19
+		//line template/key/render.qtpl:20
 		qw422016.E().S(k.Name)
-		//line template/key/render.qtpl:19
+		//line template/key/render.qtpl:20
 		qw422016.N().S(`</a></td>
+					<td>
+						`)
+		//line template/key/render.qtpl:22
+		if k.Namespace != nil {
+			//line template/key/render.qtpl:22
+			qw422016.N().S(`
+							<a href="`)
+			//line template/key/render.qtpl:23
+			qw422016.E().S(k.Namespace.UIEndpoint())
+			//line template/key/render.qtpl:23
+			qw422016.N().S(`">`)
+			//line template/key/render.qtpl:23
+			qw422016.E().S(k.Namespace.Path)
+			//line template/key/render.qtpl:23
+			qw422016.N().S(`</a>
+						`)
+			//line template/key/render.qtpl:24
+		} else {
+			//line template/key/render.qtpl:24
+			qw422016.N().S(`
+							<span class="muted">--</span>
+						`)
+			//line template/key/render.qtpl:26
+		}
+		//line template/key/render.qtpl:26
+		qw422016.N().S(`
+					</td>
 					<td class="align-right">
 						<form method="POST" action="`)
-		//line template/key/render.qtpl:21
+		//line template/key/render.qtpl:29
 		qw422016.E().S(k.UIEndpoint())
-		//line template/key/render.qtpl:21
+		//line template/key/render.qtpl:29
 		qw422016.N().S(`">
 							`)
-		//line template/key/render.qtpl:22
+		//line template/key/render.qtpl:30
 		qw422016.N().S(csrf)
-		//line template/key/render.qtpl:22
+		//line template/key/render.qtpl:30
 		qw422016.N().S(`
 							<input type="hidden" name="_method" value="DELETE"/>
 							<button type="submit" class="btn btn-danger">Delete</button>
@@ -67,114 +95,114 @@ func StreamRenderTable(qw422016 *qt422016.Writer, kk []*model.Key, csrf string) 
 					</td>
 				</tr>
 			`)
-		//line template/key/render.qtpl:28
+		//line template/key/render.qtpl:36
 	}
-	//line template/key/render.qtpl:28
+	//line template/key/render.qtpl:36
 	qw422016.N().S(`
 		</tbody>
 	</table>
 `)
-//line template/key/render.qtpl:31
+//line template/key/render.qtpl:39
 }
 
-//line template/key/render.qtpl:31
+//line template/key/render.qtpl:39
 func WriteRenderTable(qq422016 qtio422016.Writer, kk []*model.Key, csrf string) {
-	//line template/key/render.qtpl:31
+	//line template/key/render.qtpl:39
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/key/render.qtpl:31
+	//line template/key/render.qtpl:39
 	StreamRenderTable(qw422016, kk, csrf)
-	//line template/key/render.qtpl:31
+	//line template/key/render.qtpl:39
 	qt422016.ReleaseWriter(qw422016)
-//line template/key/render.qtpl:31
+//line template/key/render.qtpl:39
 }
 
-//line template/key/render.qtpl:31
+//line template/key/render.qtpl:39
 func RenderTable(kk []*model.Key, csrf string) string {
-	//line template/key/render.qtpl:31
+	//line template/key/render.qtpl:39
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/key/render.qtpl:31
+	//line template/key/render.qtpl:39
 	WriteRenderTable(qb422016, kk, csrf)
-	//line template/key/render.qtpl:31
+	//line template/key/render.qtpl:39
 	qs422016 := string(qb422016.B)
-	//line template/key/render.qtpl:31
+	//line template/key/render.qtpl:39
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/key/render.qtpl:31
+	//line template/key/render.qtpl:39
 	return qs422016
-//line template/key/render.qtpl:31
+//line template/key/render.qtpl:39
 }
 
-//line template/key/render.qtpl:33
+//line template/key/render.qtpl:41
 func StreamRenderIndex(qw422016 *qt422016.Writer, kk []*model.Key, uri, search, csrf string) {
-	//line template/key/render.qtpl:33
+	//line template/key/render.qtpl:41
 	qw422016.N().S(`
 	`)
-	//line template/key/render.qtpl:34
+	//line template/key/render.qtpl:42
 	if len(kk) == 0 && search == "" {
-		//line template/key/render.qtpl:34
+		//line template/key/render.qtpl:42
 		qw422016.N().S(`
 		<div class="panel-message muted">SSH keys can allow build environments to access other environments.</div>
 	`)
-		//line template/key/render.qtpl:36
+		//line template/key/render.qtpl:44
 	} else {
-		//line template/key/render.qtpl:36
+		//line template/key/render.qtpl:44
 		qw422016.N().S(`
 		<div class="panel-header">`)
-		//line template/key/render.qtpl:37
+		//line template/key/render.qtpl:45
 		template.StreamRenderSearch(qw422016, uri, search, "Find an SSH key...")
-		//line template/key/render.qtpl:37
+		//line template/key/render.qtpl:45
 		qw422016.N().S(`</div>
 		`)
-		//line template/key/render.qtpl:38
+		//line template/key/render.qtpl:46
 		if len(kk) == 0 && search != "" {
-			//line template/key/render.qtpl:38
+			//line template/key/render.qtpl:46
 			qw422016.N().S(`
 			<div class="panel-message muted">No results found.</div>
 		`)
-			//line template/key/render.qtpl:40
+			//line template/key/render.qtpl:48
 		} else {
-			//line template/key/render.qtpl:40
+			//line template/key/render.qtpl:48
 			qw422016.N().S(`
 			`)
-			//line template/key/render.qtpl:41
+			//line template/key/render.qtpl:49
 			StreamRenderTable(qw422016, kk, csrf)
-			//line template/key/render.qtpl:41
+			//line template/key/render.qtpl:49
 			qw422016.N().S(`
 		`)
-			//line template/key/render.qtpl:42
+			//line template/key/render.qtpl:50
 		}
-		//line template/key/render.qtpl:42
+		//line template/key/render.qtpl:50
 		qw422016.N().S(`
 	`)
-		//line template/key/render.qtpl:43
+		//line template/key/render.qtpl:51
 	}
-	//line template/key/render.qtpl:43
+	//line template/key/render.qtpl:51
 	qw422016.N().S(`
 `)
-//line template/key/render.qtpl:44
+//line template/key/render.qtpl:52
 }
 
-//line template/key/render.qtpl:44
+//line template/key/render.qtpl:52
 func WriteRenderIndex(qq422016 qtio422016.Writer, kk []*model.Key, uri, search, csrf string) {
-	//line template/key/render.qtpl:44
+	//line template/key/render.qtpl:52
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/key/render.qtpl:44
+	//line template/key/render.qtpl:52
 	StreamRenderIndex(qw422016, kk, uri, search, csrf)
-	//line template/key/render.qtpl:44
+	//line template/key/render.qtpl:52
 	qt422016.ReleaseWriter(qw422016)
-//line template/key/render.qtpl:44
+//line template/key/render.qtpl:52
 }
 
-//line template/key/render.qtpl:44
+//line template/key/render.qtpl:52
 func RenderIndex(kk []*model.Key, uri, search, csrf string) string {
-	//line template/key/render.qtpl:44
+	//line template/key/render.qtpl:52
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/key/render.qtpl:44
+	//line template/key/render.qtpl:52
 	WriteRenderIndex(qb422016, kk, uri, search, csrf)
-	//line template/key/render.qtpl:44
+	//line template/key/render.qtpl:52
 	qs422016 := string(qb422016.B)
-	//line template/key/render.qtpl:44
+	//line template/key/render.qtpl:52
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/key/render.qtpl:44
+	//line template/key/render.qtpl:52
 	return qs422016
-//line template/key/render.qtpl:44
+//line template/key/render.qtpl:52
 }

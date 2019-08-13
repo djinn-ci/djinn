@@ -10,6 +10,7 @@ import (
 		<thead>
 			<tr>
 				<th>NAME</th>
+				<th>NAMESPACE</th>
 				<th></th>
 			</tr>
 		</thead>
@@ -17,6 +18,13 @@ import (
 			{% for _, k := range kk %}
 				<tr>
 					<td><a href="{%s k.UIEndpoint("edit") %}">{%s k.Name %}</a></td>
+					<td>
+						{% if k.Namespace != nil %}
+							<a href="{%s k.Namespace.UIEndpoint() %}">{%s k.Namespace.Path %}</a>
+						{% else %}
+							<span class="muted">--</span>
+						{% endif %}
+					</td>
 					<td class="align-right">
 						<form method="POST" action="{%s k.UIEndpoint() %}">
 							{%s= csrf %}

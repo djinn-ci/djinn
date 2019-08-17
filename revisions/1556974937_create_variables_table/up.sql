@@ -11,7 +11,7 @@ CREATE TABLE variables (
 CREATE TABLE build_variables (
 	id            SERIAL PRIMARY KEY,
 	build_id      INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
-	variable_id   INT NULL REFERENCES variables(id),
+	variable_id   INT NULL REFERENCES variables(id) ON DELETE SET NULL,
 	key           VARCHAR NOT NULL,
 	value         VARCHAR NOT NULL,
 	created_at    TIMESTAMP NOT NULL DEFAULT NOW(),

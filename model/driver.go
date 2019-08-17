@@ -6,8 +6,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/model/types"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type Driver struct {
@@ -21,47 +19,48 @@ type Driver struct {
 }
 
 type DriverStore struct {
-	*sqlx.DB
+	Store
 
 	Build *Build
 }
 
-func (d *Driver) Create() error {
-	q := query.Insert(
-		query.Table("drivers"),
-		query.Columns("build_id", "type", "config"),
-		query.Values(d.BuildID, d.Type, d.Config),
-		query.Returning("id", "created_at", "updated_at"),
-	)
-
-	stmt, err := d.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
+func (d Driver) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"build_id": d.BuildID,
+		"type":     d.Type,
+		"config":   d.Config,
 	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&d.ID, &d.CreatedAt, &d.UpdatedAt))
 }
 
-func (ds DriverStore) First() (*Driver, error) {
+func (s DriverStore) interfaceSlice(dd ...*Driver) []Interface {
+	ii := make([]Interface, len(dd), len(dd))
+
+	for i, d := range dd {
+		ii[i] = d
+	}
+
+	return ii
+}
+
+func (s DriverStore) Create(dd ...*Driver) error {
+	return errors.Err(s.Store.Create(driverTable, s.interfaceSlice(dd...)...))
+}
+
+func (s DriverStore) First() (*Driver, error) {
 	d := &Driver{
 		Model: Model{
-			DB: ds.DB,
+			DB: s.DB,
 		},
-		Build: ds.Build,
+		Build: s.Build,
 	}
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table("drivers"),
-		ForBuild(ds.Build),
+		query.Table(driverTable),
+		ForBuild(s.Build),
 	)
 
-	err := ds.Get(d, q.Build(), q.Args()...)
+	err := s.Store.Get(d, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -70,16 +69,16 @@ func (ds DriverStore) First() (*Driver, error) {
 	return d, errors.Err(err)
 }
 
-func (ds DriverStore) New() *Driver {
+func (s DriverStore) New() *Driver {
 	d := &Driver{
 		Model: Model{
-			DB: ds.DB,
+			DB: s.DB,
 		},
-		Build: ds.Build,
+		Build: s.Build,
 	}
 
-	if ds.Build != nil {
-		d.BuildID = ds.Build.ID
+	if s.Build != nil {
+		d.BuildID = s.Build.ID
 	}
 
 	return d

@@ -8,8 +8,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model/query"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/lib/pq"
 )
 
@@ -44,17 +42,27 @@ type BuildObject struct {
 }
 
 type ObjectStore struct {
-	*sqlx.DB
+	Store
 
 	User      *User
 	Namespace *Namespace
 }
 
 type BuildObjectStore struct {
-	*sqlx.DB
+	Store
 
 	Build  *Build
 	Object *Object
+}
+
+func (bo BuildObject) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"build_id":   bo.BuildID,
+		"object_id":  bo.ObjectID,
+		"source":     bo.Source,
+		"name":       bo.Name,
+		"placed":     bo.Placed,
+	}
 }
 
 func (o Object) AccessibleBy(u *User, a Action) bool {
@@ -67,30 +75,26 @@ func (o Object) AccessibleBy(u *User, a Action) bool {
 
 func (o *Object) BuildObjectStore() BuildObjectStore {
 	return BuildObjectStore{
-		DB:     o.DB,
+		Store: Store{
+			DB: o.DB,
+		},
 		Object: o,
 	}
 }
 
-func (o *Object) Create() error {
-	q := query.Insert(
-		query.Table("objects"),
-		query.Columns("user_id", "namespace_id", "hash", "name", "type", "size", "md5", "sha256"),
-		query.Values(o.UserID, o.NamespaceID, o.Hash, o.Name, o.Type, o.Size, o.MD5, o.SHA256),
-		query.Returning("id", "created_at", "updated_at"),
-	)
-
-	stmt, err := o.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
+func (o Object) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"user_id":      o.UserID,
+		"namespace_id": o.NamespaceID,
+		"hash":         o.Hash,
+		"name":         o.Name,
+		"type":         o.Type,
+		"size":         o.Size,
+		"md5":          o.MD5,
+		"sha256":       o.SHA256,
+		"created_at":   o.CreatedAt,
+		"updated_at":   o.UpdatedAt,
 	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&o.ID, &o.CreatedAt, &o.UpdatedAt))
 }
 
 func (o *Object) Destroy() error {
@@ -135,80 +139,50 @@ func (o Object) UIEndpoint(uri ...string) string {
 	return endpoint
 }
 
-func (bo *BuildObject) Create() error {
-	q := query.Insert(
-		query.Table("build_objects"),
-		query.Columns("build_id", "object_id", "source", "name"),
-		query.Values(bo.BuildID, bo.ObjectID, bo.Source, bo.Name),
-		query.Returning("id", "created_at", "updated_at"),
-	)
-
-	stmt, err := bo.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&bo.ID, &bo.CreatedAt, &bo.UpdatedAt))
-}
-
-func (bo *BuildObject) Update() error {
-	q := query.Update(
-		query.Table("build_objects"),
-		query.Set("placed", bo.Placed),
-		query.SetRaw("updated_at", "NOW()"),
-		query.WhereEq("id", bo.ID),
-		query.Returning("updated_at"),
-	)
-
-	stmt, err := bo.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&bo.UpdatedAt))
-}
-
-func (os ObjectStore) All(opts ...query.Option) ([]*Object, error) {
+func (s ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 	oo := make([]*Object, 0)
 
-	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForUser(os.User), ForNamespace(os.Namespace), query.Table("objects"))
-
-	q := query.Select(opts...)
-
-	err := os.Select(&oo, q.Build(), q.Args()...)
+	err := s.Store.All(&oo, "objects", opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
 
 	for _, o := range oo {
-		o.DB = os.DB
-		o.User = os.User
+		o.DB = s.DB
+		o.User = s.User
 	}
 
 	return oo, errors.Err(err)
 }
 
-func (os ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
-	oo, err := os.All(append(opts, query.WhereIs("deleted_at", "NULL"))...)
+func (s ObjectStore) interfaceSlice(oo ...*Object) []Interface {
+	ii := make([]Interface, len(oo), len(oo))
+
+	for i, o := range oo {
+		ii[i] = o
+	}
+
+	return ii
+}
+
+func (s ObjectStore) Create(oo ...*Object) error {
+	return errors.Err(s.Store.Create(objectTable, s.interfaceSlice(oo...)...))
+}
+
+func (s ObjectStore) Delete(oo ...*Object) error {
+	return errors.Err(s.Store.Delete(objectTable, s.interfaceSlice(oo...)...))
+}
+
+func (s ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
+	oo, err := s.All(append(opts, query.WhereIs("deleted_at", "NULL"))...)
 
 	if err != nil {
 		return oo, errors.Err(err)
 	}
 
 	namespaces := NamespaceStore{
-		DB: os.DB,
+		Store: s.Store,
 	}
 
 	ids := make([]interface{}, len(oo), len(oo))
@@ -238,7 +212,7 @@ func (os ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
 	}
 
 	users := UserStore{
-		DB: os.DB,
+		Store: s.Store,
 	}
 
 	err = users.Load(userIds, func(i int, u *User) {
@@ -252,24 +226,15 @@ func (os ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
 	return oo, errors.Err(err)
 }
 
-func (os ObjectStore) findBy(col string, val interface{}) (*Object, error) {
+func (s ObjectStore) findBy(col string, val interface{}) (*Object, error) {
 	o := &Object{
 		Model: Model{
-			DB: os.DB,
+			DB: s.DB,
 		},
-		User: os.User,
+		User: s.User,
 	}
 
-	q := query.Select(
-		query.Columns("*"),
-		query.Table("objects"),
-		query.WhereEq(col, val),
-		query.WhereIs("deleted_at", "NULL"),
-		ForUser(os.User),
-		ForNamespace(os.Namespace),
-	)
-
-	err := os.Get(o, q.Build(), q.Args()...)
+	err := s.FindBy(o, "objects", col, val)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -278,35 +243,35 @@ func (os ObjectStore) findBy(col string, val interface{}) (*Object, error) {
 	return o, errors.Err(err)
 }
 
-func (os ObjectStore) Find(id int64) (*Object, error) {
-	o, err := os.findBy("id", id)
+func (s ObjectStore) Find(id int64) (*Object, error) {
+	o, err := s.findBy("id", id)
 
 	return o, errors.Err(err)
 }
 
-func (os ObjectStore) FindByName(name string) (*Object, error) {
-	o, err := os.findBy("name", name)
+func (s ObjectStore) FindByName(name string) (*Object, error) {
+	o, err := s.findBy("name", name)
 
 	return o, errors.Err(err)
 }
 
-func (os ObjectStore) New() *Object {
+func (s ObjectStore) New() *Object {
 	o := &Object{
 		Model: Model{
-			DB: os.DB,
+			DB: s.DB,
 		},
-		User: os.User,
+		User: s.User,
 	}
 
-	if os.User != nil {
-		o.UserID = os.User.ID
+	if s.User != nil {
+		o.UserID = s.User.ID
 	}
 
 	return o
 }
 
-func (os ObjectStore) Show(id int64) (*Object, error) {
-	o, err := os.Find(id)
+func (s ObjectStore) Show(id int64) (*Object, error) {
+	o, err := s.Find(id)
 
 	if err != nil {
 		return o, errors.Err(err)
@@ -315,50 +280,58 @@ func (os ObjectStore) Show(id int64) (*Object, error) {
 	return o, errors.Err(err)
 }
 
-func (bos BuildObjectStore) All(opts ...query.Option) ([]*BuildObject, error) {
+func (s BuildObjectStore) All(opts ...query.Option) ([]*BuildObject, error) {
 	boo := make([]*BuildObject, 0)
 
-	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForBuild(bos.Build), ForObject(bos.Object), query.Table("build_objects"))
+	opts = append(opts, ForBuild(s.Build), ForObject(s.Object))
 
-	q := query.Select(opts...)
-
-	err := bos.Select(&boo, q.Build(), q.Args()...)
+	err := s.Store.All(&boo, "build_objects", opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
 
-	for _, o := range boo {
-		o.DB = bos.DB
-		o.Build = bos.Build
-		o.Object = bos.Object
+	for _, bo := range boo {
+		bo.DB = s.DB
+		bo.Build = s.Build
+		bo.Object = s.Object
 	}
 
 	return boo, errors.Err(err)
 }
 
-func (bos BuildObjectStore) First() (*BuildObject, error) {
-	empty := &BuildObject{
+func (s BuildObjectStore) Create(boo ...*BuildObject) error {
+	ii := make([]Interface, 0, len(boo))
+
+	for _, bo := range boo {
+		ii = append(ii, bo)
+	}
+
+	return errors.Err(s.Store.Create(buildObjectTable, ii...))
+}
+
+func (s BuildObjectStore) First() (*BuildObject, error) {
+	bo := &BuildObject{
 		Model: Model{
-			DB: bos.DB,
+			DB: s.DB,
 		},
 	}
 
-	boo, err := bos.All(query.Limit(1))
+	q := query.Select(
+		query.Columns("*"),
+		query.Table(buildObjectTable),
+	)
 
-	if err != nil {
-		return empty, errors.Err(err)
+	err := s.Store.Get(bo, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
 	}
 
-	if len(boo) >= 1 {
-		return boo[0], nil
-	}
-
-	return empty, nil
+	return bo, nil
 }
 
-func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
+func (s BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 	if len(boo) == 0 {
 		return nil
 	}
@@ -372,7 +345,7 @@ func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 	}
 
 	objects := ObjectStore{
-		DB: bos.DB,
+		Store: s.Store,
 	}
 
 	oo, err := objects.All(query.WhereIn("id", ids...))
@@ -392,22 +365,22 @@ func (bos BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 	return nil
 }
 
-func (bos BuildObjectStore) New() *BuildObject {
+func (s BuildObjectStore) New() *BuildObject {
 	bo := &BuildObject{
 		Model: Model{
-			DB: bos.DB,
+			DB: s.DB,
 		},
-		Build:  bos.Build,
-		Object: bos.Object,
+		Build:  s.Build,
+		Object: s.Object,
 	}
 
-	if bos.Build != nil {
-		bo.BuildID = bos.Build.ID
+	if s.Build != nil {
+		bo.BuildID = s.Build.ID
 	}
 
-	if bos.Object != nil {
+	if s.Object != nil {
 		bo.ObjectID = sql.NullInt64{
-			Int64: bos.Object.ID,
+			Int64: s.Object.ID,
 			Valid: true,
 		}
 	}

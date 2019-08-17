@@ -10,8 +10,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/model/types"
-
-	"github.com/jmoiron/sqlx"
 )
 
 var NamespaceMaxDepth int64 = 20
@@ -37,7 +35,7 @@ type Namespace struct {
 }
 
 type NamespaceStore struct {
-	*sqlx.DB
+	Store
 
 	User      *User
 	Namespace *Namespace
@@ -58,35 +56,45 @@ func (n Namespace) AccessibleBy(u *User, a Action) bool {
 
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
-		DB:        n.DB,
+		Store: Store{
+			DB: n.DB,
+		},
 		Namespace: n,
 	}
 }
 
 func (n *Namespace) KeyStore() KeyStore {
 	return KeyStore{
-		DB:        n.DB,
+		Store: Store{
+			DB: n.DB,
+		},
 		Namespace: n,
 	}
 }
 
 func (n *Namespace) ObjectStore() ObjectStore {
 	return ObjectStore{
-		DB:        n.DB,
+		Store: Store{
+			DB: n.DB,
+		},
 		Namespace: n,
 	}
 }
 
 func (n *Namespace) VariableStore() VariableStore {
 	return VariableStore{
-		DB:        n.DB,
+		Store: Store{
+			DB: n.DB,
+		},
 		Namespace: n,
 	}
 }
 
 func (n *Namespace) NamespaceStore() NamespaceStore {
 	return NamespaceStore{
-		DB:        n.DB,
+		Store: Store{
+			DB: n.DB,
+		},
 		User:      n.User,
 		Namespace: n,
 	}
@@ -102,69 +110,6 @@ func (n *Namespace) CascadeVisibility() error {
 		query.Set("visibility", n.Visibility),
 		query.WhereEq("root_id", n.RootID),
 	)
-
-	stmt, err := n.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(q.Args()...)
-
-	return errors.Err(err)
-}
-
-func (n *Namespace) Create() error {
-	q := query.Insert(
-		query.Table("namespaces"),
-		query.Columns("user_id", "root_id", "parent_id", "name", "path", "description", "level", "visibility"),
-		query.Values(n.UserID, n.RootID, n.ParentID, n.Name, n.Path, n.Description, n.Level, n.Visibility),
-		query.Returning("id", "created_at", "updated_at"),
-	)
-
-	stmt, err := n.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&n.ID, &n.CreatedAt, &n.UpdatedAt))
-}
-
-func (n *Namespace) Destroy() error {
-	nn := make([]*Namespace, 0)
-
-	q := query.Select(
-		query.Columns("id"),
-		query.Table("namespaces"),
-		query.WhereEq("root_id", n.ID),
-	)
-
-	err := n.Select(&nn, q.Build(), q.Args()...)
-
-	opts := []query.Option{
-		query.Table("namespaces"),
-	}
-
-	if len(nn) > 0 {
-		ids := make([]interface{}, len(nn))
-
-		for i, n := range nn {
-			ids[i] = n.ID
-		}
-
-		opts = append(opts, query.Or(query.WhereEq("id", n.ID), query.WhereIn("id", ids...)))
-	} else {
-		opts = append(opts, query.WhereEq("id", n.ID))
-	}
-
-	q = query.Delete(opts...)
 
 	stmt, err := n.Prepare(q.Build())
 
@@ -202,7 +147,9 @@ func (n *Namespace) LoadParent() error {
 	var err error
 
 	namespaces := NamespaceStore{
-		DB:   n.DB,
+		Store: Store{
+			DB: n.DB,
+		},
 		User: n.User,
 	}
 
@@ -231,7 +178,9 @@ func (n *Namespace) LoadUser() error {
 	var err error
 
 	users := UserStore{
-		DB: n.DB,
+		Store: Store{
+			DB: n.DB,
+		},
 	}
 
 	n.User, err = users.Find(n.UserID)
@@ -253,20 +202,85 @@ func (n Namespace) UIEndpoint(uri ...string) string {
 	return endpoint
 }
 
-func (n *Namespace) Update() error {
-	q := query.Update(
+func (n Namespace) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"user_id":     n.UserID,
+		"root_id":     n.RootID,
+		"parent_id":   n.ParentID,
+		"name":        n.Name,
+		"path":        n.Path,
+		"description": n.Description,
+		"level":       n.Level,
+		"visibility":  n.Visibility,
+	}
+}
+
+func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
+	nn := make([]*Namespace, 0)
+
+	opts = append(opts, ForParent(s.Namespace), query.Table("namespaces"))
+
+	err := s.Store.All(&nn, "namespaces", opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, n := range nn {
+		n.DB = s.DB
+	}
+
+	return nn, errors.Err(err)
+}
+
+func (s NamespaceStore) Create(nn ...*Namespace) error {
+	return errors.Err(s.Store.Create(namespaceTable, s.interfaceSlice(nn...)...))
+}
+
+func (s NamespaceStore) Delete(nn ...*Namespace) error {
+	rootIds := make([]interface{}, len(nn), len(nn))
+
+	for i, n := range nn {
+		rootIds[i] = n.ID
+	}
+
+	q := query.Select(
+		query.Columns("id"),
 		query.Table("namespaces"),
-		query.Set("root_id", n.RootID),
-		query.Set("name", n.Name),
-		query.Set("path", n.Path),
-		query.Set("description", n.Description),
-		query.Set("visibility", n.Visibility),
-		query.SetRaw("updated_at", "NOW()"),
-		query.WhereEq("id", n.ID),
-		query.Returning("updated_at"),
+		query.WhereIn("root_id", rootIds...),
 	)
 
-	stmt, err := n.Prepare(q.Build())
+	children := make([]*Namespace, 0)
+
+	err := s.Select(&children, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	opts := []query.Option{
+		query.Table("namespaces"),
+	}
+
+	if len(children) > 0 {
+		ids := make([]interface{}, len(children), len(children))
+
+		for i, n := range children {
+			ids[i] = n.ID
+		}
+
+		opts = append(opts, query.Or(query.WhereIn("id", rootIds...), query.WhereIn("id", ids...)))
+	} else {
+		opts = append(opts, query.WhereIn("id", rootIds...))
+	}
+
+	q = query.Delete(opts...)
+
+	stmt, err := s.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)
@@ -274,50 +288,29 @@ func (n *Namespace) Update() error {
 
 	defer stmt.Close()
 
-	row := stmt.QueryRow(q.Args()...)
+	_, err = stmt.Exec(q.Args()...)
 
-	return errors.Err(row.Scan(&n.UpdatedAt))
+	return errors.Err(err)
 }
 
-func (ns NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
-	nn := make([]*Namespace, 0)
-
-	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForParent(ns.Namespace), query.Table("namespaces"))
-
-	q := query.Select(opts...)
-
-	err := ns.Select(&nn, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, n := range nn {
-		n.DB = ns.DB
-	}
-
-	return nn, errors.Err(err)
-}
-
-func (ns NamespaceStore) findBy(col string, val interface{}) (*Namespace, error) {
+func (s NamespaceStore) findBy(col string, val interface{}) (*Namespace, error) {
 	n := &Namespace{
 		Model: Model{
-			DB: ns.DB,
+			DB: s.DB,
 		},
-		User:   ns.User,
-		Parent: ns.Namespace,
+		User:   s.User,
+		Parent: s.Namespace,
 	}
 
 	q := query.Select(
 		query.Columns("*"),
 		query.Table("namespaces"),
 		query.WhereEq(col, val),
-		ForUser(ns.User),
-		ForParent(ns.Namespace),
+		ForUser(s.User),
+		ForParent(s.Namespace),
 	)
 
-	err := ns.Get(n, q.Build(), q.Args()...)
+	err := s.Get(n, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -326,20 +319,20 @@ func (ns NamespaceStore) findBy(col string, val interface{}) (*Namespace, error)
 	return n, errors.Err(err)
 }
 
-func (ns NamespaceStore) Find(id int64) (*Namespace, error) {
-	n, err := ns.findBy("id", id)
+func (s NamespaceStore) Find(id int64) (*Namespace, error) {
+	n, err := s.findBy("id", id)
 
 	return n, errors.Err(err)
 }
 
-func (ns NamespaceStore) FindByPath(path string) (*Namespace, error) {
-	n, err := ns.findBy("path", path)
+func (s NamespaceStore) FindByPath(path string) (*Namespace, error) {
+	n, err := s.findBy("path", path)
 
 	return n, errors.Err(err)
 }
 
-func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
-	n, err := ns.FindByPath(path)
+func (s NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
+	n, err := s.FindByPath(path)
 
 	if err != nil {
 		return n, errors.Err(err)
@@ -361,7 +354,7 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 			break
 		}
 
-		n = ns.New()
+		n = s.New()
 		n.Name = name
 		n.Path = name
 		n.Level = parent.Level + 1
@@ -376,7 +369,7 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 			n.Path = strings.Join([]string{parent.Path, n.Name}, "/")
 		}
 
-		if err := n.Create(); err != nil {
+		if err := s.Create(n); err != nil {
 			return n, errors.Err(err)
 		}
 
@@ -386,7 +379,7 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 				Valid: true,
 			}
 
-			if err := n.Update(); err != nil {
+			if err := s.Update(n); err != nil {
 				return n, errors.Err(err)
 			}
 		}
@@ -394,31 +387,41 @@ func (ns NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 		parent = n
 	}
 
-	n.User = ns.User
+	n.User = s.User
 
 	return n, nil
 }
 
-func (ns NamespaceStore) Index(opts ...query.Option) ([]*Namespace, error) {
-	nn, err := ns.All(opts...)
+func (s NamespaceStore) Index(opts ...query.Option) ([]*Namespace, error) {
+	nn, err := s.All(opts...)
 
-	if err := ns.LoadUsers(nn); err != nil {
+	if err := s.LoadUsers(nn); err != nil {
 		return nn, errors.Err(err)
 	}
 
-	if err := ns.LoadLastBuild(nn); err != nil {
+	if err := s.LoadLastBuild(nn); err != nil {
 		return nn, errors.Err(err)
 	}
 
 	return nn, errors.Err(err)
 }
 
-func (ns NamespaceStore) Load(ids []interface{}, load func(i int, n *Namespace)) error {
+func (s NamespaceStore) interfaceSlice(nn ...*Namespace) []Interface {
+	ii := make([]Interface, len(nn), len(nn))
+
+	for i, n := range nn {
+		ii[i] = n
+	}
+
+	return ii
+}
+
+func (s NamespaceStore) Load(ids []interface{}, load func(i int, n *Namespace)) error {
 	if len(ids) == 0 {
 		return nil
 	}
 
-	nn, err := ns.All(query.WhereIn("id", ids...))
+	nn, err := s.All(query.WhereIn("id", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -433,7 +436,7 @@ func (ns NamespaceStore) Load(ids []interface{}, load func(i int, n *Namespace))
 	return nil
 }
 
-func (ns NamespaceStore) LoadLastBuild(nn []*Namespace) error {
+func (s NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 	if len(nn) == 0 {
 		return nil
 	}
@@ -445,7 +448,7 @@ func (ns NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 	}
 
 	builds := BuildStore{
-		DB: ns.DB,
+		Store: s.Store,
 	}
 
 	bb, err := builds.All(query.WhereIn("namespace_id", ids...))
@@ -469,7 +472,7 @@ func (ns NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 	return errors.Err(err)
 }
 
-func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {
+func (s NamespaceStore) LoadUsers(nn []*Namespace) error {
 	if len(nn) == 0 {
 		return nil
 	}
@@ -481,7 +484,7 @@ func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {
 	}
 
 	users := UserStore{
-		DB: ns.DB,
+		Store: s.Store,
 	}
 
 	uu, err := users.All(query.WhereIn("id", ids...))
@@ -501,25 +504,29 @@ func (ns NamespaceStore) LoadUsers(nn []*Namespace) error {
 	return errors.Err(err)
 }
 
-func (ns NamespaceStore) New() *Namespace {
+func (s NamespaceStore) New() *Namespace {
 	n := &Namespace{
 		Model: Model{
-			DB: ns.DB,
+			DB: s.DB,
 		},
-		User:   ns.User,
-		Parent: ns.Namespace,
+		User:   s.User,
+		Parent: s.Namespace,
 	}
 
-	if ns.User != nil {
-		n.UserID = ns.User.ID
+	if s.User != nil {
+		n.UserID = s.User.ID
 	}
 
-	if ns.Namespace != nil {
+	if s.Namespace != nil {
 		n.ParentID = sql.NullInt64{
-			Int64: ns.Namespace.ID,
+			Int64: s.Namespace.ID,
 			Valid: true,
 		}
 	}
 
 	return n
+}
+
+func (s NamespaceStore) Update(nn ...*Namespace) error {
+	return errors.Err(s.Store.Update(namespaceTable, s.interfaceSlice(nn...)...))
 }

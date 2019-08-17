@@ -183,9 +183,10 @@ func WhereIn(col string, vals ...interface{}) Option {
 		}
 
 		w := where{
-			col: col,
-			op:  "IN",
-			cat: " AND ",
+			col:   col,
+			op:    "IN",
+			cat:   " AND ",
+			largs: len(vals),
 		}
 
 		q.wheres = append(q.wheres, w)

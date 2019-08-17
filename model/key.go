@@ -7,8 +7,6 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type Key struct {
@@ -25,7 +23,7 @@ type Key struct {
 }
 
 type KeyStore struct {
-	*sqlx.DB
+	Store
 
 	User      *User
 	Namespace *Namespace
@@ -39,51 +37,13 @@ func (k Key) AccessibleBy(u *User, a Action) bool {
 	return k.UserID == u.ID
 }
 
-func (k *Key) Create() error {
-	q := query.Insert(
-		query.Table("keys"),
-		query.Columns("user_id", "namespace_id", "name", "key", "config"),
-		query.Values(k.UserID, k.NamespaceID, k.Name, k.Key, k.Config),
-		query.Returning("id", "created_at", "updated_at"),
-	)
-
-	stmt, err := k.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&k.ID, &k.CreatedAt, &k.UpdatedAt))
-}
-
-func (k *Key) Destroy() error {
-	q := query.Delete(
-		query.Table("keys"),
-		query.WhereEq("id", k.ID),
-	)
-
-	stmt, err := k.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(q.Args()...)
-
-	return errors.Err(err)
-}
-
 func (k *Key) LoadNamespace() error {
 	var err error
 
 	namespaces := NamespaceStore{
-		DB: k.DB,
+		Store: Store{
+			DB: k.DB,
+		},
 	}
 
 	k.Namespace, err = namespaces.Find(k.NamespaceID.Int64)
@@ -101,62 +61,65 @@ func (k Key) UIEndpoint(uri ...string) string {
 	return endpoint
 }
 
-func (k *Key) Update() error {
-	q := query.Update(
-		query.Table("keys"),
-		query.Set("namespace_id", k.NamespaceID),
-		query.Set("config", k.Config),
-		query.WhereEq("id", k.ID),
-		query.Returning("updated_at"),
-	)
-
-	stmt, err := k.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
+func (k Key) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"user_id":      k.UserID,
+		"namespace_id": k.NamespaceID,
+		"name":         k.Name,
+		"key":          k.Key,
+		"config":       k.Config,
 	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&k.UpdatedAt))
 }
 
-func (ks KeyStore) All(opts ...query.Option) ([]*Key, error) {
+func (s KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	kk := make([]*Key, 0)
 
-	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForUser(ks.User), ForNamespace(ks.Namespace), query.Table("keys"))
+	opts = append(opts, ForUser(s.User), ForNamespace(s.Namespace))
 
-	q := query.Select(opts...)
-
-	err := ks.Select(&kk, q.Build(), q.Args()...)
+	err := s.Store.All(&kk, "keys", opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
 
 	for _, k := range kk {
-		k.DB = ks.DB
+		k.DB = s.DB
 
-		if ks.User != nil {
-			k.User = ks.User
+		if s.User != nil {
+			k.User = s.User
 		}
 	}
 
 	return kk, errors.Err(err)
 }
 
-func (ks KeyStore) Index(opts ...query.Option) ([]*Key, error) {
-	kk, err := ks.All(opts...)
+func (s KeyStore) interfaceSlice(kk ...*Key) []Interface {
+	ii := make([]Interface, len(kk), len(kk))
+
+	for i, k := range kk {
+		ii[i] = k
+	}
+
+	return ii
+}
+
+func (s KeyStore) Create(kk ...*Key) error {
+	return errors.Err(s.Store.Create(keyTable, s.interfaceSlice(kk...)...))
+}
+
+func (s KeyStore) Delete(kk ...*Key) error {
+	return errors.Err(s.Store.Delete(keyTable, s.interfaceSlice(kk...)...))
+}
+
+func (s KeyStore) Index(opts ...query.Option) ([]*Key, error) {
+	kk, err := s.All(opts...)
 
 	if err != nil {
 		return kk, errors.Err(err)
 	}
 
 	namespaces := NamespaceStore{
-		DB: ks.DB,
+		Store: s.Store,
 	}
 
 	ids := make([]interface{}, len(kk), len(kk))
@@ -186,7 +149,7 @@ func (ks KeyStore) Index(opts ...query.Option) ([]*Key, error) {
 	}
 
 	users := UserStore{
-		DB: ks.DB,
+		Store: s.Store,
 	}
 
 	err = users.Load(userIds, func(i int, u *User) {
@@ -200,54 +163,46 @@ func (ks KeyStore) Index(opts ...query.Option) ([]*Key, error) {
 	return kk, errors.Err(err)
 }
 
-func (ks KeyStore) New() *Key {
+func (s KeyStore) New() *Key {
 	k := &Key{
 		Model: Model{
-			DB: ks.DB,
+			DB: s.DB,
 		},
-		User: ks.User,
+		User: s.User,
 	}
 
-	if ks.User != nil {
-		k.UserID = ks.User.ID
+	if s.User != nil {
+		k.UserID = s.User.ID
 	}
 
 	return k
 }
 
-func (ks KeyStore) findBy(col string, val interface{}) (*Key, error) {
+func (s KeyStore) findBy(col string, val interface{}) (*Key, error) {
 	k := &Key{
 		Model: Model{
-			DB: ks.DB,
+			DB: s.DB,
 		},
-		User: ks.User,
+		User: s.User,
 	}
 
-	q := query.Select(
-		query.Columns("*"),
-		query.Table("keys"),
-		query.WhereEq(col, val),
-		ForUser(ks.User),
-		ForNamespace(ks.Namespace),
-	)
-
-	err := ks.Get(k, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
+	err := s.FindBy(k, "keys", col, val)
 
 	return k, errors.Err(err)
 }
 
-func (ks KeyStore) Find(id int64) (*Key, error) {
-	k, err := ks.findBy("id", id)
+func (s KeyStore) Find(id int64) (*Key, error) {
+	k, err := s.findBy("id", id)
 
 	return k, errors.Err(err)
 }
 
-func (ks KeyStore) FindByName(name string) (*Key, error) {
-	k, err := ks.findBy("name", name)
+func (s KeyStore) FindByName(name string) (*Key, error) {
+	k, err := s.findBy("name", name)
 
 	return k, errors.Err(err)
+}
+
+func (s KeyStore) Update(kk ...*Key) error {
+	return errors.Err(s.Store.Update(keyTable, s.interfaceSlice(kk...)...))
 }

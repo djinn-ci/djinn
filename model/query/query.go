@@ -26,6 +26,7 @@ type where struct {
 	op    string
 	val   interface{}
 	cat   string
+	largs int
 	query Query
 }
 
@@ -154,7 +155,7 @@ func (q *Query) buildWheres(buf *bytes.Buffer) {
 				if w.op == "IN" {
 					in := make([]string, 0)
 
-					for q.bind != len(q.args) {
+					for q.bind != w.largs {
 						q.bind++
 						in = append(in, param(q.bind))
 					}

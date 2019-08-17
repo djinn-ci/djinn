@@ -9,8 +9,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/model/types"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type triggerData struct {
@@ -26,6 +24,12 @@ type Trigger struct {
 	Type    types.Trigger `db:"type"`
 	Comment string        `db:"comment"`
 	Data    triggerData   `db:"data"`
+
+	Build *Build
+}
+
+type TriggerStore struct {
+	Store
 
 	Build *Build
 }
@@ -58,48 +62,40 @@ func (t triggerData) Value() (driver.Value, error) {
 	return driver.Value(buf.String()), nil
 }
 
-type TriggerStore struct {
-	*sqlx.DB
-
-	Build *Build
+func (t Trigger) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"build_id": t.BuildID,
+		"type":     t.Type,
+		"comment":  t.Comment,
+		"data":     t.Data,
+	}
 }
 
-func (t *Trigger) Create() error {
-	q := query.Insert(
-		query.Table("triggers"),
-		query.Columns("build_id", "type", "comment", "data"),
-		query.Values(t.BuildID, t.Type, t.Comment, t.Data),
-		query.Returning("id", "created_at", "updated_at"),
-	)
+func (s TriggerStore) Create(tt ...*Trigger) error {
+	ii := make([]Interface, 0, len(tt))
 
-	stmt, err := t.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
+	for _, t := range tt {
+		ii = append(ii, t)
 	}
 
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
+	return errors.Err(s.Store.Create(triggerTable, ii...))
 }
 
-func (ts TriggerStore) First() (*Trigger, error) {
+func (s TriggerStore) First() (*Trigger, error) {
 	t := &Trigger{
 		Model: Model{
-			DB: ts.DB,
+			DB: s.DB,
 		},
-		Build: ts.Build,
+		Build: s.Build,
 	}
 
 	q := query.Select(
 		query.Columns("*"),
 		query.Table("triggers"),
-		ForBuild(ts.Build),
+		ForBuild(s.Build),
 	)
 
-	err := ts.Get(t, q.Build(), q.Args()...)
+	err := s.Store.Get(t, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -108,16 +104,16 @@ func (ts TriggerStore) First() (*Trigger, error) {
 	return t, errors.Err(err)
 }
 
-func (ts TriggerStore) New() *Trigger {
+func (s TriggerStore) New() *Trigger {
 	t := &Trigger{
 		Model: Model{
-			DB:    ts.DB,
+			DB: s.DB,
 		},
-		Build: ts.Build,
+		Build: s.Build,
 	}
 
-	if ts.Build != nil {
-		t.BuildID = ts.Build.ID
+	if s.Build != nil {
+		t.BuildID = s.Build.ID
 	}
 
 	return t

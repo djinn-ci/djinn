@@ -13,8 +13,6 @@ import (
 	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/lib/pq"
 
 	"github.com/RichardKnop/machinery/v1"
@@ -44,7 +42,7 @@ type Build struct {
 }
 
 type BuildStore struct {
-	*sqlx.DB
+	Store
 
 	User      *User
 	Namespace *Namespace
@@ -92,63 +90,6 @@ func BuildTag(tag string) query.Option {
 	}
 }
 
-func (b *Build) ArtifactStore() ArtifactStore {
-	return ArtifactStore{
-		DB:    b.DB,
-		Build: b,
-	}
-}
-
-func (b *Build) BuildObjectStore() BuildObjectStore {
-	return BuildObjectStore{
-		DB:    b.DB,
-		Build: b,
-	}
-}
-
-func (b *Build) BuildVariableStore() BuildVariableStore {
-	return BuildVariableStore{
-		DB:    b.DB,
-		Build: b,
-	}
-}
-
-func (b *Build) DriverStore() DriverStore {
-	return DriverStore{
-		DB:    b.DB,
-		Build: b,
-	}
-}
-
-func (b *Build) JobStore() JobStore {
-	return JobStore{
-		DB:    b.DB,
-		Build: b,
-	}
-}
-
-func (b *Build) StageStore() StageStore {
-	return StageStore{
-		DB:    b.DB,
-		Build: b,
-	}
-}
-
-func (b *Build) TagStore() TagStore {
-	return TagStore{
-		DB:    b.DB,
-		User:  b.User,
-		Build: b,
-	}
-}
-
-func (b *Build) TriggerStore() TriggerStore {
-	return TriggerStore{
-		DB:    b.DB,
-		Build: b,
-	}
-}
-
 func (b Build) AccessibleBy(u *User, a Action) bool {
 	if u == nil {
 		return false
@@ -157,25 +98,40 @@ func (b Build) AccessibleBy(u *User, a Action) bool {
 	return b.UserID == u.ID
 }
 
-func (b *Build) Create() error {
-	q := query.Insert(
-		query.Columns("user_id", "namespace_id", "manifest"),
-		query.Table("builds"),
-		query.Values(b.UserID, b.NamespaceID, b.Manifest),
-		query.Returning("id", "created_at", "updated_at"),
-	)
-
-	stmt, err := b.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
+func (b *Build) ArtifactStore() ArtifactStore {
+	return ArtifactStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		Build: b,
 	}
+}
 
-	defer stmt.Close()
+func (b *Build) BuildObjectStore() BuildObjectStore {
+	return BuildObjectStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		Build: b,
+	}
+}
 
-	row := stmt.QueryRow(q.Args()...)
+func (b *Build) BuildVariableStore() BuildVariableStore {
+	return BuildVariableStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		Build: b,
+	}
+}
 
-	return errors.Err(row.Scan(&b.ID, &b.CreatedAt, &b.UpdatedAt))
+func (b *Build) DriverStore() DriverStore {
+	return DriverStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		Build: b,
+	}
 }
 
 func (b *Build) IsZero() bool {
@@ -189,369 +145,13 @@ func (b *Build) IsZero() bool {
 		!b.FinishedAt.Valid
 }
 
-func (b *Build) Update() error {
-	q := query.Update(
-		query.Table("builds"),
-		query.Set("status", b.Status),
-		query.Set("output", b.Output),
-		query.Set("started_at", b.StartedAt),
-		query.Set("finished_at", b.FinishedAt),
-		query.SetRaw("updated_at", "NOW()"),
-		query.WhereEq("id", b.ID),
-		query.Returning("updated_at"),
-	)
-
-	stmt, err := b.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&b.UpdatedAt))
-}
-
-func (b Build) Signature() *tasks.Signature {
-	return &tasks.Signature{
-		Name:       "run_build",
-		RetryCount: 3,
-		Args:       []tasks.Arg{
-			tasks.Arg{
-				Type: "int64",
-				Value: b.ID,
-			},
+func (b *Build) JobStore() JobStore {
+	return JobStore{
+		Store: Store{
+			DB: b.DB,
 		},
+		Build: b,
 	}
-}
-
-func (b Build) Submit(srv *machinery.Server) error {
-	m, _ := config.DecodeManifest(strings.NewReader(b.Manifest))
-
-	buf := &bytes.Buffer{}
-	enc := json.NewEncoder(buf)
-
-	if err := enc.Encode(m.Driver); err != nil {
-		return errors.Err(err)
-	}
-
-	d := b.DriverStore().New()
-	d.Config = buf.String()
-	d.Type.UnmarshalText([]byte(m.Driver.Type))
-
-	if err := d.Create(); err != nil {
-		return errors.Err(err)
-	}
-
-	setupStage := b.StageStore().New()
-	setupStage.Name = fmt.Sprintf("setup - #%v", b.ID)
-
-	if err := setupStage.Create(); err != nil {
-		return errors.Err(err)
-	}
-
-	createJob := setupStage.JobStore().New()
-	createJob.Name = "create driver"
-
-	if err := createJob.Create(); err != nil {
-		return errors.Err(err)
-	}
-
-	vv, err := b.User.VariableStore().All()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	buildVars := b.BuildVariableStore()
-
-	if err := buildVars.Copy(vv); err != nil {
-		return errors.Err(err)
-	}
-
-	for _, env := range m.Env {
-		parts := strings.SplitN(env, "=", 2)
-
-		bv := buildVars.New()
-		bv.Key = parts[0]
-		bv.Value = parts[1]
-
-		if err := bv.Create(); err != nil {
-			return errors.Err(err)
-		}
-	}
-
-	for src, dst := range m.Objects {
-		o, err := b.User.ObjectStore().FindByName(src)
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		bo := b.BuildObjectStore().New()
-		bo.ObjectID = sql.NullInt64{
-			Int64: o.ID,
-			Valid: o.ID > 0,
-		}
-		bo.Source = src
-		bo.Name = dst
-
-		if err := bo.Create(); err != nil {
-			return errors.Err(err)
-		}
-	}
-
-	jdd := make([]*JobDependency, 0)
-
-	setupJobs := setupStage.JobStore()
-
-	prev := createJob
-
-	for i, src := range m.Sources {
-		commands := []string{
-			"git clone " + src.URL + " " + src.Dir,
-			"cd " + src.Dir,
-			"git checkout -q " + src.Ref,
-		}
-
-		if src.Dir != "" {
-			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
-		}
-
-		j := setupJobs.New()
-		j.Name = fmt.Sprintf("clone.%d", i + 1)
-		j.Commands = strings.Join(commands, "\n")
-
-		if err := j.Create(); err != nil {
-			return errors.Err(err)
-		}
-
-		jd := j.JobDependencyStore().New()
-		jd.DependencyID = prev.ID
-
-		jdd = append(jdd, jd)
-
-		prev = j
-	}
-
-	stages := b.StageStore()
-	stageModels := make(map[string]*Stage)
-
-	for _, name := range m.Stages {
-		canFail := false
-
-		for _, allowed := range m.AllowFailures {
-			if name == allowed {
-				canFail = true
-				break
-			}
-		}
-
-		s := stages.New()
-		s.Name = name
-		s.CanFail = canFail
-
-		if err := s.Create(); err != nil {
-			return errors.Err(err)
-		}
-
-		stageModels[s.Name] = s
-	}
-
-	stage := ""
-	jobId := 0
-
-	stageJobs := make(map[string]*Job)
-
-	for _, job := range m.Jobs {
-		s, ok := stageModels[job.Stage]
-
-		if !ok {
-			continue
-		}
-
-		if s.Name != stage {
-			stage = s.Name
-			jobId = 0
-		}
-
-		jobId++
-
-		if job.Name == "" {
-			job.Name = fmt.Sprintf("%s.%d", job.Stage, jobId)
-		}
-
-		j := s.JobStore().New()
-		j.Name = job.Name
-		j.Commands = strings.Join(job.Commands, "\n")
-
-		if err := j.Create(); err != nil {
-			return errors.Err(err)
-		}
-
-		stageJobs[s.Name + j.Name] = j
-
-		for _, d := range job.Depends {
-			dep, ok := stageJobs[s.Name + d]
-
-			if !ok {
-				continue
-			}
-
-			jd := j.JobDependencyStore().New()
-			jd.DependencyID = dep.ID
-
-			jdd = append(jdd, jd)
-		}
-
-		for src, dst := range job.Artifacts {
-			hash, err := crypto.HashNow()
-
-			if err != nil {
-				return errors.Err(err)
-			}
-
-			a := j.ArtifactStore().New()
-			a.Hash = hash
-			a.Source = src
-			a.Name = dst
-
-			if err := a.Create(); err != nil {
-				return errors.Err(err)
-			}
-		}
-	}
-
-	for _, jd := range jdd {
-		if err := jd.Create(); err != nil {
-			return errors.Err(err)
-		}
-	}
-
-	_, err = srv.SendTask(b.Signature())
-
-	return errors.Err(err)
-}
-
-func (bs BuildStore) All(opts ...query.Option) ([]*Build, error) {
-	bb := make([]*Build, 0)
-
-	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForUser(bs.User), ForNamespace(bs.Namespace), query.Table("builds"))
-
-	q := query.Select(opts...)
-
-	if err := bs.Select(&bb, q.Build(), q.Args()...); err != nil {
-		if err == sql.ErrNoRows {
-			return bb, nil
-		}
-
-		return bb, errors.Err(err)
-	}
-
-	for _, b := range bb {
-		b.DB = bs.DB
-		b.User = bs.User
-		b.Namespace = bs.Namespace
-	}
-
-	return bb, nil
-}
-
-func (bs BuildStore) Find(id int64) (*Build, error) {
-	b := &Build{
-		Model: Model{
-			DB: bs.DB,
-		},
-		User:      bs.User,
-		Namespace: bs.Namespace,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.Table("builds"),
-		query.WhereEq("id", id),
-		ForUser(bs.User),
-		ForNamespace(bs.Namespace),
-	)
-
-	err := bs.Get(b, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return b, errors.Err(err)
-}
-
-func (bs BuildStore) Index(opts ...query.Option) ([]*Build, error) {
-	bb, err := bs.All(opts...)
-
-	if err != nil {
-		return bb, errors.Err(err)
-	}
-
-	if err := bs.LoadNamespaces(bb); err != nil {
-		return bb, errors.Err(err)
-	}
-
-	if err := bs.LoadTags(bb); err != nil {
-		return bb, errors.Err(err)
-	}
-
-	if err := bs.LoadUsers(bb); err != nil {
-		return bb, errors.Err(err)
-	}
-
-	nn := make([]*Namespace, 0, len(bb))
-
-	for _, b := range bb {
-		if b.Namespace != nil {
-			nn = append(nn, b.Namespace)
-		}
-	}
-
-	ns := NamespaceStore{
-		DB: bs.DB,
-	}
-
-	err = ns.LoadUsers(nn)
-
-	return bb, errors.Err(err)
-}
-
-func (bs BuildStore) Show(id int64) (*Build, error) {
-	b, err := bs.Find(id)
-
-	if err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadNamespace(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.Namespace.LoadUser(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadTrigger(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadTags(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadStages(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	err = b.StageStore().LoadJobs(b.Stages)
-
-	return b, errors.Err(err)
 }
 
 func (b *Build) LoadArtifacts() error {
@@ -574,7 +174,9 @@ func (b *Build) LoadNamespace() error {
 	var err error
 
 	namespaces := NamespaceStore{
-		DB: b.DB,
+		Store: Store{
+			DB: b.DB,
+		},
 	}
 
 	b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
@@ -618,7 +220,9 @@ func (b *Build) LoadUser() error {
 	var err error
 
 	users := UserStore{
-		DB: b.DB,
+		Store: Store{
+			DB: b.DB,
+		},
 	}
 
 	b.User, err = users.Find(b.UserID)
@@ -634,6 +238,33 @@ func (b *Build) LoadVariables() error {
 	return errors.Err(err)
 }
 
+func (b *Build) StageStore() StageStore {
+	return StageStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		Build: b,
+	}
+}
+
+func (b *Build) TagStore() TagStore {
+	return TagStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		User:  b.User,
+		Build: b,
+	}
+}
+
+func (b *Build) TriggerStore() TriggerStore {
+	return TriggerStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		Build: b,
+	}
+}
 
 func (b Build) UIEndpoint(uri ...string) string {
 	if b.User == nil || b.User.IsZero() {
@@ -649,7 +280,365 @@ func (b Build) UIEndpoint(uri ...string) string {
 	return endpoint
 }
 
-func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
+func (b Build) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"user_id":      b.UserID,
+		"namespace_id": b.NamespaceID,
+		"manifest":     b.Manifest,
+		"status":       b.Status,
+		"output":       b.Output,
+		"started_at":   b.StartedAt,
+		"finished_at":  b.FinishedAt,
+	}
+}
+
+func (b Build) Signature() *tasks.Signature {
+	return &tasks.Signature{
+		Name:       "run_build",
+		RetryCount: 3,
+		Args:       []tasks.Arg{
+			tasks.Arg{
+				Type: "int64",
+				Value: b.ID,
+			},
+		},
+	}
+}
+
+func (b Build) Submit(srv *machinery.Server) error {
+	m, _ := config.DecodeManifest(strings.NewReader(b.Manifest))
+
+	buf := &bytes.Buffer{}
+	enc := json.NewEncoder(buf)
+
+	if err := enc.Encode(m.Driver); err != nil {
+		return errors.Err(err)
+	}
+
+	drivers := b.DriverStore()
+
+	d := drivers.New()
+	d.Config = buf.String()
+	d.Type.UnmarshalText([]byte(m.Driver.Type))
+
+	if err := drivers.Create(d); err != nil {
+		return errors.Err(err)
+	}
+
+	stages := b.StageStore()
+
+	setupStage := stages.New()
+	setupStage.Name = fmt.Sprintf("setup - #%v", b.ID)
+
+	if err := stages.Create(setupStage); err != nil {
+		return errors.Err(err)
+	}
+
+	jobs := setupStage.JobStore()
+
+	createJob := jobs.New()
+	createJob.Name = "create driver"
+
+	if err := jobs.Create(createJob); err != nil {
+		return errors.Err(err)
+	}
+
+	vv, err := b.User.VariableStore().All()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	buildVars := b.BuildVariableStore()
+
+	if err := buildVars.Copy(vv); err != nil {
+		return errors.Err(err)
+	}
+
+	for _, env := range m.Env {
+		parts := strings.SplitN(env, "=", 2)
+
+		bv := buildVars.New()
+		bv.Key = parts[0]
+		bv.Value = parts[1]
+
+		if err := buildVars.Create(bv); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	buildObjs := b.BuildObjectStore()
+
+	for src, dst := range m.Objects {
+		o, err := b.User.ObjectStore().FindByName(src)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		bo := buildObjs.New()
+		bo.ObjectID = sql.NullInt64{
+			Int64: o.ID,
+			Valid: o.ID > 0,
+		}
+		bo.Source = src
+		bo.Name = dst
+
+		if err := buildObjs.Create(bo); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	jdd := make([]*JobDependency, 0)
+
+	setupJobs := setupStage.JobStore()
+
+	prev := createJob
+
+	for i, src := range m.Sources {
+		commands := []string{
+			"git clone " + src.URL + " " + src.Dir,
+			"cd " + src.Dir,
+			"git checkout -q " + src.Ref,
+		}
+
+		if src.Dir != "" {
+			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
+		}
+
+		j := setupJobs.New()
+		j.Name = fmt.Sprintf("clone.%d", i + 1)
+		j.Commands = strings.Join(commands, "\n")
+
+		if err := setupJobs.Create(j); err != nil {
+			return errors.Err(err)
+		}
+
+		jd := j.JobDependencyStore().New()
+		jd.DependencyID = prev.ID
+
+		jdd = append(jdd, jd)
+
+		prev = j
+	}
+
+	stageModels := make(map[string]*Stage)
+
+	for _, name := range m.Stages {
+		canFail := false
+
+		for _, allowed := range m.AllowFailures {
+			if name == allowed {
+				canFail = true
+				break
+			}
+		}
+
+		s := stages.New()
+		s.Name = name
+		s.CanFail = canFail
+
+		if err := stages.Create(s); err != nil {
+			return errors.Err(err)
+		}
+
+		stageModels[s.Name] = s
+	}
+
+	stage := ""
+	jobId := 0
+
+	stageJobs := make(map[string]*Job)
+
+	for _, job := range m.Jobs {
+		s, ok := stageModels[job.Stage]
+
+		if !ok {
+			continue
+		}
+
+		if s.Name != stage {
+			stage = s.Name
+			jobId = 0
+		}
+
+		jobId++
+
+		if job.Name == "" {
+			job.Name = fmt.Sprintf("%s.%d", job.Stage, jobId)
+		}
+
+		jobs := s.JobStore()
+
+		j := jobs.New()
+		j.Name = job.Name
+		j.Commands = strings.Join(job.Commands, "\n")
+
+		if err := jobs.Create(j); err != nil {
+			return errors.Err(err)
+		}
+
+		stageJobs[s.Name + j.Name] = j
+
+		for _, d := range job.Depends {
+			dep, ok := stageJobs[s.Name + d]
+
+			if !ok {
+				continue
+			}
+
+			jd := j.JobDependencyStore().New()
+			jd.DependencyID = dep.ID
+
+			jdd = append(jdd, jd)
+		}
+
+		for src, dst := range job.Artifacts {
+			hash, err := crypto.HashNow()
+
+			if err != nil {
+				return errors.Err(err)
+			}
+
+			artifacts := j.ArtifactStore()
+
+			a := artifacts.New()
+			a.Hash = hash
+			a.Source = src
+			a.Name = dst
+
+			if err := artifacts.Create(a); err != nil {
+				return errors.Err(err)
+			}
+		}
+	}
+
+	dependencies := JobDependencyStore{
+		Store: Store{
+			DB: b.DB,
+		},
+	}
+
+	if err := dependencies.Create(jdd...); err != nil {
+		return errors.Err(err)
+	}
+
+	_, err = srv.SendTask(b.Signature())
+
+	return errors.Err(err)
+}
+
+func (s BuildStore) All(opts ...query.Option) ([]*Build, error) {
+	bb := make([]*Build, 0)
+
+	opts = append(opts, ForUser(s.User), ForNamespace(s.Namespace))
+
+	err := s.Store.All(&bb, buildTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, b := range bb {
+		b.DB = s.DB
+		b.User = s.User
+		b.Namespace = s.Namespace
+	}
+
+	return bb, nil
+}
+
+func (s BuildStore) Create(bb ...*Build) error {
+	return errors.Err(s.Store.Create(buildTable, s.interfaceSlice(bb...)...))
+}
+
+func (s BuildStore) Find(id int64) (*Build, error) {
+	b := &Build{
+		Model: Model{
+			DB: s.DB,
+		},
+		User:      s.User,
+		Namespace: s.Namespace,
+	}
+
+	err := s.FindBy(b, buildTable, "id", id)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return b, errors.Err(err)
+}
+
+func (s BuildStore) Index(opts ...query.Option) ([]*Build, error) {
+	bb, err := s.All(opts...)
+
+	if err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := s.LoadNamespaces(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := s.LoadTags(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	if err := s.LoadUsers(bb); err != nil {
+		return bb, errors.Err(err)
+	}
+
+	nn := make([]*Namespace, 0, len(bb))
+
+	for _, b := range bb {
+		if b.Namespace != nil {
+			nn = append(nn, b.Namespace)
+		}
+	}
+
+	namespaces := NamespaceStore{
+		Store: s.Store,
+	}
+
+	err = namespaces.LoadUsers(nn)
+
+	return bb, errors.Err(err)
+}
+
+func (s BuildStore) Show(id int64) (*Build, error) {
+	b, err := s.Find(id)
+
+	if err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadNamespace(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.Namespace.LoadUser(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadTrigger(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadTags(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	if err := b.LoadStages(); err != nil {
+		return b, errors.Err(err)
+	}
+
+	err = b.StageStore().LoadJobs(b.Stages)
+
+	return b, errors.Err(err)
+}
+
+func (s *BuildStore) LoadNamespaces(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil
 	}
@@ -663,7 +652,7 @@ func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 	}
 
 	namespaces := NamespaceStore{
-		DB: bs.DB,
+		Store: s.Store,
 	}
 
 	nn, err := namespaces.All(query.WhereIn("id", ids...))
@@ -683,7 +672,7 @@ func (bs *BuildStore) LoadNamespaces(bb []*Build) error {
 	return nil
 }
 
-func (bs *BuildStore) LoadTags(bb []*Build) error {
+func (s *BuildStore) LoadTags(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil
 	}
@@ -695,7 +684,7 @@ func (bs *BuildStore) LoadTags(bb []*Build) error {
 	}
 
 	tags := TagStore{
-		DB: bs.DB,
+		Store: s.Store,
 	}
 
 	tt, err := tags.All(query.WhereIn("build_id", ids...))
@@ -715,7 +704,7 @@ func (bs *BuildStore) LoadTags(bb []*Build) error {
 	return nil
 }
 
-func (bs *BuildStore) LoadUsers(bb []*Build) error {
+func (s *BuildStore) LoadUsers(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil
 	}
@@ -727,7 +716,7 @@ func (bs *BuildStore) LoadUsers(bb []*Build) error {
 	}
 
 	users := UserStore{
-		DB: bs.DB,
+		Store: s.Store,
 	}
 
 	uu, err := users.All(query.WhereIn("id", ids...))
@@ -747,22 +736,22 @@ func (bs *BuildStore) LoadUsers(bb []*Build) error {
 	return nil
 }
 
-func (bs BuildStore) New() *Build {
+func (s BuildStore) New() *Build {
 	b := &Build{
 		Model: Model{
-			DB: bs.DB,
+			DB: s.DB,
 		},
-		User:      bs.User,
-		Namespace: bs.Namespace,
+		User:      s.User,
+		Namespace: s.Namespace,
 	}
 
-	if bs.User != nil {
-		b.UserID = bs.User.ID
+	if s.User != nil {
+		b.UserID = s.User.ID
 	}
 
-	if bs.Namespace != nil {
+	if s.Namespace != nil {
 		b.NamespaceID = sql.NullInt64{
-			Int64: bs.Namespace.ID,
+			Int64: s.Namespace.ID,
 			Valid: true,
 		}
 	}
@@ -770,23 +759,16 @@ func (bs BuildStore) New() *Build {
 	return b
 }
 
-func (bv *BuildVariable) Create() error {
-	q := query.Insert(
-		query.Columns("build_id", "variable_id", "key", "value"),
-		query.Table("build_variables"),
-		query.Values(bv.BuildID, bv.VariableID, bv.Key, bv.Value),
-		query.Returning("id", "created_at", "updated_at"),
-	)
+func (s BuildStore) interfaceSlice(bb ...*Build) []Interface {
+	ii := make([]Interface, len(bb), len(bb))
 
-	stmt, err := bv.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
+	for i, b := range bb {
+		ii[i] = b
 	}
 
-	defer stmt.Close()
+	return ii
+}
 
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&bv.ID, &bv.CreatedAt, &bv.UpdatedAt))
+func (s BuildStore) Update(bb ...*Build) error {
+	return errors.Err(s.Store.Update(buildTable, s.interfaceSlice(bb...)...))
 }

@@ -3,12 +3,9 @@ package model
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type Tag struct {
@@ -23,104 +20,70 @@ type Tag struct {
 }
 
 type TagStore struct {
-	*sqlx.DB
+	Store
 
 	User  *User
 	Build *Build
 }
 
-func (t *Tag) Create() error {
-	q := query.Insert(
-		query.Table("tags"),
-		query.Columns("user_id", "build_id", "name"),
-		query.Values(t.UserID, t.BuildID, t.Name),
-		query.Returning("id", "created_at", "updated_at"),
-	)
-
-	stmt, err := t.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	row := stmt.QueryRow(q.Args()...)
-
-	return errors.Err(row.Scan(&t.ID, &t.CreatedAt, &t.UpdatedAt))
-}
-
-func (t *Tag) Destroy() error {
-	q := query.Delete(
-		query.Table("tags"),
-		query.WhereEq("id", t.ID),
-	)
-
-	stmt, err := t.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(q.Args()...)
-
-	return errors.Err(err)
-}
-
 func (t Tag) UIEndpoint(uri ...string) string {
-	endpoint := fmt.Sprintf("/builds/%v/tags/%v", t.BuildID, t.ID)
-
-	if len(uri) > 0 {
-		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	if t.Build == nil || t.Build.IsZero() {
+		return ""
 	}
 
-	return endpoint
+	uri = append([]string{"tags", fmt.Sprintf("%v", t.ID)}, uri...)
+
+	return t.Build.UIEndpoint(uri...)
 }
 
-func (ts TagStore) All(opts ...query.Option) ([]*Tag, error) {
+func (t Tag) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"user_id":  t.UserID,
+		"build_id": t.BuildID,
+		"name":     t.Name,
+	}
+}
+
+func (s TagStore) All(opts ...query.Option) ([]*Tag, error) {
 	tt := make([]*Tag, 0)
 
-	opts = append([]query.Option{query.Columns("*")}, opts...)
-	opts = append(opts, ForBuild(ts.Build), query.Table("tags"))
+	opts = append(opts, ForBuild(s.Build))
 
-	q := query.Select(opts...)
-
-	err := ts.Select(&tt, q.Build(), q.Args()...)
+	err := s.Store.All(&tt, "tags", opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
 
 	for _, t := range tt {
-		t.DB = ts.DB
+		t.DB = s.DB
 
-		if ts.Build != nil {
-			t.Build = ts.Build
+		if s.Build != nil {
+			t.Build = s.Build
 		}
 	}
 
 	return tt, errors.Err(err)
 }
 
-func (ts TagStore) Find(id int64) (*Tag, error) {
+func (s TagStore) Create(tt ...*Tag) error {
+	return errors.Err(s.Store.Create(tagTable, s.interfaceSlice(tt...)...))
+}
+
+func (s TagStore) Delete(tt ...*Tag) error {
+	return errors.Err(s.Store.Delete(tagTable, s.interfaceSlice(tt...)...))
+}
+
+func (s TagStore) Find(id int64) (*Tag, error) {
 	t := &Tag{
 		Model: Model{
-			DB: ts.DB,
+			DB: s.DB,
 		},
-		Build: ts.Build,
-		User:  ts.User,
+		Build: s.Build,
+		User:  s.User,
 	}
 
-	q := query.Select(
-		query.Columns("*"),
-		query.Table("tags"),
-		query.WhereEq("id", id),
-		ForBuild(ts.Build),
-	)
-
-	err := ts.Get(t, q.Build(), q.Args()...)
+	err := s.FindBy(t, "tags", "id", id)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -129,19 +92,29 @@ func (ts TagStore) Find(id int64) (*Tag, error) {
 	return t, errors.Err(err)
 }
 
-func (ts TagStore) Index(opts ...query.Option) ([]*Tag, error) {
-	tt, err := ts.All(opts...)
+func (s TagStore) Index(opts ...query.Option) ([]*Tag, error) {
+	tt, err := s.All(opts...)
 
 	if err != nil {
 		return tt, errors.Err(err)
 	}
 
-	err = ts.LoadUsers(tt)
+	err = s.LoadUsers(tt)
 
 	return tt, errors.Err(err)
 }
 
-func (ts TagStore) LoadUsers(tt []*Tag) error {
+func (s TagStore) interfaceSlice(tt ...*Tag) []Interface {
+	ii := make([]Interface, len(tt), len(tt))
+
+	for i, t := range tt {
+		ii[i] = t
+	}
+
+	return ii
+}
+
+func (s TagStore) LoadUsers(tt []*Tag) error {
 	if len(tt) == 0 {
 		return nil
 	}
@@ -153,7 +126,7 @@ func (ts TagStore) LoadUsers(tt []*Tag) error {
 	}
 
 	users := UserStore{
-		DB: ts.DB,
+		Store: s.Store,
 	}
 
 	uu, err := users.All(query.WhereIn("id", ids...))
@@ -173,21 +146,21 @@ func (ts TagStore) LoadUsers(tt []*Tag) error {
 	return nil
 }
 
-func (ts TagStore) New() *Tag {
+func (s TagStore) New() *Tag {
 	t := &Tag{
 		Model: Model{
-			DB: ts.DB,
+			DB: s.DB,
 		},
-		User:  ts.User,
-		Build: ts.Build,
+		User:  s.User,
+		Build: s.Build,
 	}
 
-	if ts.Build != nil {
-		t.BuildID = ts.Build.ID
+	if s.Build != nil {
+		t.BuildID = s.Build.ID
 	}
 
-	if ts.User != nil {
-		t.UserID = ts.User.ID
+	if s.User != nil {
+		t.UserID = s.User.ID
 	}
 
 	return t

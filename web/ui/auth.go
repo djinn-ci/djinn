@@ -65,7 +65,7 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 	u.Username = f.Username
 	u.Password = password
 
-	if err := u.Create(); err != nil {
+	if err := h.Users.Create(u); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

@@ -140,7 +140,7 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 	k.Key = []byte(enc)
 	k.Config = f.Config
 
-	if err := k.Create(); err != nil {
+	if err := keys.Create(k); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to create SSH key: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -258,7 +258,7 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 
 	k.Config = f.Config
 
-	if err := k.Update(); err != nil {
+	if err := keys.Update(k); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to update SSH key: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -284,7 +284,9 @@ func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(vars["key"], 10, 64)
 
-	k, err := u.KeyStore().Find(id)
+	keys := u.KeyStore()
+
+	k, err := keys.Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -298,7 +300,7 @@ func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := k.Destroy(); err != nil {
+	if err := keys.Delete(k); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

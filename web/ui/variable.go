@@ -129,7 +129,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	v.Key = f.Key
 	v.Value = f.Value
 
-	if err := v.Create(); err != nil {
+	if err := variables.Create(v); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to create variable: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -155,7 +155,9 @@ func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(vars["variable"], 10, 64)
 
-	v, err := u.VariableStore().Find(id)
+	variables := u.VariableStore()
+
+	v, err := variables.Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -169,7 +171,7 @@ func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := v.Destroy(); err != nil {
+	if err := variables.Delete(v); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete variable: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

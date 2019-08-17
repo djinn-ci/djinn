@@ -23,24 +23,6 @@ type Namespace struct {
 	web.Handler
 }
 
-func (h Namespace) namespace(r *http.Request) (*model.Namespace, error) {
-	vars := mux.Vars(r)
-
-	u, err := h.Users.FindByUsername(vars["username"])
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	n, err := u.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	return n, nil
-}
-
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
@@ -178,7 +160,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := n.Create(); err != nil {
+	if err := namespaces.Create(n); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -191,7 +173,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 			Valid: true,
 		}
 
-		if err := n.Update(); err != nil {
+		if err := namespaces.Update(n); err != nil {
 			log.Error.Println(errors.Err(err))
 			h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -203,7 +185,17 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
-	n, err := h.namespace(r)
+	vars := mux.Vars(r)
+
+	owner, err := h.Users.FindByUsername(vars["username"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	n, err := owner.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -255,7 +247,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		break
 	case "objects":
-		oo, err := n.ObjectStore().All(model.Search("name", search))
+		oo, err := n.ObjectStore().Index(model.Search("name", search))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -333,7 +325,17 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := h.namespace(r)
+	vars := mux.Vars(r)
+
+	owner, err := h.Users.FindByUsername(vars["username"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	n, err := owner.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -376,7 +378,20 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := h.namespace(r)
+	vars := mux.Vars(r)
+
+	owner, err := h.Users.FindByUsername(vars["username"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	namespaces := owner.NamespaceStore()
+
+	n, err := namespaces.FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -430,7 +445,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := n.Update(); err != nil {
+	if err := namespaces.Update(n); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -452,7 +467,25 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, err := h.namespace(r)
+	vars := mux.Vars(r)
+
+	owner, err := h.Users.FindByUsername(vars["username"])
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	if owner.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	namespaces := owner.NamespaceStore()
+
+	n, err := namespaces.FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -466,7 +499,7 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := n.Destroy(); err != nil {
+	if err := namespaces.Delete(n); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

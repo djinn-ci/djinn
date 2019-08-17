@@ -244,7 +244,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 	o.MD5 = hmd5.Sum(nil)
 	o.SHA256 = hsha256.Sum(nil)
 
-	if err := o.Create(); err != nil {
+	if err := objects.Create(o); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -314,7 +314,9 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(vars["object"], 10, 64)
 
-	o, err := u.ObjectStore().Find(id)
+	objects := u.ObjectStore()
+
+	o, err := objects.Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -323,7 +325,7 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := o.Destroy(); err != nil {
+	if err := objects.Delete(o); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete object: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

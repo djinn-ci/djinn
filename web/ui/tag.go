@@ -7,6 +7,7 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/template"
 
@@ -52,17 +53,20 @@ func (h Tag) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tags := b.TagStore()
+	tt := make([]*model.Tag, len(f.Tags), len(f.Tags))
 
-	for _, tag := range f.Tags {
+	for i, name := range f.Tags {
 		t := tags.New()
 		t.UserID = u.ID
-		t.Name = tag
+		t.Name = name
 
-		if err := t.Create(); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
+		tt[i] = t
+	}
+
+	if err := tags.Create(tt...); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -97,7 +101,9 @@ func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := b.TagStore().Find(tagId)
+	tags := b.TagStore()
+
+	t, err := tags.Find(tagId)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -111,7 +117,7 @@ func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := t.Destroy(); err != nil {
+	if err := tags.Delete(t); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete tag: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

@@ -30,22 +30,6 @@ type Build struct {
 	Queues map[string]*machinery.Server
 }
 
-func (h Build) build(r *http.Request) (*model.Build, error) {
-	vars := mux.Vars(r)
-
-	u, err := h.Users.FindByUsername(vars["username"])
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	id, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := u.BuildStore().Find(id)
-
-	return b, errors.Err(err)
-}
-
 func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
@@ -134,7 +118,9 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b := u.BuildStore().New()
+	builds := u.BuildStore()
+
+	b := builds.New()
 	b.User = u
 	b.Manifest = f.Manifest
 
@@ -154,20 +140,22 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := b.Create(); err != nil {
+	if err := builds.Create(b); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	t := b.TriggerStore().New()
+	triggers := b.TriggerStore()
+
+	t := triggers.New()
 	t.Type = types.Manual
 	t.Comment = f.Comment
 	t.Data.User = u.Username
 	t.Data.Email = u.Email
 
-	if err := t.Create(); err != nil {
+	if err := triggers.Create(t); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -180,17 +168,21 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tags := b.TagStore()
+	tt := make([]*model.Tag, len(f.Tags), len(f.Tags))
 
-	for _, name := range f.Tags {
+	for i, name := range f.Tags {
 		t := tags.New()
+		t.UserID = u.ID
 		t.Name = name
 
-		if err := t.Create(); err != nil {
-			log.Error.Println(errors.Err(err))
-			h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-			return
-		}
+		tt[i] = t
+	}
+
+	if err := tags.Create(tt...); err != nil {
+		log.Error.Println(errors.Err(err))
+		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
 	}
 
 	h.FlashAlert(w, r, template.Success("Build submitted: #" + strconv.FormatInt(b.ID, 10)))
@@ -254,6 +246,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 
 		if pen == "manifest" {
 			web.Text(w, b.Manifest, http.StatusOK)
+			return
 		}
 
 		if pen == "output" {
@@ -319,7 +312,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 
 		break
 	case "tags":
-		tt, err := b.TagStore().All()
+		tt, err := b.TagStore().Index()
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -333,6 +326,9 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			Tags:     tt,
 		}
 
+		break
+	default:
+		p = &sp
 		break
 	}
 

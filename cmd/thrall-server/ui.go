@@ -67,12 +67,16 @@ func (s *uiServer) init() {
 
 	s.router = mux.NewRouter()
 
-	users := model.UserStore{
+	store := model.Store{
 		DB: s.db,
 	}
 
+	users := model.UserStore{
+		Store: store,
+	}
+
 	resources := model.ResourceStore{
-		DB: s.db,
+		Store: store,
 	}
 
 	m := model.Model{

@@ -243,22 +243,27 @@ type ShowTags struct {
 			{% cat "../../svgs/list.svg" %}<span>Manifest</span>
 		</a>
 	</li>
+	<li>
 		<a href="{%s p.Build.UIEndpoint("objects") %}" class="{%s template.Active(p.Build.UIEndpoint("objects") == p.URI) %}">
 			{% cat "../../svgs/upload.svg" %}<span>Objects</span>
 		</a>
 	</li>
+	<li>
 		<a href="{%s p.Build.UIEndpoint("artifacts") %}" class="{%s template.Active(p.Build.UIEndpoint("artifacts") == p.URI) %}">
 			{% cat "../../svgs/download.svg" %}<span>Artifacts</span>
 		</a>
 	</li>
+	<li>
 		<a href="{%s p.Build.UIEndpoint("variables") %}" class="{%s template.Active(p.Build.UIEndpoint("variables") == p.URI) %}">
 			{% cat "../../svgs/code.svg" %}<span>Variables</span>
 		</a>
 	</li>
+	<li>
 		<a href="{%s p.Build.UIEndpoint("output") %}" class="{%s template.Active(p.Build.UIEndpoint("output") == p.URI) %}">
 			{% cat "../../svgs/document.svg" %}<span>Output</span>
 		</a>
 	</li>
+	<li>
 		<a href="{%s p.Build.UIEndpoint("tags") %}" class="{%s template.Active(p.Build.UIEndpoint("tags") == p.URI) %}">
 			{% cat "../../svgs/tag.svg" %}<span>Tags</span>
 		</a>

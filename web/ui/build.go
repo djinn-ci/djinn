@@ -217,7 +217,8 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 
 	sp := build.ShowPage{
 		BasePage: template.BasePage{
-			URI: r.URL.Path,
+			URI:  r.URL.Path,
+			User: u,
 		},
 		Build: b,
 	}

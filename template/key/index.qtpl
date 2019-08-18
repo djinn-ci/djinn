@@ -21,7 +21,49 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	<div class="panel">{%= RenderIndex(p.Keys, p.URI, p.Search, p.CSRF) %}</div>
+	<div class="panel">
+		{% if len(p.Keys) == 0 && p.Search == "" %}
+			<div class="panel-message muted">SSH keys can allow build environments to access other environments.</div>
+		{% else %}
+			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an SSH key...") %}</div>
+			{% if len(p.Keys) == 0 && p.Search != "" %}
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<table class="table">
+					<thead>
+						<tr>
+							<th>NAME</th>
+							<th>NAMESPACE</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, k := range p.Keys %}
+							<tr>
+								<td><a href="{%s k.UIEndpoint("edit") %}">{%s k.Name %}</a></td>
+								<td>
+									{% if k.Namespace != nil %}
+										<a href="{%s k.Namespace.UIEndpoint() %}">{%s k.Namespace.Path %}</a>
+									{% else %}
+										<span class="muted">--</span>
+									{% endif %}
+								</td>
+								<td class="align-right">
+									{% if p.User != nil && !p.User.IsZero() %}
+									<form method="POST" action="{%s k.UIEndpoint() %}">
+										{%s= p.CSRF %}
+										<input type="hidden" name="_method" value="DELETE"/>
+										<button type="submit" class="btn btn-danger">Delete</button>
+									</form>
+									{% endif %}
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			{% endif %}
+		{% endif %}
+	</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

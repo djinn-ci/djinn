@@ -21,7 +21,51 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	<div class="panel">{%= RenderIndex(p.Variables, p.URI, p.Search, p.CSRF) %}</div>
+	<div class="panel">
+		{% if len(p.Variables) == 0 && p.Search == "" %}
+			<div class="panel-message muted">Set variables that can be used throughout build environments.</div>
+		{% else %}
+			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find a variable...") %}</div>
+			{% if len(p.Variables) == 0 && p.Search != "" %}
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<table class="table">
+					<thead>
+						<tr>
+							<th>KEY</th>
+							<th>VALUE</th>
+							<th>NAMESPACE</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, v := range p.Variables %}
+							<tr>
+								<td><span class="code">{%s v.Key %}</span></td>
+								<td><span class="code">{%s v.Value %}</span></td>
+								<td>
+									{% if v.Namespace != nil %}
+										<a href="{%s v.Namespace.UIEndpoint() %}">{%s v.Namespace.Path %}</a>
+									{% else %}
+										<span class="muted">--</span>
+									{% endif %}
+								</td>
+								{% if p.User != nil && !p.User.IsZero() %}
+									<td class="align-right">
+										<form method="POST" action="{%s v.UIEndpoint() %}">
+											{%s= p.CSRF %}
+											<input type="hidden" name="_method" value="DELETE"/>
+											<button type="submit" class="btn btn-danger">Delete</button>
+										</form>
+									</td>
+								{% endif %}
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			{% endif %}
+		{% endif %}
+	</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

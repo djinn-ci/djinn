@@ -6,24 +6,26 @@ package object
 
 //line template/object/index.qtpl:2
 import (
+	"fmt"
+
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
 
-//line template/object/index.qtpl:8
+//line template/object/index.qtpl:10
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line template/object/index.qtpl:8
+//line template/object/index.qtpl:10
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line template/object/index.qtpl:9
+//line template/object/index.qtpl:11
 type IndexPage struct {
 	template.BasePage
 
@@ -32,169 +34,261 @@ type IndexPage struct {
 	Search  string
 }
 
-//line template/object/index.qtpl:19
+//line template/object/index.qtpl:21
 func (p *IndexPage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/object/index.qtpl:19
+	//line template/object/index.qtpl:21
 	qw422016.N().S(` Objects - Thrall `)
-//line template/object/index.qtpl:21
-}
-
-//line template/object/index.qtpl:21
-func (p *IndexPage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/object/index.qtpl:21
-	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/object/index.qtpl:21
-	p.StreamTitle(qw422016)
-	//line template/object/index.qtpl:21
-	qt422016.ReleaseWriter(qw422016)
-//line template/object/index.qtpl:21
-}
-
-//line template/object/index.qtpl:21
-func (p *IndexPage) Title() string {
-	//line template/object/index.qtpl:21
-	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/object/index.qtpl:21
-	p.WriteTitle(qb422016)
-	//line template/object/index.qtpl:21
-	qs422016 := string(qb422016.B)
-	//line template/object/index.qtpl:21
-	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/object/index.qtpl:21
-	return qs422016
-//line template/object/index.qtpl:21
+//line template/object/index.qtpl:23
 }
 
 //line template/object/index.qtpl:23
-func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
+func (p *IndexPage) WriteTitle(qq422016 qtio422016.Writer) {
 	//line template/object/index.qtpl:23
-	qw422016.N().S(` <div class="panel">`)
-	//line template/object/index.qtpl:24
-	StreamRenderIndex(qw422016, p.Objects, p.URI, p.Search, p.CSRF)
-	//line template/object/index.qtpl:24
-	qw422016.N().S(`</div> `)
-//line template/object/index.qtpl:25
-}
-
-//line template/object/index.qtpl:25
-func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/object/index.qtpl:25
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/object/index.qtpl:25
-	p.StreamBody(qw422016)
-	//line template/object/index.qtpl:25
+	//line template/object/index.qtpl:23
+	p.StreamTitle(qw422016)
+	//line template/object/index.qtpl:23
 	qt422016.ReleaseWriter(qw422016)
-//line template/object/index.qtpl:25
+//line template/object/index.qtpl:23
 }
 
-//line template/object/index.qtpl:25
-func (p *IndexPage) Body() string {
-	//line template/object/index.qtpl:25
+//line template/object/index.qtpl:23
+func (p *IndexPage) Title() string {
+	//line template/object/index.qtpl:23
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/object/index.qtpl:25
-	p.WriteBody(qb422016)
-	//line template/object/index.qtpl:25
+	//line template/object/index.qtpl:23
+	p.WriteTitle(qb422016)
+	//line template/object/index.qtpl:23
 	qs422016 := string(qb422016.B)
-	//line template/object/index.qtpl:25
+	//line template/object/index.qtpl:23
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/object/index.qtpl:25
+	//line template/object/index.qtpl:23
 	return qs422016
-//line template/object/index.qtpl:25
+//line template/object/index.qtpl:23
 }
 
-//line template/object/index.qtpl:27
-func (p *IndexPage) StreamHeader(qw422016 *qt422016.Writer) {
+//line template/object/index.qtpl:25
+func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
+	//line template/object/index.qtpl:25
+	qw422016.N().S(` <div class="panel"> `)
 	//line template/object/index.qtpl:27
+	if len(p.Objects) == 0 && p.Search == "" {
+		//line template/object/index.qtpl:27
+		qw422016.N().S(` <div class="panel-message muted">Objects are files that can be used in build environments.</div> `)
+		//line template/object/index.qtpl:29
+	} else {
+		//line template/object/index.qtpl:29
+		qw422016.N().S(` <div class="panel-header">`)
+		//line template/object/index.qtpl:30
+		template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find an object...")
+		//line template/object/index.qtpl:30
+		qw422016.N().S(`</div> `)
+		//line template/object/index.qtpl:31
+		if len(p.Objects) == 0 && p.Search != "" {
+			//line template/object/index.qtpl:31
+			qw422016.N().S(` <div class="panel-message muted">No results found.</div> `)
+			//line template/object/index.qtpl:33
+		} else {
+			//line template/object/index.qtpl:33
+			qw422016.N().S(` <table class="table"> <thead> <tr> <th>NAME</th> <th>TYPE</th> <th>SIZE</th> <th>MD5</th> <th>SHA256</th> <th>NAMESPACE</th> <th></th> </tr> </thead> <tbody> `)
+			//line template/object/index.qtpl:47
+			for _, o := range p.Objects {
+				//line template/object/index.qtpl:47
+				qw422016.N().S(` <tr> <td><a href="`)
+				//line template/object/index.qtpl:49
+				qw422016.E().S(o.UIEndpoint())
+				//line template/object/index.qtpl:49
+				qw422016.N().S(`">`)
+				//line template/object/index.qtpl:49
+				qw422016.E().S(o.Name)
+				//line template/object/index.qtpl:49
+				qw422016.N().S(`</a></td> <td><span class="code">`)
+				//line template/object/index.qtpl:50
+				qw422016.E().S(o.Type)
+				//line template/object/index.qtpl:50
+				qw422016.N().S(`</span></td> <td>`)
+				//line template/object/index.qtpl:51
+				qw422016.E().S(template.RenderSize(o.Size))
+				//line template/object/index.qtpl:51
+				qw422016.N().S(`</td> <td><span class="code">`)
+				//line template/object/index.qtpl:52
+				qw422016.E().S(fmt.Sprintf("%x", o.MD5))
+				//line template/object/index.qtpl:52
+				qw422016.N().S(`</span></td> <td><span class="code">`)
+				//line template/object/index.qtpl:53
+				qw422016.E().S(fmt.Sprintf("%x", o.SHA256))
+				//line template/object/index.qtpl:53
+				qw422016.N().S(`</span></td> <td> `)
+				//line template/object/index.qtpl:55
+				if o.Namespace != nil {
+					//line template/object/index.qtpl:55
+					qw422016.N().S(` <a href="`)
+					//line template/object/index.qtpl:56
+					qw422016.E().S(o.Namespace.UIEndpoint())
+					//line template/object/index.qtpl:56
+					qw422016.N().S(`">`)
+					//line template/object/index.qtpl:56
+					qw422016.E().S(o.Namespace.Path)
+					//line template/object/index.qtpl:56
+					qw422016.N().S(`</a> `)
+					//line template/object/index.qtpl:57
+				} else {
+					//line template/object/index.qtpl:57
+					qw422016.N().S(` <span class="muted">--</span> `)
+					//line template/object/index.qtpl:59
+				}
+				//line template/object/index.qtpl:59
+				qw422016.N().S(` </td> <td class="align-right"> `)
+				//line template/object/index.qtpl:62
+				if p.User != nil && !p.User.IsZero() {
+					//line template/object/index.qtpl:62
+					qw422016.N().S(` <form method="POST" action="`)
+					//line template/object/index.qtpl:63
+					qw422016.E().S(o.UIEndpoint())
+					//line template/object/index.qtpl:63
+					qw422016.N().S(`"> `)
+					//line template/object/index.qtpl:64
+					qw422016.N().S(string(p.CSRF))
+					//line template/object/index.qtpl:64
+					qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> `)
+					//line template/object/index.qtpl:68
+				}
+				//line template/object/index.qtpl:68
+				qw422016.N().S(` </td> </tr> `)
+				//line template/object/index.qtpl:71
+			}
+			//line template/object/index.qtpl:71
+			qw422016.N().S(` </tbody> </table> `)
+			//line template/object/index.qtpl:74
+		}
+		//line template/object/index.qtpl:74
+		qw422016.N().S(` `)
+		//line template/object/index.qtpl:75
+	}
+	//line template/object/index.qtpl:75
+	qw422016.N().S(` </div> `)
+//line template/object/index.qtpl:77
+}
+
+//line template/object/index.qtpl:77
+func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
+	//line template/object/index.qtpl:77
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/object/index.qtpl:77
+	p.StreamBody(qw422016)
+	//line template/object/index.qtpl:77
+	qt422016.ReleaseWriter(qw422016)
+//line template/object/index.qtpl:77
+}
+
+//line template/object/index.qtpl:77
+func (p *IndexPage) Body() string {
+	//line template/object/index.qtpl:77
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/object/index.qtpl:77
+	p.WriteBody(qb422016)
+	//line template/object/index.qtpl:77
+	qs422016 := string(qb422016.B)
+	//line template/object/index.qtpl:77
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/object/index.qtpl:77
+	return qs422016
+//line template/object/index.qtpl:77
+}
+
+//line template/object/index.qtpl:79
+func (p *IndexPage) StreamHeader(qw422016 *qt422016.Writer) {
+	//line template/object/index.qtpl:79
 	qw422016.N().S(` Objects `)
-//line template/object/index.qtpl:29
+//line template/object/index.qtpl:81
 }
 
-//line template/object/index.qtpl:29
+//line template/object/index.qtpl:81
 func (p *IndexPage) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/object/index.qtpl:29
+	//line template/object/index.qtpl:81
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/object/index.qtpl:29
+	//line template/object/index.qtpl:81
 	p.StreamHeader(qw422016)
-	//line template/object/index.qtpl:29
+	//line template/object/index.qtpl:81
 	qt422016.ReleaseWriter(qw422016)
-//line template/object/index.qtpl:29
+//line template/object/index.qtpl:81
 }
 
-//line template/object/index.qtpl:29
+//line template/object/index.qtpl:81
 func (p *IndexPage) Header() string {
-	//line template/object/index.qtpl:29
+	//line template/object/index.qtpl:81
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/object/index.qtpl:29
+	//line template/object/index.qtpl:81
 	p.WriteHeader(qb422016)
-	//line template/object/index.qtpl:29
+	//line template/object/index.qtpl:81
 	qs422016 := string(qb422016.B)
-	//line template/object/index.qtpl:29
+	//line template/object/index.qtpl:81
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/object/index.qtpl:29
+	//line template/object/index.qtpl:81
 	return qs422016
-//line template/object/index.qtpl:29
+//line template/object/index.qtpl:81
 }
 
-//line template/object/index.qtpl:31
+//line template/object/index.qtpl:83
 func (p *IndexPage) StreamActions(qw422016 *qt422016.Writer) {
-	//line template/object/index.qtpl:31
+	//line template/object/index.qtpl:83
 	qw422016.N().S(` <li><a href="/objects/create" class="btn btn-primary">Create</a></li> `)
-//line template/object/index.qtpl:33
+//line template/object/index.qtpl:85
 }
 
-//line template/object/index.qtpl:33
+//line template/object/index.qtpl:85
 func (p *IndexPage) WriteActions(qq422016 qtio422016.Writer) {
-	//line template/object/index.qtpl:33
+	//line template/object/index.qtpl:85
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/object/index.qtpl:33
+	//line template/object/index.qtpl:85
 	p.StreamActions(qw422016)
-	//line template/object/index.qtpl:33
+	//line template/object/index.qtpl:85
 	qt422016.ReleaseWriter(qw422016)
-//line template/object/index.qtpl:33
+//line template/object/index.qtpl:85
 }
 
-//line template/object/index.qtpl:33
+//line template/object/index.qtpl:85
 func (p *IndexPage) Actions() string {
-	//line template/object/index.qtpl:33
+	//line template/object/index.qtpl:85
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/object/index.qtpl:33
+	//line template/object/index.qtpl:85
 	p.WriteActions(qb422016)
-	//line template/object/index.qtpl:33
+	//line template/object/index.qtpl:85
 	qs422016 := string(qb422016.B)
-	//line template/object/index.qtpl:33
+	//line template/object/index.qtpl:85
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/object/index.qtpl:33
+	//line template/object/index.qtpl:85
 	return qs422016
-//line template/object/index.qtpl:33
+//line template/object/index.qtpl:85
 }
 
-//line template/object/index.qtpl:35
+//line template/object/index.qtpl:87
 func (p *IndexPage) StreamNavigation(qw422016 *qt422016.Writer) {
-//line template/object/index.qtpl:35
+//line template/object/index.qtpl:87
 }
 
-//line template/object/index.qtpl:35
+//line template/object/index.qtpl:87
 func (p *IndexPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/object/index.qtpl:35
+	//line template/object/index.qtpl:87
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/object/index.qtpl:35
+	//line template/object/index.qtpl:87
 	p.StreamNavigation(qw422016)
-	//line template/object/index.qtpl:35
+	//line template/object/index.qtpl:87
 	qt422016.ReleaseWriter(qw422016)
-//line template/object/index.qtpl:35
+//line template/object/index.qtpl:87
 }
 
-//line template/object/index.qtpl:35
+//line template/object/index.qtpl:87
 func (p *IndexPage) Navigation() string {
-	//line template/object/index.qtpl:35
+	//line template/object/index.qtpl:87
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/object/index.qtpl:35
+	//line template/object/index.qtpl:87
 	p.WriteNavigation(qb422016)
-	//line template/object/index.qtpl:35
+	//line template/object/index.qtpl:87
 	qs422016 := string(qb422016.B)
-	//line template/object/index.qtpl:35
+	//line template/object/index.qtpl:87
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/object/index.qtpl:35
+	//line template/object/index.qtpl:87
 	return qs422016
-//line template/object/index.qtpl:35
+//line template/object/index.qtpl:87
 }

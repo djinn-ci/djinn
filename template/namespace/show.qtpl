@@ -24,28 +24,25 @@ type ShowPage struct {
 type ShowNamespaces struct {
 	ShowPage
 
-	Namespaces []*model.Namespace
+	Index IndexPage
 }
 
 type ShowObjects struct {
 	ShowPage
 
-	CSRF    string
-	Objects []*model.Object
+	Index object.IndexPage
 }
 
 type ShowVariables struct {
 	ShowPage
 
-	CSRF      string
-	Variables []*model.Variable
+	Index variable.IndexPage
 }
 
 type ShowKeys struct {
 	ShowPage
 
-	CSRF string
-	Keys []*model.Key
+	Index key.IndexPage
 }
 %}
 
@@ -75,19 +72,19 @@ type ShowKeys struct {
 {% endfunc %}
 
 {% func (p *ShowNamespaces) Body() %}
-	<div class="panel">{%= RenderIndex(p.Namespaces, p.URI, p.Search) %}</div>
+	{%= p.Index.Body() %}
 {% endfunc %}
 
 {% func (p *ShowObjects) Body() %}
-	<div class="panel">{%= object.RenderIndex(p.Objects, p.URI, p.Search, p.CSRF) %}</div>
+	{%= p.Index.Body() %}
 {% endfunc %}
 
 {% func (p *ShowVariables) Body() %}
-	<div class="panel">{%= variable.RenderIndex(p.Variables, p.URI, p.Search, p.CSRF) %}</div>
+	{%= p.Index.Body() %}
 {% endfunc %}
 
 {% func (p *ShowKeys) Body() %}
-	<div class="panel">{%= key.RenderIndex(p.Keys, p.URI, p.Search, p.CSRF) %}</div>
+	{%= p.Index.Body() %}
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
@@ -101,9 +98,11 @@ type ShowKeys struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}
-	<li><a href="{%s p.Namespace.UIEndpoint() %}/-/edit" class="btn btn-primary">Edit</a></li>
-	{% if p.Namespace.Level + 1 < model.NamespaceMaxDepth %}
-	<li><a href="/namespaces/create?parent={%s p.Namespace.Path %}" class="btn btn-primary">Create</a></li>
+	{% if p.User != nil && p.User.ID == p.Namespace.UserID %}
+		<li><a href="{%s p.Namespace.UIEndpoint() %}/-/edit" class="btn btn-primary">Edit</a></li>
+		{% if p.Namespace.Level + 1 < model.NamespaceMaxDepth %}
+			<li><a href="/namespaces/create?parent={%s p.Namespace.Path %}" class="btn btn-primary">Create</a></li>
+		{% endif %}
 	{% endif %}
 {% endfunc %}
 

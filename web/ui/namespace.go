@@ -12,7 +12,10 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/key"
 	"github.com/andrewpillar/thrall/template/namespace"
+	"github.com/andrewpillar/thrall/template/object"
+	"github.com/andrewpillar/thrall/template/variable"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/csrf"
@@ -185,6 +188,14 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
+	u, err := h.User(r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	vars := mux.Vars(r)
 
 	owner, err := h.Users.FindByUsername(vars["username"])
@@ -216,10 +227,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	var p template.Dashboard
 
+	bp := template.BasePage{
+		URI:  r.URL.Path,
+		User: u,
+	}
+
 	sp := namespace.ShowPage{
-		BasePage: template.BasePage{
-			URI: r.URL.Path,
-		},
+		BasePage:  bp,
 		Namespace: n,
 		Status:    status,
 		Search:    search,
@@ -237,7 +251,11 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p = &namespace.ShowNamespaces{
 			ShowPage:   sp,
-			Namespaces: nn,
+			Index:      namespace.IndexPage{
+				BasePage:   bp,
+				Namespaces: nn,
+				Search:     search,
+			},
 		}
 
 		break
@@ -252,8 +270,11 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p = &namespace.ShowObjects{
 			ShowPage: sp,
-			CSRF:     string(csrf.TemplateField(r)),
-			Objects:  oo,
+			Index:    object.IndexPage{
+				BasePage: bp,
+				CSRF:     string(csrf.TemplateField(r)),
+				Objects:  oo,
+			},
 		}
 
 		break
@@ -268,8 +289,10 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p = &namespace.ShowVariables{
 			ShowPage:  sp,
-			CSRF:      string(csrf.TemplateField(r)),
-			Variables: vv,
+			Index:     variable.IndexPage{
+				CSRF:      string(csrf.TemplateField(r)),
+				Variables: vv,
+			},
 		}
 
 		break
@@ -284,8 +307,10 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p = &namespace.ShowKeys{
 			ShowPage: sp,
-			CSRF:     string(csrf.TemplateField(r)),
-			Keys:     kk,
+			Index:    key.IndexPage{
+				CSRF: string(csrf.TemplateField(r)),
+				Keys: kk,
+			},
 		}
 
 		break

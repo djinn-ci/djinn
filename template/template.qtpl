@@ -3,6 +3,7 @@ import (
 	"regexp"
 
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/model"
 )
 %}
 
@@ -43,7 +44,8 @@ type Alert struct {
 }
 
 type BasePage struct {
-	URI string
+	URI  string
+	User *model.User
 }
 
 type baseDashboard struct {

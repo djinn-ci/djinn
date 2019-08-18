@@ -43,7 +43,7 @@ func (s DriverStore) interfaceSlice(dd ...*Driver) []Interface {
 }
 
 func (s DriverStore) Create(dd ...*Driver) error {
-	return errors.Err(s.Store.Create(driverTable, s.interfaceSlice(dd...)...))
+	return errors.Err(s.Store.Create(DriverTable, s.interfaceSlice(dd...)...))
 }
 
 func (s DriverStore) First() (*Driver, error) {
@@ -56,7 +56,7 @@ func (s DriverStore) First() (*Driver, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(driverTable),
+		query.Table(DriverTable),
 		ForBuild(s.Build),
 	)
 

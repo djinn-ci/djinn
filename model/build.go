@@ -90,14 +90,6 @@ func BuildTag(tag string) query.Option {
 	}
 }
 
-func (b Build) AccessibleBy(u *User, a Action) bool {
-	if u == nil {
-		return false
-	}
-
-	return b.UserID == u.ID
-}
-
 func (b *Build) ArtifactStore() ArtifactStore {
 	return ArtifactStore{
 		Store: Store{
@@ -533,7 +525,7 @@ func (s BuildStore) All(opts ...query.Option) ([]*Build, error) {
 
 	opts = append(opts, ForUser(s.User), ForNamespace(s.Namespace))
 
-	err := s.Store.All(&bb, buildTable, opts...)
+	err := s.Store.All(&bb, BuildTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -549,7 +541,7 @@ func (s BuildStore) All(opts ...query.Option) ([]*Build, error) {
 }
 
 func (s BuildStore) Create(bb ...*Build) error {
-	return errors.Err(s.Store.Create(buildTable, s.interfaceSlice(bb...)...))
+	return errors.Err(s.Store.Create(BuildTable, s.interfaceSlice(bb...)...))
 }
 
 func (s BuildStore) Find(id int64) (*Build, error) {
@@ -561,7 +553,7 @@ func (s BuildStore) Find(id int64) (*Build, error) {
 		Namespace: s.Namespace,
 	}
 
-	err := s.FindBy(b, buildTable, "id", id)
+	err := s.FindBy(b, BuildTable, "id", id)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -770,5 +762,5 @@ func (s BuildStore) interfaceSlice(bb ...*Build) []Interface {
 }
 
 func (s BuildStore) Update(bb ...*Build) error {
-	return errors.Err(s.Store.Update(buildTable, s.interfaceSlice(bb...)...))
+	return errors.Err(s.Store.Update(BuildTable, s.interfaceSlice(bb...)...))
 }

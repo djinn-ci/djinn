@@ -105,10 +105,10 @@ func (j *Job) LoadBuild() error {
 func (j *Job) LoadDependencies() error {
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(jobTable),
+		query.Table(JobTable),
 		query.WhereInQuery("id", query.Select(
 				query.Columns("dependency_id"),
-				query.Table("job_dependencies"),
+				query.Table(JobDependencyTable),
 				query.WhereEq("job_id", j.ID),
 			),
 		),
@@ -186,7 +186,7 @@ func (s JobStore) interfaceSlice(jj ...*Job) []Interface {
 }
 
 func (s JobStore) Create(jj ...*Job) error {
-	return errors.Err(s.Store.Create(jobTable, s.interfaceSlice(jj...)...))
+	return errors.Err(s.Store.Create(JobTable, s.interfaceSlice(jj...)...))
 }
 
 func (s JobStore) All(opts ...query.Option) ([]*Job, error) {
@@ -194,7 +194,7 @@ func (s JobStore) All(opts ...query.Option) ([]*Job, error) {
 
 	opts = append(opts, ForBuild(s.Build), ForStage(s.Stage))
 
-	err := s.Store.All(&jj, jobTable, opts...)
+	err := s.Store.All(&jj, JobTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -217,7 +217,7 @@ func (s JobStore) findBy(col string, val interface{}) (*Job, error) {
 		Stage: s.Stage,
 	}
 
-	err := s.FindBy(j, jobTable, col, val)
+	err := s.FindBy(j, JobTable, col, val)
 
 	return j, errors.Err(err)
 }
@@ -341,13 +341,13 @@ func (s JobStore) Show(id int64) (*Job, error) {
 }
 
 func (s JobStore) Update(jj ...*Job) error {
-	return errors.Err(s.Store.Update(jobTable, s.interfaceSlice(jj...)...))
+	return errors.Err(s.Store.Update(JobTable, s.interfaceSlice(jj...)...))
 }
 
 func (s JobDependencyStore) All(opts ...query.Option) ([]*JobDependency, error) {
 	dd := make([]*JobDependency, 0)
 
-	err := s.Store.All(&dd, jobTable, opts...)
+	err := s.Store.All(&dd, JobTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -367,5 +367,5 @@ func (s JobDependencyStore) Create(jdd ...*JobDependency) error {
 		ii = append(ii, jd)
 	}
 
-	return errors.Err(s.Store.Create(jobDependencyTable, ii...))
+	return errors.Err(s.Store.Create(JobDependencyTable, ii...))
 }

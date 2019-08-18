@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"net"
-	"strconv"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -15,8 +14,6 @@ import (
 
 	_ "github.com/lib/pq"
 )
-
-type Action uint8
 
 type Interface interface {
 	SetPrimary(i int64)
@@ -34,55 +31,30 @@ type Model struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-type Resource interface {
-	IsZero() bool
-
-	AccessibleBy(u *User, a Action) bool
-}
-
-type ResourceFinder func(name string, vars map[string]string) []query.Option
-
-type ResourceStore struct {
-	Store
-
-	types map[string]Type
-}
+type Row map[string]interface{}
 
 type Store struct {
 	*sqlx.DB
 }
 
-type Type struct {
-	Table      string
-	Resource   Resource
-	HandleFind ResourceFinder
-}
-
-const (
-	Create Action = iota
-	Edit
-	Show
-	Delete
-)
-
 var (
 	sourceFmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=disable"
 
-	artifactTable      = "artifacts"
-	buildTable         = "builds"
-	buildObjectTable   = "build_objects"
-	buildVariableTable = "build_variables"
-	driverTable        = "drivers"
-	jobTable           = "jobs"
-	jobDependencyTable = "job_dependencies"
-	keyTable           = "keys"
-	namespaceTable     = "namespaces"
-	objectTable        = "objects"
-	stageTable         = "stages"
-	tagTable           = "tags"
-	triggerTable       = "triggers"
-	userTable          = "users"
-	variableTable      = "variables"
+	ArtifactTable      = "artifacts"
+	BuildTable         = "builds"
+	BuildObjectTable   = "build_objects"
+	BuildVariableTable = "build_variables"
+	DriverTable        = "drivers"
+	JobTable           = "jobs"
+	JobDependencyTable = "job_dependencies"
+	KeyTable           = "keys"
+	NamespaceTable     = "namespaces"
+	ObjectTable        = "objects"
+	StageTable         = "stages"
+	TagTable           = "tags"
+	TriggerTable       = "triggers"
+	UserTable          = "users"
+	VariableTable      = "variables"
 )
 
 func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
@@ -177,6 +149,10 @@ func ForUser(u *User) query.Option {
 	}
 }
 
+func NewRow() Row {
+	return Row(make(map[string]interface{}))
+}
+
 func Search(col, search string) query.Option {
 	return func(q query.Query) query.Query {
 		if search == "" {
@@ -199,42 +175,18 @@ func (m *Model) SetPrimary(i int64) {
 	m.ID = i
 }
 
-func (rs *ResourceStore) Register(name string, t Type) {
-	if rs.types == nil {
-		rs.types = make(map[string]Type)
-	}
+func (r Row) Primary() (string, int64) {
+	id, _ := r["id"].(int64)
 
-	if t.HandleFind == nil {
-		t.HandleFind = func(name string, vars map[string]string) []query.Option {
-			id, _ := strconv.ParseInt(vars[name], 10, 64)
-
-			return []query.Option{
-				query.Columns("*"),
-				query.Table(t.Table),
-				query.WhereEq("id", id),
-			}
-		}
-	}
-
-	rs.types[name] = t
+	return "id", id
 }
 
-func (rs ResourceStore) Find(name string, vars map[string]string) (Resource, error) {
-	t, ok := rs.types[name]
+func (r *Row) SetPrimary(i int64) {
+	(*r)["id"] = i
+}
 
-	if !ok {
-		return nil, errors.Err(errors.New("unknown resource model " + name))
-	}
-
-	q := query.Select(t.HandleFind(name, vars)...)
-
-	err := rs.Get(t.Resource, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return t.Resource, errors.Err(err)
+func (r Row) Values() map[string]interface{} {
+	return r
 }
 
 func (s Store) All(i interface{}, table string, opts ...query.Option) error {

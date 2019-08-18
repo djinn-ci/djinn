@@ -56,7 +56,7 @@ func (s StageStore) All(opts ...query.Option) ([]*Stage, error) {
 
 	opts = append(opts, ForBuild(s.Build))
 
-	err := s.Store.All(&ss, "stages", opts...)
+	err := s.Store.All(&ss, StageTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -84,7 +84,7 @@ func (s StageStore) interfaceSlice(ss ...*Stage) []Interface {
 }
 
 func (s StageStore) Create(ss ...*Stage) error {
-	return errors.Err(s.Store.Create(stageTable, s.interfaceSlice(ss...)...))
+	return errors.Err(s.Store.Create(StageTable, s.interfaceSlice(ss...)...))
 }
 
 func (s StageStore) findBy(col string, val interface{}) (*Stage, error) {
@@ -94,7 +94,7 @@ func (s StageStore) findBy(col string, val interface{}) (*Stage, error) {
 		},
 	}
 
-	err := s.FindBy(st, "stages", col, val)
+	err := s.FindBy(st, StageTable, col, val)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -164,5 +164,5 @@ func (s StageStore) New() *Stage {
 }
 
 func (s StageStore) Update(ss ...*Stage) error {
-	return errors.Err(s.Store.Update(stageTable, s.interfaceSlice(ss...)...))
+	return errors.Err(s.Store.Update(StageTable, s.interfaceSlice(ss...)...))
 }

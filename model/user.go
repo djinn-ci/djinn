@@ -96,7 +96,7 @@ func (u *User) VariableStore() VariableStore {
 func (s UserStore) All(opts ...query.Option) ([]*User, error) {
 	uu := make([]*User, 0)
 
-	err := s.Store.All(&uu, userTable, opts...)
+	err := s.Store.All(&uu, UserTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -120,7 +120,7 @@ func (s UserStore) interfaceSlice(uu ...*User) []Interface {
 }
 
 func (s UserStore) Create(uu ...*User) error {
-	return errors.Err(s.Store.Create(userTable, s.interfaceSlice(uu...)...))
+	return errors.Err(s.Store.Create(UserTable, s.interfaceSlice(uu...)...))
 }
 
 func (s UserStore) Find(id int64) (*User, error) {
@@ -130,7 +130,7 @@ func (s UserStore) Find(id int64) (*User, error) {
 		},
 	}
 
-	err := s.FindBy(u, userTable, "id", id)
+	err := s.FindBy(u, UserTable, "id", id)
 
 	return u, errors.Err(err)
 }
@@ -142,7 +142,7 @@ func (s UserStore) FindByEmail(email string) (*User, error) {
 		},
 	}
 
-	err := s.FindBy(u, userTable, "email", email)
+	err := s.FindBy(u, UserTable, "email", email)
 
 	return u, errors.Err(err)
 }
@@ -156,7 +156,7 @@ func (s UserStore) FindByHandle(handle string) (*User, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(userTable),
+		query.Table(UserTable),
 		query.Or(
 			query.WhereEq("username", handle),
 			query.WhereEq("email", handle),
@@ -179,7 +179,7 @@ func (s UserStore) FindByUsername(username string) (*User, error) {
 		},
 	}
 
-	err := s.FindBy(u, userTable, "username", username)
+	err := s.FindBy(u, UserTable, "username", username)
 
 	return u, errors.Err(err)
 }
@@ -205,5 +205,5 @@ func (s UserStore) Load(ids []interface{}, load func(i int, u *User)) error {
 }
 
 func (s UserStore) Update(uu ...*User) error {
-	return errors.Err(s.Store.Update(userTable, s.interfaceSlice(uu...)...))
+	return errors.Err(s.Store.Update(UserTable, s.interfaceSlice(uu...)...))
 }

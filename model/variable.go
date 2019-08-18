@@ -61,7 +61,7 @@ func (s BuildVariableStore) All(opts ...query.Option) ([]*BuildVariable, error) 
 
 	opts = append(opts, ForBuild(s.Build))
 
-	err := s.Store.All(&vv, "build_variables", opts...)
+	err := s.Store.All(&vv, BuildVariableTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -82,7 +82,7 @@ func (s BuildVariableStore) Create(bvv ...*BuildVariable) error {
 		ii = append(ii, bv)
 	}
 
-	return errors.Err(s.Store.Create(buildVariableTable, ii...))
+	return errors.Err(s.Store.Create(BuildVariableTable, ii...))
 }
 
 func (s BuildVariableStore) Copy(vv []*Variable) error {
@@ -164,14 +164,6 @@ func (s BuildVariableStore) New() *BuildVariable {
 	return bv
 }
 
-func (v Variable) AccessibleBy(u *User, a Action) bool {
-	if u == nil {
-		return false
-	}
-
-	return v.UserID == u.ID
-}
-
 func (v Variable) IsZero() bool {
 	return v.Model.IsZero() && v.UserID == 0 && v.Key == "" && v.Value == ""
 }
@@ -200,7 +192,7 @@ func (s VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 
 	opts = append(opts, ForUser(s.User), ForNamespace(s.Namespace))
 
-	err := s.Store.All(&vv, "variables", opts...)
+	err := s.Store.All(&vv, VariableTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -218,11 +210,11 @@ func (s VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 }
 
 func (s VariableStore) Create(vv ...*Variable) error {
-	return errors.Err(s.Store.Create(variableTable, s.interfaceSlice(vv...)...))
+	return errors.Err(s.Store.Create(VariableTable, s.interfaceSlice(vv...)...))
 }
 
 func (s VariableStore) Delete(vv ...*Variable) error {
-	return errors.Err(s.Store.Delete(variableTable, s.interfaceSlice(vv...)...))
+	return errors.Err(s.Store.Delete(VariableTable, s.interfaceSlice(vv...)...))
 }
 
 func (s VariableStore) findBy(col string, val interface{}) (*Variable, error) {
@@ -233,7 +225,7 @@ func (s VariableStore) findBy(col string, val interface{}) (*Variable, error) {
 		User: s.User,
 	}
 
-	err := s.FindBy(v, "variables", col, val)
+	err := s.FindBy(v, VariableTable, col, val)
 
 	if err == sql.ErrNoRows {
 		err = nil

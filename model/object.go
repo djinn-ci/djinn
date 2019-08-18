@@ -65,14 +65,6 @@ func (bo BuildObject) Values() map[string]interface{} {
 	}
 }
 
-func (o Object) AccessibleBy(u *User, a Action) bool {
-	if u == nil {
-		return false
-	}
-
-	return o.UserID == u.ID
-}
-
 func (o *Object) BuildObjectStore() BuildObjectStore {
 	return BuildObjectStore{
 		Store: Store{
@@ -99,7 +91,7 @@ func (o Object) Values() map[string]interface{} {
 
 func (o *Object) Destroy() error {
 	q := query.Update(
-		query.Table("objects"),
+		query.Table(ObjectTable),
 		query.SetRaw("deleted_at", "NOW()"),
 		query.WhereEq("id", o.ID),
 		query.Returning("deleted_at"),
@@ -142,7 +134,7 @@ func (o Object) UIEndpoint(uri ...string) string {
 func (s ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 	oo := make([]*Object, 0)
 
-	err := s.Store.All(&oo, "objects", opts...)
+	err := s.Store.All(&oo, ObjectTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -167,11 +159,11 @@ func (s ObjectStore) interfaceSlice(oo ...*Object) []Interface {
 }
 
 func (s ObjectStore) Create(oo ...*Object) error {
-	return errors.Err(s.Store.Create(objectTable, s.interfaceSlice(oo...)...))
+	return errors.Err(s.Store.Create(ObjectTable, s.interfaceSlice(oo...)...))
 }
 
 func (s ObjectStore) Delete(oo ...*Object) error {
-	return errors.Err(s.Store.Delete(objectTable, s.interfaceSlice(oo...)...))
+	return errors.Err(s.Store.Delete(ObjectTable, s.interfaceSlice(oo...)...))
 }
 
 func (s ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
@@ -234,7 +226,7 @@ func (s ObjectStore) findBy(col string, val interface{}) (*Object, error) {
 		User: s.User,
 	}
 
-	err := s.FindBy(o, "objects", col, val)
+	err := s.FindBy(o, ObjectTable, col, val)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -285,7 +277,7 @@ func (s BuildObjectStore) All(opts ...query.Option) ([]*BuildObject, error) {
 
 	opts = append(opts, ForBuild(s.Build), ForObject(s.Object))
 
-	err := s.Store.All(&boo, "build_objects", opts...)
+	err := s.Store.All(&boo, BuildObjectTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -307,7 +299,7 @@ func (s BuildObjectStore) Create(boo ...*BuildObject) error {
 		ii = append(ii, bo)
 	}
 
-	return errors.Err(s.Store.Create(buildObjectTable, ii...))
+	return errors.Err(s.Store.Create(BuildObjectTable, ii...))
 }
 
 func (s BuildObjectStore) First() (*BuildObject, error) {
@@ -319,7 +311,7 @@ func (s BuildObjectStore) First() (*BuildObject, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(buildObjectTable),
+		query.Table(BuildObjectTable),
 	)
 
 	err := s.Store.Get(bo, q.Build(), q.Args()...)

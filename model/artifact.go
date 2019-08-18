@@ -72,7 +72,7 @@ func (s ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
 
 	opts = append(opts, ForBuild(s.Build), ForJob(s.Job))
 
-	err := s.Store.All(&aa, artifactTable, opts...)
+	err := s.Store.All(&aa, ArtifactTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -88,7 +88,7 @@ func (s ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
 }
 
 func (s ArtifactStore) Create(aa ...*Artifact) error {
-	return errors.Err(s.Store.Create(artifactTable, s.interfaceSlice(aa...)...))
+	return errors.Err(s.Store.Create(ArtifactTable, s.interfaceSlice(aa...)...))
 }
 
 func (s ArtifactStore) findBy(col string, val interface{}) (*Artifact, error) {
@@ -98,7 +98,7 @@ func (s ArtifactStore) findBy(col string, val interface{}) (*Artifact, error) {
 		},
 	}
 
-	err := s.FindBy(a, artifactTable, col, val)
+	err := s.FindBy(a, ArtifactTable, col, val)
 
 	return a, errors.Err(err)
 }
@@ -152,5 +152,5 @@ func (s ArtifactStore) New() *Artifact {
 }
 
 func (s ArtifactStore) Update(aa ...*Artifact) error {
-	return errors.Err(s.Store.Update(artifactTable, s.interfaceSlice(aa...)...))
+	return errors.Err(s.Store.Update(ArtifactTable, s.interfaceSlice(aa...)...))
 }

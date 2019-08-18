@@ -78,7 +78,7 @@ func (s TriggerStore) Create(tt ...*Trigger) error {
 		ii = append(ii, t)
 	}
 
-	return errors.Err(s.Store.Create(triggerTable, ii...))
+	return errors.Err(s.Store.Create(TriggerTable, ii...))
 }
 
 func (s TriggerStore) First() (*Trigger, error) {
@@ -91,7 +91,7 @@ func (s TriggerStore) First() (*Trigger, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table("triggers"),
+		query.Table(TriggerTable),
 		ForBuild(s.Build),
 	)
 

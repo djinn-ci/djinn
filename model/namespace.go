@@ -41,19 +41,6 @@ type NamespaceStore struct {
 	Namespace *Namespace
 }
 
-func (n Namespace) AccessibleBy(u *User, a Action) bool {
-	switch n.Visibility {
-	case types.Public:
-		return true
-	case types.Internal:
-		return u != nil && !u.IsZero()
-	case types.Private:
-		return u != nil && u.ID == n.UserID
-	default:
-		return false
-	}
-}
-
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
 		Store: Store{
@@ -106,7 +93,7 @@ func (n *Namespace) CascadeVisibility() error {
 	}
 
 	q := query.Update(
-		query.Table("namespaces"),
+		query.Table(NamespaceTable),
 		query.Set("visibility", n.Visibility),
 		query.WhereEq("root_id", n.RootID),
 	)
@@ -218,9 +205,9 @@ func (n Namespace) Values() map[string]interface{} {
 func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
-	opts = append(opts, ForParent(s.Namespace), query.Table("namespaces"))
+	opts = append(opts, ForParent(s.Namespace), query.Table(NamespaceTable))
 
-	err := s.Store.All(&nn, "namespaces", opts...)
+	err := s.Store.All(&nn, NamespaceTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -234,7 +221,7 @@ func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 }
 
 func (s NamespaceStore) Create(nn ...*Namespace) error {
-	return errors.Err(s.Store.Create(namespaceTable, s.interfaceSlice(nn...)...))
+	return errors.Err(s.Store.Create(NamespaceTable, s.interfaceSlice(nn...)...))
 }
 
 func (s NamespaceStore) Delete(nn ...*Namespace) error {
@@ -246,7 +233,7 @@ func (s NamespaceStore) Delete(nn ...*Namespace) error {
 
 	q := query.Select(
 		query.Columns("id"),
-		query.Table("namespaces"),
+		query.Table(NamespaceTable),
 		query.WhereIn("root_id", rootIds...),
 	)
 
@@ -263,7 +250,7 @@ func (s NamespaceStore) Delete(nn ...*Namespace) error {
 	}
 
 	opts := []query.Option{
-		query.Table("namespaces"),
+		query.Table(NamespaceTable),
 	}
 
 	if len(children) > 0 {
@@ -304,7 +291,7 @@ func (s NamespaceStore) findBy(col string, val interface{}) (*Namespace, error) 
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table("namespaces"),
+		query.Table(NamespaceTable),
 		query.WhereEq(col, val),
 		ForUser(s.User),
 		ForParent(s.Namespace),
@@ -528,5 +515,5 @@ func (s NamespaceStore) New() *Namespace {
 }
 
 func (s NamespaceStore) Update(nn ...*Namespace) error {
-	return errors.Err(s.Store.Update(namespaceTable, s.interfaceSlice(nn...)...))
+	return errors.Err(s.Store.Update(NamespaceTable, s.interfaceSlice(nn...)...))
 }

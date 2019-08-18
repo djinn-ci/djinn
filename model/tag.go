@@ -49,7 +49,7 @@ func (s TagStore) All(opts ...query.Option) ([]*Tag, error) {
 
 	opts = append(opts, ForBuild(s.Build))
 
-	err := s.Store.All(&tt, "tags", opts...)
+	err := s.Store.All(&tt, TagTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -67,11 +67,11 @@ func (s TagStore) All(opts ...query.Option) ([]*Tag, error) {
 }
 
 func (s TagStore) Create(tt ...*Tag) error {
-	return errors.Err(s.Store.Create(tagTable, s.interfaceSlice(tt...)...))
+	return errors.Err(s.Store.Create(TagTable, s.interfaceSlice(tt...)...))
 }
 
 func (s TagStore) Delete(tt ...*Tag) error {
-	return errors.Err(s.Store.Delete(tagTable, s.interfaceSlice(tt...)...))
+	return errors.Err(s.Store.Delete(TagTable, s.interfaceSlice(tt...)...))
 }
 
 func (s TagStore) Find(id int64) (*Tag, error) {
@@ -83,7 +83,7 @@ func (s TagStore) Find(id int64) (*Tag, error) {
 		User:  s.User,
 	}
 
-	err := s.FindBy(t, "tags", "id", id)
+	err := s.FindBy(t, TagTable, "id", id)
 
 	if err == sql.ErrNoRows {
 		err = nil

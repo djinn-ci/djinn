@@ -205,7 +205,7 @@ func (n Namespace) Values() map[string]interface{} {
 func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
-	opts = append(opts, ForParent(s.Namespace), query.Table(NamespaceTable))
+	opts = append(opts, ForParent(s.Namespace), ForUser(s.User), query.Table(NamespaceTable))
 
 	err := s.Store.All(&nn, NamespaceTable, opts...)
 

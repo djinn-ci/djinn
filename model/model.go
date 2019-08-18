@@ -31,8 +31,6 @@ type Model struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
-type Row map[string]interface{}
-
 type Store struct {
 	*sqlx.DB
 }
@@ -149,10 +147,6 @@ func ForUser(u *User) query.Option {
 	}
 }
 
-func NewRow() Row {
-	return Row(make(map[string]interface{}))
-}
-
 func Search(col, search string) query.Option {
 	return func(q query.Query) query.Query {
 		if search == "" {
@@ -173,20 +167,6 @@ func (m Model) IsZero() bool {
 
 func (m *Model) SetPrimary(i int64) {
 	m.ID = i
-}
-
-func (r Row) Primary() (string, int64) {
-	id, _ := r["id"].(int64)
-
-	return "id", id
-}
-
-func (r *Row) SetPrimary(i int64) {
-	(*r)["id"] = i
-}
-
-func (r Row) Values() map[string]interface{} {
-	return r
 }
 
 func (s Store) All(i interface{}, table string, opts ...query.Option) error {

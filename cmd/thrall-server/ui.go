@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/model/types"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
 	"github.com/andrewpillar/thrall/server"
@@ -135,19 +136,34 @@ func gateResource(name string, s model.Store) web.Gate {
 	return func(u *model.User, vars map[string]string) bool {
 		id, _ := strconv.ParseInt(vars[name], 10, 64)
 
-		r := model.NewRow()
+		m := make(map[string]interface{})
 
-		if err := s.FindBy(&r, resources[name], "id", id); err != nil {
+		q := query.Select(
+			query.Columns("*"),
+			query.Table(resources[name]),
+			query.WhereEq("id", id),
+		)
+
+		stmt, err := s.Preparex(q.Build())
+
+		if err != nil {
 			return false
 		}
 
-		m := r.Values()
+		defer stmt.Close()
+
+		row := stmt.QueryRowx(q.Args()...)
+
+		if err := row.MapScan(m); err != nil {
+			println(err.Error())
+			return false
+		}
 
 		if len(m) == 0 {
 			return false
 		}
 
-		userId, ok := m["userId"].(int64)
+		userId, ok := m["user_id"].(int64)
 
 		if !ok {
 			return false

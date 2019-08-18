@@ -179,11 +179,6 @@ func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if k.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
 	p := &key.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
@@ -221,11 +216,6 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to update SSH key: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if k.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -292,11 +282,6 @@ func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if k.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 

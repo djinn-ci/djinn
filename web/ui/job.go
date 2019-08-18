@@ -49,11 +49,6 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if j.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
 	if filepath.Base(r.URL.Path) == "raw" {
 		web.Text(w, j.Output.String, http.StatusOK)
 		return

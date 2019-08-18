@@ -203,11 +203,6 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if n.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
 	if err := n.LoadParents(); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
@@ -317,14 +312,6 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
 	vars := mux.Vars(r)
 
 	owner, err := h.Users.FindByUsername(vars["username"])
@@ -340,11 +327,6 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if n.IsZero() || n.User.IsZero() || n.UserID != u.ID {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -397,11 +379,6 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if n.IsZero() || n.User.IsZero() || n.UserID != u.ID {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -458,15 +435,6 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
 	vars := mux.Vars(r)
 
 	owner, err := h.Users.FindByUsername(vars["username"])
@@ -478,11 +446,6 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if owner.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
 	namespaces := owner.NamespaceStore()
 
 	n, err := namespaces.FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
@@ -491,11 +454,6 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if n.IsZero() || n.User.IsZero() || n.UserID != u.ID {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 

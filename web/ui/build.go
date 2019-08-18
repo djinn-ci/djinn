@@ -211,11 +211,6 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if b.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
 	base := filepath.Base(r.URL.Path)
 
 	var p template.Dashboard

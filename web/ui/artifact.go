@@ -32,12 +32,7 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 
 	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
 
-	artifactId, err := strconv.ParseInt(vars["artifact"], 10, 64)
-
-	if err != nil {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
+	artifactId, _ := strconv.ParseInt(vars["artifact"], 10, 64)
 
 	b, err := u.BuildStore().Find(buildId)
 

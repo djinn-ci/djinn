@@ -91,6 +91,10 @@ func gateBuild(s model.Store) web.Gate {
 			return false
 		}
 
+		if b.IsZero() {
+			return false
+		}
+
 		if !b.NamespaceID.Valid {
 			return u.ID == b.UserID
 		}

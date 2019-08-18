@@ -9,7 +9,7 @@ import (
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/model/query"
+	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
 	"github.com/andrewpillar/thrall/server"
@@ -42,12 +42,121 @@ type uiServer struct {
 	router *mux.Router
 }
 
+var resources map[string]string = map[string]string{
+	"build":     model.BuildTable,
+	"namespace": model.NamespaceTable,
+	"object":    model.ObjectTable,
+	"variable":  model.VariableTable,
+	"key":       model.KeyTable,
+}
+
 func notFoundHandler(w http.ResponseWriter, r *http.Request) {
 	web.HTMLError(w, "Not found", http.StatusNotFound)
 }
 
 func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
 	web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+func accessibleBy(u *model.User, ownerId int64, v types.Visibility) bool {
+	switch v {
+	case types.Public:
+		return true
+	case types.Internal:
+		return !u.IsZero()
+	case types.Private:
+		return u.ID == ownerId
+	default:
+		return false
+	}
+}
+
+func gateBuild(s model.Store) web.Gate {
+	return func(u *model.User, vars map[string]string) bool {
+		owner := &model.User{
+			Model: model.Model{
+				DB: s.DB,
+			},
+		}
+
+		if err := s.FindBy(owner, model.UserTable, "username", vars["username"]); err != nil {
+			return false
+		}
+
+		id, _ := strconv.ParseInt(vars["build"], 10, 64)
+
+		b, err := owner.BuildStore().Find(id)
+
+		if err != nil {
+			return false
+		}
+
+		if !b.NamespaceID.Valid {
+			return u.ID == b.UserID
+		}
+
+		return accessibleBy(u, b.UserID, b.Namespace.Visibility)
+	}
+}
+
+func gateNamespace(s model.Store) web.Gate {
+	return func(u *model.User, vars map[string]string) bool {
+		owner := &model.User{
+			Model: model.Model{
+				DB: s.DB,
+			},
+		}
+
+		if err := s.FindBy(owner, model.UserTable, "username", vars["username"]); err != nil {
+			return false
+		}
+
+		path := strings.TrimSuffix(vars["namespace"], "/")
+
+		n, err := owner.NamespaceStore().FindByPath(path)
+
+		if err != nil {
+			return false
+		}
+
+		if n.IsZero() {
+			return false
+		}
+
+		return accessibleBy(u, n.UserID, n.Visibility)
+	}
+}
+
+func gateResource(name string, s model.Store) web.Gate {
+	return func(u *model.User, vars map[string]string) bool {
+		id, _ := strconv.ParseInt(vars[name], 10, 64)
+
+		r := model.NewRow()
+
+		if err := s.FindBy(&r, resources[name], "id", id); err != nil {
+			return false
+		}
+
+		m := r.Values()
+
+		if len(m) == 0 {
+			return false
+		}
+
+		userId, ok := m["userId"].(int64)
+
+		if !ok {
+			return false
+		}
+
+		owner := &model.User{}
+
+		if err := s.FindBy(owner, model.UserTable, "id", userId); err != nil {
+			return false
+		}
+
+		return u.ID == owner.ID
+	}
 }
 
 func (s *uiServer) initAuth(h web.Handler, mw web.Middleware) {
@@ -75,83 +184,6 @@ func (s *uiServer) init() {
 		Store: store,
 	}
 
-	resources := model.ResourceStore{
-		Store: store,
-	}
-
-	m := model.Model{
-		DB: s.db,
-	}
-
-	resources.Register("build", model.Type{
-		Table:    "builds",
-		Resource: &model.Build{
-			Model: m,
-		},
-		HandleFind: func(name string, vars map[string]string) []query.Option {
-			username := vars["username"]
-			id, _ := strconv.ParseInt(vars[name], 10, 64)
-
-			return []query.Option{
-				query.Columns("*"),
-				query.Table("builds"),
-				query.WhereEqQuery("user_id",
-					query.Select(
-						query.Columns("id"),
-						query.Table("users"),
-						query.WhereEq("username", username),
-					),
-				),
-				query.WhereEq("id", id),
-			}
-		},
-	})
-
-	resources.Register("object", model.Type{
-		Table:    "objects",
-		Resource: &model.Object{
-			Model: m,
-		},
-	})
-
-	resources.Register("variable", model.Type{
-		Table:    "variables",
-		Resource: &model.Variable{
-			Model: m,
-		},
-	})
-
-	resources.Register("key", model.Type{
-		Table:    "keys",
-		Resource: &model.Key{
-			Model: m,
-		},
-	})
-
-	resources.Register("namespace", model.Type{
-		Table:    "namespaces",
-		Resource: &model.Namespace{
-			Model: m,
-		},
-		HandleFind: func(name string, vars map[string]string) []query.Option {
-			username := vars["username"]
-			path := strings.TrimSuffix(vars[name], "/")
-
-			return []query.Option{
-				query.Columns("*"),
-				query.Table("namespaces"),
-				query.WhereEqQuery("user_id",
-					query.Select(
-						query.Columns("id"),
-						query.Table("users"),
-						query.WhereEq("username", username),
-					),
-				),
-				query.WhereEq("path", path),
-			}
-		},
-	})
-
 	wh := web.Handler{
 		Store:        session.New(s.client, s.key),
 		SecureCookie: securecookie.New(s.hash, s.key),
@@ -160,7 +192,6 @@ func (s *uiServer) init() {
 
 	mw := web.Middleware{
 		Handler:   wh,
-		Resources: resources,
 	}
 
 	s.router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
@@ -249,7 +280,7 @@ func (s *uiServer) init() {
 	namespaceRouter.HandleFunc("/-/keys", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("", namespace.Update).Methods("PATCH")
 	namespaceRouter.HandleFunc("", namespace.Destroy).Methods("DELETE")
-	namespaceRouter.Use(mw.GateResource("namespace"))
+	namespaceRouter.Use(mw.Gate(gateNamespace(store)))
 
 	buildRouter := s.router.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	buildRouter.HandleFunc("", build.Show).Methods("GET")
@@ -266,24 +297,24 @@ func (s *uiServer) init() {
 	buildRouter.HandleFunc("/tags", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/tags", tag.Store).Methods("POST")
 	buildRouter.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
-	buildRouter.Use(mw.GateResource("build"))
+	buildRouter.Use(mw.Gate(gateBuild(store)))
 
 	objectRouter := s.router.PathPrefix("/objects").Subrouter()
 	objectRouter.HandleFunc("", object.Index).Methods("GET")
 	objectRouter.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
 	objectRouter.HandleFunc("/{object:[0-9]+}/download/{name}", object.Download).Methods("GET")
 	objectRouter.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
-	objectRouter.Use(mw.GateResource("object"))
+	objectRouter.Use(mw.Gate(gateResource("object", store)))
 
 	variableRouter := s.router.PathPrefix("/variables").Subrouter()
 	variableRouter.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
-	variableRouter.Use(mw.GateResource("variable"))
+	variableRouter.Use(mw.Gate(gateResource("variable", store)))
 
 	keyRouter := s.router.PathPrefix("/keys").Subrouter()
 	keyRouter.HandleFunc("/{key:[0-9]+}/edit", key.Edit).Methods("GET")
 	keyRouter.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
 	keyRouter.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
-	keyRouter.Use(mw.GateResource("key"))
+	keyRouter.Use(mw.Gate(gateResource("key", store)))
 
 	s.Server.Init(web.NewSpoof(s.router))
 }

@@ -2,12 +2,10 @@ package web
 
 import (
 	"net/http"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 
 	"github.com/gorilla/mux"
@@ -15,9 +13,9 @@ import (
 
 type Middleware struct {
 	Handler
-
-	Resources model.ResourceStore
 }
+
+type Gate func(u *model.User, vars map[string]string) bool
 
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, bool) {
 	u, err := h.User(r)
@@ -64,87 +62,18 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 	})
 }
 
-func (h Middleware) GateResource(name string) mux.MiddlewareFunc {
+func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, _ := h.auth(w, r)
 
 			vars := mux.Vars(r)
 
-			if _, ok := vars[name]; !ok {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			res, err := h.Resources.Find(name, vars)
-
-			if err != nil {
-				log.Error.Println(errors.Err(err))
-				HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-				return
-			}
-
-			if res.IsZero() || !res.AccessibleBy(u, action(r)) {
-				HTMLError(w, "Not found", http.StatusNotFound)
-				return
-			}
-
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
-func action(r *http.Request) model.Action {
-	switch r.Method {
-	case "GET":
-		if filepath.Base(r.URL.Path) == "create" {
-			return model.Create
-		}
-
-		if filepath.Base(r.URL.Path) == "edit" {
-			return model.Edit
-		}
-
-		return model.Show
-	case "POST":
-		return model.Create
-	case "PATCH":
-		return model.Edit
-	case "DELETE":
-		return model.Delete
-	default:
-		return model.Action(0)
-	}
-}
-
-func (h Middleware) AuthResource(name string) mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u, ok := h.auth(w, r)
-
-			if !ok {
-				http.Redirect(w, r, "/login", http.StatusSeeOther)
-				return
-			}
-
-			vars := mux.Vars(r)
-
-			if _, ok := vars[name]; !ok {
-				next.ServeHTTP(w, r)
-				return
-			}
-
-			res, err := h.Resources.Find(name, vars)
-
-			if err != nil {
-				log.Error.Println(errors.Err(err))
-				HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-				return
-			}
-
-			if res.IsZero() || !res.AccessibleBy(u, action(r)) {
-				HTMLError(w, "Not found", http.StatusNotFound)
-				return
+			for _, g := range gates {
+				if !g(u, vars) {
+					HTMLError(w, "Not found", http.StatusNotFound)
+					return
+				}
 			}
 
 			next.ServeHTTP(w, r)

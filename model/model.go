@@ -31,6 +31,10 @@ type Model struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
+type Resource interface {
+
+}
+
 type Store struct {
 	*sqlx.DB
 }
@@ -42,6 +46,7 @@ var (
 	BuildTable         = "builds"
 	BuildObjectTable   = "build_objects"
 	BuildVariableTable = "build_variables"
+	CollaboratorTable  = "collaborators"
 	DriverTable        = "drivers"
 	JobTable           = "jobs"
 	JobDependencyTable = "job_dependencies"

@@ -50,6 +50,15 @@ func (n *Namespace) BuildStore() BuildStore {
 	}
 }
 
+func (n *Namespace) CollaboratorStore() CollaboratorStore {
+	return CollaboratorStore{
+		Store: Store{
+			DB: n.DB,
+		},
+		Namespace: n,
+	}
+}
+
 func (n *Namespace) KeyStore() KeyStore {
 	return KeyStore{
 		Store: Store{

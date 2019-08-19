@@ -234,6 +234,10 @@ func (s *uiServer) init() {
 		Handler: wh,
 	}
 
+	collaborator := ui.Collaborator{
+		Handler: wh,
+	}
+
 	object := ui.Object{
 		Handler:   wh,
 		FileStore: s.objects,
@@ -298,6 +302,9 @@ func (s *uiServer) init() {
 	namespaceRouter.HandleFunc("/-/objects", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("/-/variables", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("/-/keys", namespace.Show).Methods("GET")
+	namespaceRouter.HandleFunc("/-/collaborators", namespace.Show).Methods("GET")
+	namespaceRouter.HandleFunc("/-/collaborators", collaborator.Store).Methods("POST")
+	namespaceRouter.HandleFunc("/-/collaborators/{collaborator:[0-9]+}", collaborator.Store).Methods("DELETE")
 	namespaceRouter.HandleFunc("", namespace.Update).Methods("PATCH")
 	namespaceRouter.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	namespaceRouter.Use(mw.Gate(gateNamespace(store)))

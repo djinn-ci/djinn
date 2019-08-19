@@ -44,6 +44,14 @@ type ShowKeys struct {
 
 	Index key.IndexPage
 }
+
+type ShowCollaborators struct {
+	ShowPage
+
+	CSRF          string
+	Search        string
+	Collaborators []*model.Collaborator
+}
 %}
 
 {% collapsespace %}
@@ -85,6 +93,24 @@ type ShowKeys struct {
 
 {% func (p *ShowKeys) Body() %}
 	{%= p.Index.Body() %}
+{% endfunc %}
+
+{% func (p *ShowCollaborators) Body() %}
+	<div class="panel">
+		<div class="panel-header panel-body">
+			<form method="POST" action="{%s p.Namespace.UIEndpoint("-", "collaborators") %}">
+				{%s= p.CSRF %}
+				<div class="form-field form-field-inline">
+					<input type="text" class="form-text" name="handle" placeholder="Add a collaborator..." autocomplete="off"/>
+					<button type="submit" class="btn btn-primary">Add</button>
+				</div>
+			</form>
+		</div>
+		{% if len(p.Collaborators) == 0 %}
+			<div class="panel-message muted">Share resources with other users by adding them as a collaborator.</div>
+		{% else %}
+		{% endif %}
+	</div>
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
@@ -130,6 +156,11 @@ type ShowKeys struct {
 	<li>
 		<a href="{%s p.Namespace.UIEndpoint("-", "keys") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "keys") == p.URI) %}">
 			{% cat "../../svgs/key.svg" %}<span>SSH Keys</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.UIEndpoint("-", "collaborators") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "collaborators") == p.URI) %}">
+			{% cat "../../svgs/users.svg" %}<span>Collaborators</span>
 		</a>
 	</li>
 {% endfunc %}

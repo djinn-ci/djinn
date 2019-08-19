@@ -31,6 +31,10 @@ func (u *User) BuildStore() BuildStore {
 	}
 }
 
+func (u User) CanAccess(r Resource) bool {
+	return true
+}
+
 func (u *User) IsZero() bool {
 	return u.Model.IsZero() &&
 		u.Email == "" &&

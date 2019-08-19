@@ -314,6 +314,23 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		break
+	case "collaborators":
+		cc, err := n.CollaboratorStore().All(model.Search("username", search))
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p = &namespace.ShowCollaborators{
+			ShowPage:     sp,
+			CSRF:         string(csrf.TemplateField(r)),
+			Search:       search,
+			Collaborators: cc,
+		}
+
+		break
 	default:
 		sp.Builds, err = n.BuildStore().Index(
 			model.BuildStatus(status),

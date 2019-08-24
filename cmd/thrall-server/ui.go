@@ -236,6 +236,13 @@ func (s *uiServer) init() {
 
 	collaborator := ui.Collaborator{
 		Handler: wh,
+		Invites: model.InviteStore{
+			Store: store,
+		},
+	}
+
+	invite := ui.Invite{
+		Handler: wh,
 	}
 
 	object := ui.Object{
@@ -262,6 +269,13 @@ func (s *uiServer) init() {
 
 	tag := ui.Tag{
 		Handler: wh,
+	}
+
+	user := ui.User{
+		Handler: wh,
+		Invites: model.InviteStore{
+			Store: store,
+		},
 	}
 
 	guestRouter := s.router.PathPrefix("/").Subrouter()
@@ -291,7 +305,12 @@ func (s *uiServer) init() {
 	authRouter.HandleFunc("/keys/create", key.Create).Methods("GET")
 	authRouter.HandleFunc("/keys", key.Store).Methods("POST")
 
+	authRouter.HandleFunc("/settings", user.Settings).Methods("GET")
+	authRouter.HandleFunc("/settings/invites", user.Settings).Methods("GET")
 	authRouter.HandleFunc("/logout", auth.Logout).Methods("POST")
+
+	authRouter.HandleFunc("/invites/{invite:[0-9]+}", collaborator.Store).Methods("PATCH")
+	authRouter.HandleFunc("/invites/{invite:[0-9]+}", invite.Destroy).Methods("DELETE")
 
 	authRouter.Use(mw.Auth)
 
@@ -303,8 +322,8 @@ func (s *uiServer) init() {
 	namespaceRouter.HandleFunc("/-/variables", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("/-/keys", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("/-/collaborators", namespace.Show).Methods("GET")
-	namespaceRouter.HandleFunc("/-/collaborators", collaborator.Store).Methods("POST")
-	namespaceRouter.HandleFunc("/-/collaborators/{collaborator:[0-9]+}", collaborator.Store).Methods("DELETE")
+	namespaceRouter.HandleFunc("/-/collaborators", invite.Store).Methods("POST")
+	namespaceRouter.HandleFunc("/-/collaborators/{username}", collaborator.Destroy).Methods("DELETE")
 	namespaceRouter.HandleFunc("", namespace.Update).Methods("PATCH")
 	namespaceRouter.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	namespaceRouter.Use(mw.Gate(gateNamespace(store)))

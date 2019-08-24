@@ -1,0 +1,99 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type SettingsPage struct {
+	template.BasePage
+
+	User *model.User
+}
+
+type ShowInvites struct {
+	SettingsPage
+
+	CSRF    string
+	Invites []*model.Invite
+}
+%}
+
+{% collapsespace %}
+{% func (p *SettingsPage) Title() %}
+	Settings
+{% endfunc %}
+
+{% func (p *ShowInvites) Title() %}
+	Settings - Namespace Invites
+{% endfunc %}
+
+{% func (p *SettingsPage) Body() %}
+{% endfunc %}
+
+{% func (p *ShowInvites) Body() %}
+	<div class="panel">
+		{% if len(p.Invites) == 0 %}
+			<div class="panel-message muted">No new Namespace invites.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAMESPACE</th>
+						<th>INVITED BY</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, i := range p.Invites %}
+						<tr>
+							<td>{%s i.Namespace.Path %}</td>
+							<td>{%s i.Inviter.Username %}</td>
+							<td class="align-right">
+								<form method="POST" action="{%s i.UIEndpoint() %}" class="inline-block">
+									{%s= p.CSRF %}
+									<input type="hidden" name="_method" value="PATCH"/>
+									<button type="submit" class="btn btn-primary">Accept</button>
+								</form>
+								<form method="POST" action="{%s i.UIEndpoint() %}" class="inline-block">
+									{%s= p.CSRF %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Decline</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *SettingsPage) Header() %}
+	Settings
+{% endfunc %}
+
+{% func (p *ShowInvites) Header() %}
+	Settings - Namespace Invites
+{% endfunc %}
+
+{% func (p *SettingsPage) Actions() %}{% endfunc %}
+
+{% func (p *SettingsPage) Navigation() %}
+	<li>
+		{% if p.URI == "/settings" %}
+			<a href="/settings" class="active">{% cat "../../svgs/user.svg" %}<span>Account</span></a>
+		{% else %}
+			<a href="/settings">{% cat "../../svgs/user.svg" %}<span>Account</span></a>
+		{% endif %}
+	</li>
+	<li>
+		{% if p.URI == "/settings/invites" %}
+			<a href="/settings/invites" class="active">{% cat "../../svgs/folder.svg" %}<span>Invites</span></a>
+		{% else %}
+			<a href="/settings/invites">{% cat "../../svgs/folder.svg" %}<span>Invites</span></a>
+		{% endif %}
+	</li>
+{% endfunc %}
+{% endcollapsespace %}

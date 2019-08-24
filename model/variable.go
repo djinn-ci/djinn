@@ -47,6 +47,18 @@ type BuildVariableStore struct {
 	Variable *Variable
 }
 
+func buildVariableToInterface(bvv ...*BuildVariable) func(i int) Interface {
+	return func(i int) Interface {
+		return bvv[i]
+	}
+}
+
+func variableToInterface(vv ...*Variable) func(i int) Interface {
+	return func(i int) Interface {
+		return vv[i]
+	}
+}
+
 func (b BuildVariable) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id":    b.BuildID,
@@ -76,13 +88,9 @@ func (s BuildVariableStore) All(opts ...query.Option) ([]*BuildVariable, error) 
 }
 
 func (s BuildVariableStore) Create(bvv ...*BuildVariable) error {
-	ii := make([]Interface, 0, len(bvv))
+	models := interfaceSlice(len(bvv), buildVariableToInterface(bvv...))
 
-	for _, bv := range bvv {
-		ii = append(ii, bv)
-	}
-
-	return errors.Err(s.Store.Create(BuildVariableTable, ii...))
+	return errors.Err(s.Store.Create(BuildVariableTable, models...))
 }
 
 func (s BuildVariableStore) Copy(vv []*Variable) error {
@@ -210,11 +218,15 @@ func (s VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 }
 
 func (s VariableStore) Create(vv ...*Variable) error {
-	return errors.Err(s.Store.Create(VariableTable, s.interfaceSlice(vv...)...))
+	models := interfaceSlice(len(vv), variableToInterface(vv...))
+
+	return errors.Err(s.Store.Create(VariableTable, models...))
 }
 
 func (s VariableStore) Delete(vv ...*Variable) error {
-	return errors.Err(s.Store.Delete(VariableTable, s.interfaceSlice(vv...)...))
+	models := interfaceSlice(len(vv), variableToInterface(vv...))
+
+	return errors.Err(s.Store.Delete(VariableTable, models...))
 }
 
 func (s VariableStore) findBy(col string, val interface{}) (*Variable, error) {

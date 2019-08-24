@@ -61,20 +61,35 @@ var (
 	VariableTable      = "variables"
 )
 
-func mapKey(key string, ii []Interface) []interface{} {
-	ret := make([]interface{}, 0, len(ii))
+// Convert a slice of models of length l, into a slice of model.Interface. The
+// given callback takes the current index of the new model.Interface slice as
+// its only argument. It is expected for this index to be used to return the
+// original type that implements model.Interface from a source slice.
+func interfaceSlice(l int, get func(i int) Interface) []Interface {
+	models := make([]Interface, l, l)
 
-	for _, i := range ii {
-		val, ok := i.Values()[key]
+	for i := range models {
+		models[i] = get(i)
+	}
+
+	return models
+}
+
+// Return a slice of values for the given key from the given slice of models.
+func mapKey(key string, models []Interface) []interface{} {
+	vals := make([]interface{}, 0, len(models))
+
+	for _, m := range models {
+		val, ok := m.Values()[key]
 
 		if !ok {
 			continue
 		}
 
-		ret = append(ret, val)
+		vals = append(vals, val)
 	}
 
-	return ret
+	return vals
 }
 
 func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {

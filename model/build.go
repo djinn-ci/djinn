@@ -48,6 +48,12 @@ type BuildStore struct {
 	Namespace *Namespace
 }
 
+func buildToInterface(bb ...*Build) func (i int) Interface {
+	return func(i int) Interface {
+		return bb[i]
+	}
+}
+
 func BuildSearch(search string) query.Option {
 	return func(q query.Query) query.Query {
 		if search == "" {
@@ -541,7 +547,9 @@ func (s BuildStore) All(opts ...query.Option) ([]*Build, error) {
 }
 
 func (s BuildStore) Create(bb ...*Build) error {
-	return errors.Err(s.Store.Create(BuildTable, s.interfaceSlice(bb...)...))
+	models := interfaceSlice(len(bb), buildToInterface(bb...))
+
+	return errors.Err(s.Store.Create(BuildTable, models...))
 }
 
 func (s BuildStore) Find(id int64) (*Build, error) {
@@ -751,16 +759,8 @@ func (s BuildStore) New() *Build {
 	return b
 }
 
-func (s BuildStore) interfaceSlice(bb ...*Build) []Interface {
-	ii := make([]Interface, len(bb), len(bb))
-
-	for i, b := range bb {
-		ii[i] = b
-	}
-
-	return ii
-}
-
 func (s BuildStore) Update(bb ...*Build) error {
-	return errors.Err(s.Store.Update(BuildTable, s.interfaceSlice(bb...)...))
+	models := interfaceSlice(len(bb), buildToInterface(bb...))
+
+	return errors.Err(s.Store.Update(BuildTable, models...))
 }

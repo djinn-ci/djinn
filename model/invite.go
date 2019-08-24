@@ -26,6 +26,12 @@ type InviteStore struct {
 	Namespace *Namespace
 }
 
+func inviteToInterface(ii ...*Invite) func(i int) Interface {
+	return func(i int) Interface {
+		return ii[i]
+	}
+}
+
 func (i *Invite) LoadNamespace() error {
 	var err error
 
@@ -72,11 +78,15 @@ func (s InviteStore) All(opts ...query.Option) ([]*Invite, error) {
 }
 
 func (s InviteStore) Create(ii ...*Invite) error {
-	return errors.Err(s.Store.Create(InviteTable, s.interfaceSlice(ii...)...))
+	models := interfaceSlice(len(ii), inviteToInterface(ii...))
+
+	return errors.Err(s.Store.Create(InviteTable, models...))
 }
 
 func (s InviteStore) Delete(ii ...*Invite) error {
-	return errors.Err(s.Store.Delete(InviteTable, s.interfaceSlice(ii...)...))
+	models := interfaceSlice(len(ii), inviteToInterface(ii...))
+
+	return errors.Err(s.Store.Delete(InviteTable, models...))
 }
 
 func (s InviteStore) Find(id int64) (*Invite, error) {
@@ -129,16 +139,6 @@ func (s InviteStore) FindByHandle(handle string) (*Invite, error) {
 	return i, errors.Err(err)
 }
 
-func (s InviteStore) interfaceSlice(invites ...*Invite) []Interface {
-	ii := make([]Interface, len(invites), len(invites))
-
-	for i, inv := range invites {
-		ii[i] = inv
-	}
-
-	return ii
-}
-
 func loadInviteInviter(ii []*Invite) func(i int, u *User) {
 	return func(i int, u *User) {
 		inv := ii[i]
@@ -170,13 +170,15 @@ func (s InviteStore) Index(opts ...query.Option) ([]*Invite, error) {
 		Store: s.Store,
 	}
 
-	err = users.Load(mapKey("inviter_id", s.interfaceSlice(ii...)), loadInviteInviter(ii))
+	models := interfaceSlice(len(ii), inviteToInterface(ii...))
+
+	err = users.Load(mapKey("inviter_id", models), loadInviteInviter(ii))
 
 	namespaces := NamespaceStore{
 		Store: s.Store,
 	}
 
-	err = namespaces.Load(mapKey("namespace_id", s.interfaceSlice(ii...)), loadInviteNamespace(ii))
+	err = namespaces.Load(mapKey("namespace_id", models), loadInviteNamespace(ii))
 
 	return ii, errors.Err(err)
 }

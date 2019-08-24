@@ -29,6 +29,12 @@ type KeyStore struct {
 	Namespace *Namespace
 }
 
+func keyToInterface(kk ...*Key) func(i int) Interface {
+	return func(i int) Interface {
+		return kk[i]
+	}
+}
+
 func (k *Key) LoadNamespace() error {
 	var err error
 
@@ -85,22 +91,16 @@ func (s KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	return kk, errors.Err(err)
 }
 
-func (s KeyStore) interfaceSlice(kk ...*Key) []Interface {
-	ii := make([]Interface, len(kk), len(kk))
-
-	for i, k := range kk {
-		ii[i] = k
-	}
-
-	return ii
-}
-
 func (s KeyStore) Create(kk ...*Key) error {
-	return errors.Err(s.Store.Create(KeyTable, s.interfaceSlice(kk...)...))
+	models := interfaceSlice(len(kk), keyToInterface(kk...))
+
+	return errors.Err(s.Store.Create(KeyTable, models...))
 }
 
 func (s KeyStore) Delete(kk ...*Key) error {
-	return errors.Err(s.Store.Delete(KeyTable, s.interfaceSlice(kk...)...))
+	models := interfaceSlice(len(kk), keyToInterface(kk...))
+
+	return errors.Err(s.Store.Delete(KeyTable, models...))
 }
 
 func (s KeyStore) Index(opts ...query.Option) ([]*Key, error) {
@@ -196,5 +196,7 @@ func (s KeyStore) FindByName(name string) (*Key, error) {
 }
 
 func (s KeyStore) Update(kk ...*Key) error {
-	return errors.Err(s.Store.Update(KeyTable, s.interfaceSlice(kk...)...))
+	models := interfaceSlice(len(kk), keyToInterface(kk...))
+
+	return errors.Err(s.Store.Update(KeyTable, models...))
 }

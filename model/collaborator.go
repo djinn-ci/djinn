@@ -25,6 +25,12 @@ type CollaboratorStore struct {
 	User      *User
 }
 
+func collaboratorToInterface(cc ...*Collaborator) func(i int) Interface {
+	return func(i int) Interface {
+		return cc[i]
+	}
+}
+
 func loadCollaboratorUsers(cc []*Collaborator) func(i int, u *User) {
 	return func(i int, u *User) {
 		c := cc[i]
@@ -89,17 +95,23 @@ func (s CollaboratorStore) Index(opts ...query.Option) ([]*Collaborator, error) 
 		Store: s.Store,
 	}
 
-	err = users.Load(mapKey("user_id", s.interfaceSlice(cc...)), loadCollaboratorUsers(cc))
+	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
+
+	err = users.Load(mapKey("user_id", models), loadCollaboratorUsers(cc))
 
 	return cc, errors.Err(err)
 }
 
 func (s CollaboratorStore) Create(cc ...*Collaborator) error {
-	return errors.Err(s.Store.Create(CollaboratorTable, s.interfaceSlice(cc...)...))
+	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
+
+	return errors.Err(s.Store.Create(CollaboratorTable, models...))
 }
 
 func (s CollaboratorStore) Delete(cc ...*Collaborator) error {
-	return errors.Err(s.Store.Delete(CollaboratorTable, s.interfaceSlice(cc...)...))
+	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
+
+	return errors.Err(s.Store.Delete(CollaboratorTable, models...))
 }
 
 func (c *Collaborator) LoadUser() error {
@@ -148,16 +160,6 @@ func (s CollaboratorStore) FindByHandle(handle string) (*Collaborator, error) {
 	}
 
 	return c, errors.Err(err)
-}
-
-func (s CollaboratorStore) interfaceSlice(cc ...*Collaborator) []Interface {
-	ii := make([]Interface, len(cc), len(cc))
-
-	for i, c := range cc {
-		ii[i] = c
-	}
-
-	return ii
 }
 
 func (s CollaboratorStore) New() *Collaborator {

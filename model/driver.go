@@ -24,6 +24,12 @@ type DriverStore struct {
 	Build *Build
 }
 
+func driverToInterface(dd ...*Driver) func(i int) Interface {
+	return func(i int) Interface {
+		return dd[i]
+	}
+}
+
 func (d Driver) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id": d.BuildID,
@@ -32,18 +38,10 @@ func (d Driver) Values() map[string]interface{} {
 	}
 }
 
-func (s DriverStore) interfaceSlice(dd ...*Driver) []Interface {
-	ii := make([]Interface, len(dd), len(dd))
-
-	for i, d := range dd {
-		ii[i] = d
-	}
-
-	return ii
-}
-
 func (s DriverStore) Create(dd ...*Driver) error {
-	return errors.Err(s.Store.Create(DriverTable, s.interfaceSlice(dd...)...))
+	models := interfaceSlice(len(dd), driverToInterface(dd...))
+
+	return errors.Err(s.Store.Create(DriverTable, models...))
 }
 
 func (s DriverStore) First() (*Driver, error) {

@@ -49,6 +49,12 @@ type JobDependencyStore struct {
 	Job *Job
 }
 
+func jobToInterface(jj ...*Job) func(i int) Interface {
+	return func(i int) Interface {
+		return jj[i]
+	}
+}
+
 func (j *Job) ArtifactStore() ArtifactStore {
 	return ArtifactStore{
 		Store: Store{
@@ -175,18 +181,10 @@ func (s JobDependencyStore) New() *JobDependency {
 	return d
 }
 
-func (s JobStore) interfaceSlice(jj ...*Job) []Interface {
-	ii := make([]Interface, len(jj), len(jj))
-
-	for i, j := range jj {
-		ii[i] = j
-	}
-
-	return ii
-}
-
 func (s JobStore) Create(jj ...*Job) error {
-	return errors.Err(s.Store.Create(JobTable, s.interfaceSlice(jj...)...))
+	models := interfaceSlice(len(jj), jobToInterface(jj...))
+
+	return errors.Err(s.Store.Create(JobTable, models...))
 }
 
 func (s JobStore) All(opts ...query.Option) ([]*Job, error) {
@@ -341,7 +339,9 @@ func (s JobStore) Show(id int64) (*Job, error) {
 }
 
 func (s JobStore) Update(jj ...*Job) error {
-	return errors.Err(s.Store.Update(JobTable, s.interfaceSlice(jj...)...))
+	models := interfaceSlice(len(jj), jobToInterface(jj...))
+
+	return errors.Err(s.Store.Update(JobTable, models...))
 }
 
 func (s JobDependencyStore) All(opts ...query.Option) ([]*JobDependency, error) {

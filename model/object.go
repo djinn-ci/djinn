@@ -55,6 +55,18 @@ type BuildObjectStore struct {
 	Object *Object
 }
 
+func buildObjectToInterface(boo ...*BuildObject) func(i int) Interface {
+	return func(i int) Interface {
+		return boo[i]
+	}
+}
+
+func objectToInterface(oo ...*Object) func(i int) Interface {
+	return func(i int) Interface {
+		return oo[i]
+	}
+}
+
 func (bo BuildObject) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id":   bo.BuildID,
@@ -159,11 +171,15 @@ func (s ObjectStore) interfaceSlice(oo ...*Object) []Interface {
 }
 
 func (s ObjectStore) Create(oo ...*Object) error {
-	return errors.Err(s.Store.Create(ObjectTable, s.interfaceSlice(oo...)...))
+	models := interfaceSlice(len(oo), objectToInterface(oo...))
+
+	return errors.Err(s.Store.Create(ObjectTable, models...))
 }
 
 func (s ObjectStore) Delete(oo ...*Object) error {
-	return errors.Err(s.Store.Delete(ObjectTable, s.interfaceSlice(oo...)...))
+	models := interfaceSlice(len(oo), objectToInterface(oo...))
+
+	return errors.Err(s.Store.Delete(ObjectTable, models...))
 }
 
 func (s ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
@@ -293,13 +309,9 @@ func (s BuildObjectStore) All(opts ...query.Option) ([]*BuildObject, error) {
 }
 
 func (s BuildObjectStore) Create(boo ...*BuildObject) error {
-	ii := make([]Interface, 0, len(boo))
+	models := interfaceSlice(len(boo), buildObjectToInterface(boo...))
 
-	for _, bo := range boo {
-		ii = append(ii, bo)
-	}
-
-	return errors.Err(s.Store.Create(BuildObjectTable, ii...))
+	return errors.Err(s.Store.Create(BuildObjectTable, models...))
 }
 
 func (s BuildObjectStore) First() (*BuildObject, error) {

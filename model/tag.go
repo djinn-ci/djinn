@@ -26,6 +26,12 @@ type TagStore struct {
 	Build *Build
 }
 
+func tagToInterface(tt ...*Tag) func(i int) Interface {
+	return func(i int) Interface {
+		return tt[i]
+	}
+}
+
 func (t Tag) UIEndpoint(uri ...string) string {
 	if t.Build == nil || t.Build.IsZero() {
 		return ""
@@ -67,11 +73,15 @@ func (s TagStore) All(opts ...query.Option) ([]*Tag, error) {
 }
 
 func (s TagStore) Create(tt ...*Tag) error {
-	return errors.Err(s.Store.Create(TagTable, s.interfaceSlice(tt...)...))
+	models := interfaceSlice(len(tt), tagToInterface(tt...))
+
+	return errors.Err(s.Store.Create(TagTable, models...))
 }
 
 func (s TagStore) Delete(tt ...*Tag) error {
-	return errors.Err(s.Store.Delete(TagTable, s.interfaceSlice(tt...)...))
+	models := interfaceSlice(len(tt), tagToInterface(tt...))
+
+	return errors.Err(s.Store.Delete(TagTable, models...))
 }
 
 func (s TagStore) Find(id int64) (*Tag, error) {
@@ -102,16 +112,6 @@ func (s TagStore) Index(opts ...query.Option) ([]*Tag, error) {
 	err = s.LoadUsers(tt)
 
 	return tt, errors.Err(err)
-}
-
-func (s TagStore) interfaceSlice(tt ...*Tag) []Interface {
-	ii := make([]Interface, len(tt), len(tt))
-
-	for i, t := range tt {
-		ii[i] = t
-	}
-
-	return ii
 }
 
 func (s TagStore) LoadUsers(tt []*Tag) error {

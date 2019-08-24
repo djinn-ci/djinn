@@ -22,6 +22,12 @@ type UserStore struct {
 	Store
 }
 
+func userToInterface(uu ...*User) func(i int) Interface {
+	return func(i int) Interface {
+		return uu[i]
+	}
+}
+
 func (u *User) BuildStore() BuildStore {
 	return BuildStore{
 		Store: Store{
@@ -130,18 +136,10 @@ func (s UserStore) All(opts ...query.Option) ([]*User, error) {
 	return uu, nil
 }
 
-func (s UserStore) interfaceSlice(uu ...*User) []Interface {
-	ii := make([]Interface, len(uu), len(uu))
-
-	for i, u := range uu {
-		ii[i] = u
-	}
-
-	return ii
-}
-
 func (s UserStore) Create(uu ...*User) error {
-	return errors.Err(s.Store.Create(UserTable, s.interfaceSlice(uu...)...))
+	models := interfaceSlice(len(uu), userToInterface(uu...))
+
+	return errors.Err(s.Store.Create(UserTable, models...))
 }
 
 func (s UserStore) Find(id int64) (*User, error) {
@@ -226,5 +224,7 @@ func (s UserStore) Load(ids []interface{}, load func(i int, u *User)) error {
 }
 
 func (s UserStore) Update(uu ...*User) error {
-	return errors.Err(s.Store.Update(UserTable, s.interfaceSlice(uu...)...))
+	models := interfaceSlice(len(uu), userToInterface(uu...))
+
+	return errors.Err(s.Store.Update(UserTable, models...))
 }

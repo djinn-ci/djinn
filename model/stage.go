@@ -30,6 +30,12 @@ type StageStore struct {
 	Build *Build
 }
 
+func stageToInterface(ss ...*Stage) func(i int) Interface {
+	return func(i int) Interface {
+		return ss[i]
+	}
+}
+
 func (s *Stage) JobStore() JobStore {
 	return JobStore{
 		Store: Store{
@@ -73,18 +79,10 @@ func (s StageStore) All(opts ...query.Option) ([]*Stage, error) {
 	return ss, errors.Err(err)
 }
 
-func (s StageStore) interfaceSlice(ss ...*Stage) []Interface {
-	ii := make([]Interface, len(ss), len(ss))
-
-	for i, st := range ss {
-		ii[i] = st
-	}
-
-	return ii
-}
-
 func (s StageStore) Create(ss ...*Stage) error {
-	return errors.Err(s.Store.Create(StageTable, s.interfaceSlice(ss...)...))
+	models := interfaceSlice(len(ss), stageToInterface(ss...))
+
+	return errors.Err(s.Store.Create(StageTable, models...))
 }
 
 func (s StageStore) findBy(col string, val interface{}) (*Stage, error) {
@@ -164,5 +162,7 @@ func (s StageStore) New() *Stage {
 }
 
 func (s StageStore) Update(ss ...*Stage) error {
-	return errors.Err(s.Store.Update(StageTable, s.interfaceSlice(ss...)...))
+	models := interfaceSlice(len(ss), stageToInterface(ss...))
+
+	return errors.Err(s.Store.Update(StageTable, models...))
 }

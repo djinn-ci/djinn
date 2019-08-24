@@ -32,6 +32,12 @@ type ArtifactStore struct {
 	Job   *Job
 }
 
+func artifactToInterface(aa ...*Artifact) func(i int) Interface {
+	return func(i int) Interface {
+		return aa[i]
+	}
+}
+
 func (a Artifact) IsZero() bool {
 	return a.Model.IsZero() &&
 		a.BuildID == 0 &&
@@ -88,7 +94,9 @@ func (s ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
 }
 
 func (s ArtifactStore) Create(aa ...*Artifact) error {
-	return errors.Err(s.Store.Create(ArtifactTable, s.interfaceSlice(aa...)...))
+	models := interfaceSlice(len(aa), artifactToInterface(aa...))
+
+	return errors.Err(s.Store.Create(ArtifactTable, models...))
 }
 
 func (s ArtifactStore) findBy(col string, val interface{}) (*Artifact, error) {
@@ -121,16 +129,6 @@ func (s ArtifactStore) Index(opts ...query.Option) ([]*Artifact, error) {
 	return aa, errors.Err(err)
 }
 
-func (s ArtifactStore) interfaceSlice(aa ...*Artifact) []Interface {
-	ii := make([]Interface, len(aa), len(aa))
-
-	for i, a := range aa {
-		ii[i] = a
-	}
-
-	return ii
-}
-
 func (s ArtifactStore) New() *Artifact {
 	a := &Artifact{
 		Model: Model{
@@ -152,5 +150,7 @@ func (s ArtifactStore) New() *Artifact {
 }
 
 func (s ArtifactStore) Update(aa ...*Artifact) error {
-	return errors.Err(s.Store.Update(ArtifactTable, s.interfaceSlice(aa...)...))
+	models := interfaceSlice(len(aa), artifactToInterface(aa...))
+
+	return errors.Err(s.Store.Update(ArtifactTable, models...))
 }

@@ -34,6 +34,12 @@ type TriggerStore struct {
 	Build *Build
 }
 
+func triggerToInterface(tt ...*Trigger) func(i int) Interface {
+	return func(i int) Interface {
+		return tt[i]
+	}
+}
+
 func (t *triggerData) Scan(val interface{}) error {
 	b, err := types.Scan(val)
 
@@ -72,13 +78,9 @@ func (t Trigger) Values() map[string]interface{} {
 }
 
 func (s TriggerStore) Create(tt ...*Trigger) error {
-	ii := make([]Interface, 0, len(tt))
+	models := interfaceSlice(len(tt), triggerToInterface(tt...))
 
-	for _, t := range tt {
-		ii = append(ii, t)
-	}
-
-	return errors.Err(s.Store.Create(TriggerTable, ii...))
+	return errors.Err(s.Store.Create(TriggerTable, models...))
 }
 
 func (s TriggerStore) First() (*Trigger, error) {

@@ -41,6 +41,12 @@ type NamespaceStore struct {
 	Namespace *Namespace
 }
 
+func namespaceToInterface(nn ...*Namespace) func(i int) Interface {
+	return func(i int) Interface {
+		return nn[i]
+	}
+}
+
 func (n *Namespace) BuildStore() BuildStore {
 	return BuildStore{
 		Store: Store{
@@ -239,7 +245,9 @@ func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 }
 
 func (s NamespaceStore) Create(nn ...*Namespace) error {
-	return errors.Err(s.Store.Create(NamespaceTable, s.interfaceSlice(nn...)...))
+	models := interfaceSlice(len(nn), namespaceToInterface(nn...))
+
+	return errors.Err(s.Store.Create(NamespaceTable, models...))
 }
 
 func (s NamespaceStore) Delete(nn ...*Namespace) error {
@@ -411,16 +419,6 @@ func (s NamespaceStore) Index(opts ...query.Option) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
-func (s NamespaceStore) interfaceSlice(nn ...*Namespace) []Interface {
-	ii := make([]Interface, len(nn), len(nn))
-
-	for i, n := range nn {
-		ii[i] = n
-	}
-
-	return ii
-}
-
 func (s NamespaceStore) Load(ids []interface{}, load func(i int, n *Namespace)) error {
 	if len(ids) == 0 {
 		return nil
@@ -533,5 +531,7 @@ func (s NamespaceStore) New() *Namespace {
 }
 
 func (s NamespaceStore) Update(nn ...*Namespace) error {
-	return errors.Err(s.Store.Update(NamespaceTable, s.interfaceSlice(nn...)...))
+	models := interfaceSlice(len(nn), namespaceToInterface(nn...))
+
+	return errors.Err(s.Store.Update(NamespaceTable, models...))
 }

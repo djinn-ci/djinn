@@ -43,6 +43,23 @@ func (u *User) IsZero() bool {
 		!u.DeletedAt.Valid
 }
 
+func (u *User) CollaboratorStore() CollaboratorStore {
+	return CollaboratorStore{
+		Store: Store{
+			DB: u.DB,
+		},
+		User: u,
+	}
+}
+
+func (u *User) InviteStore() InviteStore {
+	return InviteStore{
+		Store: Store{
+			DB: u.DB,
+		},
+	}
+}
+
 func (u *User) KeyStore() KeyStore {
 	return KeyStore{
 		Store: Store{

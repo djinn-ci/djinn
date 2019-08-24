@@ -48,6 +48,7 @@ var (
 	BuildVariableTable = "build_variables"
 	CollaboratorTable  = "collaborators"
 	DriverTable        = "drivers"
+	InviteTable        = "invites"
 	JobTable           = "jobs"
 	JobDependencyTable = "job_dependencies"
 	KeyTable           = "keys"
@@ -59,6 +60,22 @@ var (
 	UserTable          = "users"
 	VariableTable      = "variables"
 )
+
+func mapKey(key string, ii []Interface) []interface{} {
+	ret := make([]interface{}, 0, len(ii))
+
+	for _, i := range ii {
+		val, ok := i.Values()[key]
+
+		if !ok {
+			continue
+		}
+
+		ret = append(ret, val)
+	}
+
+	return ret
+}
 
 func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
 	host, port, err := net.SplitHostPort(addr)

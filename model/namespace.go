@@ -59,6 +59,15 @@ func (n *Namespace) CollaboratorStore() CollaboratorStore {
 	}
 }
 
+func (n *Namespace) InviteStore() InviteStore {
+	return InviteStore{
+		Store: Store{
+			DB: n.DB,
+		},
+		Namespace: n,
+	}
+}
+
 func (n *Namespace) KeyStore() KeyStore {
 	return KeyStore{
 		Store: Store{

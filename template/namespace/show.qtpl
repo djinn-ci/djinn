@@ -1,5 +1,6 @@
 {%
 import (
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
@@ -49,7 +50,8 @@ type ShowCollaborators struct {
 	ShowPage
 
 	CSRF          string
-	Search        string
+	Fields        map[string]string
+	Errors        form.Errors
 	Collaborators []*model.Collaborator
 }
 %}
@@ -73,6 +75,10 @@ type ShowCollaborators struct {
 
 {% func (p *ShowKeys) Title() %}
 	{%s p.Namespace.Path %} - Keys
+{% endfunc %}
+
+{% func (p *ShowCollaborators) Title() %}
+	{%s p.Namespace.Path %} - Collaborators
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
@@ -101,14 +107,39 @@ type ShowCollaborators struct {
 			<form method="POST" action="{%s p.Namespace.UIEndpoint("-", "collaborators") %}">
 				{%s= p.CSRF %}
 				<div class="form-field form-field-inline">
-					<input type="text" class="form-text" name="handle" placeholder="Add a collaborator..." autocomplete="off"/>
+					<input type="text" class="form-text" name="handle" placeholder="Add a collaborator..." value="{%s p.Fields["handle"] %}" autocomplete="off"/>
 					<button type="submit" class="btn btn-primary">Add</button>
+					<span class="form-error">{%s p.Errors.First("handle") %}</span>
 				</div>
 			</form>
 		</div>
 		{% if len(p.Collaborators) == 0 %}
 			<div class="panel-message muted">Share resources with other users by adding them as a collaborator.</div>
 		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>USER</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, c := range p.Collaborators %}
+						<tr>
+							<td>{%s c.User.Username %} &lt;{%s c.User.Email %}&gt;</td>
+							{% if p.User != nil && !p.User.IsZero() %}
+								<td class="align-right">
+									<form method="POST" action="{%s c.UIEndpoint() %}">
+										{%s= p.CSRF %}
+										<input type="hidden" name="_method" value="DELETE"/>
+										<button type="submit" class="btn btn-danger">Delete</button>
+									</form>
+								</td>
+							{% endif %}
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
 		{% endif %}
 	</div>
 {% endfunc %}

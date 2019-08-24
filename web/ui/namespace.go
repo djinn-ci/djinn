@@ -315,7 +315,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		break
 	case "collaborators":
-		cc, err := n.CollaboratorStore().All(model.Search("username", search))
+		cc, err := n.CollaboratorStore().Index()
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -324,9 +324,10 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		p = &namespace.ShowCollaborators{
-			ShowPage:     sp,
-			CSRF:         string(csrf.TemplateField(r)),
-			Search:       search,
+			ShowPage:      sp,
+			CSRF:          string(csrf.TemplateField(r)),
+			Fields:        h.Form(w, r),
+			Errors:        h.Errors(w, r),
 			Collaborators: cc,
 		}
 

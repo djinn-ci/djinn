@@ -1,3 +1,12 @@
+CREATE TABLE invites (
+	id           SERIAL PRIMARY KEY,
+	namespace_id INT NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,
+	invitee_id   INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	inviter_id   INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+	updated_at   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE TABLE collaborators (
 	id           SERIAL PRIMARY KEY,
 	namespace_id INT NOT NULL REFERENCES namespaces(id) ON DELETE CASCADE,

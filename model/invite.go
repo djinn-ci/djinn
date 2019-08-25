@@ -194,7 +194,7 @@ func (s InviteStore) New() *Invite {
 	}
 
 	if s.Namespace != nil {
-		i.NamespaceID = s.Namespace.ID
+		i.NamespaceID = s.Namespace.RootID.Int64
 	}
 
 	return i

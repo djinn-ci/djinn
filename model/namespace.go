@@ -270,47 +270,16 @@ func (s NamespaceStore) Create(nn ...*Namespace) error {
 }
 
 func (s NamespaceStore) Delete(nn ...*Namespace) error {
-	rootIds := make([]interface{}, len(nn), len(nn))
+	ids := make([]interface{}, len(nn), len(nn))
 
 	for i, n := range nn {
-		rootIds[i] = n.ID
+		ids[i] = n.ID
 	}
 
-	q := query.Select(
-		query.Columns("id"),
+	q := query.Delete(
 		query.Table(NamespaceTable),
-		query.WhereIn("root_id", rootIds...),
+		query.WhereIn("root_id", ids...),
 	)
-
-	children := make([]*Namespace, 0)
-
-	err := s.Select(&children, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	opts := []query.Option{
-		query.Table(NamespaceTable),
-	}
-
-	if len(children) > 0 {
-		ids := make([]interface{}, len(children), len(children))
-
-		for i, n := range children {
-			ids[i] = n.ID
-		}
-
-		opts = append(opts, query.Or(query.WhereIn("id", rootIds...), query.WhereIn("id", ids...)))
-	} else {
-		opts = append(opts, query.WhereIn("id", rootIds...))
-	}
-
-	q = query.Delete(opts...)
 
 	stmt, err := s.Prepare(q.Build())
 

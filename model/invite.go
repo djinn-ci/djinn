@@ -172,7 +172,9 @@ func (s InviteStore) Index(opts ...query.Option) ([]*Invite, error) {
 
 	models := interfaceSlice(len(ii), inviteToInterface(ii...))
 
-	err = users.Load(mapKey("inviter_id", models), loadInviteInviter(ii))
+	if err := users.Load(mapKey("inviter_id", models), loadInviteInviter(ii)); err != nil {
+		return ii, errors.Err(err)
+	}
 
 	namespaces := NamespaceStore{
 		Store: s.Store,

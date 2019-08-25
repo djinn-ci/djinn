@@ -29,7 +29,7 @@ type KeyStore struct {
 	Namespace *Namespace
 }
 
-func keyToInterface(kk ...*Key) func(i int) Interface {
+func keyToInterface(kk []*Key) func(i int) Interface {
 	return func(i int) Interface {
 		return kk[i]
 	}
@@ -92,13 +92,13 @@ func (s KeyStore) All(opts ...query.Option) ([]*Key, error) {
 }
 
 func (s KeyStore) Create(kk ...*Key) error {
-	models := interfaceSlice(len(kk), keyToInterface(kk...))
+	models := interfaceSlice(len(kk), keyToInterface(kk))
 
 	return errors.Err(s.Store.Create(KeyTable, models...))
 }
 
 func (s KeyStore) Delete(kk ...*Key) error {
-	models := interfaceSlice(len(kk), keyToInterface(kk...))
+	models := interfaceSlice(len(kk), keyToInterface(kk))
 
 	return errors.Err(s.Store.Delete(KeyTable, models...))
 }
@@ -110,49 +110,51 @@ func (s KeyStore) Index(opts ...query.Option) ([]*Key, error) {
 		return kk, errors.Err(err)
 	}
 
+	if err := s.LoadNamespaces(kk); err != nil {
+		return kk, errors.Err(err)
+	}
+
+	nn := make([]*Namespace, 0, len(kk))
+
+	for _, k := range kk {
+		if k.Namespace != nil {
+			nn = append(nn, k.Namespace)
+		}
+	}
+
 	namespaces := NamespaceStore{
 		Store: s.Store,
 	}
 
-	ids := make([]interface{}, len(kk), len(kk))
+	err = namespaces.LoadUsers(nn)
 
-	for i, k := range kk {
-		if k.NamespaceID.Valid {
-			ids[i] = k.NamespaceID.Int64
-		}
-	}
+	return kk, errors.Err(err)
+}
 
-	nn := make([]*Namespace, 0, len(ids))
-	userIds := make([]interface{}, 0, len(ids))
-
-	err = namespaces.Load(ids, func(i int, n *Namespace) {
+func (s KeyStore) loadNamespace(kk []*Key) func(i int, n *Namespace) {
+	return func(i int, n *Namespace) {
 		k := kk[i]
 
 		if k.NamespaceID.Int64 == n.ID {
-			nn = append(nn, n)
-			userIds = append(userIds, n.UserID)
-
 			k.Namespace = n
 		}
-	})
+	}
+}
 
-	if err != nil {
-		return kk, errors.Err(err)
+func (s KeyStore) LoadNamespaces(kk []*Key) error {
+	if len(kk) == 0 {
+		return nil
 	}
 
-	users := UserStore{
+	models := interfaceSlice(len(kk), keyToInterface(kk))
+
+	namespaces := NamespaceStore{
 		Store: s.Store,
 	}
 
-	err = users.Load(userIds, func(i int, u *User) {
-		n := nn[i]
+	err := namespaces.Load(mapKey("namespace_id", models), s.loadNamespace(kk))
 
-		if n.UserID == u.ID {
-			n.User = u
-		}
-	})
-
-	return kk, errors.Err(err)
+	return errors.Err(err)
 }
 
 func (s KeyStore) New() *Key {
@@ -196,7 +198,7 @@ func (s KeyStore) FindByName(name string) (*Key, error) {
 }
 
 func (s KeyStore) Update(kk ...*Key) error {
-	models := interfaceSlice(len(kk), keyToInterface(kk...))
+	models := interfaceSlice(len(kk), keyToInterface(kk))
 
 	return errors.Err(s.Store.Update(KeyTable, models...))
 }

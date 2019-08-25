@@ -30,7 +30,7 @@ type StageStore struct {
 	Build *Build
 }
 
-func stageToInterface(ss ...*Stage) func(i int) Interface {
+func stageToInterface(ss []*Stage) func(i int) Interface {
 	return func(i int) Interface {
 		return ss[i]
 	}
@@ -80,7 +80,7 @@ func (s StageStore) All(opts ...query.Option) ([]*Stage, error) {
 }
 
 func (s StageStore) Create(ss ...*Stage) error {
-	models := interfaceSlice(len(ss), stageToInterface(ss...))
+	models := interfaceSlice(len(ss), stageToInterface(ss))
 
 	return errors.Err(s.Store.Create(StageTable, models...))
 }
@@ -118,18 +118,14 @@ func (s StageStore) LoadJobs(ss []*Stage) error {
 		return nil
 	}
 
-	ids := make([]interface{}, len(ss), len(ss))
-
-	for i, st := range ss {
-		ids[i] = st.ID
-	}
+	models := interfaceSlice(len(ss), stageToInterface(ss))
 
 	jobs := JobStore{
 		Store: s.Store,
 		Build: s.Build,
 	}
 
-	jj, err := jobs.All(query.WhereIn("stage_id", ids...))
+	jj, err := jobs.All(query.WhereIn("stage_id", mapKey("id", models)...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -162,7 +158,7 @@ func (s StageStore) New() *Stage {
 }
 
 func (s StageStore) Update(ss ...*Stage) error {
-	models := interfaceSlice(len(ss), stageToInterface(ss...))
+	models := interfaceSlice(len(ss), stageToInterface(ss))
 
 	return errors.Err(s.Store.Update(StageTable, models...))
 }

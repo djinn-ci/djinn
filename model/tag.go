@@ -26,7 +26,7 @@ type TagStore struct {
 	Build *Build
 }
 
-func tagToInterface(tt ...*Tag) func(i int) Interface {
+func tagToInterface(tt []*Tag) func(i int) Interface {
 	return func(i int) Interface {
 		return tt[i]
 	}
@@ -73,13 +73,13 @@ func (s TagStore) All(opts ...query.Option) ([]*Tag, error) {
 }
 
 func (s TagStore) Create(tt ...*Tag) error {
-	models := interfaceSlice(len(tt), tagToInterface(tt...))
+	models := interfaceSlice(len(tt), tagToInterface(tt))
 
 	return errors.Err(s.Store.Create(TagTable, models...))
 }
 
 func (s TagStore) Delete(tt ...*Tag) error {
-	models := interfaceSlice(len(tt), tagToInterface(tt...))
+	models := interfaceSlice(len(tt), tagToInterface(tt))
 
 	return errors.Err(s.Store.Delete(TagTable, models...))
 }
@@ -114,36 +114,30 @@ func (s TagStore) Index(opts ...query.Option) ([]*Tag, error) {
 	return tt, errors.Err(err)
 }
 
+func (s TagStore) loadUser(tt []*Tag) func(i int, u *User) {
+	return func(i int, u *User) {
+		t := tt[i]
+
+		if t.UserID == u.ID {
+			t.User = u
+		}
+	}
+}
+
 func (s TagStore) LoadUsers(tt []*Tag) error {
 	if len(tt) == 0 {
 		return nil
 	}
 
-	ids := make([]interface{}, len(tt), len(tt))
-
-	for i, t := range tt {
-		ids[i] = t.UserID
-	}
+	models := interfaceSlice(len(tt), tagToInterface(tt))
 
 	users := UserStore{
 		Store: s.Store,
 	}
 
-	uu, err := users.All(query.WhereIn("id", ids...))
+	err := users.Load(mapKey("user_id", models), s.loadUser(tt))
 
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, t := range tt {
-		for _, u := range uu {
-			if t.UserID == u.ID {
-				t.User = u
-			}
-		}
-	}
-
-	return nil
+	return errors.Err(err)
 }
 
 func (s TagStore) New() *Tag {

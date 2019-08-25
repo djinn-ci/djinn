@@ -22,7 +22,7 @@ type UserStore struct {
 	Store
 }
 
-func userToInterface(uu ...*User) func(i int) Interface {
+func userToInterface(uu []*User) func(i int) Interface {
 	return func(i int) Interface {
 		return uu[i]
 	}
@@ -137,7 +137,7 @@ func (s UserStore) All(opts ...query.Option) ([]*User, error) {
 }
 
 func (s UserStore) Create(uu ...*User) error {
-	models := interfaceSlice(len(uu), userToInterface(uu...))
+	models := interfaceSlice(len(uu), userToInterface(uu))
 
 	return errors.Err(s.Store.Create(UserTable, models...))
 }
@@ -224,7 +224,7 @@ func (s UserStore) Load(ids []interface{}, load func(i int, u *User)) error {
 }
 
 func (s UserStore) Update(uu ...*User) error {
-	models := interfaceSlice(len(uu), userToInterface(uu...))
+	models := interfaceSlice(len(uu), userToInterface(uu))
 
 	return errors.Err(s.Store.Update(UserTable, models...))
 }

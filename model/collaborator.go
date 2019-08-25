@@ -31,16 +31,6 @@ func collaboratorToInterface(cc ...*Collaborator) func(i int) Interface {
 	}
 }
 
-func loadCollaboratorUsers(cc []*Collaborator) func(i int, u *User) {
-	return func(i int, u *User) {
-		c := cc[i]
-
-		if c.UserID == u.ID {
-			c.User = u
-		}
-	}
-}
-
 func (c Collaborator) IsZero() bool {
 	return c.Model.IsZero() &&
 		c.NamespaceID == 0 &&
@@ -91,15 +81,34 @@ func (s CollaboratorStore) Index(opts ...query.Option) ([]*Collaborator, error) 
 		return cc, errors.Err(err)
 	}
 
+	err = s.LoadUsers(cc)
+
+	return cc, errors.Err(err)
+}
+
+func (s CollaboratorStore) loadUser(cc []*Collaborator) func(i int, u *User) {
+	return func(i int, u *User) {
+		c := cc[i]
+
+		if c.UserID == u.ID {
+			c.User = u
+		}
+	}
+}
+
+func (s CollaboratorStore) LoadUsers(cc []*Collaborator) error {
+	if len(cc) == 0 {
+		return nil
+	}
+	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
+
 	users := UserStore{
 		Store: s.Store,
 	}
 
-	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
+	err := users.Load(mapKey("user_id", models), s.loadUser(cc))
 
-	err = users.Load(mapKey("user_id", models), loadCollaboratorUsers(cc))
-
-	return cc, errors.Err(err)
+	return errors.Err(err)
 }
 
 func (s CollaboratorStore) Create(cc ...*Collaborator) error {

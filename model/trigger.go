@@ -34,7 +34,7 @@ type TriggerStore struct {
 	Build *Build
 }
 
-func triggerToInterface(tt ...*Trigger) func(i int) Interface {
+func triggerToInterface(tt []*Trigger) func(i int) Interface {
 	return func(i int) Interface {
 		return tt[i]
 	}
@@ -78,7 +78,7 @@ func (t Trigger) Values() map[string]interface{} {
 }
 
 func (s TriggerStore) Create(tt ...*Trigger) error {
-	models := interfaceSlice(len(tt), triggerToInterface(tt...))
+	models := interfaceSlice(len(tt), triggerToInterface(tt))
 
 	return errors.Err(s.Store.Create(TriggerTable, models...))
 }

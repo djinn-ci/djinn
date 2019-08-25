@@ -48,7 +48,7 @@ type BuildStore struct {
 	Namespace *Namespace
 }
 
-func buildToInterface(bb ...*Build) func (i int) Interface {
+func buildToInterface(bb []*Build) func (i int) Interface {
 	return func(i int) Interface {
 		return bb[i]
 	}
@@ -547,7 +547,7 @@ func (s BuildStore) All(opts ...query.Option) ([]*Build, error) {
 }
 
 func (s BuildStore) Create(bb ...*Build) error {
-	models := interfaceSlice(len(bb), buildToInterface(bb...))
+	models := interfaceSlice(len(bb), buildToInterface(bb))
 
 	return errors.Err(s.Store.Create(BuildTable, models...))
 }
@@ -638,38 +638,30 @@ func (s BuildStore) Show(id int64) (*Build, error) {
 	return b, errors.Err(err)
 }
 
+func (s BuildStore) loadNamespace(bb []*Build) func(i int, n *Namespace) {
+	return func(i int, n *Namespace) {
+		b := bb[i]
+
+		if b.NamespaceID.Int64 == n.ID {
+			b.Namespace = n
+		}
+	}
+}
+
 func (s *BuildStore) LoadNamespaces(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil
 	}
 
-	ids := make([]interface{}, len(bb), len(bb))
-
-	for i, b := range bb {
-		if b.NamespaceID.Valid {
-			ids[i] = b.NamespaceID.Int64
-		}
-	}
+	models := interfaceSlice(len(bb), buildToInterface(bb))
 
 	namespaces := NamespaceStore{
 		Store: s.Store,
 	}
 
-	nn, err := namespaces.All(query.WhereIn("id", ids...))
+	err := namespaces.Load(mapKey("namespace_id", models), s.loadNamespace(bb))
 
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, b := range bb {
-		for _, n := range nn {
-			if b.NamespaceID.Int64 == n.ID {
-				b.Namespace = n
-			}
-		}
-	}
-
-	return nil
+	return errors.Err(err)
 }
 
 func (s *BuildStore) LoadTags(bb []*Build) error {
@@ -677,17 +669,13 @@ func (s *BuildStore) LoadTags(bb []*Build) error {
 		return nil
 	}
 
-	ids := make([]interface{}, len(bb), len(bb))
-
-	for i, b := range bb {
-		ids[i] = b.ID
-	}
+	models := interfaceSlice(len(bb), buildToInterface(bb))
 
 	tags := TagStore{
 		Store: s.Store,
 	}
 
-	tt, err := tags.All(query.WhereIn("build_id", ids...))
+	tt, err := tags.All(query.WhereIn("build_id", mapKey("id", models)...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -704,36 +692,30 @@ func (s *BuildStore) LoadTags(bb []*Build) error {
 	return nil
 }
 
+func (s BuildStore) loadUser(bb []*Build) func(i int, u *User) {
+	return func(i int, u *User) {
+		b := bb[i]
+
+		if b.UserID == u.ID {
+			b.User = u
+		}
+	}
+}
+
 func (s *BuildStore) LoadUsers(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil
 	}
 
-	ids := make([]interface{}, len(bb), len(bb))
-
-	for i, b := range bb {
-		ids[i] = b.UserID
-	}
+	models := interfaceSlice(len(bb), buildToInterface(bb))
 
 	users := UserStore{
 		Store: s.Store,
 	}
 
-	uu, err := users.All(query.WhereIn("id", ids...))
+	err := users.Load(mapKey("user_id", models), s.loadUser(bb))
 
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, b := range bb {
-		for _, u := range uu {
-			if b.UserID == u.ID {
-				b.User = u
-			}
-		}
-	}
-
-	return nil
+	return errors.Err(err)
 }
 
 func (s BuildStore) New() *Build {
@@ -760,7 +742,7 @@ func (s BuildStore) New() *Build {
 }
 
 func (s BuildStore) Update(bb ...*Build) error {
-	models := interfaceSlice(len(bb), buildToInterface(bb...))
+	models := interfaceSlice(len(bb), buildToInterface(bb))
 
 	return errors.Err(s.Store.Update(BuildTable, models...))
 }

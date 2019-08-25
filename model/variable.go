@@ -47,13 +47,13 @@ type BuildVariableStore struct {
 	Variable *Variable
 }
 
-func buildVariableToInterface(bvv ...*BuildVariable) func(i int) Interface {
+func buildVariableToInterface(bvv []*BuildVariable) func(i int) Interface {
 	return func(i int) Interface {
 		return bvv[i]
 	}
 }
 
-func variableToInterface(vv ...*Variable) func(i int) Interface {
+func variableToInterface(vv []*Variable) func(i int) Interface {
 	return func(i int) Interface {
 		return vv[i]
 	}
@@ -88,7 +88,7 @@ func (s BuildVariableStore) All(opts ...query.Option) ([]*BuildVariable, error) 
 }
 
 func (s BuildVariableStore) Create(bvv ...*BuildVariable) error {
-	models := interfaceSlice(len(bvv), buildVariableToInterface(bvv...))
+	models := interfaceSlice(len(bvv), buildVariableToInterface(bvv))
 
 	return errors.Err(s.Store.Create(BuildVariableTable, models...))
 }
@@ -218,13 +218,13 @@ func (s VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 }
 
 func (s VariableStore) Create(vv ...*Variable) error {
-	models := interfaceSlice(len(vv), variableToInterface(vv...))
+	models := interfaceSlice(len(vv), variableToInterface(vv))
 
 	return errors.Err(s.Store.Create(VariableTable, models...))
 }
 
 func (s VariableStore) Delete(vv ...*Variable) error {
-	models := interfaceSlice(len(vv), variableToInterface(vv...))
+	models := interfaceSlice(len(vv), variableToInterface(vv))
 
 	return errors.Err(s.Store.Delete(VariableTable, models...))
 }
@@ -265,47 +265,23 @@ func (s VariableStore) Index(opts ...query.Option) ([]*Variable, error) {
 		return vv, errors.Err(err)
 	}
 
+	if err := s.LoadNamespaces(vv); err != nil {
+		return vv, errors.Err(err)
+	}
+
+	nn := make([]*Namespace, 0, len(vv))
+
+	for _, v := range vv {
+		if v.Namespace != nil {
+			nn = append(nn, v.Namespace)
+		}
+	}
+
 	namespaces := NamespaceStore{
 		Store: s.Store,
 	}
 
-	ids := make([]interface{}, len(vv), len(vv))
-
-	for i, v := range vv {
-		if v.NamespaceID.Valid {
-			ids[i] = v.NamespaceID.Int64
-		}
-	}
-
-	nn := make([]*Namespace, 0, len(ids))
-	userIds := make([]interface{}, 0, len(ids))
-
-	err = namespaces.Load(ids, func(i int, n *Namespace) {
-		v := vv[i]
-
-		if v.NamespaceID.Int64 == n.ID {
-			nn = append(nn, n)
-			userIds = append(userIds, n.UserID)
-
-			v.Namespace = n
-		}
-	})
-
-	if err != nil {
-		return vv, errors.Err(err)
-	}
-
-	users := UserStore{
-		Store: s.Store,
-	}
-
-	err = users.Load(userIds, func(i int, u *User) {
-		n := nn[i]
-
-		if n.UserID == u.ID {
-			n.User = u
-		}
-	})
+	err = namespaces.LoadUsers(nn)
 
 	return vv, errors.Err(err)
 }
@@ -318,6 +294,32 @@ func (s VariableStore) interfaceSlice(vv ...*Variable) []Interface {
 	}
 
 	return ii
+}
+
+func (s VariableStore) loadNamespace(vv []*Variable) func(i int, n *Namespace) {
+	return func(i int, n *Namespace) {
+		v := vv[i]
+
+		if v.NamespaceID.Int64 == n.ID {
+			v.Namespace = n
+		}
+	}
+}
+
+func (s VariableStore) LoadNamespaces(vv []*Variable) error {
+	if len(vv) == 0 {
+		return nil
+	}
+
+	models := interfaceSlice(len(vv), variableToInterface(vv))
+
+	namespaces := NamespaceStore{
+		Store: s.Store,
+	}
+
+	err := namespaces.Load(mapKey("namespace_id", models), s.loadNamespace(vv))
+
+	return errors.Err(err)
 }
 
 func (s VariableStore) New() *Variable {

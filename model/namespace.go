@@ -41,7 +41,7 @@ type NamespaceStore struct {
 	Namespace *Namespace
 }
 
-func namespaceToInterface(nn ...*Namespace) func(i int) Interface {
+func namespaceToInterface(nn []*Namespace) func(i int) Interface {
 	return func(i int) Interface {
 		return nn[i]
 	}
@@ -245,7 +245,7 @@ func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 }
 
 func (s NamespaceStore) Create(nn ...*Namespace) error {
-	models := interfaceSlice(len(nn), namespaceToInterface(nn...))
+	models := interfaceSlice(len(nn), namespaceToInterface(nn))
 
 	return errors.Err(s.Store.Create(NamespaceTable, models...))
 }
@@ -444,17 +444,13 @@ func (s NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 		return nil
 	}
 
-	ids := make([]interface{}, len(nn), len(nn))
-
-	for i, n := range nn {
-		ids[i] = n.ID
-	}
+	models := interfaceSlice(len(nn), namespaceToInterface(nn))
 
 	builds := BuildStore{
 		Store: s.Store,
 	}
 
-	bb, err := builds.All(query.WhereIn("namespace_id", ids...))
+	bb, err := builds.All(query.WhereIn("namespace_id", mapKey("id", models)...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -475,34 +471,28 @@ func (s NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 	return errors.Err(err)
 }
 
+func (s NamespaceStore) loadUser(nn []*Namespace) func(i int, u *User) {
+	return func(i int, u *User) {
+		n := nn[i]
+
+		if n.UserID == u.ID {
+			n.User = u
+		}
+	}
+}
+
 func (s NamespaceStore) LoadUsers(nn []*Namespace) error {
 	if len(nn) == 0 {
 		return nil
 	}
 
-	ids := make([]interface{}, len(nn), len(nn))
-
-	for i, n := range nn {
-		ids[i] = n.UserID
-	}
+	models := interfaceSlice(len(nn), namespaceToInterface(nn))
 
 	users := UserStore{
 		Store: s.Store,
 	}
 
-	uu, err := users.All(query.WhereIn("id", ids...))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, n := range nn {
-		for _, u := range uu {
-			if n.UserID == u.ID {
-				n.User = u
-			}
-		}
-	}
+	err := users.Load(mapKey("user_id", models), s.loadUser(nn))
 
 	return errors.Err(err)
 }
@@ -531,7 +521,7 @@ func (s NamespaceStore) New() *Namespace {
 }
 
 func (s NamespaceStore) Update(nn ...*Namespace) error {
-	models := interfaceSlice(len(nn), namespaceToInterface(nn...))
+	models := interfaceSlice(len(nn), namespaceToInterface(nn))
 
 	return errors.Err(s.Store.Update(NamespaceTable, models...))
 }

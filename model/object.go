@@ -55,13 +55,13 @@ type BuildObjectStore struct {
 	Object *Object
 }
 
-func buildObjectToInterface(boo ...*BuildObject) func(i int) Interface {
+func buildObjectToInterface(boo []*BuildObject) func(i int) Interface {
 	return func(i int) Interface {
 		return boo[i]
 	}
 }
 
-func objectToInterface(oo ...*Object) func(i int) Interface {
+func objectToInterface(oo []*Object) func(i int) Interface {
 	return func(i int) Interface {
 		return oo[i]
 	}
@@ -171,13 +171,13 @@ func (s ObjectStore) interfaceSlice(oo ...*Object) []Interface {
 }
 
 func (s ObjectStore) Create(oo ...*Object) error {
-	models := interfaceSlice(len(oo), objectToInterface(oo...))
+	models := interfaceSlice(len(oo), objectToInterface(oo))
 
 	return errors.Err(s.Store.Create(ObjectTable, models...))
 }
 
 func (s ObjectStore) Delete(oo ...*Object) error {
-	models := interfaceSlice(len(oo), objectToInterface(oo...))
+	models := interfaceSlice(len(oo), objectToInterface(oo))
 
 	return errors.Err(s.Store.Delete(ObjectTable, models...))
 }
@@ -189,47 +189,23 @@ func (s ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
 		return oo, errors.Err(err)
 	}
 
+	if err := s.LoadNamespaces(oo); err != nil {
+		return oo, errors.Err(err)
+	}
+
+	nn := make([]*Namespace, 0, len(oo))
+
+	for _, o := range oo {
+		if o.Namespace != nil {
+			nn = append(nn, o.Namespace)
+		}
+	}
+
 	namespaces := NamespaceStore{
 		Store: s.Store,
 	}
 
-	ids := make([]interface{}, len(oo), len(oo))
-
-	for i, o := range oo {
-		if o.NamespaceID.Valid {
-			ids[i] = o.NamespaceID.Int64
-		}
-	}
-
-	nn := make([]*Namespace, 0, len(ids))
-	userIds := make([]interface{}, 0, len(ids))
-
-	err = namespaces.Load(ids, func(i int, n *Namespace) {
-		o := oo[i]
-
-		if o.NamespaceID.Int64 == n.ID {
-			nn = append(nn, n)
-			userIds = append(userIds, n.UserID)
-
-			o.Namespace = n
-		}
-	})
-
-	if err != nil {
-		return oo, errors.Err(err)
-	}
-
-	users := UserStore{
-		Store: s.Store,
-	}
-
-	err = users.Load(userIds, func(i int, u *User) {
-		n := nn[i]
-
-		if n.UserID == u.ID {
-			n.User = u
-		}
-	})
+	err = namespaces.LoadUsers(nn)
 
 	return oo, errors.Err(err)
 }
@@ -261,6 +237,32 @@ func (s ObjectStore) FindByName(name string) (*Object, error) {
 	o, err := s.findBy("name", name)
 
 	return o, errors.Err(err)
+}
+
+func (s ObjectStore) loadNamespace(oo []*Object) func(i int, n *Namespace) {
+	return func(i int, n *Namespace) {
+		o := oo[i]
+
+		if o.NamespaceID.Int64 == n.ID {
+			o.Namespace = n
+		}
+	}
+}
+
+func (s ObjectStore) LoadNamespaces(oo []*Object) error {
+	if len(oo) == 0 {
+		return nil
+	}
+
+	models := interfaceSlice(len(oo), objectToInterface(oo))
+
+	namespaces := NamespaceStore{
+		Store: s.Store,
+	}
+
+	err := namespaces.Load(mapKey("namespace_id", models), s.loadNamespace(oo))
+
+	return errors.Err(err)
 }
 
 func (s ObjectStore) New() *Object {
@@ -309,7 +311,7 @@ func (s BuildObjectStore) All(opts ...query.Option) ([]*BuildObject, error) {
 }
 
 func (s BuildObjectStore) Create(boo ...*BuildObject) error {
-	models := interfaceSlice(len(boo), buildObjectToInterface(boo...))
+	models := interfaceSlice(len(boo), buildObjectToInterface(boo))
 
 	return errors.Err(s.Store.Create(BuildObjectTable, models...))
 }

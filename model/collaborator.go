@@ -57,7 +57,7 @@ func (c Collaborator) Values() map[string]interface{} {
 func (s CollaboratorStore) All(opts ...query.Option) ([]*Collaborator, error) {
 	cc := make([]*Collaborator, 0)
 
-	opts = append(opts, ForNamespace(s.Namespace), ForUser(s.User))
+	opts = append(opts, ForRootNamespace(s.Namespace), ForUser(s.User))
 
 	err := s.Store.All(&cc, CollaboratorTable, opts...)
 

@@ -144,6 +144,16 @@ func ForNamespace(n *Namespace) query.Option {
 	}
 }
 
+func ForRootNamespace(n *Namespace) query.Option {
+	return func(q query.Query) query.Query {
+		if n == nil || n.IsZero() {
+			return q
+		}
+
+		return query.WhereEq("namespace_id", n.RootID)(q)
+	}
+}
+
 func ForObject(o *Object) query.Option {
 	return func(q query.Query) query.Query {
 		if o == nil || o.IsZero() {

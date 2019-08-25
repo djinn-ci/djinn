@@ -323,7 +323,7 @@ func (s *uiServer) init() {
 	namespaceRouter.HandleFunc("/-/keys", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("/-/collaborators", namespace.Show).Methods("GET")
 	namespaceRouter.HandleFunc("/-/collaborators", invite.Store).Methods("POST")
-	namespaceRouter.HandleFunc("/-/collaborators/{username}", collaborator.Destroy).Methods("DELETE")
+	namespaceRouter.HandleFunc("/-/collaborators/{collaborator}", collaborator.Destroy).Methods("DELETE")
 	namespaceRouter.HandleFunc("", namespace.Update).Methods("PATCH")
 	namespaceRouter.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	namespaceRouter.Use(mw.Gate(gateNamespace(store)))

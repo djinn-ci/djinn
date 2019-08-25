@@ -42,7 +42,11 @@ func (c Collaborator) UIEndpoint(uris ...string) string {
 		return ""
 	}
 
-	uris = append(uris, "-", "collaborators", fmt.Sprintf("%v", c.ID))
+	if c.User == nil || c.User.IsZero() {
+		return ""
+	}
+
+	uris = append(uris, "-", "collaborators", fmt.Sprintf("%s", c.User.Username))
 
 	return c.Namespace.UIEndpoint(uris...)
 }
@@ -100,6 +104,7 @@ func (s CollaboratorStore) LoadUsers(cc []*Collaborator) error {
 	if len(cc) == 0 {
 		return nil
 	}
+
 	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
 
 	users := UserStore{
@@ -159,7 +164,7 @@ func (s CollaboratorStore) FindByHandle(handle string) (*Collaborator, error) {
 				),
 			),
 		),
-		ForNamespace(s.Namespace),
+		ForRootNamespace(s.Namespace),
 	)
 
 	err := s.Store.Get(c, q.Build(), q.Args()...)

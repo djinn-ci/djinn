@@ -11,11 +11,9 @@ import (
 )
 
 var resources map[string]string = map[string]string{
-	"build":     model.BuildTable,
-	"namespace": model.NamespaceTable,
-	"object":    model.ObjectTable,
-	"variable":  model.VariableTable,
-	"key":       model.KeyTable,
+	"object":   model.ObjectTable,
+	"variable": model.VariableTable,
+	"key":      model.KeyTable,
 }
 
 type gate struct {

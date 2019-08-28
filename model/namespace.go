@@ -26,12 +26,13 @@ type Namespace struct {
 	Level       int64            `db:"level"`
 	Visibility  types.Visibility `db:"visibility"`
 
-	User      *User
-	Root      *Namespace
-	Parent    *Namespace
-	Children  []*Namespace
-	Builds    []*Build
-	LastBuild *Build
+	User          *User
+	Root          *Namespace
+	Parent        *Namespace
+	Children      []*Namespace
+	Builds        []*Build
+	LastBuild     *Build
+	Collaborators map[int64]struct{}
 }
 
 type NamespaceStore struct {
@@ -63,6 +64,31 @@ func namespaceUser(u *User) query.Option {
 				),
 			),
 		)(q)
+	}
+}
+
+func (n Namespace) AccessibleBy(u *User) bool {
+	switch n.Visibility {
+	case types.Public:
+		return true
+	case types.Internal:
+		return !u.IsZero()
+	case types.Private:
+		if n.Collaborators == nil || len(n.Collaborators) == 0 {
+			if err := n.LoadCollaborators(); err != nil {
+				return false
+			}
+		}
+
+		_, ok := n.Collaborators[u.ID]
+
+		if !ok {
+			ok = n.UserID == u.ID
+		}
+
+		return ok
+	default:
+		return false
 	}
 }
 
@@ -100,6 +126,20 @@ func (n *Namespace) KeyStore() KeyStore {
 		},
 		Namespace: n,
 	}
+}
+
+func (n *Namespace) LoadCollaborators() error {
+	cc, err := n.CollaboratorStore().All()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, c := range cc {
+		n.Collaborators[c.UserID] = struct{}{}
+	}
+
+	return nil
 }
 
 func (n *Namespace) ObjectStore() ObjectStore {
@@ -391,6 +431,43 @@ func (s NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 	n.User = s.User
 
 	return n, nil
+}
+
+func (s NamespaceStore) FindRoot(id int64) (*Namespace, error) {
+	n := &Namespace{
+		Model: Model{
+			DB: s.DB,
+		},
+	}
+
+	rootq := query.Select(
+		query.Columns("root_id"),
+		query.Table(NamespaceTable),
+		query.WhereEq("id", id),
+	)
+
+	q := query.Select(
+		query.Columns("*"),
+		query.Table(NamespaceTable),
+		query.WhereEqQuery("root_id", rootq),
+		query.WhereEqQuery("id", rootq),
+	)
+
+	stmt, err := s.Preparex(q.Build())
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	err = stmt.Get(n, q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return n, errors.Err(err)
 }
 
 func (s NamespaceStore) Index(opts ...query.Option) ([]*Namespace, error) {

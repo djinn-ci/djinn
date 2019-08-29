@@ -142,6 +142,37 @@ func (c *Collaborator) LoadUser() error {
 	return errors.Err(err)
 }
 
+func (s CollaboratorStore) FindByUsername(username string) (*Collaborator, error) {
+	c := &Collaborator{
+		Model: Model{
+			DB: s.DB,
+		},
+		Namespace: s.Namespace,
+		User:      s.User,
+	}
+
+	q := query.Select(
+		query.Columns("*"),
+		query.Table(CollaboratorTable),
+		query.WhereEqQuery("user_id",
+			query.Select(
+				query.Columns("id"),
+				query.Table(UserTable),
+				query.WhereEq("username", username),
+			),
+		),
+		ForRootNamespace(s.Namespace),
+	)
+
+	err := s.Store.Get(c, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return c, errors.Err(err)
+}
+
 func (s CollaboratorStore) FindByHandle(handle string) (*Collaborator, error) {
 	c := &Collaborator{
 		Model: Model{

@@ -87,7 +87,7 @@ func (h Collaborator) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	collaborators := n.CollaboratorStore()
 
-	c, err := collaborators.FindByHandle(vars["collaborator"])
+	c, err := collaborators.FindByUsername(vars["collaborator"])
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

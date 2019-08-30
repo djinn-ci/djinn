@@ -9,7 +9,7 @@ SRCS   := $(shell find . -name "main.go" | awk -F"/" '{ print $$3 }')
 all: ui $(SRCS)
 
 $(SRCS):
-	go build $(LFLAGS) -tags $(TAGS) -o $@.out ./cmd/$@ 
+	go build $(LFLAGS) -tags $(TAGS) -o $@.out ./cmd/$@
 
 clean:
 	-rm -f *.out

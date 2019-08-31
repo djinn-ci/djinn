@@ -182,6 +182,31 @@ func ForStage(s *Stage) query.Option {
 	}
 }
 
+func ForCollaborator(u *User) query.Option {
+	return func(q query.Query) query.Query {
+		if u == nil || u.IsZero() {
+			return q
+		}
+
+		return query.Or(
+			query.WhereInQuery("namespace_id",
+				query.Select(
+					query.Columns("id"),
+					query.Table(NamespaceTable),
+					query.WhereInQuery("root_id",
+						query.Select(
+							query.Columns("namespace_id"),
+							query.Table(CollaboratorTable),
+							query.WhereEq("user_id", u.ID),
+						),
+					),
+				),
+			),
+			query.WhereEq("user_id", u.ID),
+		)(q)
+	}
+}
+
 func ForUser(u *User) query.Option {
 	return func(q query.Query) query.Query {
 		if u == nil || u.IsZero() {

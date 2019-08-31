@@ -327,25 +327,12 @@ func (s Store) Delete(table string, ii ...Interface) error {
 		return nil
 	}
 
-	peek := ii[0]
-	col, val := peek.Primary()
-
-	ids := make([]interface{}, len(ii), len(ii))
-
-	for i, model := range ii {
-		_, val = model.Primary()
-
-		ids[i] = val
-	}
-
 	q := query.Delete(
 		query.Table(table),
-		query.WhereIn(col, ids...),
+		query.WhereIn("id", mapKey("id", ii)...),
 	)
 
-	qs := q.Build()
-
-	stmt, err := s.Prepare(qs)
+	stmt, err := s.Prepare(q.Build())
 
 	if err != nil {
 		return errors.Err(err)

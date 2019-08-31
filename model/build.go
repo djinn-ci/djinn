@@ -529,7 +529,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 func (s BuildStore) All(opts ...query.Option) ([]*Build, error) {
 	bb := make([]*Build, 0)
 
-	opts = append(opts, ForUser(s.User), ForNamespace(s.Namespace))
+	opts = append(opts, ForCollaborator(s.User), ForNamespace(s.Namespace))
 
 	err := s.Store.All(&bb, BuildTable, opts...)
 

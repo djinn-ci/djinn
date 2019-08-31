@@ -135,6 +135,8 @@ func (n *Namespace) LoadCollaborators() error {
 		return errors.Err(err)
 	}
 
+	n.Collaborators = make(map[int64]struct{})
+
 	for _, c := range cc {
 		n.Collaborators[c.UserID] = struct{}{}
 	}

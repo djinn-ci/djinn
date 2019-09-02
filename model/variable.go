@@ -208,10 +208,8 @@ func (s VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 
 	for _, v := range vv {
 		v.DB = s.DB
-
-		if s.User != nil {
-			v.User = s.User
-		}
+		v.User = s.User
+		v.Namespace = s.Namespace
 	}
 
 	return vv, errors.Err(err)

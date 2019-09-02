@@ -148,17 +148,6 @@ func (g gate) resource(name string) web.Gate {
 		namespaceId, ok := val.(int64)
 
 		if !ok {
-			return false
-		}
-
-		root, err := namespaces.FindRoot(namespaceId)
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-			return false
-		}
-
-		if root.IsZero() {
 			userId, ok := r["user_id"].(int64)
 
 			if !ok {
@@ -166,6 +155,13 @@ func (g gate) resource(name string) web.Gate {
 			}
 
 			return userId == u.ID
+		}
+
+		root, err := namespaces.FindRoot(namespaceId)
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			return false
 		}
 
 		return root.AccessibleBy(u)

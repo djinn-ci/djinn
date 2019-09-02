@@ -173,6 +173,13 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 	if f.Namespace != "" {
 		n, err = namespaces.FindOrCreate(f.Namespace)
 
+		if !n.CanAdd(u) {
+			log.Error.Println(errors.Err(err))
+			h.FlashAlert(w, r, template.Danger("Failed to create object: Namespace does not exist"))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
 		if err != nil {
 			log.Error.Println(errors.Err(err))
 			h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
@@ -341,5 +348,5 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	h.FlashAlert(w, r, template.Success("Object has been deleted: " + o.Name))
 
-	http.Redirect(w, r, "/objects", http.StatusSeeOther)
+	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

@@ -67,6 +67,22 @@ func namespaceUser(u *User) query.Option {
 	}
 }
 
+func (n Namespace) CanAdd(u *User) bool {
+	if n.Collaborators == nil || len(n.Collaborators) == 0 {
+		if err := n.LoadCollaborators(); err != nil {
+			return false
+		}
+	}
+
+	_, ok := n.Collaborators[u.ID]
+
+	if !ok {
+		ok = n.UserID == u.ID
+	}
+
+	return ok
+}
+
 func (n Namespace) AccessibleBy(u *User) bool {
 	switch n.Visibility {
 	case types.Public:
@@ -371,6 +387,24 @@ func (s NamespaceStore) Find(id int64) (*Namespace, error) {
 }
 
 func (s NamespaceStore) FindByPath(path string) (*Namespace, error) {
+	parts := strings.Split(path, "@")
+
+	if len(parts) > 1 {
+		path = parts[0]
+
+		users := UserStore{
+			Store: s.Store,
+		}
+
+		u, err := users.FindByUsername(parts[1])
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+
+		s.User = u
+	}
+
 	n, err := s.findBy("path", path)
 
 	return n, errors.Err(err)

@@ -198,7 +198,7 @@ func (v Variable) Values() map[string]interface{} {
 func (s VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 	vv := make([]*Variable, 0)
 
-	opts = append(opts, ForUser(s.User), ForNamespace(s.Namespace))
+	opts = append(opts, ForCollaborator(s.User), ForNamespace(s.Namespace))
 
 	err := s.Store.All(&vv, VariableTable, opts...)
 

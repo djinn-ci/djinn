@@ -146,6 +146,8 @@ func (o Object) UIEndpoint(uri ...string) string {
 func (s ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 	oo := make([]*Object, 0)
 
+	opts = append(opts, ForCollaborator(s.User), ForNamespace(s.Namespace))
+
 	err := s.Store.All(&oo, ObjectTable, opts...)
 
 	if err == sql.ErrNoRows {

@@ -24,6 +24,7 @@ type Object struct {
 
 func (f Object) Fields() map[string]string {
 	m := make(map[string]string)
+	m["namespace"] = f.Namespace
 	m["name"] = f.Name
 
 	return m

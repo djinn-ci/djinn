@@ -243,8 +243,8 @@ func (m *Model) SetPrimary(i int64) {
 	m.ID = i
 }
 
-func (r *Row) SetPrimary(i int64) {
-	(*r)["id"] = i
+func (r Row) SetPrimary(i int64) {
+	r["id"] = i
 }
 
 func (r Row) Primary() (string, int64) {

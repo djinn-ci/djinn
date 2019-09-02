@@ -7,6 +7,7 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/web"
 )
 
@@ -116,7 +117,24 @@ func (g gate) resource(name string) web.Gate {
 
 		r := model.NewRow()
 
-		if err := g.store.FindBy(&r, resources[name], "id", id); err != nil {
+		q := query.Select(
+			query.Columns("*"),
+			query.Table(resources[name]),
+			query.WhereEq("id", id),
+		)
+
+		stmt, err := g.store.Preparex(q.Build())
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			return false
+		}
+
+		defer stmt.Close()
+
+		row := stmt.QueryRowx(q.Args()...)
+
+		if err := row.MapScan(r); err != nil {
 			log.Error.Println(errors.Err(err))
 			return false
 		}

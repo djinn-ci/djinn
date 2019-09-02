@@ -52,7 +52,8 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &object.IndexPage{
 		BasePage: template.BasePage{
-			URI: r.URL.Path,
+			URI:  r.URL.Path,
+			User: u,
 		},
 		CSRF:    string(csrf.TemplateField(r)),
 		Objects: oo,

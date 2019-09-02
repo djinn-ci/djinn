@@ -50,7 +50,10 @@ type IndexPage struct {
 										<span class="muted">--</span>
 									{% endif %}
 								</td>
-								{% if p.User != nil && !p.User.IsZero() %}
+								{% if p.User != nil && p.User.ID != v.UserID %}
+									<span class="muted">{% cat "../../svgs/users.svg" %}</span>
+								{% endif %}
+								{% if p.User != nil && p.User.ID == v.UserID %}
 									<td class="align-right">
 										<form method="POST" action="{%s v.UIEndpoint() %}">
 											{%s= p.CSRF %}

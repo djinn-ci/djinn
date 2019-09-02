@@ -49,7 +49,10 @@ type IndexPage struct {
 									{% endif %}
 								</td>
 								<td class="align-right">
-									{% if p.User != nil && !p.User.IsZero() %}
+									{% if p.User != nil && p.User.ID != k.UserID %}
+										<span class="muted">{% cat "../../svgs/users.svg" %}</span>
+									{% endif %}
+									{% if p.User != nil && p.User.ID == k.UserID %}
 									<form method="POST" action="{%s k.UIEndpoint() %}">
 										{%s= p.CSRF %}
 										<input type="hidden" name="_method" value="DELETE"/>

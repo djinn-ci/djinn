@@ -50,7 +50,8 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &namespace.IndexPage{
 		BasePage: template.BasePage{
-			URI: r.URL.Path,
+			URI:  r.URL.Path,
+			User: u,
 		},
 		Namespaces: nn,
 		Search:     search,

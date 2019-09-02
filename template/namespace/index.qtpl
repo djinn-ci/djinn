@@ -64,6 +64,9 @@ type IndexPage struct {
 								{% endif %}
 							</td>
 							<td class="align-right muted">
+								{% if p.User.ID != n.UserID %}
+									{% cat "../../svgs/users.svg" %}
+								{% endif %}
 								{% switch n.Visibility %}
 									{% case types.Private %}
 										{% cat "../../svgs/lock.svg" %}

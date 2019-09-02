@@ -43,7 +43,8 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &key.IndexPage{
 		BasePage: template.BasePage{
-			URI: r.URL.Path,
+			URI:  r.URL.Path,
+			User: u,
 		},
 		CSRF:   string(csrf.TemplateField(r)),
 		Search: search,

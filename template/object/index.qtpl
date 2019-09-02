@@ -1,7 +1,5 @@
 {%
 import (
-	"fmt"
-
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -37,8 +35,6 @@ type IndexPage struct {
 							<th>NAME</th>
 							<th>TYPE</th>
 							<th>SIZE</th>
-							<th>MD5</th>
-							<th>SHA256</th>
 							<th>NAMESPACE</th>
 							<th></th>
 						</tr>
@@ -49,8 +45,6 @@ type IndexPage struct {
 								<td><a href="{%s o.UIEndpoint() %}">{%s o.Name %}</a></td>
 								<td><span class="code">{%s o.Type %}</span></td>
 								<td>{%s template.RenderSize(o.Size) %}</td>
-								<td><span class="code">{%s fmt.Sprintf("%x", o.MD5) %}</span></td>
-								<td><span class="code">{%s fmt.Sprintf("%x", o.SHA256) %}</span></td>
 								<td>
 									{% if o.Namespace != nil %}
 										<a href="{%s o.Namespace.UIEndpoint() %}">{%s o.Namespace.Path %}</a>
@@ -59,7 +53,10 @@ type IndexPage struct {
 									{% endif %}
 								</td>
 								<td class="align-right">
-									{% if p.User != nil && !p.User.IsZero() %}
+									{% if p.User != nil && p.User.ID != o.UserID %}
+										<span class="muted">{% cat "../../svgs/users.svg" %}</span>
+									{% endif %}
+									{% if p.User != nil && p.User.ID == o.UserID %}
 										<form method="POST" action="{%s o.UIEndpoint() %}">
 											{%s= string(p.CSRF) %}
 											<input type="hidden" name="_method" value="DELETE"/>

@@ -61,6 +61,12 @@ type Form struct {
 	Fields map[string]string
 }
 
+type Paginator struct {
+	Next  int64
+	Prev  int64
+	Pages []int64
+}
+
 type level uint8
 
 const (
@@ -240,5 +246,15 @@ func (l level) String() string {
 			</ul>
 		</div>
 	</div>
+{% endfunc %}
+
+{% func (p Paginator) Links(uri string) %}
+	<ul>
+		<li><a href="{%s uri %}?page={%v p.Prev %}">Previous</a></li>
+		{% for _, page := range p.Pages %}
+			<li><a href="{%s uri %}?page={%v page %}">{%v page %}</a></li>
+		{% endfor %}
+		<li><a href="{%s uri %}?page={%v p.Next %}">Next</a></li>
+	</ul>
 {% endfunc %}
 {% endcollapsespace %}

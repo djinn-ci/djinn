@@ -9,6 +9,7 @@ import (
 {% code
 type IndexPage struct {
 	template.BasePage
+	template.Paginator
 
 	Namespaces []*model.Namespace
 	Search     string
@@ -83,6 +84,7 @@ type IndexPage struct {
 			{% endif %}
 		{% endif %}
 	</div>
+	<div class="panel">{%= p.Paginator.Links(p.URI) %}</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

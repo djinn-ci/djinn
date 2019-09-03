@@ -323,6 +323,12 @@ func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
+func (s NamespaceStore) Count() (int64, error) {
+	count, err := s.Store.Count(NamespaceTable)
+
+	return count, errors.Err(err)
+}
+
 func (s NamespaceStore) Create(nn ...*Namespace) error {
 	models := interfaceSlice(len(nn), namespaceToInterface(nn))
 

@@ -281,6 +281,22 @@ func (s Store) All(i interface{}, table string, opts ...query.Option) error {
 	return errors.Err(err)
 }
 
+func (s Store) Count(table string) (int64, error) {
+	stmt, err := s.Prepare("SELECT COUNT(*) FROM " + table)
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	var count int64
+
+	err = stmt.QueryRow().Scan(&count)
+
+	return count, errors.Err(err)
+}
+
 func (s Store) Create(table string, ii ...Interface) error {
 	for _, i := range ii {
 		m := i.Values()

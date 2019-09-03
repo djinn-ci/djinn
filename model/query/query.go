@@ -37,8 +37,8 @@ type Query struct {
 	wheres []where
 	sets   []set
 	order  order
-	limit  int
-	offset int
+	limit  int64
+	offset int64
 	ret    []string
 	args   []interface{}
 	bind   int

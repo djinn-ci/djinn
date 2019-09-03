@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -26,6 +27,14 @@ type Namespace struct {
 	web.Handler
 }
 
+func min(a, b int64) int64 {
+	if a < b {
+		return a
+	}
+
+	return b
+}
+
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
@@ -37,10 +46,32 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
+//	count, err := u.NamespaceStore().Count()
+//
+//	if err != nil {
+//		log.Error.Println(errors.Err(err))
+//		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+//		return
+//	}
+
+//	pages := count / web.PageLimit
+
+	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+
+	if err != nil {
+		page = 1
+	}
+
+	offset := page - 1 * web.PageLimit
+//	start := offset + 1
+//	end := min(offset + count, count)
+
 	nn, err := u.NamespaceStore().Index(
 		model.Search("path", search),
 		model.NamespaceSharedWith(u),
 		query.OrderAsc("path"),
+		query.Limit(web.PageLimit),
+		query.Offset(offset),
 	)
 
 	if err != nil {

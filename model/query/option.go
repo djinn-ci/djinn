@@ -20,7 +20,7 @@ func Columns(cols ...string) Option {
 	}
 }
 
-func Limit(l int) Option {
+func Limit(l int64) Option {
 	return func(q Query) Query {
 		q.limit = l
 
@@ -28,7 +28,7 @@ func Limit(l int) Option {
 	}
 }
 
-func Offset(o int) Option {
+func Offset(o int64) Option {
 	return func(q Query) Query {
 		q.offset = o
 

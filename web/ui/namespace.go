@@ -291,6 +291,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		p = &namespace.ShowVariables{
 			ShowPage:  sp,
 			Index:     variable.IndexPage{
+				BasePage:  bp,
 				CSRF:      string(csrf.TemplateField(r)),
 				Variables: vv,
 			},
@@ -309,8 +310,9 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		p = &namespace.ShowKeys{
 			ShowPage: sp,
 			Index:    key.IndexPage{
-				CSRF: string(csrf.TemplateField(r)),
-				Keys: kk,
+				BasePage: bp,
+				CSRF:     string(csrf.TemplateField(r)),
+				Keys:     kk,
 			},
 		}
 

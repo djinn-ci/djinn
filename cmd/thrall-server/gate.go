@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -9,6 +11,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/web"
+
+	"github.com/gorilla/mux"
 )
 
 var resources map[string]string = map[string]string{
@@ -30,7 +34,9 @@ func (g gate) build() web.Gate {
 		Store: g.store,
 	}
 
-	return func(u *model.User, vars map[string]string) bool {
+	return func(u *model.User, r *http.Request) bool {
+		vars := mux.Vars(r)
+
 		owner, err := users.FindByUsername(vars["username"])
 
 		if err != nil {
@@ -75,7 +81,9 @@ func (g gate) namespace() web.Gate {
 		Store: g.store,
 	}
 
-	return func(u *model.User, vars map[string]string) bool {
+	return func(u *model.User, r *http.Request) bool {
+		vars := mux.Vars(r)
+
 		owner, err := users.FindByUsername(vars["username"])
 
 		if err != nil {
@@ -96,6 +104,14 @@ func (g gate) namespace() web.Gate {
 			return false
 		}
 
+		if filepath.Base(r.URL.Path) == "edit" {
+			return u.ID == n.UserID
+		}
+
+		if r.Method == "DELETE" || r.Method == "PATCH" {
+			return u.ID == n.UserID
+		}
+
 		root, err := namespaces.FindRoot(n.ID)
 
 		if err != nil {
@@ -112,10 +128,12 @@ func (g gate) resource(name string) web.Gate {
 		Store: g.store,
 	}
 
-	return func(u *model.User, vars map[string]string) bool {
+	return func(u *model.User, r *http.Request) bool {
+		vars := mux.Vars(r)
+
 		id, _ := strconv.ParseInt(vars[name], 10, 64)
 
-		r := model.NewRow()
+		row := model.NewRow()
 
 		q := query.Select(
 			query.Columns("*"),
@@ -132,23 +150,15 @@ func (g gate) resource(name string) web.Gate {
 
 		defer stmt.Close()
 
-		row := stmt.QueryRowx(q.Args()...)
-
-		if err := row.MapScan(r); err != nil {
+		if err := stmt.QueryRowx(q.Args()...).MapScan(row); err != nil {
 			log.Error.Println(errors.Err(err))
 			return false
 		}
 
-		val, ok := r["namespace_id"]
+		namespaceId, ok := row["namespace_id"].(int64)
 
 		if !ok {
-			return false
-		}
-
-		namespaceId, ok := val.(int64)
-
-		if !ok {
-			userId, ok := r["user_id"].(int64)
+			userId, ok := row["user_id"].(int64)
 
 			if !ok {
 				return false

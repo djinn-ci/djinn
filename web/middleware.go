@@ -15,7 +15,11 @@ type Middleware struct {
 	Handler
 }
 
-type Gate func(u *model.User, vars map[string]string) bool
+// Gate serves as a stripped down middleware handler function that will be
+// passed the current user in the request, if any, along with the request
+// itself. This will determine whether the given user can access whatever is on
+// the other end of the current endpoint, hence the bool return value.
+type Gate func(u *model.User, r *http.Request) bool
 
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, bool) {
 	u, err := h.User(r)
@@ -67,10 +71,8 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, _ := h.auth(w, r)
 
-			vars := mux.Vars(r)
-
 			for _, g := range gates {
-				if !g(u, vars) {
+				if !g(u, r) {
 					HTMLError(w, "Not found", http.StatusNotFound)
 					return
 				}

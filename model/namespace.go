@@ -48,7 +48,7 @@ func namespaceToInterface(nn []*Namespace) func(i int) Interface {
 	}
 }
 
-func namespaceUser(u *User) query.Option {
+func NamespaceSharedWith(u *User) query.Option {
 	return func(q query.Query) query.Query {
 		if u == nil || u.IsZero() {
 			return q
@@ -308,7 +308,7 @@ func (n Namespace) Values() map[string]interface{} {
 func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
-	opts = append(opts, ForParent(s.Namespace), namespaceUser(s.User), query.Table(NamespaceTable))
+	opts = append(opts, ForParent(s.Namespace), query.Table(NamespaceTable))
 
 	err := s.Store.All(&nn, NamespaceTable, opts...)
 

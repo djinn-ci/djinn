@@ -39,6 +39,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	nn, err := u.NamespaceStore().Index(
 		model.Search("path", search),
+		model.NamespaceSharedWith(u),
 		query.OrderAsc("path"),
 	)
 

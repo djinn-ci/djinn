@@ -422,6 +422,13 @@ func (s NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
 	}
 
 	parent := &Namespace{}
+
+	if strings.Contains(path, "@") {
+		parts := strings.Split(path, "@")
+
+		path = parts[0]
+	}
+
 	parts := strings.Split(path, "/")
 
 	for _, name := range parts {

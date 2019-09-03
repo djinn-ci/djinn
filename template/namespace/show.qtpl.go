@@ -521,7 +521,7 @@ func (p *ShowCollaborators) StreamBody(qw422016 *qt422016.Writer) {
 			//line template/namespace/show.qtpl:129
 			qw422016.N().S(`&gt;</td> `)
 			//line template/namespace/show.qtpl:130
-			if p.User != nil && !p.User.IsZero() {
+			if p.User != nil && p.User.ID == p.Namespace.UserID {
 				//line template/namespace/show.qtpl:130
 				qw422016.N().S(` <td class="align-right"> <form method="POST" action="`)
 				//line template/namespace/show.qtpl:132

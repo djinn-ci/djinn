@@ -127,7 +127,7 @@ type ShowCollaborators struct {
 					{% for _, c := range p.Collaborators %}
 						<tr>
 							<td>{%s c.User.Username %} &lt;{%s c.User.Email %}&gt;</td>
-							{% if p.User != nil && !p.User.IsZero() %}
+							{% if p.User != nil && p.User.ID == p.Namespace.UserID %}
 								<td class="align-right">
 									<form method="POST" action="{%s c.UIEndpoint() %}">
 										{%s= p.CSRF %}

@@ -65,7 +65,7 @@ var (
 	UserTable          = "users"
 	VariableTable      = "variables"
 
-	PageLimit int64 = 10
+	PageLimit int64 = 25
 )
 
 // Convert a slice of models of length l, into a slice of model.Interface. The

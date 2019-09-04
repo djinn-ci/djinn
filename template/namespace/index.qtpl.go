@@ -221,7 +221,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/index.qtpl:85
 	qw422016.N().S(` </div> <div class="panel">`)
 	//line template/namespace/index.qtpl:87
-	template.StreamRenderPages(qw422016, p.URI, p.Paginator)
+	template.StreamRenderPaginator(qw422016, p.URI, p.Paginator)
 	//line template/namespace/index.qtpl:87
 	qw422016.N().S(`</div> `)
 //line template/namespace/index.qtpl:88

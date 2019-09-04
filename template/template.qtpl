@@ -243,7 +243,7 @@ func (l level) String() string {
 {% endfunc %}
 
 {% stripspace %}
-{% func RenderPages(uri string, p model.Paginator) %}
+{% func RenderPaginator(uri string, p model.Paginator) %}
 	{% if len(p.Pages) > 1 %}
 		<ul>
 			<li><a href="{%s uri %}?page={%v p.Prev %}">Previous</a></li>

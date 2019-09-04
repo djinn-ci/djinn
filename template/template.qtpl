@@ -242,10 +242,14 @@ func (l level) String() string {
 	</div>
 {% endfunc %}
 
+{% stripspace %}
 {% func RenderPages(uri string, p model.Paginator) %}
-	<ul>
-		<li><a href="{%s uri %}?page={%v p.Prev %}">Previous</a></li>
-		<li><a href="{%s uri %}?page={%v p.Next %}">Next</a></li>
-	</ul>
+	{% if len(p.Pages) > 1 %}
+		<ul>
+			<li><a href="{%s uri %}?page={%v p.Prev %}">Previous</a></li>
+			<li><a href="{%s uri %}?page={%v p.Next %}">Next</a></li>
+		</ul>
+	{% endif %}
 {% endfunc %}
+{% endstripspace %}
 {% endcollapsespace %}

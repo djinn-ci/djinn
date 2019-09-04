@@ -674,51 +674,55 @@ func (p *baseDashboard) Body() string {
 //line template/template.qtpl:243
 }
 
-//line template/template.qtpl:245
+//line template/template.qtpl:246
 func StreamRenderPages(qw422016 *qt422016.Writer, uri string, p model.Paginator) {
-	//line template/template.qtpl:245
-	qw422016.N().S(` <ul> <li><a href="`)
 	//line template/template.qtpl:247
-	qw422016.E().S(uri)
-	//line template/template.qtpl:247
-	qw422016.N().S(`?page=`)
-	//line template/template.qtpl:247
-	qw422016.E().V(p.Prev)
-	//line template/template.qtpl:247
-	qw422016.N().S(`">Previous</a></li> <li><a href="`)
-	//line template/template.qtpl:248
-	qw422016.E().S(uri)
-	//line template/template.qtpl:248
-	qw422016.N().S(`?page=`)
-	//line template/template.qtpl:248
-	qw422016.E().V(p.Next)
-	//line template/template.qtpl:248
-	qw422016.N().S(`">Next</a></li> </ul> `)
-//line template/template.qtpl:250
+	if len(p.Pages) > 1 {
+		//line template/template.qtpl:247
+		qw422016.N().S(`<ul><li><a href="`)
+		//line template/template.qtpl:249
+		qw422016.E().S(uri)
+		//line template/template.qtpl:249
+		qw422016.N().S(`?page=`)
+		//line template/template.qtpl:249
+		qw422016.E().V(p.Prev)
+		//line template/template.qtpl:249
+		qw422016.N().S(`">Previous</a></li><li><a href="`)
+		//line template/template.qtpl:250
+		qw422016.E().S(uri)
+		//line template/template.qtpl:250
+		qw422016.N().S(`?page=`)
+		//line template/template.qtpl:250
+		qw422016.E().V(p.Next)
+		//line template/template.qtpl:250
+		qw422016.N().S(`">Next</a></li></ul>`)
+		//line template/template.qtpl:252
+	}
+//line template/template.qtpl:253
 }
 
-//line template/template.qtpl:250
+//line template/template.qtpl:253
 func WriteRenderPages(qq422016 qtio422016.Writer, uri string, p model.Paginator) {
-	//line template/template.qtpl:250
+	//line template/template.qtpl:253
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/template.qtpl:250
+	//line template/template.qtpl:253
 	StreamRenderPages(qw422016, uri, p)
-	//line template/template.qtpl:250
+	//line template/template.qtpl:253
 	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:250
+//line template/template.qtpl:253
 }
 
-//line template/template.qtpl:250
+//line template/template.qtpl:253
 func RenderPages(uri string, p model.Paginator) string {
-	//line template/template.qtpl:250
+	//line template/template.qtpl:253
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/template.qtpl:250
+	//line template/template.qtpl:253
 	WriteRenderPages(qb422016, uri, p)
-	//line template/template.qtpl:250
+	//line template/template.qtpl:253
 	qs422016 := string(qb422016.B)
-	//line template/template.qtpl:250
+	//line template/template.qtpl:253
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/template.qtpl:250
+	//line template/template.qtpl:253
 	return qs422016
-//line template/template.qtpl:250
+//line template/template.qtpl:253
 }

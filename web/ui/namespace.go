@@ -27,14 +27,6 @@ type Namespace struct {
 	web.Handler
 }
 
-func min(a, b int64) int64 {
-	if a < b {
-		return a
-	}
-
-	return b
-}
-
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	u, err := h.User(r)
 
@@ -46,7 +38,13 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	search := r.URL.Query().Get("search")
 
-	count, err := u.NamespaceStore().Count()
+	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+
+	if err != nil {
+		page = 1
+	}
+
+	paginator, err := u.NamespaceStore().Paginate(page)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -54,21 +52,12 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
-
-	if err != nil {
-		page = 1
-	}
-
-	pages := count / web.PageLimit
-	offset := page - 1 * web.PageLimit
-
 	nn, err := u.NamespaceStore().Index(
 		model.Search("path", search),
 		model.NamespaceSharedWith(u),
 		query.OrderAsc("path"),
-		query.Limit(web.PageLimit),
-		query.Offset(offset),
+		query.Limit(model.PageLimit),
+		query.Offset(paginator.Offset),
 	)
 
 	if err != nil {
@@ -77,36 +66,12 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-//	pages := make([]int64, 0)
-//
-//	for i := int64(0); i < count; i++ {
-//		pages = append(pages, i + 1)
-//	}
-
-//	start := offset + 1
-//	end := min(offset + web.PageLimit, count)
-
-	next := page + 1
-	prev := page - 1
-
-	if prev < 1 {
-		prev = 1
-	}
-
-	if next > pages {
-		next = pages
-	}
-
 	p := &namespace.IndexPage{
 		BasePage:   template.BasePage{
 			URI:  r.URL.Path,
 			User: u,
 		},
-		Paginator:  template.Paginator{
-			Next:  next,
-			Prev:  prev,
-//			Pages: pages,
-		},
+		Paginator:  paginator,
 		Namespaces: nn,
 		Search:     search,
 	}

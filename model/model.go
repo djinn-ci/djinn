@@ -33,6 +33,13 @@ type Model struct {
 	UpdatedAt time.Time `db:"updated_at"`
 }
 
+type Paginator struct {
+	Next   int64
+	Prev   int64
+	Offset int64
+	Pages  []int64
+}
+
 type Store struct {
 	*sqlx.DB
 }
@@ -57,6 +64,8 @@ var (
 	TriggerTable       = "triggers"
 	UserTable          = "users"
 	VariableTable      = "variables"
+
+	PageLimit int64 = 10
 )
 
 // Convert a slice of models of length l, into a slice of model.Interface. The
@@ -281,22 +290,6 @@ func (s Store) All(i interface{}, table string, opts ...query.Option) error {
 	return errors.Err(err)
 }
 
-func (s Store) Count(table string) (int64, error) {
-	stmt, err := s.Prepare("SELECT COUNT(*) FROM " + table)
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	var count int64
-
-	err = stmt.QueryRow().Scan(&count)
-
-	return count, errors.Err(err)
-}
-
 func (s Store) Create(table string, ii ...Interface) error {
 	for _, i := range ii {
 		m := i.Values()
@@ -387,6 +380,47 @@ func (s Store) FindBy(i Interface, table, col string, val interface{}) error {
 	}
 
 	return errors.Err(err)
+}
+
+// Paginate returns a struct containing information about pagination for the
+// given table. It is expected for this to be used for querying against that
+// table to return the set of models at the specified offset.
+func (s Store) Paginate(table string, page int64) (Paginator, error) {
+	p := Paginator{}
+
+	stmt, err := s.Prepare("SELECT COUNT(*) FROM " + table)
+
+	if err != nil {
+		return p, errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	var count int64
+
+	if err := stmt.QueryRow().Scan(&count); err != nil {
+		return p, errors.Err(err)
+	}
+
+	pages := (count / PageLimit) + 1
+	p.Offset = (page - 1) * PageLimit
+
+	for i := int64(0); i < pages; i++ {
+		p.Pages = append(p.Pages, i + 1)
+	}
+
+	p.Next = page + 1
+	p.Prev = page - 1
+
+	if p.Prev < 1 {
+		p.Prev = 1
+	}
+
+	if p.Next > pages {
+		p.Next = pages
+	}
+
+	return p, nil
 }
 
 func (s Store) Update(table string, ii ...Interface) error {

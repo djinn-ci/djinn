@@ -6,8 +6,6 @@ import (
 	"github.com/andrewpillar/thrall/template"
 )
 
-var PageLimit int64 = 1
-
 func HTML(w http.ResponseWriter, content string, status int) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)

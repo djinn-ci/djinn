@@ -323,10 +323,10 @@ func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
-func (s NamespaceStore) Count() (int64, error) {
-	count, err := s.Store.Count(NamespaceTable)
+func (s NamespaceStore) Paginate(page int64) (Paginator, error) {
+	paginator, err := s.Store.Paginate(NamespaceTable, page)
 
-	return count, errors.Err(err)
+	return paginator, errors.Err(err)
 }
 
 func (s NamespaceStore) Create(nn ...*Namespace) error {

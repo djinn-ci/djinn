@@ -10,8 +10,9 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/web"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/mux"
 )
@@ -146,8 +147,8 @@ func (g gate) resource(name string) web.Gate {
 
 		q := query.Select(
 			query.Columns("*"),
-			query.Table(resources[name]),
-			query.WhereEq("id", id),
+			query.From(resources[name]),
+			query.Where("id", "=", id),
 		)
 
 		stmt, err := g.store.Preparex(q.Build())

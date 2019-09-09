@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/lib/pq"
 )
@@ -105,7 +106,7 @@ func (o *Object) Destroy() error {
 	q := query.Update(
 		query.Table(ObjectTable),
 		query.SetRaw("deleted_at", "NOW()"),
-		query.WhereEq("id", o.ID),
+		query.Where("id", "=", o.ID),
 		query.Returning("deleted_at"),
 	)
 
@@ -185,7 +186,7 @@ func (s ObjectStore) Delete(oo ...*Object) error {
 }
 
 func (s ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
-	oo, err := s.All(append(opts, query.WhereIs("deleted_at", "NULL"))...)
+	oo, err := s.All(append(opts, query.WhereRaw("deleted_at", "IS", "NULL"))...)
 
 	if err != nil {
 		return oo, errors.Err(err)
@@ -327,7 +328,7 @@ func (s BuildObjectStore) First() (*BuildObject, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(BuildObjectTable),
+		query.From(BuildObjectTable),
 	)
 
 	err := s.Store.Get(bo, q.Build(), q.Args()...)
@@ -356,7 +357,7 @@ func (s BuildObjectStore) LoadObjects(boo []*BuildObject) error {
 		Store: s.Store,
 	}
 
-	oo, err := objects.All(query.WhereIn("id", ids...))
+	oo, err := objects.All(query.Where("id", "IN", ids...))
 
 	if err != nil {
 		return errors.Err(err)

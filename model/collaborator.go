@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
+
+	"github.com/andrewpillar/query"
 )
 
 type Collaborator struct {
@@ -153,12 +154,12 @@ func (s CollaboratorStore) FindByUsername(username string) (*Collaborator, error
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(CollaboratorTable),
-		query.WhereEqQuery("user_id",
+		query.From(CollaboratorTable),
+		query.WhereQuery("user_id", "=",
 			query.Select(
 				query.Columns("id"),
-				query.Table(UserTable),
-				query.WhereEq("username", username),
+				query.From(UserTable),
+				query.Where("username", "=", username),
 			),
 		),
 		ForRootNamespace(s.Namespace),
@@ -184,15 +185,13 @@ func (s CollaboratorStore) FindByHandle(handle string) (*Collaborator, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(CollaboratorTable),
-		query.WhereEqQuery("user_id",
+		query.From(CollaboratorTable),
+		query.WhereQuery("user_id", "=",
 			query.Select(
 				query.Columns("id"),
-				query.Table(UserTable),
-				query.Or(
-					query.WhereEq("email", handle),
-					query.WhereEq("username", handle),
-				),
+				query.From(UserTable),
+				query.Where("email", "=", handle),
+				query.OrWhere("username", "=", handle),
 			),
 		),
 		ForRootNamespace(s.Namespace),

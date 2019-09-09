@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
+
+	"github.com/andrewpillar/query"
 )
 
 type Invite struct {
@@ -116,15 +117,13 @@ func (s InviteStore) FindByHandle(handle string) (*Invite, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(InviteTable),
-		query.WhereEqQuery("invitee_id",
+		query.From(InviteTable),
+		query.WhereQuery("invitee_id", "=",
 			query.Select(
 				query.Columns("id"),
-				query.Table(UserTable),
-				query.Or(
-					query.WhereEq("email", handle),
-					query.WhereEq("username", handle),
-				),
+				query.From(UserTable),
+				query.Where("email", "=", handle),
+				query.OrWhere("username", "=", handle),
 			),
 		),
 		ForNamespace(s.Namespace),

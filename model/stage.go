@@ -4,8 +4,9 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/lib/pq"
 )
@@ -125,7 +126,7 @@ func (s StageStore) LoadJobs(ss []*Stage) error {
 		Build: s.Build,
 	}
 
-	jj, err := jobs.All(query.WhereIn("stage_id", mapKey("id", models)...))
+	jj, err := jobs.All(query.Where("stage_id", "IN", mapKey("id", models)...))
 
 	if err != nil {
 		return errors.Err(err)

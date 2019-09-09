@@ -12,11 +12,12 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
 	"github.com/andrewpillar/thrall/web"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"

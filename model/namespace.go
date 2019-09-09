@@ -8,8 +8,9 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/model/types"
+
+	"github.com/andrewpillar/query"
 )
 
 var NamespaceMaxDepth int64 = 20
@@ -54,13 +55,13 @@ func NamespaceSharedWith(u *User) query.Option {
 			return q
 		}
 
-		return query.Or(
-			query.WhereEq("user_id", u.ID),
-			query.WhereInQuery("root_id",
+		return query.Options(
+			query.Where("user_id", "=", u.ID),
+			query.OrWhereQuery("root_id", "IN",
 				query.Select(
 					query.Columns("namespace_id"),
-					query.Table(CollaboratorTable),
-					query.WhereEq("user_id", u.ID),
+					query.From(CollaboratorTable),
+					query.Where("user_id", "=", u.ID),
 				),
 			),
 		)(q)
@@ -198,7 +199,7 @@ func (n *Namespace) CascadeVisibility() error {
 	q := query.Update(
 		query.Table(NamespaceTable),
 		query.Set("visibility", n.Visibility),
-		query.WhereEq("root_id", n.RootID),
+		query.Where("root_id", "=", n.RootID),
 	)
 
 	stmt, err := n.Prepare(q.Build())
@@ -308,7 +309,7 @@ func (n Namespace) Values() map[string]interface{} {
 func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
-	opts = append(opts, ForParent(s.Namespace), query.Table(NamespaceTable))
+	opts = append(opts, ForParent(s.Namespace), query.From(NamespaceTable))
 
 	err := s.Store.All(&nn, NamespaceTable, opts...)
 
@@ -343,8 +344,8 @@ func (s NamespaceStore) Delete(nn ...*Namespace) error {
 	}
 
 	q := query.Delete(
-		query.Table(NamespaceTable),
-		query.WhereIn("root_id", ids...),
+		query.From(NamespaceTable),
+		query.Where("root_id", "IN", ids...),
 	)
 
 	stmt, err := s.Prepare(q.Build())
@@ -371,8 +372,8 @@ func (s NamespaceStore) findBy(col string, val interface{}) (*Namespace, error) 
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(NamespaceTable),
-		query.WhereEq(col, val),
+		query.From(NamespaceTable),
+		query.Where(col, "=", val),
 		ForUser(s.User),
 		ForParent(s.Namespace),
 	)
@@ -493,15 +494,15 @@ func (s NamespaceStore) FindRoot(id int64) (*Namespace, error) {
 
 	rootq := query.Select(
 		query.Columns("root_id"),
-		query.Table(NamespaceTable),
-		query.WhereEq("id", id),
+		query.From(NamespaceTable),
+		query.Where("id", "=", id),
 	)
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(NamespaceTable),
-		query.WhereEqQuery("root_id", rootq),
-		query.WhereEqQuery("id", rootq),
+		query.From(NamespaceTable),
+		query.WhereQuery("root_id", "=", rootq),
+		query.WhereQuery("id", "=", rootq),
 	)
 
 	stmt, err := s.Preparex(q.Build())
@@ -540,7 +541,7 @@ func (s NamespaceStore) Load(ids []interface{}, load func(i int, n *Namespace)) 
 		return nil
 	}
 
-	nn, err := s.All(query.WhereIn("id", ids...))
+	nn, err := s.All(query.Where("id", "IN", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -566,7 +567,7 @@ func (s NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 		Store: s.Store,
 	}
 
-	bb, err := builds.All(query.WhereIn("namespace_id", mapKey("id", models)...))
+	bb, err := builds.All(query.Where("namespace_id", "IN", mapKey("id", models)...))
 
 	if err != nil {
 		return errors.Err(err)

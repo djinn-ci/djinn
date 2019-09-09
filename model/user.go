@@ -4,7 +4,8 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/lib/pq"
 )
@@ -171,11 +172,9 @@ func (s UserStore) FindByHandle(handle string) (*User, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(UserTable),
-		query.Or(
-			query.WhereEq("username", handle),
-			query.WhereEq("email", handle),
-		),
+		query.From(UserTable),
+		query.Where("username", "=", handle),
+		query.OrWhere("email", "=", handle),
 	)
 
 	err := s.Get(u, q.Build(), q.Args()...)
@@ -204,7 +203,7 @@ func (s UserStore) Load(ids []interface{}, load func(i int, u *User)) error {
 		return nil
 	}
 
-	uu, err := s.All(query.WhereIn("id", ids...))
+	uu, err := s.All(query.Where("id", "IN", ids...))
 
 	if err != nil {
 		return errors.Err(err)

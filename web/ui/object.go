@@ -15,10 +15,11 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/object"
 	"github.com/andrewpillar/thrall/web"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -83,11 +84,11 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bb, err := u.BuildStore().Index(
-		query.WhereInQuery("id",
+		query.WhereQuery("id", "IN",
 			query.Select(
 				query.Columns("build_id"),
-				query.Table("build_objects"),
-				query.WhereEq("object_id", o.ID),
+				query.From("build_objects"),
+				query.Where("object_id", "=", o.ID),
 			),
 		),
 		model.BuildSearch(search),

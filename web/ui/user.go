@@ -7,10 +7,11 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/user"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
 )
@@ -39,7 +40,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 
 	switch base {
 	case "invites":
-		ii, err := h.Invites.Index(query.WhereEq("invitee_id", u.ID))
+		ii, err := h.Invites.Index(query.Where("invitee_id", "=", u.ID))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

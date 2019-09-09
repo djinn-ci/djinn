@@ -6,7 +6,8 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
+
+	"github.com/andrewpillar/query"
 )
 
 type Variable struct {
@@ -132,7 +133,7 @@ func (s BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
 		}
 	}
 
-	vv, err := variables.All(query.WhereIn("id", ids...))
+	vv, err := variables.All(query.Where("id", "IN", ids...))
 
 	if err != nil {
 		return errors.Err(err)

@@ -5,8 +5,9 @@ import (
 	"fmt"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/lib/pq"
 )
@@ -111,11 +112,12 @@ func (j *Job) LoadBuild() error {
 func (j *Job) LoadDependencies() error {
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(JobTable),
-		query.WhereInQuery("id", query.Select(
+		query.From(JobTable),
+		query.WhereQuery("id", "IN",
+			query.Select(
 				query.Columns("dependency_id"),
-				query.Table(JobDependencyTable),
-				query.WhereEq("job_id", j.ID),
+				query.From(JobDependencyTable),
+				query.Where("job_id", "=", j.ID),
 			),
 		),
 	)
@@ -247,7 +249,7 @@ func (s JobStore) LoadArtifacts(jj []*Job) error {
 		Store: s.Store,
 	}
 
-	aa, err := artifacts.All(query.WhereIn("job_id", ids...))
+	aa, err := artifacts.All(query.Where("job_id", "IN", ids...))
 
 	if err != nil {
 		return errors.Err(err)
@@ -281,7 +283,7 @@ func (s JobStore) LoadDependencies(jj []*Job) error {
 		Store: s.Store,
 	}
 
-	dd, err := dependencies.All(query.WhereIn("job_id", ids...))
+	dd, err := dependencies.All(query.Where("job_id", "IN", ids...))
 
 	if err != nil {
 		return errors.Err(err)

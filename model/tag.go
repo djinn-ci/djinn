@@ -5,7 +5,8 @@ import (
 	"fmt"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
+
+	"github.com/andrewpillar/query"
 )
 
 type Tag struct {

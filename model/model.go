@@ -8,7 +8,8 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model/query"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/jmoiron/sqlx"
 
@@ -127,7 +128,7 @@ func ForBuild(b *Build) query.Option {
 			return q
 		}
 
-		return query.WhereEq("build_id", b.ID)(q)
+		return query.Where("build_id", "=", b.ID)(q)
 	}
 }
 
@@ -137,7 +138,7 @@ func ForJob(j *Job) query.Option {
 			return q
 		}
 
-		return query.WhereEq("job_id", j.ID)(q)
+		return query.Where("job_id", "=", j.ID)(q)
 	}
 }
 
@@ -147,7 +148,7 @@ func ForNamespace(n *Namespace) query.Option {
 			return q
 		}
 
-		return query.WhereEq("namespace_id", n.ID)(q)
+		return query.Where("namespace_id", "=", n.ID)(q)
 	}
 }
 
@@ -157,7 +158,7 @@ func ForRootNamespace(n *Namespace) query.Option {
 			return q
 		}
 
-		return query.WhereEq("namespace_id", n.RootID)(q)
+		return query.Where("namespace_id", "=", n.RootID)(q)
 	}
 }
 
@@ -167,7 +168,7 @@ func ForObject(o *Object) query.Option {
 			return q
 		}
 
-		return query.WhereEq("object_id", o.ID)(q)
+		return query.Where("object_id", "=", o.ID)(q)
 	}
 }
 
@@ -177,7 +178,7 @@ func ForParent(n *Namespace) query.Option {
 			return q
 		}
 
-		return query.WhereEq("parent_id", n.ID)(q)
+		return query.Where("parent_id", "=", n.ID)(q)
 	}
 }
 
@@ -187,7 +188,7 @@ func ForStage(s *Stage) query.Option {
 			return q
 		}
 
-		return query.WhereEq("stage_id", s.ID)(q)
+		return query.Where("stage_id", "=", s.ID)(q)
 	}
 }
 
@@ -197,21 +198,21 @@ func ForCollaborator(u *User) query.Option {
 			return q
 		}
 
-		return query.Or(
-			query.WhereInQuery("namespace_id",
+		return query.Options(
+			query.WhereQuery("namespace_id", "IN",
 				query.Select(
 					query.Columns("id"),
-					query.Table(NamespaceTable),
-					query.WhereInQuery("root_id",
+					query.From(NamespaceTable),
+					query.WhereQuery("root_id", "IN",
 						query.Select(
 							query.Columns("namespace_id"),
-							query.Table(CollaboratorTable),
-							query.WhereEq("user_id", u.ID),
+							query.From(CollaboratorTable),
+							query.Where("user_id", "=", u.ID),
 						),
 					),
 				),
 			),
-			query.WhereEq("user_id", u.ID),
+			query.OrWhere("user_id", "=", u.ID),
 		)(q)
 	}
 }
@@ -222,7 +223,7 @@ func ForUser(u *User) query.Option {
 			return q
 		}
 
-		return query.WhereEq("user_id", u.ID)(q)
+		return query.Where("user_id", "=", u.ID)(q)
 	}
 }
 
@@ -236,7 +237,7 @@ func Search(col, search string) query.Option {
 			return q
 		}
 
-		return query.WhereLike(col, "%" + search + "%")(q)
+		return query.Where(col, "LIKE", "%" + search + "%")(q)
 	}
 }
 
@@ -277,7 +278,7 @@ func (r Row) Values() map[string]interface{} {
 }
 
 func (s Store) All(i interface{}, table string, opts ...query.Option) error {
-	opts = append(opts, query.Columns("*"), query.Table(table))
+	opts = append(opts, query.Columns("*"), query.From(table))
 
 	q := query.Select(opts...)
 
@@ -303,7 +304,7 @@ func (s Store) Create(table string, ii ...Interface) error {
 		}
 
 		q := query.Insert(
-			query.Table(table),
+			query.Into(table),
 			query.Columns(cols...),
 			query.Values(vals...),
 			query.Returning("id"),
@@ -349,8 +350,8 @@ func (s Store) Delete(table string, ii ...Interface) error {
 	}
 
 	q := query.Delete(
-		query.Table(table),
-		query.WhereIn(col, ids...),
+		query.From(table),
+		query.Where(col, "IN", ids...),
 	)
 
 	stmt, err := s.Prepare(q.Build())
@@ -369,8 +370,8 @@ func (s Store) Delete(table string, ii ...Interface) error {
 func (s Store) FindBy(i Interface, table, col string, val interface{}) error {
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(table),
-		query.WhereEq(col, val),
+		query.From(table),
+		query.Where(col, "=", val),
 	)
 
 	err := s.Get(i, q.Build(), q.Args()...)
@@ -441,7 +442,7 @@ func (s Store) Update(table string, ii ...Interface) error {
 			opts = append(opts, query.Set(k, v))
 		}
 
-		opts = append(opts, query.WhereEq(col, val))
+		opts = append(opts, query.Where(col, "=", val))
 
 		q := query.Update(opts...)
 

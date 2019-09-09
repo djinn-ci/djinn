@@ -7,8 +7,9 @@ import (
 	"encoding/json"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/model/types"
+
+	"github.com/andrewpillar/query"
 )
 
 type triggerData struct {
@@ -93,7 +94,7 @@ func (s TriggerStore) First() (*Trigger, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(TriggerTable),
+		query.From(TriggerTable),
 		ForBuild(s.Build),
 	)
 

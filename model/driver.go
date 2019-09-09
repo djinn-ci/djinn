@@ -4,8 +4,9 @@ import (
 	"database/sql"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/model/types"
+
+	"github.com/andrewpillar/query"
 )
 
 type Driver struct {
@@ -54,7 +55,7 @@ func (s DriverStore) First() (*Driver, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.Table(DriverTable),
+		query.From(DriverTable),
 		ForBuild(s.Build),
 	)
 

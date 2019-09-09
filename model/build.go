@@ -10,8 +10,9 @@ import (
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/lib/pq"
 
@@ -60,11 +61,11 @@ func BuildSearch(search string) query.Option {
 			return q
 		}
 
-		return query.WhereInQuery("id",
+		return query.WhereQuery("id", "IN",
 			query.Select(
 				query.Columns("build_id"),
-				query.Table("tags"),
-				query.WhereLike("name", "%" + search + "%"),
+				query.From("tags"),
+				query.Where("name", "LIKE", "%" + search + "%"),
 			),
 		)(q)
 	}
@@ -76,7 +77,7 @@ func BuildStatus(status string) query.Option {
 			return q
 		}
 
-		return query.WhereEq("status", status)(q)
+		return query.Where("status", "=", status)(q)
 	}
 }
 
@@ -86,11 +87,11 @@ func BuildTag(tag string) query.Option {
 			return q
 		}
 
-		return query.WhereInQuery("id",
+		return query.WhereQuery("id", "IN",
 			query.Select(
 				query.Columns("build_id"),
-				query.Table("tags"),
-				query.WhereEq("name", tag),
+				query.From("tags"),
+				query.Where("name", "=", tag),
 			),
 		)(q)
 	}
@@ -675,7 +676,7 @@ func (s *BuildStore) LoadTags(bb []*Build) error {
 		Store: s.Store,
 	}
 
-	tt, err := tags.All(query.WhereIn("build_id", mapKey("id", models)...))
+	tt, err := tags.All(query.Where("build_id", "IN", mapKey("id", models)...))
 
 	if err != nil {
 		return errors.Err(err)

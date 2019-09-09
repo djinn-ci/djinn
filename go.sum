@@ -47,6 +47,8 @@ github.com/andrewpillar/query v0.0.0-20190908210036-4f015f772248 h1:c8XKzZLR5gMr
 github.com/andrewpillar/query v0.0.0-20190908210036-4f015f772248/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
 github.com/andrewpillar/query v0.0.0-20190909182923-2580df9c45b6 h1:FIR78g7GenXQBVt3ES/WNqg4AsbjHc9F7Osmx8eACRo=
 github.com/andrewpillar/query v0.0.0-20190909182923-2580df9c45b6/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
+github.com/andrewpillar/query v0.0.0-20190909211758-dda183d60c04 h1:n9PCwJVk97WbpRY0xCRC/XL8Y/Odz0eNlxEd78YXAAk=
+github.com/andrewpillar/query v0.0.0-20190909211758-dda183d60c04/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
 github.com/anmitsu/go-shlex v0.0.0-20161002113705-648efa622239/go.mod h1:2FmKhYUyUczH0OGQWaF5ceTx0UBShxjsH6f8oGKYe2c=
 github.com/aws/aws-sdk-go v1.17.2 h1:92HvIn2MROLHcidibvnzy7D0iHCygmonkNQKACbAvuA=
 github.com/aws/aws-sdk-go v1.17.2/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=

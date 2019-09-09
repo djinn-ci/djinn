@@ -32,13 +32,7 @@ type Object struct {
 }
 
 func (h Object) Index(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	search := r.URL.Query().Get("search")
 
@@ -66,13 +60,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Show(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 
@@ -142,14 +130,7 @@ func (h Object) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Store(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to create object: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+	u := h.User(r)
 
 	objects := u.ObjectStore()
 	namespaces := u.NamespaceStore()
@@ -171,7 +152,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err = namespaces.FindOrCreate(f.Namespace)
+		n, err := namespaces.FindOrCreate(f.Namespace)
 
 		if !n.CanAdd(u) {
 			log.Error.Println(errors.Err(err))
@@ -265,13 +246,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Download(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 
@@ -309,14 +284,7 @@ func (h Object) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete object: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 

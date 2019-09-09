@@ -22,13 +22,7 @@ type Variable struct {
 }
 
 func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	search := r.URL.Query().Get("search")
 
@@ -70,14 +64,7 @@ func (h Variable) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to create variable: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+	u := h.User(r)
 
 	variables := u.VariableStore()
 	namespaces := u.NamespaceStore()
@@ -96,7 +83,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err = namespaces.FindOrCreate(f.Namespace)
+		n, err := namespaces.FindOrCreate(f.Namespace)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -143,14 +130,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete variable: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 

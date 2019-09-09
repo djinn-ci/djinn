@@ -20,13 +20,7 @@ type Artifact struct {
 }
 
 func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 

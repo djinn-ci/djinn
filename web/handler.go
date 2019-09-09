@@ -121,7 +121,15 @@ func (h *Handler) ValidateForm(f form.Form, w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
-func (h Handler) User(r *http.Request) (*model.User, error) {
+func (h Handler) User(r *http.Request) *model.User {
+	val := r.Context().Value("user")
+
+	u, _ := val.(*model.User)
+
+	return u
+}
+
+func (h Handler) UserCookie(r *http.Request) (*model.User, error) {
 	c, err := r.Cookie("user")
 
 	if err != nil {

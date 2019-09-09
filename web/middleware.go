@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -22,7 +23,7 @@ type Middleware struct {
 type Gate func(u *model.User, r *http.Request) bool
 
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, bool) {
-	u, err := h.User(r)
+	u, err := h.UserCookie(r)
 
 	if err != nil {
 		cause := errors.Cause(err)
@@ -57,10 +58,14 @@ func (h Middleware) Guest(next http.Handler) http.Handler {
 
 func (h Middleware) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := h.auth(w, r); !ok {
+		u, ok := h.auth(w, r)
+
+		if !ok {
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
+
+		r = r.WithContext(context.WithValue(r.Context(), "user", u))
 
 		next.ServeHTTP(w, r)
 	})
@@ -70,6 +75,8 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, _ := h.auth(w, r)
+
+			r = r.WithContext(context.WithValue(r.Context(), "user", u))
 
 			for _, g := range gates {
 				if !g(u, r) {

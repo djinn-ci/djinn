@@ -28,13 +28,7 @@ type Namespace struct {
 }
 
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	search := r.URL.Query().Get("search")
 
@@ -82,13 +76,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	parent, err := u.NamespaceStore().FindByPath(r.URL.Query().Get("parent"))
 
@@ -121,14 +109,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+	u := h.User(r)
 
 	namespaces := u.NamespaceStore()
 
@@ -208,13 +189,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 
@@ -416,14 +391,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 

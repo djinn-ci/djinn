@@ -31,13 +31,7 @@ type Build struct {
 }
 
 func (h Build) Index(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	tag := r.URL.Query().Get("tag")
 	search := r.URL.Query().Get("search")
@@ -49,6 +43,12 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		model.BuildStatus(status),
 		query.OrderDesc("created_at"),
 	)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
 
 	p := &build.IndexPage{
 		BasePage: template.BasePage{
@@ -80,14 +80,7 @@ func (h Build) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Build) Store(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+	u := h.User(r)
 
 	f := &form.Build{}
 

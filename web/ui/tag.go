@@ -19,13 +19,7 @@ type Tag struct {
 }
 
 func (h Tag) Store(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 
@@ -73,13 +67,7 @@ func (h Tag) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
-	u, err := h.User(r)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	u := h.User(r)
 
 	vars := mux.Vars(r)
 

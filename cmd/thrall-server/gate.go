@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -44,6 +45,8 @@ func (g gate) build() web.Gate {
 			return false
 		}
 
+		r = r.WithContext(context.WithValue(r.Context(), "owner", owner))
+
 		id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
 		b, err := owner.BuildStore().Find(id)
@@ -56,6 +59,8 @@ func (g gate) build() web.Gate {
 		if b.IsZero() {
 			return false
 		}
+
+		r = r.WithContext(context.WithValue(r.Context(), "build", b))
 
 		if !b.NamespaceID.Valid {
 			return u.ID == b.UserID
@@ -91,6 +96,8 @@ func (g gate) namespace() web.Gate {
 			return false
 		}
 
+		r = r.WithContext(context.WithValue(r.Context(), "owner", owner))
+
 		path := strings.TrimSuffix(vars["namespace"], "/")
 
 		n, err := owner.NamespaceStore().FindByPath(path)
@@ -103,6 +110,8 @@ func (g gate) namespace() web.Gate {
 		if n.IsZero() {
 			return false
 		}
+
+		r = r.WithContext(context.WithValue(r.Context(), "namespace", n))
 
 		if filepath.Base(r.URL.Path) == "edit" {
 			return u.ID == n.UserID

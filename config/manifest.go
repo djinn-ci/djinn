@@ -108,7 +108,7 @@ func (m Manifest) Validate() error {
 			}
 
 			if m.Driver.Workspace == "" {
-				return errors.New("driver typ docker requires workspace")
+				return errors.New("driver type docker requires workspace")
 			}
 		case "qemu":
 			if m.Driver.Image == "" {

@@ -20,7 +20,7 @@ type Middleware struct {
 // passed the current user in the request, if any, along with the request
 // itself. This will determine whether the given user can access whatever is on
 // the other end of the current endpoint, hence the bool return value.
-type Gate func(u *model.User, r *http.Request) bool
+type Gate func(u *model.User, r *http.Request) (*http.Request, bool)
 
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, bool) {
 	u, err := h.UserCookie(r)
@@ -76,10 +76,14 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, _ := h.auth(w, r)
 
+			var ok bool
+
 			r = r.WithContext(context.WithValue(r.Context(), "user", u))
 
 			for _, g := range gates {
-				if !g(u, r) {
+				r, ok = g(u, r)
+
+				if !ok {
 					HTMLError(w, "Not found", http.StatusNotFound)
 					return
 				}

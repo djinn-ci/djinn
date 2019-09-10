@@ -36,14 +36,14 @@ func (g gate) build() web.Gate {
 		Store: g.store,
 	}
 
-	return func(u *model.User, r *http.Request) bool {
+	return func(u *model.User, r *http.Request) (*http.Request, bool) {
 		vars := mux.Vars(r)
 
 		owner, err := users.FindByUsername(vars["username"])
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), "owner", owner))
@@ -54,27 +54,27 @@ func (g gate) build() web.Gate {
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
 		if b.IsZero() {
-			return false
+			return r, false
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), "build", b))
 
 		if !b.NamespaceID.Valid {
-			return u.ID == b.UserID
+			return r, u.ID == b.UserID
 		}
 
 		root, err := namespaces.FindRoot(b.NamespaceID.Int64)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
-		return root.AccessibleBy(u)
+		return r, root.AccessibleBy(u)
 	}
 }
 
@@ -87,14 +87,14 @@ func (g gate) namespace() web.Gate {
 		Store: g.store,
 	}
 
-	return func(u *model.User, r *http.Request) bool {
+	return func(u *model.User, r *http.Request) (*http.Request, bool) {
 		vars := mux.Vars(r)
 
 		owner, err := users.FindByUsername(vars["username"])
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), "owner", owner))
@@ -105,31 +105,31 @@ func (g gate) namespace() web.Gate {
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
 		if n.IsZero() {
-			return false
+			return r, false
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), "namespace", n))
 
 		if filepath.Base(r.URL.Path) == "edit" {
-			return u.ID == n.UserID
+			return r, u.ID == n.UserID
 		}
 
 		if r.Method == "DELETE" || r.Method == "PATCH" {
-			return u.ID == n.UserID
+			return r, u.ID == n.UserID
 		}
 
 		root, err := namespaces.FindRoot(n.ID)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
-		return root.AccessibleBy(u)
+		return r, root.AccessibleBy(u)
 	}
 }
 
@@ -138,7 +138,7 @@ func (g gate) resource(name string) web.Gate {
 		Store: g.store,
 	}
 
-	return func(u *model.User, r *http.Request) bool {
+	return func(u *model.User, r *http.Request) (*http.Request, bool) {
 		vars := mux.Vars(r)
 
 		id, _ := strconv.ParseInt(vars[name], 10, 64)
@@ -155,14 +155,14 @@ func (g gate) resource(name string) web.Gate {
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
 		defer stmt.Close()
 
 		if err := stmt.QueryRowx(q.Args()...).MapScan(row); err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
 		namespaceId, ok := row["namespace_id"].(int64)
@@ -171,19 +171,19 @@ func (g gate) resource(name string) web.Gate {
 			userId, ok := row["user_id"].(int64)
 
 			if !ok {
-				return false
+				return r, false
 			}
 
-			return userId == u.ID
+			return r, userId == u.ID
 		}
 
 		root, err := namespaces.FindRoot(namespaceId)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
-			return false
+			return r, false
 		}
 
-		return root.AccessibleBy(u)
+		return r, root.AccessibleBy(u)
 	}
 }

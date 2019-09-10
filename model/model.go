@@ -38,6 +38,7 @@ type Paginator struct {
 	Next   int64
 	Prev   int64
 	Offset int64
+	Page   int64
 	Pages  []int64
 }
 
@@ -387,7 +388,9 @@ func (s Store) FindBy(i Interface, table, col string, val interface{}) error {
 // given table. It is expected for this to be used for querying against that
 // table to return the set of models at the specified offset.
 func (s Store) Paginate(table string, page int64) (Paginator, error) {
-	p := Paginator{}
+	p := Paginator{
+		Page: page,
+	}
 
 	stmt, err := s.Prepare("SELECT COUNT(*) FROM " + table)
 

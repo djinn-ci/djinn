@@ -48,7 +48,12 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	paginator, err := u.NamespaceStore().Paginate(page)
+	opts := []query.Option{
+		model.Search("path", search),
+		model.NamespaceSharedWith(u),
+	}
+
+	paginator, err := u.NamespaceStore().Paginate(page, opts...)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -56,13 +61,14 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nn, err := u.NamespaceStore().Index(
-		model.Search("path", search),
-		model.NamespaceSharedWith(u),
+	opts = append(
+		opts,
 		query.OrderAsc("path"),
 		query.Limit(model.PageLimit),
 		query.Offset(paginator.Offset),
 	)
+
+	nn, err := u.NamespaceStore().Index(opts...)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

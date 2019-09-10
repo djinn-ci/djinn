@@ -73,7 +73,7 @@ func (k Key) Values() map[string]interface{} {
 func (s KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	kk := make([]*Key, 0)
 
-	opts = append(opts, ForCollaborator(s.User), ForNamespace(s.Namespace))
+	opts = append([]query.Option{ForCollaborator(s.User), ForNamespace(s.Namespace)}, opts...)
 
 	err := s.Store.All(&kk, KeyTable, opts...)
 

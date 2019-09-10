@@ -278,7 +278,7 @@ func (r Row) Values() map[string]interface{} {
 }
 
 func (s Store) All(i interface{}, table string, opts ...query.Option) error {
-	opts = append(opts, query.Columns("*"), query.From(table))
+	opts = append([]query.Option{query.Columns("*"), query.From(table)}, opts...)
 
 	q := query.Select(opts...)
 

@@ -13,7 +13,7 @@ require (
 	github.com/RichardKnop/logging v0.0.0-20190827224416-1a693bdd4fae // indirect
 	github.com/RichardKnop/machinery v1.6.9
 	github.com/andrewpillar/cli v1.1.0
-	github.com/andrewpillar/query v0.0.0-20190909211758-dda183d60c04
+	github.com/andrewpillar/query v0.0.0-20190910171206-7125f399539b
 	github.com/aws/aws-sdk-go v1.23.18 // indirect
 	github.com/bradfitz/gomemcache v0.0.0-20190329173943-551aad21a668 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect

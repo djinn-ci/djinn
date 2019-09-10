@@ -131,6 +131,8 @@ func (h Object) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Store(w http.ResponseWriter, r *http.Request) {
+	var err error
+
 	u := h.User(r)
 
 	objects := u.ObjectStore()
@@ -153,7 +155,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err := namespaces.FindOrCreate(f.Namespace)
+		n, err = namespaces.FindOrCreate(f.Namespace)
 
 		if !n.CanAdd(u) {
 			log.Error.Println(errors.Err(err))

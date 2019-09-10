@@ -64,6 +64,8 @@ func (h Variable) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
+	var err error
+
 	u := h.User(r)
 
 	variables := u.VariableStore()
@@ -83,7 +85,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err := namespaces.FindOrCreate(f.Namespace)
+		n, err = namespaces.FindOrCreate(f.Namespace)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

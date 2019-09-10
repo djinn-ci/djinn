@@ -32,3 +32,41 @@ h1, h2, h3, h4, h5, h6 {
 @import "pill.less";
 @import "table.less";
 @import "util.less";
+.paginator {
+	margin: 0 auto;
+	list-style: none;
+	max-width: 250px;
+
+	li {
+		display: inline;
+
+		a {
+			display: inline-block;
+			box-sizing: border-box;
+			text-align: center;
+			padding: 10px;
+			width: 50%;
+		}
+
+		a.disabled {
+			cursor: not-allowed;
+			color: rgba(0, 0, 0, 0.5);
+		}
+
+		a:hover {
+			text-decoration: none;
+		}
+
+		.prev:hover {
+			border-radius: 3px 0px 0px 3px;
+			background: @blue;
+			color: #ffffff;
+		}
+
+		.next:hover {
+			border-radius: 0px 3px 3px 0px;
+			background: @blue;
+			color: #ffffff;
+		}
+	}
+}

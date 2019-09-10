@@ -679,50 +679,72 @@ func StreamRenderPaginator(qw422016 *qt422016.Writer, uri string, p model.Pagina
 	//line template/template.qtpl:247
 	if len(p.Pages) > 1 {
 		//line template/template.qtpl:247
-		qw422016.N().S(`<ul><li><a href="`)
+		qw422016.N().S(`<ul class="paginator panel">`)
 		//line template/template.qtpl:249
-		qw422016.E().S(uri)
-		//line template/template.qtpl:249
-		qw422016.N().S(`?page=`)
-		//line template/template.qtpl:249
-		qw422016.E().V(p.Prev)
-		//line template/template.qtpl:249
-		qw422016.N().S(`">Previous</a></li><li><a href="`)
-		//line template/template.qtpl:250
-		qw422016.E().S(uri)
-		//line template/template.qtpl:250
-		qw422016.N().S(`?page=`)
-		//line template/template.qtpl:250
-		qw422016.E().V(p.Next)
-		//line template/template.qtpl:250
-		qw422016.N().S(`">Next</a></li></ul>`)
-		//line template/template.qtpl:252
+		if p.Page == p.Prev {
+			//line template/template.qtpl:249
+			qw422016.N().S(`<li><a class="disabled">Previous</a></li>`)
+			//line template/template.qtpl:251
+		} else {
+			//line template/template.qtpl:251
+			qw422016.N().S(`<li><a href="`)
+			//line template/template.qtpl:252
+			qw422016.E().S(uri)
+			//line template/template.qtpl:252
+			qw422016.N().S(`?page=`)
+			//line template/template.qtpl:252
+			qw422016.E().V(p.Prev)
+			//line template/template.qtpl:252
+			qw422016.N().S(`" class="prev">Previous</a></li>`)
+			//line template/template.qtpl:253
+		}
+		//line template/template.qtpl:254
+		if p.Page == p.Next {
+			//line template/template.qtpl:254
+			qw422016.N().S(`<li><a class="disabled">Next</a></li>`)
+			//line template/template.qtpl:256
+		} else {
+			//line template/template.qtpl:256
+			qw422016.N().S(`<li><a href="`)
+			//line template/template.qtpl:257
+			qw422016.E().S(uri)
+			//line template/template.qtpl:257
+			qw422016.N().S(`?page=`)
+			//line template/template.qtpl:257
+			qw422016.E().V(p.Next)
+			//line template/template.qtpl:257
+			qw422016.N().S(`" class="next">Next</a></li>`)
+			//line template/template.qtpl:258
+		}
+		//line template/template.qtpl:258
+		qw422016.N().S(`</ul>`)
+		//line template/template.qtpl:260
 	}
-//line template/template.qtpl:253
+//line template/template.qtpl:261
 }
 
-//line template/template.qtpl:253
+//line template/template.qtpl:261
 func WriteRenderPaginator(qq422016 qtio422016.Writer, uri string, p model.Paginator) {
-	//line template/template.qtpl:253
+	//line template/template.qtpl:261
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/template.qtpl:253
+	//line template/template.qtpl:261
 	StreamRenderPaginator(qw422016, uri, p)
-	//line template/template.qtpl:253
+	//line template/template.qtpl:261
 	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:253
+//line template/template.qtpl:261
 }
 
-//line template/template.qtpl:253
+//line template/template.qtpl:261
 func RenderPaginator(uri string, p model.Paginator) string {
-	//line template/template.qtpl:253
+	//line template/template.qtpl:261
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/template.qtpl:253
+	//line template/template.qtpl:261
 	WriteRenderPaginator(qb422016, uri, p)
-	//line template/template.qtpl:253
+	//line template/template.qtpl:261
 	qs422016 := string(qb422016.B)
-	//line template/template.qtpl:253
+	//line template/template.qtpl:261
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/template.qtpl:253
+	//line template/template.qtpl:261
 	return qs422016
-//line template/template.qtpl:253
+//line template/template.qtpl:261
 }

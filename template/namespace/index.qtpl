@@ -84,7 +84,7 @@ type IndexPage struct {
 			{% endif %}
 		{% endif %}
 	</div>
-	<div class="panel">{%= template.RenderPaginator(p.URI, p.Paginator) %}</div>
+	{%= template.RenderPaginator(p.URI, p.Paginator) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

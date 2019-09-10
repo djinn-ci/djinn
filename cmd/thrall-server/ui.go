@@ -72,6 +72,10 @@ func (s *uiServer) init() {
 		Store: store,
 	}
 
+	namespaces := model.NamespaceStore{
+		Store: store,
+	}
+
 	wh := web.Handler{
 		Store:        session.New(s.client, s.key),
 		SecureCookie: securecookie.New(s.hash, s.key),
@@ -100,9 +104,7 @@ func (s *uiServer) init() {
 
 	namespace := ui.Namespace{
 		Handler:    wh,
-		Namespaces: model.NamespaceStore{
-			Store: store,
-		},
+		Namespaces: namespaces,
 	}
 
 	collaborator := ui.Collaborator{
@@ -186,7 +188,17 @@ func (s *uiServer) init() {
 	authRouter.Use(mw.Auth)
 
 	gate := gate{
-		store: store,
+		users:      users,
+		namespaces: namespaces,
+		objects:    model.ObjectStore{
+			Store: store,
+		},
+		variables:  model.VariableStore{
+			Store: store,
+		},
+		keys:      model.KeyStore{
+			Store: store,
+		},
 	}
 
 	namespaceRouter := s.router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
@@ -201,7 +213,7 @@ func (s *uiServer) init() {
 	namespaceRouter.HandleFunc("/-/collaborators/{collaborator}", collaborator.Destroy).Methods("DELETE")
 	namespaceRouter.HandleFunc("", namespace.Update).Methods("PATCH")
 	namespaceRouter.HandleFunc("", namespace.Destroy).Methods("DELETE")
-	namespaceRouter.Use(mw.Gate(gate.namespace()))
+	namespaceRouter.Use(mw.Gate(gate.namespace))
 
 	buildRouter := s.router.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	buildRouter.HandleFunc("", build.Show).Methods("GET")
@@ -218,24 +230,24 @@ func (s *uiServer) init() {
 	buildRouter.HandleFunc("/tags", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/tags", tag.Store).Methods("POST")
 	buildRouter.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
-	buildRouter.Use(mw.Gate(gate.build()))
+	buildRouter.Use(mw.Gate(gate.build))
 
 	objectRouter := s.router.PathPrefix("/objects").Subrouter()
 	objectRouter.HandleFunc("", object.Index).Methods("GET")
 	objectRouter.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
 	objectRouter.HandleFunc("/{object:[0-9]+}/download/{name}", object.Download).Methods("GET")
 	objectRouter.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
-	objectRouter.Use(mw.Gate(gate.resource("object")))
+	objectRouter.Use(mw.Gate(gate.object))
 
 	variableRouter := s.router.PathPrefix("/variables").Subrouter()
 	variableRouter.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
-	variableRouter.Use(mw.Gate(gate.resource("variable")))
+	variableRouter.Use(mw.Gate(gate.variable))
 
 	keyRouter := s.router.PathPrefix("/keys").Subrouter()
 	keyRouter.HandleFunc("/{key:[0-9]+}/edit", key.Edit).Methods("GET")
 	keyRouter.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
 	keyRouter.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
-	keyRouter.Use(mw.Gate(gate.resource("key")))
+	keyRouter.Use(mw.Gate(gate.key))
 
 	s.Server.Init(web.NewSpoof(s.router))
 }

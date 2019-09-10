@@ -324,8 +324,8 @@ func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
-func (s NamespaceStore) Paginate(page int64) (Paginator, error) {
-	paginator, err := s.Store.Paginate(NamespaceTable, page)
+func (s NamespaceStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(NamespaceTable, page, opts...)
 
 	return paginator, errors.Err(err)
 }

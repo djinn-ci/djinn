@@ -387,12 +387,16 @@ func (s Store) FindBy(i Interface, table, col string, val interface{}) error {
 // Paginate returns a struct containing information about pagination for the
 // given table. It is expected for this to be used for querying against that
 // table to return the set of models at the specified offset.
-func (s Store) Paginate(table string, page int64) (Paginator, error) {
+func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginator, error) {
 	p := Paginator{
 		Page: page,
 	}
 
-	stmt, err := s.Prepare("SELECT COUNT(*) FROM " + table)
+	opts = append([]query.Option{query.Count("*"), query.From(table)}, opts...)
+
+	q := query.Select(opts...)
+
+	stmt, err := s.Prepare(q.Build())
 
 	if err != nil {
 		return p, errors.Err(err)

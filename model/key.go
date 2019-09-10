@@ -163,11 +163,19 @@ func (s KeyStore) New() *Key {
 		Model: Model{
 			DB: s.DB,
 		},
-		User: s.User,
+		User:      s.User,
+		Namespace: s.Namespace,
 	}
 
 	if s.User != nil {
 		k.UserID = s.User.ID
+	}
+
+	if s.Namespace != nil {
+		k.NamespaceID = sql.NullInt64{
+			Int64: s.Namespace.ID,
+			Valid: true,
+		}
 	}
 
 	return k

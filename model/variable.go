@@ -326,11 +326,19 @@ func (s VariableStore) New() *Variable {
 		Model: Model{
 			DB: s.DB,
 		},
-		User:  s.User,
+		User:      s.User,
+		Namespace: s.Namespace,
 	}
 
 	if s.User != nil {
 		v.UserID = s.User.ID
+	}
+
+	if s.Namespace != nil {
+		v.NamespaceID = sql.NullInt64{
+			Int64: s.Namespace.ID,
+			Valid: true,
+		}
 	}
 
 	return v

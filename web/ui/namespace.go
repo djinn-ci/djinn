@@ -21,11 +21,20 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
 )
 
 type Namespace struct {
 	web.Handler
+
+	Namespaces model.NamespaceStore
+}
+
+func (h Namespace) Namespace(r *http.Request) *model.Namespace {
+	val := r.Context().Value("namespace")
+
+	n, _ := val.(*model.Namespace)
+
+	return n
 }
 
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
@@ -191,24 +200,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
-
-	vars := mux.Vars(r)
-
-	owner, err := h.Users.FindByUsername(vars["username"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	n, err := owner.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	n := h.Namespace(r)
 
 	if err := n.LoadParents(); err != nil {
 		log.Error.Println(errors.Err(err))
@@ -331,6 +323,8 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		break
 	default:
+		var err error
+
 		sp.Builds, err = n.BuildStore().Index(
 			model.BuildStatus(status),
 			model.BuildSearch(search),
@@ -353,23 +347,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	owner, err := h.Users.FindByUsername(vars["username"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	n, err := owner.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	n := h.Namespace(r)
 
 	if err := n.LoadParents(); err != nil {
 		log.Error.Println(errors.Err(err))
@@ -393,28 +371,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 
 func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
-
-	vars := mux.Vars(r)
-
-	owner, err := h.Users.FindByUsername(vars["username"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	namespaces := owner.NamespaceStore()
-
-	n, err := namespaces.FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+	n := h.Namespace(r)
 
 	f := &form.Namespace{
 		Namespaces: u.NamespaceStore(),
@@ -456,7 +413,7 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := namespaces.Update(n); err != nil {
+	if err := h.Namespaces.Update(n); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -469,29 +426,9 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+	n := h.Namespace(r)
 
-	owner, err := h.Users.FindByUsername(vars["username"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	namespaces := owner.NamespaceStore()
-
-	n, err := namespaces.FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if err := namespaces.Delete(n); err != nil {
+	if err := h.Namespaces.Delete(n); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

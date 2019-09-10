@@ -99,7 +99,10 @@ func (s *uiServer) init() {
 	}
 
 	namespace := ui.Namespace{
-		Handler: wh,
+		Handler:    wh,
+		Namespaces: model.NamespaceStore{
+			Store: store,
+		},
 	}
 
 	collaborator := ui.Collaborator{

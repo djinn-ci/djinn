@@ -406,7 +406,7 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 
 	var count int64
 
-	if err := stmt.QueryRow().Scan(&count); err != nil {
+	if err := stmt.QueryRow(q.Args()...).Scan(&count); err != nil {
 		return p, errors.Err(err)
 	}
 

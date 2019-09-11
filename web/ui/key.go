@@ -3,7 +3,6 @@ package ui
 import (
 	"database/sql"
 	"net/http"
-	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
@@ -15,11 +14,20 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
 )
 
 type Key struct {
 	web.Handler
+
+	Keys model.KeyStore
+}
+
+func (h Key) Key(r *http.Request) *model.Key {
+	val := r.Context().Value("key")
+
+	k, _ := val.(*model.Key)
+
+	return k
 }
 
 func (h Key) Index(w http.ResponseWriter, r *http.Request) {
@@ -143,19 +151,7 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
-
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["key"], 10, 64)
-
-	k, err := u.KeyStore().Find(id)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+	k := h.Key(r)
 
 	if err := k.LoadNamespace(); err != nil {
 		log.Error.Println(errors.Err(err))
@@ -179,25 +175,12 @@ func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 
 func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
+	k := h.Key(r)
 
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["key"], 10, 64)
-
-	keys := u.KeyStore()
 	namespaces := u.NamespaceStore()
 
-	k, err := keys.Find(id)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to update SSH key: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
 	f := &form.Key{
-		Keys: keys,
+		Keys: h.Keys,
 	}
 
 	if err := form.Unmarshal(f, r); err != nil {
@@ -225,7 +208,7 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 
 	k.Config = f.Config
 
-	if err := keys.Update(k); err != nil {
+	if err := h.Keys.Update(k); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to update SSH key: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -238,24 +221,9 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
+	k := h.Key(r)
 
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["key"], 10, 64)
-
-	keys := u.KeyStore()
-
-	k, err := keys.Find(id)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if err := keys.Delete(k); err != nil {
+	if err := h.Keys.Delete(k); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

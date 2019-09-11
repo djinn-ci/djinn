@@ -3,7 +3,6 @@ package ui
 import (
 	"database/sql"
 	"net/http"
-	"strconv"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -14,11 +13,20 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
 )
 
 type Variable struct {
 	web.Handler
+
+	Variables model.VariableStore
+}
+
+func (h Variable) Variable(r *http.Request) *model.Variable {
+	val := r.Context().Value("variable")
+
+	v, _ := val.(*model.Variable)
+
+	return v
 }
 
 func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
@@ -119,7 +127,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	v.Key = f.Key
 	v.Value = f.Value
 
-	if err := variables.Create(v); err != nil {
+	if err := h.Variables.Create(v); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to create variable: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
@@ -132,29 +140,9 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
+	v := h.Variable(r)
 
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["variable"], 10, 64)
-
-	variables := u.VariableStore()
-
-	v, err := variables.Find(id)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete variable: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if v.IsZero() {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	if err := variables.Delete(v); err != nil {
+	if err := h.Variables.Delete(v); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete variable: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

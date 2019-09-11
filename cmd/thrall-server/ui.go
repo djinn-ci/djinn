@@ -128,11 +128,17 @@ func (s *uiServer) init() {
 	}
 
 	variable := ui.Variable{
-		Handler: wh,
+		Handler:   wh,
+		Variables: model.VariableStore{
+			Store: store,
+		},
 	}
 
 	key := ui.Key{
 		Handler: wh,
+		Keys:    model.KeyStore{
+			Store: store,
+		},
 	}
 
 	job := ui.Job{

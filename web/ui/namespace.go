@@ -273,7 +273,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		break
 	case "variables":
-		vv, err := n.VariableStore().All(model.Search("key", search))
+		vv, err := n.VariableStore().Index(model.Search("key", search))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -292,7 +292,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		break
 	case "keys":
-		kk, err := n.KeyStore().All(model.Search("name", search))
+		kk, err := n.KeyStore().Index(model.Search("name", search))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

@@ -170,9 +170,9 @@ func (g gate) resource(name string, u *model.User, r *http.Request, fn load) (bo
 		return false, errors.Err(err)
 	}
 
-	namespaceId, ok := m.Values()["namespace_id"].(sql.NullInt64)
+	namespaceId, _ := m.Values()["namespace_id"].(sql.NullInt64)
 
-	if !ok {
+	if !namespaceId.Valid {
 		userId, ok := m.Values()["user_id"].(int64)
 
 		if !ok {

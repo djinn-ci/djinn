@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -169,11 +170,7 @@ func (g gate) resource(name string, u *model.User, r *http.Request, fn load) (bo
 		return false, errors.Err(err)
 	}
 
-	if len(m.Values()) == 0 {
-		return false, nil
-	}
-
-	namespaceId, ok := m.Values()["namespace_id"].(int64)
+	namespaceId, ok := m.Values()["namespace_id"].(sql.NullInt64)
 
 	if !ok {
 		userId, ok := m.Values()["user_id"].(int64)
@@ -185,7 +182,7 @@ func (g gate) resource(name string, u *model.User, r *http.Request, fn load) (bo
 		return u.ID == userId, nil
 	}
 
-	root, err := g.namespaces.FindRoot(namespaceId)
+	root, err := g.namespaces.FindRoot(namespaceId.Int64)
 
 	if err != nil {
 		return false, errors.Err(err)

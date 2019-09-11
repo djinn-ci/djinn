@@ -128,6 +128,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		b.Namespace = n
 		b.NamespaceID = sql.NullInt64{
 			Int64: n.ID,
 			Valid: true,

@@ -120,8 +120,11 @@ func (s *uiServer) init() {
 
 	object := ui.Object{
 		Handler:   wh,
-		FileStore: s.objects,
 		Limit:     s.limit,
+		Objects:   model.ObjectStore{
+			Store: store,
+		},
+		FileStore: s.objects,
 	}
 
 	variable := ui.Variable{

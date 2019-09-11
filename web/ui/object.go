@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
@@ -29,7 +28,16 @@ type Object struct {
 	web.Handler
 
 	Limit     int64
+	Objects   model.ObjectStore
 	FileStore filestore.FileStore
+}
+
+func (h Object) Object(r *http.Request) *model.Object {
+	val := r.Context().Value("object")
+
+	o, _ := val.(*model.Object)
+
+	return o
 }
 
 func (h Object) Index(w http.ResponseWriter, r *http.Request) {
@@ -62,26 +70,10 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 
 func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
-
-	vars := mux.Vars(r)
-
-	id, err := strconv.ParseInt(vars["object"], 10, 64)
-
-	if err != nil {
-		web.HTML(w, "Not found", http.StatusNotFound)
-		return
-	}
+	o := h.Object(r)
 
 	search := r.URL.Query().Get("search")
 	status := r.URL.Query().Get("status")
-
-	o, err := u.ObjectStore().Show(id)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
 
 	bb, err := u.BuildStore().Index(
 		query.WhereQuery("id", "IN",
@@ -249,21 +241,11 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Download(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
+	o := h.Object(r)
 
 	vars := mux.Vars(r)
 
-	id, _ := strconv.ParseInt(vars["object"], 10, 64)
-
-	o, err := u.ObjectStore().Find(id)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if o.IsZero() || o.Name != vars["name"] {
+	if o.Name != vars["name"] {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -287,24 +269,9 @@ func (h Object) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
+	o := h.Object(r)
 
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["object"], 10, 64)
-
-	objects := u.ObjectStore()
-
-	o, err := objects.Find(id)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete object: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if err := objects.Delete(o); err != nil {
+	if err := h.Objects.Delete(o); err != nil {
 		log.Error.Println(errors.Err(err))
 		h.FlashAlert(w, r, template.Danger("Failed to delete object: " + errors.Cause(err).Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)

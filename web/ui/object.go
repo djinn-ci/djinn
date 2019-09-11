@@ -72,6 +72,18 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
 	o := h.Object(r)
 
+	if err := o.LoadNamespace(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := o.Namespace.LoadUser(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	search := r.URL.Query().Get("search")
 	status := r.URL.Query().Get("status")
 

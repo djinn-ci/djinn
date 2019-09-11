@@ -134,6 +134,20 @@ func (o *Object) IsZero() bool {
 		!o.DeletedAt.Valid
 }
 
+func (o *Object) LoadNamespace() error {
+	var err error
+
+	namespaces := NamespaceStore{
+		Store: Store{
+			DB: o.DB,
+		},
+	}
+
+	o.Namespace, err = namespaces.Find(o.NamespaceID.Int64)
+
+	return errors.Err(err)
+}
+
 func (o Object) UIEndpoint(uri ...string) string {
 	endpoint := fmt.Sprintf("/objects/%v", o.ID)
 
@@ -289,16 +303,6 @@ func (s ObjectStore) New() *Object {
 	}
 
 	return o
-}
-
-func (s ObjectStore) Show(id int64) (*Object, error) {
-	o, err := s.Find(id)
-
-	if err != nil {
-		return o, errors.Err(err)
-	}
-
-	return o, errors.Err(err)
 }
 
 func (s BuildObjectStore) All(opts ...query.Option) ([]*BuildObject, error) {

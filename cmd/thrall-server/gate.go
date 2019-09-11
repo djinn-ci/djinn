@@ -169,6 +169,10 @@ func (g gate) resource(name string, u *model.User, r *http.Request, fn load) (bo
 		return false, errors.Err(err)
 	}
 
+	if len(m.Values()) == 0 {
+		return false, nil
+	}
+
 	namespaceId, ok := m.Values()["namespace_id"].(int64)
 
 	if !ok {

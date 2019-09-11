@@ -16,7 +16,7 @@ CREATE TABLE objects (
 CREATE TABLE build_objects (
 	id          SERIAL PRIMARY KEY,
 	build_id    INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
-	object_id   INT NULL REFERENCES objects(id),
+	object_id   INT NULL REFERENCES objects(id) ON DELETE SET NULL,
 	source      VARCHAR NOT NULL,
 	name        VARCHAR NOT NULL,
 	placed      BOOLEAN NOT NULL DEFAULT FALSE,

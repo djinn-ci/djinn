@@ -37,6 +37,7 @@ type IndexPage struct {
 							<th>SIZE</th>
 							<th>NAMESPACE</th>
 							<th></th>
+							<th></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -53,10 +54,12 @@ type IndexPage struct {
 									{% endif %}
 								</td>
 								<td class="align-right">
-									{% if p.User != nil && p.User.ID != o.UserID %}
+									{% if p.User.ID != o.UserID %}
 										<span class="muted">{% cat "../../svgs/users.svg" %}</span>
 									{% endif %}
-									{% if p.User != nil && p.User.ID == o.UserID %}
+								</td>
+								<td class="align-right">
+									{% if p.User.ID == o.UserID || o.Namespace != nil && o.Namespace.UserID == p.User.ID %}
 										<form method="POST" action="{%s o.UIEndpoint() %}">
 											{%s= string(p.CSRF) %}
 											<input type="hidden" name="_method" value="DELETE"/>

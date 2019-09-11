@@ -141,6 +141,16 @@ func ForJob(j *Job) query.Option {
 	}
 }
 
+func OrForNamespace(n *Namespace) query.Option {
+	return func(q query.Query) query.Query {
+		if n == nil || n.IsZero() {
+			return q
+		}
+
+		return query.OrWhere("namespace_id", "=", n.ID)(q)
+	}
+}
+
 func ForNamespace(n *Namespace) query.Option {
 	return func(q query.Query) query.Query {
 		if n == nil || n.IsZero() {

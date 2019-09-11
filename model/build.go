@@ -308,14 +308,11 @@ func (b Build) Submit(srv *machinery.Server) error {
 	m, _ := config.DecodeManifest(strings.NewReader(b.Manifest))
 
 	buf := &bytes.Buffer{}
-	enc := json.NewEncoder(buf)
 
-	if err := enc.Encode(m.Driver); err != nil {
-		return errors.Err(err)
-	}
+	enc := json.NewEncoder(buf)
+	enc.Encode(m.Driver)
 
 	drivers := b.DriverStore()
-
 	d := drivers.New()
 	d.Config = buf.String()
 	d.Type.UnmarshalText([]byte(m.Driver.Type))
@@ -324,25 +321,17 @@ func (b Build) Submit(srv *machinery.Server) error {
 		return errors.Err(err)
 	}
 
-	stages := b.StageStore()
-
-	setupStage := stages.New()
-	setupStage.Name = fmt.Sprintf("setup - #%v", b.ID)
-
-	if err := stages.Create(setupStage); err != nil {
-		return errors.Err(err)
+	variables := VariableStore{
+		Store: Store{
+			DB: b.DB,
+		},
 	}
 
-	jobs := setupStage.JobStore()
-
-	createJob := jobs.New()
-	createJob.Name = "create driver"
-
-	if err := jobs.Create(createJob); err != nil {
-		return errors.Err(err)
-	}
-
-	vv, err := b.User.VariableStore().All()
+	vv, err := variables.All(
+		ForUser(b.User),
+		query.WhereRaw("namespace_id", "IS", "NULL"),
+		OrForNamespace(b.Namespace),
+	)
 
 	if err != nil {
 		return errors.Err(err)
@@ -366,59 +355,52 @@ func (b Build) Submit(srv *machinery.Server) error {
 		}
 	}
 
+	objects := ObjectStore{
+		Store: Store{
+			DB: b.DB,
+		},
+	}
+
+	names := make([]interface{}, 0, len(m.Objects))
+
+	for src := range m.Objects {
+		names = append(names, src)
+	}
+
+	oo, err := objects.All(
+		ForUser(b.User),
+		query.WhereRaw("namespace_id", "IS", "NULL"),
+		OrForNamespace(b.Namespace),
+		query.Where("name", "IN", names...),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
 	buildObjs := b.BuildObjectStore()
 
-	for src, dst := range m.Objects {
-		o, err := b.User.ObjectStore().FindByName(src)
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
+	for _, o := range oo {
 		bo := buildObjs.New()
 		bo.ObjectID = sql.NullInt64{
 			Int64: o.ID,
-			Valid: o.ID > 0,
+			Valid: true,
 		}
-		bo.Source = src
-		bo.Name = dst
+		bo.Source = o.Name
+		bo.Name = m.Objects[o.Name]
 
 		if err := buildObjs.Create(bo); err != nil {
 			return errors.Err(err)
 		}
 	}
 
-	jdd := make([]*JobDependency, 0)
+	stages := b.StageStore()
 
-	setupJobs := setupStage.JobStore()
+	setup := stages.New()
+	setup.Name = fmt.Sprintf("setup - #%v", b.ID)
 
-	prev := createJob
-
-	for i, src := range m.Sources {
-		commands := []string{
-			"git clone " + src.URL + " " + src.Dir,
-			"cd " + src.Dir,
-			"git checkout -q " + src.Ref,
-		}
-
-		if src.Dir != "" {
-			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
-		}
-
-		j := setupJobs.New()
-		j.Name = fmt.Sprintf("clone.%d", i + 1)
-		j.Commands = strings.Join(commands, "\n")
-
-		if err := setupJobs.Create(j); err != nil {
-			return errors.Err(err)
-		}
-
-		jd := j.JobDependencyStore().New()
-		jd.DependencyID = prev.ID
-
-		jdd = append(jdd, jd)
-
-		prev = j
+	if err := stages.Create(setup); err != nil {
+		return errors.Err(err)
 	}
 
 	stageModels := make(map[string]*Stage)
@@ -444,10 +426,50 @@ func (b Build) Submit(srv *machinery.Server) error {
 		stageModels[s.Name] = s
 	}
 
+	jobs := setup.JobStore()
+
+	create := jobs.New()
+	create.Name = "create driver"
+
+	if err := jobs.Create(create); err != nil {
+		return errors.Err(err)
+	}
+
+	jdd := make([]*JobDependency, 0)
+
+	prev := create
+
+	for i, src := range m.Sources {
+		commands := []string{
+			"git clone " + src.URL + " " + src.Dir,
+			"cd " + src.Dir,
+			"git checkout -q " + src.Ref,
+		}
+
+		if src.Dir != "" {
+			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
+		}
+
+		j := jobs.New()
+		j.Name = fmt.Sprintf("clone.%d", i + 1)
+		j.Commands = strings.Join(commands, "\n")
+
+		if err := jobs.Create(j); err != nil {
+			return errors.Err(err)
+		}
+
+		jd := j.JobDependencyStore().New()
+		jd.DependencyID = prev.ID
+
+		jdd = append(jdd, jd)
+
+		prev = j
+	}
+
 	stage := ""
 	jobId := 0
 
-	stageJobs := make(map[string]*Job)
+	jobModels := make(map[string]*Job)
 
 	for _, job := range m.Jobs {
 		s, ok := stageModels[job.Stage]
@@ -477,10 +499,10 @@ func (b Build) Submit(srv *machinery.Server) error {
 			return errors.Err(err)
 		}
 
-		stageJobs[s.Name + j.Name] = j
+		jobModels[s.Name + j.Name] = j
 
 		for _, d := range job.Depends {
-			dep, ok := stageJobs[s.Name + d]
+			dep, ok := jobModels[s.Name + d]
 
 			if !ok {
 				continue
@@ -493,11 +515,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 		}
 
 		for src, dst := range job.Artifacts {
-			hash, err := crypto.HashNow()
-
-			if err != nil {
-				return errors.Err(err)
-			}
+			hash, _ := crypto.HashNow()
 
 			artifacts := j.ArtifactStore()
 

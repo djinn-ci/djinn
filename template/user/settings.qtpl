@@ -82,14 +82,14 @@ type ShowInvites struct {
 
 {% func (p *SettingsPage) Navigation() %}
 	<li>
-		{% if p.URI == "/settings" %}
+		{% if p.URL.Path == "/settings" %}
 			<a href="/settings" class="active">{% cat "../../svgs/user.svg" %}<span>Account</span></a>
 		{% else %}
 			<a href="/settings">{% cat "../../svgs/user.svg" %}<span>Account</span></a>
 		{% endif %}
 	</li>
 	<li>
-		{% if p.URI == "/settings/invites" %}
+		{% if p.URL.Path == "/settings/invites" %}
 			<a href="/settings/invites" class="active">{% cat "../../svgs/folder.svg" %}<span>Invites</span></a>
 		{% else %}
 			<a href="/settings/invites">{% cat "../../svgs/folder.svg" %}<span>Invites</span></a>

@@ -114,7 +114,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/object/show.qtpl:54
 	qw422016.N().S(`</span></td> </tr> </table> </div> <div class="panel">`)
 	//line template/object/show.qtpl:58
-	build.StreamRenderIndex(qw422016, p.Builds, p.URI, p.Status, p.Search)
+	build.StreamRenderIndex(qw422016, p.Builds, p.URL.Path, p.Status, p.Search)
 	//line template/object/show.qtpl:58
 	qw422016.N().S(`</div> `)
 //line template/object/show.qtpl:59

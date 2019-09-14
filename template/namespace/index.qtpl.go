@@ -79,7 +79,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/namespace/index.qtpl:28
 		qw422016.N().S(` <div class="panel-header">`)
 		//line template/namespace/index.qtpl:29
-		template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find a namespace...")
+		template.StreamRenderSearch(qw422016, p.URL.Path, p.Search, "Find a namespace...")
 		//line template/namespace/index.qtpl:29
 		qw422016.N().S(`</div> `)
 		//line template/namespace/index.qtpl:30
@@ -221,7 +221,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/index.qtpl:85
 	qw422016.N().S(` </div> `)
 	//line template/namespace/index.qtpl:87
-	template.StreamRenderPaginator(qw422016, p.URI, p.Paginator)
+	template.StreamRenderPaginator(qw422016, p.URL.Path, p.Paginator)
 	//line template/namespace/index.qtpl:87
 	qw422016.N().S(` `)
 //line template/namespace/index.qtpl:88

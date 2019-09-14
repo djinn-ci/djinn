@@ -22,13 +22,13 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	<div class="panel">{%= RenderIndex(p.Builds, p.URI, p.Status, p.Search) %}</div>
+	<div class="panel">{%= RenderIndex(p.Builds, p.URL.Path, p.Status, p.Search) %}</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}
 	Builds
 	{% if p.Tag != "" %}
-		<span class="pill pill-light">{%s p.Tag %}<a href="{%s p.URI %}">{% cat "../../svgs/close.svg" %}</a></span>
+		<span class="pill pill-light">{%s p.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../svgs/close.svg" %}</a></span>
 	{% endif %}
 {% endfunc %}
 

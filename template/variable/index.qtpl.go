@@ -78,7 +78,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/variable/index.qtpl:27
 		qw422016.N().S(` <div class="panel-header">`)
 		//line template/variable/index.qtpl:28
-		template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find a variable...")
+		template.StreamRenderSearch(qw422016, p.URL.Path, p.Search, "Find a variable...")
 		//line template/variable/index.qtpl:28
 		qw422016.N().S(`</div> `)
 		//line template/variable/index.qtpl:29

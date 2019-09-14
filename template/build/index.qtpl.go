@@ -71,7 +71,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/index.qtpl:24
 	qw422016.N().S(` <div class="panel">`)
 	//line template/build/index.qtpl:25
-	StreamRenderIndex(qw422016, p.Builds, p.URI, p.Status, p.Search)
+	StreamRenderIndex(qw422016, p.Builds, p.URL.Path, p.Status, p.Search)
 	//line template/build/index.qtpl:25
 	qw422016.N().S(`</div> `)
 //line template/build/index.qtpl:26
@@ -116,7 +116,7 @@ func (p *IndexPage) StreamHeader(qw422016 *qt422016.Writer) {
 		//line template/build/index.qtpl:31
 		qw422016.N().S(`<a href="`)
 		//line template/build/index.qtpl:31
-		qw422016.E().S(p.URI)
+		qw422016.E().S(p.URL.Path)
 		//line template/build/index.qtpl:31
 		qw422016.N().S(`">`)
 		//line template/build/index.qtpl:31

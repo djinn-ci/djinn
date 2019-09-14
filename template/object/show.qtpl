@@ -55,7 +55,7 @@ type ShowPage struct {
 			</tr>
 		</table>
 	</div>
-	<div class="panel">{%= build.RenderIndex(p.Builds, p.URI, p.Status, p.Search) %}</div>
+	<div class="panel">{%= build.RenderIndex(p.Builds, p.URL.Path, p.Status, p.Search) %}</div>
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}

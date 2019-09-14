@@ -53,7 +53,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &build.IndexPage{
 		BasePage: template.BasePage{
-			URI: r.URL.Path,
+			URL: r.URL,
 		},
 		Builds: bb,
 		Search: search,
@@ -61,7 +61,7 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		Tag:    tag,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -75,7 +75,7 @@ func (h Build) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL.RequestURI(), h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -212,7 +212,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 
 	sp := build.ShowPage{
 		BasePage: template.BasePage{
-			URI:  r.URL.Path,
+			URL:  r.URL,
 			User: u,
 		},
 		Build: b,
@@ -323,7 +323,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

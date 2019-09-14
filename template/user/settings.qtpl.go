@@ -315,7 +315,7 @@ func (p *SettingsPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/user/settings.qtpl:83
 	qw422016.N().S(` <li> `)
 	//line template/user/settings.qtpl:85
-	if p.URI == "/settings" {
+	if p.URL.Path == "/settings" {
 		//line template/user/settings.qtpl:85
 		qw422016.N().S(` <a href="/settings" class="active">`)
 		//line template/user/settings.qtpl:86
@@ -345,7 +345,7 @@ func (p *SettingsPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/user/settings.qtpl:89
 	qw422016.N().S(` </li> <li> `)
 	//line template/user/settings.qtpl:92
-	if p.URI == "/settings/invites" {
+	if p.URL.Path == "/settings/invites" {
 		//line template/user/settings.qtpl:92
 		qw422016.N().S(` <a href="/settings/invites" class="active">`)
 		//line template/user/settings.qtpl:93

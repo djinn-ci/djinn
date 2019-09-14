@@ -50,12 +50,12 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 
 	p := &job.ShowPage{
 		BasePage: template.BasePage{
-			URI: r.URL.Path,
+			URL: r.URL,
 		},
 		Job: j,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

@@ -25,7 +25,7 @@ type IndexPage struct {
 		{% if len(p.Objects) == 0 && p.Search == "" %}
 			<div class="panel-message muted">Objects are files that can be used in build environments.</div>
 		{% else %}
-			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an object...") %}</div>
+			<div class="panel-header">{%= template.RenderSearch(p.URL.Path, p.Search, "Find an object...") %}</div>
 			{% if len(p.Objects) == 0 && p.Search != "" %}
 				<div class="panel-message muted">No results found.</div>
 			{% else %}

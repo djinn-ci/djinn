@@ -55,7 +55,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &object.IndexPage{
 		BasePage: template.BasePage{
-			URI:  r.URL.Path,
+			URL:  r.URL,
 			User: u,
 		},
 		CSRF:    string(csrf.TemplateField(r)),
@@ -63,7 +63,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 		Search:  search,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -107,7 +107,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 
 	p := &object.ShowPage{
 		BasePage: template.BasePage{
-			URI: r.URL.Path,
+			URL: r.URL,
 		},
 		Object: o,
 		Search: search,
@@ -115,7 +115,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 		Builds: bb,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -129,7 +129,7 @@ func (h Object) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

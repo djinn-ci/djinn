@@ -30,7 +30,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 	var p template.Dashboard
 
 	bp := template.BasePage{
-		URI:  r.URL.Path,
+		URL:  r.URL,
 		User: u,
 	}
 
@@ -61,7 +61,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

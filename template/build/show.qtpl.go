@@ -600,7 +600,7 @@ func (p *ShowArtifacts) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:195
 	qw422016.N().S(` <div class="panel">`)
 	//line template/build/show.qtpl:196
-	artifact.StreamRenderIndex(qw422016, p.Artifacts, p.URI, p.Search)
+	artifact.StreamRenderIndex(qw422016, p.Artifacts, p.URL.Path, p.Search)
 	//line template/build/show.qtpl:196
 	qw422016.N().S(`</div> `)
 //line template/build/show.qtpl:197
@@ -827,7 +827,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:237
 	qw422016.N().S(`" class="`)
 	//line template/build/show.qtpl:237
-	qw422016.E().S(template.Active(p.Build.UIEndpoint() == p.URI))
+	qw422016.E().S(template.Active(p.Build.UIEndpoint() == p.URL.Path))
 	//line template/build/show.qtpl:237
 	qw422016.N().S(`">`)
 	//line template/build/show.qtpl:238
@@ -843,7 +843,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:242
 	qw422016.N().S(`" class="`)
 	//line template/build/show.qtpl:242
-	qw422016.E().S(template.Active(p.Build.UIEndpoint("manifest") == p.URI))
+	qw422016.E().S(template.Active(p.Build.UIEndpoint("manifest") == p.URL.Path))
 	//line template/build/show.qtpl:242
 	qw422016.N().S(`">`)
 	//line template/build/show.qtpl:243
@@ -859,7 +859,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:247
 	qw422016.N().S(`" class="`)
 	//line template/build/show.qtpl:247
-	qw422016.E().S(template.Active(p.Build.UIEndpoint("objects") == p.URI))
+	qw422016.E().S(template.Active(p.Build.UIEndpoint("objects") == p.URL.Path))
 	//line template/build/show.qtpl:247
 	qw422016.N().S(`">`)
 	//line template/build/show.qtpl:248
@@ -875,7 +875,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:252
 	qw422016.N().S(`" class="`)
 	//line template/build/show.qtpl:252
-	qw422016.E().S(template.Active(p.Build.UIEndpoint("artifacts") == p.URI))
+	qw422016.E().S(template.Active(p.Build.UIEndpoint("artifacts") == p.URL.Path))
 	//line template/build/show.qtpl:252
 	qw422016.N().S(`">`)
 	//line template/build/show.qtpl:253
@@ -891,7 +891,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:257
 	qw422016.N().S(`" class="`)
 	//line template/build/show.qtpl:257
-	qw422016.E().S(template.Active(p.Build.UIEndpoint("variables") == p.URI))
+	qw422016.E().S(template.Active(p.Build.UIEndpoint("variables") == p.URL.Path))
 	//line template/build/show.qtpl:257
 	qw422016.N().S(`">`)
 	//line template/build/show.qtpl:258
@@ -907,7 +907,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:262
 	qw422016.N().S(`" class="`)
 	//line template/build/show.qtpl:262
-	qw422016.E().S(template.Active(p.Build.UIEndpoint("output") == p.URI))
+	qw422016.E().S(template.Active(p.Build.UIEndpoint("output") == p.URL.Path))
 	//line template/build/show.qtpl:262
 	qw422016.N().S(`">`)
 	//line template/build/show.qtpl:263
@@ -923,7 +923,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:267
 	qw422016.N().S(`" class="`)
 	//line template/build/show.qtpl:267
-	qw422016.E().S(template.Active(p.Build.UIEndpoint("tags") == p.URI))
+	qw422016.E().S(template.Active(p.Build.UIEndpoint("tags") == p.URL.Path))
 	//line template/build/show.qtpl:267
 	qw422016.N().S(`">`)
 	//line template/build/show.qtpl:268

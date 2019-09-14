@@ -78,7 +78,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/key/index.qtpl:27
 		qw422016.N().S(` <div class="panel-header">`)
 		//line template/key/index.qtpl:28
-		template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find an SSH key...")
+		template.StreamRenderSearch(qw422016, p.URL.Path, p.Search, "Find an SSH key...")
 		//line template/key/index.qtpl:28
 		qw422016.N().S(`</div> `)
 		//line template/key/index.qtpl:29

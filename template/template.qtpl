@@ -1,5 +1,6 @@
 {%
 import (
+	"net/url"
 	"regexp"
 
 	"github.com/andrewpillar/thrall/form"
@@ -44,7 +45,7 @@ type Alert struct {
 }
 
 type BasePage struct {
-	URI  string
+	URL  *url.URL
 	User *model.User
 }
 
@@ -52,7 +53,7 @@ type baseDashboard struct {
 	Dashboard
 
 	alert Alert
-	URI   string
+	URL   *url.URL
 }
 
 type Form struct {
@@ -79,11 +80,11 @@ func pattern(name string) string {
 	return "(^\\/" + name + "\\/?[a-z0-9\\/?]*$)"
 }
 
-func NewDashboard(d Dashboard, uri string, a Alert) *baseDashboard {
+func NewDashboard(d Dashboard, url *url.URL, a Alert) *baseDashboard {
 	return &baseDashboard{
 		Dashboard: d,
 		alert:     a,
-		URI:       uri,
+		URL:       url,
 	}
 }
 
@@ -180,7 +181,7 @@ func (l level) String() string {
 			{% if !p.alert.IsZero() %}
 				<div class="alert alert-{%s p.alert.Level.String() %}">
 					<div class="alert-message">{%s p.alert.Message %}</div>
-					<a href="{%s p.URI %}">{% cat "../svgs/close.svg" %}</a>
+					<a href="{%s p.URL.Path %}">{% cat "../svgs/close.svg" %}</a>
 				</div>
 			{% endif %}
 			<div class="dashboard-wrap">
@@ -201,33 +202,33 @@ func (l level) String() string {
 			</div>
 			<ul class="sidebar-nav">
 				<li class="sidebar-nav-header">MANAGE</li>
-				{% if Match(p.URI, BuildsURI) %}
+				{% if Match(p.URL.Path, BuildsURI) %}
 					<li><a href="/" class="active">{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
 				{% else %}
 					<li><a href="/">{% cat "../svgs/build.svg" %}<span>Builds</span></a></li>
 				{% endif %}
-				{% if Match(p.URI, NamespacesURI) %}
+				{% if Match(p.URL.Path, NamespacesURI) %}
 					<li><a href="/namespaces" class="active">{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
 				{% else %}
 					<li><a href="/namespaces">{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
 				{% endif %}
-				{% if Match(p.URI, pattern("objects")) %}
+				{% if Match(p.URL.Path, pattern("objects")) %}
 					<li><a href="/objects" class="active">{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
 				{% else %}
 					<li><a href="/objects">{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
 				{% endif %}
-				{% if Match(p.URI, pattern("variables")) %}
+				{% if Match(p.URL.Path, pattern("variables")) %}
 					<li><a href="/variables" class="active">{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
 				{% else %}
 					<li><a href="/variables">{% cat "../svgs/code.svg" %}<span>Variables</span></a></li>
 				{% endif %}
-				{% if Match(p.URI, pattern("keys")) %}
+				{% if Match(p.URL.Path, pattern("keys")) %}
 					<li><a href="/keys" class="active">{% cat "../svgs/key.svg" %}<span>Keys</span></a></li>
 				{% else %}
 					<li><a href="/keys">{% cat "../svgs/key.svg" %}<span>Keys</span></a></li>
 				{% endif %}
 				<li class="sidebar-nav-header">ACCOUNT</li>
-				{% if Match(p.URI, SettingsURI) %}
+				{% if Match(p.URL.Path, SettingsURI) %}
 					<li><a href="/settings" class="active">{% cat "../svgs/settings.svg" %}<span>Settings</span></a></li>
 				{% else %}
 					<li><a href="/settings">{% cat "../svgs/settings.svg" %}<span>Settings</span></a></li>

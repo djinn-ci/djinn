@@ -300,7 +300,7 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:84
 	qw422016.N().S(` <div class="panel">`)
 	//line template/namespace/show.qtpl:85
-	build.StreamRenderIndex(qw422016, p.Builds, p.URI, p.Status, p.Search)
+	build.StreamRenderIndex(qw422016, p.Builds, p.URL.Path, p.Status, p.Search)
 	//line template/namespace/show.qtpl:85
 	qw422016.N().S(`</div> `)
 //line template/namespace/show.qtpl:86
@@ -712,7 +712,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:168
 	qw422016.N().S(`" class="`)
 	//line template/namespace/show.qtpl:168
-	qw422016.E().S(template.Active(p.Namespace.UIEndpoint() == p.URI))
+	qw422016.E().S(template.Active(p.Namespace.UIEndpoint() == p.URL.Path))
 	//line template/namespace/show.qtpl:168
 	qw422016.N().S(`"> `)
 	//line template/namespace/show.qtpl:169
@@ -728,7 +728,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:173
 	qw422016.N().S(`" class="`)
 	//line template/namespace/show.qtpl:173
-	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "namespaces") == p.URI))
+	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "namespaces") == p.URL.Path))
 	//line template/namespace/show.qtpl:173
 	qw422016.N().S(`"> `)
 	//line template/namespace/show.qtpl:174
@@ -744,7 +744,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:178
 	qw422016.N().S(`" class="`)
 	//line template/namespace/show.qtpl:178
-	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "objects") == p.URI))
+	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "objects") == p.URL.Path))
 	//line template/namespace/show.qtpl:178
 	qw422016.N().S(`"> `)
 	//line template/namespace/show.qtpl:179
@@ -760,7 +760,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:183
 	qw422016.N().S(`" class="`)
 	//line template/namespace/show.qtpl:183
-	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "variables") == p.URI))
+	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "variables") == p.URL.Path))
 	//line template/namespace/show.qtpl:183
 	qw422016.N().S(`"> `)
 	//line template/namespace/show.qtpl:184
@@ -776,7 +776,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:188
 	qw422016.N().S(`" class="`)
 	//line template/namespace/show.qtpl:188
-	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "keys") == p.URI))
+	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "keys") == p.URL.Path))
 	//line template/namespace/show.qtpl:188
 	qw422016.N().S(`"> `)
 	//line template/namespace/show.qtpl:189
@@ -792,7 +792,7 @@ func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
 	//line template/namespace/show.qtpl:193
 	qw422016.N().S(`" class="`)
 	//line template/namespace/show.qtpl:193
-	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "collaborators") == p.URI))
+	qw422016.E().S(template.Active(p.Namespace.UIEndpoint("-", "collaborators") == p.URL.Path))
 	//line template/namespace/show.qtpl:193
 	qw422016.N().S(`"> `)
 	//line template/namespace/show.qtpl:194

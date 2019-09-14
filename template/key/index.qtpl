@@ -25,7 +25,7 @@ type IndexPage struct {
 		{% if len(p.Keys) == 0 && p.Search == "" %}
 			<div class="panel-message muted">SSH keys can allow build environments to access other environments.</div>
 		{% else %}
-			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find an SSH key...") %}</div>
+			<div class="panel-header">{%= template.RenderSearch(p.URL.Path, p.Search, "Find an SSH key...") %}</div>
 			{% if len(p.Keys) == 0 && p.Search != "" %}
 				<div class="panel-message muted">No results found.</div>
 			{% else %}

@@ -78,7 +78,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/object/index.qtpl:27
 		qw422016.N().S(` <div class="panel-header">`)
 		//line template/object/index.qtpl:28
-		template.StreamRenderSearch(qw422016, p.URI, p.Search, "Find an object...")
+		template.StreamRenderSearch(qw422016, p.URL.Path, p.Search, "Find an object...")
 		//line template/object/index.qtpl:28
 		qw422016.N().S(`</div> `)
 		//line template/object/index.qtpl:29

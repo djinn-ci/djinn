@@ -25,7 +25,7 @@ type IndexPage struct {
 		{% if len(p.Variables) == 0 && p.Search == "" %}
 			<div class="panel-message muted">Set variables that can be used throughout build environments.</div>
 		{% else %}
-			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find a variable...") %}</div>
+			<div class="panel-header">{%= template.RenderSearch(p.URL.Path, p.Search, "Find a variable...") %}</div>
 			{% if len(p.Variables) == 0 && p.Search != "" %}
 				<div class="panel-message muted">No results found.</div>
 			{% else %}

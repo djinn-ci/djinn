@@ -45,7 +45,7 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &key.IndexPage{
 		BasePage: template.BasePage{
-			URI:  r.URL.Path,
+			URL:  r.URL,
 			User: u,
 		},
 		CSRF:   string(csrf.TemplateField(r)),
@@ -53,7 +53,7 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 		Keys:   kk,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -67,7 +67,7 @@ func (h Key) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -168,7 +168,7 @@ func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 		Key: k,
 	}
 
-	d := template.NewDashboard(p, r.URL.Path, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

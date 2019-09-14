@@ -26,7 +26,7 @@ type IndexPage struct {
 		{% if len(p.Namespaces) == 0 && p.Search == "" %}
 			<div class="panel-message muted">Namespaces allow you to group related build resources together.</div>
 		{% else %}
-			<div class="panel-header">{%= template.RenderSearch(p.URI, p.Search, "Find a namespace...") %}</div>
+			<div class="panel-header">{%= template.RenderSearch(p.URL.Path, p.Search, "Find a namespace...") %}</div>
 			{% if len(p.Namespaces) == 0 && p.Search != "" %}
 				<div class="panel-message muted">No results found.</div>
 			{% else %}
@@ -84,7 +84,7 @@ type IndexPage struct {
 			{% endif %}
 		{% endif %}
 	</div>
-	{%= template.RenderPaginator(p.URI, p.Paginator) %}
+	{%= template.RenderPaginator(p.URL.Path, p.Paginator) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

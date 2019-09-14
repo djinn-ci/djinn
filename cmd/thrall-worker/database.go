@@ -45,7 +45,9 @@ func (d *database) Collect(name string, r io.Reader) (int64, error) {
 		return n, errors.Err(err)
 	}
 
-	a, err := d.build.ArtifactStore().FindByHash(strings.TrimSuffix(name, ".tar"))
+	artifacts := d.build.ArtifactStore()
+
+	a, err := artifacts.FindByHash(strings.TrimSuffix(name, ".tar"))
 
 	if err != nil {
 		return n, errors.Err(err)
@@ -58,7 +60,7 @@ func (d *database) Collect(name string, r io.Reader) (int64, error) {
 	a.MD5 = hmd5.Sum(nil)
 	a.SHA256 = hsha256.Sum(nil)
 
-	return n, errors.Err(a.Update())
+	return n, errors.Err(artifacts.Update(a))
 }
 
 func (d *database) Place(name string, w io.Writer) (int64, error) {
@@ -85,7 +87,7 @@ func (d *database) Place(name string, w io.Writer) (int64, error) {
 
 	bo.Placed = placeErr == nil
 
-	if err := bo.Update(); err != nil {
+	if err := buildObjects.Update(bo); err != nil {
 		return n, errors.Err(err)
 	}
 

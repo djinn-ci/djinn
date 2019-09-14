@@ -82,6 +82,10 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to parse timeout duration: %s\n", err)
 	}
 
+	store := model.Store{
+		DB: db,
+	}
+
 	w := worker{
 		Server:        srv,
 		concurrency:   cfg.Parallelism,
@@ -89,7 +93,7 @@ func mainCommand(c cli.Command) {
 		timeout:       duration,
 		redisAddr:     cfg.Redis.Addr,
 		redisPassword: cfg.Redis.Password,
-		db:            db,
+		store:         store,
 		objects:       objects,
 		artifacts:     artifacts,
 	}

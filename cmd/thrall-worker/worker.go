@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
-	"os"
 	"strings"
 	"time"
 
@@ -15,11 +14,10 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/model/query"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/server"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/andrewpillar/query"
 
 	"github.com/lib/pq"
 
@@ -30,7 +28,7 @@ import (
 type worker struct {
 	server.Server
 
-	db *sqlx.DB
+	store model.Store
 
 	concurrency int
 	driver      string
@@ -48,19 +46,19 @@ type worker struct {
 	worker *machinery.Worker
 
 	buffers map[int64]*bytes.Buffer
-	signals map[int64]chan os.Signal
+	signals map[int64]chan struct{}
 }
 
 func (w *worker) init() error {
 	w.builds = &model.BuildStore{
-		DB: w.db,
+		Store: w.store,
 	}
 	w.users = &model.UserStore{
-		DB: w.db,
+		Store: w.store,
 	}
 
 	w.buffers = make(map[int64]*bytes.Buffer)
-	w.signals = make(map[int64]chan os.Signal)
+	w.signals = make(map[int64]chan struct{})
 
 	url := "redis://"
 
@@ -100,7 +98,9 @@ func (w worker) handleJobStart(b *model.Build, rj runner.Job) {
 		return
 	}
 
-	j, err := s.JobStore().FindByName(rj.Name)
+	jobs := s.JobStore()
+
+	j, err := jobs.FindByName(rj.Name)
 
 	if err != nil || j.IsZero() {
 		return
@@ -111,7 +111,7 @@ func (w worker) handleJobStart(b *model.Build, rj runner.Job) {
 		Valid: true,
 	}
 
-	j.Update()
+	jobs.Update(j)
 }
 
 func (w worker) handleJobComplete(b *model.Build, rj runner.Job) {
@@ -121,7 +121,9 @@ func (w worker) handleJobComplete(b *model.Build, rj runner.Job) {
 		return
 	}
 
-	j, err := s.JobStore().FindByName(rj.Name)
+	jobs := s.JobStore()
+
+	j, err := jobs.FindByName(rj.Name)
 
 	if err != nil || j.IsZero() {
 		return
@@ -139,7 +141,7 @@ func (w worker) handleJobComplete(b *model.Build, rj runner.Job) {
 		Valid: true,
 	}
 
-	j.Update()
+	jobs.Update(j)
 }
 
 func (w worker) runBuild(id int64) error {
@@ -177,17 +179,19 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
-	jobs := make([]*model.Job, 0)
+	jj := make([]*model.Job, 0)
 
 	for _, s := range b.Stages {
-		jobs = append(jobs, s.Jobs...)
+		jj = append(jj, s.Jobs...)
 	}
 
-	if err := b.JobStore().LoadDependencies(jobs); err != nil {
+	jobs := b.JobStore()
+
+	if err := jobs.LoadDependencies(jj); err != nil {
 		return errors.Err(err)
 	}
 
-	if err := b.JobStore().LoadArtifacts(jobs); err != nil {
+	if err := jobs.LoadArtifacts(jj); err != nil {
 		return errors.Err(err)
 	}
 
@@ -278,7 +282,7 @@ func (w worker) runBuild(id int64) error {
 		Valid: true,
 	}
 
-	if err := b.Update(); err != nil {
+	if err := w.builds.Update(); err != nil {
 		return errors.Err(err)
 	}
 
@@ -293,7 +297,7 @@ func (w worker) runBuild(id int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
 
-	w.signals[b.ID] = make(chan os.Signal)
+	w.signals[b.ID] = make(chan struct{})
 
 	go func() {
 		<-w.signals[b.ID]
@@ -312,11 +316,11 @@ func (w worker) runBuild(id int64) error {
 		Valid: true,
 	}
 
-	if err := b.Update(); err != nil {
+	if err := w.builds.Update(b); err != nil {
 		return errors.Err(err)
 	}
 
-	jj, err := b.JobStore().All(query.WhereIs("finished_at", "NULL"))
+	jj, err = jobs.All(query.WhereRaw("finished_at", "IS", "NULL"))
 
 	if err != nil {
 		return errors.Err(err)
@@ -329,7 +333,7 @@ func (w worker) runBuild(id int64) error {
 			Valid:  true,
 		}
 
-		if err := j.Update(); err != nil {
+		if err := jobs.Update(j); err != nil {
 			return errors.Err(err)
 		}
 	}

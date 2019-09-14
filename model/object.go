@@ -408,3 +408,9 @@ func (s BuildObjectStore) New() *BuildObject {
 
 	return bo
 }
+
+func (s BuildObjectStore) Update(boo ...*BuildObject) error {
+	models := interfaceSlice(len(boo), buildObjectToInterface(boo))
+
+	return errors.Err(s.Store.Update(BuildObjectTable, models...))
+}

@@ -78,8 +78,12 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 
 	d.pidfile = pidfile.Name()
 
+	parts := strings.Split(d.image, "/")
+	disk := filepath.Join(d.dir, parts[0], d.arch, parts[1])
+
 	bin := fmt.Sprintf("qemu-system-%s", d.arch)
 	arg := []string{
+		"-enable-kvm",
 		"-daemonize",
 		"-display",
 		"none",
@@ -94,7 +98,7 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 		"-net",
 		"user,hostfwd=tcp:" + d.hostfwd + "-:22",
 		"-drive",
-		"file=" + filepath.Join(d.dir, d.arch, d.image) + ",media=disk,snapshot=on,if=virtio",
+		"file=" + disk + ",media=disk,snapshot=on,if=virtio",
 	}
 
 	fmt.Fprintf(d.Writer, "Booting machine with image %s...\n", d.image)

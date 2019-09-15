@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
+	"net"
 	"strconv"
 	"sync"
 	"time"
@@ -40,82 +40,41 @@ func createScript(j *runner.Job) *bytes.Buffer {
 	return buf
 }
 
-// Create a new driver from the given config, and from the specified
-// environment variables. Driver environment variables are used to configure
-// parts of the driver that will remain the same between each initialization
-// of that driver. For example, SSH timeoutes, QEMU image locations, and QEMU
-// CPUs and memory.
-func NewEnv(w io.Writer, cfg config.Driver) (runner.Driver, error) {
-	switch cfg.Type {
+func New(w io.Writer, d config.Driver) (runner.Driver, error) {
+	switch d.Config["type"] {
 		case "docker":
 			return &Docker{
 				Writer:    w,
 				mutex:     &sync.Mutex{},
-				image:     cfg.Image,
-				workspace: cfg.Workspace,
+				image:     d.Config["image"],
+				workspace: d.Config["workspace"],
 			}, nil
 		case "qemu":
-			hostfwd := os.Getenv("THRALL_QEMU_HOSTFWD")
-
-			if hostfwd == "" {
-				hostfwd = "127.0.0.1:2222"
-			}
-
-			timeout, err := strconv.ParseInt(os.Getenv("THRALL_SSH_TIMEOUT"), 10, 64)
-
-			if err != nil {
-				timeout = 10
-			}
-
-			dir := os.Getenv("THRALL_QEMU_DIR")
-
-			if dir == "" {
-				dir = "."
-			}
-
-			cpus, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_CPUS"), 10, 64)
-
-			if err != nil {
-				cpus = 1
-			}
-
-			memory, err := strconv.ParseInt(os.Getenv("THRALL_QEMU_MEMORY"), 10, 64)
-
-			if err != nil {
-				memory = 2048
-			}
+			hostfwd := net.JoinHostPort("127.0.0.1", strconv.FormatInt(d.Qemu.Port, 10))
 
 			return &QEMU{
 				Writer: w,
 				SSH: &SSH{
 					Writer:   ioutil.Discard,
 					address:  hostfwd,
-					username: os.Getenv("THRALL_SSH_USERNAME"),
-					keyFile:  os.Getenv("THRALL_SSH_KEY"),
-					timeout:  time.Duration(time.Second * time.Duration(timeout)),
+					username: d.SSH.User,
+					timeout:  time.Duration(time.Second * time.Duration(d.SSH.Timeout)),
 				},
-				dir:     dir,
-				image:   cfg.Image,
-				arch:    cfg.Arch,
-				cpus:    int(cpus),
-				memory:  int(memory),
+				dir:     d.Qemu.Disks,
+				image:   d.Config["image"],
+				arch:    "x86_64",
+				cpus:    d.Qemu.CPUs,
+				memory:  d.Qemu.Memory,
 				hostfwd: hostfwd,
 			}, nil
 		case "ssh":
-			timeout, err := strconv.ParseInt(os.Getenv("THRALL_SSH_TIMEOUT"), 10, 64)
-
-			if err != nil {
-				timeout = 10
-			}
-
 			return &SSH{
 				Writer:   w,
-				address:  cfg.Address,
-				username: os.Getenv("THRALL_SSH_USERNAME"),
-				keyFile:  os.Getenv("THRALL_SSH_KEY"),
-				timeout:  time.Duration(time.Second * time.Duration(timeout)),
+				address:  d.Config["address"],
+				username: d.SSH.User,
+				timeout:  time.Duration(time.Second * time.Duration(d.SSH.Timeout)),
 			}, nil
 		default:
-			return nil, errors.New("unknown driver: " + cfg.Type)
+			return nil, errors.New("unknown driver: " + d.Config["type"])
 	}
 }

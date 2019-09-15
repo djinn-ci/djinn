@@ -315,7 +315,7 @@ func (b Build) Submit(srv *machinery.Server) error {
 	drivers := b.DriverStore()
 	d := drivers.New()
 	d.Config = buf.String()
-	d.Type.UnmarshalText([]byte(m.Driver.Type))
+	d.Type.UnmarshalText([]byte(m.Driver["type"]))
 
 	if err := drivers.Create(d); err != nil {
 		return errors.Err(err)

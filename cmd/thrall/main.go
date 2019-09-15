@@ -22,14 +22,28 @@ var (
 )
 
 func mainCommand(c cli.Command) {
-	f, err := os.Open(c.Flags.GetString("manifest"))
+	mf, err := os.Open(c.Flags.GetString("manifest"))
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 
-	manifest, err := config.DecodeManifest(f)
+	df, err := os.Open(c.Flags.GetString("driver"))
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
+	driverCfg, err := config.DecodeDriver(df)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
+	manifest, err := config.DecodeManifest(mf)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
@@ -125,7 +139,14 @@ func mainCommand(c cli.Command) {
 		}
 	}
 
-	d, err := driver.NewEnv(os.Stdout, manifest.Driver)
+	d, err := driver.New(
+		os.Stdout,
+		config.Driver{
+			Config: manifest.Driver,
+			SSH:    driverCfg.SSH,
+			Qemu:   driverCfg.Qemu,
+		},
+	)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to configure driver: %s\n", err)
@@ -216,6 +237,14 @@ func main() {
 		Long:     "--manifest",
 		Argument: true,
 		Default:  ".thrall.yml",
+	})
+
+	cmd.AddFlag(&cli.Flag{
+		Name:     "driver",
+		Short:    "-d",
+		Long:     "--driver",
+		Argument: true,
+		Default:  "thrall-driver.toml",
 	})
 
 	cmd.AddFlag(&cli.Flag{

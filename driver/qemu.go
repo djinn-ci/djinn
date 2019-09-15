@@ -15,43 +15,6 @@ import (
 	"github.com/andrewpillar/thrall/runner"
 )
 
-var (
-	arches = []string{
-		"aarch64",
-		"alpha",
-		"arm",
-		"cris",
-		"hppa",
-		"i386",
-		"lm32",
-		"m68k",
-		"microblaze",
-		"microblazeel",
-		"mips",
-		"mips64",
-		"mips64el",
-		"mipsel",
-		"moxie",
-		"nios2",
-		"or1k",
-		"ppc",
-		"ppc64",
-		"ppcemb",
-		"riscv32",
-		"riscv64",
-		"s390x",
-		"sh4",
-		"sh4eb",
-		"sparc",
-		"sparc64",
-		"tricore",
-		"unicore32",
-		"x86_64",
-		"xtensa",
-		"xtensaeb",
-	}
-)
-
 type QEMU struct {
 	io.Writer
 
@@ -71,19 +34,6 @@ type QEMU struct {
 func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with QEMU driver...\n")
 
-	supported := false
-
-	for _, arch := range arches {
-		if arch == d.arch {
-			supported = true
-			break
-		}
-	}
-
-	if !supported {
-		return errors.New("unsupported architecture: " + d.arch)
-	}
-
 	pidfile, err := ioutil.TempFile("", "thrall-qemu-")
 
 	if err != nil {
@@ -95,7 +45,6 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 	bin := fmt.Sprintf("qemu-system-%s", d.arch)
 	arg := []string{
 		"-daemonize",
-		"-enable-kvm",
 		"-display",
 		"none",
 		"-pidfile",
@@ -109,7 +58,7 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 		"-net",
 		"user,hostfwd=tcp:" + d.hostfwd + "-:22",
 		"-drive",
-		"file=" + filepath.Join(d.dir, d.image) + ",media=disk,snapshot=on,if=virtio",
+		"file=" + filepath.Join(d.dir, "x86_64", d.image) + ",media=disk,snapshot=on,if=virtio",
 	}
 
 	fmt.Fprintf(d.Writer, "Booting machine with image %s...\n", d.image)

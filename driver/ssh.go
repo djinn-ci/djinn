@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
+//	"io/ioutil"
 	"strings"
 	"time"
 
@@ -25,36 +25,24 @@ type SSH struct {
 
 	address  string
 	username string
-	keyFile  string
 	timeout  time.Duration
 }
 
 func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with SSH driver...\n")
 
-	key, err := ioutil.ReadFile(d.keyFile)
-
-	if err != nil {
-		return err
-	}
-
-	signer, err := ssh.ParsePrivateKey(key)
-
-	if err != nil {
-		return err
-	}
-
 	done := make(chan struct{})
 	errs := make(chan error)
 
 	go func() {
+		var err error
+
 		for {
 			cfg := &ssh.ClientConfig{
 				User: d.username,
 				Auth: []ssh.AuthMethod{
-					ssh.PublicKeys(signer),
+					ssh.Password(""),
 				},
-				HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 			}
 
 			fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)

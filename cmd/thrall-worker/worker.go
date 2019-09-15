@@ -32,6 +32,7 @@ type worker struct {
 
 	concurrency int
 	driver      string
+	driverCfg   config.Driver
 	timeout     time.Duration
 
 	redisAddr     string
@@ -266,11 +267,18 @@ func (w worker) runBuild(id int64) error {
 		r.Add(rs)
 	}
 
-	dcfg := config.Driver{}
+	cfg := make(map[string]string)
 
-	json.Unmarshal([]byte(b.Driver.Config), &dcfg)
+	json.Unmarshal([]byte(b.Driver.Config), &cfg)
 
-	d, err := driver.NewEnv(io.MultiWriter(buf, w.buffers[createDriverId]), dcfg)
+	d, err := driver.New(
+		io.MultiWriter(buf, w.buffers[createDriverId]),
+		config.Driver{
+			Config: cfg,
+			SSH:    w.driverCfg.SSH,
+			Qemu:   w.driverCfg.Qemu,
+		},
+	)
 
 	if err != nil {
 		return errors.Err(err)

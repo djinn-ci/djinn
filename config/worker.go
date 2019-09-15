@@ -39,18 +39,8 @@ type Worker struct {
 	Artifacts FileStore
 	Objects   FileStore
 
-	SSH struct {
-		Key     string
-		Timeout int
-	}
-
-	Qemu struct {
-		Dir    string
-		CPUs   int    `toml:"cpus"`
-		Memory int
-		Port   int
-		User   string
-	}
+	SSH  SSH
+	Qemu Qemu
 
 	Log struct {
 		Level string

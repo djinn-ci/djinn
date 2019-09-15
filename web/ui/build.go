@@ -99,11 +99,11 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 	m, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
 
-	srv, ok := h.Queues[m.Driver.Type]
+	srv, ok := h.Queues[m.Driver["type"]]
 
 	if !ok {
 		errs := form.NewErrors()
-		errs.Put("manifest", errors.New("Driver " + m.Driver.Type + " is not supported"))
+		errs.Put("manifest", errors.New("Driver " + m.Driver["type"] + " is not supported"))
 
 		h.FlashForm(w, r, f)
 		h.FlashErrors(w, r, errs)

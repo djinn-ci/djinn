@@ -11,7 +11,7 @@ import (
 )
 
 type Manifest struct {
-	Driver Driver
+	Driver map[string]string
 
 	Env []string
 
@@ -22,16 +22,6 @@ type Manifest struct {
 	AllowFailures []string `yaml:"allow_failures"`
 
 	Jobs []Job
-}
-
-type Driver struct {
-	Type      string
-	Image     string
-	Workspace string
-	Arch      string
-	Address   string
-	Username  string
-	Password  string
 }
 
 type Source struct {
@@ -50,13 +40,44 @@ type Job struct {
 
 func DecodeManifest(r io.Reader) (Manifest, error) {
 	dec := yaml.NewDecoder(r)
-	build := Manifest{}
+	manifest := Manifest{}
 
-	if err := dec.Decode(&build); err != nil {
-		return build, errors.Err(err)
+	if err := dec.Decode(&manifest); err != nil {
+		return manifest, errors.Err(err)
 	}
 
-	return build, nil
+	return manifest, nil
+}
+
+func (m Manifest) Validate() error {
+	typ := m.Driver["type"]
+
+	if typ == "" {
+		return errors.New("driver type undefined")
+	}
+
+	switch typ {
+		case "docker":
+			for _, key := range []string{"image", "workspace"} {
+				if m.Driver[key] == "" {
+					return errors.New("driver type docker requires " + key)
+				}
+			}
+		case "qemu":
+			if m.Driver["image"] == "" {
+				return errors.New("driver type qemu requires image")
+			}
+		case "ssh":
+			for _, key := range []string{"address", "username"} {
+				if m.Driver[key] == "" {
+					return errors.New("driver type ssh requires " + key)
+				}
+			}
+		default:
+			return errors.New("unknown driver type " + typ)
+	}
+
+	return nil
 }
 
 // Source URLs can be in the format of:
@@ -92,39 +113,6 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	urlParts := strings.Split(s.URL, "/")
 
 	s.Dir = urlParts[len(urlParts) - 1]
-
-	return nil
-}
-
-func (m Manifest) Validate() error {
-	if m.Driver.Type == "" {
-		return errors.New("driver type undefined")
-	}
-
-	switch m.Driver.Type {
-		case "docker":
-			if m.Driver.Image == "" {
-				return errors.New("driver type docker requires image")
-			}
-
-			if m.Driver.Workspace == "" {
-				return errors.New("driver type docker requires workspace")
-			}
-		case "qemu":
-			if m.Driver.Image == "" {
-				return errors.New("driver type qemu requires image")
-			}
-		case "ssh":
-			if m.Driver.Address == "" {
-				return errors.New("driver type ssh requires address")
-			}
-
-			if m.Driver.Username == "" {
-				return errors.New("driver type ssh requires username")
-			}
-		default:
-			return errors.New("unknown driver type " + m.Driver.Type)
-	}
 
 	return nil
 }

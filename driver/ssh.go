@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-//	"io/ioutil"
 	"strings"
 	"time"
 
@@ -31,48 +30,45 @@ type SSH struct {
 func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with SSH driver...\n")
 
+	ticker := time.NewTicker(time.Second)
+	after := time.After(d.timeout)
+
 	done := make(chan struct{})
-	errs := make(chan error)
 
 	go func() {
 		var err error
 
 		for {
-			cfg := &ssh.ClientConfig{
-				User: d.username,
-				Auth: []ssh.AuthMethod{
-					ssh.Password(""),
-				},
-			}
-
-			fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)
-
-			d.client, err = ssh.Dial("tcp", d.address, cfg)
-
-			if err != nil {
-				s := err.Error()
-
-				if strings.Contains(s, "connection reset by peer") || strings.Contains(s, "EOF") {
-					continue
+			select {
+			case <-ticker.C:
+				cfg := &ssh.ClientConfig{
+					User: d.username,
+					Auth: []ssh.AuthMethod{
+						ssh.Password(""),
+					},
+					HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 				}
 
-				errs <- err
-				return
+				fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)
+
+				d.client, err = ssh.Dial("tcp", d.address, cfg)
+
+				if err != nil {
+					break
+				}
+
+				done <- struct{}{}
 			}
-
-			break
 		}
-
-		done <- struct{}{}
 	}()
 
 	select {
 	case <-c.Done():
 		return c.Err()
+	case <-after:
+		return errors.New("timed out")
 	case <-done:
 		break
-	case err := <-errs:
-		return err
 	}
 
 	fmt.Fprintf(d.Writer, "Established SSH connection to %s...\n\n", d.address)

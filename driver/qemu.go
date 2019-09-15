@@ -58,7 +58,7 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 		"-net",
 		"user,hostfwd=tcp:" + d.hostfwd + "-:22",
 		"-drive",
-		"file=" + filepath.Join(d.dir, "x86_64", d.image) + ",media=disk,snapshot=on,if=virtio",
+		"file=" + filepath.Join(d.dir, d.arch, d.image) + ",media=disk,snapshot=on,if=virtio",
 	}
 
 	fmt.Fprintf(d.Writer, "Booting machine with image %s...\n", d.image)

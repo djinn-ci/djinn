@@ -6,6 +6,6 @@
 node_modules/
 .vimrc
 mgrt.yml
-thrall-drivers.toml
+thrall-driver.toml
 thrall-worker.toml
 thrall-server.toml

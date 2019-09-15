@@ -137,7 +137,7 @@ func (r *Runner) Remove(stages ...string) {
 func (r *Runner) Run(c context.Context, d Driver) error {
 	defer d.Destroy()
 
-	ct, cancel := context.WithTimeout(context.Background(), createTimeout)
+	ct, cancel := context.WithTimeout(c, createTimeout)
 	defer cancel()
 
 	if err := d.Create(ct, r.Env, r.Objects, r.Placer); err != nil {

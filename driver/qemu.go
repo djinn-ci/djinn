@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -31,6 +32,27 @@ type QEMU struct {
 	hostfwd string
 }
 
+func resolveListenAddr(addr string) string {
+	host, port, _ := net.SplitHostPort(addr)
+
+	iport, _ := strconv.ParseInt(port, 10, 64)
+
+	for {
+		l, err := net.Listen("tcp", addr)
+
+		if err != nil {
+			iport++
+			addr = net.JoinHostPort(host, strconv.FormatInt(iport, 10))
+			continue
+		}
+
+		l.Close()
+		break
+	}
+
+	return addr
+}
+
 func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
 	fmt.Fprintf(d.Writer, "Running with QEMU driver...\n")
 
@@ -38,6 +60,20 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 
 	if err != nil {
 		return err
+	}
+
+	out := make(chan string)
+
+	go func() {
+		out <- resolveListenAddr(d.hostfwd)
+	}()
+
+	select {
+	case <-c.Done():
+		return c.Err()
+	case addr := <-out:
+		d.hostfwd = addr
+		break
 	}
 
 	d.pidfile = pidfile.Name()

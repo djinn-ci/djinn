@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"time"
 
@@ -144,7 +145,7 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 	sess.Stdout = j.Writer
 	sess.Stderr = j.Writer
 
-	if err := sess.Run("./" + script); err != nil {
+	if err := sess.Run("./" + strconv.Quote(script)); err != nil {
 		if _, ok := err.(*ssh.ExitError); ok {
 			err = nil
 		}

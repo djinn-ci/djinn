@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -136,7 +137,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 	header := &tar.Header{
 		Typeflag: tar.TypeReg,
-		Name:     "/bin/" + script,
+		Name:     "/bin/" + strconv.Quote(script),
 		Size:     int64(buf.Len()),
 		Mode:     755,
 	}

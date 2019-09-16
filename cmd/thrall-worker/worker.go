@@ -290,7 +290,7 @@ func (w worker) runBuild(id int64) error {
 		Valid: true,
 	}
 
-	if err := w.builds.Update(); err != nil {
+	if err := w.builds.Update(b); err != nil {
 		return errors.Err(err)
 	}
 

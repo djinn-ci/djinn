@@ -17,6 +17,7 @@ type Driver struct {
 
 type SSH struct {
 	User    string
+	Key     string
 	Timeout int
 }
 

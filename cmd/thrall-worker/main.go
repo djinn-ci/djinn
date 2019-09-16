@@ -90,6 +90,10 @@ func mainCommand(c cli.Command) {
 		Server:        srv,
 		concurrency:   cfg.Parallelism,
 		driver:        cfg.Driver,
+		driverCfg:     config.Driver{
+			SSH:  cfg.SSH,
+			Qemu: cfg.Qemu,
+		},
 		timeout:       duration,
 		redisAddr:     cfg.Redis.Addr,
 		redisPassword: cfg.Redis.Password,

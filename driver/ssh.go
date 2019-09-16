@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ type SSH struct {
 	address  string
 	username string
 	timeout  time.Duration
+	key      string
 }
 
 func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
@@ -35,6 +37,18 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 
 	done := make(chan struct{})
 
+	b, err := ioutil.ReadFile(d.key)
+
+	if err != nil {
+		return err
+	}
+
+	signer, err := ssh.ParsePrivateKey(b)
+
+	if err != nil {
+		return err
+	}
+
 	go func() {
 		var err error
 
@@ -44,9 +58,10 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 				cfg := &ssh.ClientConfig{
 					User: d.username,
 					Auth: []ssh.AuthMethod{
-						ssh.Password(""),
+						ssh.PublicKeys(signer),
 					},
 					HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+					Timeout:         time.Second,
 				}
 
 				fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)
@@ -66,7 +81,7 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 	case <-c.Done():
 		return c.Err()
 	case <-after:
-		return errors.New("timed out")
+		return fmt.Errorf("Timed out trying to connect to %s...\n", d.address)
 	case <-done:
 		break
 	}

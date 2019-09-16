@@ -59,6 +59,7 @@ func New(w io.Writer, d config.Driver) (runner.Driver, error) {
 					address:  hostfwd,
 					username: d.SSH.User,
 					timeout:  time.Duration(time.Second * time.Duration(d.SSH.Timeout)),
+					key:      d.SSH.Key,
 				},
 				dir:     d.Qemu.Disks,
 				image:   d.Config["image"],
@@ -73,6 +74,7 @@ func New(w io.Writer, d config.Driver) (runner.Driver, error) {
 				address:  d.Config["address"],
 				username: d.SSH.User,
 				timeout:  time.Duration(time.Second * time.Duration(d.SSH.Timeout)),
+				key:      d.SSH.Key,
 			}, nil
 		default:
 			return nil, errors.New("unknown driver: " + d.Config["type"])

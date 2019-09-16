@@ -349,7 +349,7 @@ func (s JobStore) Update(jj ...*Job) error {
 func (s JobDependencyStore) All(opts ...query.Option) ([]*JobDependency, error) {
 	dd := make([]*JobDependency, 0)
 
-	err := s.Store.All(&dd, JobTable, opts...)
+	err := s.Store.All(&dd, JobDependencyTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil

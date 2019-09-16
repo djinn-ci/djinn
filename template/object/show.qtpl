@@ -27,12 +27,6 @@ type ShowPage struct {
 {% func (p *ShowPage) Body() %}
 	<div class="panel">
 		<table class="table">
-			{% if p.Object.Namespace != nil %}
-				<tr>
-					<td>Namespace</td>
-					<td class="align-right"><a href="{%s p.Object.Namespace.UIEndpoint() %}">{%s p.Object.Namespace.Path %}</a></td>
-				</tr>
-			{% endif %}
 			<tr>
 				<td>Name</td>
 				<td class="align-right">{%s p.Object.Name %}</td>
@@ -59,7 +53,11 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="/objects" class="back">{% cat "../../svgs/back.svg" %}</a> {%s p.Object.Name %}
+	<a href="/objects" class="back">{% cat "../../svgs/back.svg" %}</a>
+	{% if p.Object.Namespace != nil %}
+		<a href="{%s p.Object.Namespace.UIEndpoint() %}">{%s p.Object.Namespace.Name %}</a> /
+	{% endif %}
+	{%s p.Object.Name %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}

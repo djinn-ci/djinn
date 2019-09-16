@@ -70,7 +70,9 @@ func runJobs(jobs jobStore, d Driver, c Collector, fn jobHandler) chan Job {
 				fn(*j)
 			}
 
-			d.Execute(j, c)
+			if len(j.Commands) > 0 {
+				d.Execute(j, c)
+			}
 
 			done <- *j
 

@@ -70,9 +70,10 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 
 	select {
 	case <-c.Done():
-		return c.Err()
+		return fmt.Errorf("Timed out trying to resolve host forward address...\n")
 	case addr := <-out:
 		d.hostfwd = addr
+		d.SSH.address = addr
 		break
 	}
 

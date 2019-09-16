@@ -29,7 +29,7 @@ func (h Variable) Variable(r *http.Request) *model.Variable {
 	return v
 }
 
-func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
+func (h Variable) indexPage(variables model.VariableStore, r *http.Request) (variable.IndexPage, error) {
 	u := h.User(r)
 
 	search := r.URL.Query().Get("search")
@@ -37,12 +37,10 @@ func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
 	vv, err := u.VariableStore().Index(model.Search("key", search))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
+		return variable.IndexPage{}, errors.Err(err)
 	}
 
-	p := &variable.IndexPage{
+	p := variable.IndexPage{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
@@ -52,7 +50,21 @@ func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
 		Variables: vv,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	return p, nil
+}
+
+func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
+	u := h.User(r)
+
+	p, err := h.indexPage(u.VariableStore(), r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	d := template.NewDashboard(&p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

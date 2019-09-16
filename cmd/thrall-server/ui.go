@@ -102,22 +102,6 @@ func (s *uiServer) init() {
 		Queues:  s.Queues,
 	}
 
-	namespace := ui.Namespace{
-		Handler:    wh,
-		Namespaces: namespaces,
-	}
-
-	collaborator := ui.Collaborator{
-		Handler: wh,
-		Invites: model.InviteStore{
-			Store: store,
-		},
-	}
-
-	invite := ui.Invite{
-		Handler: wh,
-	}
-
 	object := ui.Object{
 		Handler:   wh,
 		Limit:     s.limit,
@@ -139,6 +123,25 @@ func (s *uiServer) init() {
 		Keys:    model.KeyStore{
 			Store: store,
 		},
+	}
+
+	namespace := ui.Namespace{
+		Handler:    wh,
+		Namespaces: namespaces,
+		Object:     object,
+		Variable:   variable,
+		Key:        key,
+	}
+
+	collaborator := ui.Collaborator{
+		Handler: wh,
+		Invites: model.InviteStore{
+			Store: store,
+		},
+	}
+
+	invite := ui.Invite{
+		Handler: wh,
 	}
 
 	job := ui.Job{

@@ -30,20 +30,18 @@ func (h Key) Key(r *http.Request) *model.Key {
 	return k
 }
 
-func (h Key) Index(w http.ResponseWriter, r *http.Request) {
+func (h Key) indexPage(keys model.KeyStore, r *http.Request) (key.IndexPage, error) {
 	u := h.User(r)
 
 	search := r.URL.Query().Get("search")
 
-	kk, err := u.KeyStore().Index(model.Search("name", search))
+	kk, err := keys.Index(model.Search("name", search))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
+		return key.IndexPage{}, errors.Err(err)
 	}
 
-	p := &key.IndexPage{
+	p := key.IndexPage{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
@@ -53,7 +51,21 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 		Keys:   kk,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	return p, nil
+}
+
+func (h Key) Index(w http.ResponseWriter, r *http.Request) {
+	u := h.User(r)
+
+	p, err := h.indexPage(u.KeyStore(), r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	d := template.NewDashboard(&p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

@@ -12,10 +12,7 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/template/key"
 	"github.com/andrewpillar/thrall/template/namespace"
-	"github.com/andrewpillar/thrall/template/object"
-	"github.com/andrewpillar/thrall/template/variable"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
@@ -27,6 +24,9 @@ type Namespace struct {
 	web.Handler
 
 	Namespaces model.NamespaceStore
+	Object     Object
+	Variable   Variable
+	Key        Key
 }
 
 func (h Namespace) Namespace(r *http.Request) *model.Namespace {
@@ -254,7 +254,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		break
 	case "objects":
-		oo, err := n.ObjectStore().Index(model.Search("name", search))
+		op, err := h.Object.indexPage(n.ObjectStore(), r)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -264,16 +264,12 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p = &namespace.ShowObjects{
 			ShowPage: sp,
-			Index:    object.IndexPage{
-				BasePage: bp,
-				CSRF:     string(csrf.TemplateField(r)),
-				Objects:  oo,
-			},
+			Index:    op,
 		}
 
 		break
 	case "variables":
-		vv, err := n.VariableStore().Index(model.Search("key", search))
+		vp, err := h.Variable.indexPage(n.VariableStore(), r)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -282,17 +278,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		p = &namespace.ShowVariables{
-			ShowPage:  sp,
-			Index:     variable.IndexPage{
-				BasePage:  bp,
-				CSRF:      string(csrf.TemplateField(r)),
-				Variables: vv,
-			},
+			ShowPage: sp,
+			Index:    vp,
 		}
 
 		break
 	case "keys":
-		kk, err := n.KeyStore().Index(model.Search("name", search))
+		kp, err := h.Key.indexPage(n.KeyStore(), r)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -302,11 +294,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p = &namespace.ShowKeys{
 			ShowPage: sp,
-			Index:    key.IndexPage{
-				BasePage: bp,
-				CSRF:     string(csrf.TemplateField(r)),
-				Keys:     kk,
-			},
+			Index:    kp,
 		}
 
 		break

@@ -367,30 +367,32 @@ func (b Build) Submit(srv *machinery.Server) error {
 		names = append(names, src)
 	}
 
-	oo, err := objects.All(
-		ForUser(b.User),
-		query.WhereRaw("namespace_id", "IS", "NULL"),
-		OrForNamespace(b.Namespace),
-		query.Where("name", "IN", names...),
-	)
+	if len(names) > 0 {
+		oo, err := objects.All(
+			ForUser(b.User),
+			query.WhereRaw("namespace_id", "IS", "NULL"),
+			OrForNamespace(b.Namespace),
+			query.Where("name", "IN", names...),
+		)
 
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	buildObjs := b.BuildObjectStore()
-
-	for _, o := range oo {
-		bo := buildObjs.New()
-		bo.ObjectID = sql.NullInt64{
-			Int64: o.ID,
-			Valid: true,
-		}
-		bo.Source = o.Name
-		bo.Name = m.Objects[o.Name]
-
-		if err := buildObjs.Create(bo); err != nil {
+		if err != nil {
 			return errors.Err(err)
+		}
+
+		buildObjs := b.BuildObjectStore()
+
+		for _, o := range oo {
+			bo := buildObjs.New()
+			bo.ObjectID = sql.NullInt64{
+				Int64: o.ID,
+				Valid: true,
+			}
+			bo.Source = o.Name
+			bo.Name = m.Objects[o.Name]
+
+			if err := buildObjs.Create(bo); err != nil {
+				return errors.Err(err)
+			}
 		}
 	}
 

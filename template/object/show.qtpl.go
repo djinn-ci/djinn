@@ -143,7 +143,7 @@ func (p *ShowPage) StreamHeader(qw422016 *qt422016.Writer) {
 	//line template/object/show.qtpl:56
 	qw422016.N().S(`</a> `)
 	//line template/object/show.qtpl:57
-	if p.Object.Namespace != nil {
+	if !p.Object.Namespace.IsZero() {
 		//line template/object/show.qtpl:57
 		qw422016.N().S(` <a href="`)
 		//line template/object/show.qtpl:58

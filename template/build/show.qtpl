@@ -227,7 +227,7 @@ type ShowTags struct {
 
 {% func (p *ShowPage) Header() %}
 	<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a>
-	{% if p.Build.Namespace != nil %}
+	{% if !p.Build.Namespace.IsZero() %}
 		<a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Name %}</a> /
 	{% endif %}
 	Build #{%v p.Build.ID %} {%= template.RenderStatus(p.Build.Status) %}

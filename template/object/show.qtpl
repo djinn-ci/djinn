@@ -54,7 +54,7 @@ type ShowPage struct {
 
 {% func (p *ShowPage) Header() %}
 	<a href="/objects" class="back">{% cat "../../svgs/back.svg" %}</a>
-	{% if p.Object.Namespace != nil %}
+	{% if !p.Object.Namespace.IsZero() %}
 		<a href="{%s p.Object.Namespace.UIEndpoint() %}">{%s p.Object.Namespace.Name %}</a> /
 	{% endif %}
 	{%s p.Object.Name %}

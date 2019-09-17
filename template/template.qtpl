@@ -72,7 +72,7 @@ const (
 
 var (
 	NamespacesURI = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
-	BuildsURI     = "(^\\/$|^\\/builds\\/create$|^\\/b/[_-a-zA-Z0-9.]+/[0-9]+\\/?[a-z]*)"
+	BuildsURI     = "(^\\/$|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
 	SettingsURI   = "\\/settings\\/?"
 )
 

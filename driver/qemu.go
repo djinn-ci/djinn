@@ -82,6 +82,10 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 	parts := strings.Split(d.image, "/")
 	disk := filepath.Join(d.dir, parts[0], d.arch, parts[1])
 
+	if _, err := os.Stat(disk); err != nil {
+		return errors.New("no such image " + d.image)
+	}
+
 	bin := fmt.Sprintf("qemu-system-%s", d.arch)
 	arg := []string{
 		"-enable-kvm",

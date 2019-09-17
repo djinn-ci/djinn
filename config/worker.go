@@ -11,7 +11,7 @@ import (
 
 type Worker struct {
 	Parallelism int
-	Driver      string
+	Drivers     []string
 	Timeout     string
 
 	Net struct {

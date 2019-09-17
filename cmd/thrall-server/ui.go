@@ -99,7 +99,8 @@ func (s *uiServer) init() {
 
 	build := ui.Build{
 		Handler: wh,
-		Queues:  s.Queues,
+		Drivers: s.Drivers,
+		Queue:   s.Queue,
 	}
 
 	object := ui.Object{

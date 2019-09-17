@@ -28,7 +28,8 @@ import (
 type Build struct {
 	web.Handler
 
-	Queues map[string]*machinery.Server
+	Drivers map[string]struct{}
+	Queue   *machinery.Server
 }
 
 func (h Build) Index(w http.ResponseWriter, r *http.Request) {
@@ -99,9 +100,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 	m, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
 
-	srv, ok := h.Queues[m.Driver["type"]]
-
-	if !ok {
+	if _, ok := h.Drivers[m.Driver["type"]]; !ok {
 		errs := form.NewErrors()
 		errs.Put("manifest", errors.New("Driver " + m.Driver["type"] + " is not supported"))
 
@@ -156,7 +155,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := b.Submit(srv); err != nil {
+	if err := b.Submit(h.Queue); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

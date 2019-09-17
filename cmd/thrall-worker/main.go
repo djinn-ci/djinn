@@ -3,11 +3,13 @@ package main
 import (
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/log"
@@ -30,6 +32,10 @@ func mainCommand(c cli.Command) {
 
 	if err != nil {
 		log.Error.Fatalf("failed to decode worker config: %s\n", err)
+	}
+
+	if len(cfg.Drivers) == 0 {
+		log.Error.Fatalf("no drivers configured, exiting\n")
 	}
 
 	log.SetLevel(cfg.Log.Level)
@@ -86,10 +92,18 @@ func mainCommand(c cli.Command) {
 		DB: db,
 	}
 
+	if len(cfg.Drivers) == 1 && cfg.Drivers[0] == "*" {
+		cfg.Drivers = driver.All
+	}
+
+	// Sort drivers so the final queue name will be the same regardless of
+	// order in the config file.
+	sort.Strings(cfg.Drivers)
+
 	w := worker{
 		Server:        srv,
 		concurrency:   cfg.Parallelism,
-		driver:        cfg.Driver,
+		drivers:       cfg.Drivers,
 		driverCfg:     config.Driver{
 			SSH:  cfg.SSH,
 			Qemu: cfg.Qemu,

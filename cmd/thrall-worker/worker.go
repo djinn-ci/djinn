@@ -31,7 +31,7 @@ type worker struct {
 	store model.Store
 
 	concurrency int
-	driver      string
+	drivers     []string
 	driverCfg   config.Driver
 	timeout     time.Duration
 
@@ -61,29 +61,30 @@ func (w *worker) init() error {
 	w.buffers = make(map[int64]*bytes.Buffer)
 	w.signals = make(map[int64]chan struct{})
 
-	url := "redis://"
+	broker := "redis://"
 
 	if w.redisPassword != "" {
-		url += w.redisPassword + "@"
+		broker += w.redisPassword + "@"
 	}
 
-	url += w.redisAddr
+	broker += w.redisAddr
 
-	qcfg := &qconfig.Config{
-		Broker:        url,
-		DefaultQueue:  "thrall_builds_" + w.driver,
-		ResultBackend: url,
-	}
+	qname := []string{"thrall", "builds"}
+	qname = append(qname, w.drivers...)
 
-	server, err := machinery.NewServer(qcfg)
+	qsrv, err := machinery.NewServer(&qconfig.Config{
+		Broker:        broker,
+		DefaultQueue:  strings.Join(qname, "_"),
+		ResultBackend: broker,
+	})
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	server.RegisterTask("run_build", w.runBuild)
+	qsrv.RegisterTask("run_build", w.runBuild)
 
-	w.worker = server.NewWorker("thrall-worker-" + w.driver, w.concurrency)
+	w.worker = qsrv.NewWorker("thrall-worker-" + strings.Join(w.drivers, "_"), w.concurrency)
 
 	return nil
 }

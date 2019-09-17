@@ -17,7 +17,8 @@ type Server struct {
 	http  *http.Server
 	https *http.Server
 
-	Queues map[string]*machinery.Server
+	Drivers map[string]struct{}
+	Queue   *machinery.Server
 
 	CSRFToken []byte
 
@@ -56,14 +57,6 @@ func (s *Server) Init(h http.Handler) {
 
 		s.http.Handler = web.NewSecureRedirect(s.https.Addr)
 	}
-}
-
-func (s *Server) AddQueue(name string, srv *machinery.Server) {
-	if s.Queues == nil {
-		s.Queues = make(map[string]*machinery.Server)
-	}
-
-	s.Queues[name] = srv
 }
 
 func (s Server) Serve() {

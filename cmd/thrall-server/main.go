@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sort"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/cli"
@@ -38,6 +40,10 @@ func mainCommand(cmd cli.Command) {
 
 	if err != nil {
 		log.Error.Fatalf("failed to decode server config: %s\n", err)
+	}
+
+	if len(cfg.Drivers) == 0 {
+		log.Error.Fatalf("no drivers configured, exiting\n")
 	}
 
 	log.SetLevel(cfg.Log.Level)
@@ -88,6 +94,7 @@ func mainCommand(cmd cli.Command) {
 		SSLCert:   cfg.Net.SSL.Cert,
 		SSLKey:    cfg.Net.SSL.Key,
 		CSRFToken: []byte(cfg.Crypto.Auth),
+		Drivers:   make(map[string]struct{}),
 	}
 
 	broker := "redis://"
@@ -102,23 +109,28 @@ func mainCommand(cmd cli.Command) {
 		cfg.Drivers = driver.All
 	}
 
+	// Sort drivers so the final queue name will be the same regardless of
+	// order in the config file.
+	sort.Strings(cfg.Drivers)
+
 	for _, d := range cfg.Drivers {
-		qcfg := &qconfig.Config{
-			Broker:        broker,
-			DefaultQueue:  "thrall_builds_" + d,
-			ResultBackend: broker,
-		}
-
-		qsrv, err := machinery.NewServer(qcfg)
-
-		if err != nil {
-			log.Error.Fatalf("failed to create queue server: %s\n", err)
-		}
-
-		log.Debug.Println("adding build queue:", qcfg.DefaultQueue)
-
-		srv.AddQueue(d, qsrv)
+		srv.Drivers[d] = struct{}{}
 	}
+
+	qname := []string{"thrall", "builds"}
+	qname = append(qname, cfg.Drivers...)
+
+	qsrv, err := machinery.NewServer(&qconfig.Config{
+		Broker:        broker,
+		DefaultQueue:  strings.Join(qname, "_"),
+		ResultBackend: broker,
+	})
+
+	if err != nil {
+		log.Error.Fatalf("failed to create queue server: %s\n", err)
+	}
+
+	srv.Queue = qsrv
 
 	artifacts, err := filestore.New(cfg.Artifacts)
 

@@ -322,6 +322,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		sp.Builds, err = n.BuildStore().Index(
 			model.BuildStatus(status),
 			model.BuildSearch(search),
+			query.OrderDesc("created_at"),
 		)
 
 		if err != nil {

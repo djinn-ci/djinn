@@ -25,7 +25,7 @@ type IndexPage struct {
 
 {% func (p *IndexPage) Body() %}
 	<div class="panel">
-		{% if len(p.Builds) == 0 && p.Search == "" %}
+		{% if len(p.Builds) == 0 && p.Search == "" && p.Status == "" %}
 			<div class="panel-message muted">No builds have been submitted yet.</div>
 		{% else %}
 			<div class="panel-header">

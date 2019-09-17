@@ -73,7 +73,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/index.qtpl:26
 	qw422016.N().S(` <div class="panel"> `)
 	//line template/build/index.qtpl:28
-	if len(p.Builds) == 0 && p.Search == "" {
+	if len(p.Builds) == 0 && p.Search == "" && p.Status == "" {
 		//line template/build/index.qtpl:28
 		qw422016.N().S(` <div class="panel-message muted">No builds have been submitted yet.</div> `)
 		//line template/build/index.qtpl:30

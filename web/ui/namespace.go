@@ -24,6 +24,7 @@ type Namespace struct {
 	web.Handler
 
 	Namespaces model.NamespaceStore
+	Build      Build
 	Object     Object
 	Variable   Variable
 	Key        Key
@@ -216,7 +217,6 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	base := filepath.Base(r.URL.Path)
 
-	status := r.URL.Query().Get("status")
 	search := r.URL.Query().Get("search")
 
 	var p template.Dashboard
@@ -229,8 +229,6 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	sp := namespace.ShowPage{
 		BasePage:  bp,
 		Namespace: n,
-		Status:    status,
-		Search:    search,
 	}
 
 	switch base {
@@ -319,11 +317,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	default:
 		var err error
 
-		sp.Builds, err = n.BuildStore().Index(
-			model.BuildStatus(status),
-			model.BuildSearch(search),
-			query.OrderDesc("created_at"),
-		)
+		sp.Index, err = h.Build.indexPage(n.BuildStore(), r)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

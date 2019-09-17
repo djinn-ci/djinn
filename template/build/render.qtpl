@@ -1,10 +1,8 @@
 {%
 import (
 	"fmt"
-	"strings"
 
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/template"
 )
 %}
 
@@ -49,71 +47,6 @@ import (
 			</li>
 		</ul>
 	{% endstripspace %}
-{% endfunc %}
-
-{% func RenderIndex(bb []*model.Build, uri, status, search string) %}
-	{% if len(bb) == 0 && search == "" && status == "" %}
-		<div class="panel-message muted">No builds have been submitted yet.</div>
-	{% elseif len(bb) == 0 && search != "" %}
-		<div class="panel-header">
-			{%= RenderStatusNav(uri, status) %}
-			{%= template.RenderSearch(uri, search, "Find a build...") %}
-		</div>
-		<div class="panel-message muted">No results found.</div>
-	{% elseif len(bb) == 0 && status != "" %}
-		<div class="panel-header">
-			{%= RenderStatusNav(uri, status) %}
-			{%= template.RenderSearch(uri, search, "Find a build...") %}
-		</div>
-		<div class="panel-message muted">No {%s strings.Replace(status, "_", " ", -1) %} builds.</div>
-	{% else %}
-		<div class="panel-header">
-			{%= RenderStatusNav(uri, status) %}
-			{%= template.RenderSearch(uri, search, "Find a build...") %}
-		</div>
-		{%= RenderTable(bb) %}
-	{% endif %}
-{% endfunc %}
-
-{% func RenderTable(builds []*model.Build) %}
-	<table class="table">
-		<thead>
-			<tr>
-				<th>STATUS</th>
-				<th>BUILD</th>
-				<th>NAMESPACE</th>
-				<th></th>
-				<th></th>
-			</tr>
-		</thead>
-		<tbody>
-		{% for _, b := range builds %}
-			<tr>
-				<td>{%= template.RenderStatus(b.Status) %}</td>
-				<td><a href="{%s b.UIEndpoint() %}">#{%v b.ID %}</a></td>
-				<td>
-					{% if b.Namespace != nil %}
-						<a href="{%s b.Namespace.UIEndpoint() %}">{%s b.Namespace.Path %}</a>
-					{% else %}
-						<span class="muted">--</span>
-					{% endif %}
-				</td>
-				<td class="align-right">
-					{% for _, t := range b.Tags %}
-						<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
-					{% endfor %}
-				</td>
-				<td class="align-right">
-					{% if !b.FinishedAt.Valid || !b.StartedAt.Valid %}
-						<span class="muted">--</span>
-					{% else %}
-						{%v b.FinishedAt.Time.Sub(b.StartedAt.Time) %}
-					{% endif %}
-				</td>
-			</tr>
-		{% endfor %}
-		</tbody>
-	</table>
 {% endfunc %}
 
 {% func RenderObjectTable(oo []*model.BuildObject) %}

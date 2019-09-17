@@ -13,9 +13,7 @@ type ShowPage struct {
 	template.BasePage
 
 	Object *model.Object
-	Search string
-	Status string
-	Builds []*model.Build
+	Index  build.IndexPage
 }
 %}
 
@@ -49,7 +47,7 @@ type ShowPage struct {
 			</tr>
 		</table>
 	</div>
-	<div class="panel">{%= build.RenderIndex(p.Builds, p.URL.Path, p.Status, p.Search) %}</div>
+	{%= p.Index.Body() %}
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
@@ -58,6 +56,9 @@ type ShowPage struct {
 		<a href="{%s p.Object.Namespace.UIEndpoint() %}">{%s p.Object.Namespace.Name %}</a> /
 	{% endif %}
 	{%s p.Object.Name %}
+	{% if p.Index.Tag != "" %}
+		<span class="pill pill-light">{%s p.Index.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../svgs/close.svg" %}</a></span>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}

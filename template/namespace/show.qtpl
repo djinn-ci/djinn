@@ -15,11 +15,7 @@ type ShowPage struct {
 	template.BasePage
 
 	Namespace *model.Namespace
-
-	Status string
-	Search string
-
-	Builds []*model.Build
+	Index     build.IndexPage
 }
 
 type ShowNamespaces struct {
@@ -82,7 +78,7 @@ type ShowCollaborators struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-	<div class="panel">{%= build.RenderIndex(p.Builds, p.URL.Path, p.Status, p.Search) %}</div>
+	{%= p.Index.Body() %}
 {% endfunc %}
 
 {% func (p *ShowNamespaces) Body() %}
@@ -151,6 +147,9 @@ type ShowCollaborators struct {
 		<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
 	{% endif %}
 	{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %}
+	{% if p.Index.Tag != "" %}
+		<span class="pill pill-light">{%s p.Index.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../svgs/close.svg" %}</a></span>
+	{% endif %}
 	<small>{%s p.Namespace.Description %}</small>
 {% endfunc %}
 

@@ -32,29 +32,30 @@ type Build struct {
 	Queue   *machinery.Server
 }
 
-func (h Build) Index(w http.ResponseWriter, r *http.Request) {
+func (h Build) indexPage(builds model.BuildStore, r *http.Request, opts ...query.Option) (build.IndexPage, error) {
 	u := h.User(r)
 
 	tag := r.URL.Query().Get("tag")
 	search := r.URL.Query().Get("search")
 	status := r.URL.Query().Get("status")
 
-	bb, err := u.BuildStore().Index(
+	indexOpts := []query.Option{
 		model.BuildTag(tag),
 		model.BuildSearch(search),
 		model.BuildStatus(status),
 		query.OrderDesc("created_at"),
-	)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
 	}
 
-	p := &build.IndexPage{
+	bb, err := builds.Index(append(opts, indexOpts...)...)
+
+	if err != nil {
+		return build.IndexPage{}, errors.Err(err)
+	}
+
+	p := build.IndexPage{
 		BasePage: template.BasePage{
-			URL: r.URL,
+			URL:  r.URL,
+			User: u,
 		},
 		Builds: bb,
 		Search: search,
@@ -62,7 +63,21 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		Tag:    tag,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	return p, nil
+}
+
+func (h Build) Index(w http.ResponseWriter, r *http.Request) {
+	u := h.User(r)
+
+	p, err := h.indexPage(u.BuildStore(), r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	d := template.NewDashboard(&p, r.URL, h.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

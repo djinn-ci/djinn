@@ -129,6 +129,7 @@ func (s *uiServer) init() {
 	namespace := ui.Namespace{
 		Handler:    wh,
 		Namespaces: namespaces,
+		Build:      build,
 		Object:     object,
 		Variable:   variable,
 		Key:        key,

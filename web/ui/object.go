@@ -27,6 +27,7 @@ import (
 type Object struct {
 	web.Handler
 
+	Build     Build
 	Limit     int64
 	Objects   model.ObjectStore
 	FileStore filestore.FileStore
@@ -96,20 +97,13 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	search := r.URL.Query().Get("search")
-	status := r.URL.Query().Get("status")
-
-	bb, err := u.BuildStore().Index(
-		query.WhereQuery("id", "IN",
-			query.Select(
-				query.Columns("build_id"),
-				query.From("build_objects"),
-				query.Where("object_id", "=", o.ID),
-			),
+	bp, err := h.Build.indexPage(u.BuildStore(), r, query.WhereQuery("id", "IN",
+		query.Select(
+			query.Columns("build_id"),
+			query.From("build_objects"),
+			query.Where("object_id", "=", o.ID),
 		),
-		model.BuildSearch(search),
-		model.BuildStatus(status),
-	)
+	))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -122,9 +116,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 			URL: r.URL,
 		},
 		Object: o,
-		Search: search,
-		Status: status,
-		Builds: bb,
+		Index:  bp,
 	}
 
 	d := template.NewDashboard(p, r.URL, h.Alert(w, r))

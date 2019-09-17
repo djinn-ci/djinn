@@ -1,5 +1,7 @@
 {%
 import (
+	"strings"
+
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -22,7 +24,60 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Body() %}
-	<div class="panel">{%= RenderIndex(p.Builds, p.URL.Path, p.Status, p.Search) %}</div>
+	<div class="panel">
+		{% if len(p.Builds) == 0 && p.Search == "" %}
+			<div class="panel-message muted">No builds have been submitted yet.</div>
+		{% else %}
+			<div class="panel-header">
+				{%= RenderStatusNav(p.URL.Path, p.Status) %}
+				{%= template.RenderSearch(p.URL.Path, p.Search, "Find a build...") %}
+			</div>
+			{% if len(p.Builds) == 0 && p.Search != "" %}
+				<div class="panel-message muted">No results found.</div>
+			{% elseif len(p.Builds) == 0 && p.Status != "" %}
+				<div class="panel-message muted">No {%s strings.Replace(p.Status, "_", " ", -1) %} builds.</div>
+			{% else %}
+				<table class="table">
+					<thead>
+						<tr>
+							<th>STATUS</th>
+							<th>BUILD</th>
+							<th>NAMESPACE</th>
+							<th></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+					{% for _, b := range p.Builds %}
+						<tr>
+							<td>{%= template.RenderStatus(b.Status) %}</td>
+							<td><a href="{%s b.UIEndpoint() %}">#{%v b.ID %}</a></td>
+							<td>
+								{% if b.Namespace != nil %}
+									<a href="{%s b.Namespace.UIEndpoint() %}">{%s b.Namespace.Path %}</a>
+								{% else %}
+									<span class="muted">--</span>
+								{% endif %}
+							</td>
+							<td class="align-right">
+								{% for _, t := range b.Tags %}
+									<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
+								{% endfor %}
+							</td>
+							<td class="align-right">
+								{% if !b.FinishedAt.Valid || !b.StartedAt.Valid %}
+									<span class="muted">--</span>
+								{% else %}
+									{%v b.FinishedAt.Time.Sub(b.StartedAt.Time) %}
+								{% endif %}
+							</td>
+						</tr>
+					{% endfor %}
+					</tbody>
+				</table>
+			{% endif %}
+		{% endif %}
+	</div>
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

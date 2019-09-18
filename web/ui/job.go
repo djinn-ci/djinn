@@ -7,6 +7,7 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/job"
 	"github.com/andrewpillar/thrall/web"
@@ -18,20 +19,18 @@ type Job struct {
 	web.Handler
 }
 
+func (h Job) Build(r *http.Request) *model.Build {
+	val := r.Context().Value("build")
+
+	b, _ := val.(*model.Build)
+
+	return b
+}
+
 func (h Job) Show(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
+	b := h.Build(r)
 
 	vars := mux.Vars(r)
-
-	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := u.BuildStore().Find(buildId)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
 
 	jobId, _ := strconv.ParseInt(vars["job"], 10, 64)
 

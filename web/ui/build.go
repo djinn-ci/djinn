@@ -20,7 +20,6 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
 
 	"github.com/RichardKnop/machinery/v1"
 )
@@ -30,6 +29,14 @@ type Build struct {
 
 	Drivers map[string]struct{}
 	Queue   *machinery.Server
+}
+
+func (h Build) Build(r *http.Request) *model.Build {
+	val := r.Context().Value("build")
+
+	b, _ := val.(*model.Build)
+
+	return b
 }
 
 func (h Build) indexPage(builds model.BuildStore, r *http.Request, opts ...query.Option) (build.IndexPage, error) {
@@ -200,21 +207,10 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Build) Show(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+	u := h.User(r)
+	b := h.Build(r)
 
-	u, err := h.Users.FindByUsername(vars["username"])
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	id, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := u.BuildStore().Show(id)
-
-	if err != nil {
+	if err := b.Show(); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

@@ -299,6 +299,32 @@ func (b Build) Values() map[string]interface{} {
 	}
 }
 
+func (b *Build) Show() error {
+	if err := b.LoadNamespace(); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := b.Namespace.LoadUser(); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := b.LoadTrigger(); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := b.LoadTags(); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := b.LoadStages(); err != nil {
+		return errors.Err(err)
+	}
+
+	err := b.StageStore().LoadJobs(b.Stages)
+
+	return errors.Err(err)
+}
+
 func (b Build) Signature() *tasks.Signature {
 	return &tasks.Signature{
 		Name:       "run_build",
@@ -633,38 +659,6 @@ func (s BuildStore) Index(opts ...query.Option) ([]*Build, error) {
 	err = namespaces.LoadUsers(nn)
 
 	return bb, errors.Err(err)
-}
-
-func (s BuildStore) Show(id int64) (*Build, error) {
-	b, err := s.Find(id)
-
-	if err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadNamespace(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.Namespace.LoadUser(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadTrigger(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadTags(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadStages(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	err = b.StageStore().LoadJobs(b.Stages)
-
-	return b, errors.Err(err)
 }
 
 func (s BuildStore) loadNamespace(bb []*Build) func(i int, n *Namespace) {

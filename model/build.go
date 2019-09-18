@@ -77,15 +77,15 @@ func BuildStatus(status string) query.Option {
 			return q
 		}
 
-		opts := []query.Option{
-			query.Where("status", "=", status),
+		vals := []interface{}{
+			status,
 		}
 
 		if status == "passed" {
-			opts = append(opts, query.OrWhere("status", "=", "passed_with_failures"))
+			vals = append(vals, "passed_with_failures")
 		}
 
-		return query.Options(opts...)(q)
+		return query.Where("status", "IN", vals...)(q)
 	}
 }
 

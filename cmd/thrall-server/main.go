@@ -86,6 +86,8 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to ping redis: %s\n", err)
 	}
 
+	defer client.Close()
+
 	log.Info.Println("connected to redis database")
 
 	srv := &server.Server{

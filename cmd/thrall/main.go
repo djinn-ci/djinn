@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"syscall"
 
 	"github.com/andrewpillar/cli"
 
@@ -180,7 +179,7 @@ func mainCommand(c cli.Command) {
 
 	sigs := make(chan os.Signal)
 
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGKILL)
+	signal.Notify(sigs, os.Interrupt, os.Kill)
 
 	go func() {
 		<-sigs

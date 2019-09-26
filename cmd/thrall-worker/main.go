@@ -12,9 +12,9 @@ import (
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
+	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/server"
 )
 
 var Build string
@@ -63,11 +63,10 @@ func mainCommand(c cli.Command) {
 
 	log.Info.Println("connected to postgresql database")
 
-	srv := server.Server{
-		HttpAddr:  cfg.Net.Listen,
-		HttpsAddr: cfg.Net.SSL.Listen,
-		SSLCert:   cfg.Net.SSL.Cert,
-		SSLKey:    cfg.Net.SSL.Key,
+	srv := &http.Server{
+		Addr: cfg.Net.Listen,
+		Cert: cfg.Net.SSL.Cert,
+		Key:  cfg.Net.SSL.Key,
 	}
 
 	artifacts, err := filestore.New(cfg.Artifacts)

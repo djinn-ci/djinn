@@ -13,9 +13,9 @@ import (
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
+	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/runner"
-	"github.com/andrewpillar/thrall/server"
 
 	"github.com/andrewpillar/query"
 
@@ -26,7 +26,7 @@ import (
 )
 
 type worker struct {
-	server.Server
+	*http.Server
 
 	store model.Store
 

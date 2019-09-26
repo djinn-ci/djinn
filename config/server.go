@@ -15,7 +15,6 @@ type Server struct {
 		Listen string
 
 		SSL struct {
-			Listen string
 			Cert   string
 			Key    string
 		}

@@ -8,6 +8,11 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 )
 
+type FileSystem struct {
+	dir   string
+	limit int64
+}
+
 func (fs *FileSystem) Collect(name string, r io.Reader) (int64, error) {
 	dst := filepath.Join(fs.dir, name)
 

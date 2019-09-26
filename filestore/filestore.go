@@ -21,11 +21,6 @@ type FileStore interface {
 	Remove(name string) error
 }
 
-type FileSystem struct {
-	dir   string
-	limit int64
-}
-
 func New(cfg config.FileStore) (FileStore, error) {
 	switch cfg.Type {
 		case "filesystem":

@@ -2,14 +2,14 @@ package main
 
 import (
 	"encoding/gob"
-	"net/http"
+	nethttp "net/http"
 
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
-	"github.com/andrewpillar/thrall/server"
+	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/session"
 	"github.com/andrewpillar/thrall/template"
 
@@ -19,32 +19,41 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/go-redis/redis"
+
+	"github.com/RichardKnop/machinery/v1"
 )
 
-type uiServer struct {
-	*server.Server
+type server struct {
+	*http.Server
 
 	db     *sqlx.DB
 	client *redis.Client
 
-	limit int64
-
 	objects   filestore.FileStore
 	artifacts filestore.FileStore
 
-	hash []byte
-	key  []byte
+	drivers map[string]struct{}
 
-	assets string
+	hash   []byte
+	key    []byte
+	limit  int64
+
+	queue  *machinery.Server
 	router *mux.Router
 }
 
-func notFoundHandler(w http.ResponseWriter, r *http.Request) {
-	web.HTMLError(w, "Not found", http.StatusNotFound)
+type uiServer struct {
+	server
+
+	assets string
 }
 
-func methodNotAllowedHandler(w http.ResponseWriter, r *http.Request) {
-	web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
+func notFoundHandler(w nethttp.ResponseWriter, r *nethttp.Request) {
+	web.HTMLError(w, "Not found", nethttp.StatusNotFound)
+}
+
+func methodNotAllowedHandler(w nethttp.ResponseWriter, r *nethttp.Request) {
+	web.HTMLError(w, "Method not allowed", nethttp.StatusMethodNotAllowed)
 }
 
 func (s *uiServer) initAuth(h web.Handler, mw web.Middleware) {
@@ -86,10 +95,10 @@ func (s *uiServer) init() {
 		Handler:   wh,
 	}
 
-	s.router.NotFoundHandler = http.HandlerFunc(notFoundHandler)
-	s.router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowedHandler)
+	s.router.NotFoundHandler = nethttp.HandlerFunc(notFoundHandler)
+	s.router.MethodNotAllowedHandler = nethttp.HandlerFunc(methodNotAllowedHandler)
 
-	assets := http.StripPrefix("/assets/", http.FileServer(http.Dir(s.assets)))
+	assets := nethttp.StripPrefix("/assets/", nethttp.FileServer(nethttp.Dir(s.assets)))
 
 	s.router.PathPrefix("/assets/").Handler(assets)
 
@@ -99,8 +108,8 @@ func (s *uiServer) init() {
 
 	build := ui.Build{
 		Handler: wh,
-		Drivers: s.Drivers,
-		Queue:   s.Queue,
+		Drivers: s.drivers,
+		Queue:   s.queue,
 	}
 
 	object := ui.Object{

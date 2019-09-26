@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	nethttp "net/http"
 	"os"
 	"os/signal"
 	"sort"
@@ -14,10 +15,11 @@ import (
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/driver"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
+	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/server"
 
 	"github.com/go-redis/redis"
 
@@ -90,13 +92,13 @@ func mainCommand(cmd cli.Command) {
 
 	log.Info.Println("connected to redis database")
 
-	srv := &server.Server{
-		HttpAddr:  cfg.Net.Listen,
-		HttpsAddr: cfg.Net.SSL.Listen,
-		SSLCert:   cfg.Net.SSL.Cert,
-		SSLKey:    cfg.Net.SSL.Key,
-		CSRFToken: []byte(cfg.Crypto.Auth),
-		Drivers:   make(map[string]struct{}),
+	srv := server{
+		Server: &http.Server{
+			Addr:      cfg.Net.Listen,
+			Cert:      cfg.Net.SSL.Cert,
+			Key:       cfg.Net.SSL.Key,
+			CSRFToken: []byte(cfg.Crypto.Auth),
+		},
 	}
 
 	broker := "redis://"
@@ -115,14 +117,16 @@ func mainCommand(cmd cli.Command) {
 	// order in the config file.
 	sort.Strings(cfg.Drivers)
 
+	srv.drivers = make(map[string]struct{})
+
 	for _, d := range cfg.Drivers {
-		srv.Drivers[d] = struct{}{}
+		srv.drivers[d] = struct{}{}
 	}
 
 	qname := []string{"thrall", "builds"}
 	qname = append(qname, cfg.Drivers...)
 
-	qsrv, err := machinery.NewServer(&qconfig.Config{
+	queue, err := machinery.NewServer(&qconfig.Config{
 		Broker:        broker,
 		DefaultQueue:  strings.Join(qname, "_"),
 		ResultBackend: broker,
@@ -131,8 +135,6 @@ func mainCommand(cmd cli.Command) {
 	if err != nil {
 		log.Error.Fatalf("failed to create queue server: %s\n", err)
 	}
-
-	srv.Queue = qsrv
 
 	artifacts, err := filestore.New(cfg.Artifacts)
 
@@ -146,31 +148,42 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to create object store: %s\n", err)
 	}
 
+	srv.db = db
+	srv.client = client
+	srv.objects = objects
+	srv.artifacts = artifacts
+	srv.hash = []byte(cfg.Crypto.Hash)
+	srv.key = []byte(cfg.Crypto.Key)
+	srv.limit = cfg.Objects.Limit
+	srv.queue = queue
+
 	uiSrv := uiServer{
-		Server:    srv,
-		db:        db,
-		client:    client,
-		limit:     cfg.Objects.Limit,
-		artifacts: artifacts,
-		objects:   objects,
-		hash:      []byte(cfg.Crypto.Hash),
-		key:       []byte(cfg.Crypto.Key),
-		assets:    "public",
+		server: srv,
+		assets: "public",
 	}
 
 	uiSrv.init()
-	uiSrv.Serve()
 
-	log.Info.Println("thrall-server started")
+	go func() {
+		if err := uiSrv.Serve(); err != nil {
+			cause := errors.Cause(err)
 
-	c := make(chan os.Signal, 1)
-
-	signal.Notify(c, os.Interrupt)
-
-	sig := <-c
+			if cause != nethttp.ErrServerClosed {
+				log.Error.Fatal(cause)
+			}
+		}
+	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second * 15))
 	defer cancel()
+
+	log.Info.Println("thrall-server started on", cfg.Net.Listen)
+
+	c := make(chan os.Signal, 1)
+
+	signal.Notify(c, os.Interrupt, os.Kill)
+
+	sig := <-c
 
 	uiSrv.Shutdown(ctx)
 

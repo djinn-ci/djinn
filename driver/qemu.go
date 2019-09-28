@@ -111,8 +111,8 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 	cmd := exec.Command(bin, arg...)
 
 	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = d.Writer
+	cmd.Stderr = d.Writer
 
 	if err := cmd.Run(); err != nil {
 		return err

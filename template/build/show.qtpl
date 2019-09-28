@@ -1,6 +1,7 @@
 {%
 import (
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/artifact"
 	"github.com/andrewpillar/thrall/template/job"
@@ -12,6 +13,7 @@ type ShowPage struct {
 	template.BasePage
 
 	Build *model.Build
+	CSRF  string
 }
 
 type ShowManifest struct {
@@ -233,7 +235,17 @@ type ShowTags struct {
 	Build #{%v p.Build.ID %} {%= template.RenderStatus(p.Build.Status) %}
 {% endfunc %}
 
-{% func (p *ShowPage) Actions() %}{% endfunc %}
+{% func (p *ShowPage) Actions() %}
+	{% if p.User.ID == p.Build.UserID && p.Build.Status == runner.Running %}
+	<li>
+		<form method="POST">
+			{%s= string(p.CSRF) %}
+			<input type="hidden" name="_method" value="DELETE">
+			<button type="submit" class="btn btn-danger">Kill</button>
+		</form>
+	</li>
+	{% endif %}
+{% endfunc %}
 
 {% stripspace %}
 {% func (p *ShowPage) Navigation() %}

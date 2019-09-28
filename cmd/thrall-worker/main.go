@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	nethttp "net/http"
 	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/cli"
@@ -15,6 +17,9 @@ import (
 	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+
+	"github.com/RichardKnop/machinery/v1"
+	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
 var Build string
@@ -99,27 +104,54 @@ func mainCommand(c cli.Command) {
 	// order in the config file.
 	sort.Strings(cfg.Drivers)
 
+	broker := "redis://"
+
+	if cfg.Redis.Password != "" {
+		broker += cfg.Redis.Password
+	}
+
+	broker += cfg.Redis.Addr
+
+	qname := []string{"thrall", "builds"}
+	qname = append(qname, cfg.Drivers...)
+
+	queue, err := machinery.NewServer(&qconfig.Config{
+		Broker:        broker,
+		DefaultQueue:  strings.Join(qname, "_"),
+		ResultBackend: broker,
+	})
+
+	if err != nil {
+		log.Error.Fatalf("failed to create queue server: %s\n", err)
+	}
+
 	w := worker{
 		Server:        srv,
+		queue:         queue,
 		concurrency:   cfg.Parallelism,
-		drivers:       cfg.Drivers,
 		driverCfg:     config.Driver{
 			SSH:  cfg.SSH,
 			Qemu: cfg.Qemu,
 		},
 		timeout:       duration,
-		redisAddr:     cfg.Redis.Addr,
-		redisPassword: cfg.Redis.Password,
 		store:         store,
 		objects:       objects,
 		artifacts:     artifacts,
 	}
 
-	if err := w.init(); err != nil {
-		log.Error.Fatalf("failed to initialize worker: %s\n", errors.Cause(err))
-	}
+	w.init(strings.Join(qname, "_"))
 
-	if err := w.serve(); err != nil {
+	go func() {
+		if err := w.Serve(); err != nil {
+			cause := errors.Cause(err)
+
+			if cause != nethttp.ErrServerClosed {
+				log.Error.Fatal(cause)
+			}
+		}
+	}()
+
+	if err := w.worker.Launch(); err != nil {
 		log.Error.Fatalf("failed to launch worker: %s\n", errors.Cause(err))
 	}
 }

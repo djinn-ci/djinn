@@ -85,6 +85,10 @@ func (s *uiServer) init() {
 		Store: store,
 	}
 
+	builds := model.BuildStore{
+		Store: store,
+	}
+
 	wh := web.Handler{
 		Store:        session.New(s.client, s.key),
 		SecureCookie: securecookie.New(s.hash, s.key),
@@ -108,6 +112,7 @@ func (s *uiServer) init() {
 
 	build := ui.Build{
 		Handler: wh,
+		Builds:  builds,
 		Drivers: s.drivers,
 		Queue:   s.queue,
 	}
@@ -240,6 +245,7 @@ func (s *uiServer) init() {
 
 	buildRouter := s.router.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	buildRouter.HandleFunc("", build.Show).Methods("GET")
+	buildRouter.HandleFunc("", build.Kill).Methods("DELETE")
 	buildRouter.HandleFunc("/manifest", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/manifest/raw", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/output", build.Show).Methods("GET")

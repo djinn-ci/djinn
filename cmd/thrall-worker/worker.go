@@ -6,6 +6,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
+	nethttp "net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,27 +21,27 @@ import (
 
 	"github.com/andrewpillar/query"
 
+	"github.com/gorilla/mux"
+
 	"github.com/lib/pq"
 
 	"github.com/RichardKnop/machinery/v1"
-	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
 type worker struct {
 	*http.Server
 
+	queue  *machinery.Server
+	router *mux.Router
+
 	store model.Store
 
 	concurrency int
-	drivers     []string
 	driverCfg   config.Driver
 	timeout     time.Duration
 
-	redisAddr     string
-	redisPassword string
-
-	users   *model.UserStore
-	builds  *model.BuildStore
+	users  model.UserStore
+	builds model.BuildStore
 
 	objects   filestore.FileStore
 	artifacts filestore.FileStore
@@ -50,47 +52,77 @@ type worker struct {
 	signals map[int64]chan struct{}
 }
 
-func (w *worker) init() error {
-	w.builds = &model.BuildStore{
+func (wrk worker) killBuild(builds model.BuildStore, users model.UserStore) nethttp.HandlerFunc {
+	resp := make(map[string]string)
+
+	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
+		vars := mux.Vars(r)
+
+		id, _ := strconv.ParseInt(vars["build"], 10, 64)
+
+		b, err := builds.Find(id)
+
+		if err != nil {
+			resp["message"] = errors.Cause(err).Error()
+
+			w.Header().Set("Content-Type", "application/json; charset=utf-8")
+			w.WriteHeader(nethttp.StatusInternalServerError)
+
+			enc := json.NewEncoder(w)
+			enc.Encode(&resp)
+			return
+		}
+
+		body := make(map[string]string)
+
+		dec := json.NewDecoder(r.Body)
+		dec.Decode(&body)
+
+		secret, ok := body["secret"]
+
+		if !ok {
+			w.WriteHeader(nethttp.StatusNotFound)
+			return
+		}
+
+		if b.KillSecret.String != secret {
+			w.WriteHeader(nethttp.StatusNotFound)
+			return
+		}
+
+		ch, ok := wrk.signals[id]
+
+		if !ok {
+			w.WriteHeader(nethttp.StatusNotFound)
+			return
+		}
+
+		ch <- struct{}{}
+
+		w.WriteHeader(nethttp.StatusNoContent)
+	})
+}
+
+func (w *worker) init(qname string) {
+	w.builds = model.BuildStore{
 		Store: w.store,
 	}
-	w.users = &model.UserStore{
+	w.users = model.UserStore{
 		Store: w.store,
 	}
 
 	w.buffers = make(map[int64]*bytes.Buffer)
 	w.signals = make(map[int64]chan struct{})
 
-	broker := "redis://"
+	w.queue.RegisterTask("run_build", w.runBuild)
 
-	if w.redisPassword != "" {
-		broker += w.redisPassword + "@"
-	}
+	w.worker = w.queue.NewWorker("thrall-worker-" + qname, w.concurrency)
 
-	broker += w.redisAddr
+	w.router = mux.NewRouter()
 
-	qname := []string{"thrall", "builds"}
-	qname = append(qname, w.drivers...)
+	w.router.HandleFunc("/kill/{build:[0-9]+}", w.killBuild(w.builds, w.users)).Methods("DELETE")
 
-	qsrv, err := machinery.NewServer(&qconfig.Config{
-		Broker:        broker,
-		DefaultQueue:  strings.Join(qname, "_"),
-		ResultBackend: broker,
-	})
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	qsrv.RegisterTask("run_build", w.runBuild)
-
-	w.worker = qsrv.NewWorker("thrall-worker-" + strings.Join(w.drivers, "_"), w.concurrency)
-
-	return nil
-}
-
-func (w *worker) serve() error {
-	return errors.Err(w.worker.Launch())
+	w.Server.Init(w.router)
 }
 
 func (w worker) handleJobStart(b *model.Build, rj runner.Job) {
@@ -285,6 +317,10 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
+	b.KillAddr = sql.NullString{
+		String: w.Server.Addr,
+		Valid:  true,
+	}
 	b.Status = runner.Running
 	b.StartedAt = pq.NullTime{
 		Time:  time.Now(),
@@ -307,14 +343,23 @@ func (w worker) runBuild(id int64) error {
 	defer cancel()
 
 	w.signals[b.ID] = make(chan struct{})
+	done := make(chan struct{})
 
 	go func() {
-		<-w.signals[b.ID]
-		cancel()
+		r.Run(ctx, d)
+		done <- struct{}{}
 	}()
 
-	r.Run(ctx, d)
 
+	select {
+	case <-w.signals[b.ID]:
+		r.Status = runner.Killed
+		cancel()
+	case <-done:
+		break
+	}
+
+	b.KillAddr = sql.NullString{}
 	b.Status = r.Status
 	b.Output = sql.NullString{
 		String: buf.String(),

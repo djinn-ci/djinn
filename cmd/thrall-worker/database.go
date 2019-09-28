@@ -18,7 +18,7 @@ type database struct {
 	runner.Placer
 
 	build *model.Build
-	users *model.UserStore
+	users model.UserStore
 }
 
 func (d *database) findObject(name string) (*model.Object, error) {

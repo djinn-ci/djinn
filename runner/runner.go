@@ -16,6 +16,11 @@ var (
 	errRunFailed     = errors.New("run failed")
 
 	createTimeout = time.Duration(time.Minute * 5)
+
+	contextStatuses = map[error]Status{
+		context.Canceled:         Killed,
+		context.DeadlineExceeded: TimedOut,
+	}
 )
 
 type jobHandler func(j Job)
@@ -143,10 +148,18 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 	defer cancel()
 
 	if err := d.Create(ct, r.Env, r.Objects, r.Placer); err != nil {
-		fmt.Fprintf(d, "%s\n", errors.Cause(err))
+		cause := errors.Cause(err)
+
+		fmt.Fprintf(d, "%s\n", cause.Error())
 		r.printLastJobStatus()
 
-		r.Status = Failed
+		status, ok := contextStatuses[cause]
+
+		if !ok {
+			r.Status = Failed
+		} else {
+			r.Status = status
+		}
 
 		return errRunFailed
 	}
@@ -172,7 +185,11 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 	case <-c.Done():
 		r.printLastJobStatus()
 
-		return c.Err()
+		err := c.Err()
+
+		r.Status = contextStatuses[err]
+
+		return err
 	case <-done:
 		if r.Status == Failed {
 			return errRunFailed

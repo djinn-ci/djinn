@@ -28,6 +28,8 @@ type Build struct {
 	Manifest    string         `db:"manifest"`
 	Status      runner.Status  `db:"status"`
 	Output      sql.NullString `db:"output"`
+	KillAddr    sql.NullString `db:"kill_addr"`
+	KillSecret  sql.NullString `db:"kill_secret"`
 	StartedAt   pq.NullTime    `db:"started_at"`
 	FinishedAt  pq.NullTime    `db:"finished_at"`
 
@@ -294,6 +296,8 @@ func (b Build) Values() map[string]interface{} {
 		"manifest":     b.Manifest,
 		"status":       b.Status,
 		"output":       b.Output,
+		"kill_addr":    b.KillAddr,
+		"kill_secret":  b.KillSecret,
 		"started_at":   b.StartedAt,
 		"finished_at":  b.FinishedAt,
 	}

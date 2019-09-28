@@ -441,9 +441,9 @@ func (s Store) Update(table string, ii ...Interface) error {
 
 		defer stmt.Close()
 
-		_, err = stmt.Exec(q.Args()...)
-
-		return errors.Err(err)
+		if _, err := stmt.Exec(q.Args()...); err != nil {
+			return errors.Err(err)
+		}
 	}
 
 	return nil

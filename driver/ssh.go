@@ -36,7 +36,7 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 	ticker := time.NewTicker(time.Second)
 	after := time.After(d.timeout)
 
-	done := make(chan struct{})
+	client := make(chan *ssh.Client)
 
 	b, err := ioutil.ReadFile(d.key)
 
@@ -51,8 +51,6 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 	}
 
 	go func() {
-		var err error
-
 		for {
 			select {
 			case <-ticker.C:
@@ -67,13 +65,13 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 
 				fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)
 
-				d.client, err = ssh.Dial("tcp", d.address, cfg)
+				cli, err := ssh.Dial("tcp", d.address, cfg)
 
 				if err != nil {
 					break
 				}
 
-				done <- struct{}{}
+				client <- cli
 			}
 		}
 	}()
@@ -83,8 +81,8 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 		return c.Err()
 	case <-after:
 		return fmt.Errorf("Timed out trying to connect to %s...\n", d.address)
-	case <-done:
-		break
+	case cli := <-client:
+		d.client = cli
 	}
 
 	fmt.Fprintf(d.Writer, "Established SSH connection to %s...\n\n", d.address)

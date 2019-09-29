@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
@@ -30,8 +28,6 @@ type Docker struct {
 	env        []string
 	containers []string
 
-	mutex *sync.Mutex
-
 	image      string
 	workspace  string
 }
@@ -39,7 +35,6 @@ type Docker struct {
 func NewDocker(w io.Writer, image, workspace string) *Docker {
 	return &Docker{
 		Writer:     w,
-		mutex:      &sync.Mutex{},
 		image:      image,
 		workspace:  workspace,
 	}
@@ -128,16 +123,14 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		return
 	}
 
-	d.mutex.Lock()
 	d.containers = append(d.containers, ctr.ID)
-	d.mutex.Unlock()
 
-	script := j.Name + ".sh"
+	script := strings.Replace(j.Name + ".sh", " ", "-", -1)
 	buf := createScript(j)
 
 	header := &tar.Header{
 		Typeflag: tar.TypeReg,
-		Name:     "/bin/" + strconv.Quote(script),
+		Name:     "/bin/" + script,
 		Size:     int64(buf.Len()),
 		Mode:     755,
 	}
@@ -155,7 +148,12 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		io.Copy(tw, buf)
 	}()
 
-	d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
+	err = d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
+
+	if err != nil {
+		j.Failed(err)
+		return
+	}
 
 	cfg.Cmd = []string{}
 	cfg.Env = d.env
@@ -168,9 +166,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		return
 	}
 
-	d.mutex.Lock()
 	d.containers = append(d.containers, ctr.ID)
-	d.mutex.Unlock()
 
 	if err := d.client.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{}); err != nil {
 		j.Failed(err)
@@ -212,6 +208,8 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		case resp := <-status:
 			code = int(resp.StatusCode)
 	}
+
+	println("code", code)
 
 	if code != 0 {
 		j.Failed(nil)

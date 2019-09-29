@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -59,42 +58,6 @@ type Stage struct {
 
 	Name    string
 	CanFail bool
-}
-
-func runJobs(jobs jobStore, d Driver, c Collector, fn jobHandler) chan Job {
-	wg := &sync.WaitGroup{}
-	done := make(chan Job)
-
-	for _, j := range jobs {
-		wg.Add(1)
-
-		go func(j *Job) {
-			defer wg.Done()
-
-			if fn != nil {
-				fn(*j)
-			}
-
-			if len(j.Commands) > 0 {
-				d.Execute(j, c)
-			}
-
-			done <- *j
-
-			after := runJobs(j.after, d, c, fn)
-
-			for a := range after {
-				done <- a
-			}
-		}(j)
-	}
-
-	go func() {
-		wg.Wait()
-		close(done)
-	}()
-
-	return done
 }
 
 func (r *Runner) HandleJobComplete(f jobHandler) {
@@ -227,14 +190,16 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 		return nil
 	}
 
-	jobs := runJobs(stage.jobs, d, r.Collector, r.handleJobStart)
-
-	for j := range jobs {
-		if r.handleJobComplete != nil {
-			r.handleJobComplete(j)
+	for _, j := range stage.jobs {
+		if len(j.Commands) > 0 {
+			d.Execute(j, r.Collector)
 		}
 
-		r.lastJob = j
+		if r.handleJobComplete != nil {
+			r.handleJobComplete(*j)
+		}
+
+		r.lastJob = *j
 
 		if j.Status >= r.Status {
 			r.Status = j.Status
@@ -242,6 +207,11 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 
 		if r.Status == Failed {
 			fmt.Fprintf(r.Writer, "\n")
+
+			for _, err := range j.errs {
+				fmt.Fprintf(r.Writer, "ERR: %s\n", err)
+			}
+
 			return errors.New("failed to run job: " + j.Name)
 		}
 	}

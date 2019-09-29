@@ -12,7 +12,6 @@ type Job struct {
 	Stage     string
 	Name      string
 	Commands  []string
-	Depends   []string
 	Artifacts Passthrough
 	Status    Status
 }
@@ -27,7 +26,6 @@ func (j Job) isZero() bool {
            j.Stage == "" &&
            j.Name == "" &&
            len(j.Commands) == 0 &&
-           len(j.Depends) == 0 &&
            j.Artifacts == nil &&
            j.Status == Status(0)
 }
@@ -66,13 +64,6 @@ func (s jobStore) Get(name string) (*Job, bool) {
 func (s *jobStore) Put(j *Job) {
 	if (*s) == nil {
 		(*s) = make(map[string]*Job)
-	}
-
-	for _, d := range j.Depends {
-		if dep, ok := s.Get(d); ok {
-			dep.after.Put(j)
-			return
-		}
 	}
 
 	(*s)[j.Name] = j

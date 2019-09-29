@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
@@ -45,7 +44,6 @@ func New(w io.Writer, d config.Driver) (runner.Driver, error) {
 		case "docker":
 			return &Docker{
 				Writer:    w,
-				mutex:     &sync.Mutex{},
 				image:     d.Config["image"],
 				workspace: d.Config["workspace"],
 			}, nil

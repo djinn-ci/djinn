@@ -209,8 +209,6 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 			code = int(resp.StatusCode)
 	}
 
-	println("code", code)
-
 	if code != 0 {
 		j.Failed(nil)
 	} else {

@@ -101,7 +101,7 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 
 	defer sess.Close()
 
-	script := j.Name + ".sh"
+	script := strings.Replace(j.Name + ".sh", " ", "-", -1)
 	buf := createScript(j)
 
 	cli, err := sftp.NewClient(d.client)
@@ -142,7 +142,7 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 	sess.Stdout = j.Writer
 	sess.Stderr = j.Writer
 
-	if err := sess.Run("./" + strings.Replace(script, " ", "-", -1)); err != nil {
+	if err := sess.Run("./" + script); err != nil {
 		if _, ok := err.(*ssh.ExitError); ok {
 			err = nil
 		}

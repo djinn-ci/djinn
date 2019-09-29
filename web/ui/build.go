@@ -1,16 +1,11 @@
 package ui
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/json"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
@@ -27,12 +22,15 @@ import (
 
 	"github.com/gorilla/csrf"
 
+	"github.com/go-redis/redis"
+
 	"github.com/RichardKnop/machinery/v1"
 )
 
 type Build struct {
 	web.Handler
 
+	Client  *redis.Client
 	Builds  model.BuildStore
 	Drivers map[string]struct{}
 	Queue   *machinery.Server
@@ -140,11 +138,24 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	secret, err := crypto.HashNow()
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		h.FlashAlert(w, r, template.Danger("Failed to create build: " + errors.Cause(err).Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
 	builds := u.BuildStore()
 
 	b := builds.New()
 	b.User = u
 	b.Manifest = f.Manifest
+	b.Secret = sql.NullString{
+		String: secret,
+		Valid:  true,
+	}
 
 	if f.Namespace != "" {
 		n, err := u.NamespaceStore().FindOrCreate(f.Namespace)
@@ -347,88 +358,15 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Build) Kill(w http.ResponseWriter, r *http.Request) {
-	secret, err := crypto.HashNow()
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to kill build: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
 	b := h.Build(r)
-	b.KillSecret = sql.NullString{
-		String: secret,
-		Valid:  true,
-	}
 
-	if err := h.Builds.Update(b); err != nil {
+	if _, err := h.Client.Publish("kill", b.Secret.String).Result(); err != nil {
 		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to kill build: " + errors.Cause(err).Error()))
+		h.FlashAlert(w, r, template.Danger("Failed to kill build: " + err.Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	body := make(map[string]string)
-	body["secret"] = b.KillSecret.String
-
-	buf := &bytes.Buffer{}
-
-	enc := json.NewEncoder(buf)
-	enc.Encode(body)
-
-	c := http.Client{
-		Timeout: time.Duration(time.Second * 10),
-	}
-
-	req, err := http.NewRequest(
-		"DELETE",
-		"http://" + fmt.Sprintf("%s/kill/%v", b.KillAddr.String, b.ID),
-		ioutil.NopCloser(buf),
-	)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to kill build: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-
-	resp, err := c.Do(req)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to kill build: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if resp.StatusCode == http.StatusNoContent {
-		b.KillSecret = sql.NullString{}
-
-		if err := h.Builds.Update(b); err != nil {
-			log.Error.Println(errors.Err(err))
-			h.FlashAlert(w, r, template.Danger("Failed to kill build: " + errors.Cause(err).Error()))
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-			return
-		}
-
-		h.FlashAlert(w, r, template.Success("Build killed"))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if resp.StatusCode == http.StatusInternalServerError {
-		dec := json.NewDecoder(resp.Body)
-		dec.Decode(body)
-
-		h.FlashAlert(w, r, template.Danger("Failed to kill build: " + body["message"]))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	h.FlashAlert(w, r, template.Danger("Failed to kill build"))
+	h.FlashAlert(w, r, template.Success("Build killed"))
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

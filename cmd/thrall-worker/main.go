@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	nethttp "net/http"
 	"os"
 	"sort"
 	"strings"
@@ -14,9 +13,10 @@ import (
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
-	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+
+	"github.com/go-redis/redis"
 
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
@@ -68,12 +68,6 @@ func mainCommand(c cli.Command) {
 
 	log.Info.Println("connected to postgresql database")
 
-	srv := &http.Server{
-		Addr: cfg.Net.Listen,
-		Cert: cfg.Net.SSL.Cert,
-		Key:  cfg.Net.SSL.Key,
-	}
-
 	artifacts, err := filestore.New(cfg.Artifacts)
 
 	if err != nil {
@@ -112,6 +106,15 @@ func mainCommand(c cli.Command) {
 
 	broker += cfg.Redis.Addr
 
+	client := redis.NewClient(&redis.Options{
+		Addr:     cfg.Redis.Addr,
+		Password: cfg.Redis.Password,
+	})
+
+	if _, err := client.Ping().Result(); err != nil {
+		log.Error.Fatalf("failed to ping redis: %s\n", err)
+	}
+
 	qname := []string{"thrall", "builds"}
 	qname = append(qname, cfg.Drivers...)
 
@@ -126,10 +129,10 @@ func mainCommand(c cli.Command) {
 	}
 
 	w := worker{
-		Server:        srv,
-		queue:         queue,
-		concurrency:   cfg.Parallelism,
-		driverCfg:     config.Driver{
+		client:      client,
+		queue:       queue,
+		concurrency: cfg.Parallelism,
+		driverCfg:   config.Driver{
 			SSH:  cfg.SSH,
 			Qemu: cfg.Qemu,
 		},
@@ -140,16 +143,6 @@ func mainCommand(c cli.Command) {
 	}
 
 	w.init(strings.Join(qname, "_"))
-
-	go func() {
-		if err := w.Serve(); err != nil {
-			cause := errors.Cause(err)
-
-			if cause != nethttp.ErrServerClosed {
-				log.Error.Fatal(cause)
-			}
-		}
-	}()
 
 	if err := w.worker.Launch(); err != nil {
 		log.Error.Fatalf("failed to launch worker: %s\n", errors.Cause(err))

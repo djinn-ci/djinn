@@ -6,8 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"io"
-	nethttp "net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -15,7 +13,6 @@ import (
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
-	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -23,14 +20,15 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/go-redis/redis"
+
 	"github.com/lib/pq"
 
 	"github.com/RichardKnop/machinery/v1"
 )
 
 type worker struct {
-	*http.Server
-
+	client *redis.Client
 	queue  *machinery.Server
 	router *mux.Router
 
@@ -47,60 +45,6 @@ type worker struct {
 	artifacts filestore.FileStore
 
 	worker *machinery.Worker
-
-	buffers map[int64]*bytes.Buffer
-	signals map[int64]chan struct{}
-}
-
-func (wrk worker) killBuild(builds model.BuildStore, users model.UserStore) nethttp.HandlerFunc {
-	resp := make(map[string]string)
-
-	return nethttp.HandlerFunc(func(w nethttp.ResponseWriter, r *nethttp.Request) {
-		vars := mux.Vars(r)
-
-		id, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-		b, err := builds.Find(id)
-
-		if err != nil {
-			resp["message"] = errors.Cause(err).Error()
-
-			w.Header().Set("Content-Type", "application/json; charset=utf-8")
-			w.WriteHeader(nethttp.StatusInternalServerError)
-
-			enc := json.NewEncoder(w)
-			enc.Encode(&resp)
-			return
-		}
-
-		body := make(map[string]string)
-
-		dec := json.NewDecoder(r.Body)
-		dec.Decode(&body)
-
-		secret, ok := body["secret"]
-
-		if !ok {
-			w.WriteHeader(nethttp.StatusNotFound)
-			return
-		}
-
-		if b.KillSecret.String != secret {
-			w.WriteHeader(nethttp.StatusNotFound)
-			return
-		}
-
-		ch, ok := wrk.signals[id]
-
-		if !ok {
-			w.WriteHeader(nethttp.StatusNotFound)
-			return
-		}
-
-		ch <- struct{}{}
-
-		w.WriteHeader(nethttp.StatusNoContent)
-	})
 }
 
 func (w *worker) init(qname string) {
@@ -111,83 +55,16 @@ func (w *worker) init(qname string) {
 		Store: w.store,
 	}
 
-	w.buffers = make(map[int64]*bytes.Buffer)
-	w.signals = make(map[int64]chan struct{})
-
 	w.queue.RegisterTask("run_build", w.runBuild)
 
 	w.worker = w.queue.NewWorker("thrall-worker-" + qname, w.concurrency)
-
-	w.router = mux.NewRouter()
-
-	w.router.HandleFunc("/kill/{build:[0-9]+}", w.killBuild(w.builds, w.users)).Methods("DELETE")
-
-	w.Server.Init(w.router)
 }
 
-func (w worker) handleJobStart(b *model.Build, rj runner.Job) {
-	s, err := b.StageStore().FindByName(rj.Stage)
+func (w worker) runBuild(s string) error {
+	b := w.builds.New()
 
-	if err != nil || s.IsZero() {
-		return
-	}
-
-	jobs := s.JobStore()
-
-	j, err := jobs.FindByName(rj.Name)
-
-	if err != nil || j.IsZero() {
-		return
-	}
-
-	j.StartedAt = pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
-
-	jobs.Update(j)
-}
-
-func (w worker) handleJobComplete(b *model.Build, rj runner.Job) {
-	s, err := b.StageStore().FindByName(rj.Stage)
-
-	if err != nil || s.IsZero() {
-		return
-	}
-
-	jobs := s.JobStore()
-
-	j, err := jobs.FindByName(rj.Name)
-
-	if err != nil || j.IsZero() {
-		return
-	}
-
-	output := strings.Trim(w.buffers[j.ID].String(), "\n")
-
-	j.Status = rj.Status
-	j.Output = sql.NullString{
-		String: output,
-		Valid:  len(output) > 0,
-	}
-	j.FinishedAt = pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
-
-	jobs.Update(j)
-}
-
-func (w worker) runBuild(id int64) error {
-	b, err := w.builds.Find(id)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if b.IsZero() {
-		return errors.Err(errors.New("build does not exist"))
-	}
+	dec := json.NewDecoder(strings.NewReader(s))
+	dec.Decode(b)
 
 	if err := b.LoadDriver(); err != nil {
 		return errors.Err(err)
@@ -221,10 +98,6 @@ func (w worker) runBuild(id int64) error {
 
 	jobs := b.JobStore()
 
-	if err := jobs.LoadDependencies(jj); err != nil {
-		return errors.Err(err)
-	}
-
 	if err := jobs.LoadArtifacts(jj); err != nil {
 		return errors.Err(err)
 	}
@@ -240,6 +113,8 @@ func (w worker) runBuild(id int64) error {
 	for i, v := range b.Variables {
 		env[i] = v.Key + "=" + v.Value
 	}
+
+	buffers := make(map[int64]*bytes.Buffer)
 
 	buf := &bytes.Buffer{}
 
@@ -268,16 +143,10 @@ func (w worker) runBuild(id int64) error {
 		}
 
 		for _, j := range s.Jobs {
-			w.buffers[j.ID] = &bytes.Buffer{}
+			buffers[j.ID] = &bytes.Buffer{}
 
 			if j.Name == "create driver" {
 				createDriverId = j.ID
-			}
-
-			depends := make([]string, len(j.Dependencies), len(j.Dependencies))
-
-			for i, d := range j.Dependencies {
-				depends[i] = d.Name
 			}
 
 			artifacts := runner.NewPassthrough()
@@ -287,10 +156,9 @@ func (w worker) runBuild(id int64) error {
 			}
 
 			rj := &runner.Job{
-				Writer:    io.MultiWriter(buf, w.buffers[j.ID]),
+				Writer:    io.MultiWriter(buf, buffers[j.ID]),
 				Name:      j.Name,
 				Commands:  strings.Split(j.Commands, "\n"),
-				Depends:   depends,
 				Artifacts: artifacts,
 			}
 
@@ -305,7 +173,7 @@ func (w worker) runBuild(id int64) error {
 	json.Unmarshal([]byte(b.Driver.Config), &cfg)
 
 	d, err := driver.New(
-		io.MultiWriter(buf, w.buffers[createDriverId]),
+		io.MultiWriter(buf, buffers[createDriverId]),
 		config.Driver{
 			Config: cfg,
 			SSH:    w.driverCfg.SSH,
@@ -317,10 +185,6 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
-	b.KillAddr = sql.NullString{
-		String: w.Server.Addr,
-		Valid:  true,
-	}
 	b.Status = runner.Running
 	b.StartedAt = pq.NullTime{
 		Time:  time.Now(),
@@ -331,35 +195,38 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
+	starts := make(map[string]pq.NullTime)
+	finishes := make(map[string]pq.NullTime)
+
 	r.HandleJobStart(func(j runner.Job) {
-		w.handleJobStart(b, j)
+		starts[j.Name] = pq.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
 	})
 
 	r.HandleJobComplete(func(j runner.Job) {
-		w.handleJobComplete(b, j)
+		finishes[j.Name] = pq.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
 
-	w.signals[b.ID] = make(chan struct{})
-	done := make(chan struct{})
-
 	go func() {
-		r.Run(ctx, d)
-		done <- struct{}{}
+		sub := w.client.Subscribe("kill")
+
+		msg := <-sub.Channel()
+
+		if msg.Payload == b.Secret.String {
+			cancel()
+		}
 	}()
 
+	r.Run(ctx, d)
 
-	select {
-	case <-w.signals[b.ID]:
-		r.Status = runner.Killed
-		cancel()
-	case <-done:
-		break
-	}
-
-	b.KillAddr = sql.NullString{}
 	b.Status = r.Status
 	b.Output = sql.NullString{
 		String: buf.String(),
@@ -374,7 +241,10 @@ func (w worker) runBuild(id int64) error {
 		return errors.Err(err)
 	}
 
-	jj, err = jobs.All(query.WhereRaw("finished_at", "IS", "NULL"))
+	jj, err = jobs.All(
+		query.WhereRaw("started_at", "IS", "NULL"),
+		query.WhereRaw("finished_at", "IS", "NULL"),
+	)
 
 	if err != nil {
 		return errors.Err(err)
@@ -383,9 +253,11 @@ func (w worker) runBuild(id int64) error {
 	for _, j := range jj {
 		j.Status = r.Status
 		j.Output = sql.NullString{
-			String: w.buffers[j.ID].String(),
+			String: buffers[j.ID].String(),
 			Valid:  true,
 		}
+		j.StartedAt = starts[j.Name]
+		j.FinishedAt = finishes[j.Name]
 
 		if err := jobs.Update(j); err != nil {
 			return errors.Err(err)

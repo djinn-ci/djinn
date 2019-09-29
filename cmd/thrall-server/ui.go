@@ -112,6 +112,7 @@ func (s *uiServer) init() {
 
 	build := ui.Build{
 		Handler: wh,
+		Client:  s.client,
 		Builds:  builds,
 		Drivers: s.drivers,
 		Queue:   s.queue,

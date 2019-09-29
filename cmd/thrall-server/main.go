@@ -99,6 +99,7 @@ func mainCommand(cmd cli.Command) {
 			Key:       cfg.Net.SSL.Key,
 			CSRFToken: []byte(cfg.Crypto.Auth),
 		},
+		client: client,
 	}
 
 	broker := "redis://"

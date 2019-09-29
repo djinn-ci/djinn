@@ -80,17 +80,10 @@ func mainCommand(c cli.Command) {
 			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
 		}
 
-		depends := []string{"create driver"}
-
-		if i > 0 {
-			depends = append(depends, fmt.Sprintf("clone.%d", i))
-		}
-
 		setup.Add(&runner.Job{
 			Writer:    os.Stdout,
 			Name:      name,
 			Commands:  commands,
-			Depends:   depends,
 			Artifacts: runner.NewPassthrough(),
 		})
 	}
@@ -132,7 +125,6 @@ func mainCommand(c cli.Command) {
 				Writer:    os.Stdout,
 				Name:      j.Name,
 				Commands:  j.Commands,
-				Depends:   j.Depends,
 				Artifacts: j.Artifacts,
 			})
 		}

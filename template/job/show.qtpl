@@ -85,14 +85,6 @@ type ShowPage struct {
 			<div class="panel-message muted">No artifacts have been collected from this job.</div>
 		{% endif %}
 	</div>
-	<div class="panel">
-		<div class="panel-header"><h3>Dependencies</h3></div>
-		{% if len(p.Job.Dependencies) > 0 %}
-			{%= RenderTable(p.Job.Dependencies) %}
-		{% else %}
-			<div class="panel-message muted">No dependencies for this job.</div>
-		{% endif %}
-	</div>
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}

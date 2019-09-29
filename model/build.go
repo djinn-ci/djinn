@@ -28,20 +28,19 @@ type Build struct {
 	Manifest    string         `db:"manifest"`
 	Status      runner.Status  `db:"status"`
 	Output      sql.NullString `db:"output"`
-	KillAddr    sql.NullString `db:"kill_addr"`
-	KillSecret  sql.NullString `db:"kill_secret"`
+	Secret      sql.NullString `db:"secret"`
 	StartedAt   pq.NullTime    `db:"started_at"`
 	FinishedAt  pq.NullTime    `db:"finished_at"`
 
-	User      *User
-	Namespace *Namespace
-	Driver    *Driver
-	Trigger   *Trigger
-	Tags      []*Tag
-	Stages    []*Stage
-	Objects   []*BuildObject
-	Artifacts []*Artifact
-	Variables []*BuildVariable
+	User      *User            `json:"-"`
+	Namespace *Namespace       `json:"-"`
+	Driver    *Driver          `json:"-"`
+	Trigger   *Trigger         `json:"-"`
+	Tags      []*Tag           `json:"-"`
+	Stages    []*Stage         `json:"-"`
+	Objects   []*BuildObject   `json:"-"`
+	Artifacts []*Artifact      `json:"-"`
+	Variables []*BuildVariable `json:"-"`
 }
 
 type BuildStore struct {
@@ -296,8 +295,7 @@ func (b Build) Values() map[string]interface{} {
 		"manifest":     b.Manifest,
 		"status":       b.Status,
 		"output":       b.Output,
-		"kill_addr":    b.KillAddr,
-		"kill_secret":  b.KillSecret,
+		"secret":       b.Secret,
 		"started_at":   b.StartedAt,
 		"finished_at":  b.FinishedAt,
 	}
@@ -330,13 +328,18 @@ func (b *Build) Show() error {
 }
 
 func (b Build) Signature() *tasks.Signature {
+	buf := &bytes.Buffer{}
+
+	enc := json.NewEncoder(buf)
+	enc.Encode(b)
+
 	return &tasks.Signature{
 		Name:       "run_build",
 		RetryCount: 3,
 		Args:       []tasks.Arg{
 			tasks.Arg{
-				Type: "int64",
-				Value: b.ID,
+				Type: "string",
+				Value: buf.String(),
 			},
 		},
 	}
@@ -475,10 +478,6 @@ func (b Build) Submit(srv *machinery.Server) error {
 		return errors.Err(err)
 	}
 
-	jdd := make([]*JobDependency, 0)
-
-	prev := create
-
 	for i, src := range m.Sources {
 		commands := []string{
 			"git clone " + src.URL + " " + src.Dir,
@@ -497,13 +496,6 @@ func (b Build) Submit(srv *machinery.Server) error {
 		if err := jobs.Create(j); err != nil {
 			return errors.Err(err)
 		}
-
-		jd := j.JobDependencyStore().New()
-		jd.DependencyID = prev.ID
-
-		jdd = append(jdd, jd)
-
-		prev = j
 	}
 
 	stage := ""
@@ -541,19 +533,6 @@ func (b Build) Submit(srv *machinery.Server) error {
 
 		jobModels[s.Name + j.Name] = j
 
-		for _, d := range job.Depends {
-			dep, ok := jobModels[s.Name + d]
-
-			if !ok {
-				continue
-			}
-
-			jd := j.JobDependencyStore().New()
-			jd.DependencyID = dep.ID
-
-			jdd = append(jdd, jd)
-		}
-
 		for src, dst := range job.Artifacts {
 			hash, _ := crypto.HashNow()
 
@@ -568,16 +547,6 @@ func (b Build) Submit(srv *machinery.Server) error {
 				return errors.Err(err)
 			}
 		}
-	}
-
-	dependencies := JobDependencyStore{
-		Store: Store{
-			DB: b.DB,
-		},
-	}
-
-	if err := dependencies.Create(jdd...); err != nil {
-		return errors.Err(err)
 	}
 
 	_, err = srv.SendTask(b.Signature())

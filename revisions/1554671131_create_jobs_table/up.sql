@@ -11,9 +11,3 @@ CREATE TABLE jobs (
 	started_at  TIMESTAMP NULL,
 	finished_at TIMESTAMP NULL
 );
-
-CREATE TABLE job_dependencies (
-	id            SERIAL PRIMARY KEY,
-	job_id        INT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-	dependency_id INT NOT NULL REFERENCES jobs(id) ON DELETE CASCADE
-);

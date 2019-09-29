@@ -30,24 +30,11 @@ type Job struct {
 	Dependencies []*Job
 }
 
-type JobDependency struct {
-	Model
-
-	JobID        int64 `db:"job_id"`
-	DependencyID int64 `db:"dependency_id"`
-}
-
 type JobStore struct {
 	Store
 
 	Build *Build
 	Stage *Stage
-}
-
-type JobDependencyStore struct {
-	Store
-
-	Job *Job
 }
 
 func jobToInterface(jj ...*Job) func(i int) Interface {
@@ -63,15 +50,6 @@ func (j *Job) ArtifactStore() ArtifactStore {
 		},
 		Build: j.Build,
 		Job:   j,
-	}
-}
-
-func (j *Job) JobDependencyStore() JobDependencyStore {
-	return JobDependencyStore{
-		Store: Store{
-			DB: j.DB,
-		},
-		Job: j,
 	}
 }
 
@@ -109,22 +87,6 @@ func (j *Job) LoadBuild() error {
 	return errors.Err(err)
 }
 
-func (j *Job) LoadDependencies() error {
-	q := query.Select(
-		query.Columns("*"),
-		query.From(JobTable),
-		query.WhereQuery("id", "IN",
-			query.Select(
-				query.Columns("dependency_id"),
-				query.From(JobDependencyTable),
-				query.Where("job_id", "=", j.ID),
-			),
-		),
-	)
-
-	return errors.Err(j.Select(&j.Dependencies, q.Build(), q.Args()...))
-}
-
 func (j *Job) LoadStage() error {
 	var err error
 
@@ -160,27 +122,6 @@ func (j Job) Values() map[string]interface{} {
 		"started_at":  j.StartedAt,
 		"finished_at": j.FinishedAt,
 	}
-}
-
-func (jd JobDependency) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"job_id":        jd.JobID,
-		"dependency_id": jd.DependencyID,
-	}
-}
-
-func (s JobDependencyStore) New() *JobDependency {
-	d := &JobDependency{
-		Model: Model{
-			DB: s.DB,
-		},
-	}
-
-	if s.Job != nil {
-		d.JobID = s.Job.ID
-	}
-
-	return d
 }
 
 func (s JobStore) Create(jj ...*Job) error {
@@ -266,42 +207,6 @@ func (s JobStore) LoadArtifacts(jj []*Job) error {
 	return nil
 }
 
-func (s JobStore) LoadDependencies(jj []*Job) error {
-	if len(jj) == 0 {
-		return nil
-	}
-
-	ids := make([]interface{}, len(jj))
-	jobs := make(map[int64]*Job)
-
-	for i, j := range jj {
-		ids[i] = j.ID
-		jobs[j.ID] = j
-	}
-
-	dependencies := JobDependencyStore{
-		Store: s.Store,
-	}
-
-	dd, err := dependencies.All(query.Where("job_id", "IN", ids...))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, d := range dd {
-		job, ok := jobs[d.JobID]
-
-		if !ok {
-			continue
-		}
-
-		job.Dependencies = append(job.Dependencies, jobs[d.DependencyID])
-	}
-
-	return errors.Err(err)
-}
-
 func (s JobStore) New() *Job {
 	j := &Job{
 		Model: Model{
@@ -333,10 +238,6 @@ func (s JobStore) Show(id int64) (*Job, error) {
 		return j, errors.Err(err)
 	}
 
-	if err := j.LoadDependencies(); err != nil {
-		return j, errors.Err(err)
-	}
-
 	return j, errors.Err(j.LoadArtifacts())
 }
 
@@ -344,30 +245,4 @@ func (s JobStore) Update(jj ...*Job) error {
 	models := interfaceSlice(len(jj), jobToInterface(jj...))
 
 	return errors.Err(s.Store.Update(JobTable, models...))
-}
-
-func (s JobDependencyStore) All(opts ...query.Option) ([]*JobDependency, error) {
-	dd := make([]*JobDependency, 0)
-
-	err := s.Store.All(&dd, JobDependencyTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, d := range dd {
-		d.DB = s.DB
-	}
-
-	return dd, errors.Err(err)
-}
-
-func (s JobDependencyStore) Create(jdd ...*JobDependency) error {
-	ii := make([]Interface, 0, len(jdd))
-
-	for _, jd := range jdd {
-		ii = append(ii, jd)
-	}
-
-	return errors.Err(s.Store.Create(JobDependencyTable, ii...))
 }

@@ -132,11 +132,6 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 	go func() {
 		for _, name := range r.order {
 			if err := r.realRunStage(name, d); err != nil {
-				if err == errStageNotFound {
-					done <- struct{}{}
-					return
-				}
-
 				break
 			}
 		}
@@ -192,6 +187,10 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 
 	for _, j := range stage.jobs {
 		if len(j.Commands) > 0 {
+			if r.handleJobStart != nil {
+				r.handleJobStart(*j)
+			}
+
 			d.Execute(j, r.Collector)
 		}
 

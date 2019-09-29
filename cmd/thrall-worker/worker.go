@@ -217,6 +217,7 @@ func (w worker) runBuild(s string) error {
 
 	go func() {
 		sub := w.client.Subscribe("kill")
+		defer sub.Close()
 
 		msg := <-sub.Channel()
 

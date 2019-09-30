@@ -13,6 +13,7 @@ import (
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
+	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -60,33 +61,41 @@ func (w *worker) init(qname string) {
 	w.worker = w.queue.NewWorker("thrall-worker-" + qname, w.concurrency)
 }
 
-func (w worker) runBuild(s string) error {
+func (w worker) loadBuild(s string) (*model.Build, error) {
 	b := w.builds.New()
 
 	dec := json.NewDecoder(strings.NewReader(s))
 	dec.Decode(b)
 
 	if err := b.LoadDriver(); err != nil {
-		return errors.Err(err)
+		return b, errors.Err(err)
 	}
 
 	if err := b.LoadObjects(); err != nil {
-		return errors.Err(err)
+		return b, errors.Err(err)
 	}
 
 	if err := b.BuildObjectStore().LoadObjects(b.Objects); err != nil {
-		return errors.Err(err)
+		return b, errors.Err(err)
 	}
 
 	if err := b.LoadVariables(); err != nil {
-		return errors.Err(err)
+		return b, errors.Err(err)
 	}
 
 	if err := b.LoadStages(); err != nil {
-		return errors.Err(err)
+		return b, errors.Err(err)
 	}
 
-	if err := b.StageStore().LoadJobs(b.Stages); err != nil {
+	err := b.StageStore().LoadJobs(b.Stages)
+
+	return b, errors.Err(err)
+}
+
+func (w worker) runBuild(s string) error {
+	b, err := w.loadBuild(s)
+
+	if err != nil {
 		return errors.Err(err)
 	}
 
@@ -134,6 +143,8 @@ func (w worker) runBuild(s string) error {
 		},
 	}
 
+	mjobs := make(map[string]*model.Job)
+
 	createDriverId := int64(0)
 
 	for _, s := range b.Stages {
@@ -144,6 +155,7 @@ func (w worker) runBuild(s string) error {
 
 		for _, j := range s.Jobs {
 			buffers[j.ID] = &bytes.Buffer{}
+			mjobs[j.Name] = j
 
 			if j.Name == "create driver" {
 				createDriverId = j.ID
@@ -195,31 +207,50 @@ func (w worker) runBuild(s string) error {
 		return errors.Err(err)
 	}
 
-	starts := make(map[string]pq.NullTime)
-	finishes := make(map[string]pq.NullTime)
+	r.HandleJobStart(func(rj runner.Job) {
+		j := mjobs[rj.Name]
 
-	r.HandleJobStart(func(j runner.Job) {
-		starts[j.Name] = pq.NullTime{
+		j.Status = runner.Running
+		j.StartedAt = pq.NullTime{
 			Time:  time.Now(),
 			Valid: true,
 		}
+
+		if err := jobs.Update(j); err != nil {
+			log.Error.Println(errors.Err(err))
+		}
 	})
 
-	r.HandleJobComplete(func(j runner.Job) {
-		finishes[j.Name] = pq.NullTime{
+	r.HandleJobComplete(func(rj runner.Job) {
+		j := mjobs[rj.Name]
+
+		j.Status = rj.Status
+		j.Output = sql.NullString{
+			String: buffers[j.ID].String(),
+			Valid:  true,
+		}
+		j.FinishedAt = pq.NullTime{
 			Time:  time.Now(),
 			Valid: true,
+		}
+
+		if err := jobs.Update(j); err != nil {
+			log.Error.Println(errors.Err(err))
 		}
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
 
-	go func() {
-		sub := w.client.Subscribe("kill")
-		defer sub.Close()
+	sub := w.client.Subscribe("kill")
+	defer sub.Close()
 
+	go func() {
 		msg := <-sub.Channel()
+
+		if msg == nil {
+			return
+		}
 
 		if msg.Payload == b.Secret.String {
 			cancel()
@@ -242,10 +273,7 @@ func (w worker) runBuild(s string) error {
 		return errors.Err(err)
 	}
 
-	jj, err = jobs.All(
-		query.WhereRaw("started_at", "IS", "NULL"),
-		query.WhereRaw("finished_at", "IS", "NULL"),
-	)
+	jj, err = jobs.All(query.WhereRaw("finished_at", "IS", "NULL"))
 
 	if err != nil {
 		return errors.Err(err)
@@ -257,8 +285,10 @@ func (w worker) runBuild(s string) error {
 			String: buffers[j.ID].String(),
 			Valid:  true,
 		}
-		j.StartedAt = starts[j.Name]
-		j.FinishedAt = finishes[j.Name]
+		j.FinishedAt = pq.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
 
 		if err := jobs.Update(j); err != nil {
 			return errors.Err(err)

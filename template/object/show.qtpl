@@ -12,6 +12,7 @@ import (
 type ShowPage struct {
 	template.BasePage
 
+	CSRF   string
 	Object *model.Object
 	Index  build.IndexPage
 }
@@ -63,6 +64,15 @@ type ShowPage struct {
 
 {% func (p *ShowPage) Actions() %}
 	<li><a href="{%s p.Object.UIEndpoint("download", p.Object.Name) %}" class="btn btn-primary">Download</a></li>
+	{% if p.User.ID == p.Object.UserID %}
+		<li>
+			<form method="POST" action="{%s p.Object.UIEndpoint() %}">
+				{%s= string(p.CSRF) %}
+				<input type="hidden" name="_method" value="DELETE"/>
+				<button type="submit" class="btn btn-danger">Delete</button>
+			</form>
+		</li>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *ShowPage) Navigation() %}{% endfunc %}

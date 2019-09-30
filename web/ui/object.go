@@ -113,8 +113,10 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 
 	p := &object.ShowPage{
 		BasePage: template.BasePage{
-			URL: r.URL,
+			URL:  r.URL,
+			User: u,
 		},
+		CSRF:   string(csrf.TemplateField(r)),
 		Object: o,
 		Index:  bp,
 	}

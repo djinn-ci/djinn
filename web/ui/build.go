@@ -14,6 +14,7 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/model/types"
+	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/build"
 	"github.com/andrewpillar/thrall/web"
@@ -359,6 +360,12 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 
 func (h Build) Kill(w http.ResponseWriter, r *http.Request) {
 	b := h.Build(r)
+
+	if b.Status != runner.Running {
+		h.FlashAlert(w, r, template.Danger("Failed to kill build: build is not running"))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
 
 	if _, err := h.Client.Publish("kill", b.Secret.String).Result(); err != nil {
 		log.Error.Println(errors.Err(err))

@@ -1,20 +1,9 @@
 driver:
-  type: docker
-  image: golang
-  workspace: /go
-sources:
-  - https://github.com/andrewpillar/jrnl
+  type: qemu
+  image: centos/7
 stages:
-  - test
-  - build
+  - os
 jobs:
-  - stage: test
+  - stage: os
     commands:
-      - cd /go/jrnl
-      - go test ./... -v -cover
-  - stage: build
-    commands:
-      - cd /go/jrnl
-      - go build -tags 'netgo osusergo' -o jrnl.out
-    artifacts:
-      - /go/jrnl/jrnl.out
+      - cat /etc/os-release

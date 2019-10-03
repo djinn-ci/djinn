@@ -227,20 +227,6 @@ func (s JobStore) New() *Job {
 	return j
 }
 
-func (s JobStore) Show(id int64) (*Job, error) {
-	j, err := s.Find(id)
-
-	if err != nil {
-		return j, errors.Err(err)
-	}
-
-	if err := j.LoadStage(); err != nil {
-		return j, errors.Err(err)
-	}
-
-	return j, errors.Err(j.LoadArtifacts())
-}
-
 func (s JobStore) Update(jj ...*Job) error {
 	models := interfaceSlice(len(jj), jobToInterface(jj...))
 

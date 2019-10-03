@@ -3,38 +3,21 @@ package ui
 import (
 	"net/http"
 	"path/filepath"
-	"strconv"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/job"
 	"github.com/andrewpillar/thrall/web"
-
-	"github.com/gorilla/mux"
+	"github.com/andrewpillar/thrall/web/core"
 )
 
 type Job struct {
-	web.Handler
-}
-
-func (h Job) Build(r *http.Request) *model.Build {
-	val := r.Context().Value("build")
-
-	b, _ := val.(*model.Build)
-
-	return b
+	Core core.Job
 }
 
 func (h Job) Show(w http.ResponseWriter, r *http.Request) {
-	b := h.Build(r)
-
-	vars := mux.Vars(r)
-
-	jobId, _ := strconv.ParseInt(vars["job"], 10, 64)
-
-	j, err := b.JobStore().Show(jobId)
+	j, err := h.Core.Show(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -54,7 +37,7 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		Job: j,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

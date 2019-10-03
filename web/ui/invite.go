@@ -2,82 +2,41 @@ package ui
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/template"
-
-	"github.com/gorilla/mux"
+	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/thrall/web/core"
 )
 
 type Invite struct {
-	web.Handler
+	Core core.Invite
 }
 
 func (h Invite) Store(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
-
-	vars := mux.Vars(r)
-
-	owner, err := h.Users.FindByUsername(vars["username"])
+	_, err := h.Core.Store(w, r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to invite user: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+		cause := errors.Cause(err)
 
-	if u.ID != owner.ID {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	n, err := owner.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to invite user: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	invites := n.InviteStore()
-
-	f := &form.Invite{
-		Collaborators: n.CollaboratorStore(),
-		Invites:       invites,
-		Users:         h.Users,
-		Inviter:       owner,
-	}
-
-	if err := h.ValidateForm(f, w, r); err != nil {
-		if _, ok := err.(form.Errors); ok {
+		if cause == core.ErrValidationFailed {
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 
+		if cause == core.ErrNotFound || cause == core.ErrAccessDenied {
+			web.HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
 		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to invite user: " + errors.Cause(err).Error()))
+		h.Core.FlashAlert(w, r, template.Danger("Failed to invite user: " + cause.Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	i := invites.New()
-	i.InviteeID = f.Invitee.ID
-	i.InviterID = f.Inviter.ID
-
-	if err := invites.Create(i); err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to invite user: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	h.FlashAlert(w, r, template.Success("Invite sent to: " + f.Invitee.Username))
+	h.Core.FlashAlert(w, r, template.Success("Invite sent"))
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/thrall/web/core"
 	"github.com/andrewpillar/thrall/web/ui"
 	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/session"
@@ -89,14 +90,14 @@ func (s *uiServer) init() {
 		Store: store,
 	}
 
-	wh := web.Handler{
+	handler := web.Handler{
 		Store:        session.New(s.client, s.key),
 		SecureCookie: securecookie.New(s.hash, s.key),
 		Users:        users,
 	}
 
 	mw := web.Middleware{
-		Handler:   wh,
+		Handler:   handler,
 	}
 
 	s.router.NotFoundHandler = nethttp.HandlerFunc(notFoundHandler)
@@ -106,77 +107,96 @@ func (s *uiServer) init() {
 
 	s.router.PathPrefix("/assets/").Handler(assets)
 
+	artifact := ui.Artifact{
+		Handler:   handler,
+		FileStore: s.artifacts,
+	}
+
 	auth := ui.Auth{
-		Handler: wh,
+		Handler: handler,
 	}
 
 	build := ui.Build{
-		Handler: wh,
-		Client:  s.client,
-		Builds:  builds,
-		Drivers: s.drivers,
-		Queue:   s.queue,
-	}
-
-	object := ui.Object{
-		Handler:   wh,
-		Limit:     s.limit,
-		Objects:   model.ObjectStore{
-			Store: store,
+		Core: core.Build{
+			Handler:    handler,
+			Namespaces: namespaces,
+			Builds:     builds,
+			Client:     s.client,
+			Drivers:    s.drivers,
+			Queue:      s.queue,
 		},
-		FileStore: s.objects,
-	}
-
-	variable := ui.Variable{
-		Handler:   wh,
-		Variables: model.VariableStore{
-			Store: store,
-		},
-	}
-
-	key := ui.Key{
-		Handler: wh,
-		Keys:    model.KeyStore{
-			Store: store,
-		},
-	}
-
-	namespace := ui.Namespace{
-		Handler:    wh,
-		Namespaces: namespaces,
-		Build:      build,
-		Object:     object,
-		Variable:   variable,
-		Key:        key,
 	}
 
 	collaborator := ui.Collaborator{
-		Handler: wh,
-		Invites: model.InviteStore{
-			Store: store,
+		Core: core.Collaborator{
+			Handler: handler,
+			Invites: model.InviteStore{
+				Store: store,
+			},
 		},
 	}
 
 	invite := ui.Invite{
-		Handler: wh,
+		Core: core.Invite{
+			Handler: handler,
+		},
 	}
 
 	job := ui.Job{
-		Handler: wh,
+		Core: core.Job{
+			Handler: handler,
+		},
 	}
 
-	artifact := ui.Artifact{
-		Handler: wh,
+	key := ui.Key{
+		Core: core.Key{
+			Handler:    handler,
+			Namespaces: namespaces,
+			Keys:       model.KeyStore{
+				Store: store,
+			},
+		},
+	}
+
+	namespace := ui.Namespace{
+		Core: core.Namespace{
+			Handler:    handler,
+			Namespaces: namespaces,
+		},
+	}
+
+	object := ui.Object{
+		Core: core.Object{
+			Handler:    handler,
+			Namespaces: namespaces,
+			FileStore:  s.objects,
+			Limit:      s.limit,
+			Objects:    model.ObjectStore{
+				Store:     store,
+			},
+		},
 	}
 
 	tag := ui.Tag{
-		Handler: wh,
+		Core: core.Tag{
+			Handler: handler,
+		},
 	}
 
 	user := ui.User{
-		Handler: wh,
+		Handler: handler,
 		Invites: model.InviteStore{
 			Store: store,
+		},
+	}
+
+	variable := ui.Variable{
+		Core: core.Variable{
+			Handler:    handler,
+			Namespaces: namespaces,
+			Variables:  model.VariableStore{
+				Store: store,
+			},
 		},
 	}
 

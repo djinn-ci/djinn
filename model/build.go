@@ -301,32 +301,6 @@ func (b Build) Values() map[string]interface{} {
 	}
 }
 
-func (b *Build) Show() error {
-	if err := b.LoadNamespace(); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := b.Namespace.LoadUser(); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := b.LoadTrigger(); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := b.LoadTags(); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := b.LoadStages(); err != nil {
-		return errors.Err(err)
-	}
-
-	err := b.StageStore().LoadJobs(b.Stages)
-
-	return errors.Err(err)
-}
-
 func (b Build) Signature() *tasks.Signature {
 	buf := &bytes.Buffer{}
 

@@ -104,34 +104,6 @@ func (s KeyStore) Delete(kk ...*Key) error {
 	return errors.Err(s.Store.Delete(KeyTable, models...))
 }
 
-func (s KeyStore) Index(opts ...query.Option) ([]*Key, error) {
-	kk, err := s.All(opts...)
-
-	if err != nil {
-		return kk, errors.Err(err)
-	}
-
-	if err := s.LoadNamespaces(kk); err != nil {
-		return kk, errors.Err(err)
-	}
-
-	nn := make([]*Namespace, 0, len(kk))
-
-	for _, k := range kk {
-		if k.Namespace != nil {
-			nn = append(nn, k.Namespace)
-		}
-	}
-
-	namespaces := NamespaceStore{
-		Store: s.Store,
-	}
-
-	err = namespaces.LoadUsers(nn)
-
-	return kk, errors.Err(err)
-}
-
 func (s KeyStore) loadNamespace(kk []*Key) func(i int, n *Namespace) {
 	return func(i int, n *Namespace) {
 		k := kk[i]

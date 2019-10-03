@@ -1,11 +1,8 @@
 package ui
 
 import (
-	"database/sql"
 	"net/http"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -14,68 +11,32 @@ import (
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/namespace"
 	"github.com/andrewpillar/thrall/web"
-
-	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/thrall/web/core"
 
 	"github.com/gorilla/csrf"
 )
 
 type Namespace struct {
-	web.Handler
+	Core core.Namespace
 
-	Namespaces model.NamespaceStore
 	Build      Build
 	Object     Object
 	Variable   Variable
 	Key        Key
 }
 
-func (h Namespace) Namespace(r *http.Request) *model.Namespace {
-	val := r.Context().Value("namespace")
-
-	n, _ := val.(*model.Namespace)
-
-	return n
-}
-
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
+	u := h.Core.User(r)
+
+	nn, paginator, err := h.Core.Index(u.NamespaceStore(), r)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
 
 	search := r.URL.Query().Get("search")
-
-	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
-
-	if err != nil {
-		page = 1
-	}
-
-	opts := []query.Option{
-		model.Search("path", search),
-		model.NamespaceSharedWith(u),
-	}
-
-	paginator, err := u.NamespaceStore().Paginate(page, opts...)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	opts = append(
-		opts,
-		query.OrderAsc("path"),
-		query.Limit(model.PageLimit),
-		query.Offset(paginator.Offset),
-	)
-
-	nn, err := u.NamespaceStore().Index(opts...)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
 
 	p := &namespace.IndexPage{
 		BasePage:   template.BasePage{
@@ -87,13 +48,13 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		Search:     search,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
+	u := h.Core.User(r)
 
 	parent, err := u.NamespaceStore().FindByPath(r.URL.Query().Get("parent"))
 
@@ -111,8 +72,8 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	p := &namespace.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Errors(w, r),
-			Fields: h.Form(w, r),
+			Errors: h.Core.Errors(w, r),
+			Fields: h.Core.Form(w, r),
 		},
 	}
 
@@ -120,94 +81,44 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		p.Parent = parent
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
-
-	namespaces := u.NamespaceStore()
-
-	f := &form.Namespace{
-		Namespaces: namespaces,
-		UserID:     u.ID,
-	}
-
-	if err := h.ValidateForm(f, w, r); err != nil {
-		if _, ok := err.(form.Errors); ok {
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-			return
-		}
-
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	parent, err := namespaces.FindByPath(f.Parent)
+	n, err := h.Core.Store(w, r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
+		cause := errors.Cause(err)
 
-	n := namespaces.New()
-	n.Name = f.Name
-	n.Path = f.Name
-	n.Description = f.Description
-	n.Visibility = f.Visibility
-
-	if !parent.IsZero() {
-		n.RootID = parent.RootID
-		n.ParentID = sql.NullInt64{
-			Int64: parent.ID,
-			Valid: true,
-		}
-		n.Path = strings.Join([]string{parent.Path, f.Name}, "/")
-		n.Level = parent.Level + 1
-		n.Visibility = parent.Visibility
-	}
-
-	if n.Level >= model.NamespaceMaxDepth {
-		h.FlashAlert(w, r, template.Warn("Namespaces can only be nested to 20 levels"))
-		h.FlashForm(w, r, f)
-
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if err := namespaces.Create(n); err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	if parent.IsZero() {
-		n.RootID = sql.NullInt64{
-			Int64: n.ID,
-			Valid: true,
-		}
-
-		if err := namespaces.Update(n); err != nil {
-			log.Error.Println(errors.Err(err))
-			h.FlashAlert(w, r, template.Danger("Failed to create namespace: " + errors.Cause(err).Error()))
+		if cause == core.ErrValidationFailed {
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
+
+		if cause == core.ErrNamespaceTooDeep {
+			errs := form.NewErrors()
+			errs.Put("namespace", cause)
+
+			h.Core.FlashErrors(w, r, errs)
+
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
+
+		log.Error.Println(errors.Err(err))
+		h.Core.FlashAlert(w, r, template.Danger("Failed to create namespace: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
 	}
 
 	http.Redirect(w, r, n.UIEndpoint(), http.StatusSeeOther)
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
-	n := h.Namespace(r)
+	u := h.Core.User(r)
+	n := h.Core.Namespace(r)
 
 	if err := n.LoadParents(); err != nil {
 		log.Error.Println(errors.Err(err))
@@ -233,7 +144,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	switch base {
 	case "namespaces":
-		nn, err := n.NamespaceStore().Index(model.Search("path", search))
+		nn, paginator, err := h.Core.Index(n.NamespaceStore(), r)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -245,6 +156,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			ShowPage:   sp,
 			Index:      namespace.IndexPage{
 				BasePage:   bp,
+				Paginator:  paginator,
 				Namespaces: nn,
 				Search:     search,
 			},
@@ -308,8 +220,8 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		p = &namespace.ShowCollaborators{
 			ShowPage:      sp,
 			CSRF:          string(csrf.TemplateField(r)),
-			Fields:        h.Form(w, r),
-			Errors:        h.Errors(w, r),
+			Fields:        h.Core.Form(w, r),
+			Errors:        h.Core.Errors(w, r),
 			Collaborators: cc,
 		}
 
@@ -330,13 +242,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
-	n := h.Namespace(r)
+	n := h.Core.Namespace(r)
 
 	if err := n.LoadParents(); err != nil {
 		log.Error.Println(errors.Err(err))
@@ -347,84 +259,53 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 	p := &namespace.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Errors(w, r),
-			Fields: h.Form(w, r),
+			Errors: h.Core.Errors(w, r),
+			Fields: h.Core.Form(w, r),
 		},
 		Namespace: n,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
-	n := h.Namespace(r)
+	n, err := h.Core.Update(w, r)
 
-	f := &form.Namespace{
-		Namespaces: u.NamespaceStore(),
-		Namespace:  n,
-		UserID:     n.UserID,
-	}
+	if err != nil {
+		cause := errors.Cause(err)
 
-	if err := h.ValidateForm(f, w, r); err != nil {
-		if _, ok := err.(form.Errors); ok {
+		if _, ok := cause.(form.Errors); ok {
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 
 		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
+		h.Core.FlashAlert(w, r, template.Danger("Failed to update namespace: " + cause.Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	if err := n.LoadParent(); err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	n.Name = f.Name
-	n.Description = f.Description
-	n.Visibility = f.Visibility
-
-	if !n.Parent.IsZero() {
-		n.Visibility = n.Parent.Visibility
-	} else {
-		if err := n.CascadeVisibility(); err != nil {
-			log.Error.Println(errors.Err(err))
-			h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-			return
-		}
-	}
-
-	if err := h.Namespaces.Update(n); err != nil {
-		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to update namespace: " + errors.Cause(err).Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	h.FlashAlert(w, r, template.Success("Namespace changes saved"))
+	h.Core.FlashAlert(w, r, template.Success("Namespace changes saved"))
 
 	http.Redirect(w, r, n.UIEndpoint(), http.StatusSeeOther)
 }
 
 func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
-	n := h.Namespace(r)
+	n := h.Core.Namespace(r)
 
-	if err := h.Namespaces.Delete(n); err != nil {
+	if err := h.Core.Destroy(r); err != nil {
 		log.Error.Println(errors.Err(err))
-		h.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + errors.Cause(err).Error()))
+
+		cause := errors.Cause(err)
+
+		h.Core.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + cause.Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Namespace has been deleted: " + n.Path))
+	h.Core.FlashAlert(w, r, template.Success("Namespace has been deleted: " + n.Path))
 
 	http.Redirect(w, r, "/namespaces", http.StatusSeeOther)
 }

@@ -309,7 +309,7 @@ func (n Namespace) Values() map[string]interface{} {
 func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
-	opts = append(opts, ForParent(s.Namespace))
+	opts = append([]query.Option{ForParent(s.Namespace)}, opts...)
 
 	err := s.Store.All(&nn, NamespaceTable, opts...)
 
@@ -520,20 +520,6 @@ func (s NamespaceStore) FindRoot(id int64) (*Namespace, error) {
 	}
 
 	return n, errors.Err(err)
-}
-
-func (s NamespaceStore) Index(opts ...query.Option) ([]*Namespace, error) {
-	nn, err := s.All(opts...)
-
-	if err := s.LoadUsers(nn); err != nil {
-		return nn, errors.Err(err)
-	}
-
-	if err := s.LoadLastBuild(nn); err != nil {
-		return nn, errors.Err(err)
-	}
-
-	return nn, errors.Err(err)
 }
 
 func (s NamespaceStore) Load(ids []interface{}, load func(i int, n *Namespace)) error {

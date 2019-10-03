@@ -167,6 +167,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 	}
 	o.Name = f.Name
 	o.Hash = hash
+	o.Type = f.Info.Header.Get("Content-Type")
 	o.Size = size
 	o.MD5 = md5_.Sum(nil)
 	o.SHA256 = sha256_.Sum(nil)

@@ -3,6 +3,7 @@ package ui
 import (
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
@@ -182,6 +183,13 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	h.Core.FlashAlert(w, r, template.Success("Object has been deleted: " + o.Name))
+
+	ref := r.Header.Get("Referer")
+
+	if matched, err := regexp.Match("/objects/[0-9]+", []byte(ref)); err == nil || matched {
+		http.Redirect(w, r, "/objects", http.StatusSeeOther)
+		return
+	}
 
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

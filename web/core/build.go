@@ -3,6 +3,7 @@ package core
 import (
 	"database/sql"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/config"
@@ -39,36 +40,48 @@ func (h Build) Build(r *http.Request) *model.Build {
 	return b
 }
 
-func (h Build) Index(builds model.BuildStore, r *http.Request, opts ...query.Option) ([]*model.Build, error) {
+func (h Build) Index(builds model.BuildStore, r *http.Request, opts ...query.Option) ([]*model.Build, model.Paginator, error) {
 	q := r.URL.Query()
 
 	tag := q.Get("tag")
 	search := q.Get("search")
 	status := q.Get("status")
+	page, err := strconv.ParseInt(q.Get("page"), 10, 64)
+
+	if err != nil {
+		page = 1
+	}
 
 	index := []query.Option{
 		model.BuildTag(tag),
 		model.BuildSearch(search),
 		model.BuildStatus(status),
-		query.OrderDesc("created_at"),
 	}
+
+	paginator, err := builds.Paginate(page, append(index, opts...)...)
+
+	if err != nil {
+		return []*model.Build{}, paginator, errors.Err(err)
+	}
+
+	index = append(index, query.OrderDesc("created_at"))
 
 	bb, err := builds.All(append(index, opts...)...)
 
 	if err != nil {
-		return bb, errors.Err(err)
+		return bb, paginator, errors.Err(err)
 	}
 
 	if err := builds.LoadNamespaces(bb); err != nil {
-		return bb, errors.Err(err)
+		return bb, paginator, errors.Err(err)
 	}
 
 	if err := builds.LoadTags(bb); err != nil {
-		return bb, errors.Err(err)
+		return bb, paginator, errors.Err(err)
 	}
 
 	if err := builds.LoadUsers(bb); err != nil {
-		return bb, errors.Err(err)
+		return bb, paginator, errors.Err(err)
 	}
 
 	nn := make([]*model.Namespace, 0, len(bb))
@@ -81,7 +94,7 @@ func (h Build) Index(builds model.BuildStore, r *http.Request, opts ...query.Opt
 
 	err = h.Namespaces.LoadUsers(nn)
 
-	return bb, errors.Err(err)
+	return bb, paginator, errors.Err(err)
 }
 
 func (h Build) Kill(r *http.Request) error {

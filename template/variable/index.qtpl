@@ -11,6 +11,7 @@ type IndexPage struct {
 
 	CSRF      string
 	Search    string
+	Paginator model.Paginator
 	Variables []*model.Variable
 }
 %}

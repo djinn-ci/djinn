@@ -23,7 +23,7 @@ type Key struct {
 }
 
 func (h Key) indexPage(keys model.KeyStore, r *http.Request, opts ...query.Option) (key.IndexPage, error) {
-	kk, err := h.Core.Index(keys, r, opts...)
+	kk, paginator, err := h.Core.Index(keys, r, opts...)
 
 	if err != nil {
 		return key.IndexPage{}, errors.Err(err)
@@ -38,9 +38,10 @@ func (h Key) indexPage(keys model.KeyStore, r *http.Request, opts ...query.Optio
 			URL:  r.URL,
 			User: u,
 		},
-		CSRF:   string(csrf.TemplateField(r)),
-		Search: search,
-		Keys:   kk,
+		CSRF:      string(csrf.TemplateField(r)),
+		Search:    search,
+		Paginator: paginator,
+		Keys:      kk,
 	}
 
 	return p, nil

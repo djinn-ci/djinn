@@ -3,6 +3,7 @@ package core
 import (
 	"database/sql"
 	"net/http"
+	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
@@ -28,19 +29,31 @@ func (h Key) Key(r *http.Request) *model.Key {
 	return k
 }
 
-func (h Key) Index(keys model.KeyStore, r *http.Request, opts ...query.Option) ([]*model.Key, error) {
+func (h Key) Index(keys model.KeyStore, r *http.Request, opts ...query.Option) ([]*model.Key, model.Paginator, error) {
 	index := []query.Option{
 		model.Search("name", r.URL.Query().Get("search")),
+	}
+
+	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+
+	if err != nil {
+		page = 1
+	}
+
+	paginator, err := keys.Paginate(page, append(index, opts...)...)
+
+	if err != nil {
+		return []*model.Key{}, paginator, errors.Err(err)
 	}
 
 	kk, err := keys.All(append(index, opts...)...)
 
 	if err != nil {
-		return kk, errors.Err(err)
+		return kk, paginator, errors.Err(err)
 	}
 
 	if err := keys.LoadNamespaces(kk); err != nil {
-		return kk, errors.Err(err)
+		return kk, paginator, errors.Err(err)
 	}
 
 	nn := make([]*model.Namespace, 0, len(kk))
@@ -53,7 +66,7 @@ func (h Key) Index(keys model.KeyStore, r *http.Request, opts ...query.Option) (
 
 	err = h.Namespaces.LoadUsers(nn)
 
-	return kk, errors.Err(err)
+	return kk, paginator, errors.Err(err)
 }
 
 func (h Key) Store(w http.ResponseWriter, r *http.Request) (*model.Key, error) {

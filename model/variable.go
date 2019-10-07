@@ -285,6 +285,12 @@ func (s VariableStore) Index(opts ...query.Option) ([]*Variable, error) {
 	return vv, errors.Err(err)
 }
 
+func (s VariableStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(VariableTable, page, opts...)
+
+	return paginator, errors.Err(err)
+}
+
 func (s VariableStore) interfaceSlice(vv ...*Variable) []Interface {
 	ii := make([]Interface, len(vv), len(vv))
 

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
@@ -47,19 +48,31 @@ func (h Object) Destroy(r *http.Request) error {
 	return errors.Err(err)
 }
 
-func (h Object) Index(objects model.ObjectStore, r *http.Request, opts ...query.Option) ([]*model.Object, error) {
+func (h Object) Index(objects model.ObjectStore, r *http.Request, opts ...query.Option) ([]*model.Object, model.Paginator, error) {
 	index := []query.Option{
 		model.Search("name", r.URL.Query().Get("search")),
+	}
+
+	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+
+	if err != nil {
+		page = 1
+	}
+
+	paginator, err := objects.Paginate(page, append(index, opts...)...)
+
+	if err != nil {
+		return []*model.Object{}, paginator, errors.Err(err)
 	}
 
 	oo, err := objects.All(append(index, opts...)...)
 
 	if err != nil {
-		return oo, errors.Err(err)
+		return oo, paginator, errors.Err(err)
 	}
 
 	if err := objects.LoadNamespaces(oo); err != nil {
-		return oo, errors.Err(err)
+		return oo, paginator, errors.Err(err)
 	}
 
 	nn := make([]*model.Namespace, 0, len(oo))
@@ -72,7 +85,7 @@ func (h Object) Index(objects model.ObjectStore, r *http.Request, opts ...query.
 
 	err = h.Namespaces.LoadUsers(nn)
 
-	return oo, errors.Err(err)
+	return oo, paginator, errors.Err(err)
 }
 
 func (h Object) Show(r *http.Request) (*model.Object, error) {

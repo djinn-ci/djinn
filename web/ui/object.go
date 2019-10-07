@@ -28,7 +28,7 @@ type Object struct {
 func (h Object) indexPage(objects model.ObjectStore, r *http.Request) (object.IndexPage, error) {
 	u := h.Core.User(r)
 
-	oo, err := h.Core.Index(objects, r)
+	oo, paginator, err := h.Core.Index(objects, r)
 
 	if err != nil {
 		return object.IndexPage{}, errors.Err(err)
@@ -39,9 +39,10 @@ func (h Object) indexPage(objects model.ObjectStore, r *http.Request) (object.In
 			URL:  r.URL,
 			User: u,
 		},
-		CSRF:    string(csrf.TemplateField(r)),
-		Objects: oo,
-		Search:  r.URL.Query().Get("search"),
+		CSRF:      string(csrf.TemplateField(r)),
+		Paginator: paginator,
+		Objects:   oo,
+		Search:    r.URL.Query().Get("search"),
 	}
 
 	return p, nil

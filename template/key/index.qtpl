@@ -9,9 +9,10 @@ import (
 type IndexPage struct {
 	template.BasePage
 
-	CSRF   string
-	Search string
-	Keys   []*model.Key
+	CSRF      string
+	Search    string
+	Paginator model.Paginator
+	Keys      []*model.Key
 }
 %}
 
@@ -70,6 +71,7 @@ type IndexPage struct {
 			{% endif %}
 		{% endif %}
 	</div>
+	{%= template.RenderPaginator(p.URL.Path, p.Paginator) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

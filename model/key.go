@@ -153,6 +153,12 @@ func (s KeyStore) New() *Key {
 	return k
 }
 
+func (s KeyStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(KeyTable, page, opts...)
+
+	return paginator, errors.Err(err)
+}
+
 func (s KeyStore) findBy(col string, val interface{}) (*Key, error) {
 	k := &Key{
 		Model: Model{

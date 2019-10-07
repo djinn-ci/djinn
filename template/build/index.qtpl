@@ -11,10 +11,11 @@ import (
 type IndexPage struct {
 	template.BasePage
 
-	Builds []*model.Build
-	Search string
-	Status string
-	Tag    string
+	Paginator model.Paginator
+	Builds    []*model.Build
+	Search    string
+	Status    string
+	Tag       string
 }
 %}
 
@@ -78,6 +79,7 @@ type IndexPage struct {
 			{% endif %}
 		{% endif %}
 	</div>
+	{%= template.RenderPaginator(p.URL.Path, p.Paginator) %}
 {% endfunc %}
 
 {% func (p *IndexPage) Header() %}

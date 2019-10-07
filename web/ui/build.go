@@ -27,7 +27,7 @@ type Build struct {
 func (h Build) indexPage(builds model.BuildStore, r *http.Request, opts ...query.Option) (build.IndexPage, error) {
 	u := h.Core.User(r)
 
-	bb, err := h.Core.Index(builds, r, opts...)
+	bb, paginator, err := h.Core.Index(builds, r, opts...)
 
 	if err != nil {
 		return build.IndexPage{}, errors.Err(err)
@@ -42,10 +42,11 @@ func (h Build) indexPage(builds model.BuildStore, r *http.Request, opts ...query
 			URL:  r.URL,
 			User: u,
 		},
-		Builds: bb,
-		Search: search,
-		Status: status,
-		Tag:    tag,
+		Paginator: paginator,
+		Builds:    bb,
+		Search:    search,
+		Status:    status,
+		Tag:       tag,
 	}
 
 	return p, nil

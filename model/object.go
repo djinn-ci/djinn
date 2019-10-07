@@ -227,6 +227,12 @@ func (s ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
 	return oo, errors.Err(err)
 }
 
+func (s ObjectStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(ObjectTable, page, opts...)
+
+	return paginator, errors.Err(err)
+}
+
 func (s ObjectStore) findBy(col string, val interface{}) (*Object, error) {
 	o := &Object{
 		Model: Model{

@@ -23,7 +23,7 @@ type Variable struct {
 func (h Variable) indexPage(variables model.VariableStore, r *http.Request, opts ...query.Option) (variable.IndexPage, error) {
 	u := h.Core.User(r)
 
-	vv, err := h.Core.Index(variables, r, opts...)
+	vv, paginator, err := h.Core.Index(variables, r, opts...)
 
 	if err != nil {
 		return variable.IndexPage{}, errors.Err(err)
@@ -36,6 +36,7 @@ func (h Variable) indexPage(variables model.VariableStore, r *http.Request, opts
 		},
 		CSRF:      string(csrf.TemplateField(r)),
 		Search:    r.URL.Query().Get("search"),
+		Paginator: paginator,
 		Variables: vv,
 	}
 

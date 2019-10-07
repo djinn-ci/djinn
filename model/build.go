@@ -554,6 +554,12 @@ func (s BuildStore) Create(bb ...*Build) error {
 	return errors.Err(s.Store.Create(BuildTable, models...))
 }
 
+func (s BuildStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(BuildTable, page, opts...)
+
+	return paginator, errors.Err(err)
+}
+
 func (s BuildStore) Find(id int64) (*Build, error) {
 	b := &Build{
 		Model: Model{

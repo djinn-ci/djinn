@@ -59,7 +59,7 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := template.NewDashboard(&p, r.URL, h.Core.Alert(w, r))
+	d := template.NewDashboard(&p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -99,7 +99,7 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 		Index:  bp,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -113,7 +113,7 @@ func (h Object) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

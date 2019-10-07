@@ -48,7 +48,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		Search:     search,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -81,7 +81,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		p.Parent = parent
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -242,7 +242,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -265,7 +265,7 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 		Namespace: n,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

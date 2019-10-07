@@ -10,6 +10,8 @@ import (
 	"github.com/andrewpillar/thrall/template/job"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/core"
+
+	"github.com/gorilla/csrf"
 )
 
 type Job struct {
@@ -37,7 +39,7 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		Job: j,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

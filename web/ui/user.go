@@ -61,7 +61,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r))
+	d := template.NewDashboard(p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

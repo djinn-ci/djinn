@@ -54,6 +54,7 @@ type baseDashboard struct {
 
 	alert Alert
 	URL   *url.URL
+	CSRF  string
 }
 
 type Form struct {
@@ -80,11 +81,12 @@ func pattern(name string) string {
 	return "(^\\/" + name + "\\/?[a-z0-9\\/?]*$)"
 }
 
-func NewDashboard(d Dashboard, url *url.URL, a Alert) *baseDashboard {
+func NewDashboard(d Dashboard, url *url.URL, a Alert, csrf string) *baseDashboard {
 	return &baseDashboard{
 		Dashboard: d,
 		alert:     a,
 		URL:       url,
+		CSRF:      csrf,
 	}
 }
 
@@ -235,6 +237,7 @@ func (l level) String() string {
 				{% endif %}
 				<li>
 					<form method="POST" action="/logout">
+						{%s= string(p.CSRF) %}
 						<button type="submit">{% cat "../svgs/logout.svg" %}<span>Logout</span></button>
 					</form>
 				</li>

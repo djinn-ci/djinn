@@ -158,13 +158,6 @@ func (s *uiServer) init() {
 		},
 	}
 
-	namespace := ui.Namespace{
-		Core: core.Namespace{
-			Handler:    handler,
-			Namespaces: namespaces,
-		},
-	}
-
 	object := ui.Object{
 		Core: core.Object{
 			Handler:    handler,
@@ -172,9 +165,30 @@ func (s *uiServer) init() {
 			FileStore:  s.objects,
 			Limit:      s.limit,
 			Objects:    model.ObjectStore{
-				Store:     store,
+				Store: store,
 			},
 		},
+	}
+
+	variable := ui.Variable{
+		Core: core.Variable{
+			Handler:    handler,
+			Namespaces: namespaces,
+			Variables:  model.VariableStore{
+				Store: store,
+			},
+		},
+	}
+
+	namespace := ui.Namespace{
+		Core: core.Namespace{
+			Handler:    handler,
+			Namespaces: namespaces,
+		},
+		Build:    build,
+		Key:      key,
+		Object:   object,
+		Variable: variable,
 	}
 
 	tag := ui.Tag{
@@ -187,16 +201,6 @@ func (s *uiServer) init() {
 		Handler: handler,
 		Invites: model.InviteStore{
 			Store: store,
-		},
-	}
-
-	variable := ui.Variable{
-		Core: core.Variable{
-			Handler:    handler,
-			Namespaces: namespaces,
-			Variables:  model.VariableStore{
-				Store: store,
-			},
 		},
 	}
 

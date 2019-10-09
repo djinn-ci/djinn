@@ -87,7 +87,7 @@ func (f Password) Validate() error {
 	}
 
 	if len(f.NewPassword) < 6 || len(f.NewPassword) > 60 {
-		errs.Put("password", ErrFieldInvalid("Password", "must be between 6 and 60 characters in length"))
+		errs.Put("new_password", ErrFieldInvalid("Password", "must be between 6 and 60 characters in length"))
 	}
 
 	if f.VerifyPassword == "" {

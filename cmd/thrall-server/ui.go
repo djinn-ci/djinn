@@ -232,6 +232,8 @@ func (s *uiServer) init() {
 	authRouter.HandleFunc("/keys", key.Store).Methods("POST")
 
 	authRouter.HandleFunc("/settings", user.Settings).Methods("GET")
+	authRouter.HandleFunc("/settings/email", user.Email).Methods("PATCH")
+	authRouter.HandleFunc("/settings/password", user.Password).Methods("PATCH")
 	authRouter.HandleFunc("/settings/invites", user.Settings).Methods("GET")
 	authRouter.HandleFunc("/logout", auth.Logout).Methods("POST")
 

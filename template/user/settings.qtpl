@@ -8,7 +8,9 @@ import (
 {% code
 type SettingsPage struct {
 	template.BasePage
+	template.Form
 
+	CSRF string
 	User *model.User
 }
 
@@ -30,6 +32,54 @@ type ShowInvites struct {
 {% endfunc %}
 
 {% func (p *SettingsPage) Body() %}
+	<div class="panel">
+		<div class="panel-body slim">
+			<form method="POST" action="/settings/email">
+				<h2>Change email</h2>
+				<div class="separator"></div>
+				{%s= p.CSRF %}
+				<input type="hidden" name="_method" value="PATCH"/>
+				<div class="form-field">
+					<label class="label" for="email">Email</label>
+					<input class="form-text" type="text" id="email" name="email" value="{%s p.Fields["email"] %}" autocomplete="off"/>
+					{%= p.Error("email") %}
+				</div>
+				<div class="form-field">
+					<label class="label" for="verify_password">Verify Password</label>
+					<input class="form-text" type="password" id="verify_password" name="verify_password" autocomplete="off"/>
+					{%= p.Error("email_verify_password") %}
+				</div>
+				<div class="form-field">
+					<button type="submit" class="btn btn-primary">Update</button>
+				</div>
+			</form>
+			<div class="separator"></div>
+			<form method="POST" action="/settings/password">
+				<h2>Change password</h2>
+				<div class="separator"></div>
+				<input type="hidden" name="_method" value="PATCH"/>
+				{%s= p.CSRF %}
+				<div class="form-field">
+					<label class="label" for="old_password">Old Password</label>
+					<input class="form-text" type="password" id="old_password" name="old_password" autocomplete="off"/>
+					{%= p.Error("old_password") %}
+				</div>
+				<div class="form-field">
+					<label class="label" for="new_password">New Password</label>
+					<input class="form-text" type="password" id="new_password" name="new_password" autocomplete="off"/>
+					{%= p.Error("new_password") %}
+				</div>
+				<div class="form-field">
+					<label class="label" for="verify_password">Verify Password</label>
+					<input class="form-text" type="password" id="verify_password" name="verify_password" autocomplete="off"/>
+					{%= p.Error("pass_verify_password") %}
+				</div>
+				<div class="form-field">
+					<button type="submit" class="btn btn-primary">Update</button>
+				</div>
+			</form>
+		</div>
+	</div>
 {% endfunc %}
 
 {% func (p *ShowInvites) Body() %}

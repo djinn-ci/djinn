@@ -812,7 +812,11 @@ func (p *ShowPage) StreamActions(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:239
 	if p.User.ID == p.Build.UserID && p.Build.Status == runner.Running {
 		//line template/build/show.qtpl:239
-		qw422016.N().S(` <li> <form method="POST"> `)
+		qw422016.N().S(` <li> <form method="POST" action="`)
+		//line template/build/show.qtpl:241
+		qw422016.E().S(p.Build.UIEndpoint())
+		//line template/build/show.qtpl:241
+		qw422016.N().S(`"> `)
 		//line template/build/show.qtpl:242
 		qw422016.N().S(string(p.CSRF))
 		//line template/build/show.qtpl:242

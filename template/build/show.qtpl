@@ -238,7 +238,7 @@ type ShowTags struct {
 {% func (p *ShowPage) Actions() %}
 	{% if p.User.ID == p.Build.UserID && p.Build.Status == runner.Running %}
 	<li>
-		<form method="POST">
+		<form method="POST" action="{%s p.Build.UIEndpoint() %}">
 			{%s= string(p.CSRF) %}
 			<input type="hidden" name="_method" value="DELETE">
 			<button type="submit" class="btn btn-danger">Kill</button>

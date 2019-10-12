@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"strings"
 	"time"
 
@@ -225,7 +226,7 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 	for src, dst := range objects {
 		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
 
-		f, err := cli.Create(dst)
+		f, err := cli.OpenFile(dst, os.O_WRONLY|os.O_APPEND|os.O_CREATE)
 
 		if err != nil {
 			fmt.Fprintf(
@@ -239,6 +240,17 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 		}
 
 		defer f.Close()
+
+		if err := f.Chmod(0600); err != nil {
+			fmt.Fprintf(
+				d.Writer,
+				"Failed to place object %s => %s: %s\n",
+				src,
+				dst,
+				errors.Cause(err),
+			)
+			continue
+		}
 
 		if _, err := p.Place(src, f); err != nil {
 			fmt.Fprintf(

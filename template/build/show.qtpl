@@ -43,6 +43,12 @@ type ShowVariables struct {
 	Variables []*model.BuildVariable
 }
 
+type ShowKeys struct {
+	ShowPage
+
+	Keys []*model.BuildKey
+}
+
 type ShowTags struct {
 	ShowPage
 
@@ -208,6 +214,16 @@ type ShowTags struct {
 	</div>
 {% endfunc %}
 
+{% func (p *ShowKeys) Body() %}
+	<div class="panel">
+		{% if len(p.Keys) == 0 %}
+			<div class="panel-message muted">No keys have been added to this build.</div>
+		{% else %}
+			{%= RenderKeyTable(p.Keys) %}
+		{% endif %}
+	</div>
+{% endfunc %}
+
 {% func (p *ShowTags) Body() %}
 	<div class="panel">
 		<div class="panel-header panel-body">
@@ -272,6 +288,11 @@ type ShowTags struct {
 	<li>
 		<a href="{%s p.Build.UIEndpoint("variables") %}" class="{%s template.Active(p.Build.UIEndpoint("variables") == p.URL.Path) %}">
 			{% cat "../../svgs/code.svg" %}<span>Variables</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Build.UIEndpoint("keys") %}" class="{%s template.Active(p.Build.UIEndpoint("keys") == p.URL.Path) %}">
+			{% cat "../../svgs/key.svg" %}<span>Keys</span>
 		</a>
 	</li>
 	<li>

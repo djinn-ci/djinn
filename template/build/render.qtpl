@@ -153,4 +153,23 @@ import (
 		</tbody>
 	</table>
 {% endfunc %}
+
+{% func RenderKeyTable(kk []*model.BuildKey) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>KEY</th>
+				<th>LOCATION</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, k := range kk %}
+				<tr>
+					<td><span class="code">{%s k.Name %}</span></td>
+					<td><span class="code">{%s k.Location %}</span></td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
 {% endcollapsespace %}

@@ -447,3 +447,52 @@ func RenderVariableTable(vv []*model.BuildVariable) string {
 	return qs422016
 //line template/build/render.qtpl:155
 }
+
+//line template/build/render.qtpl:157
+func StreamRenderKeyTable(qw422016 *qt422016.Writer, kk []*model.BuildKey) {
+	//line template/build/render.qtpl:157
+	qw422016.N().S(` <table class="table"> <thead> <tr> <th>KEY</th> <th>LOCATION</th> </tr> </thead> <tbody> `)
+	//line template/build/render.qtpl:166
+	for _, k := range kk {
+		//line template/build/render.qtpl:166
+		qw422016.N().S(` <tr> <td><span class="code">`)
+		//line template/build/render.qtpl:168
+		qw422016.E().S(k.Name)
+		//line template/build/render.qtpl:168
+		qw422016.N().S(`</span></td> <td><span class="code">`)
+		//line template/build/render.qtpl:169
+		qw422016.E().S(k.Location)
+		//line template/build/render.qtpl:169
+		qw422016.N().S(`</span></td> </tr> `)
+		//line template/build/render.qtpl:171
+	}
+	//line template/build/render.qtpl:171
+	qw422016.N().S(` </tbody> </table> `)
+//line template/build/render.qtpl:174
+}
+
+//line template/build/render.qtpl:174
+func WriteRenderKeyTable(qq422016 qtio422016.Writer, kk []*model.BuildKey) {
+	//line template/build/render.qtpl:174
+	qw422016 := qt422016.AcquireWriter(qq422016)
+	//line template/build/render.qtpl:174
+	StreamRenderKeyTable(qw422016, kk)
+	//line template/build/render.qtpl:174
+	qt422016.ReleaseWriter(qw422016)
+//line template/build/render.qtpl:174
+}
+
+//line template/build/render.qtpl:174
+func RenderKeyTable(kk []*model.BuildKey) string {
+	//line template/build/render.qtpl:174
+	qb422016 := qt422016.AcquireByteBuffer()
+	//line template/build/render.qtpl:174
+	WriteRenderKeyTable(qb422016, kk)
+	//line template/build/render.qtpl:174
+	qs422016 := string(qb422016.B)
+	//line template/build/render.qtpl:174
+	qt422016.ReleaseByteBuffer(qb422016)
+	//line template/build/render.qtpl:174
+	return qs422016
+//line template/build/render.qtpl:174
+}

@@ -279,6 +279,7 @@ func (s *uiServer) init() {
 	buildRouter.HandleFunc("/output/raw", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/objects", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/variables", build.Show).Methods("GET")
+	buildRouter.HandleFunc("/keys", build.Show).Methods("GET")
 	buildRouter.HandleFunc("/jobs/{job:[0-9]+}", job.Show).Methods("GET")
 	buildRouter.HandleFunc("/jobs/{job:[0-9]+}/output/raw", job.Show).Methods("GET")
 	buildRouter.HandleFunc("/artifacts", build.Show).Methods("GET")

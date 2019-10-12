@@ -222,6 +222,23 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		break
+	case "keys":
+		keys := b.BuildKeyStore()
+
+		kk, err := keys.All()
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p = &build.ShowKeys{
+			ShowPage: sp,
+			Keys:     kk,
+		}
+
+		break
 	case "tags":
 		tt, err := b.TagStore().Index()
 

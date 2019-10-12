@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
@@ -117,7 +118,7 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) (*model.Key, error) {
 		Int64: n.ID,
 		Valid: n.ID > 0,
 	}
-	k.Name = f.Name
+	k.Name = strings.Replace(f.Name, " ", "_", -1)
 	k.Key = []byte(enc)
 	k.Config = f.Config
 

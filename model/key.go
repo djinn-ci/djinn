@@ -149,7 +149,7 @@ func (s BuildKeyStore) Copy(kk []*Key) error {
 		bk.Name = k.Name
 		bk.Key = k.Key
 		bk.Config = k.Config
-		bk.Location = "/root/.ssh/" + strings.ToLower(strings.Replace(bk.Name, " ", "_", -1))
+		bk.Location = "/root/.ssh/" + bk.Name
 
 		bkk = append(bkk, bk)
 	}

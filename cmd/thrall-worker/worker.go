@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
@@ -79,6 +80,10 @@ func (w worker) loadBuild(s string) (*model.Build, error) {
 		return b, errors.Err(err)
 	}
 
+	if err := b.LoadKeys(); err != nil {
+		return b, errors.Err(err)
+	}
+
 	if err := b.LoadVariables(); err != nil {
 		return b, errors.Err(err)
 	}
@@ -117,6 +122,29 @@ func (w worker) runBuild(s string) error {
 		objs[o.Source] = o.Name
 	}
 
+	keyBuffers := make(map[string]*bytes.Buffer)
+
+	sshConfig := &bytes.Buffer{}
+
+	// Use object placement to add keys to the build env. Prefix each name with
+	// 'mem:' to tell the placer to look in the database for the key to add.
+	for _, k := range b.Keys {
+		objs["mem:" + k.Name] = k.Location
+
+		b, err := crypto.Decrypt(k.Key)
+
+		if err != nil {
+			continue
+		}
+
+		sshConfig.WriteString(k.Config)
+
+		keyBuffers[k.Name] = bytes.NewBuffer(b)
+	}
+
+	objs["mem:ssh_config"] = "/root/.ssh/config"
+	keyBuffers["ssh_config"] = sshConfig
+
 	env := make([]string, len(b.Variables), len(b.Variables))
 
 	for i, v := range b.Variables {
@@ -132,14 +160,15 @@ func (w worker) runBuild(s string) error {
 		Env:       env,
 		Objects:   objs,
 		Placer:    &database{
-			Placer: w.objects,
-			build:  b,
-			users:  w.users,
+			Placer:     w.objects,
+			memObjects: keyBuffers,
+			build:      b,
+			users:      w.users,
 		},
 		Collector: &database{
-			Collector: w.artifacts,
-			build:     b,
-			users:     w.users,
+			Collector:  w.artifacts,
+			build:      b,
+			users:      w.users,
 		},
 	}
 

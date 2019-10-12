@@ -49,6 +49,7 @@ var (
 
 	ArtifactTable      = "artifacts"
 	BuildTable         = "builds"
+	BuildKeyTable      = "build_keys"
 	BuildObjectTable   = "build_objects"
 	BuildVariableTable = "build_variables"
 	CollaboratorTable  = "collaborators"

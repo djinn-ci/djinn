@@ -23,6 +23,19 @@ type Key struct {
 	Namespace *Namespace
 }
 
+type BuildKey struct {
+	Model
+
+	BuildID  int64         `db:"build_id"`
+	KeyID    sql.NullInt64 `db:"key_id"`
+	Name     string        `db:"name"`
+	Key      []byte        `db:"key"`
+	Config   string        `db:"config"`
+	Location string        `db:"location"`
+
+	Build *Build `db:"-"`
+}
+
 type KeyStore struct {
 	Store
 
@@ -30,9 +43,34 @@ type KeyStore struct {
 	Namespace *Namespace
 }
 
+type BuildKeyStore struct {
+	Store
+
+	Build *Build
+}
+
+func buildKeyToInterface(bkk []*BuildKey) func(i int) Interface {
+	return func(i int) Interface {
+		return bkk[i]
+	}
+}
+
 func keyToInterface(kk []*Key) func(i int) Interface {
 	return func(i int) Interface {
 		return kk[i]
+	}
+}
+
+func (bk BuildKey) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"build_id":   bk.BuildID,
+		"key_id":     bk.KeyID,
+		"name":       bk.Name,
+		"key":        bk.Key,
+		"config":     bk.Config,
+		"location":   bk.Location,
+		"created_at": bk.CreatedAt,
+		"updated_at": bk.UpdatedAt,
 	}
 }
 
@@ -68,6 +106,70 @@ func (k Key) Values() map[string]interface{} {
 		"key":          k.Key,
 		"config":       k.Config,
 	}
+}
+
+func (s BuildKeyStore) All(opts ...query.Option) ([]*BuildKey, error) {
+	bkk := make([]*BuildKey, 0)
+
+	opts = append(opts, ForBuild(s.Build))
+
+	err := s.Store.All(&bkk, BuildKeyTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, bk := range bkk {
+		bk.DB = s.DB
+		bk.Build = s.Build
+	}
+
+	return bkk, errors.Err(err)
+}
+
+func (s BuildKeyStore) Create(bkk ...*BuildKey) error {
+	models := interfaceSlice(len(bkk), buildKeyToInterface(bkk))
+
+	return errors.Err(s.Store.Create(BuildKeyTable, models...))
+}
+
+func (s BuildKeyStore) Copy(kk []*Key) error {
+	if len(kk) == 0 {
+		return nil
+	}
+
+	bkk := make([]*BuildKey, 0, len(kk))
+
+	for _, k := range kk {
+		bk := s.New()
+		bk.KeyID = sql.NullInt64{
+			Int64: k.ID,
+			Valid: true,
+		}
+		bk.Name = k.Name
+		bk.Key = k.Key
+		bk.Config = k.Config
+		bk.Location = "/root/.ssh/" + strings.ToLower(strings.Replace(bk.Name, " ", "_", -1))
+
+		bkk = append(bkk, bk)
+	}
+
+	return errors.Err(s.Create(bkk...))
+}
+
+func (s BuildKeyStore) New() *BuildKey {
+	bk := &BuildKey{
+		Model: Model{
+			DB: s.DB,
+		},
+		Build: s.Build,
+	}
+
+	if s.Build != nil {
+		bk.BuildID = s.Build.ID
+	}
+
+	return bk
 }
 
 func (s KeyStore) All(opts ...query.Option) ([]*Key, error) {

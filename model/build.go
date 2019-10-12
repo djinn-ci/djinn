@@ -38,6 +38,7 @@ type Build struct {
 	Trigger   *Trigger         `json:"-"`
 	Tags      []*Tag           `json:"-"`
 	Stages    []*Stage         `json:"-"`
+	Keys      []*BuildKey      `json:"-"`
 	Objects   []*BuildObject   `json:"-"`
 	Artifacts []*Artifact      `json:"-"`
 	Variables []*BuildVariable `json:"-"`
@@ -108,6 +109,15 @@ func BuildTag(tag string) query.Option {
 
 func (b *Build) ArtifactStore() ArtifactStore {
 	return ArtifactStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		Build: b,
+	}
+}
+
+func (b *Build) BuildKeyStore() BuildKeyStore {
+	return BuildKeyStore{
 		Store: Store{
 			DB: b.DB,
 		},
@@ -188,6 +198,14 @@ func (b *Build) LoadNamespace() error {
 	}
 
 	b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
+
+	return errors.Err(err)
+}
+
+func (b *Build) LoadKeys() error {
+	var err error
+
+	b.Keys, err = b.BuildKeyStore().All()
 
 	return errors.Err(err)
 }
@@ -340,10 +358,10 @@ func (b Build) Submit(srv *machinery.Server) error {
 		Store: Store{
 			DB: b.DB,
 		},
+		User: b.User,
 	}
 
 	vv, err := variables.All(
-		ForUser(b.User),
 		query.WhereRaw("namespace_id", "IS", "NULL"),
 		OrForNamespace(b.Namespace),
 	)
@@ -355,6 +373,26 @@ func (b Build) Submit(srv *machinery.Server) error {
 	buildVars := b.BuildVariableStore()
 
 	if err := buildVars.Copy(vv); err != nil {
+		return errors.Err(err)
+	}
+
+	keys := KeyStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		User: b.User,
+	}
+
+	kk, err := keys.All(
+		query.WhereRaw("namespace_id", "IS", "NULL"),
+		OrForNamespace(b.Namespace),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if err := b.BuildKeyStore().Copy(kk); err != nil {
 		return errors.Err(err)
 	}
 

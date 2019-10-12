@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/md5"
 	"crypto/sha256"
 	"database/sql"
@@ -17,8 +18,9 @@ type database struct {
 	runner.Collector
 	runner.Placer
 
-	build *model.Build
-	users model.UserStore
+	memObjects map[string]*bytes.Buffer
+	build      *model.Build
+	users      model.UserStore
 }
 
 func (d *database) findObject(name string) (*model.Object, error) {
@@ -63,7 +65,22 @@ func (d *database) Collect(name string, r io.Reader) (int64, error) {
 	return n, errors.Err(artifacts.Update(a))
 }
 
+// Place the given object from the database into the given io.Writer. If the
+// name is prefixed with 'mem:', then don't search the database, and look for
+// the corresponding buffer in the w.buffers map.
 func (d *database) Place(name string, w io.Writer) (int64, error) {
+	if strings.HasPrefix(name, "mem:") {
+		buf, ok := d.memObjects[strings.TrimPrefix(name, "mem:")]
+
+		if !ok {
+			return 0, errors.Err(errors.New("unable to place from memory"))
+		}
+
+		n, err := io.Copy(w, buf)
+
+		return n, errors.Err(err)
+	}
+
 	o, err := d.findObject(name)
 
 	if err != nil {

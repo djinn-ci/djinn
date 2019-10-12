@@ -14,13 +14,8 @@ type Worker struct {
 	Drivers     []string
 	Timeout     string
 
-	Net struct {
-		Listen string
-
-		SSL struct {
-			Cert   string
-			Key    string
-		}
+	Crypto struct {
+		Key string
 	}
 
 	Redis struct {

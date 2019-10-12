@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
@@ -52,6 +53,8 @@ func mainCommand(c cli.Command) {
 	}
 
 	defer logf.Close()
+
+	crypto.Key = []byte(cfg.Crypto.Key)
 
 	log.SetLogger(log.NewStdLog(logf))
 

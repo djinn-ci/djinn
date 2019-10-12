@@ -147,7 +147,13 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 
 	fmt.Fprintf(d.Writer, "Established SSH connection to machine...\n\n")
 
-	return d.placeObjects(objects, p)
+	d.SSH.Writer = d.Writer
+
+	err = d.placeObjects(objects, p)
+
+	d.SSH.Writer = ioutil.Discard
+
+	return errors.Err(err)
 }
 
 func (d *QEMU) Execute(j *runner.Job, c runner.Collector) {

@@ -171,6 +171,10 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 			return b, errors.Err(err)
 		}
 
+		if !n.CanAdd(u) {
+			return b, errors.Err(ErrAccessDenied)
+		}
+
 		b.Namespace = n
 		b.NamespaceID = sql.NullInt64{
 			Int64: n.ID,

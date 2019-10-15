@@ -103,7 +103,10 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Error.Println(errors.Err(err))
+		if cause != core.ErrAccessDenied {
+			log.Error.Println(errors.Err(err))
+		}
+
 		h.Core.FlashAlert(w, r, template.Danger("Failed to create build: " + cause.Error()))
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return

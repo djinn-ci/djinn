@@ -11,7 +11,7 @@ import (
 
 type Worker struct {
 	Parallelism int
-	Drivers     []string
+	Queue       string
 	Timeout     string
 	Images      string
 

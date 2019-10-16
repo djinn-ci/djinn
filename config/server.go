@@ -9,7 +9,6 @@ import (
 )
 
 type Server struct {
-	Drivers   []string
 	Images    string
 	Artifacts string
 	Objects   string
@@ -46,6 +45,11 @@ type Server struct {
 		Level  string
 		File   string
 		Access bool
+	}
+
+	Drivers []struct {
+		Type  string
+		Queue string
 	}
 }
 

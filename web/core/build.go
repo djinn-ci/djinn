@@ -28,8 +28,7 @@ type Build struct {
 	Namespaces model.NamespaceStore
 	Builds     model.BuildStore
 	Client     *redis.Client
-	Drivers    map[string]struct{}
-	Queue      *machinery.Server
+	Queues     map[string]*machinery.Server
 }
 
 func (h Build) Build(r *http.Request) *model.Build {
@@ -144,7 +143,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 
 	manifest, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
 
-	if _, ok := h.Drivers[manifest.Driver["type"]]; !ok {
+	if _, ok := h.Queues[manifest.Driver["type"]]; !ok {
 		return &model.Build{}, ErrUnsupportedDriver
 	}
 
@@ -198,7 +197,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		return b, errors.Err(err)
 	}
 
-	if err := b.Submit(h.Queue); err != nil {
+	if err := b.Submit(h.Queues[manifest.Driver["type"]]); err != nil {
 		return b, errors.Err(err)
 	}
 

@@ -21,12 +21,6 @@ exec 2>&1
 set -ex
 
 `
-
-	All = []string{
-		"docker",
-		"ssh",
-		"qemu",
-	}
 )
 
 func createScript(j *runner.Job) *bytes.Buffer {

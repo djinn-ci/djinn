@@ -4,15 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 	"time"
 
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
-	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/log"
@@ -41,8 +38,8 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to decode worker config: %s\n", err)
 	}
 
-	if len(cfg.Drivers) == 0 {
-		log.Error.Fatalf("no drivers configured, exiting\n")
+	if cfg.Queue == "" {
+		log.Error.Fatalf("no queue to work from\n", err)
 	}
 
 	log.SetLevel(cfg.Log.Level)
@@ -94,14 +91,6 @@ func mainCommand(c cli.Command) {
 		DB: db,
 	}
 
-	if len(cfg.Drivers) == 1 && cfg.Drivers[0] == "*" {
-		cfg.Drivers = driver.All
-	}
-
-	// Sort drivers so the final queue name will be the same regardless of
-	// order in the config file.
-	sort.Strings(cfg.Drivers)
-
 	broker := "redis://"
 
 	if cfg.Redis.Password != "" {
@@ -119,12 +108,9 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to ping redis: %s\n", err)
 	}
 
-	qname := []string{"thrall", "builds"}
-	qname = append(qname, cfg.Drivers...)
-
 	queue, err := machinery.NewServer(&qconfig.Config{
 		Broker:        broker,
-		DefaultQueue:  strings.Join(qname, "_"),
+		DefaultQueue:  cfg.Queue,
 		ResultBackend: broker,
 	})
 
@@ -154,7 +140,7 @@ func mainCommand(c cli.Command) {
 		artifacts:     artifacts,
 	}
 
-	w.init(strings.Join(qname, "_"))
+	w.init(cfg.Queue)
 
 	if err := w.worker.Launch(); err != nil {
 		log.Error.Fatalf("failed to launch worker: %s\n", errors.Cause(err))

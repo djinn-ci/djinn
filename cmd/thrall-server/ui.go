@@ -30,8 +30,6 @@ type server struct {
 	db     *sqlx.DB
 	client *redis.Client
 
-	drivers map[string]struct{}
-
 	imageLimit  int64
 	objectLimit int64
 
@@ -42,7 +40,7 @@ type server struct {
 	hash []byte
 	key  []byte
 
-	queue  *machinery.Server
+	queues map[string]*machinery.Server
 	router *mux.Router
 }
 
@@ -125,8 +123,7 @@ func (s *uiServer) init() {
 			Namespaces: namespaces,
 			Builds:     builds,
 			Client:     s.client,
-			Drivers:    s.drivers,
-			Queue:      s.queue,
+			Queues:     s.queues,
 		},
 	}
 

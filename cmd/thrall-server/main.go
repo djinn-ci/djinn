@@ -7,16 +7,13 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
-	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/http"
@@ -112,31 +109,20 @@ func mainCommand(cmd cli.Command) {
 
 	broker += cfg.Redis.Addr
 
-	if len(cfg.Drivers) == 1 && cfg.Drivers[0] == "*" {
-		cfg.Drivers = driver.All
-	}
-
-	// Sort drivers so the final queue name will be the same regardless of
-	// order in the config file.
-	sort.Strings(cfg.Drivers)
-
-	srv.drivers = make(map[string]struct{})
+	srv.queues = make(map[string]*machinery.Server)
 
 	for _, d := range cfg.Drivers {
-		srv.drivers[d] = struct{}{}
-	}
+		queue, err := machinery.NewServer(&qconfig.Config{
+			Broker:        broker,
+			DefaultQueue:  d.Queue,
+			ResultBackend: broker,
+		})
 
-	qname := []string{"thrall", "builds"}
-	qname = append(qname, cfg.Drivers...)
+		if err != nil {
+			log.Error.Fatalf("failed to setup queue: %s\n", err)
+		}
 
-	queue, err := machinery.NewServer(&qconfig.Config{
-		Broker:        broker,
-		DefaultQueue:  strings.Join(qname, "_"),
-		ResultBackend: broker,
-	})
-
-	if err != nil {
-		log.Error.Fatalf("failed to create queue server: %s\n", err)
+		srv.queues[d.Type] = queue
 	}
 
 	images, err := filestore.New(cfg.Images)
@@ -172,7 +158,6 @@ func mainCommand(cmd cli.Command) {
 	srv.artifacts = artifacts
 	srv.hash = []byte(cfg.Crypto.Hash)
 	srv.key = []byte(cfg.Crypto.Key)
-	srv.queue = queue
 
 	uiSrv := uiServer{
 		server: srv,

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 
@@ -54,12 +55,29 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
+	placerURL, _ := url.Parse(c.Flags.GetString("objects"))
+	collectorURL, _ := url.Parse(c.Flags.GetString("artifacts"))
+
+	placer, err := filestore.NewFileSystem(placerURL)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
+	collector, err := filestore.NewFileSystem(collectorURL)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
 	r := runner.Runner{
 		Writer:    os.Stdout,
 		Env:       manifest.Env,
 		Objects:   manifest.Objects,
-		Placer:    filestore.NewFileSystem(c.Flags.GetString("objects"), 0),
-		Collector: filestore.NewFileSystem(c.Flags.GetString("artifacts"), 0),
+		Placer:    placer,
+		Collector: collector,
 	}
 
 	setup := &runner.Stage{

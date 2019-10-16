@@ -1,9 +1,9 @@
 package filestore
 
 import (
+	"net/url"
 	"os"
 
-	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 )
@@ -21,18 +21,19 @@ type FileStore interface {
 	Remove(name string) error
 }
 
-func New(cfg config.FileStore) (FileStore, error) {
-	switch cfg.Type {
-		case "filesystem":
-			return NewFileSystem(cfg.Path, cfg.Limit), nil
-		default:
-			return nil, errors.Err(errors.New("unknown filestore '" + cfg.Type + "'"))
-	}
-}
+func New(s string) (FileStore, error) {
+	u, err := url.Parse(s)
 
-func NewFileSystem(dir string, limit int64) *FileSystem {
-	return &FileSystem{
-		dir:   dir,
-		limit: limit,
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	switch u.Scheme {
+		case "file":
+			fallthrough
+		default:
+			fs, err := NewFileSystem(u)
+
+			return fs, errors.Err(err)
 	}
 }

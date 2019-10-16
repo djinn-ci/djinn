@@ -9,7 +9,10 @@ import (
 )
 
 type Server struct {
-	Drivers []string
+	Drivers   []string
+	Images    string
+	Artifacts string
+	Objects   string
 
 	Net struct {
 		Listen string
@@ -39,20 +42,11 @@ type Server struct {
 		Password string
 	}
 
-	Artifacts FileStore
-	Objects   FileStore
-
 	Log struct {
 		Level  string
 		File   string
 		Access bool
 	}
-}
-
-type FileStore struct {
-	Type  string
-	Path  string
-	Limit int64
 }
 
 func DecodeServer(r io.Reader) (Server, error) {

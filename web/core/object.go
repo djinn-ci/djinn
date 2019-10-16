@@ -108,9 +108,16 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 
 	f := &form.Object{
 		Upload: form.Upload{
-			Writer:  w,
-			Request: r,
-			Limit:   h.Limit,
+			Writer:     w,
+			Request:    r,
+			Limit:      h.Limit,
+			Disallowed: []string{
+				"application/gzip",
+				"application/zip",
+				"application/x-zip-compressed",
+				"application/x-rar-compressed",
+				"multipart/x-zip",
+			},
 		},
 		Objects: objects,
 	}

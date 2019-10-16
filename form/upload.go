@@ -14,7 +14,6 @@ type Upload struct {
 	Limit      int64                 `schema:"-"`
 	File       multipart.File        `schema:"-"`
 	Info       *multipart.FileHeader `schema:"-"`
-	Allowed    []string              `schema:"-"`
 	Disallowed []string              `schema:"-"`
 }
 
@@ -49,8 +48,12 @@ func (f *Upload) Validate() error {
 		}
 	}
 
-	if len(f.Allowed) > 0 {
-
+	if len(f.Disallowed) > 0 {
+		for _, mime := range f.Disallowed {
+			if f.Info.Header.Get("Content-Type") == mime {
+				errs.Put("file", ErrFieldInvalid("File", "cannot be a ZIP file or equivalent"))
+			}
+		}
 	}
 
 	return errs.Err()

@@ -214,6 +214,11 @@ func (l level) String() string {
 				{% else %}
 					<li><a href="/namespaces">{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
 				{% endif %}
+				{% if Match(p.URL.Path, pattern("images")) %}
+					<li><a href="/images" class="active">{% cat "../svgs/image.svg" %}<span>Images</span></a></li>
+				{% else %}
+					<li><a href="/images">{% cat "../svgs/image.svg" %}<span>Images</span></a></li>
+				{% endif %}
 				{% if Match(p.URL.Path, pattern("objects")) %}
 					<li><a href="/objects" class="active">{% cat "../svgs/upload.svg" %}<span>Objects</span></a></li>
 				{% else %}

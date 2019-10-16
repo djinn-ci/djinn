@@ -127,6 +127,15 @@ func (n *Namespace) CollaboratorStore() CollaboratorStore {
 	}
 }
 
+func (n *Namespace) ImageStore() ImageStore {
+	return ImageStore{
+		Store: Store{
+			DB: n.DB,
+		},
+		Namespace: n,
+	}
+}
+
 func (n *Namespace) InviteStore() InviteStore {
 	return InviteStore{
 		Store: Store{

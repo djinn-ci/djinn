@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"time"
@@ -130,6 +131,14 @@ func mainCommand(c cli.Command) {
 	if err != nil {
 		log.Error.Fatalf("failed to create queue server: %s\n", err)
 	}
+
+	if _, err := filestore.New(cfg.Images); err != nil {
+		cause := errors.Cause(err)
+
+		log.Error.Fatalf("failed to open images location: %s\n", cause)
+	}
+
+	cfg.Qemu.Disks = filepath.Join(cfg.Images, "qemu")
 
 	w := worker{
 		client:      client,

@@ -107,9 +107,11 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 	namespaces := u.NamespaceStore()
 
 	f := &form.Object{
-		Writer:  w,
-		Request: r,
-		Limit:   h.Limit,
+		Upload: form.Upload{
+			Writer:  w,
+			Request: r,
+			Limit:   h.Limit,
+		},
 		Objects: objects,
 	}
 
@@ -146,7 +148,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 		return &model.Object{}, errors.Err(err)
 	}
 
-	defer f.File.Close()
+	defer f.Upload.File.Close()
 
 	hash, err := crypto.HashNow()
 
@@ -157,7 +159,7 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 	md5_ := md5.New()
 	sha256_ := sha256.New()
 
-	tee := io.TeeReader(f.File, io.MultiWriter(md5_, sha256_))
+	tee := io.TeeReader(f.Upload.File, io.MultiWriter(md5_, sha256_))
 
 	dst, err := h.FileStore.OpenFile(hash, os.O_CREATE|os.O_WRONLY, os.FileMode(0755))
 

@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	nethttp "net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -99,7 +101,7 @@ func mainCommand(cmd cli.Command) {
 			Key:       cfg.Net.SSL.Key,
 			CSRFToken: []byte(cfg.Crypto.Auth),
 		},
-		client: client,
+		client:      client,
 	}
 
 	broker := "redis://"
@@ -137,6 +139,12 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to create queue server: %s\n", err)
 	}
 
+	images, err := filestore.New(cfg.Images)
+
+	if err != nil {
+		log.Error.Fatalf("failed to create image store: %s\n", err)
+	}
+
 	artifacts, err := filestore.New(cfg.Artifacts)
 
 	if err != nil {
@@ -149,13 +157,21 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to create object store: %s\n", err)
 	}
 
+	imageUrl, _ := url.Parse(cfg.Images)
+	objectUrl, _ := url.Parse(cfg.Objects)
+
+	imageLimit, _ := strconv.ParseInt(imageUrl.Query().Get("limit"), 10, 64)
+	objectLimit, _ := strconv.ParseInt(objectUrl.Query().Get("limit"), 10, 64)
+
 	srv.db = db
 	srv.client = client
+	srv.imageLimit = imageLimit
+	srv.objectLimit = objectLimit
+	srv.images = images
 	srv.objects = objects
 	srv.artifacts = artifacts
 	srv.hash = []byte(cfg.Crypto.Hash)
 	srv.key = []byte(cfg.Crypto.Key)
-	srv.limit = cfg.Objects.Limit
 	srv.queue = queue
 
 	uiSrv := uiServer{

@@ -80,10 +80,19 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 	d.pidfile = pidfile.Name()
 
 	parts := strings.Split(d.image, "/")
-	disk := filepath.Join(d.dir, parts[0], d.arch, parts[1])
 
-	if _, err := os.Stat(disk); err != nil {
-		return errors.New("no such image " + d.image)
+	base := []string{d.dir, "_base", d.arch}
+	disk := filepath.Join(append(base, parts...)...)
+
+	info, err := os.Stat(disk)
+
+	if err != nil || info.IsDir() {
+		user := []string{d.dir}
+		disk = filepath.Join(append(user, parts...)...)
+
+		if _, err := os.Stat(disk); err != nil {
+			return errors.New("could not find image")
+		}
 	}
 
 	bin := fmt.Sprintf("qemu-system-%s", d.arch)
@@ -104,6 +113,14 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 		"user,hostfwd=tcp:" + d.hostfwd + "-:22",
 		"-drive",
 		"file=" + disk + ",media=disk,snapshot=on,if=virtio",
+	}
+
+	// Check if it's a custom image, we don't want to display the hash in the
+	// build log.
+	if strings.Contains(d.image, "::") {
+		parts := strings.Split(d.image, "::")
+
+		d.image = parts[0]
 	}
 
 	fmt.Fprintf(d.Writer, "Booting machine with image %s...\n", d.image)

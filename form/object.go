@@ -1,23 +1,14 @@
 package form
 
 import (
-	"mime/multipart"
-	"net/http"
-	"strings"
-
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
 )
 
 type Object struct {
-	Objects model.ObjectStore `schema:"-"`
+	Upload `schema:"-"`
 
-	Writer  http.ResponseWriter   `schame:"-"`
-	Request *http.Request         `schema:"-"`
-	Limit   int64                 `schema:"-"`
-	File    multipart.File        `schema:"-"`
-	Info    *multipart.FileHeader `schema:"-"`
-
+	Objects   model.ObjectStore `schema:"-"`
 	Namespace string `schema:"namespace"`
 	Name      string `schema:"name"`
 }
@@ -51,26 +42,12 @@ func (f *Object) Validate() error {
 		errs.Put("name", ErrFieldExists("Name"))
 	}
 
-	f.Request.Body = http.MaxBytesReader(f.Writer, f.Request.Body, f.Limit)
-
-	if err := f.Request.ParseMultipartForm(f.Limit); err != nil {
-		if strings.Contains(err.Error(), "request body too large") {
-			errs.Put("file", ErrFieldInvalid("File", "too big"))
-			return errs
+	if err := f.Upload.Validate(); err != nil {
+		for k, v := range err.(Errors) {
+			for _, e := range v {
+				errs.Put(k, errors.New(e))
+			}
 		}
-
-		return errors.Err(err)
-	}
-
-	f.File, f.Info, err = f.Request.FormFile("file")
-
-	if err != nil {
-		if strings.Contains(err.Error(), "no such file") {
-			errs.Put("file", ErrFieldRequired("File"))
-			return errs
-		}
-
-		errs.Put("file", ErrField("File", err))
 	}
 
 	return errs.Err()

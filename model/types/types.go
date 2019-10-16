@@ -77,6 +77,19 @@ func (t *Driver) UnmarshalText(b []byte) error {
 	}
 }
 
+func (t Driver) String() string {
+	switch t {
+	case SSH:
+		return "ssh"
+	case Qemu:
+		return "qemu"
+	case Docker:
+		return "docker"
+	default:
+		return ""
+	}
+}
+
 func (t Driver) Value() (driver.Value, error) {
 	switch t {
 	case SSH:

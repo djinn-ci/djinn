@@ -9,6 +9,7 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/template/file"
 	"github.com/andrewpillar/thrall/template/object"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/core"
@@ -105,12 +106,14 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Create(w http.ResponseWriter, r *http.Request) {
-	p := &object.CreatePage{
+	p := &file.CreatePage{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
 			Errors: h.Core.Errors(w, r),
 			Fields: h.Core.Form(w, r),
 		},
+		Name:   "object",
+		Action: "/objects",
 	}
 
 	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))

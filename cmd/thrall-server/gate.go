@@ -20,6 +20,7 @@ type load func(int64) (model.Interface, error)
 type gate struct {
 	users      model.UserStore
 	namespaces model.NamespaceStore
+	images     model.ImageStore
 	objects    model.ObjectStore
 	variables  model.VariableStore
 	keys       model.KeyStore
@@ -133,6 +134,30 @@ func (g gate) namespace(u *model.User, r *http.Request) (*http.Request, bool) {
 	}
 
 	return r, root.AccessibleBy(u)
+}
+
+func (g gate) image(u *model.User, r *http.Request) (*http.Request, bool) {
+	var (
+		i   *model.Image
+		err error
+	)
+
+	load := func(id int64) (model.Interface, error) {
+		i, err = g.images.Find(id)
+
+		return i, errors.Err(err)
+	}
+
+	ok, err := g.resource("image", u, r, load)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		return r, false
+	}
+
+	r = r.WithContext(context.WithValue(r.Context(), "image", i))
+
+	return r, ok
 }
 
 func (g gate) object(u *model.User, r *http.Request) (*http.Request, bool) {

@@ -340,6 +340,25 @@ func (b Build) Signature() *tasks.Signature {
 func (b Build) Submit(srv *machinery.Server) error {
 	m, _ := config.DecodeManifest(strings.NewReader(b.Manifest))
 
+	images := ImageStore{
+		Store: Store{
+			DB: b.DB,
+		},
+		User: b.User,
+	}
+
+	image := m.Driver["image"]
+
+	i, err := images.FindByName(image)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if !i.IsZero() {
+		m.Driver["image"] = i.Name + "::" + i.Hash
+	}
+
 	buf := &bytes.Buffer{}
 
 	enc := json.NewEncoder(buf)

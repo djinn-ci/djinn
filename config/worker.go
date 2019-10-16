@@ -13,6 +13,7 @@ type Worker struct {
 	Parallelism int
 	Drivers     []string
 	Timeout     string
+	Images      string
 
 	Crypto struct {
 		Key string
@@ -30,8 +31,8 @@ type Worker struct {
 		Password string
 	}
 
-	Artifacts FileStore
-	Objects   FileStore
+	Artifacts string
+	Objects   string
 
 	SSH  SSH
 	Qemu Qemu

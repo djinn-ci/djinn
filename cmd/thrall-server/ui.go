@@ -30,14 +30,17 @@ type server struct {
 	db     *sqlx.DB
 	client *redis.Client
 
+	drivers map[string]struct{}
+
+	imageLimit  int64
+	objectLimit int64
+
+	images    filestore.FileStore
 	objects   filestore.FileStore
 	artifacts filestore.FileStore
 
-	drivers map[string]struct{}
-
-	hash   []byte
-	key    []byte
-	limit  int64
+	hash []byte
+	key  []byte
 
 	queue  *machinery.Server
 	router *mux.Router
@@ -136,6 +139,18 @@ func (s *uiServer) init() {
 		},
 	}
 
+	image := ui.Image{
+		Core: core.Image{
+			Handler: handler,
+			Namespaces: namespaces,
+			FileStore:  s.images,
+			Limit:      s.imageLimit,
+			Images:     model.ImageStore{
+				Store: store,
+			},
+		},
+	}
+
 	invite := ui.Invite{
 		Core: core.Invite{
 			Handler: handler,
@@ -163,7 +178,7 @@ func (s *uiServer) init() {
 			Handler:    handler,
 			Namespaces: namespaces,
 			FileStore:  s.objects,
-			Limit:      s.limit,
+			Limit:      s.objectLimit,
 			Objects:    model.ObjectStore{
 				Store: store,
 			},
@@ -219,6 +234,10 @@ func (s *uiServer) init() {
 	authRouter.HandleFunc("/namespaces/create", namespace.Create).Methods("GET")
 	authRouter.HandleFunc("/namespaces", namespace.Store).Methods("POST")
 
+	authRouter.HandleFunc("/images", image.Index).Methods("GET")
+	authRouter.HandleFunc("/images/create", image.Create).Methods("GET")
+	authRouter.HandleFunc("/images", image.Store).Methods("POST")
+
 	authRouter.HandleFunc("/objects", object.Index).Methods("GET")
 	authRouter.HandleFunc("/objects/create", object.Create).Methods("GET")
 	authRouter.HandleFunc("/objects", object.Store).Methods("POST")
@@ -245,6 +264,9 @@ func (s *uiServer) init() {
 	gate := gate{
 		users:      users,
 		namespaces: namespaces,
+		images:     model.ImageStore{
+			Store: store,
+		},
 		objects:    model.ObjectStore{
 			Store: store,
 		},
@@ -288,6 +310,12 @@ func (s *uiServer) init() {
 	buildRouter.HandleFunc("/tags", tag.Store).Methods("POST")
 	buildRouter.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
 	buildRouter.Use(mw.Gate(gate.build))
+
+	imageRouter := s.router.PathPrefix("/images").Subrouter()
+	imageRouter.HandleFunc("", image.Index).Methods("GET")
+	imageRouter.HandleFunc("/{image:[0-9]+}/download", image.Download).Methods("GET")
+	imageRouter.HandleFunc("/{image:[0-9]+}", image.Destroy).Methods("DELETE")
+	imageRouter.Use(mw.Gate(gate.image))
 
 	objectRouter := s.router.PathPrefix("/objects").Subrouter()
 	objectRouter.HandleFunc("", object.Index).Methods("GET")

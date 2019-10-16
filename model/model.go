@@ -54,6 +54,7 @@ var (
 	BuildVariableTable = "build_variables"
 	CollaboratorTable  = "collaborators"
 	DriverTable        = "drivers"
+	ImageTable         = "images"
 	InviteTable        = "invites"
 	JobTable           = "jobs"
 	JobDependencyTable = "job_dependencies"

@@ -55,6 +55,15 @@ func (u *User) CollaboratorStore() CollaboratorStore {
 	}
 }
 
+func (u *User) ImageStore() ImageStore {
+	return ImageStore{
+		Store: Store{
+			DB: u.DB,
+		},
+		User: u,
+	}
+}
+
 func (u *User) InviteStore() InviteStore {
 	return InviteStore{
 		Store: Store{

@@ -58,8 +58,6 @@ type IndexPage struct {
 								</td>
 								<td class="align-right">
 									<a class="btn btn-primary" href="{%s i.UIEndpoint("download", i.Name) %}">Download</a>
-								</td>
-								<td class="align-right">
 									{% if p.User.ID == i.UserID || i.Namespace != nil && i.Namespace.UserID == p.User.ID %}
 										<form method="POST" action="{%s i.UIEndpoint() %}">
 											{%s= string(p.CSRF) %}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -271,7 +272,7 @@ func (w worker) runBuild(s string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
 
-	sub := w.client.Subscribe("kill")
+	sub := w.client.Subscribe(fmt.Sprintf("kill-%v", b.ID))
 	defer sub.Close()
 
 	go func() {

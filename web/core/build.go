@@ -2,6 +2,7 @@ package core
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -103,7 +104,7 @@ func (h Build) Kill(r *http.Request) error {
 		return ErrBuildNotRunning
 	}
 
-	_, err := h.Client.Publish("kill", b.Secret.String).Result()
+	_, err := h.Client.Publish(fmt.Sprintf("kill-%v", b.ID), b.Secret.String).Result()
 
 	return errors.Err(err)
 }

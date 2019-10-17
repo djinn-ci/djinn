@@ -26,6 +26,7 @@ import (
 type Build struct {
 	web.Handler
 
+	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Builds     model.BuildStore
 	Client     *redis.Client
@@ -165,7 +166,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 	}
 
 	if f.Namespace != "" {
-		n, err := u.NamespaceStore().FindOrCreate(f.Namespace)
+		n, err := h.Namespace.Get(f.Namespace)
 
 		if err != nil {
 			return b, errors.Err(err)

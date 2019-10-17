@@ -18,6 +18,7 @@ import (
 type Key struct {
 	web.Handler
 
+	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Keys       model.KeyStore
 }
@@ -74,7 +75,6 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) (*model.Key, error) {
 	u := h.User(r)
 
 	keys := u.KeyStore()
-	namespaces := u.NamespaceStore()
 
 	f := &form.Key{
 		Keys: keys,
@@ -87,10 +87,14 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) (*model.Key, error) {
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err := namespaces.FindOrCreate(f.Namespace)
+		n, err := h.Namespace.Get(f.Namespace)
 
 		if err != nil {
 			return &model.Key{}, errors.Err(err)
+		}
+
+		if !n.CanAdd(u) {
+			return &model.Key{}, errors.Err(ErrAccessDenied)
 		}
 
 		f.Keys = n.KeyStore()
@@ -131,8 +135,6 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) (*model.Key, error) 
 	u := h.User(r)
 	k := h.Key(r)
 
-	namespaces := u.NamespaceStore()
-
 	f := &form.Key{
 		Keys: h.Keys,
 	}
@@ -142,10 +144,14 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) (*model.Key, error) 
 	}
 
 	if f.Namespace != "" {
-		n, err := namespaces.FindOrCreate(f.Namespace)
+		n, err := h.Namespace.Get(f.Namespace)
 
 		if err != nil {
 			return &model.Key{}, errors.Err(err)
+		}
+
+		if !n.CanAdd(u) {
+			return &model.Key{}, errors.Err(ErrAccessDenied)
 		}
 
 		k.NamespaceID = sql.NullInt64{

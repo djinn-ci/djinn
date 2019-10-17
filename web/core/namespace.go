@@ -3,6 +3,7 @@ package core
 import (
 	"database/sql"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -20,7 +21,7 @@ type Namespace struct {
 	Namespaces model.NamespaceStore
 }
 
-var ErrNamespaceTooDeep = errors.New("namespace cannot exceed depth of 20")
+var NamespaceMaxDepth int64 = 20
 
 func (h Namespace) Namespace(r *http.Request) *model.Namespace {
 	val := r.Context().Value("namespace")
@@ -28,6 +29,91 @@ func (h Namespace) Namespace(r *http.Request) *model.Namespace {
 	n, _ := val.(*model.Namespace)
 
 	return n
+}
+
+// Get a namespace by the given path. If the namespace does not exist then it
+// will be created on the fly along with each sub-namespace. A namespace for a
+// specific user can be retrieved like this if there is an '@' in the path. For
+// example 'parent/child@user'.
+func (h Namespace) Get(path string) (*model.Namespace, error) {
+	namespaces := h.Namespaces
+
+	if strings.Contains(path, "@") {
+		parts := strings.Split(path, "@")
+
+		username := parts[1]
+		path = parts[0]
+
+		u, err := h.Users.FindByUsername(username)
+
+		if err != nil {
+			return &model.Namespace{}, errors.Err(err)
+		}
+
+		if !u.IsZero() {
+			namespaces = u.NamespaceStore()
+		}
+	}
+
+	n, err := namespaces.FindByPath(path)
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	if !n.IsZero() {
+		err = n.LoadCollaborators()
+
+		return n, errors.Err(err)
+	}
+
+	p := &model.Namespace{}
+
+	parts := strings.Split(path, "/")
+
+	for _, name := range parts {
+		if p.Level + 1 > NamespaceMaxDepth {
+			break
+		}
+
+		if matched, err := regexp.Match("^[a-zA-Z0-9]+$", []byte(name)); !matched || err != nil {
+			break
+		}
+
+		n = namespaces.New()
+		n.Name = name
+		n.Path = name
+		n.Level = p.Level + 1
+
+		if !p.IsZero() {
+			n.RootID = p.RootID
+			n.ParentID = sql.NullInt64{
+				Int64: p.ID,
+				Valid: true,
+			}
+
+			n.Path = strings.Join([]string{p.Path, n.Name}, "/")
+		}
+
+		if err := namespaces.Create(n); err != nil {
+			return n, errors.Err(err)
+		}
+
+		if p.IsZero() {
+			n.RootID = sql.NullInt64{
+				Int64: n.ID,
+				Valid: true,
+			}
+
+			if err := namespaces.Update(n); err != nil {
+				return n, errors.Err(err)
+			}
+		}
+
+		p = n
+	}
+
+	return n, nil
 }
 
 func (h Namespace) Destroy(r *http.Request) error {
@@ -125,7 +211,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) (*model.Namespa
 		n.Visibility = parent.Visibility
 	}
 
-	if n.Level >= model.NamespaceMaxDepth {
+	if n.Level >= NamespaceMaxDepth {
 		return n, ErrNamespaceTooDeep
 	}
 

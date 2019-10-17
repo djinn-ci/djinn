@@ -7,6 +7,7 @@ import (
 	"github.com/andrewpillar/thrall/template/key"
 	"github.com/andrewpillar/thrall/template/object"
 	"github.com/andrewpillar/thrall/template/variable"
+	"github.com/andrewpillar/thrall/web/core"
 )
 %}
 
@@ -156,7 +157,7 @@ type ShowCollaborators struct {
 {% func (p *ShowPage) Actions() %}
 	{% if p.User != nil && p.User.ID == p.Namespace.UserID %}
 		<li><a href="{%s p.Namespace.UIEndpoint() %}/-/edit" class="btn btn-primary">Edit</a></li>
-		{% if p.Namespace.Level + 1 < model.NamespaceMaxDepth %}
+		{% if p.Namespace.Level + 1 < core.NamespaceMaxDepth %}
 			<li><a href="/namespaces/create?parent={%s p.Namespace.Path %}" class="btn btn-primary">Create</a></li>
 		{% endif %}
 	{% endif %}

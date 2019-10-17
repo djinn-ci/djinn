@@ -3,7 +3,6 @@ package model
 import (
 	"database/sql"
 	"fmt"
-	"regexp"
 	"strings"
 	"time"
 
@@ -12,8 +11,6 @@ import (
 
 	"github.com/andrewpillar/query"
 )
-
-var NamespaceMaxDepth int64 = 20
 
 type Namespace struct {
 	Model
@@ -68,13 +65,8 @@ func NamespaceSharedWith(u *User) query.Option {
 	}
 }
 
+// Determine if the given user can add to a namespace.
 func (n Namespace) CanAdd(u *User) bool {
-	if n.Collaborators == nil || len(n.Collaborators) == 0 {
-		if err := n.LoadCollaborators(); err != nil {
-			return false
-		}
-	}
-
 	_, ok := n.Collaborators[u.ID]
 
 	if !ok {
@@ -403,95 +395,9 @@ func (s NamespaceStore) Find(id int64) (*Namespace, error) {
 }
 
 func (s NamespaceStore) FindByPath(path string) (*Namespace, error) {
-	parts := strings.Split(path, "@")
-
-	if len(parts) > 1 {
-		path = parts[0]
-
-		users := UserStore{
-			Store: s.Store,
-		}
-
-		u, err := users.FindByUsername(parts[1])
-
-		if err != nil {
-			return nil, errors.Err(err)
-		}
-
-		s.User = u
-	}
-
 	n, err := s.findBy("path", path)
 
 	return n, errors.Err(err)
-}
-
-func (s NamespaceStore) FindOrCreate(path string) (*Namespace, error) {
-	n, err := s.FindByPath(path)
-
-	if err != nil {
-		return n, errors.Err(err)
-	}
-
-	if !n.IsZero() {
-		return n, nil
-	}
-
-	parent := &Namespace{}
-
-	if strings.Contains(path, "@") {
-		parts := strings.Split(path, "@")
-
-		path = parts[0]
-	}
-
-	parts := strings.Split(path, "/")
-
-	for _, name := range parts {
-		if parent.Level + 1 > NamespaceMaxDepth {
-			break
-		}
-
-		if matched, err := regexp.Match("^[a-zA-Z0-9]+$", []byte(name)); !matched || err != nil {
-			break
-		}
-
-		n = s.New()
-		n.Name = name
-		n.Path = name
-		n.Level = parent.Level + 1
-
-		if !parent.IsZero() {
-			n.RootID = parent.RootID
-			n.ParentID = sql.NullInt64{
-				Int64: parent.ID,
-				Valid: true,
-			}
-
-			n.Path = strings.Join([]string{parent.Path, n.Name}, "/")
-		}
-
-		if err := s.Create(n); err != nil {
-			return n, errors.Err(err)
-		}
-
-		if parent.IsZero() {
-			n.RootID = sql.NullInt64{
-				Int64: n.ID,
-				Valid: true,
-			}
-
-			if err := s.Update(n); err != nil {
-				return n, errors.Err(err)
-			}
-		}
-
-		parent = n
-	}
-
-	n.User = s.User
-
-	return n, nil
 }
 
 func (s NamespaceStore) FindRoot(id int64) (*Namespace, error) {

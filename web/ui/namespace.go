@@ -7,7 +7,6 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/namespace"
 	"github.com/andrewpillar/thrall/web"
@@ -64,7 +63,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if parent.Level + 1 > model.NamespaceMaxDepth {
+	if parent.Level + 1 > core.NamespaceMaxDepth {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}

@@ -16,6 +16,7 @@ import (
 type Variable struct {
 	web.Handler
 
+	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Variables  model.VariableStore
 }
@@ -72,7 +73,6 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) (*model.Variable
 	u := h.User(r)
 
 	variables := u.VariableStore()
-	namespaces := u.NamespaceStore()
 
 	f := &form.Variable{
 		Variables: variables,
@@ -82,14 +82,16 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) (*model.Variable
 		return &model.Variable{}, errors.Err(err)
 	}
 
-	var err error
-
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err = namespaces.FindOrCreate(f.Namespace)
+		n, err := h.Namespace.Get(f.Namespace)
 
 		if err != nil {
+			return &model.Variable{}, errors.Err(err)
+		}
+
+		if !n.CanAdd(u) {
 			return &model.Variable{}, errors.Err(err)
 		}
 
@@ -115,7 +117,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) (*model.Variable
 	v.Key = f.Key
 	v.Value = f.Value
 
-	err = h.Variables.Create(v)
+	err := h.Variables.Create(v)
 
 	return v, errors.Err(err)
 }

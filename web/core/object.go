@@ -22,6 +22,7 @@ import (
 type Object struct {
 	web.Handler
 
+	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Objects    model.ObjectStore
 	FileStore  filestore.FileStore
@@ -104,7 +105,6 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 	u := h.User(r)
 
 	objects := u.ObjectStore()
-	namespaces := u.NamespaceStore()
 
 	f := &form.Object{
 		Upload: form.Upload{
@@ -126,19 +126,17 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 		return &model.Object{}, errors.Err(err)
 	}
 
-	var err error
-
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err = namespaces.FindOrCreate(f.Namespace)
+		n, err := h.Namespace.Get(f.Namespace)
 
 		if err != nil {
 			return &model.Object{}, errors.Err(err)
 		}
 
 		if !n.CanAdd(u) {
-			return &model.Object{}, ErrNotFound
+			return &model.Object{}, errors.Err(ErrAccessDenied)
 		}
 
 		f.Objects = n.ObjectStore()

@@ -79,15 +79,22 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if cause == core.ErrValidationFailed {
+		switch cause {
+		case core.ErrValidationFailed:
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		case core.ErrAccessDenied:
+			h.Core.FlashAlert(w, r, template.Danger("Failed to create variable: could not add to namespace"))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		default:
+			log.Error.Println(errors.Err(err))
+
+			h.Core.FlashAlert(w, r, template.Danger("Failed to create variable: " + cause.Error()))
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 
-		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to create variable: " + cause.Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
 	}
 
 	h.Core.FlashAlert(w, r, template.Success("Variable has been added: " + v.Key))

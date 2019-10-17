@@ -22,6 +22,7 @@ import (
 type Image struct {
 	web.Handler
 
+	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Images     model.ImageStore
 	FileStore  filestore.FileStore
@@ -104,7 +105,6 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) (*model.Image, erro
 	u := h.User(r)
 
 	images := u.ImageStore()
-	namespaces := u.NamespaceStore()
 
 	f := &form.Image{
 		Upload: form.Upload{
@@ -119,12 +119,10 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) (*model.Image, erro
 		return &model.Image{}, errors.Err(err)
 	}
 
-	var err error
-
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err = namespaces.FindOrCreate(f.Namespace)
+		n, err := h.Namespace.Get(f.Namespace)
 
 		if err != nil {
 			return &model.Image{}, errors.Err(err)

@@ -88,12 +88,11 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if cause == core.ErrValidationFailed {
+		switch cause {
+		case core.ErrValidationFailed:
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		}
-
-		if cause == core.ErrUnsupportedDriver {
+		case core.ErrUnsupportedDriver:
 			errs := form.NewErrors()
 			errs.Put("manifest", cause)
 
@@ -101,15 +100,17 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		}
-
-		if cause != core.ErrAccessDenied {
+		case core.ErrAccessDenied:
+			h.Core.FlashAlert(w, r, template.Danger("Failed to create build: could not add to namespace"))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		default:
 			log.Error.Println(errors.Err(err))
-		}
 
-		h.Core.FlashAlert(w, r, template.Danger("Failed to create build: " + cause.Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
+			h.Core.FlashAlert(w, r, template.Danger("Failed to create build: " + cause.Error()))
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		}
 	}
 
 	h.Core.FlashAlert(w, r, template.Success("Build submitted: #" + strconv.FormatInt(b.ID, 10)))

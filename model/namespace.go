@@ -83,12 +83,6 @@ func (n Namespace) AccessibleBy(u *User) bool {
 	case types.Internal:
 		return !u.IsZero()
 	case types.Private:
-		if n.Collaborators == nil || len(n.Collaborators) == 0 {
-			if err := n.LoadCollaborators(); err != nil {
-				return false
-			}
-		}
-
 		_, ok := n.Collaborators[u.ID]
 
 		if !ok {

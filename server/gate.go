@@ -64,6 +64,11 @@ func (g gate) build(u *model.User, r *http.Request) (*http.Request, bool) {
 		return r, false
 	}
 
+	if err := root.LoadCollaborators(); err != nil {
+		log.Error.Println(errors.Err(err))
+		return r, false
+	}
+
 	return r, root.AccessibleBy(u)
 }
 
@@ -129,6 +134,11 @@ func (g gate) namespace(u *model.User, r *http.Request) (*http.Request, bool) {
 	root, err := g.namespaces.FindRoot(n.ID)
 
 	if err != nil {
+		log.Error.Println(errors.Err(err))
+		return r, false
+	}
+
+	if err := root.LoadCollaborators(); err != nil {
 		log.Error.Println(errors.Err(err))
 		return r, false
 	}
@@ -210,6 +220,11 @@ func (g gate) resource(name string, u *model.User, r *http.Request, fn load) (bo
 	root, err := g.namespaces.FindRoot(namespaceId.Int64)
 
 	if err != nil {
+		return false, errors.Err(err)
+	}
+
+	if err := root.LoadCollaborators(); err != nil {
+		log.Error.Println(errors.Err(err))
 		return false, errors.Err(err)
 	}
 

@@ -37,6 +37,7 @@ type IndexPage struct {
 							<th>NAMESPACE</th>
 							<th></th>
 							<th></th>
+							<th></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -54,6 +55,9 @@ type IndexPage struct {
 									{% if p.User.ID != i.UserID %}
 										<span class="muted">{% cat "../../svgs/users.svg" %}</span>
 									{% endif %}
+								</td>
+								<td class="align-right">
+									<a class="btn btn-primary" href="{%s i.UIEndpoint("download", i.Name) %}">Download</a>
 								</td>
 								<td class="align-right">
 									{% if p.User.ID == i.UserID || i.Namespace != nil && i.Namespace.UserID == p.User.ID %}

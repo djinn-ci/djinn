@@ -19,6 +19,11 @@ import (
 	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/server"
+	"github.com/andrewpillar/thrall/session"
+	"github.com/andrewpillar/thrall/web"
+
+	"github.com/gorilla/securecookie"
 
 	"github.com/go-redis/redis"
 
@@ -91,16 +96,6 @@ func mainCommand(cmd cli.Command) {
 
 	log.Info.Println("connected to redis database")
 
-	srv := server{
-		Server: &http.Server{
-			Addr:      cfg.Net.Listen,
-			Cert:      cfg.Net.SSL.Cert,
-			Key:       cfg.Net.SSL.Key,
-			CSRFToken: []byte(cfg.Crypto.Auth),
-		},
-		client:      client,
-	}
-
 	broker := "redis://"
 
 	if cfg.Redis.Password != "" {
@@ -109,7 +104,7 @@ func mainCommand(cmd cli.Command) {
 
 	broker += cfg.Redis.Addr
 
-	srv.queues = make(map[string]*machinery.Server)
+	queues := make(map[string]*machinery.Server)
 
 	for _, d := range cfg.Drivers {
 		queue, err := machinery.NewServer(&qconfig.Config{
@@ -122,19 +117,41 @@ func mainCommand(cmd cli.Command) {
 			log.Error.Fatalf("failed to setup queue: %s\n", err)
 		}
 
-		srv.queues[d.Type] = queue
+		queues[d.Type] = queue
 	}
 
-	images, err := filestore.New(cfg.Images)
+	hash := []byte(cfg.Crypto.Hash)
+	key := []byte(cfg.Crypto.Key)
 
-	if err != nil {
-		log.Error.Fatalf("failed to create image store: %s\n", err)
+	handler := web.Handler{
+		Store:        session.New(client, key),
+		SecureCookie: securecookie.New(hash, key),
+		Users:        model.UserStore{
+			Store: model.Store{
+				DB: db,
+			},
+		},
 	}
 
-	artifacts, err := filestore.New(cfg.Artifacts)
+	middleware := web.Middleware{
+		Handler: handler,
+	}
 
-	if err != nil {
-		log.Error.Fatalf("failed to create artifact store: %s\n", err)
+	var (
+		images     filestore.FileStore
+		imageLimit int64
+	)
+
+	if cfg.Images != "" {
+		images, err = filestore.New(cfg.Images)
+
+		if err != nil {
+			log.Error.Fatalf("failed to create image store: %s\n", err)
+		}
+
+		u, _ := url.Parse(cfg.Images)
+
+		imageLimit, _ = strconv.ParseInt(u.Query().Get("limit"), 10, 64)
 	}
 
 	objects, err := filestore.New(cfg.Objects)
@@ -143,31 +160,44 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to create object store: %s\n", err)
 	}
 
-	imageUrl, _ := url.Parse(cfg.Images)
 	objectUrl, _ := url.Parse(cfg.Objects)
 
-	imageLimit, _ := strconv.ParseInt(imageUrl.Query().Get("limit"), 10, 64)
 	objectLimit, _ := strconv.ParseInt(objectUrl.Query().Get("limit"), 10, 64)
 
-	srv.db = db
-	srv.client = client
-	srv.imageLimit = imageLimit
-	srv.objectLimit = objectLimit
-	srv.images = images
-	srv.objects = objects
-	srv.artifacts = artifacts
-	srv.hash = []byte(cfg.Crypto.Hash)
-	srv.key = []byte(cfg.Crypto.Key)
+	artifacts, err := filestore.New(cfg.Artifacts)
 
-	uiSrv := uiServer{
-		server: srv,
-		assets: "public",
+	if err != nil {
+		log.Error.Fatalf("failed to create artifact store: %s\n", err)
 	}
 
-	uiSrv.init()
+	srv := server.Server{
+		Http: &http.Server{
+			Addr:      cfg.Net.Listen,
+			Cert:      cfg.Net.SSL.Cert,
+			Key:       cfg.Net.SSL.Key,
+			CSRFToken: []byte(cfg.Crypto.Auth),
+		},
+		DB:          db,
+		Redis:       client,
+		Images:      images,
+		Artifacts:   artifacts,
+		Objects:     objects,
+		Queues:      queues,
+		ImageLimit:  imageLimit,
+		ObjectLimit: objectLimit,
+		Handler:     handler,
+		Middleware:  middleware,
+	}
+
+	ui := server.UI{
+		Server: srv,
+		Assets: "public",
+	}
+
+	ui.Init()
 
 	go func() {
-		if err := uiSrv.Serve(); err != nil {
+		if err := ui.Http.Serve(); err != nil {
 			cause := errors.Cause(err)
 
 			if cause != nethttp.ErrServerClosed {
@@ -187,7 +217,7 @@ func mainCommand(cmd cli.Command) {
 
 	sig := <-c
 
-	uiSrv.Shutdown(ctx)
+	ui.Http.Shutdown(ctx)
 
 	log.Info.Println("signal:", sig, "received, shutting down")
 }

@@ -3,6 +3,7 @@ package ui
 import (
 	"net/http"
 	"os"
+	"path/filepath"
 	"regexp"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -15,6 +16,7 @@ import (
 	"github.com/andrewpillar/thrall/web/core"
 
 	"github.com/gorilla/csrf"
+	"github.com/gorilla/mux"
 )
 
 type Image struct {
@@ -101,7 +103,14 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 func (h Image) Download(w http.ResponseWriter, r *http.Request) {
 	i := h.Core.Image(r)
 
-	f, err := h.Core.FileStore.Open(i.Hash)
+	vars := mux.Vars(r)
+
+	if i.Name != vars["name"] {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	f, err := h.Core.FileStore.Open(filepath.Join(i.Driver.String(), i.Name + "::" + i.Hash))
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {

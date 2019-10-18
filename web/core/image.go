@@ -119,10 +119,12 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) (*model.Image, erro
 		return &model.Image{}, errors.Err(err)
 	}
 
+	var err error
+
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err := h.Namespace.Get(f.Namespace)
+		n, err = h.Namespace.Get(f.Namespace)
 
 		if err != nil {
 			return &model.Image{}, errors.Err(err)

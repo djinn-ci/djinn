@@ -126,10 +126,12 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 		return &model.Object{}, errors.Err(err)
 	}
 
+	var err error
+
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err := h.Namespace.Get(f.Namespace)
+		n, err = h.Namespace.Get(f.Namespace)
 
 		if err != nil {
 			return &model.Object{}, errors.Err(err)

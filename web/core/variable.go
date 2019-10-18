@@ -82,10 +82,12 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) (*model.Variable
 		return &model.Variable{}, errors.Err(err)
 	}
 
+	var err error
+
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err := h.Namespace.Get(f.Namespace)
+		n, err = h.Namespace.Get(f.Namespace)
 
 		if err != nil {
 			return &model.Variable{}, errors.Err(err)
@@ -117,7 +119,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) (*model.Variable
 	v.Key = f.Key
 	v.Value = f.Value
 
-	err := h.Variables.Create(v)
+	err = h.Variables.Create(v)
 
 	return v, errors.Err(err)
 }

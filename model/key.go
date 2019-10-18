@@ -266,7 +266,8 @@ func (s KeyStore) findBy(col string, val interface{}) (*Key, error) {
 		Model: Model{
 			DB: s.DB,
 		},
-		User: s.User,
+		User:      s.User,
+		Namespace: s.Namespace,
 	}
 
 	q := query.Select(
@@ -274,6 +275,7 @@ func (s KeyStore) findBy(col string, val interface{}) (*Key, error) {
 		query.From(KeyTable),
 		query.Where(col, "=", val),
 		ForUser(s.User),
+		ForNamespace(s.Namespace),
 	)
 
 	err := s.Get(k, q.Build(), q.Args()...)

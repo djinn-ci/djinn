@@ -135,7 +135,7 @@ func (s *Server) Init() {
 
 	s.variable = core.Variable{
 		Handler:    s.Handler,
-		Namespaces: s.namespace,
+		Namespace:  s.namespace,
 		Namespaces: model.NamespaceStore{
 			Store: store,
 		},

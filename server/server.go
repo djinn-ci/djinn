@@ -123,6 +123,9 @@ func (s *Server) Init() {
 	s.key = core.Key{
 		Handler:    s.Handler,
 		Namespace:  s.namespace,
+		Keys:       model.KeyStore{
+			Store: store,
+		},
 		Namespaces: model.NamespaceStore{
 			Store: store,
 		},

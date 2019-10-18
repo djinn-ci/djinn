@@ -127,6 +127,14 @@ func (s *UI) Init() {
 		Core: s.Server.variable,
 	}
 
+	s.namespace = ui.Namespace{
+		Core:     s.Server.namespace,
+		Build:    s.build,
+		Object:   s.object,
+		Variable: s.variable,
+		Key:      s.key,
+	}
+
 	s.Auth()
 	s.Guest()
 
@@ -176,6 +184,9 @@ func (s *UI) Auth() {
 	r.HandleFunc("/settings/password", s.user.Email).Methods("PATCH")
 	r.HandleFunc("/settings/invites", s.user.Settings).Methods("GET")
 	r.HandleFunc("/logout", s.auth.Logout).Methods("POST")
+
+	r.HandleFunc("/invites/{invite:[0-9]+}", s.collaborator.Store).Methods("PATCH")
+	r.HandleFunc("/invites/{invite:[0-9]+}", s.collaborator.Destroy).Methods("DELETE")
 
 	r.Use(s.Middleware.Auth)
 }

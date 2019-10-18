@@ -48,7 +48,7 @@ func (f *Upload) Validate() error {
 		}
 	}
 
-	if len(f.Disallowed) > 0 {
+	if len(f.Disallowed) > 0 && f.Info != nil {
 		for _, mime := range f.Disallowed {
 			if f.Info.Header.Get("Content-Type") == mime {
 				errs.Put("file", ErrFieldInvalid("File", "cannot be a ZIP file or equivalent"))

@@ -79,6 +79,18 @@ func (s *Server) Init() {
 		Builds:     model.BuildStore{
 			Store: store,
 		},
+		Images:     model.ImageStore{
+			Store: store,
+		},
+		Variables:  model.VariableStore{
+			Store: store,
+		},
+		Keys:       model.KeyStore{
+			Store: store,
+		},
+		Objects:    model.ObjectStore{
+			Store: store,
+		},
 		Client:     s.Redis,
 		Queues:     s.Queues,
 	}

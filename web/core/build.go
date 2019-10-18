@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -29,6 +31,10 @@ type Build struct {
 	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Builds     model.BuildStore
+	Images     model.ImageStore
+	Variables  model.VariableStore
+	Keys       model.KeyStore
+	Objects    model.ObjectStore
 	Client     *redis.Client
 	Queues     map[string]*machinery.Server
 }
@@ -199,7 +205,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		return b, errors.Err(err)
 	}
 
-	if err := b.Submit(h.Queues[manifest.Driver["type"]]); err != nil {
+	if err := h.Submit(b, h.Queues[manifest.Driver["type"]]); err != nil {
 		return b, errors.Err(err)
 	}
 
@@ -217,4 +223,220 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 	err = tags.Create(tt...)
 
 	return b, errors.Err(err)
+}
+
+func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
+	m, _ := config.DecodeManifest(strings.NewReader(b.Manifest))
+
+	i, err := h.Images.FindByName(m.Driver["image"])
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if !i.IsZero() {
+		m.Driver["image"] = i.Name + "::" + i.Hash
+	}
+
+	buf := &bytes.Buffer{}
+
+	enc := json.NewEncoder(buf)
+	enc.Encode(m.Driver)
+
+	drivers := b.DriverStore()
+
+	d := drivers.New()
+	d.Config = buf.String()
+	d.Type.UnmarshalText([]byte(m.Driver["type"]))
+
+	if err := drivers.Create(d); err != nil {
+		return errors.Err(err)
+	}
+
+	vv, err := h.Variables.All(
+		query.WhereRaw("namespace_id", "IS", "NULL"),
+		model.OrForNamespace(b.Namespace),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	buildVars := b.BuildVariableStore()
+
+	if err := buildVars.Copy(vv); err != nil {
+		return errors.Err(err)
+	}
+
+	for _, env := range m.Env {
+		parts := strings.SplitN(env, "=", 2)
+
+		bv := buildVars.New()
+		bv.Key = parts[0]
+		bv.Value = parts[1]
+
+		if err := buildVars.Create(bv); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	kk, err := h.Keys.All(
+		query.WhereRaw("namespace_id", "IS", "NULL"),
+		model.OrForNamespace(b.Namespace),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if err := b.BuildKeyStore().Copy(kk); err != nil {
+		return errors.Err(err)
+	}
+
+	names := make([]interface{}, 0, len(m.Objects))
+
+	for src := range m.Objects {
+		names = append(names, src)
+	}
+
+	if len(names) > 0 {
+		oo, err := h.Objects.All(
+			model.ForUser(b.User),
+			query.WhereRaw("namespace_id", "IS", "NULL"),
+			model.OrForNamespace(b.Namespace),
+			query.Where("name", "IN", names...),
+		)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		buildObjs := b.BuildObjectStore()
+
+		for _, o := range oo {
+			bo := buildObjs.New()
+			bo.ObjectID = sql.NullInt64{
+				Int64: o.ID,
+				Valid: true,
+			}
+			bo.Source = o.Name
+			bo.Name = m.Objects[o.Name]
+
+			if err := buildObjs.Create(bo); err != nil {
+				return errors.Err(err)
+			}
+		}
+	}
+
+	stages := b.StageStore()
+
+	setup := stages.New()
+	setup.Name = fmt.Sprintf("setup - #%v", b.ID)
+
+	if err := stages.Create(setup); err != nil {
+		return errors.Err(err)
+	}
+
+	stageModels := make(map[string]*model.Stage)
+
+	for _, name := range m.Stages {
+		canFail := false
+
+		for _, allowed := range m.AllowFailures {
+			if name == allowed {
+				canFail = true
+				break
+			}
+		}
+
+		s := stages.New()
+		s.Name = name
+		s.CanFail = canFail
+
+		if err := stages.Create(s); err != nil {
+			return errors.Err(err)
+		}
+
+		stageModels[s.Name] = s
+	}
+
+	jobs := setup.JobStore()
+
+	create := jobs.New()
+	create.Name = "create driver"
+
+	if err := jobs.Create(create); err != nil {
+		return errors.Err(err)
+	}
+
+	for i, src := range m.Sources {
+		commands := []string{
+			"git clone " + src.URL + " " + src.Dir,
+			"cd " + src.Dir,
+			"git checkout -q " + src.Ref,
+		}
+
+		if src.Dir != "" {
+			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
+		}
+
+		j := jobs.New()
+		j.Name = fmt.Sprintf("clone.%d", i + 1)
+		j.Commands = strings.Join(commands, "\n")
+
+		if err := jobs.Create(j); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	stage := ""
+	jobId := 0
+
+	jobModels := make(map[string]*model.Job)
+
+	for _, job := range m.Jobs {
+		s, ok := stageModels[job.Stage]
+
+		if !ok {
+			continue
+		}
+
+		if s.Name != stage {
+			stage = s.Name
+			jobId = 0
+		}
+
+		jobId++
+
+		jobs := s.JobStore()
+
+		j := jobs.New()
+		j.Name = job.Name
+		j.Commands = strings.Join(job.Commands, "\n")
+
+		if err := jobs.Create(j); err != nil {
+			return errors.Err(err)
+		}
+
+		jobModels[s.Name + j.Name] = j
+
+		for src, dst := range job.Artifacts {
+			hash, _ := crypto.HashNow()
+
+			artifacts := j.ArtifactStore()
+
+			a := artifacts.New()
+			a.Hash = hash
+			a.Source = src
+			a.Name = dst
+
+			if err := artifacts.Create(a); err != nil {
+				return errors.Err(err)
+			}
+		}
+	}
+
+	_, err = srv.SendTask(b.Signature())
+
+	return errors.Err(err)
 }

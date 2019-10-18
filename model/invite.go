@@ -100,7 +100,7 @@ func (s InviteStore) Find(id int64) (*Invite, error) {
 
 	q := query.Select(
 		query.Columns("*"),
-		query.From(ImageTable),
+		query.From(InviteTable),
 		query.Where("id", "=", id),
 		ForNamespace(s.Namespace),
 	)

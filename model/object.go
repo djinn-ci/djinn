@@ -238,10 +238,19 @@ func (s ObjectStore) findBy(col string, val interface{}) (*Object, error) {
 		Model: Model{
 			DB: s.DB,
 		},
-		User: s.User,
+		User:      s.User,
+		Namespace: s.Namespace,
 	}
 
-	err := s.FindBy(o, ObjectTable, col, val)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(ObjectTable),
+		query.Where(col, "=", val),
+		ForUser(s.User),
+		ForNamespace(s.Namespace),
+	)
+
+	err := s.Get(o, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

@@ -106,6 +106,12 @@ func (s ImageStore) Delete(ii ...*Image) error {
 }
 
 func (s ImageStore) Find(id int64) (*Image, error) {
+	i, err := s.findBy("id", id)
+
+	return i, errors.Err(err)
+}
+
+func (s ImageStore) findBy(col string, val interface{}) (*Image, error) {
 	i := &Image{
 		Model: Model{
 			DB: s.DB,
@@ -114,7 +120,15 @@ func (s ImageStore) Find(id int64) (*Image, error) {
 		Namespace: s.Namespace,
 	}
 
-	err := s.FindBy(i, ImageTable, "id", id)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(ImageTable),
+		query.Where(col, "=", val),
+		ForUser(s.User),
+		ForNamespace(s.Namespace),
+	)
+
+	err := s.Get(i, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -124,19 +138,7 @@ func (s ImageStore) Find(id int64) (*Image, error) {
 }
 
 func (s ImageStore) FindByName(name string) (*Image, error) {
-	i := &Image{
-		Model: Model{
-			DB: s.DB,
-		},
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	err := s.FindBy(i, ImageTable, "name", name)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
+	i, err := s.findBy("name", name)
 
 	return i, errors.Err(err)
 }

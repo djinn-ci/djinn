@@ -94,7 +94,15 @@ func (s TagStore) Find(id int64) (*Tag, error) {
 		User:  s.User,
 	}
 
-	err := s.FindBy(t, TagTable, "id", id)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(TagTable),
+		query.Where("id", "=", id),
+		ForBuild(s.Build),
+		ForUser(s.User),
+	)
+
+	err := s.Get(t, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

@@ -350,22 +350,6 @@ func (s Store) Delete(table string, ii ...Interface) error {
 	return errors.Err(err)
 }
 
-func (s Store) FindBy(i Interface, table, col string, val interface{}) error {
-	q := query.Select(
-		query.Columns("*"),
-		query.From(table),
-		query.Where(col, "=", val),
-	)
-
-	err := s.Get(i, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return errors.Err(err)
-}
-
 // Paginate returns a struct containing information about pagination for the
 // given table. It is expected for this to be used for querying against that
 // table to return the set of models at the specified offset.

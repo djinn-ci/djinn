@@ -91,9 +91,17 @@ func (s StageStore) findBy(col string, val interface{}) (*Stage, error) {
 		Model: Model{
 			DB: s.DB,
 		},
+		Build: s.Build,
 	}
 
-	err := s.FindBy(st, StageTable, col, val)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(StageTable),
+		query.Where(col, "=", val),
+		ForBuild(s.Build),
+	)
+
+	err := s.Get(st, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

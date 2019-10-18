@@ -269,7 +269,14 @@ func (s KeyStore) findBy(col string, val interface{}) (*Key, error) {
 		User: s.User,
 	}
 
-	err := s.FindBy(k, KeyTable, col, val)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(KeyTable),
+		query.Where(col, "=", val),
+		ForUser(s.User),
+	)
+
+	err := s.Get(k, q.Build(), q.Args()...)
 
 	return k, errors.Err(err)
 }

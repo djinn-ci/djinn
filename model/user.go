@@ -149,25 +149,35 @@ func (s UserStore) Create(uu ...*User) error {
 }
 
 func (s UserStore) Find(id int64) (*User, error) {
+	u, err := s.findBy("id", id)
+
+	return u, errors.Err(err)
+}
+
+func (s UserStore) findBy(col string, val interface{}) (*User, error) {
 	u := &User{
 		Model: Model{
 			DB: s.DB,
 		},
 	}
 
-	err := s.FindBy(u, UserTable, "id", id)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(UserTable),
+		query.Where(col, "=", val),
+	)
+
+	err := s.Get(u, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 
 	return u, errors.Err(err)
 }
 
 func (s UserStore) FindByEmail(email string) (*User, error) {
-	u := &User{
-		Model: Model{
-			DB: s.DB,
-		},
-	}
-
-	err := s.FindBy(u, UserTable, "email", email)
+	u, err := s.findBy("email", email)
 
 	return u, errors.Err(err)
 }
@@ -196,13 +206,7 @@ func (s UserStore) FindByHandle(handle string) (*User, error) {
 }
 
 func (s UserStore) FindByUsername(username string) (*User, error) {
-	u := &User{
-		Model: Model{
-			DB: s.DB,
-		},
-	}
-
-	err := s.FindBy(u, UserTable, "username", username)
+	u, err := s.findBy("username", username)
 
 	return u, errors.Err(err)
 }

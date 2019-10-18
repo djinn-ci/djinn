@@ -158,7 +158,15 @@ func (s JobStore) findBy(col string, val interface{}) (*Job, error) {
 		Stage: s.Stage,
 	}
 
-	err := s.FindBy(j, JobTable, col, val)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(JobTable),
+		query.Where(col, "=", val),
+		ForBuild(s.Build),
+		ForStage(s.Stage),
+	)
+
+	err := s.Get(j, q.Build(), q.Args()...)
 
 	return j, errors.Err(err)
 }

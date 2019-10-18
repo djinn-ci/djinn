@@ -105,9 +105,23 @@ func (s ArtifactStore) findBy(col string, val interface{}) (*Artifact, error) {
 		Model: Model{
 			DB: s.DB,
 		},
+		Build: s.Build,
+		Job:   s.Job,
 	}
 
-	err := s.FindBy(a, ArtifactTable, col, val)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(ArtifactTable),
+		query.Where(col, "=", val),
+		ForBuild(s.Build),
+		ForJob(s.Job),
+	)
+
+	err := s.Get(a, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 
 	return a, errors.Err(err)
 }

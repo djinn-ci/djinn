@@ -233,10 +233,19 @@ func (s VariableStore) findBy(col string, val interface{}) (*Variable, error) {
 		Model: Model{
 			DB: s.DB,
 		},
-		User: s.User,
+		User:      s.User,
+		Namespace: s.Namespace,
 	}
 
-	err := s.FindBy(v, VariableTable, col, val)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(VariableTable),
+		query.Where(col, "=", val),
+		ForUser(s.User),
+		ForNamespace(s.Namespace),
+	)
+
+	err := s.Get(v, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

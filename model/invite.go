@@ -98,7 +98,14 @@ func (s InviteStore) Find(id int64) (*Invite, error) {
 		Namespace: s.Namespace,
 	}
 
-	err := s.Store.FindBy(i, InviteTable, "id", id)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(ImageTable),
+		query.Where("id", "=", id),
+		ForNamespace(s.Namespace),
+	)
+
+	err := s.Get(i, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

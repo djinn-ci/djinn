@@ -618,6 +618,12 @@ func (s BuildStore) Paginate(page int64, opts ...query.Option) (Paginator, error
 }
 
 func (s BuildStore) Find(id int64) (*Build, error) {
+	b, err := s.findBy("id", id)
+
+	return b, errors.Err(err)
+}
+
+func (s BuildStore) findBy(col string, val interface{}) (*Build, error) {
 	b := &Build{
 		Model: Model{
 			DB: s.DB,
@@ -626,7 +632,15 @@ func (s BuildStore) Find(id int64) (*Build, error) {
 		Namespace: s.Namespace,
 	}
 
-	err := s.FindBy(b, BuildTable, "id", id)
+	q := query.Select(
+		query.Columns("*"),
+		query.From(BuildTable),
+		query.Where(col, "=", val),
+		ForUser(s.User),
+		ForNamespace(s.Namespace),
+	)
+
+	err := s.Get(b, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

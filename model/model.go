@@ -215,10 +215,17 @@ func ForCollaborator(u *User) query.Option {
 					query.Columns("id"),
 					query.From(NamespaceTable),
 					query.WhereQuery("root_id", "IN",
-						query.Select(
-							query.Columns("namespace_id"),
-							query.From(CollaboratorTable),
-							query.Where("user_id", "=", u.ID),
+						query.Union(
+							query.Select(
+								query.Columns("namespace_id"),
+								query.From(CollaboratorTable),
+								query.Where("user_id", "=", u.ID),
+							),
+							query.Select(
+								query.Columns("id"),
+								query.From(NamespaceTable),
+								query.Where("user_id", "=", u.ID),
+							),
 						),
 					),
 				),

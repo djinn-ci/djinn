@@ -212,110 +212,126 @@ func (p *ShowPage) StreamHeader(qw422016 *qt422016.Writer) {
 </svg>
 `)
 	//line template/job/show.qtpl:91
-	qw422016.N().S(`</a> Build #`)
-	//line template/job/show.qtpl:91
+	qw422016.N().S(`</a> `)
+	//line template/job/show.qtpl:92
+	if !p.Job.Build.Namespace.IsZero() {
+		//line template/job/show.qtpl:92
+		qw422016.N().S(` <a href="`)
+		//line template/job/show.qtpl:93
+		qw422016.E().S(p.Job.Build.Namespace.UIEndpoint())
+		//line template/job/show.qtpl:93
+		qw422016.N().S(`">`)
+		//line template/job/show.qtpl:93
+		qw422016.E().S(p.Job.Build.Namespace.Name)
+		//line template/job/show.qtpl:93
+		qw422016.N().S(`</a> / `)
+		//line template/job/show.qtpl:94
+	}
+	//line template/job/show.qtpl:94
+	qw422016.N().S(` Build #`)
+	//line template/job/show.qtpl:95
 	qw422016.E().V(p.Job.BuildID)
-	//line template/job/show.qtpl:91
+	//line template/job/show.qtpl:95
 	qw422016.N().S(` / `)
-	//line template/job/show.qtpl:91
+	//line template/job/show.qtpl:95
 	qw422016.E().S(p.Job.Stage.Name)
-	//line template/job/show.qtpl:91
+	//line template/job/show.qtpl:95
 	qw422016.N().S(` - `)
-	//line template/job/show.qtpl:91
+	//line template/job/show.qtpl:95
 	qw422016.E().S(p.Job.Name)
-	//line template/job/show.qtpl:91
+	//line template/job/show.qtpl:95
 	qw422016.N().S(` `)
-	//line template/job/show.qtpl:91
+	//line template/job/show.qtpl:95
 	template.StreamRenderStatus(qw422016, p.Job.Build.Status)
-	//line template/job/show.qtpl:91
+	//line template/job/show.qtpl:95
 	qw422016.N().S(` `)
-//line template/job/show.qtpl:92
+//line template/job/show.qtpl:96
 }
 
-//line template/job/show.qtpl:92
+//line template/job/show.qtpl:96
 func (p *ShowPage) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/job/show.qtpl:92
+	//line template/job/show.qtpl:96
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/job/show.qtpl:92
+	//line template/job/show.qtpl:96
 	p.StreamHeader(qw422016)
-	//line template/job/show.qtpl:92
+	//line template/job/show.qtpl:96
 	qt422016.ReleaseWriter(qw422016)
-//line template/job/show.qtpl:92
+//line template/job/show.qtpl:96
 }
 
-//line template/job/show.qtpl:92
+//line template/job/show.qtpl:96
 func (p *ShowPage) Header() string {
-	//line template/job/show.qtpl:92
+	//line template/job/show.qtpl:96
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/job/show.qtpl:92
+	//line template/job/show.qtpl:96
 	p.WriteHeader(qb422016)
-	//line template/job/show.qtpl:92
+	//line template/job/show.qtpl:96
 	qs422016 := string(qb422016.B)
-	//line template/job/show.qtpl:92
+	//line template/job/show.qtpl:96
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/job/show.qtpl:92
+	//line template/job/show.qtpl:96
 	return qs422016
-//line template/job/show.qtpl:92
+//line template/job/show.qtpl:96
 }
 
-//line template/job/show.qtpl:94
+//line template/job/show.qtpl:98
 func (p *ShowPage) StreamActions(qw422016 *qt422016.Writer) {
-//line template/job/show.qtpl:94
+//line template/job/show.qtpl:98
 }
 
-//line template/job/show.qtpl:94
+//line template/job/show.qtpl:98
 func (p *ShowPage) WriteActions(qq422016 qtio422016.Writer) {
-	//line template/job/show.qtpl:94
+	//line template/job/show.qtpl:98
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/job/show.qtpl:94
+	//line template/job/show.qtpl:98
 	p.StreamActions(qw422016)
-	//line template/job/show.qtpl:94
+	//line template/job/show.qtpl:98
 	qt422016.ReleaseWriter(qw422016)
-//line template/job/show.qtpl:94
+//line template/job/show.qtpl:98
 }
 
-//line template/job/show.qtpl:94
+//line template/job/show.qtpl:98
 func (p *ShowPage) Actions() string {
-	//line template/job/show.qtpl:94
+	//line template/job/show.qtpl:98
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/job/show.qtpl:94
+	//line template/job/show.qtpl:98
 	p.WriteActions(qb422016)
-	//line template/job/show.qtpl:94
+	//line template/job/show.qtpl:98
 	qs422016 := string(qb422016.B)
-	//line template/job/show.qtpl:94
+	//line template/job/show.qtpl:98
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/job/show.qtpl:94
+	//line template/job/show.qtpl:98
 	return qs422016
-//line template/job/show.qtpl:94
+//line template/job/show.qtpl:98
 }
 
-//line template/job/show.qtpl:95
+//line template/job/show.qtpl:99
 func (p *ShowPage) StreamNavigation(qw422016 *qt422016.Writer) {
-//line template/job/show.qtpl:95
+//line template/job/show.qtpl:99
 }
 
-//line template/job/show.qtpl:95
+//line template/job/show.qtpl:99
 func (p *ShowPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/job/show.qtpl:95
+	//line template/job/show.qtpl:99
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/job/show.qtpl:95
+	//line template/job/show.qtpl:99
 	p.StreamNavigation(qw422016)
-	//line template/job/show.qtpl:95
+	//line template/job/show.qtpl:99
 	qt422016.ReleaseWriter(qw422016)
-//line template/job/show.qtpl:95
+//line template/job/show.qtpl:99
 }
 
-//line template/job/show.qtpl:95
+//line template/job/show.qtpl:99
 func (p *ShowPage) Navigation() string {
-	//line template/job/show.qtpl:95
+	//line template/job/show.qtpl:99
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/job/show.qtpl:95
+	//line template/job/show.qtpl:99
 	p.WriteNavigation(qb422016)
-	//line template/job/show.qtpl:95
+	//line template/job/show.qtpl:99
 	qs422016 := string(qb422016.B)
-	//line template/job/show.qtpl:95
+	//line template/job/show.qtpl:99
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/job/show.qtpl:95
+	//line template/job/show.qtpl:99
 	return qs422016
-//line template/job/show.qtpl:95
+//line template/job/show.qtpl:99
 }

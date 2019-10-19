@@ -26,6 +26,14 @@ func (h Job) Build(r *http.Request) *model.Build {
 func (h Job) Show(r *http.Request) (*model.Job, error) {
 	b := h.Build(r)
 
+	if err := b.LoadNamespace(); err != nil {
+		return &model.Job{}, errors.Err(err)
+	}
+
+	if err := b.Namespace.LoadUser(); err != nil {
+		return &model.Job{}, errors.Err(err)
+	}
+
 	vars := mux.Vars(r)
 
 	id, _ := strconv.ParseInt(vars["job"], 10, 64)

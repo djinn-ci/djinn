@@ -88,7 +88,11 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="{%s p.Job.Build.UIEndpoint() %}" class="back">{% cat "../../svgs/back.svg" %}</a> Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %} {%= template.RenderStatus(p.Job.Build.Status) %}
+	<a href="{%s p.Job.Build.UIEndpoint() %}" class="back">{% cat "../../svgs/back.svg" %}</a>
+	{% if !p.Job.Build.Namespace.IsZero() %}
+		<a href="{%s p.Job.Build.Namespace.UIEndpoint() %}">{%s p.Job.Build.Namespace.Name %}</a> /
+	{% endif %}
+ 	Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %} {%= template.RenderStatus(p.Job.Build.Status) %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}

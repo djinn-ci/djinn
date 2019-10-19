@@ -123,6 +123,10 @@ func (h Build) Show(r *http.Request) (*model.Build, error) {
 		return b, errors.Err(err)
 	}
 
+	if err := b.Namespace.LoadUser(); err != nil {
+		return b, errors.Err(err)
+	}
+
 	if err := b.LoadTrigger(); err != nil {
 		return b, errors.Err(err)
 	}

@@ -85,7 +85,7 @@ func (h Oauth) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Successfully connected to GitHub"))
+	h.FlashAlert(w, r, template.Success("Successfully connected to " + provider))
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

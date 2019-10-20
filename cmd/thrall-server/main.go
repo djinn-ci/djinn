@@ -29,9 +29,23 @@ import (
 
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
+
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
+	"golang.org/x/oauth2/gitlab"
 )
 
-var Build string
+var (
+	Build string
+
+	providerProps = map[string]struct{
+		scopes   []string
+		endpoint oauth2.Endpoint
+	}{
+		"github": {[]string{"repo", "write:repo_hook"}, github.Endpoint},
+		"gitlab": {[]string{"read_repository", "write_repository"}, gitlab.Endpoint},
+	}
+)
 
 func mainCommand(cmd cli.Command) {
 	f, err := os.Open(cmd.Flags.GetString("config"))
@@ -189,15 +203,48 @@ func mainCommand(cmd cli.Command) {
 		Middleware:  middleware,
 	}
 
+	providers := make(map[string]*oauth2.Config)
+
+	for _, p := range cfg.Providers {
+		provider, ok := providerProps[p.Name]
+
+		if !ok {
+			log.Error.Fatalf("unknown provider: %s\n", p.Name)
+		}
+
+		providers[p.Name] = &oauth2.Config{
+			ClientID:     p.ClientID,
+			ClientSecret: p.ClientSecret,
+			Scopes:       provider.scopes,
+			Endpoint:     provider.endpoint,
+		}
+	}
+
 	ui := server.UI{
-		Server: srv,
-		Assets: "public",
+		Server:    srv,
+		Assets:    "public",
+		Providers: providers,
 	}
 
 	ui.Init()
 
+	ui.Auth()
+	ui.Oauth()
+	ui.Guest()
+
+	ui.Namespace()
+	ui.Build()
+
+	if cfg.Images != "" {
+		ui.Image()
+	}
+
+	ui.Object()
+	ui.Variable()
+	ui.Key()
+
 	go func() {
-		if err := ui.Http.Serve(); err != nil {
+		if err := ui.Serve(); err != nil {
 			cause := errors.Cause(err)
 
 			if cause != nethttp.ErrServerClosed {

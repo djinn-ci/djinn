@@ -11,6 +11,8 @@ import (
 	"github.com/andrewpillar/thrall/web/ui"
 
 	"github.com/gorilla/mux"
+
+	"golang.org/x/oauth2"
 )
 
 type UI struct {
@@ -25,13 +27,15 @@ type UI struct {
 	job          ui.Job
 	key          ui.Key
 	namespace    ui.Namespace
+	oauth        ui.Oauth
 	object       ui.Object
 	tag          ui.Tag
 	user         ui.User
 	variable     ui.Variable
 	gate         gate
 
-	Assets string
+	Assets    string
+	Providers map[string]*oauth2.Config
 }
 
 func (s *UI) Init() {
@@ -108,6 +112,11 @@ func (s *UI) Init() {
 		Core: s.Server.key,
 	}
 
+	s.oauth = ui.Oauth{
+		Handler: s.Handler,
+		Configs: s.Providers,
+	}
+
 	s.object = ui.Object{
 		Core: s.Server.object,
 	}
@@ -134,22 +143,12 @@ func (s *UI) Init() {
 		Variable: s.variable,
 		Key:      s.key,
 	}
+}
 
-	s.Auth()
-	s.Guest()
-
-	s.Namespace()
-	s.Build()
-
-	if s.Images != nil {
-		s.Image()
-	}
-
-	s.Object()
-	s.Variable()
-	s.Key()
-
+func (s *UI) Serve() error {
 	s.Server.Http.Init(web.NewSpoof(s.router))
+
+	return s.Server.Http.Serve()
 }
 
 func (s *UI) Auth() {
@@ -189,6 +188,12 @@ func (s *UI) Auth() {
 	r.HandleFunc("/invites/{invite:[0-9]+}", s.collaborator.Destroy).Methods("DELETE")
 
 	r.Use(s.Middleware.Auth)
+}
+
+func (s *UI) Oauth() {
+	r := s.router.PathPrefix("/oauth").Subrouter()
+
+	r.HandleFunc("/{provider}", s.oauth.Auth).Methods("GET")
 }
 
 func (s *UI) Guest() {

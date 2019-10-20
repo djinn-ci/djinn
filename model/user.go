@@ -109,6 +109,15 @@ func (u *User) ObjectStore() ObjectStore {
 	}
 }
 
+func (u *User) ProviderStore() ProviderStore {
+	return ProviderStore{
+		Store: Store{
+			DB: u.DB,
+		},
+		User: u,
+	}
+}
+
 func (u User) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"email":    u.Email,

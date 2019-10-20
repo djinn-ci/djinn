@@ -61,6 +61,7 @@ var (
 	KeyTable           = "keys"
 	NamespaceTable     = "namespaces"
 	ObjectTable        = "objects"
+	ProviderTable      = "providers"
 	StageTable         = "stages"
 	TagTable           = "tags"
 	TriggerTable       = "triggers"

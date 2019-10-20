@@ -51,6 +51,12 @@ type Server struct {
 		Type  string
 		Queue string
 	}
+
+	Providers []struct {
+		Name         string `toml:"name"`
+		ClientID     string `toml:"client_id"`
+		ClientSecret string `toml:"client_secret"`
+	}
 }
 
 func DecodeServer(r io.Reader) (Server, error) {

@@ -35,7 +35,7 @@ func (h Collaborator) Destroy(r *http.Request) error {
 
 	collaborators := n.CollaboratorStore()
 
-	c, err := collaborators.FindByUsername(vars["collaborators"])
+	c, err := collaborators.FindByUsername(vars["collaborator"])
 
 	if err != nil {
 		return errors.Err(err)

@@ -183,6 +183,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		}
 
 		if !n.CanAdd(u) {
+			h.FlashForm(w, r, f)
+
 			return b, errors.Err(ErrAccessDenied)
 		}
 

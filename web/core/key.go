@@ -96,6 +96,8 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) (*model.Key, error) {
 		}
 
 		if !n.CanAdd(u) {
+			h.FlashForm(w, r, f)
+
 			return &model.Key{}, errors.Err(ErrAccessDenied)
 		}
 

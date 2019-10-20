@@ -131,6 +131,8 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) (*model.Image, erro
 		}
 
 		if !n.CanAdd(u) {
+			h.FlashForm(w, r, f)
+
 			return &model.Image{}, errors.Err(ErrAccessDenied)
 		}
 

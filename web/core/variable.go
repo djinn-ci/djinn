@@ -94,6 +94,8 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) (*model.Variable
 		}
 
 		if !n.CanAdd(u) {
+			h.FlashForm(w, r, f)
+
 			return &model.Variable{}, errors.Err(err)
 		}
 

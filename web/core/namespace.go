@@ -35,8 +35,8 @@ func (h Namespace) Namespace(r *http.Request) *model.Namespace {
 // will be created on the fly along with each sub-namespace. A namespace for a
 // specific user can be retrieved like this if there is an '@' in the path. For
 // example 'parent/child@user'.
-func (h Namespace) Get(path string) (*model.Namespace, error) {
-	namespaces := h.Namespaces
+func (h Namespace) Get(path string, u *model.User) (*model.Namespace, error) {
+	namespaces := u.NamespaceStore()
 
 	if strings.Contains(path, "@") {
 		parts := strings.Split(path, "@")

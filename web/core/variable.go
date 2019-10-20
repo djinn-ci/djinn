@@ -87,7 +87,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) (*model.Variable
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err = h.Namespace.Get(f.Namespace)
+		n, err = h.Namespace.Get(f.Namespace, u)
 
 		if err != nil {
 			return &model.Variable{}, errors.Err(err)

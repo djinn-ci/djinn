@@ -89,7 +89,7 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) (*model.Key, error) {
 	n := &model.Namespace{}
 
 	if f.Namespace != "" {
-		n, err = h.Namespace.Get(f.Namespace)
+		n, err = h.Namespace.Get(f.Namespace, u)
 
 		if err != nil {
 			return &model.Key{}, errors.Err(err)
@@ -146,7 +146,7 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) (*model.Key, error) 
 	}
 
 	if f.Namespace != "" {
-		n, err := h.Namespace.Get(f.Namespace)
+		n, err := h.Namespace.Get(f.Namespace, u)
 
 		if err != nil {
 			return &model.Key{}, errors.Err(err)

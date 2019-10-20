@@ -22,10 +22,6 @@ type CreatePage struct {
 				{%= p.Error("build") %}
 			{% endif %}
 			<div class="form-field">
-				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
-				<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Fields["namespace"] %}" autocomplete="off"/>
-			</div>
-			<div class="form-field">
 				<label class="label" for="manifest">Manifest</label>
 				<textarea class="form-text form-code" id="manifest" name="manifest">{%s p.Fields["manifest"] %}</textarea>
 				{%= p.Error("manifest") %}

@@ -10,7 +10,6 @@ import (
 type tags []string
 
 type Build struct {
-	Namespace string `schema:"namespace"`
 	Manifest  string `schema:"manifest"`
 	Comment   string `schema:"comment"`
 	Tags      tags   `schema:"tags"`
@@ -42,7 +41,6 @@ func (t *tags) String() string {
 
 func (f Build) Fields() map[string]string {
 	m := make(map[string]string)
-	m["namespace"] = f.Namespace
 	m["manifest"] = f.Manifest
 	m["comment"] = f.Comment
 	m["tags"] = f.Tags.String()

@@ -11,7 +11,8 @@ import (
 )
 
 type Manifest struct {
-	Driver map[string]string
+	Namespace string
+	Driver    map[string]string
 
 	Env []string
 

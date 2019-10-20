@@ -153,9 +153,9 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		return &model.Build{}, ErrValidationFailed
 	}
 
-	manifest, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
+	m, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
 
-	if _, ok := h.Queues[manifest.Driver["type"]]; !ok {
+	if _, ok := h.Queues[m.Driver["type"]]; !ok {
 		return &model.Build{}, ErrUnsupportedDriver
 	}
 
@@ -175,8 +175,8 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		Valid:  true,
 	}
 
-	if f.Namespace != "" {
-		n, err := h.Namespace.Get(f.Namespace)
+	if m.Namespace != "" {
+		n, err := h.Namespace.Get(m.Namespace, u)
 
 		if err != nil {
 			return b, errors.Err(err)
@@ -209,7 +209,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		return b, errors.Err(err)
 	}
 
-	if err := h.Submit(b, h.Queues[manifest.Driver["type"]]); err != nil {
+	if err := h.Submit(b, h.Queues[m.Driver["type"]]); err != nil {
 		return b, errors.Err(err)
 	}
 

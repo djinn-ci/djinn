@@ -1,3 +1,4 @@
+namespace: thrall/testing
 driver:
   type: qemu
   image: centos/7

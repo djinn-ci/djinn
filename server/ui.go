@@ -29,6 +29,7 @@ type UI struct {
 	namespace    ui.Namespace
 	oauth        ui.Oauth
 	object       ui.Object
+	repo         ui.Repo
 	tag          ui.Tag
 	user         ui.User
 	variable     ui.Variable
@@ -121,6 +122,11 @@ func (s *UI) Init() {
 		Core: s.Server.object,
 	}
 
+	s.repo = ui.Repo{
+		Handler:   s.Handler,
+		Redis:     s.Redis,
+	}
+
 	s.tag = ui.Tag{
 		Core: s.Server.tag,
 	}
@@ -186,6 +192,11 @@ func (s *UI) Auth() {
 
 	r.HandleFunc("/invites/{invite:[0-9]+}", s.collaborator.Store).Methods("PATCH")
 	r.HandleFunc("/invites/{invite:[0-9]+}", s.collaborator.Destroy).Methods("DELETE")
+
+	r.HandleFunc("/repos", s.repo.Index).Methods("GET")
+	r.HandleFunc("/repos/reload", s.repo.Reload).Methods("PATCH")
+	r.HandleFunc("/repos/activate", s.repo.Store).Methods("POST")
+	r.HandleFunc("/repos/deactivate", s.repo.Destroy).Methods("DELETE")
 
 	r.Use(s.Middleware.Auth)
 }

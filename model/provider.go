@@ -27,6 +27,13 @@ type ProviderStore struct {
 	User *User
 }
 
+type Repository struct {
+	ID       int64
+	Name     string
+	Href     string
+	Provider string
+}
+
 func providerToInterface(pp []*Provider) func(i int) Interface {
 	return func(i int) Interface {
 		return pp[i]
@@ -43,6 +50,25 @@ func (p Provider) Values() map[string]interface{} {
 		"created_at":    p.CreatedAt,
 		"updated_at":    p.UpdatedAt,
 	}
+}
+
+func (s ProviderStore) All(opts ...query.Option) ([]*Provider, error) {
+	pp := make([]*Provider, 0)
+
+	opts = append([]query.Option{ForUser(s.User)}, opts...)
+
+	err := s.Store.All(&pp, ProviderTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, p := range pp {
+		p.DB = s.DB
+		p.User = s.User
+	}
+
+	return pp, errors.Err(err)
 }
 
 func (s ProviderStore) Create(pp ...*Provider) error {

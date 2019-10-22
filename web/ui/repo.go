@@ -33,9 +33,9 @@ type Repo struct {
 	Redis *redis.Client
 }
 
-type retrieveRepos func(c context.Context, tok string) ([]model.Repository, error)
+type loadRepos func(c context.Context, tok string) ([]model.Repository, error)
 
-var providers = map[string]retrieveRepos{
+var repoLoaders = map[string]loadRepos{
 	"github": githubRepos,
 	"gitlab": gitlabRepos,
 }
@@ -107,26 +107,59 @@ func gitlabRepos(c context.Context, tok string) ([]model.Repository, error) {
 	return []model.Repository{}, nil
 }
 
-func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
-
-	name := r.URL.Query().Get("provider")
+func (h Repo) getCached() ([]model.Repository, error) {
+	repos := make([]model.Repository, 0)
 
 	s, err := h.Redis.Get("repos").Result()
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
+		return repos, errors.Err(err)
 	}
 
-	repos := make([]model.Repository, 0)
+	dec := json.NewDecoder(strings.NewReader(s))
+	dec.Decode(repos)
 
-	if s != "" {
-		dec := json.NewDecoder(strings.NewReader(s))
-		dec.Decode(repos)
-	} else {
-		pp, err := u.ProviderStore().All(forProvider(name))
+	return repos, nil
+}
+
+func (h Repo) cacheRepos(rr []model.Repository) error {
+	buf := &bytes.Buffer{}
+
+	enc := json.NewEncoder(buf)
+	enc.Encode(rr)
+
+	_, err := h.Redis.Set("repos", buf.String(), time.Hour).Result()
+
+	return errors.Err(err)
+}
+
+func (h Repo) loadRepos(c context.Context, providers model.ProviderStore) ([]model.Repository, error) {
+	pp, err := providers.All()
+
+	rr := make([]model.Repository, 0)
+
+	for _, p := range pp {
+		b, _ := crypto.Decrypt(p.AccessToken)
+
+		tmp, err := repoLoaders[p.Name](c, string(b))
+
+		if err != nil {
+			return rr, errors.Err(err)
+		}
+
+		rr = append(rr, tmp...)
+	}
+
+	return rr, nil
+}
+
+func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
+	u := h.User(r)
+
+	rr, err := h.getCached()
+
+	if len(rr) == 0 {
+		rr, err = h.loadRepos(r.Context(), u.ProviderStore())
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -134,45 +167,25 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		for _, p := range pp {
-			b, _ := crypto.Decrypt(p.AccessToken)
-
-			rr, err := providers[p.Name](r.Context(), string(b))
-
-			if err != nil {
-				log.Error.Println(errors.Err(err))
-
-				cause := errors.Cause(err)
-
-				h.FlashAlert(w, r, template.Danger("Failed to load repositories: " + cause.Error()))
-				continue
-			}
-
-			repos = append(repos, rr...)
-		}
-
-		buf := &bytes.Buffer{}
-
-		enc := json.NewEncoder(buf)
-		enc.Encode(repos)
-
-		if _, err := h.Redis.Set("repos", buf.String(), time.Hour).Result(); err != nil {
+		if err := h.cacheRepos(rr); err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	if name != "" {
-		tmp := make([]model.Repository, 0, len(repos))
+	name := r.URL.Query().Get("provider")
 
-		for _, r := range repos {
+	if name != "" {
+		tmp := make([]model.Repository, 0, len(rr))
+
+		for _, r := range rr {
 			if r.Name == name {
 				tmp = append(tmp, r)
 			}
 		}
 
-		repos = tmp
+		rr = tmp
 	}
 
 	p := &repo.IndexPage{
@@ -180,7 +193,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 			URL:  r.URL,
 			User: u,
 		},
-		Repos:    repos,
+		Repos:    rr,
 		CSRF:     string(csrf.TemplateField(r)),
 	}
 
@@ -190,7 +203,32 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
+	u := h.User(r)
 
+	rr, err := h.loadRepos(r.Context(), u.ProviderStore());
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to refresh repository cache: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	if err := h.cacheRepos(rr); err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to refresh repository cache: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	h.FlashAlert(w, r, template.Success("Successfully reloaded repositories"))
+	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 
 func (h Repo) Store(w http.ResponseWriter, r *http.Request) {

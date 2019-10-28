@@ -72,9 +72,10 @@ const (
 )
 
 var (
-	NamespacesURI = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
-	BuildsURI     = "(^\\/$|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
-	SettingsURI   = "\\/settings\\/?"
+	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
+	BuildsURI       = "(^\\/$|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
+	SettingsURI     = "\\/settings\\/?"
+	RepositoriesURI = "\\/repos\\/?"
 )
 
 func pattern(name string) string {
@@ -213,6 +214,11 @@ func (l level) String() string {
 					<li><a href="/namespaces" class="active">{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
 				{% else %}
 					<li><a href="/namespaces">{% cat "../svgs/folder.svg" %}<span>Namespaces</span></a></li>
+				{% endif %}
+				{% if Match(p.URL.Path, RepositoriesURI) %}
+					<li><a href="/repos" class="active">{% cat "../svgs/repo.svg" %}<span>Repositories</span></a></li>
+				{% else %}
+					<li><a href="/repos">{% cat "../svgs/repo.svg" %}<span>Repositories</span></a></li>
 				{% endif %}
 				{% if Match(p.URL.Path, pattern("images")) %}
 					<li><a href="/images" class="active">{% cat "../svgs/image.svg" %}<span>Images</span></a></li>

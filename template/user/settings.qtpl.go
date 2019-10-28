@@ -140,297 +140,297 @@ func (p *SettingsPage) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/user/settings.qtpl:75
 	p.StreamError(qw422016, "pass_verify_password")
 	//line template/user/settings.qtpl:75
-	qw422016.N().S(` </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> </div> </div> `)
-//line template/user/settings.qtpl:83
+	qw422016.N().S(` </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> <div class="separator"></div> <h2>Connected Accounts</h2> </div> </div> `)
+//line template/user/settings.qtpl:86
 }
 
-//line template/user/settings.qtpl:83
+//line template/user/settings.qtpl:86
 func (p *SettingsPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/user/settings.qtpl:83
+	//line template/user/settings.qtpl:86
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/user/settings.qtpl:83
+	//line template/user/settings.qtpl:86
 	p.StreamBody(qw422016)
-	//line template/user/settings.qtpl:83
+	//line template/user/settings.qtpl:86
 	qt422016.ReleaseWriter(qw422016)
-//line template/user/settings.qtpl:83
+//line template/user/settings.qtpl:86
 }
 
-//line template/user/settings.qtpl:83
+//line template/user/settings.qtpl:86
 func (p *SettingsPage) Body() string {
-	//line template/user/settings.qtpl:83
+	//line template/user/settings.qtpl:86
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/user/settings.qtpl:83
+	//line template/user/settings.qtpl:86
 	p.WriteBody(qb422016)
-	//line template/user/settings.qtpl:83
+	//line template/user/settings.qtpl:86
 	qs422016 := string(qb422016.B)
-	//line template/user/settings.qtpl:83
+	//line template/user/settings.qtpl:86
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/user/settings.qtpl:83
+	//line template/user/settings.qtpl:86
 	return qs422016
-//line template/user/settings.qtpl:83
+//line template/user/settings.qtpl:86
 }
 
-//line template/user/settings.qtpl:85
+//line template/user/settings.qtpl:88
 func (p *ShowInvites) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/user/settings.qtpl:85
+	//line template/user/settings.qtpl:88
 	qw422016.N().S(` <div class="panel"> `)
-	//line template/user/settings.qtpl:87
+	//line template/user/settings.qtpl:90
 	if len(p.Invites) == 0 {
-		//line template/user/settings.qtpl:87
+		//line template/user/settings.qtpl:90
 		qw422016.N().S(` <div class="panel-message muted">No new Namespace invites.</div> `)
-		//line template/user/settings.qtpl:89
+		//line template/user/settings.qtpl:92
 	} else {
-		//line template/user/settings.qtpl:89
+		//line template/user/settings.qtpl:92
 		qw422016.N().S(` <table class="table"> <thead> <tr> <th>NAMESPACE</th> <th>INVITED BY</th> <th></th> </tr> </thead> <tbody> `)
-		//line template/user/settings.qtpl:99
+		//line template/user/settings.qtpl:102
 		for _, i := range p.Invites {
-			//line template/user/settings.qtpl:99
+			//line template/user/settings.qtpl:102
 			qw422016.N().S(` <tr> <td>`)
-			//line template/user/settings.qtpl:101
+			//line template/user/settings.qtpl:104
 			qw422016.E().S(i.Namespace.Path)
-			//line template/user/settings.qtpl:101
+			//line template/user/settings.qtpl:104
 			qw422016.N().S(`</td> <td>`)
-			//line template/user/settings.qtpl:102
+			//line template/user/settings.qtpl:105
 			qw422016.E().S(i.Inviter.Username)
-			//line template/user/settings.qtpl:102
+			//line template/user/settings.qtpl:105
 			qw422016.N().S(`</td> <td class="align-right"> <form method="POST" action="`)
-			//line template/user/settings.qtpl:104
+			//line template/user/settings.qtpl:107
 			qw422016.E().S(i.UIEndpoint())
-			//line template/user/settings.qtpl:104
+			//line template/user/settings.qtpl:107
 			qw422016.N().S(`" class="inline-block"> `)
-			//line template/user/settings.qtpl:105
+			//line template/user/settings.qtpl:108
 			qw422016.N().S(p.CSRF)
-			//line template/user/settings.qtpl:105
+			//line template/user/settings.qtpl:108
 			qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <button type="submit" class="btn btn-primary">Accept</button> </form> <form method="POST" action="`)
-			//line template/user/settings.qtpl:109
+			//line template/user/settings.qtpl:112
 			qw422016.E().S(i.UIEndpoint())
-			//line template/user/settings.qtpl:109
+			//line template/user/settings.qtpl:112
 			qw422016.N().S(`" class="inline-block"> `)
-			//line template/user/settings.qtpl:110
+			//line template/user/settings.qtpl:113
 			qw422016.N().S(p.CSRF)
-			//line template/user/settings.qtpl:110
+			//line template/user/settings.qtpl:113
 			qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Decline</button> </form> </td> </tr> `)
-			//line template/user/settings.qtpl:116
+			//line template/user/settings.qtpl:119
 		}
-		//line template/user/settings.qtpl:116
-		qw422016.N().S(` </tbody> </table> `)
 		//line template/user/settings.qtpl:119
+		qw422016.N().S(` </tbody> </table> `)
+		//line template/user/settings.qtpl:122
 	}
-	//line template/user/settings.qtpl:119
+	//line template/user/settings.qtpl:122
 	qw422016.N().S(` </div> `)
-//line template/user/settings.qtpl:121
+//line template/user/settings.qtpl:124
 }
 
-//line template/user/settings.qtpl:121
+//line template/user/settings.qtpl:124
 func (p *ShowInvites) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/user/settings.qtpl:121
+	//line template/user/settings.qtpl:124
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/user/settings.qtpl:121
+	//line template/user/settings.qtpl:124
 	p.StreamBody(qw422016)
-	//line template/user/settings.qtpl:121
+	//line template/user/settings.qtpl:124
 	qt422016.ReleaseWriter(qw422016)
-//line template/user/settings.qtpl:121
+//line template/user/settings.qtpl:124
 }
 
-//line template/user/settings.qtpl:121
+//line template/user/settings.qtpl:124
 func (p *ShowInvites) Body() string {
-	//line template/user/settings.qtpl:121
+	//line template/user/settings.qtpl:124
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/user/settings.qtpl:121
+	//line template/user/settings.qtpl:124
 	p.WriteBody(qb422016)
-	//line template/user/settings.qtpl:121
+	//line template/user/settings.qtpl:124
 	qs422016 := string(qb422016.B)
-	//line template/user/settings.qtpl:121
+	//line template/user/settings.qtpl:124
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/user/settings.qtpl:121
+	//line template/user/settings.qtpl:124
 	return qs422016
-//line template/user/settings.qtpl:121
+//line template/user/settings.qtpl:124
 }
 
-//line template/user/settings.qtpl:123
+//line template/user/settings.qtpl:126
 func (p *SettingsPage) StreamHeader(qw422016 *qt422016.Writer) {
-	//line template/user/settings.qtpl:123
+	//line template/user/settings.qtpl:126
 	qw422016.N().S(` Settings `)
-//line template/user/settings.qtpl:125
+//line template/user/settings.qtpl:128
 }
 
-//line template/user/settings.qtpl:125
+//line template/user/settings.qtpl:128
 func (p *SettingsPage) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/user/settings.qtpl:125
+	//line template/user/settings.qtpl:128
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/user/settings.qtpl:125
+	//line template/user/settings.qtpl:128
 	p.StreamHeader(qw422016)
-	//line template/user/settings.qtpl:125
+	//line template/user/settings.qtpl:128
 	qt422016.ReleaseWriter(qw422016)
-//line template/user/settings.qtpl:125
+//line template/user/settings.qtpl:128
 }
 
-//line template/user/settings.qtpl:125
+//line template/user/settings.qtpl:128
 func (p *SettingsPage) Header() string {
-	//line template/user/settings.qtpl:125
+	//line template/user/settings.qtpl:128
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/user/settings.qtpl:125
+	//line template/user/settings.qtpl:128
 	p.WriteHeader(qb422016)
-	//line template/user/settings.qtpl:125
+	//line template/user/settings.qtpl:128
 	qs422016 := string(qb422016.B)
-	//line template/user/settings.qtpl:125
+	//line template/user/settings.qtpl:128
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/user/settings.qtpl:125
+	//line template/user/settings.qtpl:128
 	return qs422016
-//line template/user/settings.qtpl:125
+//line template/user/settings.qtpl:128
 }
 
-//line template/user/settings.qtpl:127
+//line template/user/settings.qtpl:130
 func (p *ShowInvites) StreamHeader(qw422016 *qt422016.Writer) {
-	//line template/user/settings.qtpl:127
+	//line template/user/settings.qtpl:130
 	qw422016.N().S(` Settings - Namespace Invites `)
-//line template/user/settings.qtpl:129
+//line template/user/settings.qtpl:132
 }
 
-//line template/user/settings.qtpl:129
+//line template/user/settings.qtpl:132
 func (p *ShowInvites) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/user/settings.qtpl:129
+	//line template/user/settings.qtpl:132
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/user/settings.qtpl:129
+	//line template/user/settings.qtpl:132
 	p.StreamHeader(qw422016)
-	//line template/user/settings.qtpl:129
+	//line template/user/settings.qtpl:132
 	qt422016.ReleaseWriter(qw422016)
-//line template/user/settings.qtpl:129
+//line template/user/settings.qtpl:132
 }
 
-//line template/user/settings.qtpl:129
+//line template/user/settings.qtpl:132
 func (p *ShowInvites) Header() string {
-	//line template/user/settings.qtpl:129
+	//line template/user/settings.qtpl:132
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/user/settings.qtpl:129
+	//line template/user/settings.qtpl:132
 	p.WriteHeader(qb422016)
-	//line template/user/settings.qtpl:129
+	//line template/user/settings.qtpl:132
 	qs422016 := string(qb422016.B)
-	//line template/user/settings.qtpl:129
+	//line template/user/settings.qtpl:132
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/user/settings.qtpl:129
+	//line template/user/settings.qtpl:132
 	return qs422016
-//line template/user/settings.qtpl:129
+//line template/user/settings.qtpl:132
 }
 
-//line template/user/settings.qtpl:131
+//line template/user/settings.qtpl:134
 func (p *SettingsPage) StreamActions(qw422016 *qt422016.Writer) {
-//line template/user/settings.qtpl:131
+//line template/user/settings.qtpl:134
 }
 
-//line template/user/settings.qtpl:131
+//line template/user/settings.qtpl:134
 func (p *SettingsPage) WriteActions(qq422016 qtio422016.Writer) {
-	//line template/user/settings.qtpl:131
+	//line template/user/settings.qtpl:134
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/user/settings.qtpl:131
+	//line template/user/settings.qtpl:134
 	p.StreamActions(qw422016)
-	//line template/user/settings.qtpl:131
+	//line template/user/settings.qtpl:134
 	qt422016.ReleaseWriter(qw422016)
-//line template/user/settings.qtpl:131
+//line template/user/settings.qtpl:134
 }
 
-//line template/user/settings.qtpl:131
+//line template/user/settings.qtpl:134
 func (p *SettingsPage) Actions() string {
-	//line template/user/settings.qtpl:131
+	//line template/user/settings.qtpl:134
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/user/settings.qtpl:131
+	//line template/user/settings.qtpl:134
 	p.WriteActions(qb422016)
-	//line template/user/settings.qtpl:131
+	//line template/user/settings.qtpl:134
 	qs422016 := string(qb422016.B)
-	//line template/user/settings.qtpl:131
+	//line template/user/settings.qtpl:134
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/user/settings.qtpl:131
+	//line template/user/settings.qtpl:134
 	return qs422016
-//line template/user/settings.qtpl:131
+//line template/user/settings.qtpl:134
 }
 
-//line template/user/settings.qtpl:133
+//line template/user/settings.qtpl:136
 func (p *SettingsPage) StreamNavigation(qw422016 *qt422016.Writer) {
-	//line template/user/settings.qtpl:133
+	//line template/user/settings.qtpl:136
 	qw422016.N().S(` <li> `)
-	//line template/user/settings.qtpl:135
+	//line template/user/settings.qtpl:138
 	if p.URL.Path == "/settings" {
-		//line template/user/settings.qtpl:135
+		//line template/user/settings.qtpl:138
 		qw422016.N().S(` <a href="/settings" class="active">`)
-		//line template/user/settings.qtpl:136
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<title>user</title>
-<path d="M12 14.016c2.672 0 8.016 1.313 8.016 3.984v2.016h-16.031v-2.016c0-2.672 5.344-3.984 8.016-3.984zM12 12c-2.203 0-3.984-1.781-3.984-3.984s1.781-4.031 3.984-4.031 3.984 1.828 3.984 4.031-1.781 3.984-3.984 3.984z"></path>
-</svg>
-`)
-		//line template/user/settings.qtpl:136
-		qw422016.N().S(`<span>Account</span></a> `)
-		//line template/user/settings.qtpl:137
-	} else {
-		//line template/user/settings.qtpl:137
-		qw422016.N().S(` <a href="/settings">`)
-		//line template/user/settings.qtpl:138
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<title>user</title>
-<path d="M12 14.016c2.672 0 8.016 1.313 8.016 3.984v2.016h-16.031v-2.016c0-2.672 5.344-3.984 8.016-3.984zM12 12c-2.203 0-3.984-1.781-3.984-3.984s1.781-4.031 3.984-4.031 3.984 1.828 3.984 4.031-1.781 3.984-3.984 3.984z"></path>
-</svg>
-`)
-		//line template/user/settings.qtpl:138
-		qw422016.N().S(`<span>Account</span></a> `)
 		//line template/user/settings.qtpl:139
-	}
-	//line template/user/settings.qtpl:139
-	qw422016.N().S(` </li> <li> `)
-	//line template/user/settings.qtpl:142
-	if p.URL.Path == "/settings/invites" {
-		//line template/user/settings.qtpl:142
-		qw422016.N().S(` <a href="/settings/invites" class="active">`)
-		//line template/user/settings.qtpl:143
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M9.984 3.984l2.016 2.016h8.016c1.078 0 1.969 0.938 1.969 2.016v9.984c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h6z"></path>
+<title>user</title>
+<path d="M12 14.016c2.672 0 8.016 1.313 8.016 3.984v2.016h-16.031v-2.016c0-2.672 5.344-3.984 8.016-3.984zM12 12c-2.203 0-3.984-1.781-3.984-3.984s1.781-4.031 3.984-4.031 3.984 1.828 3.984 4.031-1.781 3.984-3.984 3.984z"></path>
 </svg>
 `)
-		//line template/user/settings.qtpl:143
-		qw422016.N().S(`<span>Invites</span></a> `)
-		//line template/user/settings.qtpl:144
+		//line template/user/settings.qtpl:139
+		qw422016.N().S(`<span>Account</span></a> `)
+		//line template/user/settings.qtpl:140
 	} else {
-		//line template/user/settings.qtpl:144
-		qw422016.N().S(` <a href="/settings/invites">`)
+		//line template/user/settings.qtpl:140
+		qw422016.N().S(` <a href="/settings">`)
+		//line template/user/settings.qtpl:141
+		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<title>user</title>
+<path d="M12 14.016c2.672 0 8.016 1.313 8.016 3.984v2.016h-16.031v-2.016c0-2.672 5.344-3.984 8.016-3.984zM12 12c-2.203 0-3.984-1.781-3.984-3.984s1.781-4.031 3.984-4.031 3.984 1.828 3.984 4.031-1.781 3.984-3.984 3.984z"></path>
+</svg>
+`)
+		//line template/user/settings.qtpl:141
+		qw422016.N().S(`<span>Account</span></a> `)
+		//line template/user/settings.qtpl:142
+	}
+	//line template/user/settings.qtpl:142
+	qw422016.N().S(` </li> <li> `)
+	//line template/user/settings.qtpl:145
+	if p.URL.Path == "/settings/invites" {
 		//line template/user/settings.qtpl:145
+		qw422016.N().S(` <a href="/settings/invites" class="active">`)
+		//line template/user/settings.qtpl:146
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M9.984 3.984l2.016 2.016h8.016c1.078 0 1.969 0.938 1.969 2.016v9.984c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h6z"></path>
 </svg>
 `)
-		//line template/user/settings.qtpl:145
-		qw422016.N().S(`<span>Invites</span></a> `)
 		//line template/user/settings.qtpl:146
+		qw422016.N().S(`<span>Invites</span></a> `)
+		//line template/user/settings.qtpl:147
+	} else {
+		//line template/user/settings.qtpl:147
+		qw422016.N().S(` <a href="/settings/invites">`)
+		//line template/user/settings.qtpl:148
+		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M9.984 3.984l2.016 2.016h8.016c1.078 0 1.969 0.938 1.969 2.016v9.984c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h6z"></path>
+</svg>
+`)
+		//line template/user/settings.qtpl:148
+		qw422016.N().S(`<span>Invites</span></a> `)
+		//line template/user/settings.qtpl:149
 	}
-	//line template/user/settings.qtpl:146
+	//line template/user/settings.qtpl:149
 	qw422016.N().S(` </li> `)
-//line template/user/settings.qtpl:148
+//line template/user/settings.qtpl:151
 }
 
-//line template/user/settings.qtpl:148
+//line template/user/settings.qtpl:151
 func (p *SettingsPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/user/settings.qtpl:148
+	//line template/user/settings.qtpl:151
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/user/settings.qtpl:148
+	//line template/user/settings.qtpl:151
 	p.StreamNavigation(qw422016)
-	//line template/user/settings.qtpl:148
+	//line template/user/settings.qtpl:151
 	qt422016.ReleaseWriter(qw422016)
-//line template/user/settings.qtpl:148
+//line template/user/settings.qtpl:151
 }
 
-//line template/user/settings.qtpl:148
+//line template/user/settings.qtpl:151
 func (p *SettingsPage) Navigation() string {
-	//line template/user/settings.qtpl:148
+	//line template/user/settings.qtpl:151
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/user/settings.qtpl:148
+	//line template/user/settings.qtpl:151
 	p.WriteNavigation(qb422016)
-	//line template/user/settings.qtpl:148
+	//line template/user/settings.qtpl:151
 	qs422016 := string(qb422016.B)
-	//line template/user/settings.qtpl:148
+	//line template/user/settings.qtpl:151
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/user/settings.qtpl:148
+	//line template/user/settings.qtpl:151
 	return qs422016
-//line template/user/settings.qtpl:148
+//line template/user/settings.qtpl:151
 }

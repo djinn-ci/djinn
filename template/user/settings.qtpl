@@ -78,6 +78,9 @@ type ShowInvites struct {
 					<button type="submit" class="btn btn-primary">Update</button>
 				</div>
 			</form>
+			<div class="separator"></div>
+			<h2>Connected Accounts</h2>
+
 		</div>
 	</div>
 {% endfunc %}

@@ -1,0 +1,90 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type IndexPage struct {
+	template.BasePage
+
+	CSRF     string
+	Repos    []model.Repo
+	Provider string
+}
+%}
+
+{% collapsespace %}
+{% func (p *IndexPage) Title() %}
+	Repositories - Thrall
+{% endfunc %}
+
+{% func (p *IndexPage) Body() %}
+	<div class="panel">
+		{% if len(p.User.Providers) == 0 %}
+			<div class="panel-message muted">Connect to GitHub or GitLab to trigger builds on pushes, and pull reqests made on a repository. Get started by connecting from your account <a href="/settings">settings</a>.
+		{% else %}
+			<div class="panel-header">
+				<ul class="panel-nav">
+					<li>
+						<a href="{%s p.URL.Path %}" {% if p.Provider == "" %}class="active"{% endif %}>
+							All
+						</a>
+					</li>
+					{% for _, prv := range p.User.Providers %}
+						<li>
+							<a href="{%s p.URL.Path %}?provider={%s prv.Name %}" {% if p.Provider == prv.Name %}class="active"{% endif %}>{%s prv.Name %}</a>
+						</li>
+					{% endfor %}
+				</ul>
+				<table class="table">
+					<thead>
+						<th></th>
+						<th></th>
+					</thead>
+					<tbody>
+						{% for _, r := range p.Repos %}
+							<tr>
+								<td><a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a></td>
+								<td>
+									{% if r.ID == 0 %}
+										<form method="POST" action="/repos/activate">
+									{% else %}
+										<form method="POST" action="/repos/deactivate">
+									{% endif %}
+										<input type="hidden" name="id" value="{%v r.ID %}">
+										<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
+										<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
+									{% if !r.Enabled %}
+										<button type="submit">Activate</button>
+									{% else %}
+										<button type="submit">Deactivate</button>
+									{% endif %}
+									</form>
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *IndexPage) Header() %}
+	Repositories
+{% endfunc %}
+
+{% func (p *IndexPage) Actions() %}
+	{% if len(p.User.Providers) > 0 %}
+		<form method="POST" action="/repos/reload">
+			{%s= p.CSRF %}
+			<input type="hidden" name="_method" value="PATCH">
+			<button type="submit" class="btn btn-primary">Reload</button>
+		</form>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *IndexPage) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

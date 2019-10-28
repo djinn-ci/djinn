@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/auth"
 	"github.com/andrewpillar/thrall/web"
@@ -21,6 +22,8 @@ var maxAge = 5 * 365 * 86400
 
 type Auth struct {
 	web.Handler
+
+	Providers map[string]oauth2.Provider
 }
 
 func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
@@ -69,6 +72,19 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
+	}
+
+	providers := u.ProviderStore()
+
+	for name := range h.Providers {
+		p := providers.New()
+		p.Name = name
+
+		if err := providers.Create(p); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	http.Redirect(w, r, "/login", http.StatusSeeOther)

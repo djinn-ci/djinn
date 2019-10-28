@@ -19,6 +19,7 @@ import (
 	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
 	"github.com/andrewpillar/thrall/web"
@@ -29,23 +30,9 @@ import (
 
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
-
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/github"
-	"golang.org/x/oauth2/gitlab"
 )
 
-var (
-	Build string
-
-	providerProps = map[string]struct{
-		scopes   []string
-		endpoint oauth2.Endpoint
-	}{
-		"github": {[]string{"repo", "write:repo_hook"}, github.Endpoint},
-		"gitlab": {[]string{"read_repository", "write_repository"}, gitlab.Endpoint},
-	}
-)
+var Build string
 
 func mainCommand(cmd cli.Command) {
 	f, err := os.Open(cmd.Flags.GetString("config"))
@@ -203,21 +190,16 @@ func mainCommand(cmd cli.Command) {
 		Middleware:  middleware,
 	}
 
-	providers := make(map[string]*oauth2.Config)
+	providers := make(map[string]oauth2.Provider)
 
 	for _, p := range cfg.Providers {
-		provider, ok := providerProps[p.Name]
+		provider, err := oauth2.NewProvider(p.Name, p.ClientID, p.ClientSecret)
 
-		if !ok {
-			log.Error.Fatalf("unknown provider: %s\n", p.Name)
+		if err != nil {
+			log.Error.Fatalf("failed to configure oauth provider: %s\n", errors.Cause(err))
 		}
 
-		providers[p.Name] = &oauth2.Config{
-			ClientID:     p.ClientID,
-			ClientSecret: p.ClientSecret,
-			Scopes:       provider.scopes,
-			Endpoint:     provider.endpoint,
-		}
+		providers[p.Name] = provider
 	}
 
 	ui := server.UI{

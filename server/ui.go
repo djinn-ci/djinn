@@ -6,13 +6,12 @@ import (
 
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
 
 	"github.com/gorilla/mux"
-
-	"golang.org/x/oauth2"
 )
 
 type UI struct {
@@ -36,7 +35,7 @@ type UI struct {
 	gate         gate
 
 	Assets    string
-	Providers map[string]*oauth2.Config
+	Providers map[string]oauth2.Provider
 }
 
 func (s *UI) Init() {
@@ -86,7 +85,8 @@ func (s *UI) Init() {
 	}
 
 	s.auth = ui.Auth{
-		Handler: s.Handler,
+		Handler:   s.Handler,
+		Providers: s.Providers,
 	}
 
 	s.build = ui.Build{
@@ -114,8 +114,8 @@ func (s *UI) Init() {
 	}
 
 	s.oauth = ui.Oauth{
-		Handler: s.Handler,
-		Configs: s.Providers,
+		Handler:   s.Handler,
+		Providers: s.Providers,
 	}
 
 	s.object = ui.Object{
@@ -125,6 +125,7 @@ func (s *UI) Init() {
 	s.repo = ui.Repo{
 		Handler:   s.Handler,
 		Redis:     s.Redis,
+		Providers: s.Providers,
 	}
 
 	s.tag = ui.Tag{

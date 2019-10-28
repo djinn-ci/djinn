@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -12,136 +13,72 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/repo"
 	"github.com/andrewpillar/thrall/web"
 
-	"github.com/andrewpillar/query"
-
 	"github.com/gorilla/csrf"
 
-	"github.com/google/go-github/github"
-
 	"github.com/go-redis/redis"
-
-	"golang.org/x/oauth2"
 )
 
 type Repo struct {
 	web.Handler
 
-	Redis *redis.Client
+	Redis     *redis.Client
+	Providers map[string]oauth2.Provider
 }
 
-type loadRepos func(c context.Context, tok string) ([]model.Repository, error)
-
-var repoLoaders = map[string]loadRepos{
-	"github": githubRepos,
-	"gitlab": gitlabRepos,
-}
-
-func forProvider(name string) query.Option {
-	return func(q query.Query) query.Query {
-		if name == "" {
-			return q
-		}
-
-		return query.Where("name", "=", name)(q)
-	}
-}
-
-func githubRepos(c context.Context, tok string) ([]model.Repository, error) {
-	oauthTok := &oauth2.Token{
-		AccessToken: tok,
-	}
-
-	src := oauth2.StaticTokenSource(oauthTok)
-	cli := github.NewClient(oauth2.NewClient(c, src))
-
-	opt := &github.RepositoryListOptions{
-		Sort:      "updated",
-		Direction: "desc",
-	}
-
-	repos, _, err := cli.Repositories.List(c, "", opt)
-
-	if err != nil {
-		return []model.Repository{}, errors.Err(err)
-	}
-
-	rr := make([]model.Repository, 0, len(repos))
-
-	for _, repo := range repos {
-		var (
-			id   int64
-			name string
-			href string
-		)
-
-		if repo.ID != nil {
-			id = *repo.ID
-		}
-
-		if repo.FullName != nil {
-			name = *repo.FullName
-		}
-
-		if repo.HTMLURL != nil {
-			href = *repo.HTMLURL
-		}
-
-		r := model.Repository{
-			ID:       id,
-			Name:     name,
-			Href:     href,
-			Provider: "github",
-		}
-
-		rr = append(rr, r)
-	}
-
-	return rr, nil
-}
-
-func gitlabRepos(c context.Context, tok string) ([]model.Repository, error) {
-	return []model.Repository{}, nil
-}
-
-func (h Repo) getCached() ([]model.Repository, error) {
-	repos := make([]model.Repository, 0)
-
-	s, err := h.Redis.Get("repos").Result()
-
-	if err != nil {
-		return repos, errors.Err(err)
-	}
-
-	dec := json.NewDecoder(strings.NewReader(s))
-	dec.Decode(repos)
-
-	return repos, nil
-}
-
-func (h Repo) cacheRepos(rr []model.Repository) error {
+func (h Repo) cacheRepos(id int64, rr []model.Repo) error {
 	buf := &bytes.Buffer{}
 
 	enc := json.NewEncoder(buf)
 	enc.Encode(rr)
 
-	_, err := h.Redis.Set("repos", buf.String(), time.Hour).Result()
+	_, err := h.Redis.Set(fmt.Sprintf("repos-%v"), buf.String(), time.Hour).Result()
 
 	return errors.Err(err)
 }
 
-func (h Repo) loadRepos(c context.Context, providers model.ProviderStore) ([]model.Repository, error) {
+func (h Repo) getCached(id int64) ([]model.Repo, error) {
+	rr := make([]model.Repo, 0)
+
+	s, err := h.Redis.Get(fmt.Sprintf("repos-%v", id)).Result()
+
+	if err != nil {
+		if err == redis.Nil {
+			return rr, nil
+		}
+
+		return rr, errors.Err(err)
+	}
+
+	dec := json.NewDecoder(strings.NewReader(s))
+	dec.Decode(rr)
+
+	return rr, nil
+}
+
+func (h Repo) loadRepos(c context.Context, providers model.ProviderStore) ([]model.Repo, error) {
 	pp, err := providers.All()
 
-	rr := make([]model.Repository, 0)
+	rr := make([]model.Repo, 0)
+
+	if err != nil {
+		return rr, errors.Err(err)
+	}
 
 	for _, p := range pp {
+		provider, ok := h.Providers[p.Name]
+
+		if !ok {
+			continue
+		}
+
 		b, _ := crypto.Decrypt(p.AccessToken)
 
-		tmp, err := repoLoaders[p.Name](c, string(b))
+		tmp, err := provider.Repos(c, string(b))
 
 		if err != nil {
 			return rr, errors.Err(err)
@@ -156,7 +93,13 @@ func (h Repo) loadRepos(c context.Context, providers model.ProviderStore) ([]mod
 func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
 
-	rr, err := h.getCached()
+	rr, err := h.getCached(u.ID)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
 
 	if len(rr) == 0 {
 		rr, err = h.loadRepos(r.Context(), u.ProviderStore())
@@ -167,37 +110,54 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.cacheRepos(rr); err != nil {
+		if err := h.cacheRepos(u.ID, rr); err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	name := r.URL.Query().Get("provider")
+	repos := u.RepoStore()
 
-	if name != "" {
-		tmp := make([]model.Repository, 0, len(rr))
+	userRepos, err := repos.All()
 
-		for _, r := range rr {
-			if r.Name == name {
-				tmp = append(tmp, r)
-			}
-		}
-
-		rr = tmp
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
 	}
 
-	p := &repo.IndexPage{
+	if err := repos.LoadProviders(userRepos); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	enabled := make(map[string]struct{})
+
+	for _, repo := range userRepos {
+		enabled[fmt.Sprintf("%s-%v", repo.Provider.Name, repo.RepoID)] = struct{}{}
+	}
+
+	for _, r := range rr {
+		_, ok := enabled[fmt.Sprintf("%s-%v", r.Provider.Name, r.RepoID)]
+
+		r.Enabled = ok
+	}
+
+	provider := r.URL.Query().Get("provider")
+
+	p := repo.IndexPage{
 		BasePage: template.BasePage{
-			URL:  r.URL,
 			User: u,
+			URL:  r.URL,
 		},
-		Repos:    rr,
 		CSRF:     string(csrf.TemplateField(r)),
+		Repos:    rr,
+		Provider: provider,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(&p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -205,7 +165,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
 
-	rr, err := h.loadRepos(r.Context(), u.ProviderStore());
+	rr, err := h.loadRepos(r.Context(), u.ProviderStore())
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -217,7 +177,7 @@ func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cacheRepos(rr); err != nil {
+	if err := h.cacheRepos(u.ID, rr); err != nil {
 		log.Error.Println(errors.Err(err))
 
 		cause := errors.Cause(err)

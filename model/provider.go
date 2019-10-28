@@ -16,22 +16,17 @@ type Provider struct {
 	Name         string    `db:"name"`
 	AccessToken  []byte    `db:"access_token"`
 	RefreshToken []byte    `db:"refresh_token"`
+	Connected    bool      `db:"connected"`
 	ExpiresAt    time.Time `db:"expires_at"`
 
-	User *User `db:"-"`
+	User  *User   `db:"-"`
+	Repos []*Repo `db:"-"`
 }
 
 type ProviderStore struct {
 	Store
 
 	User *User
-}
-
-type Repository struct {
-	ID       int64
-	Name     string
-	Href     string
-	Provider string
 }
 
 func providerToInterface(pp []*Provider) func(i int) Interface {
@@ -46,6 +41,7 @@ func (p Provider) Values() map[string]interface{} {
 		"name":          p.Name,
 		"access_token":  p.AccessToken,
 		"refresh_token": p.RefreshToken,
+		"connected":     p.Connected,
 		"expires_at":    p.ExpiresAt,
 		"created_at":    p.CreatedAt,
 		"updated_at":    p.UpdatedAt,
@@ -99,6 +95,26 @@ func (s ProviderStore) FindByName(name string) (*Provider, error) {
 	}
 
 	return p, errors.Err(err)
+}
+
+func (s ProviderStore) Load(ids []interface{}, load func(i int, p *Provider)) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	pp, err := s.All(query.Where("id", "IN", ids...))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for i := range ids {
+		for _, p := range pp {
+			load(i, p)
+		}
+	}
+
+	return nil
 }
 
 func (s ProviderStore) New() *Provider {

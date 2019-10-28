@@ -62,6 +62,7 @@ var (
 	NamespaceTable     = "namespaces"
 	ObjectTable        = "objects"
 	ProviderTable      = "providers"
+	RepoTable          = "repos"
 	StageTable         = "stages"
 	TagTable           = "tags"
 	TriggerTable       = "triggers"
@@ -191,6 +192,16 @@ func ForParent(n *Namespace) query.Option {
 		}
 
 		return query.Where("parent_id", "=", n.ID)(q)
+	}
+}
+
+func ForProvider(p *Provider) query.Option {
+	return func(q query.Query) query.Query {
+		if p == nil || p.IsZero() {
+			return q
+		}
+
+		return query.Where("provider_id", "=", p.ID)(q)
 	}
 }
 

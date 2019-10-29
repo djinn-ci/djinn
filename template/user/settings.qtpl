@@ -10,8 +10,9 @@ type SettingsPage struct {
 	template.BasePage
 	template.Form
 
-	CSRF string
-	User *model.User
+	CSRF      string
+	User      *model.User
+	Providers []*model.Provider
 }
 
 type ShowInvites struct {
@@ -31,9 +32,34 @@ type ShowInvites struct {
 	Settings - Namespace Invites
 {% endfunc %}
 
+{% func (p *SettingsPage) renderProvider(prv *model.Provider) %}
+	<a href="{%s prv.AuthURL %}" class="provider-btn provider-{%s prv.Name %}">
+		{% switch prv.Name %}
+		{% case "github" %}
+			{% cat "../../svgs/github.svg" %}
+		{% case "gitlab" %}
+			{% cat "../../svgs/gitlab.svg" %}
+		{% endswitch %}
+		{% if prv.Connected %}
+			<span>Disconnect</span>
+		{% else %}
+			<span>Connect</span>
+		{% endif %}
+	</a>
+{% endfunc %}
+
 {% func (p *SettingsPage) Body() %}
 	<div class="panel">
 		<div class="panel-body slim">
+			{% if len(p.Providers) > 0 %}
+				<h2>Connected accounts</h2>
+				<div class="separator"></div>
+				<div class="providers">
+					{% for _, prv := range p.Providers %}
+						{%= p.renderProvider(prv) %}
+					{% endfor %}
+				</div>
+			{% endif %}
 			<form method="POST" action="/settings/email">
 				<h2>Change email</h2>
 				<div class="separator"></div>
@@ -78,9 +104,6 @@ type ShowInvites struct {
 					<button type="submit" class="btn btn-primary">Update</button>
 				</div>
 			</form>
-			<div class="separator"></div>
-			<h2>Connected Accounts</h2>
-
 		</div>
 	</div>
 {% endfunc %}

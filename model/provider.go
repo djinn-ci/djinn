@@ -18,9 +18,10 @@ type Provider struct {
 	RefreshToken []byte    `db:"refresh_token"`
 	Connected    bool      `db:"connected"`
 	ExpiresAt    time.Time `db:"expires_at"`
+	AuthURL      string    `db:"-"`
 
-	User  *User   `db:"-"`
-	Repos []*Repo `db:"-"`
+	User     *User   `db:"-"`
+	Repos    []*Repo `db:"-"`
 }
 
 type ProviderStore struct {
@@ -43,8 +44,6 @@ func (p Provider) Values() map[string]interface{} {
 		"refresh_token": p.RefreshToken,
 		"connected":     p.Connected,
 		"expires_at":    p.ExpiresAt,
-		"created_at":    p.CreatedAt,
-		"updated_at":    p.UpdatedAt,
 	}
 }
 
@@ -84,7 +83,7 @@ func (s ProviderStore) FindByName(name string) (*Provider, error) {
 	q := query.Select(
 		query.Columns("*"),
 		query.From(ProviderTable),
-		query.Where(name, "=", name),
+		query.Where("name", "=", name),
 		ForUser(s.User),
 	)
 

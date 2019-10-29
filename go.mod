@@ -6,7 +6,6 @@ replace github.com/docker/docker => github.com/docker/engine v0.0.0-201811061931
 
 require (
 	cloud.google.com/go/pubsub v1.0.1 // indirect
-	git.apache.org/thrift.git v0.12.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
@@ -39,7 +38,6 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/pelletier/go-toml v1.4.0
 	github.com/pkg/sftp v1.10.1
-	github.com/prometheus/client_golang v0.9.3-0.20190127221311-3c4408c8b829 // indirect
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271 // indirect

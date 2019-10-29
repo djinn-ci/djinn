@@ -5,7 +5,7 @@ CREATE TABLE providers (
 	access_token  BYTEA NULL,
 	refresh_token BYTEA NULL,
 	connected     BOOLEAN NOT NULL DEFAULT FALSE,
-	expires_at    TIMESTAMP NOT NULL,
+	expires_at    TIMESTAMP NULL,
 	created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
 	updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );

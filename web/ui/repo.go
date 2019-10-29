@@ -55,7 +55,7 @@ func (h Repo) getCached(id int64) ([]model.Repo, error) {
 	}
 
 	dec := json.NewDecoder(strings.NewReader(s))
-	dec.Decode(rr)
+	dec.Decode(&rr)
 
 	return rr, nil
 }

@@ -40,6 +40,10 @@ func (g GitLab) Auth(c context.Context, code string, providers model.ProviderSto
 	return errors.Err(auth(c, "gitlab", tok, providers))
 }
 
+func (g GitLab) AuthURL() string {
+	return authURL(g.Config.Endpoint.AuthURL, g.Config.ClientID, gitlabScopes)
+}
+
 func (g GitLab) Repos(c context.Context, tok string) ([]model.Repo, error) {
 	return []model.Repo{}, nil
 }

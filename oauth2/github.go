@@ -42,6 +42,10 @@ func (g GitHub) Auth(c context.Context, code string, providers model.ProviderSto
 	return errors.Err(auth(c, "github", tok, providers))
 }
 
+func (g GitHub) AuthURL() string {
+	return authURL(g.Config.Endpoint.AuthURL, g.Config.ClientID, githubScopes)
+}
+
 func (g GitHub) Repos(c context.Context, tok string) ([]model.Repo, error) {
 	oauthTok := &oauth2.Token{
 		AccessToken: tok,

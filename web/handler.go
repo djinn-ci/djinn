@@ -126,6 +126,12 @@ func (h Handler) User(r *http.Request) *model.User {
 
 	u, _ := val.(*model.User)
 
+	if u != nil {
+		return u
+	}
+
+	u, _ = h.UserCookie(r)
+
 	return u
 }
 

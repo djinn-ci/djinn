@@ -36,7 +36,7 @@ func (h Repo) cacheRepos(id int64, rr []model.Repo) error {
 	enc := json.NewEncoder(buf)
 	enc.Encode(rr)
 
-	_, err := h.Redis.Set(fmt.Sprintf("repos-%v"), buf.String(), time.Hour).Result()
+	_, err := h.Redis.Set(fmt.Sprintf("repos-%v", id), buf.String(), time.Hour).Result()
 
 	return errors.Err(err)
 }
@@ -70,6 +70,10 @@ func (h Repo) loadRepos(c context.Context, providers model.ProviderStore) ([]mod
 	}
 
 	for _, p := range pp {
+		if !p.Connected {
+			continue
+		}
+
 		provider, ok := h.Providers[p.Name]
 
 		if !ok {

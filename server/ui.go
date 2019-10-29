@@ -133,10 +133,11 @@ func (s *UI) Init() {
 	}
 
 	s.user = ui.User{
-		Handler: s.Server.Handler,
-		Invites: model.InviteStore{
+		Handler:   s.Server.Handler,
+		Invites:   model.InviteStore{
 			Store: store,
 		},
+		Providers: s.Providers,
 	}
 
 	s.variable = ui.Variable{

@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/user"
@@ -22,7 +23,8 @@ import (
 type User struct {
 	web.Handler
 
-	Invites model.InviteStore
+	Invites   model.InviteStore
+	Providers map[string]oauth2.Provider
 }
 
 func (h User) Settings(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +66,20 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 
 		break
 	default:
+		pp, err := u.ProviderStore().All()
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		for _, p := range pp {
+			p.AuthURL = h.Providers[p.Name].AuthURL()
+		}
+
+		sp.Providers = pp
+
 		p = &sp
 
 		break

@@ -9,6 +9,8 @@ import (
 )
 
 type Server struct {
+	Host string
+
 	Images    string
 	Artifacts string
 	Objects   string
@@ -23,10 +25,10 @@ type Server struct {
 	}
 
 	Crypto struct {
-		Hash string
-		Key  string
-		Salt string
-		Auth string
+		Hash  string
+		Block string
+		Salt  string
+		Auth  string
 	}
 
 	Database struct {

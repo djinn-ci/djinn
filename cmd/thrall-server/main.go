@@ -65,7 +65,7 @@ func mainCommand(cmd cli.Command) {
 
 	log.SetLogger(log.NewStdLog(logf))
 
-	crypto.Key = []byte(cfg.Crypto.Key)
+	crypto.Key = []byte(cfg.Crypto.Block)
 
 	if err := crypto.InitHashing(cfg.Crypto.Salt, 8); err != nil {
 		log.Error.Fatalf("failed to initialize hashing mechanism: %s\n", err)
@@ -121,12 +121,20 @@ func mainCommand(cmd cli.Command) {
 		queues[d.Type] = queue
 	}
 
-	hash := []byte(cfg.Crypto.Hash)
-	key := []byte(cfg.Crypto.Key)
+	hashKey := []byte(cfg.Crypto.Hash)
+	blockKey := []byte(cfg.Crypto.Block)
+
+	if len(hashKey) < 32 || len(hashKey) > 64 {
+		log.Error.Fatalf("hash key is either too long or too short, make sure it between 32 and 64 bytes in size\n")
+	}
+
+	if len(blockKey) != 16 || len(blockKey) != 24 || len(blockKey) != 32 {
+		log.Error.Fatalf("block key must be either 16, 24, or 32 bytes in size\n")
+	}
 
 	handler := web.Handler{
-		Store:        session.New(client, key),
-		SecureCookie: securecookie.New(hash, key),
+		Store:        session.New(client, blockKey),
+		SecureCookie: securecookie.New(hashKey, blockKey),
 		Users:        model.UserStore{
 			Store: model.Store{
 				DB: db,
@@ -171,15 +179,22 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to create artifact store: %s\n", err)
 	}
 
+	authKey := []byte(cfg.Crypto.Auth)
+
+	if len(authKey) != 32 {
+		log.Error.Fatalf("auth key must be 32 bytes in size\n")
+	}
+
 	srv := server.Server{
 		Http: &http.Server{
 			Addr:      cfg.Net.Listen,
 			Cert:      cfg.Net.SSL.Cert,
 			Key:       cfg.Net.SSL.Key,
-			CSRFToken: []byte(cfg.Crypto.Auth),
+			CSRFToken: authKey,
 		},
 		DB:          db,
 		Redis:       client,
+		Host:        cfg.Host,
 		Images:      images,
 		Artifacts:   artifacts,
 		Objects:     objects,

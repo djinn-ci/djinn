@@ -10,6 +10,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 
 	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/github"
+	"golang.org/x/oauth2/gitlab"
 )
 
 type Provider interface {
@@ -17,7 +19,11 @@ type Provider interface {
 
 	AuthURL() string
 
-	Repos(c context.Context, tok string) ([]model.Repo, error)
+	AddHook(c context.Context, tok string, id int64) error
+
+	Repos(c context.Context, tok string) ([]*model.Repo, error)
+
+	Revoke(c context.Context, tok string) error
 }
 
 func auth(c context.Context, name string, tok *oauth2.Token, providers model.ProviderStore) error {
@@ -51,12 +57,30 @@ func authURL(rawurl, id string, scopes []string) string {
 	return url.String()
 }
 
-func NewProvider(name, id, secret string) (Provider, error) {
+func NewProvider(name, clientId, clientSecret, host, secret string) (Provider, error) {
+	cfg := &oauth2.Config{
+		ClientID:     clientId,
+		ClientSecret: clientSecret,
+	}
+
 	switch name {
 	case "github":
-		return NewGitHub(id, secret), nil
-	case "gitlabg":
-		return NewGitLab(id, secret), nil
+		cfg.Scopes = githubScopes
+		cfg.Endpoint = github.Endpoint
+
+		return GitHub{
+			endpoint: host + "/hook/github",
+			secret:   secret,
+			Config:   cfg,
+		}, nil
+	case "gitlab":
+		cfg.Scopes = gitlabScopes
+		cfg.Endpoint = gitlab.Endpoint
+
+		return GitLab{
+			endpoint: host + "/hook/gitlab",
+			Config:   cfg,
+		}, nil
 	default:
 		return nil, errors.Err(errors.New("unknown provider '" + name + "'"))
 	}

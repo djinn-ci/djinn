@@ -55,7 +55,8 @@ type Server struct {
 	}
 
 	Providers []struct {
-		Name         string `toml:"name"`
+		Name         string
+		Secret       string
 		ClientID     string `toml:"client_id"`
 		ClientSecret string `toml:"client_secret"`
 	}

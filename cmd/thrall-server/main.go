@@ -128,7 +128,7 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("hash key is either too long or too short, make sure it between 32 and 64 bytes in size\n")
 	}
 
-	if len(blockKey) != 16 || len(blockKey) != 24 || len(blockKey) != 32 {
+	if len(blockKey) != 16 && len(blockKey) != 24 && len(blockKey) != 32 {
 		log.Error.Fatalf("block key must be either 16, 24, or 32 bytes in size\n")
 	}
 
@@ -194,7 +194,6 @@ func mainCommand(cmd cli.Command) {
 		},
 		DB:          db,
 		Redis:       client,
-		Host:        cfg.Host,
 		Images:      images,
 		Artifacts:   artifacts,
 		Objects:     objects,
@@ -208,7 +207,7 @@ func mainCommand(cmd cli.Command) {
 	providers := make(map[string]oauth2.Provider)
 
 	for _, p := range cfg.Providers {
-		provider, err := oauth2.NewProvider(p.Name, p.ClientID, p.ClientSecret)
+		provider, err := oauth2.NewProvider(p.Name, p.ClientID, p.ClientSecret, cfg.Host, p.Secret)
 
 		if err != nil {
 			log.Error.Fatalf("failed to configure oauth provider: %s\n", errors.Cause(err))

@@ -7,27 +7,17 @@ import (
 	"github.com/andrewpillar/thrall/model"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/gitlab"
 )
 
 type GitLab struct {
+	endpoint string
+
 	Config *oauth2.Config
 }
 
 var gitlabScopes = []string{
 	"read_repository",
 	"write_repository",
-}
-
-func NewGitLab(id, secret string) GitLab {
-	return GitLab{
-		Config: &oauth2.Config{
-			ClientID:     id,
-			ClientSecret: secret,
-			Scopes:       gitlabScopes,
-			Endpoint:     gitlab.Endpoint,
-		},
-	}
 }
 
 func (g GitLab) Auth(c context.Context, code string, providers model.ProviderStore) error {
@@ -44,6 +34,14 @@ func (g GitLab) AuthURL() string {
 	return authURL(g.Config.Endpoint.AuthURL, g.Config.ClientID, gitlabScopes)
 }
 
-func (g GitLab) Repos(c context.Context, tok string) ([]model.Repo, error) {
-	return []model.Repo{}, nil
+func (g GitLab) AddHook(c context.Context, tok string, id int64) error {
+	return nil
+}
+
+func (g GitLab) Repos(c context.Context, tok string) ([]*model.Repo, error) {
+	return []*model.Repo{}, nil
+}
+
+func (g GitLab) Revoke(c context.Context, tok string) error {
+	return nil
 }

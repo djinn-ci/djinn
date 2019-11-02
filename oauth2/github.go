@@ -2,34 +2,36 @@ package oauth2
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
 
-	githubapi "github.com/google/go-github/github"
+	"github.com/google/go-github/github"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/github"
 )
 
 type GitHub struct {
+	endpoint string
+	secret   string
+
 	Config *oauth2.Config
 }
 
 var githubScopes = []string{
 	"repo",
-	"write:repo_hook",
+	"admin:repo_hook",
 }
 
-func NewGitHub(id, secret string) GitHub {
-	return GitHub{
-		Config: &oauth2.Config{
-			ClientID:     id,
-			ClientSecret: secret,
-			Scopes:       githubScopes,
-			Endpoint:     github.Endpoint,
-		},
+func githubClient(c context.Context, tok string) *github.Client {
+	oauthTok := &oauth2.Token{
+		AccessToken: tok,
 	}
+
+	src := oauth2.StaticTokenSource(oauthTok)
+
+	return github.NewClient(oauth2.NewClient(c, src))
 }
 
 func (g GitHub) Auth(c context.Context, code string, providers model.ProviderStore) error {
@@ -46,15 +48,49 @@ func (g GitHub) AuthURL() string {
 	return authURL(g.Config.Endpoint.AuthURL, g.Config.ClientID, githubScopes)
 }
 
-func (g GitHub) Repos(c context.Context, tok string) ([]model.Repo, error) {
-	oauthTok := &oauth2.Token{
-		AccessToken: tok,
+func (g GitHub) AddHook(c context.Context, tok string, id int64) error {
+	cli := githubClient(c, tok)
+
+	repo, resp, err := cli.Repositories.GetByID(c, id)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	src := oauth2.StaticTokenSource(oauthTok)
-	cli := githubapi.NewClient(oauth2.NewClient(c, src))
+	if resp.StatusCode != http.StatusOK {
+		return errors.Err(errors.New("failed to get repository: " + resp.Status))
+	}
 
-	opts := &githubapi.RepositoryListOptions{
+	h := &github.Hook{
+		Config: map[string]interface{}{
+			"url":          g.endpoint,
+			"secret":       g.secret,
+			"content_type": "json",
+			"insecure_ssl": 0,
+		},
+		Events: []string{
+			"push",
+			"pull_request",
+		},
+	}
+
+	_, resp, err = cli.Repositories.CreateHook(c, *repo.Owner.Login, *repo.Name, h)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if resp.StatusCode != http.StatusCreated {
+		return errors.Err(errors.New("failed to get repository: " + resp.Status))
+	}
+
+	return nil
+}
+
+func (g GitHub) Repos(c context.Context, tok string) ([]*model.Repo, error) {
+	cli := githubClient(c, tok)
+
+	opts := &github.RepositoryListOptions{
 		Sort:      "updated",
 		Direction: "desc",
 	}
@@ -62,10 +98,10 @@ func (g GitHub) Repos(c context.Context, tok string) ([]model.Repo, error) {
 	repos, _, err := cli.Repositories.List(c, "", opts)
 
 	if err != nil {
-		return []model.Repo{}, errors.Err(err)
+		return []*model.Repo{}, errors.Err(err)
 	}
 
-	rr := make([]model.Repo, 0, len(repos))
+	rr := make([]*model.Repo, 0, len(repos))
 
 	for _, repo := range repos {
 		var (
@@ -86,7 +122,7 @@ func (g GitHub) Repos(c context.Context, tok string) ([]model.Repo, error) {
 			href = *repo.HTMLURL
 		}
 
-		r := model.Repo{
+		r := &model.Repo{
 			RepoID:   id,
 			Name:     name,
 			Href:     href,
@@ -99,4 +135,27 @@ func (g GitHub) Repos(c context.Context, tok string) ([]model.Repo, error) {
 	}
 
 	return rr, nil
+}
+
+func (g GitHub) Revoke(c context.Context, tok string) error {
+	transport := &github.BasicAuthTransport{
+		Username: g.Config.ClientID,
+		Password: g.Config.ClientSecret,
+	}
+
+	cli := github.NewClient(&http.Client{
+		Transport: transport,
+	})
+
+	resp, err := cli.Authorizations.Revoke(c, g.Config.ClientID, tok)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if resp.Response.StatusCode != http.StatusNoContent {
+		return errors.Err(errors.New("unexpected response from api: " + resp.Response.Status))
+	}
+
+	return nil
 }

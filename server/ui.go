@@ -197,8 +197,8 @@ func (s *UI) Auth() {
 
 	r.HandleFunc("/repos", s.repo.Index).Methods("GET")
 	r.HandleFunc("/repos/reload", s.repo.Reload).Methods("PATCH")
-	r.HandleFunc("/repos/activate", s.repo.Store).Methods("POST")
-	r.HandleFunc("/repos/deactivate", s.repo.Destroy).Methods("DELETE")
+	r.HandleFunc("/repos/enable", s.repo.Store).Methods("POST")
+	r.HandleFunc("/repos/disable/{repo:[0-9]+}", s.repo.Destroy).Methods("DELETE")
 
 	r.Use(s.Middleware.Auth)
 }
@@ -207,6 +207,7 @@ func (s *UI) Oauth() {
 	r := s.router.PathPrefix("/oauth").Subrouter()
 
 	r.HandleFunc("/{provider}", s.oauth.Auth).Methods("GET")
+	r.HandleFunc("/{provider}", s.oauth.Revoke).Methods("DELETE")
 }
 
 func (s *UI) Guest() {

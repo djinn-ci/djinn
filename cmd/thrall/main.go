@@ -102,7 +102,7 @@ func mainCommand(c cli.Command) {
 			Writer:    os.Stdout,
 			Name:      name,
 			Commands:  commands,
-			Artifacts: runner.NewPassthrough(),
+			Artifacts: runner.Passthrough{},
 		})
 	}
 

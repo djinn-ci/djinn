@@ -165,7 +165,7 @@ func (d *SSH) Destroy() {
 }
 
 func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
-	if len(j.Artifacts) == 0 {
+	if j.Artifacts.Len() == 0 {
 		return
 	}
 
@@ -180,7 +180,7 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 
 	fmt.Fprintf(w, "\n")
 
-	for src, dst := range j.Artifacts {
+	for src, dst := range j.Artifacts.Values() {
 		fmt.Fprintf(w, "Collecting artifact %s => %s\n", src, dst)
 
 		f, err := cli.Open(src)
@@ -211,7 +211,7 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 }
 
 func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
-	if len(objects) == 0 {
+	if objects.Len() == 0 {
 		return nil
 	}
 
@@ -223,7 +223,7 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 
 	defer cli.Close()
 
-	for src, dst := range objects {
+	for src, dst := range objects.Values() {
 		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
 
 		f, err := cli.OpenFile(dst, os.O_WRONLY|os.O_APPEND|os.O_CREATE)

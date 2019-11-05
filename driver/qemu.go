@@ -158,7 +158,7 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 		return errors.New("SSH driver for QEMU not initialized")
 	}
 
-	if err := d.SSH.Create(c, env, runner.NewPassthrough(), p); err != nil {
+	if err := d.SSH.Create(c, env, runner.Passthrough{}, p); err != nil {
 		return err
 	}
 

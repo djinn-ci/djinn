@@ -19,10 +19,38 @@ import (
 // Artifacts are passed from the guest to the host. The key for an artifact
 // passthrough represents the source file on the guest, and the value represents
 // the destination on the host environment.
-type Passthrough map[string]string
+type Passthrough struct {
+	vals map[string]string
+}
 
-func NewPassthrough() Passthrough {
-	return Passthrough(make(map[string]string))
+func (p Passthrough) Len() int {
+	return len(p.vals)
+}
+
+func (p Passthrough) Values() map[string]string {
+	return p.vals
+}
+
+func (p *Passthrough) Set(key, val string) {
+	if p.vals == nil {
+		p.vals = make(map[string]string)
+	}
+
+	p.vals[key] = val
+}
+
+func (p *Passthrough) MarshalYAML() (interface{}, error) {
+	if p.vals == nil {
+		return []string{}, nil
+	}
+
+	ss := make([]string, 0, len(p.vals))
+
+	for k, v := range p.vals {
+		ss = append(ss, k + " => " + v)
+	}
+
+	return ss, nil
 }
 
 // In the manifest YAML file passthrough is expected to be presented like so:
@@ -32,7 +60,9 @@ func NewPassthrough() Passthrough {
 // The [destination] is optional, and if not provided the based of the [source]
 // will be used intstead.
 func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	*p = make(map[string]string)
+	if p.vals == nil {
+		p.vals = make(map[string]string)
+	}
 
 	ss := make([]string, 0)
 
@@ -50,7 +80,7 @@ func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			val = strings.TrimSpace(parts[1])
 		}
 
-		(*p)[key] = val
+		p.vals[key] = val
 	}
 
 	return nil

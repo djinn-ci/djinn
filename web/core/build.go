@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -144,30 +143,29 @@ func (h Build) Show(r *http.Request) (*model.Build, error) {
 	return b, errors.Err(err)
 }
 
-func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, error) {
+func (h Build) UnmarshalAndValidate(w http.ResponseWriter, r *http.Request) (*model.Build, error) {
 	u := h.User(r)
 
 	f := &form.Build{}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
-		return &model.Build{}, ErrValidationFailed
-	}
-
-	m, _ := config.DecodeManifest(strings.NewReader(f.Manifest))
-
-	if _, ok := h.Queues[m.Driver["type"]]; !ok {
-		return &model.Build{}, ErrUnsupportedDriver
-	}
-
-	secret, err := crypto.HashNow()
-
-	if err != nil {
+	if err := form.Unmarshal(f, r); err != nil {
 		return &model.Build{}, errors.Err(err)
 	}
 
-	builds := u.BuildStore()
+	if err := f.Validate(); err != nil {
+		h.FlashErrors(w, r, err.(form.Errors))
+		h.FlashForm(w, r, f)
 
-	b := builds.New()
+		return &model.Build{}, ErrValidationFailed
+	}
+
+	if _, ok := h.Queues[f.Manifest.Driver["type"]]; !ok {
+		return &model.Build{}, ErrUnsupportedDriver
+	}
+
+	secret, _ := crypto.HashNow()
+
+	b := u.BuildStore().New()
 	b.User = u
 	b.Manifest = f.Manifest
 	b.Secret = sql.NullString{
@@ -175,17 +173,15 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		Valid:  true,
 	}
 
-	if m.Namespace != "" {
-		n, err := h.Namespace.Get(m.Namespace, u)
+	if f.Manifest.Namespace != "" {
+		n, err := h.Namespace.Get(f.Manifest.Namespace, u)
 
 		if err != nil {
 			return b, errors.Err(err)
 		}
 
 		if !n.CanAdd(u) {
-			h.FlashForm(w, r, f)
-
-			return b, errors.Err(ErrAccessDenied)
+			return b, ErrAccessDenied
 		}
 
 		b.Namespace = n
@@ -195,65 +191,65 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		}
 	}
 
-	if err := builds.Create(b); err != nil {
-		return b, errors.Err(err)
-	}
-
-	triggers := b.TriggerStore()
-
-	t := triggers.New()
-	t.Type = types.Manual
-	t.Comment = f.Comment
-	t.Data.User = u.Username
-	t.Data.Email = u.Email
-
-	if err := triggers.Create(t); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := h.Submit(b, h.Queues[m.Driver["type"]]); err != nil {
-		return b, errors.Err(err)
-	}
-
-	tags := b.TagStore()
-	tt := make([]*model.Tag, 0, len(f.Tags))
+	b.Trigger = b.TriggerStore().New()
+	b.Trigger.Type = types.Manual
+	b.Trigger.Comment = f.Comment
+	b.Trigger.Data.Set("email", u.Email)
+	b.Trigger.Data.Set("username", u.Username)
 
 	for _, name := range f.Tags {
-		t := tags.New()
-		t.UserID = u.ID
-		t.Name = name
+		t := &model.Tag{
+			UserID: u.ID,
+			Name:   name,
+		}
 
-		tt = append(tt, t)
+		b.Tags = append(b.Tags, t)
 	}
 
-	err = tags.Create(tt...)
+	return b, nil
+}
 
-	return b, errors.Err(err)
+func (h Build) Create(b *model.Build) error {
+	if err := h.Builds.Create(b); err != nil {
+		return errors.Err(err)
+	}
+
+	b.Trigger.BuildID = b.ID
+
+	if err := b.TriggerStore().Create(b.Trigger); err != nil {
+		return errors.Err(err)
+	}
+
+	for _, t := range b.Tags {
+		t.BuildID = b.ID
+	}
+
+	err := b.TagStore().Create(b.Tags...)
+
+	return errors.Err(err)
 }
 
 func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
-	m, _ := config.DecodeManifest(strings.NewReader(b.Manifest))
-
-	i, err := h.Images.FindByName(m.Driver["image"])
+	i, err := h.Images.FindByName(b.Manifest.Driver["image"])
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
 	if !i.IsZero() {
-		m.Driver["image"] = i.Name + "::" + i.Hash
+		b.Manifest.Driver["image"] = i.Name + "::" + i.Hash
 	}
 
 	buf := &bytes.Buffer{}
 
 	enc := json.NewEncoder(buf)
-	enc.Encode(m.Driver)
+	enc.Encode(b.Manifest.Driver)
 
 	drivers := b.DriverStore()
 
 	d := drivers.New()
 	d.Config = buf.String()
-	d.Type.UnmarshalText([]byte(m.Driver["type"]))
+	d.Type.UnmarshalText([]byte(b.Manifest.Driver["type"]))
 
 	if err := drivers.Create(d); err != nil {
 		return errors.Err(err)
@@ -274,7 +270,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 		return errors.Err(err)
 	}
 
-	for _, env := range m.Env {
+	for _, env := range b.Manifest.Env {
 		parts := strings.SplitN(env, "=", 2)
 
 		bv := buildVars.New()
@@ -299,9 +295,9 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 		return errors.Err(err)
 	}
 
-	names := make([]interface{}, 0, len(m.Objects))
+	names := make([]interface{}, 0, b.Manifest.Objects.Len())
 
-	for src := range m.Objects {
+	for src := range b.Manifest.Objects.Values() {
 		names = append(names, src)
 	}
 
@@ -326,7 +322,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 				Valid: true,
 			}
 			bo.Source = o.Name
-			bo.Name = m.Objects[o.Name]
+			bo.Name = b.Manifest.Objects.Values()[o.Name]
 
 			if err := buildObjs.Create(bo); err != nil {
 				return errors.Err(err)
@@ -345,10 +341,10 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 
 	stageModels := make(map[string]*model.Stage)
 
-	for _, name := range m.Stages {
+	for _, name := range b.Manifest.Stages {
 		canFail := false
 
-		for _, allowed := range m.AllowFailures {
+		for _, allowed := range b.Manifest.AllowFailures {
 			if name == allowed {
 				canFail = true
 				break
@@ -375,7 +371,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 		return errors.Err(err)
 	}
 
-	for i, src := range m.Sources {
+	for i, src := range b.Manifest.Sources {
 		commands := []string{
 			"git clone " + src.URL + " " + src.Dir,
 			"cd " + src.Dir,
@@ -400,7 +396,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 
 	jobModels := make(map[string]*model.Job)
 
-	for _, job := range m.Jobs {
+	for _, job := range b.Manifest.Jobs {
 		s, ok := stageModels[job.Stage]
 
 		if !ok {
@@ -426,7 +422,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 
 		jobModels[s.Name + j.Name] = j
 
-		for src, dst := range job.Artifacts {
+		for src, dst := range job.Artifacts.Values() {
 			hash, _ := crypto.HashNow()
 
 			artifacts := j.ArtifactStore()

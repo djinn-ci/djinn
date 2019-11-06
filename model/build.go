@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"strings"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -20,14 +21,14 @@ import (
 type Build struct {
 	Model
 
-	UserID      int64          `db:"user_id"`
-	NamespaceID sql.NullInt64  `db:"namespace_id"`
-	Manifest    string         `db:"manifest"`
-	Status      runner.Status  `db:"status"`
-	Output      sql.NullString `db:"output"`
-	Secret      sql.NullString `db:"secret"`
-	StartedAt   pq.NullTime    `db:"started_at"`
-	FinishedAt  pq.NullTime    `db:"finished_at"`
+	UserID      int64           `db:"user_id"`
+	NamespaceID sql.NullInt64   `db:"namespace_id"`
+	Manifest    config.Manifest `db:"manifest"`
+	Status      runner.Status   `db:"status"`
+	Output      sql.NullString  `db:"output"`
+	Secret      sql.NullString  `db:"secret"`
+	StartedAt   pq.NullTime     `db:"started_at"`
+	FinishedAt  pq.NullTime     `db:"finished_at"`
 
 	User      *User            `json:"-"`
 	Namespace *Namespace       `json:"-"`
@@ -153,7 +154,7 @@ func (b *Build) IsZero() bool {
 	return b.Model.IsZero() &&
 		b.UserID == 0 &&
 		!b.NamespaceID.Valid &&
-		b.Manifest == "" &&
+		b.Manifest.String() == "" &&
 		b.Status == runner.Status(0) &&
 		!b.Output.Valid &&
 		!b.StartedAt.Valid &&

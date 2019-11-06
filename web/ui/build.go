@@ -83,7 +83,7 @@ func (h Build) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Build) Store(w http.ResponseWriter, r *http.Request) {
-	b, err := h.Core.Store(w, r)
+	b, err := h.Core.UnmarshalAndValidate(w, r)
 
 	if err != nil {
 		cause := errors.Cause(err)
@@ -113,9 +113,25 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if err := h.Core.Create(b); err != nil {
+		cause := errors.Cause(err)
+
+		h.Core.FlashAlert(w, r, template.Danger("Failed to create build: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	if err := h.Core.Submit(b, h.Core.Queues[b.Manifest.Driver["type"]]); err != nil {
+		cause := errors.Cause(err)
+
+		h.Core.FlashAlert(w, r, template.Danger("Failed to create build: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
 	h.Core.FlashAlert(w, r, template.Success("Build submitted: #" + strconv.FormatInt(b.ID, 10)))
 
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, b.UIEndpoint(), http.StatusSeeOther)
 }
 
 func (h Build) Show(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +176,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		pen := parts[len(parts) - 2]
 
 		if pen == "manifest" {
-			web.Text(w, b.Manifest, http.StatusOK)
+			web.Text(w, b.Manifest.String(), http.StatusOK)
 			return
 		}
 

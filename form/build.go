@@ -4,15 +4,14 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/errors"
 )
 
 type tags []string
 
 type Build struct {
-	Manifest  string `schema:"manifest"`
-	Comment   string `schema:"comment"`
-	Tags      tags   `schema:"tags"`
+	Manifest config.Manifest `schema:"manifest"`
+	Comment  string          `schema:"comment"`
+	Tags     tags            `schema:"tags"`
 }
 
 func (t *tags) UnmarshalText(b []byte) error {
@@ -41,7 +40,6 @@ func (t *tags) String() string {
 
 func (f Build) Fields() map[string]string {
 	m := make(map[string]string)
-	m["manifest"] = f.Manifest
 	m["comment"] = f.Comment
 	m["tags"] = f.Tags.String()
 
@@ -51,17 +49,11 @@ func (f Build) Fields() map[string]string {
 func (f Build) Validate() error {
 	errs := NewErrors()
 
-	if f.Manifest == "" {
+	if f.Manifest.String() == "" {
 		errs.Put("manifest", ErrFieldRequired("Build manifest"))
 	}
 
-	m, err := config.DecodeManifest(strings.NewReader(f.Manifest))
-
-	if err != nil {
-		errs.Put("manifest", ErrFieldInvalid("Build manifest", errors.Cause(err).Error()))
-	}
-
-	if err := m.Validate(); err != nil {
+	if err := f.Manifest.Validate(); err != nil {
 		errs.Put("manifest", ErrFieldInvalid("Build manifest", err.Error()))
 	}
 

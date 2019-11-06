@@ -39,7 +39,7 @@ func (p *Passthrough) Set(key, val string) {
 	p.vals[key] = val
 }
 
-func (p *Passthrough) MarshalYAML() (interface{}, error) {
+func (p Passthrough) MarshalYAML() (interface{}, error) {
 	if p.vals == nil {
 		return []string{}, nil
 	}

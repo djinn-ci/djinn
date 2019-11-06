@@ -1,6 +1,8 @@
 package config
 
 import (
+	"bytes"
+	"database/sql/driver"
 	"io"
 	"strings"
 
@@ -48,6 +50,60 @@ func DecodeManifest(r io.Reader) (Manifest, error) {
 	}
 
 	return manifest, nil
+}
+
+func (m *Manifest) Scan(val interface{}) error {
+	if val == nil {
+		return nil
+	}
+
+	str, err := driver.String.ConvertValue(val)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	s, ok := str.(string)
+
+	if !ok {
+		return errors.Err(errors.New("expected string value for manifest"))
+	}
+
+	if len(s) == 0 {
+		return nil
+	}
+
+	buf := bytes.NewBufferString(s)
+	dec := yaml.NewDecoder(buf)
+
+	return errors.Err(dec.Decode(m))
+}
+
+func (m Manifest) String() string {
+	b, err := yaml.Marshal(m)
+
+	if err != nil {
+		return ""
+	}
+
+	return string(b)
+}
+
+func (m Manifest) Value() (driver.Value, error) {
+	buf := &bytes.Buffer{}
+
+	enc := yaml.NewEncoder(buf)
+	enc.Encode(&m)
+
+	return driver.Value(buf.String()), nil
+}
+
+func (m *Manifest) UnmarshalText(b []byte) error {
+	(*m) = Manifest{}
+
+	err := yaml.Unmarshal(b, m)
+
+	return errors.Err(err)
 }
 
 func (m Manifest) Validate() error {

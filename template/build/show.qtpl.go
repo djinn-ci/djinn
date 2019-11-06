@@ -461,7 +461,7 @@ func (p *ShowManifest) StreamBody(qw422016 *qt422016.Writer) {
 	//line template/build/show.qtpl:165
 	qw422016.N().S(`<span>Raw</span> </a> </li> </ul> </div> `)
 	//line template/build/show.qtpl:170
-	template.StreamRenderCode(qw422016, p.Build.Manifest)
+	template.StreamRenderCode(qw422016, p.Build.Manifest.String())
 	//line template/build/show.qtpl:170
 	qw422016.N().S(` </div> `)
 //line template/build/show.qtpl:172

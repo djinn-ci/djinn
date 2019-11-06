@@ -167,7 +167,7 @@ type ShowTags struct {
 				</li>
 			</ul>
 		</div>
-		{%= template.RenderCode(p.Build.Manifest) %}
+		{%= template.RenderCode(p.Build.Manifest.String()) %}
 	</div>
 {% endfunc %}
 

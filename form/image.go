@@ -2,7 +2,6 @@ package form
 
 import (
 	"bytes"
-//	"encoding/binary"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
@@ -54,21 +53,23 @@ func (f *Image) Validate() error {
 		}
 	}
 
-	buf := make([]byte, 4, 4)
+	if f.Upload.File != nil {
+		buf := make([]byte, 4, 4)
 
-	if _, err := f.Upload.File.Read(buf); err != nil {
-		errs.Put("image", err)
+		if _, err := f.Upload.File.Read(buf); err != nil {
+			errs.Put("image", err)
+		}
+
+		if !bytes.Equal(buf, magic) {
+			errs.Put("file", ErrFieldInvalid("File", "not a valid QCOW file format"))
+		}
+
+		if _, err := f.Upload.File.Read(buf); err != nil {
+			errs.Put("image", err)
+		}
+
+		f.Upload.File.Seek(0, 0)
 	}
-
-	if !bytes.Equal(buf, magic) {
-		errs.Put("file", ErrFieldInvalid("File", "not a valid QCOW file format"))
-	}
-
-	if _, err := f.Upload.File.Read(buf); err != nil {
-		errs.Put("image", err)
-	}
-
-	f.Upload.File.Seek(0, 0)
 
 	return errs.Err()
 }

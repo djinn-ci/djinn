@@ -11,11 +11,15 @@ import (
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
 
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 )
 
 type UI struct {
 	Server
+
+	csrf func(http.Handler) http.Handler
+	hook web.Hook
 
 	artifact     ui.Artifact
 	auth         ui.Auth
@@ -44,6 +48,12 @@ func (s *UI) Init() {
 	gob.Register(form.NewErrors())
 	gob.Register(template.Alert{})
 	gob.Register(make(map[string]string))
+
+	s.csrf = csrf.Protect(
+		s.CSRFToken,
+		csrf.RequestHeader("X-CSRF-Token"),
+		csrf.FieldName("csrf_token"),
+	)
 
 	s.router = mux.NewRouter()
 
@@ -77,6 +87,11 @@ func (s *UI) Init() {
 		keys:       model.KeyStore{
 			Store: store,
 		},
+	}
+
+	s.hook = web.Hook{
+		Handler:   s.Handler,
+		Providers: s.Providers,
 	}
 
 	s.artifact = ui.Artifact{
@@ -159,32 +174,21 @@ func (s *UI) Serve() error {
 	return s.Server.Http.Serve()
 }
 
+func (s *UI) Hook() {
+	r := s.router.PathPrefix("/hook").Subrouter()
+
+	r.HandleFunc("/github", s.hook.Github)
+}
+
 func (s *UI) Auth() {
 	r := s.router.PathPrefix("/").Subrouter()
 
-	r.HandleFunc("/", s.build.Index).Methods("GET")
 	r.HandleFunc("/builds/create", s.build.Create).Methods("GET")
 	r.HandleFunc("/builds", s.build.Store).Methods("POST")
 
 	r.HandleFunc("/namespaces", s.namespace.Index).Methods("GET")
 	r.HandleFunc("/namespaces/create", s.namespace.Create).Methods("GET")
 	r.HandleFunc("/namespaces", s.namespace.Store).Methods("POST")
-
-	r.HandleFunc("/images", s.image.Index).Methods("GET")
-	r.HandleFunc("/images/create", s.image.Create).Methods("GET")
-	r.HandleFunc("/images", s.image.Store).Methods("POST")
-
-	r.HandleFunc("/objects", s.object.Index).Methods("GET")
-	r.HandleFunc("/objects/create", s.object.Create).Methods("GET")
-	r.HandleFunc("/objects", s.object.Store).Methods("POST")
-
-	r.HandleFunc("/variables", s.variable.Index).Methods("GET")
-	r.HandleFunc("/variables/create", s.variable.Create).Methods("GET")
-	r.HandleFunc("/variables", s.variable.Store).Methods("POST")
-
-	r.HandleFunc("/keys", s.key.Index).Methods("GET")
-	r.HandleFunc("/keys/create", s.key.Create).Methods("GET")
-	r.HandleFunc("/keys", s.key.Store).Methods("POST")
 
 	r.HandleFunc("/settings", s.user.Settings).Methods("GET")
 	r.HandleFunc("/settings/email", s.user.Email).Methods("PATCH")
@@ -200,7 +204,9 @@ func (s *UI) Auth() {
 	r.HandleFunc("/repos/enable", s.repo.Store).Methods("POST")
 	r.HandleFunc("/repos/disable/{repo:[0-9]+}", s.repo.Destroy).Methods("DELETE")
 
-	r.Use(s.Middleware.Auth)
+	r.HandleFunc("/", s.build.Index).Methods("GET")
+
+	r.Use(s.Middleware.Auth, s.csrf)
 }
 
 func (s *UI) Oauth() {
@@ -208,6 +214,8 @@ func (s *UI) Oauth() {
 
 	r.HandleFunc("/{provider}", s.oauth.Auth).Methods("GET")
 	r.HandleFunc("/{provider}", s.oauth.Revoke).Methods("DELETE")
+
+	r.Use(s.csrf)
 }
 
 func (s *UI) Guest() {
@@ -216,7 +224,7 @@ func (s *UI) Guest() {
 	r.HandleFunc("/register", s.auth.Register).Methods("GET", "POST")
 	r.HandleFunc("/login", s.auth.Login).Methods("GET", "POST")
 
-	r.Use(s.Middleware.Guest)
+	r.Use(s.Middleware.Guest, s.csrf)
 }
 
 func (s *UI) Namespace() {
@@ -234,7 +242,7 @@ func (s *UI) Namespace() {
 	r.HandleFunc("", s.namespace.Update).Methods("PATCH")
 	r.HandleFunc("", s.namespace.Destroy).Methods("DELETE")
 
-	r.Use(s.Middleware.Gate(s.gate.namespace))
+	r.Use(s.Middleware.Gate(s.gate.namespace), s.csrf)
 }
 
 func (s *UI) Build() {
@@ -257,44 +265,55 @@ func (s *UI) Build() {
 	r.HandleFunc("/tags", s.tag.Store).Methods("POST")
 	r.HandleFunc("/tags/{tag:[0-9]+}", s.tag.Destroy).Methods("DELETE")
 
-	r.Use(s.Middleware.Gate(s.gate.build))
+	r.Use(s.Middleware.Gate(s.gate.build), s.csrf)
 }
 
 func (s *UI) Image() {
 	r := s.router.PathPrefix("/images").Subrouter()
 
-	r.HandleFunc("", s.image.Index).Methods("GET")
+	r.HandleFunc("/create", s.image.Create).Methods("GET")
 	r.HandleFunc("/{image:[0-9]+}/download/{name}", s.image.Download).Methods("GET")
 	r.HandleFunc("/{image:[0-9]+}", s.image.Destroy).Methods("DELETE")
+	r.HandleFunc("", s.image.Store).Methods("POST")
+	r.HandleFunc("", s.image.Index).Methods("GET")
 
-	r.Use(s.Middleware.Gate(s.gate.image))
+	r.Use(s.Middleware.Auth, s.Middleware.Gate(s.gate.image), s.csrf)
 }
 
 func (s *UI) Object() {
 	r := s.router.PathPrefix("/objects").Subrouter()
 
+	r.HandleFunc("/create", s.object.Create).Methods("GET")
 	r.HandleFunc("", s.object.Index).Methods("GET")
 	r.HandleFunc("/{object:[0-9]+}", s.object.Show).Methods("GET")
 	r.HandleFunc("/{object:[0-9]+}/download/{name}", s.object.Download).Methods("GET")
 	r.HandleFunc("/{object:[0-9]+}", s.object.Destroy).Methods("DELETE")
+	r.HandleFunc("", s.object.Store).Methods("POST")
+	r.HandleFunc("", s.object.Index).Methods("GET")
 
-	r.Use(s.Middleware.Gate(s.gate.object))
+	r.Use(s.Middleware.Gate(s.gate.object), s.csrf)
 }
 
 func (s *UI) Variable() {
 	r := s.router.PathPrefix("/variables").Subrouter()
 
+	r.HandleFunc("/create", s.variable.Create).Methods("GET")
 	r.HandleFunc("/{variable:[0-9]+}", s.variable.Destroy).Methods("DELETE")
+	r.HandleFunc("", s.variable.Store).Methods("POST")
+	r.HandleFunc("", s.variable.Index).Methods("GET")
 
-	r.Use(s.Middleware.Gate(s.gate.variable))
+	r.Use(s.Middleware.Gate(s.gate.variable), s.csrf)
 }
 
 func (s *UI) Key() {
 	r := s.router.PathPrefix("/keys").Subrouter()
 
+	r.HandleFunc("/create", s.key.Create).Methods("GET")
 	r.HandleFunc("/{key:[0-9]+}/edit", s.key.Edit).Methods("GET")
 	r.HandleFunc("/{key:[0-9]+}", s.key.Update).Methods("PATCH")
 	r.HandleFunc("/{key:[0-9]+}", s.key.Destroy).Methods("DELETE")
+	r.HandleFunc("", s.key.Store).Methods("POST")
+	r.HandleFunc("", s.key.Index).Methods("GET")
 
-	r.Use(s.Middleware.Gate(s.gate.key))
+	r.Use(s.Middleware.Gate(s.gate.key), s.csrf)
 }

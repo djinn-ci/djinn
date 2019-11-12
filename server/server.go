@@ -37,6 +37,8 @@ type Server struct {
 	DB    *sqlx.DB
 	Redis *redis.Client
 
+	CSRFToken []byte
+
 	Images    filestore.FileStore
 	Objects   filestore.FileStore
 	Artifacts filestore.FileStore

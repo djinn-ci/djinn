@@ -13,18 +13,14 @@ import (
 )
 
 type Manifest struct {
-	Namespace string
-	Driver    map[string]string
-
-	Env []string
-
-	Objects runner.Passthrough
-	Sources []Source
-
-	Stages        []string
-	AllowFailures []string `yaml:"allow_failures"`
-
-	Jobs []Job
+	Namespace     string             `yaml:",omitempty"`
+	Driver        map[string]string  `yaml:",omitempty"`
+	Env           []string           `yaml:",omitempty"`
+	Objects       runner.Passthrough `yaml:",omitempty"`
+	Sources       []Source           `yaml:",omitempty"`
+	Stages        []string           `yaml:",omitempty"`
+	AllowFailures []string           `yaml:"allow_failures,omitempty"`
+	Jobs          []Job              `yaml:"omitempty"`
 }
 
 type Source struct {
@@ -99,9 +95,27 @@ func (m Manifest) Value() (driver.Value, error) {
 }
 
 func (m *Manifest) UnmarshalText(b []byte) error {
-	(*m) = Manifest{}
+	tmp := struct{
+		Namespace     string             `yaml:",omitempty"`
+		Driver        map[string]string  `yaml:",omitempty"`
+		Env           []string           `yaml:",omitempty"`
+		Objects       runner.Passthrough `yaml:",omitempty"`
+		Sources       []Source           `yaml:",omitempty"`
+		Stages        []string           `yaml:",omitempty"`
+		AllowFailures []string           `yaml:"allow_failures,omitempty"`
+		Jobs          []Job              `yaml:"omitempty"`
+	}{}
 
-	err := yaml.Unmarshal(b, m)
+	err := yaml.Unmarshal(b, &tmp)
+
+	m.Namespace = tmp.Namespace
+	m.Driver = tmp.Driver
+	m.Env = tmp.Env
+	m.Objects = tmp.Objects
+	m.Sources = tmp.Sources
+	m.Stages = tmp.Stages
+	m.AllowFailures = tmp.AllowFailures
+	m.Jobs = tmp.Jobs
 
 	return errors.Err(err)
 }

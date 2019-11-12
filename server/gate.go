@@ -195,6 +195,12 @@ func (g gate) object(u *model.User, r *http.Request) (*http.Request, bool) {
 }
 
 func (g gate) resource(name string, u *model.User, r *http.Request, fn load) (bool, error) {
+	base := filepath.Base(r.URL.Path)
+
+	if base == name + "s" || base == "create" {
+		return !u.IsZero(), nil
+	}
+
 	vars := mux.Vars(r)
 
 	id, _ := strconv.ParseInt(vars[name], 10, 64)

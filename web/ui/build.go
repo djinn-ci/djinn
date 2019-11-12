@@ -83,7 +83,7 @@ func (h Build) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Build) Store(w http.ResponseWriter, r *http.Request) {
-	b, err := h.Core.UnmarshalAndValidate(w, r)
+	b, err := h.Core.Store(w, r)
 
 	if err != nil {
 		cause := errors.Cause(err)
@@ -111,14 +111,6 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
-	}
-
-	if err := h.Core.Create(b); err != nil {
-		cause := errors.Cause(err)
-
-		h.Core.FlashAlert(w, r, template.Danger("Failed to create build: " + cause.Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
 	}
 
 	if err := h.Core.Submit(b, h.Core.Queues[b.Manifest.Driver["type"]]); err != nil {

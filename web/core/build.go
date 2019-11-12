@@ -143,7 +143,7 @@ func (h Build) Show(r *http.Request) (*model.Build, error) {
 	return b, errors.Err(err)
 }
 
-func (h Build) UnmarshalAndValidate(w http.ResponseWriter, r *http.Request) (*model.Build, error) {
+func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, error) {
 	u := h.User(r)
 
 	f := &form.Build{}
@@ -206,18 +206,14 @@ func (h Build) UnmarshalAndValidate(w http.ResponseWriter, r *http.Request) (*mo
 		b.Tags = append(b.Tags, t)
 	}
 
-	return b, nil
-}
-
-func (h Build) Create(b *model.Build) error {
 	if err := h.Builds.Create(b); err != nil {
-		return errors.Err(err)
+		return b, errors.Err(err)
 	}
 
 	b.Trigger.BuildID = b.ID
 
 	if err := b.TriggerStore().Create(b.Trigger); err != nil {
-		return errors.Err(err)
+		return b, errors.Err(err)
 	}
 
 	for _, t := range b.Tags {
@@ -226,7 +222,7 @@ func (h Build) Create(b *model.Build) error {
 
 	err := b.TagStore().Create(b.Tags...)
 
-	return errors.Err(err)
+	return b, errors.Err(err)
 }
 
 func (h Build) Submit(b *model.Build, srv *machinery.Server) error {

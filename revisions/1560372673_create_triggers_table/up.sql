@@ -1,4 +1,4 @@
-CREATE TYPE trigger_type AS ENUM ('manual');
+CREATE TYPE trigger_type AS ENUM ('manual', 'hook');
 
 CREATE TABLE triggers (
 	id         SERIAL PRIMARY KEY,

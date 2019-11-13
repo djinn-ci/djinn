@@ -1,10 +1,7 @@
 package model
 
 import (
-	"bytes"
 	"database/sql"
-	"database/sql/driver"
-	"encoding/json"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model/types"
@@ -12,19 +9,13 @@ import (
 	"github.com/andrewpillar/query"
 )
 
-type triggerData struct {
-	User   string
-	Email  string
-	Source string
-}
-
 type Trigger struct {
 	Model
 
-	BuildID int64         `db:"build_id"`
-	Type    types.Trigger `db:"type"`
-	Comment string        `db:"comment"`
-	Data    triggerData   `db:"data"`
+	BuildID int64             `db:"build_id"`
+	Type    types.Trigger     `db:"type"`
+	Comment string            `db:"comment"`
+	Data    types.TriggerData `db:"data"`
 
 	Build *Build
 }
@@ -39,34 +30,6 @@ func triggerToInterface(tt []*Trigger) func(i int) Interface {
 	return func(i int) Interface {
 		return tt[i]
 	}
-}
-
-func (t *triggerData) Scan(val interface{}) error {
-	b, err := types.Scan(val)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if len(b) == 0 {
-		return nil
-	}
-
-	buf := bytes.NewBuffer(b)
-	dec := json.NewDecoder(buf)
-
-	return errors.Err(dec.Decode(t))
-}
-
-func (t triggerData) Value() (driver.Value, error) {
-	buf := &bytes.Buffer{}
-	enc := json.NewEncoder(buf)
-
-	if err := enc.Encode(t); err != nil {
-		return driver.Value(""), errors.Err(err)
-	}
-
-	return driver.Value(buf.String()), nil
 }
 
 func (t Trigger) Values() map[string]interface{} {

@@ -1,7 +1,9 @@
 package types
 
 import (
+	"bytes"
 	"database/sql/driver"
+	"encoding/json"
 
 	"github.com/andrewpillar/thrall/errors"
 )
@@ -11,6 +13,8 @@ type Visibility uint8
 type Driver uint8
 
 type Trigger uint8
+
+type TriggerData map[string]string
 
 const (
 	Private Visibility = iota
@@ -22,6 +26,7 @@ const (
 	Docker
 
 	Manual Trigger = iota
+	Hook
 )
 
 func Scan(val interface{}) ([]byte, error) {
@@ -41,7 +46,7 @@ func Scan(val interface{}) ([]byte, error) {
 		return []byte{}, errors.Err(errors.New("failed to Scan bytes"))
 	}
 
-	return b, nil
+	return []byte(b), nil
 }
 
 func (t *Driver) Scan(val interface{}) error {
@@ -125,6 +130,9 @@ func (t *Trigger) UnmarshalText(b []byte) error {
 	case "manual":
 		(*t) = Manual
 		return nil
+	case "hook":
+		(*t) = Hook
+		return nil
 	default:
 		return errors.Err(errors.New("unknown trigger " + str))
 	}
@@ -134,9 +142,45 @@ func (t Trigger) Value() (driver.Value, error) {
 	switch t {
 	case Manual:
 		return driver.Value("manual"), nil
+	case Hook:
+		return driver.Value("hook"), nil
 	default:
 		return driver.Value(""), errors.Err(errors.New("unknown trigger"))
 	}
+}
+
+func (t TriggerData) Scan(val interface{}) error {
+	b, err := Scan(val)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if len(b) == 0 {
+		return nil
+	}
+
+	buf := bytes.NewBuffer(b)
+	dec := json.NewDecoder(buf)
+
+	return errors.Err(dec.Decode(&t))
+}
+
+func (t *TriggerData) Set(key, val string) {
+	if (*t) == nil {
+		(*t) = make(map[string]string)
+	}
+
+	(*t)[key] = val
+}
+
+func (t TriggerData) Value() (driver.Value, error) {
+	buf := &bytes.Buffer{}
+
+	enc := json.NewEncoder(buf)
+	enc.Encode(&t)
+
+	return driver.Value(buf.String()), nil
 }
 
 func (v *Visibility) Scan(val interface{}) error {

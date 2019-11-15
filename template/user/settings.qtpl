@@ -33,19 +33,31 @@ type ShowInvites struct {
 {% endfunc %}
 
 {% func (p *SettingsPage) renderProvider(prv *model.Provider) %}
-	<a href="{%s prv.AuthURL %}" class="provider-btn provider-{%s prv.Name %}">
-		{% switch prv.Name %}
-		{% case "github" %}
-			{% cat "../../svgs/github.svg" %}
-		{% case "gitlab" %}
-			{% cat "../../svgs/gitlab.svg" %}
-		{% endswitch %}
-		{% if prv.Connected %}
-			<span>Disconnect</span>
-		{% else %}
+	{% if !prv.Connected %}
+		<a href="{%s prv.AuthURL %}" class="provider-btn provider-{%s prv.Name %}">
+			{% switch prv.Name %}
+			{% case "github" %}
+				{% cat "../../svgs/github.svg" %}
+			{% case "gitlab" %}
+				{% cat "../../svgs/gitlab.svg" %}
+			{% endswitch %}
 			<span>Connect</span>
-		{% endif %}
-	</a>
+		</a>
+	{% else %}
+		<form method="POST" action="/oauth/{%s prv.Name %}">
+			{%s= p.CSRF %}
+			<input type="hidden" name="_method" value="DELETE"/>
+			<button type="submit" class="provider-btn provider-{%s prv.Name %}">
+				{% switch prv.Name %}
+				{% case "github" %}
+					{% cat "../../svgs/github.svg" %}
+				{% case "gitlab" %}
+					{% cat "../../svgs/gitlab.svg" %}
+				{% endswitch %}
+				<span>Disconnect</span>
+			</button>
+		</form>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *SettingsPage) Body() %}

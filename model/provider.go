@@ -72,7 +72,13 @@ func (s ProviderStore) Create(pp ...*Provider) error {
 	return errors.Err(s.Store.Create(ProviderTable, models...))
 }
 
-func (s ProviderStore) FindByName(name string) (*Provider, error) {
+func (s ProviderStore) Find(id int64) (*Provider, error) {
+	p, err := s.findBy("id", id)
+
+	return p, errors.Err(err)
+}
+
+func (s ProviderStore) findBy(col string, val interface{}) (*Provider, error) {
 	p := &Provider{
 		Model: Model{
 			DB: s.DB,
@@ -83,7 +89,7 @@ func (s ProviderStore) FindByName(name string) (*Provider, error) {
 	q := query.Select(
 		query.Columns("*"),
 		query.From(ProviderTable),
-		query.Where("name", "=", name),
+		query.Where(col, "=", val),
 		ForUser(s.User),
 	)
 
@@ -92,6 +98,12 @@ func (s ProviderStore) FindByName(name string) (*Provider, error) {
 	if err == sql.ErrNoRows {
 		err = nil
 	}
+
+	return p, errors.Err(err)
+}
+
+func (s ProviderStore) FindByName(name string) (*Provider, error) {
+	p, err := s.findBy("name", name)
 
 	return p, errors.Err(err)
 }

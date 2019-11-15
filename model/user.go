@@ -17,6 +17,7 @@ type User struct {
 	Username  string      `db:"username"`
 	Password  []byte      `db:"password"`
 	DeletedAt pq.NullTime `db:"deleted_at"`
+	Connected bool        `db:"-"`
 
 	Providers []*Provider
 }

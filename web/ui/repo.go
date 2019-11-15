@@ -26,25 +26,12 @@ import (
 	"github.com/go-redis/redis"
 )
 
-type repoForm struct {
-	RepoID   int64  `schema:"repo_id"`
-	Name     string `schema:"name"`
-	Provider string `schema:"provider"`
-}
 
 type Repo struct {
 	web.Handler
 
 	Redis     *redis.Client
 	Providers map[string]oauth2.Provider
-}
-
-func (r repoForm) Fields() map[string]string {
-	return map[string]string{}
-}
-
-func (f repoForm) Validate() error {
-	return nil
 }
 
 func (h Repo) cacheRepos(id int64, rr []*model.Repo) error {
@@ -243,7 +230,7 @@ func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
 func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
 
-	f := &repoForm{}
+	f := &form.Repo{}
 
 	if err := form.Unmarshal(f, r); err != nil {
 		log.Error.Println(errors.Err(err))

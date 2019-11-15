@@ -28,285 +28,342 @@ type IndexPage struct {
 	template.BasePage
 
 	CSRF     string
-	Repos    []model.Repo
+	Repos    []*model.Repo
 	Provider string
 }
 
-//line template/repo/index.qtpl:19
+var providerNames = map[string]string{
+	"github": "GitHub",
+	"gitlab": "GitLab",
+}
+
+//line template/repo/index.qtpl:24
 func (p *IndexPage) StreamTitle(qw422016 *qt422016.Writer) {
-	//line template/repo/index.qtpl:19
+	//line template/repo/index.qtpl:24
 	qw422016.N().S(` Repositories - Thrall `)
-//line template/repo/index.qtpl:21
+//line template/repo/index.qtpl:26
 }
 
-//line template/repo/index.qtpl:21
+//line template/repo/index.qtpl:26
 func (p *IndexPage) WriteTitle(qq422016 qtio422016.Writer) {
-	//line template/repo/index.qtpl:21
+	//line template/repo/index.qtpl:26
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/repo/index.qtpl:21
+	//line template/repo/index.qtpl:26
 	p.StreamTitle(qw422016)
-	//line template/repo/index.qtpl:21
+	//line template/repo/index.qtpl:26
 	qt422016.ReleaseWriter(qw422016)
-//line template/repo/index.qtpl:21
+//line template/repo/index.qtpl:26
 }
 
-//line template/repo/index.qtpl:21
+//line template/repo/index.qtpl:26
 func (p *IndexPage) Title() string {
-	//line template/repo/index.qtpl:21
+	//line template/repo/index.qtpl:26
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/repo/index.qtpl:21
+	//line template/repo/index.qtpl:26
 	p.WriteTitle(qb422016)
-	//line template/repo/index.qtpl:21
+	//line template/repo/index.qtpl:26
 	qs422016 := string(qb422016.B)
-	//line template/repo/index.qtpl:21
+	//line template/repo/index.qtpl:26
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/repo/index.qtpl:21
+	//line template/repo/index.qtpl:26
 	return qs422016
-//line template/repo/index.qtpl:21
+//line template/repo/index.qtpl:26
 }
 
-//line template/repo/index.qtpl:23
+//line template/repo/index.qtpl:28
 func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
-	//line template/repo/index.qtpl:23
+	//line template/repo/index.qtpl:28
 	qw422016.N().S(` <div class="panel"> `)
-	//line template/repo/index.qtpl:25
-	if len(p.User.Providers) == 0 {
-		//line template/repo/index.qtpl:25
+	//line template/repo/index.qtpl:30
+	if !p.User.Connected && len(p.Repos) == 0 {
+		//line template/repo/index.qtpl:30
 		qw422016.N().S(` <div class="panel-message muted">Connect to GitHub or GitLab to trigger builds on pushes, and pull reqests made on a repository. Get started by connecting from your account <a href="/settings">settings</a>. `)
-		//line template/repo/index.qtpl:27
+		//line template/repo/index.qtpl:32
 	} else {
-		//line template/repo/index.qtpl:27
-		qw422016.N().S(` <div class="panel-header"> <ul class="panel-nav"> <li> <a href="`)
-		//line template/repo/index.qtpl:31
+		//line template/repo/index.qtpl:32
+		qw422016.N().S(` <div class="panel-header"> `)
+		//line template/repo/index.qtpl:34
+		qw422016.N().S(`<ul class="panel-nav"><li><a href="`)
+		//line template/repo/index.qtpl:37
 		qw422016.E().S(p.URL.Path)
-		//line template/repo/index.qtpl:31
-		qw422016.N().S(`" `)
-		//line template/repo/index.qtpl:31
+		//line template/repo/index.qtpl:37
+		qw422016.N().S(`"`)
+		//line template/repo/index.qtpl:37
 		if p.Provider == "" {
-			//line template/repo/index.qtpl:31
+			//line template/repo/index.qtpl:37
 			qw422016.N().S(`class="active"`)
-			//line template/repo/index.qtpl:31
+			//line template/repo/index.qtpl:37
 		}
-		//line template/repo/index.qtpl:31
-		qw422016.N().S(`> All </a> </li> `)
-		//line template/repo/index.qtpl:35
+		//line template/repo/index.qtpl:37
+		qw422016.N().S(`>All</a></li>`)
+		//line template/repo/index.qtpl:41
 		for _, prv := range p.User.Providers {
-			//line template/repo/index.qtpl:35
-			qw422016.N().S(` <li> <a href="`)
-			//line template/repo/index.qtpl:37
+			//line template/repo/index.qtpl:41
+			qw422016.N().S(`<li><a href="`)
+			//line template/repo/index.qtpl:43
 			qw422016.E().S(p.URL.Path)
-			//line template/repo/index.qtpl:37
+			//line template/repo/index.qtpl:43
 			qw422016.N().S(`?provider=`)
-			//line template/repo/index.qtpl:37
+			//line template/repo/index.qtpl:43
 			qw422016.E().S(prv.Name)
-			//line template/repo/index.qtpl:37
-			qw422016.N().S(`" `)
-			//line template/repo/index.qtpl:37
+			//line template/repo/index.qtpl:43
+			qw422016.N().S(`"`)
+			//line template/repo/index.qtpl:43
 			if p.Provider == prv.Name {
-				//line template/repo/index.qtpl:37
+				//line template/repo/index.qtpl:43
 				qw422016.N().S(`class="active"`)
-				//line template/repo/index.qtpl:37
+				//line template/repo/index.qtpl:43
 			}
-			//line template/repo/index.qtpl:37
+			//line template/repo/index.qtpl:43
 			qw422016.N().S(`>`)
-			//line template/repo/index.qtpl:37
-			qw422016.E().S(prv.Name)
-			//line template/repo/index.qtpl:37
-			qw422016.N().S(`</a> </li> `)
-			//line template/repo/index.qtpl:39
+			//line template/repo/index.qtpl:43
+			qw422016.E().S(providerNames[prv.Name])
+			//line template/repo/index.qtpl:43
+			qw422016.N().S(`</a></li>`)
+			//line template/repo/index.qtpl:45
 		}
-		//line template/repo/index.qtpl:39
-		qw422016.N().S(` </ul> <table class="table"> <thead> <th></th> <th></th> </thead> <tbody> `)
+		//line template/repo/index.qtpl:45
+		qw422016.N().S(`</ul>`)
 		//line template/repo/index.qtpl:47
+		qw422016.N().S(` <table class="table"> <thead> <tr> <th>NAME</th> <th></th> <th></th> </tr> </thead> <tbody> `)
+		//line template/repo/index.qtpl:57
 		for _, r := range p.Repos {
-			//line template/repo/index.qtpl:47
+			//line template/repo/index.qtpl:57
 			qw422016.N().S(` <tr> <td><a href="`)
-			//line template/repo/index.qtpl:49
-			qw422016.E().S(r.Href)
-			//line template/repo/index.qtpl:49
-			qw422016.N().S(`" target="_blank">`)
-			//line template/repo/index.qtpl:49
-			qw422016.E().S(r.Name)
-			//line template/repo/index.qtpl:49
-			qw422016.N().S(`</a></td> <td> `)
-			//line template/repo/index.qtpl:51
-			if r.ID == 0 {
-				//line template/repo/index.qtpl:51
-				qw422016.N().S(` <form method="POST" action="/repos/activate"> `)
-				//line template/repo/index.qtpl:53
-			} else {
-				//line template/repo/index.qtpl:53
-				qw422016.N().S(` <form method="POST" action="/repos/deactivate"> `)
-				//line template/repo/index.qtpl:55
-			}
-			//line template/repo/index.qtpl:55
-			qw422016.N().S(` <input type="hidden" name="id" value="`)
-			//line template/repo/index.qtpl:56
-			qw422016.E().V(r.ID)
-			//line template/repo/index.qtpl:56
-			qw422016.N().S(`"> <input type="hidden" name="repo_id" value="`)
-			//line template/repo/index.qtpl:57
-			qw422016.E().V(r.RepoID)
-			//line template/repo/index.qtpl:57
-			qw422016.N().S(`"> <input type="hidden" name="provider" value="`)
-			//line template/repo/index.qtpl:58
-			qw422016.E().S(r.Provider.Name)
-			//line template/repo/index.qtpl:58
-			qw422016.N().S(`"> `)
 			//line template/repo/index.qtpl:59
-			if !r.Enabled {
-				//line template/repo/index.qtpl:59
-				qw422016.N().S(` <button type="submit">Activate</button> `)
+			qw422016.E().S(r.Href)
+			//line template/repo/index.qtpl:59
+			qw422016.N().S(`" target="_blank">`)
+			//line template/repo/index.qtpl:59
+			qw422016.E().S(r.Name)
+			//line template/repo/index.qtpl:59
+			qw422016.N().S(`</a></td> `)
+			//line template/repo/index.qtpl:60
+			if !r.Provider.Connected {
+				//line template/repo/index.qtpl:60
+				qw422016.N().S(` <td class="warning">`)
 				//line template/repo/index.qtpl:61
+				qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M12.984 14.016v-4.031h-1.969v4.031h1.969zM12.984 18v-2.016h-1.969v2.016h1.969zM0.984 21l11.016-18.984 11.016 18.984h-22.031z"></path>
+</svg>
+`)
+				//line template/repo/index.qtpl:61
+				qw422016.N().S(` Disconnected from `)
+				//line template/repo/index.qtpl:61
+				qw422016.E().S(providerNames[r.Provider.Name])
+				//line template/repo/index.qtpl:61
+				qw422016.N().S(`</td> `)
+				//line template/repo/index.qtpl:62
 			} else {
-				//line template/repo/index.qtpl:61
-				qw422016.N().S(` <button type="submit">Deactivate</button> `)
-				//line template/repo/index.qtpl:63
+				//line template/repo/index.qtpl:62
+				qw422016.N().S(` <td></td> `)
+				//line template/repo/index.qtpl:64
 			}
-			//line template/repo/index.qtpl:63
+			//line template/repo/index.qtpl:64
+			qw422016.N().S(` <td class="align-right"> `)
+			//line template/repo/index.qtpl:66
+			if !r.Enabled {
+				//line template/repo/index.qtpl:66
+				qw422016.N().S(` <form method="POST" action="/repos/enable"> `)
+				//line template/repo/index.qtpl:68
+			} else {
+				//line template/repo/index.qtpl:68
+				qw422016.N().S(` <form method="POST" action="/repos/disable/`)
+				//line template/repo/index.qtpl:69
+				qw422016.E().V(r.ID)
+				//line template/repo/index.qtpl:69
+				qw422016.N().S(`"> <input type="hidden" name="_method" value="DELETE"/> `)
+				//line template/repo/index.qtpl:71
+			}
+			//line template/repo/index.qtpl:71
+			qw422016.N().S(` `)
+			//line template/repo/index.qtpl:72
+			qw422016.N().S(p.CSRF)
+			//line template/repo/index.qtpl:72
+			qw422016.N().S(` <input type="hidden" name="repo_id" value="`)
+			//line template/repo/index.qtpl:73
+			qw422016.E().V(r.RepoID)
+			//line template/repo/index.qtpl:73
+			qw422016.N().S(`"> <input type="hidden" name="name" value="`)
+			//line template/repo/index.qtpl:74
+			qw422016.E().S(r.Name)
+			//line template/repo/index.qtpl:74
+			qw422016.N().S(`"> <input type="hidden" name="provider" value="`)
+			//line template/repo/index.qtpl:75
+			qw422016.E().S(r.Provider.Name)
+			//line template/repo/index.qtpl:75
+			qw422016.N().S(`"> `)
+			//line template/repo/index.qtpl:76
+			if !r.Enabled {
+				//line template/repo/index.qtpl:76
+				qw422016.N().S(` <button type="submit" `)
+				//line template/repo/index.qtpl:77
+				if !r.Provider.Connected {
+					//line template/repo/index.qtpl:77
+					qw422016.N().S(`disabled="true"`)
+					//line template/repo/index.qtpl:77
+				}
+				//line template/repo/index.qtpl:77
+				qw422016.N().S(`>Enable</button> `)
+				//line template/repo/index.qtpl:78
+			} else {
+				//line template/repo/index.qtpl:78
+				qw422016.N().S(` <button type="submit" `)
+				//line template/repo/index.qtpl:79
+				if !r.Provider.Connected {
+					//line template/repo/index.qtpl:79
+					qw422016.N().S(`disabled="true"`)
+					//line template/repo/index.qtpl:79
+				}
+				//line template/repo/index.qtpl:79
+				qw422016.N().S(`>Disable</button> `)
+				//line template/repo/index.qtpl:80
+			}
+			//line template/repo/index.qtpl:80
 			qw422016.N().S(` </form> </td> </tr> `)
-			//line template/repo/index.qtpl:67
+			//line template/repo/index.qtpl:84
 		}
-		//line template/repo/index.qtpl:67
+		//line template/repo/index.qtpl:84
 		qw422016.N().S(` </tbody> </table> </div> `)
-		//line template/repo/index.qtpl:71
+		//line template/repo/index.qtpl:88
 	}
-	//line template/repo/index.qtpl:71
+	//line template/repo/index.qtpl:88
 	qw422016.N().S(` </div> `)
-//line template/repo/index.qtpl:73
+//line template/repo/index.qtpl:90
 }
 
-//line template/repo/index.qtpl:73
+//line template/repo/index.qtpl:90
 func (p *IndexPage) WriteBody(qq422016 qtio422016.Writer) {
-	//line template/repo/index.qtpl:73
+	//line template/repo/index.qtpl:90
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/repo/index.qtpl:73
+	//line template/repo/index.qtpl:90
 	p.StreamBody(qw422016)
-	//line template/repo/index.qtpl:73
+	//line template/repo/index.qtpl:90
 	qt422016.ReleaseWriter(qw422016)
-//line template/repo/index.qtpl:73
+//line template/repo/index.qtpl:90
 }
 
-//line template/repo/index.qtpl:73
+//line template/repo/index.qtpl:90
 func (p *IndexPage) Body() string {
-	//line template/repo/index.qtpl:73
+	//line template/repo/index.qtpl:90
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/repo/index.qtpl:73
+	//line template/repo/index.qtpl:90
 	p.WriteBody(qb422016)
-	//line template/repo/index.qtpl:73
+	//line template/repo/index.qtpl:90
 	qs422016 := string(qb422016.B)
-	//line template/repo/index.qtpl:73
+	//line template/repo/index.qtpl:90
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/repo/index.qtpl:73
+	//line template/repo/index.qtpl:90
 	return qs422016
-//line template/repo/index.qtpl:73
+//line template/repo/index.qtpl:90
 }
 
-//line template/repo/index.qtpl:75
+//line template/repo/index.qtpl:92
 func (p *IndexPage) StreamHeader(qw422016 *qt422016.Writer) {
-	//line template/repo/index.qtpl:75
+	//line template/repo/index.qtpl:92
 	qw422016.N().S(` Repositories `)
-//line template/repo/index.qtpl:77
+//line template/repo/index.qtpl:94
 }
 
-//line template/repo/index.qtpl:77
+//line template/repo/index.qtpl:94
 func (p *IndexPage) WriteHeader(qq422016 qtio422016.Writer) {
-	//line template/repo/index.qtpl:77
+	//line template/repo/index.qtpl:94
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/repo/index.qtpl:77
+	//line template/repo/index.qtpl:94
 	p.StreamHeader(qw422016)
-	//line template/repo/index.qtpl:77
+	//line template/repo/index.qtpl:94
 	qt422016.ReleaseWriter(qw422016)
-//line template/repo/index.qtpl:77
+//line template/repo/index.qtpl:94
 }
 
-//line template/repo/index.qtpl:77
+//line template/repo/index.qtpl:94
 func (p *IndexPage) Header() string {
-	//line template/repo/index.qtpl:77
+	//line template/repo/index.qtpl:94
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/repo/index.qtpl:77
+	//line template/repo/index.qtpl:94
 	p.WriteHeader(qb422016)
-	//line template/repo/index.qtpl:77
+	//line template/repo/index.qtpl:94
 	qs422016 := string(qb422016.B)
-	//line template/repo/index.qtpl:77
+	//line template/repo/index.qtpl:94
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/repo/index.qtpl:77
+	//line template/repo/index.qtpl:94
 	return qs422016
-//line template/repo/index.qtpl:77
+//line template/repo/index.qtpl:94
 }
 
-//line template/repo/index.qtpl:79
+//line template/repo/index.qtpl:96
 func (p *IndexPage) StreamActions(qw422016 *qt422016.Writer) {
-	//line template/repo/index.qtpl:79
+	//line template/repo/index.qtpl:96
 	qw422016.N().S(` `)
-	//line template/repo/index.qtpl:80
+	//line template/repo/index.qtpl:97
 	if len(p.User.Providers) > 0 {
-		//line template/repo/index.qtpl:80
+		//line template/repo/index.qtpl:97
 		qw422016.N().S(` <form method="POST" action="/repos/reload"> `)
-		//line template/repo/index.qtpl:82
+		//line template/repo/index.qtpl:99
 		qw422016.N().S(p.CSRF)
-		//line template/repo/index.qtpl:82
+		//line template/repo/index.qtpl:99
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"> <button type="submit" class="btn btn-primary">Reload</button> </form> `)
-		//line template/repo/index.qtpl:86
+		//line template/repo/index.qtpl:103
 	}
-	//line template/repo/index.qtpl:86
+	//line template/repo/index.qtpl:103
 	qw422016.N().S(` `)
-//line template/repo/index.qtpl:87
+//line template/repo/index.qtpl:104
 }
 
-//line template/repo/index.qtpl:87
+//line template/repo/index.qtpl:104
 func (p *IndexPage) WriteActions(qq422016 qtio422016.Writer) {
-	//line template/repo/index.qtpl:87
+	//line template/repo/index.qtpl:104
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/repo/index.qtpl:87
+	//line template/repo/index.qtpl:104
 	p.StreamActions(qw422016)
-	//line template/repo/index.qtpl:87
+	//line template/repo/index.qtpl:104
 	qt422016.ReleaseWriter(qw422016)
-//line template/repo/index.qtpl:87
+//line template/repo/index.qtpl:104
 }
 
-//line template/repo/index.qtpl:87
+//line template/repo/index.qtpl:104
 func (p *IndexPage) Actions() string {
-	//line template/repo/index.qtpl:87
+	//line template/repo/index.qtpl:104
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/repo/index.qtpl:87
+	//line template/repo/index.qtpl:104
 	p.WriteActions(qb422016)
-	//line template/repo/index.qtpl:87
+	//line template/repo/index.qtpl:104
 	qs422016 := string(qb422016.B)
-	//line template/repo/index.qtpl:87
+	//line template/repo/index.qtpl:104
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/repo/index.qtpl:87
+	//line template/repo/index.qtpl:104
 	return qs422016
-//line template/repo/index.qtpl:87
+//line template/repo/index.qtpl:104
 }
 
-//line template/repo/index.qtpl:89
+//line template/repo/index.qtpl:106
 func (p *IndexPage) StreamNavigation(qw422016 *qt422016.Writer) {
-//line template/repo/index.qtpl:89
+//line template/repo/index.qtpl:106
 }
 
-//line template/repo/index.qtpl:89
+//line template/repo/index.qtpl:106
 func (p *IndexPage) WriteNavigation(qq422016 qtio422016.Writer) {
-	//line template/repo/index.qtpl:89
+	//line template/repo/index.qtpl:106
 	qw422016 := qt422016.AcquireWriter(qq422016)
-	//line template/repo/index.qtpl:89
+	//line template/repo/index.qtpl:106
 	p.StreamNavigation(qw422016)
-	//line template/repo/index.qtpl:89
+	//line template/repo/index.qtpl:106
 	qt422016.ReleaseWriter(qw422016)
-//line template/repo/index.qtpl:89
+//line template/repo/index.qtpl:106
 }
 
-//line template/repo/index.qtpl:89
+//line template/repo/index.qtpl:106
 func (p *IndexPage) Navigation() string {
-	//line template/repo/index.qtpl:89
+	//line template/repo/index.qtpl:106
 	qb422016 := qt422016.AcquireByteBuffer()
-	//line template/repo/index.qtpl:89
+	//line template/repo/index.qtpl:106
 	p.WriteNavigation(qb422016)
-	//line template/repo/index.qtpl:89
+	//line template/repo/index.qtpl:106
 	qs422016 := string(qb422016.B)
-	//line template/repo/index.qtpl:89
+	//line template/repo/index.qtpl:106
 	qt422016.ReleaseByteBuffer(qb422016)
-	//line template/repo/index.qtpl:89
+	//line template/repo/index.qtpl:106
 	return qs422016
-//line template/repo/index.qtpl:89
+//line template/repo/index.qtpl:106
 }

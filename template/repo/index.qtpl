@@ -10,8 +10,13 @@ type IndexPage struct {
 	template.BasePage
 
 	CSRF     string
-	Repos    []model.Repo
+	Repos    []*model.Repo
 	Provider string
+}
+
+var providerNames = map[string]string{
+	"github": "GitHub",
+	"gitlab": "GitLab",
 }
 %}
 
@@ -22,10 +27,11 @@ type IndexPage struct {
 
 {% func (p *IndexPage) Body() %}
 	<div class="panel">
-		{% if len(p.User.Providers) == 0 %}
+		{% if !p.User.Connected && len(p.Repos) == 0 %}
 			<div class="panel-message muted">Connect to GitHub or GitLab to trigger builds on pushes, and pull reqests made on a repository. Get started by connecting from your account <a href="/settings">settings</a>.
 		{% else %}
 			<div class="panel-header">
+				{% stripspace %}
 				<ul class="panel-nav">
 					<li>
 						<a href="{%s p.URL.Path %}" {% if p.Provider == "" %}class="active"{% endif %}>
@@ -34,32 +40,43 @@ type IndexPage struct {
 					</li>
 					{% for _, prv := range p.User.Providers %}
 						<li>
-							<a href="{%s p.URL.Path %}?provider={%s prv.Name %}" {% if p.Provider == prv.Name %}class="active"{% endif %}>{%s prv.Name %}</a>
+							<a href="{%s p.URL.Path %}?provider={%s prv.Name %}" {% if p.Provider == prv.Name %}class="active"{% endif %}>{%s providerNames[prv.Name] %}</a>
 						</li>
 					{% endfor %}
 				</ul>
+				{% endstripspace %}
 				<table class="table">
 					<thead>
-						<th></th>
-						<th></th>
+						<tr>
+							<th>NAME</th>
+							<th></th>
+							<th></th>
+						</tr>
 					</thead>
 					<tbody>
 						{% for _, r := range p.Repos %}
 							<tr>
 								<td><a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a></td>
-								<td>
-									{% if r.ID == 0 %}
-										<form method="POST" action="/repos/activate">
+								{% if !r.Provider.Connected %}
+									<td class="warning">{% cat "../../svgs/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}</td>
+								{% else %}
+									<td></td>
+								{% endif %}
+								<td class="align-right">
+									{% if !r.Enabled %}
+										<form method="POST" action="/repos/enable">
 									{% else %}
-										<form method="POST" action="/repos/deactivate">
+										<form method="POST" action="/repos/disable/{%v r.ID %}">
+											<input type="hidden" name="_method" value="DELETE"/>
 									{% endif %}
-										<input type="hidden" name="id" value="{%v r.ID %}">
+										{%s= p.CSRF %}
 										<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
+										<input type="hidden" name="name" value="{%s r.Name %}">
 										<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
 									{% if !r.Enabled %}
-										<button type="submit">Activate</button>
+										<button type="submit" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
 									{% else %}
-										<button type="submit">Deactivate</button>
+										<button type="submit" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Disable</button>
 									{% endif %}
 									</form>
 								</td>

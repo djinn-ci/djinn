@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/oauth2"
@@ -19,9 +21,16 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/csrf"
+	"github.com/gorilla/mux"
 
 	"github.com/go-redis/redis"
 )
+
+type repoForm struct {
+	RepoID   int64  `schema:"repo_id"`
+	Name     string `schema:"name"`
+	Provider string `schema:"provider"`
+}
 
 type Repo struct {
 	web.Handler
@@ -30,7 +39,15 @@ type Repo struct {
 	Providers map[string]oauth2.Provider
 }
 
-func (h Repo) cacheRepos(id int64, rr []model.Repo) error {
+func (r repoForm) Fields() map[string]string {
+	return map[string]string{}
+}
+
+func (f repoForm) Validate() error {
+	return nil
+}
+
+func (h Repo) cacheRepos(id int64, rr []*model.Repo) error {
 	buf := &bytes.Buffer{}
 
 	enc := json.NewEncoder(buf)
@@ -41,8 +58,8 @@ func (h Repo) cacheRepos(id int64, rr []model.Repo) error {
 	return errors.Err(err)
 }
 
-func (h Repo) getCached(id int64) ([]model.Repo, error) {
-	rr := make([]model.Repo, 0)
+func (h Repo) getCached(id int64) ([]*model.Repo, error) {
+	rr := make([]*model.Repo, 0)
 
 	s, err := h.Redis.Get(fmt.Sprintf("repos-%v", id)).Result()
 
@@ -60,14 +77,8 @@ func (h Repo) getCached(id int64) ([]model.Repo, error) {
 	return rr, nil
 }
 
-func (h Repo) loadRepos(c context.Context, providers model.ProviderStore) ([]model.Repo, error) {
-	pp, err := providers.All()
-
-	rr := make([]model.Repo, 0)
-
-	if err != nil {
-		return rr, errors.Err(err)
-	}
+func (h Repo) loadRepos(c context.Context, pp []*model.Provider) ([]*model.Repo, error) {
+	rr := make([]*model.Repo, 0)
 
 	for _, p := range pp {
 		if !p.Connected {
@@ -88,6 +99,10 @@ func (h Repo) loadRepos(c context.Context, providers model.ProviderStore) ([]mod
 			return rr, errors.Err(err)
 		}
 
+		for _, t := range tmp {
+			t.ProviderID = p.ID
+		}
+
 		rr = append(rr, tmp...)
 	}
 
@@ -96,6 +111,22 @@ func (h Repo) loadRepos(c context.Context, providers model.ProviderStore) ([]mod
 
 func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
+
+	if err := u.LoadProviders(); err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	providers := make(map[int64]*model.Provider)
+
+	for _, p := range u.Providers {
+		if p.Connected {
+			u.Connected = true
+		}
+
+		providers[p.ID] = p
+	}
 
 	rr, err := h.getCached(u.ID)
 
@@ -106,7 +137,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(rr) == 0 {
-		rr, err = h.loadRepos(r.Context(), u.ProviderStore())
+		rr, err = h.loadRepos(r.Context(), u.Providers)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -131,22 +162,24 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := repos.LoadProviders(userRepos); err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	enabled := make(map[string]struct{})
+	enabled := make(map[string]int64)
 
 	for _, repo := range userRepos {
-		enabled[fmt.Sprintf("%s-%v", repo.Provider.Name, repo.RepoID)] = struct{}{}
+		key := fmt.Sprintf("%s-%v", providers[repo.ProviderID].Name, repo.RepoID)
+
+		if repo.Enabled {
+			enabled[key] = repo.ID
+		}
 	}
 
 	for _, r := range rr {
-		_, ok := enabled[fmt.Sprintf("%s-%v", r.Provider.Name, r.RepoID)]
+		key := fmt.Sprintf("%s-%v", r.Provider.Name, r.RepoID)
 
+		id, ok := enabled[key]
+
+		r.ID = id
 		r.Enabled = ok
+		r.Provider = providers[r.ProviderID]
 	}
 
 	provider := r.URL.Query().Get("provider")
@@ -169,7 +202,19 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
 
-	rr, err := h.loadRepos(r.Context(), u.ProviderStore())
+	pp, err := u.ProviderStore().All()
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to refresh repository cache: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	rr, err := h.loadRepos(r.Context(), pp)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -196,9 +241,116 @@ func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
+	u := h.User(r)
 
+	f := &repoForm{}
+
+	if err := form.Unmarshal(f, r); err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to enable repository hooks: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	p, err := u.ProviderStore().FindByName(f.Provider)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to enable repository hooks: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	b, _ := crypto.Decrypt(p.AccessToken)
+
+	provider := h.Providers[f.Provider]
+
+	if err := provider.AddHook(r.Context(), string(b), f.RepoID); err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to enable repository hooks: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	repos := u.RepoStore()
+
+	rp := repos.New()
+	rp.ProviderID = p.ID
+	rp.Name = f.Name
+	rp.RepoID = f.RepoID
+	rp.Enabled = true
+
+	if err := repos.Create(rp); err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to enable repository hooks: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	h.FlashAlert(w, r, template.Success("Enabled repository hooks for: " + rp.Name))
+	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 
 func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 
+	u := h.User(r)
+
+	repos := u.RepoStore()
+
+	id, _ := strconv.ParseInt(vars["repo"], 10, 64)
+
+	rp, err := repos.Find(id)
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to disable repository hooks: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	if rp.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if err := rp.LoadProvider(); err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to disable repository hooks: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	rp.Enabled = false
+
+	if err := repos.Update(rp); err != nil {
+		log.Error.Println(errors.Err(err))
+
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to disable repository hooks: " + cause.Error()))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	h.FlashAlert(w, r, template.Success("Disabled repository hooks for: " + rp.Name))
+	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

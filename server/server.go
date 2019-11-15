@@ -1,10 +1,9 @@
 package server
 
 import (
-	nethttp "net/http"
+	"net/http"
 
 	"github.com/andrewpillar/thrall/filestore"
-	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/core"
@@ -19,7 +18,10 @@ import (
 )
 
 type Server struct {
-	Http *http.Server
+	*http.Server
+
+	Cert string
+	Key  string
 
 	router *mux.Router
 
@@ -52,12 +54,12 @@ type Server struct {
 	Middleware web.Middleware
 }
 
-func notFound(w nethttp.ResponseWriter, r *nethttp.Request) {
-	web.HTMLError(w, "Not found", nethttp.StatusNotFound)
+func notFound(w http.ResponseWriter, r *http.Request) {
+	web.HTMLError(w, "Not found", http.StatusNotFound)
 }
 
-func methodNotAllowed(w nethttp.ResponseWriter, r *nethttp.Request) {
-	web.HTMLError(w, "Method not allowed", nethttp.StatusMethodNotAllowed)
+func methodNotAllowed(w http.ResponseWriter, r *http.Request) {
+	web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
 func (s *Server) Init() {
@@ -160,4 +162,12 @@ func (s *Server) Init() {
 			Store: store,
 		},
 	}
+}
+
+func (s *Server) Serve() error {
+	if s.Cert != "" && s.Key != "" {
+		return s.ListenAndServeTLS(s.Cert, s.Key)
+	}
+
+	return s.ListenAndServe()
 }

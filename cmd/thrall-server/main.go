@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	nethttp "net/http"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -16,7 +16,6 @@ import (
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
-	"github.com/andrewpillar/thrall/http"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/oauth2"
@@ -186,14 +185,14 @@ func mainCommand(cmd cli.Command) {
 	}
 
 	srv := server.Server{
-		Http: &http.Server{
-			Addr:      cfg.Net.Listen,
-			Cert:      cfg.Net.SSL.Cert,
-			Key:       cfg.Net.SSL.Key,
-			CSRFToken: authKey,
+		Server: &http.Server{
+			Addr: cfg.Net.Listen,
 		},
+		Cert:        cfg.Net.SSL.Cert,
+		Key:         cfg.Net.SSL.Key,
 		DB:          db,
 		Redis:       client,
+		CSRFToken:   authKey,
 		Images:      images,
 		Artifacts:   artifacts,
 		Objects:     objects,
@@ -243,7 +242,7 @@ func mainCommand(cmd cli.Command) {
 		if err := ui.Serve(); err != nil {
 			cause := errors.Cause(err)
 
-			if cause != nethttp.ErrServerClosed {
+			if cause != http.ErrServerClosed {
 				log.Error.Fatal(cause)
 			}
 		}
@@ -260,7 +259,7 @@ func mainCommand(cmd cli.Command) {
 
 	sig := <-c
 
-	ui.Http.Shutdown(ctx)
+	ui.Shutdown(ctx)
 
 	log.Info.Println("signal:", sig, "received, shutting down")
 }

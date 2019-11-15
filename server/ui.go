@@ -169,9 +169,9 @@ func (s *UI) Init() {
 }
 
 func (s *UI) Serve() error {
-	s.Server.Http.Init(web.NewSpoof(s.router))
+	s.Server.Server.Handler = web.NewSpoof(s.router)
 
-	return s.Server.Http.Serve()
+	return s.Server.Serve()
 }
 
 func (s *UI) Hook() {

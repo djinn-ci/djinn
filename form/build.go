@@ -40,6 +40,7 @@ func (t *tags) String() string {
 
 func (f Build) Fields() map[string]string {
 	m := make(map[string]string)
+	m["manifest"] = f.Manifest.String()
 	m["comment"] = f.Comment
 	m["tags"] = f.Tags.String()
 

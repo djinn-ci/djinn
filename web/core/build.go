@@ -149,6 +149,17 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 	f := &form.Build{}
 
 	if err := form.Unmarshal(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if strings.Contains(cause.Error(), "cannot unmarshal") {
+			errs := form.NewErrors()
+			errs.Put("manifest", errors.New("Build manifest is invalid, check the YAML is valid"))
+
+			h.FlashErrors(w, r, errs)
+
+			return &model.Build{}, ErrValidationFailed
+		}
+
 		return &model.Build{}, errors.Err(err)
 	}
 

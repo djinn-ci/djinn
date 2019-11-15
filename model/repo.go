@@ -11,6 +11,7 @@ import (
 type Repo struct {
 	Model
 
+	UserID     int64  `db:"user_id"`
 	ProviderID int64  `db:"provider_id"`
 	RepoID     int64  `db:"repo_id"`
 	Name       string `db:"name"`
@@ -34,12 +35,28 @@ func repoToInterface(rr []*Repo) func(i int) Interface {
 	}
 }
 
+func (r *Repo) LoadProvider() error {
+	var err error
+
+	providers := &ProviderStore{
+		Store: Store{
+			DB: r.DB,
+		},
+	}
+
+	r.Provider, err = providers.Find(r.ProviderID)
+
+	return errors.Err(err)
+}
+
 func (r Repo) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"name":       r.Name,
-		"href":       r.Href,
-		"created_at": r.CreatedAt,
-		"updated_at": r.UpdatedAt,
+		"user_id":     r.UserID,
+		"provider_id": r.ProviderID,
+		"repo_id":     r.RepoID,
+		"name":        r.Name,
+		"href":        r.Href,
+		"enabled":     r.Enabled,
 	}
 }
 
@@ -63,24 +80,26 @@ func (s RepoStore) All(opts ...query.Option) ([]*Repo, error) {
 	return rr, nil
 }
 
-func (s RepoStore) Find(id int64) (*Repo, error) {
-	r, err := s.findBy("id", id)
+func (s RepoStore) Create(rr ...*Repo) error {
+	models := interfaceSlice(len(rr), repoToInterface(rr))
 
-	return r, errors.Err(err)
+	return s.Store.Create(RepoTable, models...)
 }
 
-func (s RepoStore) findBy(col string, val interface{}) (*Repo, error) {
+func (s RepoStore) Find(id int64) (*Repo, error) {
 	r := &Repo{
 		Model: Model{
 			DB: s.DB,
 		},
+		User:     s.User,
 		Provider: s.Provider,
 	}
 
 	q := query.Select(
 		query.Columns("*"),
 		query.From(RepoTable),
-		query.Where(col, "=", val),
+		query.Where("id", "=", id),
+		ForUser(s.User),
 		ForProvider(s.Provider),
 	)
 
@@ -89,12 +108,6 @@ func (s RepoStore) findBy(col string, val interface{}) (*Repo, error) {
 	if err == sql.ErrNoRows {
 		err = nil
 	}
-
-	return r, errors.Err(err)
-}
-
-func (s RepoStore) FindByName(name string) (*Repo, error) {
-	r, err := s.findBy("name", name)
 
 	return r, errors.Err(err)
 }
@@ -124,4 +137,30 @@ func (s RepoStore) LoadProviders(rr []*Repo) error {
 	err := providers.Load(mapKey("provider_id", models), s.loadProvider(rr))
 
 	return errors.Err(err)
+}
+
+func (s RepoStore) New() *Repo {
+	r := &Repo{
+		Model: Model{
+			DB: s.DB,
+		},
+		User:     s.User,
+		Provider: s.Provider,
+	}
+
+	if s.User != nil {
+		r.UserID = s.User.ID
+	}
+
+	if s.Provider != nil {
+		r.ProviderID = s.Provider.ID
+	}
+
+	return r
+}
+
+func (s RepoStore) Update(rr ...*Repo) error {
+	models := interfaceSlice(len(rr), repoToInterface(rr))
+
+	return s.Store.Update(RepoTable, models...)
 }

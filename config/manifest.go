@@ -20,7 +20,7 @@ type Manifest struct {
 	Sources       []Source           `yaml:",omitempty"`
 	Stages        []string           `yaml:",omitempty"`
 	AllowFailures []string           `yaml:"allow_failures,omitempty"`
-	Jobs          []Job              `yaml:"omitempty"`
+	Jobs          []Job              `yaml:",omitempty"`
 }
 
 type Source struct {

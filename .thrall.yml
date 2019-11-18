@@ -1,4 +1,4 @@
-namespace: thrall/testing
+namespace: thrall/webhook
 driver:
   type: qemu
   image: centos/7

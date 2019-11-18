@@ -84,9 +84,9 @@ type ShowTags struct {
 			<div class="panel">
 				<div class="panel-header">
 					{% if p.Build.Namespace.IsZero() %}
-						<h3>Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt;</h3>
+						<h3>Submitted by {%s p.Build.Trigger.Data["username"] %} &lt;{%s p.Build.Trigger.Data["email"] %}&gt;</h3>
 					{% else %}
-						<h3>Submitted by {%s p.Build.User.Username %} &lt;{%s p.Build.User.Email %}&gt; to <a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Path %}</a></h3>
+						<h3>Submitted by {%s p.Build.Trigger.Data["username"] %} &lt;{%s p.Build.Trigger.Data["email"] %}&gt; to <a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Path %}</a></h3>
 					{% endif %}
 				</div>
 				<div class="panel-body">

@@ -268,11 +268,11 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/build/show.qtpl:86
 		qw422016.N().S(` <h3>Submitted by `)
 		//line template/build/show.qtpl:87
-		qw422016.E().S(p.Build.User.Username)
+		qw422016.E().S(p.Build.Trigger.Data["username"])
 		//line template/build/show.qtpl:87
 		qw422016.N().S(` &lt;`)
 		//line template/build/show.qtpl:87
-		qw422016.E().S(p.Build.User.Email)
+		qw422016.E().S(p.Build.Trigger.Data["email"])
 		//line template/build/show.qtpl:87
 		qw422016.N().S(`&gt;</h3> `)
 		//line template/build/show.qtpl:88
@@ -280,11 +280,11 @@ func (p *ShowPage) StreamBody(qw422016 *qt422016.Writer) {
 		//line template/build/show.qtpl:88
 		qw422016.N().S(` <h3>Submitted by `)
 		//line template/build/show.qtpl:89
-		qw422016.E().S(p.Build.User.Username)
+		qw422016.E().S(p.Build.Trigger.Data["username"])
 		//line template/build/show.qtpl:89
 		qw422016.N().S(` &lt;`)
 		//line template/build/show.qtpl:89
-		qw422016.E().S(p.Build.User.Email)
+		qw422016.E().S(p.Build.Trigger.Data["email"])
 		//line template/build/show.qtpl:89
 		qw422016.N().S(`&gt; to <a href="`)
 		//line template/build/show.qtpl:89

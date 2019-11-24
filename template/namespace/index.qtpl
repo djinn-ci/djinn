@@ -54,7 +54,9 @@ type IndexPage struct {
 							</td>
 							<td class="muted">
 								{% if n.LastBuild != nil %}
-									<a href="{%s n.LastBuild.UIEndpoint() %}">#{%v n.LastBuild.ID %}</a>
+									<a href="{%s n.LastBuild.UIEndpoint() %}">
+										#{%v n.LastBuild.ID %} {%s n.LastBuild.Trigger.CommentTitle() %}
+									</a>
 								{% else %}
 									--
 								{% endif %}

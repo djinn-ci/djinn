@@ -472,6 +472,10 @@ func (s NamespaceStore) LoadLastBuild(nn []*Namespace) error {
 		return errors.Err(err)
 	}
 
+	if err := builds.LoadTriggers(bb); err != nil {
+		return errors.Err(err)
+	}
+
 	for _, n := range nn {
 		for _, b := range bb {
 			if n.ID == b.NamespaceID.Int64 {

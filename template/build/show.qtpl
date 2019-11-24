@@ -1,77 +1,129 @@
 {%
 import (
+	"net/url"
+	"time"
+
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/types"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/artifact"
-	"github.com/andrewpillar/thrall/template/job"
+
+	"github.com/hako/durafmt"
 )
 %}
 
 {% code
 type ShowPage struct {
 	template.BasePage
+	template.Section
 
 	Build *model.Build
 	CSRF  string
 }
 
 type ShowManifest struct {
-	ShowPage
-}
-
-type ShowOutput struct {
-	ShowPage
+	Build *model.Build
 }
 
 type ShowObjects struct {
-	ShowPage
-
+	Build   *model.Build
 	Objects []*model.BuildObject
 }
 
 type ShowArtifacts struct {
-	ShowPage
-
+	URL       *url.URL
 	Search    string
+	Build     *model.Build
 	Artifacts []*model.Artifact
 }
 
 type ShowVariables struct {
-	ShowPage
-
+	Build     *model.Build
 	Variables []*model.BuildVariable
 }
 
 type ShowKeys struct {
-	ShowPage
-
-	Keys []*model.BuildKey
+	Build *model.Build
+	Keys  []*model.BuildKey
 }
 
 type ShowTags struct {
-	ShowPage
-
-	CSRF string
-	Tags []*model.Tag
+	CSRF  string
+	Build *model.Build
+	Tags  []*model.Tag
 }
 %}
 
 {% collapsespace %}
+{% func RenderTrigger(b *model.Build) %}
+	{% code
+		title := b.Trigger.CommentTitle()
+		comment := b.Trigger.CommentBody()
+
+		duration := time.Now().Sub(b.CreatedAt)
+		parsedDur := durafmt.Parse(duration).LimitFirstN(2)
+	%}
+	<div class="panel">
+		<div class="panel-body">
+			{% if b.Trigger.Comment != "" %}
+				<div class="comment-header mb-10">
+					<div class="comment-title">
+						{%= template.RenderShortStatus(b.Status) %}
+						<strong>{%s title %}</strong>
+					</div>
+					<strong>{%s b.Trigger.Data["username"] %}</strong>
+					{% switch b.Trigger.Type %}
+					{% case types.Manual %}
+						submitted
+					{% case types.Push %}
+						committed <a target="_blank" href="{%s b.Trigger.Data["url"] %}">{%s b.Trigger.Data["id"][:7] %}</a>
+					{% endswitch %}
+					{% if duration < (24 * time.Hour) %}
+						- <span title="{%s b.CreatedAt.Format("Jan 02, 2006, at 15:04") %}">{%s parsedDur.String() %} </span> ago
+					{% else %}
+						- {%s b.CreatedAt.Format("Jan 02, 2006, at 15:04") %}
+					{% endif %}
+				</div>
+				<pre>{%s comment %}</pre>
+			{% else %}
+				<em class="muted">No build comment.</em>
+			{% endif %}
+		</div>
+		<div class="panel-footer">
+			{% for _, t := range b.Tags %}
+				<a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a>
+			{% endfor %}
+		</div>
+	</div>
+{% endfunc %}
+
 {% func (p *ShowPage) Title() %}
-	Build #{%v p.Build.ID %} - Thrall
+	{% if p.Section != nil %}
+		{%= p.Section.Title() %}
+	{% else %}
+		Build #{%v p.Build.ID %} {%s p.Build.Trigger.CommentTitle() %} - Thrall
+	{% endif %}
+{% endfunc %}
+
+{% func (p *ShowArtifacts) Title() %}
+	Build #{%v p.Build.ID %} - Artifacts
+{% endfunc %}
+
+{% func (p *ShowKeys) Title() %}
+	Build #{%v p.Build.ID %} - Keys
 {% endfunc %}
 
 {% func (p *ShowManifest) Title() %}
 	Build #{%v p.Build.ID %} - Manifest
 {% endfunc %}
 
-{% func (p *ShowOutput) Title() %}
-	Build #{%v p.Build.ID %} - Output
-{% endfunc %}
-
 {% func (p *ShowObjects) Title() %}
 	Build #{%v p.Build.ID %} - Objects
+{% endfunc %}
+
+{% func (p *ShowTags) Title() %}
+	Build #{%v p.Build.ID %} - Tags
 {% endfunc %}
 
 {% func (p *ShowVariables) Title() %}
@@ -79,37 +131,8 @@ type ShowTags struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Body() %}
-	<div class="mb-10 overflow">
-		<div class="col-75 pr-5 left">
-			<div class="panel">
-				<div class="panel-header">
-					{% if p.Build.Namespace.IsZero() %}
-						<h3>Submitted by {%s p.Build.Trigger.Data["username"] %} &lt;{%s p.Build.Trigger.Data["email"] %}&gt;</h3>
-					{% else %}
-						<h3>Submitted by {%s p.Build.Trigger.Data["username"] %} &lt;{%s p.Build.Trigger.Data["email"] %}&gt; to <a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Path %}</a></h3>
-					{% endif %}
-				</div>
-				<div class="panel-body">
-					{% if p.Build.Trigger.Comment != "" %}
-						<pre class="code">{%s p.Build.Trigger.Comment %}</pre>
-					{% else %}
-						<em class="muted">No build comment.</em>
-					{% endif %}
-				</div>
-				<div class="panel-footer">
-					<div class="mb-10">
-					{% if len(p.Build.Tags) > 0 %}
-						{% for _, t := range p.Build.Tags %}
-							<a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a>
-						{% endfor %}
-					{% else %}
-						<em class="muted">No build tags.</em>
-					{% endif %}
-					</div>
-				</div>
-			</div>
-		</div>
-		<div class="col-25 pl-5 right">
+	<div class="overflow">
+		<div class="col-25 pr-5 left">
 			<div class="panel">
 				<table class="table">
 					<tr>
@@ -144,19 +167,53 @@ type ShowTags struct {
 					</tr>
 				</table>
 			</div>
+			{% for _, s := range p.Build.Stages %}
+				<div class="panel">
+					<div class="panel-header"><h3>{%s s.Name %}</h3></div>
+					<table class="table">
+						{% for _, j := range s.Jobs %}
+							<tr>
+								<td>{%= template.RenderShortStatus(j.Status) %} <a href="{%s j.UIEndpoint() %}">{%s j.Name %}</a></td>
+								<td class="align-right">
+									{% if !j.StartedAt.Valid || !j.FinishedAt.Valid %}
+										<span class="muted">--</span>
+									{% else %}
+										{%v j.FinishedAt.Time.Sub(j.StartedAt.Time) %}
+									{% endif %}
+								</td>
+							</tr>
+						{% endfor %}
+					</table>
+				</div>
+			{% endfor %}
+		</div>
+		<div class="col-75 pl-5 right">
+			{%= RenderTrigger(p.Build) %}
+			{% if p.Section != nil %}
+				{%= p.Section.Section() %}
+			{% else %}
+				<div class="panel">
+					{% if p.Build.Output.Valid %}
+						<div class="panel-header">
+							<ul class="panel-actions">
+								<li>
+									<a class="btn btn-primary" href="{%s p.Build.UIEndpoint("output", "raw") %}">
+										{% cat "../../svgs/document.svg" %}<span>Raw</span>
+									</a>
+								</li>
+							</ul>
+						</div>
+						{%= template.RenderCode(p.Build.Output.String) %}
+					{% else %}
+						<div class="panel-message muted">No build output has been produced.</div>
+					{% endif %}
+				</div>
+			{% endif %}
 		</div>
 	</div>
-	{% for _, s := range p.Build.Stages %}
-		{% if len(s.Jobs) > 0 %}
-			<div class="panel">
-				<div class="panel-header"><h3>{%s s.Name %}</h3></div>
-				{%= job.RenderTable(s.Jobs) %}
-			</div>
-		{% endif %}
-	{% endfor %}
 {% endfunc %}
 
-{% func (p *ShowManifest) Body() %}
+{% func (p *ShowManifest) Section() %}
 	<div class="panel">
 		<div class="panel-header">
 			<ul class="panel-actions">
@@ -171,26 +228,7 @@ type ShowTags struct {
 	</div>
 {% endfunc %}
 
-{% func (p *ShowOutput) Body() %}
-	<div class="panel">
-		{% if p.Build.Output.Valid %}
-			<div class="panel-header">
-				<ul class="panel-actions">
-					<li>
-						<a class="btn btn-primary" href="{%s p.Build.UIEndpoint("output", "raw") %}">
-							{% cat "../../svgs/document.svg" %}<span>Raw</span>
-						</a>
-					</li>
-				</ul>
-			</div>
-			{%= template.RenderCode(p.Build.Output.String) %}
-		{% else %}
-			<div class="panel-message muted">No build output has been produced.</div>
-		{% endif %}
-	</div>
-{% endfunc %}
-
-{% func (p *ShowObjects) Body() %}
+{% func (p *ShowObjects) Section() %}
 	<div class="panel">
 		{% if len(p.Objects) == 0 %}
 			<div class="panel-message muted">No objects have been placed for this build.</div>
@@ -200,11 +238,11 @@ type ShowTags struct {
 	</div>
 {% endfunc %}
 
-{% func (p *ShowArtifacts) Body() %}
+{% func (p *ShowArtifacts) Section() %}
 	<div class="panel">{%= artifact.RenderIndex(p.Artifacts, p.URL.Path, p.Search) %}</div>
 {% endfunc %}
 
-{% func (p *ShowVariables) Body() %}
+{% func (p *ShowVariables) Section() %}
 	<div class="panel">
 		{% if len(p.Variables) == 0 %}
 			<div class="panel-message muted">No variables have been set for this build.</div>
@@ -214,7 +252,7 @@ type ShowTags struct {
 	</div>
 {% endfunc %}
 
-{% func (p *ShowKeys) Body() %}
+{% func (p *ShowKeys) Section() %}
 	<div class="panel">
 		{% if len(p.Keys) == 0 %}
 			<div class="panel-message muted">No keys have been added to this build.</div>
@@ -224,7 +262,7 @@ type ShowTags struct {
 	</div>
 {% endfunc %}
 
-{% func (p *ShowTags) Body() %}
+{% func (p *ShowTags) Section() %}
 	<div class="panel">
 		<div class="panel-header panel-body">
 			<form method="POST" action="{%s p.Build.UIEndpoint("tags") %}">
@@ -248,7 +286,7 @@ type ShowTags struct {
 	{% if !p.Build.Namespace.IsZero() %}
 		<a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Name %}</a> /
 	{% endif %}
-	Build #{%v p.Build.ID %} {%= template.RenderStatus(p.Build.Status) %}
+	Build #{%v p.Build.ID %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}
@@ -293,11 +331,6 @@ type ShowTags struct {
 	<li>
 		<a href="{%s p.Build.UIEndpoint("keys") %}" class="{%s template.Active(p.Build.UIEndpoint("keys") == p.URL.Path) %}">
 			{% cat "../../svgs/key.svg" %}<span>Keys</span>
-		</a>
-	</li>
-	<li>
-		<a href="{%s p.Build.UIEndpoint("output") %}" class="{%s template.Active(p.Build.UIEndpoint("output") == p.URL.Path) %}">
-			{% cat "../../svgs/document.svg" %}<span>Output</span>
 		</a>
 	</li>
 	<li>

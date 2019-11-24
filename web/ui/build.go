@@ -139,9 +139,7 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 
 	base := filepath.Base(r.URL.Path)
 
-	var p template.Dashboard
-
-	sp := build.ShowPage{
+	p := &build.ShowPage{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
@@ -152,27 +150,21 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 
 	switch base {
 	case "manifest":
-		p = &build.ShowManifest{
-			ShowPage: sp,
-		}
-
-		break
-	case "output":
-		p = &build.ShowOutput{
-			ShowPage: sp,
+		p.Section = &build.ShowManifest{
+			Build: b,
 		}
 
 		break
 	case "raw":
 		parts := strings.Split(r.URL.Path, "/")
-		pen := parts[len(parts) - 2]
+		attr := parts[len(parts) - 2]
 
-		if pen == "manifest" {
+		if attr == "manifest" {
 			web.Text(w, b.Manifest.String(), http.StatusOK)
 			return
 		}
 
-		if pen == "output" {
+		if attr == "output" {
 			web.Text(w, b.Output.String, http.StatusOK)
 			return
 		}
@@ -195,9 +187,9 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		p = &build.ShowObjects{
-			ShowPage: sp,
-			Objects:  oo,
+		p.Section = &build.ShowObjects{
+			Build:   b,
+			Objects: oo,
 		}
 
 		break
@@ -212,9 +204,10 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		p = &build.ShowArtifacts{
-			ShowPage:  sp,
+		p.Section = &build.ShowArtifacts{
+			URL:       r.URL,
 			Search:    search,
+			Build:     b,
 			Artifacts: aa,
 		}
 
@@ -228,8 +221,8 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		p = &build.ShowVariables{
-			ShowPage:  sp,
+		p.Section = &build.ShowVariables{
+			Build:     b,
 			Variables: vv,
 		}
 
@@ -245,9 +238,9 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		p = &build.ShowKeys{
-			ShowPage: sp,
-			Keys:     kk,
+		p.Section = &build.ShowKeys{
+			Build: b,
+			Keys:  kk,
 		}
 
 		break
@@ -260,15 +253,12 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		p = &build.ShowTags{
-			ShowPage: sp,
-			CSRF:     string(csrf.TemplateField(r)),
-			Tags:     tt,
+		p.Section = &build.ShowTags{
+			CSRF:  string(csrf.TemplateField(r)),
+			Build: b,
+			Tags:  tt,
 		}
 
-		break
-	default:
-		p = &sp
 		break
 	}
 

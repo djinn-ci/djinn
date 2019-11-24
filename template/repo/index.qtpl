@@ -45,46 +45,46 @@ var providerNames = map[string]string{
 					{% endfor %}
 				</ul>
 				{% endstripspace %}
-				<table class="table">
-					<thead>
-						<tr>
-							<th>NAME</th>
-							<th></th>
-							<th></th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for _, r := range p.Repos %}
-							<tr>
-								<td><a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a></td>
-								{% if !r.Provider.Connected %}
-									<td class="warning">{% cat "../../svgs/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}</td>
-								{% else %}
-									<td></td>
-								{% endif %}
-								<td class="align-right">
-									{% if !r.Enabled %}
-										<form method="POST" action="/repos/enable">
-									{% else %}
-										<form method="POST" action="/repos/disable/{%v r.ID %}">
-											<input type="hidden" name="_method" value="DELETE"/>
-									{% endif %}
-										{%s= p.CSRF %}
-										<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
-										<input type="hidden" name="name" value="{%s r.Name %}">
-										<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
-									{% if !r.Enabled %}
-										<button type="submit" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
-									{% else %}
-										<button type="submit" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Disable</button>
-									{% endif %}
-									</form>
-								</td>
-							</tr>
-						{% endfor %}
-					</tbody>
-				</table>
 			</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, r := range p.Repos %}
+						<tr>
+							<td><a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a></td>
+							{% if !r.Provider.Connected %}
+								<td class="warning">{% cat "../../svgs/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}</td>
+							{% else %}
+								<td></td>
+							{% endif %}
+							<td class="align-right">
+								{% if !r.Enabled %}
+									<form method="POST" action="/repos/enable">
+								{% else %}
+									<form method="POST" action="/repos/disable/{%v r.ID %}">
+										<input type="hidden" name="_method" value="DELETE"/>
+								{% endif %}
+									{%s= p.CSRF %}
+									<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
+									<input type="hidden" name="name" value="{%s r.Name %}">
+									<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
+								{% if !r.Enabled %}
+									<button type="submit" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
+								{% else %}
+									<button type="submit" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Disable</button>
+								{% endif %}
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
 		{% endif %}
 	</div>
 {% endfunc %}

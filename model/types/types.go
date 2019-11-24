@@ -26,7 +26,8 @@ const (
 	Docker
 
 	Manual Trigger = iota
-	Hook
+	Push
+	Pull
 )
 
 func Scan(val interface{}) ([]byte, error) {
@@ -130,8 +131,11 @@ func (t *Trigger) UnmarshalText(b []byte) error {
 	case "manual":
 		(*t) = Manual
 		return nil
-	case "hook":
-		(*t) = Hook
+	case "push":
+		(*t) = Push
+		return nil
+	case "pull":
+		(*t) = Pull
 		return nil
 	default:
 		return errors.Err(errors.New("unknown trigger " + str))
@@ -142,8 +146,10 @@ func (t Trigger) Value() (driver.Value, error) {
 	switch t {
 	case Manual:
 		return driver.Value("manual"), nil
-	case Hook:
-		return driver.Value("hook"), nil
+	case Push:
+		return driver.Value("push"), nil
+	case Pull:
+		return driver.Value("pull"), nil
 	default:
 		return driver.Value(""), errors.Err(errors.New("unknown trigger"))
 	}

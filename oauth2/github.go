@@ -2,7 +2,10 @@ package oauth2
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"net/http"
+	"net/url"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
@@ -19,10 +22,14 @@ type GitHub struct {
 	Config *oauth2.Config
 }
 
-var githubScopes = []string{
-	"repo",
-	"admin:repo_hook",
-}
+var (
+	githubScopes = []string{
+		"repo",
+		"admin:repo_hook",
+	}
+
+	githubURL = "https://api.github.com"
+)
 
 func githubClient(c context.Context, tok string) *github.Client {
 	oauthTok := &oauth2.Token{
@@ -41,7 +48,41 @@ func (g GitHub) Auth(c context.Context, code string, providers model.ProviderSto
 		return errors.Err(err)
 	}
 
-	return errors.Err(auth(c, "github", tok, providers))
+	p, err := auth(c, "github", tok, providers)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	url, _ := url.Parse(githubURL + "/user")
+
+	req := &http.Request{
+		Method:  "GET",
+		URL:     url,
+		Header:  http.Header(map[string][]string{
+			"Authorization": []string{"token " + tok.AccessToken},
+		}),
+	}
+
+	cli := &http.Client{}
+
+	resp, err := cli.Do(req)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	u := &github.User{}
+
+	dec := json.NewDecoder(resp.Body)
+	dec.Decode(u)
+
+	p.ProviderUserID = sql.NullInt64{
+		Int64: *u.ID,
+		Valid: true,
+	}
+
+	return errors.Err(providers.Update(p))
 }
 
 func (g GitHub) AuthURL() string {
@@ -158,4 +199,8 @@ func (g GitHub) Revoke(c context.Context, tok string) error {
 	}
 
 	return nil
+}
+
+func (g GitHub) Secret() []byte {
+	return []byte(g.secret)
 }

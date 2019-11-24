@@ -30,11 +30,11 @@ type Source struct {
 }
 
 type Job struct {
-	Stage     string
-	Name      string
-	Commands  []string
-	Depends   []string
-	Artifacts runner.Passthrough
+	Stage     string             `yaml:",omitempty"`
+	Name      string             `yaml:",omitempty"`
+	Commands  []string           `yaml:",omitempty"`
+	Depends   []string           `yaml:",omitempty"`
+	Artifacts runner.Passthrough `yaml:",omitempty"`
 }
 
 func DecodeManifest(r io.Reader) (Manifest, error) {
@@ -46,6 +46,14 @@ func DecodeManifest(r io.Reader) (Manifest, error) {
 	}
 
 	return manifest, nil
+}
+
+func UnmarshalManifest(b []byte) (Manifest, error) {
+	manifest := Manifest{}
+
+	err := yaml.Unmarshal(b, &manifest)
+
+	return manifest, errors.Err(err)
 }
 
 func (m *Manifest) Scan(val interface{}) error {

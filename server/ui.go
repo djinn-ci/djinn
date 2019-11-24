@@ -6,7 +6,6 @@ import (
 
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/ui"
@@ -19,7 +18,6 @@ type UI struct {
 	Server
 
 	csrf func(http.Handler) http.Handler
-	hook web.Hook
 
 	artifact     ui.Artifact
 	auth         ui.Auth
@@ -38,8 +36,7 @@ type UI struct {
 	variable     ui.Variable
 	gate         gate
 
-	Assets    string
-	Providers map[string]oauth2.Provider
+	Assets string
 }
 
 func (s *UI) Init() {
@@ -87,11 +84,6 @@ func (s *UI) Init() {
 		keys:       model.KeyStore{
 			Store: store,
 		},
-	}
-
-	s.hook = web.Hook{
-		Handler:   s.Handler,
-		Providers: s.Providers,
 	}
 
 	s.artifact = ui.Artifact{
@@ -252,7 +244,6 @@ func (s *UI) Build() {
 	r.HandleFunc("", s.build.Kill).Methods("DELETE")
 	r.HandleFunc("/manifest", s.build.Show).Methods("GET")
 	r.HandleFunc("/manifest/raw", s.build.Show).Methods("GET")
-	r.HandleFunc("/output", s.build.Show).Methods("GET")
 	r.HandleFunc("/output/raw", s.build.Show).Methods("GET")
 	r.HandleFunc("/objects", s.build.Show).Methods("GET")
 	r.HandleFunc("/variables", s.build.Show).Methods("GET")

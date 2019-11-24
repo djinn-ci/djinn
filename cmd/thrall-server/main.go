@@ -184,6 +184,18 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("auth key must be 32 bytes in size\n")
 	}
 
+	providers := make(map[string]oauth2.Provider)
+
+	for _, p := range cfg.Providers {
+		provider, err := oauth2.NewProvider(p.Name, p.ClientID, p.ClientSecret, cfg.Host, p.Secret)
+
+		if err != nil {
+			log.Error.Fatalf("failed to configure oauth provider: %s\n", errors.Cause(err))
+		}
+
+		providers[p.Name] = provider
+	}
+
 	srv := server.Server{
 		Server: &http.Server{
 			Addr: cfg.Net.Listen,
@@ -197,31 +209,21 @@ func mainCommand(cmd cli.Command) {
 		Artifacts:   artifacts,
 		Objects:     objects,
 		Queues:      queues,
+		Providers:   providers,
 		ImageLimit:  imageLimit,
 		ObjectLimit: objectLimit,
 		Handler:     handler,
 		Middleware:  middleware,
 	}
 
-	providers := make(map[string]oauth2.Provider)
-
-	for _, p := range cfg.Providers {
-		provider, err := oauth2.NewProvider(p.Name, p.ClientID, p.ClientSecret, cfg.Host, p.Secret)
-
-		if err != nil {
-			log.Error.Fatalf("failed to configure oauth provider: %s\n", errors.Cause(err))
-		}
-
-		providers[p.Name] = provider
-	}
-
 	ui := server.UI{
-		Server:    srv,
-		Assets:    "public",
-		Providers: providers,
+		Server: srv,
+		Assets: "public",
 	}
 
 	ui.Init()
+
+	ui.Hook()
 
 	ui.Auth()
 	ui.Oauth()

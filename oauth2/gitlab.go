@@ -27,7 +27,9 @@ func (g GitLab) Auth(c context.Context, code string, providers model.ProviderSto
 		return errors.Err(err)
 	}
 
-	return errors.Err(auth(c, "gitlab", tok, providers))
+	_, err = auth(c, "gitlab", tok, providers)
+
+	return errors.Err(err)
 }
 
 func (g GitLab) AuthURL() string {
@@ -44,4 +46,8 @@ func (g GitLab) Repos(c context.Context, tok string) ([]*model.Repo, error) {
 
 func (g GitLab) Revoke(c context.Context, tok string) error {
 	return nil
+}
+
+func (g GitLab) Secret() []byte {
+	return []byte{}
 }

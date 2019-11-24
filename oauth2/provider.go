@@ -24,16 +24,18 @@ type Provider interface {
 	Repos(c context.Context, tok string) ([]*model.Repo, error)
 
 	Revoke(c context.Context, tok string) error
+
+	Secret() []byte
 }
 
-func auth(c context.Context, name string, tok *oauth2.Token, providers model.ProviderStore) error {
+func auth(c context.Context, name string, tok *oauth2.Token, providers model.ProviderStore) (*model.Provider, error) {
 	access, _ := crypto.Encrypt([]byte(tok.AccessToken))
 	refresh, _ := crypto.Encrypt([]byte(tok.RefreshToken))
 
 	p, err := providers.FindByName(name)
 
 	if err != nil {
-		return errors.Err(err)
+		return p, errors.Err(err)
 	}
 
 	p.Name = name
@@ -42,7 +44,7 @@ func auth(c context.Context, name string, tok *oauth2.Token, providers model.Pro
 	p.ExpiresAt = tok.Expiry
 	p.Connected = true
 
-	return errors.Err(providers.Update(p))
+	return p, nil
 }
 
 func authURL(rawurl, id string, scopes []string) string {

@@ -5,6 +5,7 @@ import (
 
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/core"
 
@@ -28,6 +29,7 @@ type Server struct {
 	build        core.Build
 	collaborator core.Collaborator
 	image        core.Image
+	hook         core.Hook
 	invite       core.Invite
 	job          core.Job
 	key          core.Key
@@ -48,7 +50,8 @@ type Server struct {
 	ImageLimit  int64
 	ObjectLimit int64
 
-	Queues map[string]*machinery.Server
+	Queues    map[string]*machinery.Server
+	Providers map[string]oauth2.Provider
 
 	Handler    web.Handler
 	Middleware web.Middleware
@@ -104,6 +107,15 @@ func (s *Server) Init() {
 		Invites: model.InviteStore{
 			Store: store,
 		},
+	}
+
+	s.hook = core.Hook{
+		Handler:         s.Handler,
+		Build:           s.build,
+		Providers:       model.ProviderStore{
+			Store: store,
+		},
+		Oauth2Providers: s.Providers,
 	}
 
 	s.image = core.Image{

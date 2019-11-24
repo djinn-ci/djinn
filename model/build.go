@@ -499,6 +499,34 @@ func (s BuildStore) loadUser(bb []*Build) func(i int, u *User) {
 	}
 }
 
+func (s *BuildStore) LoadTriggers(bb []*Build) error {
+	if len(bb) == 0 {
+		return nil
+	}
+
+	models := interfaceSlice(len(bb), buildToInterface(bb))
+
+	triggers := TriggerStore{
+		Store: s.Store,
+	}
+
+	tt, err := triggers.All(query.Where("build_id", "IN", mapKey("id", models)...))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, b := range bb {
+		for _, t := range tt {
+			if b.ID == t.BuildID {
+				b.Trigger = t
+			}
+		}
+	}
+
+	return nil
+}
+
 func (s *BuildStore) LoadUsers(bb []*Build) error {
 	if len(bb) == 0 {
 		return nil

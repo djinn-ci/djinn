@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -90,6 +91,10 @@ func (h Build) Index(builds model.BuildStore, r *http.Request, opts ...query.Opt
 		return bb, paginator, errors.Err(err)
 	}
 
+	if err := builds.LoadTriggers(bb); err != nil {
+		return bb, paginator, errors.Err(err)
+	}
+
 	nn := make([]*model.Namespace, 0, len(bb))
 
 	for _, b := range bb {
@@ -143,6 +148,67 @@ func (h Build) Show(r *http.Request) (*model.Build, error) {
 	return b, errors.Err(err)
 }
 
+func (h Build) store(m config.Manifest, u *model.User, t *model.Trigger, tags ...string) (*model.Build, error) {
+	if _, ok := h.Queues[m.Driver["type"]]; !ok {
+		return &model.Build{}, ErrUnsupportedDriver
+	}
+
+	secret, _ := crypto.HashNow()
+
+	b := u.BuildStore().New()
+	b.User = u
+	b.Manifest = m
+	b.Secret = sql.NullString{
+		String: secret,
+		Valid:  true,
+	}
+
+	if m.Namespace != "" {
+		n, err := h.Namespace.Get(m.Namespace, u)
+
+		if err != nil {
+			return b, errors.Err(err)
+		}
+
+		if !n.CanAdd(u) {
+			return b, ErrAccessDenied
+		}
+
+		b.Namespace = n
+		b.NamespaceID = sql.NullInt64{
+			Int64: n.ID,
+			Valid: true,
+		}
+	}
+
+	for _, name := range tags {
+		t := &model.Tag{
+			UserID: u.ID,
+			Name:   name,
+		}
+
+		b.Tags = append(b.Tags, t)
+	}
+
+	if err := h.Builds.Create(b); err != nil {
+		return b, errors.Err(err)
+	}
+
+	t.BuildID = b.ID
+
+	if err := b.TriggerStore().Create(t); err != nil {
+		return b, errors.Err(err)
+	}
+
+	for _, t := range b.Tags {
+		t.BuildID = b.ID
+	}
+
+	err := b.TagStore().Create(b.Tags...)
+
+	return b, errors.Err(err)
+}
+
 func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, error) {
 	u := h.User(r)
 
@@ -170,68 +236,13 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 		return &model.Build{}, ErrValidationFailed
 	}
 
-	if _, ok := h.Queues[f.Manifest.Driver["type"]]; !ok {
-		return &model.Build{}, ErrUnsupportedDriver
-	}
+	t := &model.Trigger{}
+	t.Type = types.Manual
+	t.Comment = f.Comment
+	t.Data.Set("email", u.Email)
+	t.Data.Set("username", u.Username)
 
-	secret, _ := crypto.HashNow()
-
-	b := u.BuildStore().New()
-	b.User = u
-	b.Manifest = f.Manifest
-	b.Secret = sql.NullString{
-		String: secret,
-		Valid:  true,
-	}
-
-	if f.Manifest.Namespace != "" {
-		n, err := h.Namespace.Get(f.Manifest.Namespace, u)
-
-		if err != nil {
-			return b, errors.Err(err)
-		}
-
-		if !n.CanAdd(u) {
-			return b, ErrAccessDenied
-		}
-
-		b.Namespace = n
-		b.NamespaceID = sql.NullInt64{
-			Int64: n.ID,
-			Valid: true,
-		}
-	}
-
-	b.Trigger = b.TriggerStore().New()
-	b.Trigger.Type = types.Manual
-	b.Trigger.Comment = f.Comment
-	b.Trigger.Data.Set("email", u.Email)
-	b.Trigger.Data.Set("username", u.Username)
-
-	for _, name := range f.Tags {
-		t := &model.Tag{
-			UserID: u.ID,
-			Name:   name,
-		}
-
-		b.Tags = append(b.Tags, t)
-	}
-
-	if err := h.Builds.Create(b); err != nil {
-		return b, errors.Err(err)
-	}
-
-	b.Trigger.BuildID = b.ID
-
-	if err := b.TriggerStore().Create(b.Trigger); err != nil {
-		return b, errors.Err(err)
-	}
-
-	for _, t := range b.Tags {
-		t.BuildID = b.ID
-	}
-
-	err := b.TagStore().Create(b.Tags...)
+	b, err := h.store(f.Manifest, u, t, []string(f.Tags)...)
 
 	return b, errors.Err(err)
 }
@@ -399,7 +410,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 	}
 
 	stage := ""
-	jobId := 0
+	jobId := 1
 
 	jobModels := make(map[string]*model.Job)
 
@@ -412,7 +423,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 
 		if s.Name != stage {
 			stage = s.Name
-			jobId = 0
+			jobId = 1
 		}
 
 		jobId++
@@ -422,6 +433,10 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 		j := jobs.New()
 		j.Name = job.Name
 		j.Commands = strings.Join(job.Commands, "\n")
+
+		if j.Name == "" {
+			j.Name = fmt.Sprintf("%s.%v", s.Name, jobId)
+		}
 
 		if err := jobs.Create(j); err != nil {
 			return errors.Err(err)

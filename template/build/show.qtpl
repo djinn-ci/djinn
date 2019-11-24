@@ -90,11 +90,13 @@ type ShowTags struct {
 				<em class="muted">No build comment.</em>
 			{% endif %}
 		</div>
-		<div class="panel-footer">
-			{% for _, t := range b.Tags %}
-				<a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a>
-			{% endfor %}
-		</div>
+		{% if len(b.Tags) > 0 %}
+			<div class="panel-footer">
+				{% for _, t := range b.Tags %}
+					<a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a>
+				{% endfor %}
+			</div>
+		{% endif %}
 	</div>
 {% endfunc %}
 

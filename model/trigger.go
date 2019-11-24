@@ -34,17 +34,17 @@ func triggerToInterface(tt []*Trigger) func(i int) Interface {
 }
 
 func (t Trigger) CommentTitle() string {
-	if len(t.Comment) < 72 {
+	if len(t.Comment) <= 72 {
 		return t.Comment
 	}
 
-	title := t.Comment[:72]
+	i := strings.Index(t.Comment, "\n")
 
-	if strings.Index(t.Comment, "\n") > 72 {
-		return title + "..."
+	if i > 72 {
+		return t.Comment[:72] + "..."
 	}
 
-	return title
+	return t.Comment[:i]
 }
 
 func (t Trigger) CommentBody() string {
@@ -52,13 +52,13 @@ func (t Trigger) CommentBody() string {
 		return ""
 	}
 
-	body := t.Comment[72:]
+	i := strings.Index(t.Comment, "\n")
 
-	if strings.Index(t.Comment, "\n") > 72 {
-		return "..." + body
+	if i > 72 {
+		return "..." + t.Comment[72:]
 	}
 
-	return body
+	return t.Comment[i:]
 }
 
 func (t Trigger) Values() map[string]interface{} {

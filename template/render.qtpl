@@ -68,4 +68,23 @@ func RenderSize(n int64) string {
 			<span class="pill w-90 pill-gray">{% cat "../svgs/stopwatch.svg" %} Timed Out</span>
 	{% endswitch %}
 {% endfunc %}
+
+{% func RenderShortStatus(s runner.Status) %}
+	{% switch s %}
+		{% case runner.Queued %}
+			<span class="pill-bubble pill-dark" title="Queued">{% cat "../svgs/hourglass.svg" %}</span>
+		{% case runner.Running %}
+			<span class="pill-bubble pill-blue" title="Running">{% cat "../svgs/timer.svg" %}</span>
+		{% case runner.Passed %}
+			<span class="pill-bubble pill-green" title="Passed">{% cat "../svgs/check.svg" %}</span>
+		{% case runner.PassedWithFailures %}
+			<span class="pill-bubble pill-orange" title="Passed">{% cat "../svgs/warning.svg" %}</span>
+		{% case runner.Failed %}
+			<span class="pill-bubble pill-red" title="Failed">{% cat "../svgs/close.svg" %}</span>
+		{% case runner.Killed %}
+			<span class="pill-bubble pill-red" title="Killed">{% cat "../svgs/stop.svg" %}</span>
+		{% case runner.TimedOut %}
+			<span class="pill-bubble pill-gray" title="Timed Out">{% cat "../svgs/stopwatch.svg" %}</span>
+	{% endswitch %}
+{% endfunc %}
 {% endcollapsespace %}

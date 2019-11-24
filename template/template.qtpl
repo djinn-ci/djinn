@@ -38,6 +38,14 @@ interface Page {
 }
 %}
 
+{%
+interface Section {
+	Title()
+
+	Section()
+}
+%}
+
 {% code
 type Alert struct {
 	Level   level

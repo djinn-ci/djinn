@@ -3,6 +3,7 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/artifact"
+	"github.com/andrewpillar/thrall/template/build"
 )
 %}
 
@@ -21,22 +22,7 @@ type ShowPage struct {
 
 {% func (p *ShowPage) Body() %}
 	<div class="overflow">
-		<div class="col-75 mb-10 pr-5 left">
-			<div class="panel">
-				{% if p.Job.Output.Valid %}
-					<div class="panel-header">
-						<h3>Output</h3>
-						<ul class="panel-actions">
-							<li><a class="btn btn-primary" href="{%s p.Job.UIEndpoint("output", "raw") %}">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
-						</ul>
-					</div>
-					{%= template.RenderCode(p.Job.Output.String) %}
-				{% else %}
-					<div class="panel-message muted">No job output has been produced.</div>
-				{% endif %}
-			</div>
-		</div>
-		<div class="col-25 mb-10 pl-5 right">
+		<div class="col-25 pr-5 left">
 			<div class="panel">
 				<table class="table">
 					<tr>
@@ -47,7 +33,7 @@ type ShowPage struct {
 						<td>Started at:</td>
 						<td class="align-right">
 							{% if p.Job.StartedAt.Valid %}
-								{%v p.Job.StartedAt.Time.Format("2006-01-02T15:04:05") %}
+								{%s p.Job.StartedAt.Time.Format("2006-01-02T15:04:05") %}
 							{% else %}
 								<span class="muted">--</span>
 							{% endif %}
@@ -57,7 +43,7 @@ type ShowPage struct {
 						<td>Finished at:</td>
 						<td class="align-right">
 							{% if p.Job.FinishedAt.Valid %}
-								{%v p.Job.FinishedAt.Time.Format("2006-01-02T15:04:05") %}
+								{%s p.Job.FinishedAt.Time.Format("2006-01-02T15:04:05") %}
 							{% else %}
 								<span class="muted">--</span>
 							{% endif %}
@@ -76,14 +62,30 @@ type ShowPage struct {
 				</table>
 			</div>
 		</div>
-	</div>
-	<div class="panel">
-		<div class="panel-header"><h3>Artifacts</h3></div>
-		{% if len(p.Job.Artifacts) > 0 %}
-			{%= artifact.RenderTable(p.Job.Artifacts) %}
-		{% else %}
-			<div class="panel-message muted">No artifacts have been collected from this job.</div>
-		{% endif %}
+		<div class="col-75 pl-5 right">
+			{%= build.RenderTrigger(p.Job.Build) %}
+			<div class="panel">
+				{% if p.Job.Output.Valid %}
+					<div class="panel-header">
+						<h3>Output</h3>
+						<ul class="panel-actions">
+							<li><a class="btn btn-primary" href="{%s p.Job.UIEndpoint("output", "raw") %}">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
+						</ul>
+					</div>
+					{%= template.RenderCode(p.Job.Output.String) %}
+				{% else %}
+					<div class="panel-message muted">No job output has been produced.</div>
+				{% endif %}
+			</div>
+			<div class="panel">
+				<div class="panel-header"><h3>Artifacts</h3></div>
+				{% if len(p.Job.Artifacts) > 0 %}
+					{%= artifact.RenderTable(p.Job.Artifacts) %}
+				{% else %}
+					<div class="panel-message muted">No artifacts have been collected from this job.</div>
+				{% endif %}
+			</div>
+		</div>
 	</div>
 {% endfunc %}
 
@@ -92,7 +94,7 @@ type ShowPage struct {
 	{% if !p.Job.Build.Namespace.IsZero() %}
 		<a href="{%s p.Job.Build.Namespace.UIEndpoint() %}">{%s p.Job.Build.Namespace.Name %}</a> /
 	{% endif %}
- 	Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %} {%= template.RenderStatus(p.Job.Build.Status) %}
+ 	Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
 {% endfunc %}
 
 {% func (p *ShowPage) Actions() %}{% endfunc %}

@@ -34,6 +34,14 @@ func (h Job) Show(r *http.Request) (*model.Job, error) {
 		return &model.Job{}, errors.Err(err)
 	}
 
+	if err := b.LoadTags(); err != nil {
+		return &model.Job{}, errors.Err(err)
+	}
+
+	if err := b.LoadTrigger(); err != nil {
+		return &model.Job{}, errors.Err(err)
+	}
+
 	vars := mux.Vars(r)
 
 	id, _ := strconv.ParseInt(vars["job"], 10, 64)

@@ -38,7 +38,8 @@ type githubUser struct {
 
 type githubRepo struct {
 	Owner       githubUser
-	ContentsURL string `json:"contents_url"`
+	HTMLURL     string     `json:"html_url"`
+	ContentsURL string     `json:"contents_url"`
 }
 
 type githubPull struct {
@@ -50,6 +51,10 @@ type githubPull struct {
 			Sha   string
 			Owner githubUser
 			Repo  githubRepo `json:"repository"`
+		}
+		Base   struct {
+			Ref  string
+			Repo githubRepo
 		}
 	} `json:"pull_request"`
 }
@@ -212,6 +217,8 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 		t.Data.Set("provider", "github")
 		t.Data.Set("number", pull.Number)
 		t.Data.Set("url", pull.PullRequest.URL)
+		t.Data.Set("ref", pull.PullRequest.Base.Ref)
+		t.Data.Set("ref_url", pull.PullRequest.Base.Repo.HTMLURL)
 		break
 	}
 

@@ -78,6 +78,8 @@ type ShowTags struct {
 						submitted
 					{% case types.Push %}
 						committed <a target="_blank" href="{%s b.Trigger.Data["url"] %}">{%s b.Trigger.Data["id"][:7] %}</a>
+					{% case types.Pull %}
+						opened pull request <a target="_blank" href="{%s b.Trigger.Data["url"] %}">#{%s b.Trigger.Data["number"] %}</a>
 					{% endswitch %}
 					{% if duration < (24 * time.Hour) %}
 						- <span title="{%s b.CreatedAt.Format("Jan 02, 2006, at 15:04") %}">{%s parsedDur.String() %} </span> ago

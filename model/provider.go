@@ -12,16 +12,17 @@ import (
 type Provider struct {
 	Model
 
-	UserID       int64     `db:"user_id"`
-	Name         string    `db:"name"`
-	AccessToken  []byte    `db:"access_token"`
-	RefreshToken []byte    `db:"refresh_token"`
-	Connected    bool      `db:"connected"`
-	ExpiresAt    time.Time `db:"expires_at"`
-	AuthURL      string    `db:"-"`
+	UserID         int64         `db:"user_id"`
+	ProviderUserID sql.NullInt64 `db:"provider_user_id"`
+	Name           string        `db:"name"`
+	AccessToken    []byte        `db:"access_token"`
+	RefreshToken   []byte        `db:"refresh_token"`
+	Connected      bool          `db:"connected"`
+	ExpiresAt      time.Time     `db:"expires_at"`
+	AuthURL        string        `db:"-"`
 
-	User     *User   `db:"-"`
-	Repos    []*Repo `db:"-"`
+	User  *User   `db:"-"`
+	Repos []*Repo `db:"-"`
 }
 
 type ProviderStore struct {
@@ -36,14 +37,29 @@ func providerToInterface(pp []*Provider) func(i int) Interface {
 	}
 }
 
+func (p *Provider) LoadUser() error {
+	var err error
+
+	users := UserStore{
+		Store: Store{
+			DB: p.DB,
+		},
+	}
+
+	p.User, err =  users.Find(p.UserID)
+
+	return errors.Err(err)
+}
+
 func (p Provider) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"user_id":       p.UserID,
-		"name":          p.Name,
-		"access_token":  p.AccessToken,
-		"refresh_token": p.RefreshToken,
-		"connected":     p.Connected,
-		"expires_at":    p.ExpiresAt,
+		"user_id":          p.UserID,
+		"provider_user_id": p.ProviderUserID,
+		"name":             p.Name,
+		"access_token":     p.AccessToken,
+		"refresh_token":    p.RefreshToken,
+		"connected":        p.Connected,
+		"expires_at":       p.ExpiresAt,
 	}
 }
 
@@ -93,7 +109,7 @@ func (s ProviderStore) findBy(col string, val interface{}) (*Provider, error) {
 		ForUser(s.User),
 	)
 
-	err := s.Get(p, q.Build(), q.Args()...)
+	err := s.Store.Get(p, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -104,6 +120,31 @@ func (s ProviderStore) findBy(col string, val interface{}) (*Provider, error) {
 
 func (s ProviderStore) FindByName(name string) (*Provider, error) {
 	p, err := s.findBy("name", name)
+
+	return p, errors.Err(err)
+}
+
+func (s ProviderStore) Get(opts ...query.Option) (*Provider, error) {
+	p := &Provider{
+		Model: Model{
+			DB: s.DB,
+		},
+		User: s.User,
+	}
+
+	baseOpts := []query.Option{
+		query.Columns("*"),
+		query.From(ProviderTable),
+		ForUser(s.User),
+	}
+
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(p, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 
 	return p, errors.Err(err)
 }

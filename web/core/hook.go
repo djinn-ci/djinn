@@ -31,13 +31,31 @@ type Hook struct {
 	Oauth2Providers map[string]oauth2.Provider
 }
 
-type githubPush struct {
-	Repo struct {
-		Owner struct {
-			ID int64
+type githubUser struct {
+	ID    int64
+	Login string
+}
+
+type githubRepo struct {
+	Owner       githubUser
+	ContentsURL string `json:"contents_url"`
+}
+
+type githubPull struct {
+	Number      string
+	PullRequest struct {
+		Title   string
+		URL     string `json:"html_url"`
+		Head    struct {
+			Sha   string
+			Owner githubUser
+			Repo  githubRepo `json:"repository"`
 		}
-		ContentsURL string `json:"contents_url"`
-	} `json:"repository"`
+	} `json:"pull_request"`
+}
+
+type githubPush struct {
+	Repo githubRepo `json:"repository"`
 	HeadCommit struct {
 		ID      string
 		URL     string
@@ -60,36 +78,32 @@ func base64DecodeManifest(b []byte) (config.Manifest, error) {
 	return m, errors.Err(err)
 }
 
-func (h Hook) handleGithubPush(body []byte) ([]config.Manifest, *model.User, *model.Trigger, error) {
+func (h Hook) getGithubManifest(repo githubRepo, ref string) ([]config.Manifest, *model.User, error) {
 	mm := make([]config.Manifest, 0)
 	u := &model.User{}
-	t := &model.Trigger{}
-
-	push := &githubPush{}
-
-	json.Unmarshal(body, push)
 
 	p, err := h.Providers.Get(
-		query.Where("provider_user_id", "=", push.Repo.Owner.ID),
+		query.Where("provider_user_id", "=", repo.Owner.ID),
 		query.Where("name", "=", "github"),
 		query.Where("connected", "=", true),
 	)
 
 	if err != nil {
-		return mm, u, t, errors.Err(err)
+		return mm, u, errors.Err(err)
 	}
 
 	if err := p.LoadUser(); err != nil {
-		return mm, u, t, errors.Err(err)
+		return mm, u, errors.Err(err)
 	}
-
-	u = p.User
 
 	tok, _ := crypto.Decrypt(p.AccessToken)
 
-	url, _ := url.Parse(strings.Replace(push.Repo.ContentsURL, "{+path}", ".thrall.yml", 1))
+	rawUrl := strings.Replace(repo.ContentsURL, "{+path}", ".thrall.yml", 1)
+	rawUrl += "?ref=" + ref
 
-	req := &http.Request{
+	url, _ := url.Parse(rawUrl)
+
+	req := &http.Request {
 		Method:  "GET",
 		URL:     url,
 		Header:  http.Header(map[string][]string{
@@ -102,46 +116,35 @@ func (h Hook) handleGithubPush(body []byte) ([]config.Manifest, *model.User, *mo
 	resp, err := cli.Do(req)
 
 	if err != nil {
-		return mm, u, t, errors.Err(err)
+		return mm, u, errors.Err(err)
 	}
 
 	if resp.StatusCode == http.StatusNotFound {
-		return mm, u, t, ErrNoManifest
+		return mm, u, ErrNoManifest
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return mm, u, t, errors.Err(errors.New("Unexpected HTTP status: " + resp.Status))
+		return mm, u, errors.Err(errors.New("Unexpected HTTP status: " + resp.Status))
 	}
 
-	file := struct{
+	file := struct {
 		Encoding string
 		Content  string
 	}{}
 
-	dec := json.NewDecoder(resp.Body)
-	dec.Decode(&file)
-
 	if file.Encoding != "base64" {
-		return mm, u, t, errors.Err(errors.New("Unexpected file encoding: " + file.Encoding))
+		return mm, u, errors.Err(errors.New("Unexpected file encoding: " + file.Encoding))
 	}
 
 	m, err := base64DecodeManifest([]byte(file.Content))
 
 	if err != nil {
-		return mm, u, t, ErrBadHookData
+		return mm, u, ErrBadHookData
 	}
 
 	mm = append(mm, m)
 
-	t.Type = types.Push
-	t.Comment = push.HeadCommit.Message
-	t.Data.Set("provider", "github")
-	t.Data.Set("id", push.HeadCommit.ID)
-	t.Data.Set("url", push.HeadCommit.URL)
-	t.Data.Set("email", push.HeadCommit.Author["email"])
-	t.Data.Set("username", push.HeadCommit.Author["username"])
-
-	return mm, u, t, nil
+	return mm, u, nil
 }
 
 func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +178,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 	var (
 		mm []config.Manifest
 		u  *model.User
-		t  *model.Trigger
+		t  *model.Trigger = &model.Trigger{}
 	)
 
 	switch event {
@@ -183,7 +186,32 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 		web.Text(w, "pong\n", http.StatusOK)
 		return
 	case "push":
-		mm, u, t, err = h.handleGithubPush(body)
+		push := &githubPush{}
+
+		json.Unmarshal(body, push)
+
+		mm, u, err = h.getGithubManifest(push.Repo, push.HeadCommit.ID)
+
+		t.Type = types.Push
+		t.Comment = push.HeadCommit.Message
+		t.Data.Set("provider", "github")
+		t.Data.Set("id", push.HeadCommit.ID)
+		t.Data.Set("url", push.HeadCommit.URL)
+		t.Data.Set("email", push.HeadCommit.Author["email"])
+		t.Data.Set("username", push.HeadCommit.Author["username"])
+		break
+	case "pull_request":
+		pull := &githubPull{}
+
+		json.Unmarshal(body, pull)
+
+		mm, u, err = h.getGithubManifest(pull.PullRequest.Head.Repo, pull.PullRequest.Head.Sha)
+
+		t.Type = types.Pull
+		t.Comment = pull.PullRequest.Title
+		t.Data.Set("provider", "github")
+		t.Data.Set("number", pull.Number)
+		t.Data.Set("url", pull.PullRequest.URL)
 		break
 	}
 

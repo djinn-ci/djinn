@@ -111,7 +111,7 @@ func (m *Manifest) UnmarshalText(b []byte) error {
 		Sources       []Source           `yaml:",omitempty"`
 		Stages        []string           `yaml:",omitempty"`
 		AllowFailures []string           `yaml:"allow_failures,omitempty"`
-		Jobs          []Job              `yaml:"omitempty"`
+		Jobs          []Job              `yaml:",omitempty"`
 	}{}
 
 	err := yaml.Unmarshal(b, &tmp)
@@ -157,6 +157,23 @@ func (m Manifest) Validate() error {
 	}
 
 	return nil
+}
+
+func (s Source) MarshalYAML() (interface{}, error) {
+	urlParts := strings.Split(s.URL, "/")
+
+	ref := "master"
+	dir := urlParts[len(urlParts) - 1]
+
+	if s.Ref != "" {
+		ref = s.Ref
+	}
+
+	if s.Dir != "" {
+		dir = s.Dir
+	}
+
+	return s.URL + " " + ref + " => " + dir, nil
 }
 
 // Source URLs can be in the format of:

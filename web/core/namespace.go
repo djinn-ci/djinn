@@ -71,12 +71,16 @@ func (h Namespace) Get(path string, u *model.User) (*model.Namespace, error) {
 
 	parts := strings.Split(path, "/")
 
-	for _, name := range parts {
+	for i, name := range parts {
 		if p.Level + 1 > NamespaceMaxDepth {
 			break
 		}
 
 		if matched, err := regexp.Match("^[a-zA-Z0-9]+$", []byte(name)); !matched || err != nil {
+			if i == 0 && len(parts) == 1 {
+				return n, ErrNamespaceNameInvalid
+			}
+
 			break
 		}
 

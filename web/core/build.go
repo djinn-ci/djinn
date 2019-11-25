@@ -167,6 +167,10 @@ func (h Build) store(m config.Manifest, u *model.User, t *model.Trigger, tags ..
 		n, err := h.Namespace.Get(m.Namespace, u)
 
 		if err != nil {
+			if err == ErrNamespaceNameInvalid {
+				return err
+			}
+
 			return b, errors.Err(err)
 		}
 
@@ -243,6 +247,16 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 	t.Data.Set("username", u.Username)
 
 	b, err := h.store(f.Manifest, u, t, []string(f.Tags)...)
+
+	if err == ErrNamespaceNameInvalid {
+		errs := form.NewErrors()
+		errs.Put("manifest", errors.New("Namespace name can only contain letters and numbers"))
+
+		h.FlashErrors(w, r, errs)
+		h.FlashForm(w, r, f)
+
+		return b, ErrValidationFailed
+	}
 
 	return b, errors.Err(err)
 }

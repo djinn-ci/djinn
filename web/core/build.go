@@ -168,7 +168,7 @@ func (h Build) store(m config.Manifest, u *model.User, t *model.Trigger, tags ..
 
 		if err != nil {
 			if err == ErrNamespaceNameInvalid {
-				return err
+				return b, err
 			}
 
 			return b, errors.Err(err)

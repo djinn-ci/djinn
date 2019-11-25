@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/config"
@@ -43,14 +44,14 @@ type githubRepo struct {
 }
 
 type githubPull struct {
-	Number      string
+	Number      int64
 	PullRequest struct {
 		Title   string
 		URL     string `json:"html_url"`
 		Head    struct {
 			Sha   string
 			Owner githubUser
-			Repo  githubRepo `json:"repository"`
+			Repo  githubRepo
 		}
 		Base   struct {
 			Ref  string
@@ -101,6 +102,8 @@ func (h Hook) getGithubManifest(repo githubRepo, ref string) ([]config.Manifest,
 		return mm, u, errors.Err(err)
 	}
 
+	u = p.User
+
 	tok, _ := crypto.Decrypt(p.AccessToken)
 
 	rawUrl := strings.Replace(repo.ContentsURL, "{+path}", ".thrall.yml", 1)
@@ -136,6 +139,9 @@ func (h Hook) getGithubManifest(repo githubRepo, ref string) ([]config.Manifest,
 		Encoding string
 		Content  string
 	}{}
+
+	dec := json.NewDecoder(resp.Body)
+	dec.Decode(&file)
 
 	if file.Encoding != "base64" {
 		return mm, u, errors.Err(errors.New("Unexpected file encoding: " + file.Encoding))
@@ -215,7 +221,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 		t.Type = types.Pull
 		t.Comment = pull.PullRequest.Title
 		t.Data.Set("provider", "github")
-		t.Data.Set("number", pull.Number)
+		t.Data.Set("number", strconv.FormatInt(pull.Number, 10))
 		t.Data.Set("url", pull.PullRequest.URL)
 		t.Data.Set("ref", pull.PullRequest.Base.Ref)
 		t.Data.Set("ref_url", pull.PullRequest.Base.Repo.HTMLURL)
@@ -251,8 +257,13 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 
 			cause := errors.Cause(err)
 
+			if cause == ErrNamespaceNameInvalid {
+				web.Text(w, "Failed to create build: namespace name can only contain letters or numbers", http.StatusBadRequest)
+				return
+			}
+
 			web.Text(w, "Failed to create build: " + cause.Error(), http.StatusInternalServerError)
-			break
+			return
 		}
 
 		bb = append(bb, b)

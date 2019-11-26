@@ -52,7 +52,7 @@ type IndexPage struct {
 					{% for _, b := range p.Builds %}
 						<tr>
 							<td>{%= template.RenderStatus(b.Status) %}</td>
-							<td><a href="{%s b.UIEndpoint() %}">#{%v b.ID %} - {%s b.Trigger.CommentTitle() %}</a></td>
+							<td><a href="{%s b.UIEndpoint() %}">#{%v b.ID %}{% if b.Trigger.Comment != "" %} - {%s b.Trigger.CommentTitle() %}{% endif %}</a></td>
 							<td>
 								{% if b.Namespace != nil %}
 									<a href="{%s b.Namespace.UIEndpoint() %}">{%s b.Namespace.Path %}</a>

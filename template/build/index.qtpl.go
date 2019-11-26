@@ -120,9 +120,13 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 				//line template/build/index.qtpl:55
 				qw422016.E().V(b.ID)
 				//line template/build/index.qtpl:55
-				qw422016.N().S(` - `)
-				//line template/build/index.qtpl:55
-				qw422016.E().S(b.Trigger.CommentTitle())
+				if b.Trigger.Comment != "" {
+					//line template/build/index.qtpl:55
+					qw422016.N().S(` - `)
+					//line template/build/index.qtpl:55
+					qw422016.E().S(b.Trigger.CommentTitle())
+					//line template/build/index.qtpl:55
+				}
 				//line template/build/index.qtpl:55
 				qw422016.N().S(`</a></td> <td> `)
 				//line template/build/index.qtpl:57

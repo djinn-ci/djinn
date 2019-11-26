@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -70,7 +71,12 @@ type githubPush struct {
 	} `json:"head_commit"`
 }
 
-var githubSignatureLength = 45
+var (
+	githubSignatureLength = 45
+
+	invalidManifests = `The hook was accepted, however some of the manifests
+retrieved from the repository appeared to contain invalid YAML.`
+)
 
 func base64DecodeManifest(b []byte) (config.Manifest, error) {
 	decoded, err := base64.StdEncoding.DecodeString(string(b))
@@ -82,6 +88,81 @@ func base64DecodeManifest(b []byte) (config.Manifest, error) {
 	m, err := config.UnmarshalManifest(decoded)
 
 	return m, errors.Err(err)
+}
+
+func githubManifestContents(tok string, rawUrl string) ([]string, error) {
+	u, _ := url.Parse(rawUrl)
+
+	req := &http.Request{
+		Method: "GET",
+		URL:    u,
+		Header: http.Header(map[string][]string{
+			"Authorization": []string{"token " + tok},
+		}),
+	}
+
+	cli := &http.Client{}
+
+	resp, err := cli.Do(req)
+
+	if err != nil {
+		return []string{}, errors.Err(err)
+	}
+
+	if resp.StatusCode == http.StatusNotFound {
+		return []string{}, ErrNoManifest
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return []string{}, errors.Err(errors.New("Unexpected HTTP status: " + resp.Status))
+	}
+
+	type ghFile struct{
+		Type     string
+		Encoding string
+		Content  string
+		Links    map[string]string `json:"_links"`
+	}
+
+	file := ghFile{}
+	dir := make([]ghFile, 0)
+
+	base := filepath.Base(u.Path)
+
+	dec := json.NewDecoder(resp.Body)
+
+	if base == ".thrall.yml" {
+		dec.Decode(&file)
+
+		if file.Encoding != "base64" {
+			log.Error.Println("Unexpected file encoding from GitHub contents API:", file.Encoding)
+			return []string{}, nil
+		}
+
+		return []string{file.Content}, nil
+	}
+
+	if base == ".thrall" {
+		dec.Decode(&dir)
+
+		ss := make([]string, 0, len(dir))
+
+		for _, f := range dir {
+			if f.Type == "file" {
+				contents, err := githubManifestContents(tok, f.Links["self"])
+
+				if err != nil {
+					continue
+				}
+
+				ss = append(ss, contents...)
+			}
+		}
+
+		return ss, nil
+	}
+
+	return []string{}, nil
 }
 
 func (h Hook) getGithubManifest(repo githubRepo, ref string) ([]config.Manifest, *model.User, error) {
@@ -106,56 +187,44 @@ func (h Hook) getGithubManifest(repo githubRepo, ref string) ([]config.Manifest,
 
 	tok, _ := crypto.Decrypt(p.AccessToken)
 
-	rawUrl := strings.Replace(repo.ContentsURL, "{+path}", ".thrall.yml", 1)
-	rawUrl += "?ref=" + ref
+	fileUrl := strings.Replace(repo.ContentsURL, "{+path}", ".thrall.yml", 1)
+	fileUrl += "?ref=" + ref
 
-	url, _ := url.Parse(rawUrl)
+	dirUrl := strings.Replace(repo.ContentsURL, "{+path}", ".thrall", 1)
+	dirUrl += "?ref=" + ref
 
-	req := &http.Request {
-		Method:  "GET",
-		URL:     url,
-		Header:  http.Header(map[string][]string{
-			"Authorization": []string{"token " + string(tok)},
-		}),
+	b64Manifests := make([]string, 0)
+
+	for _, url := range []string{fileUrl, dirUrl} {
+		contents, err := githubManifestContents(string(tok), url)
+
+		if err != nil {
+			if err == ErrNoManifest {
+				continue
+			}
+
+			return mm, u, errors.Err(err)
+		}
+
+		b64Manifests = append(b64Manifests, contents...)
 	}
 
-	cli := &http.Client{}
+	for _, b64Manifest := range b64Manifests {
+		var m config.Manifest
 
-	resp, err := cli.Do(req)
+		m, err = base64DecodeManifest([]byte(b64Manifest))
 
-	if err != nil {
-		return mm, u, errors.Err(err)
+		if err == nil {
+			mm = append(mm, m)
+			continue
+		}
+
+		// Decoding will only fail if the encoded base64 string is not a valid
+		// YAML document.
+		err = ErrBadHookData
 	}
 
-	if resp.StatusCode == http.StatusNotFound {
-		return mm, u, ErrNoManifest
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return mm, u, errors.Err(errors.New("Unexpected HTTP status: " + resp.Status))
-	}
-
-	file := struct {
-		Encoding string
-		Content  string
-	}{}
-
-	dec := json.NewDecoder(resp.Body)
-	dec.Decode(&file)
-
-	if file.Encoding != "base64" {
-		return mm, u, errors.Err(errors.New("Unexpected file encoding: " + file.Encoding))
-	}
-
-	m, err := base64DecodeManifest([]byte(file.Content))
-
-	if err != nil {
-		return mm, u, ErrBadHookData
-	}
-
-	mm = append(mm, m)
-
-	return mm, u, nil
+	return mm, u, err
 }
 
 func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
@@ -228,17 +297,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	if err != nil {
-		if err == ErrNoManifest {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		if err == ErrBadHookData {
-			web.Text(w, "Couldn't unmarshal manifest from repository, check validitity", http.StatusBadRequest)
-			return
-		}
-
+	if err != nil && err != ErrInvalidManifest {
 		log.Error.Println(errors.Err(err))
 
 		cause := errors.Cause(err)
@@ -280,5 +339,12 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	// We failed to decode some of the manifests, as long as we created some
+	// builds this is ok. Write a response back saying that some of the
+	// manifests were invalid.
+	if err == ErrBadHookData {
+		web.Text(w, invalidManifests, http.StatusAccepted)
+	} else {
+		w.WriteHeader(http.StatusNoContent)
+	}
 }

@@ -20,33 +20,25 @@ import (
 // passthrough represents the source file on the guest, and the value represents
 // the destination on the host environment.
 type Passthrough struct {
-	vals map[string]string
-}
-
-func (p Passthrough) Len() int {
-	return len(p.vals)
-}
-
-func (p Passthrough) Values() map[string]string {
-	return p.vals
+	Values map[string]string
 }
 
 func (p *Passthrough) Set(key, val string) {
-	if p.vals == nil {
-		p.vals = make(map[string]string)
+	if p.Values == nil {
+		p.Values = make(map[string]string)
 	}
 
-	p.vals[key] = val
+	p.Values[key] = val
 }
 
 func (p Passthrough) MarshalYAML() (interface{}, error) {
-	if p.vals == nil {
+	if p.Values == nil {
 		return []string{}, nil
 	}
 
-	ss := make([]string, 0, len(p.vals))
+	ss := make([]string, 0, len(p.Values))
 
-	for k, v := range p.vals {
+	for k, v := range p.Values {
 		ss = append(ss, k + " => " + v)
 	}
 
@@ -60,8 +52,8 @@ func (p Passthrough) MarshalYAML() (interface{}, error) {
 // The [destination] is optional, and if not provided the based of the [source]
 // will be used intstead.
 func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	if p.vals == nil {
-		p.vals = make(map[string]string)
+	if p.Values == nil {
+		p.Values = make(map[string]string)
 	}
 
 	ss := make([]string, 0)
@@ -80,7 +72,7 @@ func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
 			val = strings.TrimSpace(parts[1])
 		}
 
-		p.vals[key] = val
+		p.Values[key] = val
 	}
 
 	return nil

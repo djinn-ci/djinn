@@ -327,9 +327,9 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 		return errors.Err(err)
 	}
 
-	names := make([]interface{}, 0, b.Manifest.Objects.Len())
+	names := make([]interface{}, 0, len(b.Manifest.Objects.Values))
 
-	for src := range b.Manifest.Objects.Values() {
+	for src := range b.Manifest.Objects.Values {
 		names = append(names, src)
 	}
 
@@ -354,7 +354,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 				Valid: true,
 			}
 			bo.Source = o.Name
-			bo.Name = b.Manifest.Objects.Values()[o.Name]
+			bo.Name = b.Manifest.Objects.Values[o.Name]
 
 			if err := buildObjs.Create(bo); err != nil {
 				return errors.Err(err)
@@ -458,7 +458,7 @@ func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
 
 		jobModels[s.Name + j.Name] = j
 
-		for src, dst := range job.Artifacts.Values() {
+		for src, dst := range job.Artifacts.Values {
 			hash, _ := crypto.HashNow()
 
 			artifacts := j.ArtifactStore()

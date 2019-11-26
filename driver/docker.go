@@ -215,11 +215,11 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		j.Status = runner.Passed
 	}
 
-	if j.Artifacts.Len() > 0 {
+	if len(j.Artifacts.Values) > 0 {
 		fmt.Fprintf(j.Writer, "\n")
 	}
 
-	for src, dst := range j.Artifacts.Values() {
+	for src, dst := range j.Artifacts.Values {
 		fmt.Fprintf(j.Writer, "Collecting artifact %s => %s\n", src, dst)
 
 		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, src)
@@ -293,7 +293,7 @@ func (d *Docker) Destroy() {
 }
 
 func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error {
-	if objects.Len() == 0 {
+	if len(objects.Values) == 0 {
 		return nil
 	}
 
@@ -320,7 +320,7 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 		return err
 	}
 
-	for src, dst := range objects.Values() {
+	for src, dst := range objects.Values {
 		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
 
 		info, err := p.Stat(src)

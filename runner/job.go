@@ -26,7 +26,7 @@ func (j Job) isZero() bool {
            j.Stage == "" &&
            j.Name == "" &&
            len(j.Commands) == 0 &&
-           j.Artifacts.vals == nil &&
+           j.Artifacts.Values == nil &&
            j.Status == Status(0)
 }
 

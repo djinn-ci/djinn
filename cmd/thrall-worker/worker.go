@@ -117,10 +117,10 @@ func (w worker) runBuild(s string) error {
 		return errors.Err(err)
 	}
 
-	objs := runner.NewPassthrough()
+	objs := runner.Passthrough{}
 
 	for _, o := range b.Objects {
-		objs[o.Source] = o.Name
+		objs.Set(o.Source, o.Name)
 	}
 
 	keyBuffers := make(map[string]*bytes.Buffer)
@@ -130,7 +130,7 @@ func (w worker) runBuild(s string) error {
 	// Use object placement to add keys to the build env. Prefix each name with
 	// 'mem:' to tell the placer to look in the database for the key to add.
 	for _, k := range b.Keys {
-		objs["mem:" + k.Name] = k.Location
+		objs.Values["mem:" + k.Name] = k.Location
 
 		b, err := crypto.Decrypt(k.Key)
 
@@ -143,7 +143,7 @@ func (w worker) runBuild(s string) error {
 		keyBuffers[k.Name] = bytes.NewBuffer(b)
 	}
 
-	objs["mem:ssh_config"] = "/root/.ssh/config"
+	objs.Set("mem:ssh_config", "/root/.ssh/config")
 	keyBuffers["ssh_config"] = sshConfig
 
 	env := make([]string, len(b.Variables), len(b.Variables))
@@ -191,10 +191,10 @@ func (w worker) runBuild(s string) error {
 				createDriverId = j.ID
 			}
 
-			artifacts := runner.NewPassthrough()
+			artifacts := runner.Passthrough{}
 
 			for _, a := range j.Artifacts {
-				artifacts[a.Source] = a.Hash
+				artifacts.Set(a.Source, a.Hash)
 			}
 
 			rj := &runner.Job{

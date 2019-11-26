@@ -121,7 +121,7 @@ func githubManifestContents(tok string, rawUrl string) ([]string, error) {
 		Type     string
 		Encoding string
 		Content  string
-		Links    map[string]string `json:"_links"`
+		URL      string
 	}
 
 	file := ghFile{}
@@ -131,7 +131,7 @@ func githubManifestContents(tok string, rawUrl string) ([]string, error) {
 
 	dec := json.NewDecoder(resp.Body)
 
-	if base == ".thrall.yml" {
+	if base == ".thrall.yml" || strings.HasSuffix(base, ".yml") {
 		dec.Decode(&file)
 
 		if file.Encoding != "base64" {
@@ -149,7 +149,7 @@ func githubManifestContents(tok string, rawUrl string) ([]string, error) {
 
 		for _, f := range dir {
 			if f.Type == "file" {
-				contents, err := githubManifestContents(tok, f.Links["self"])
+				contents, err := githubManifestContents(tok, f.URL)
 
 				if err != nil {
 					continue
@@ -221,7 +221,7 @@ func (h Hook) getGithubManifest(repo githubRepo, ref string) ([]config.Manifest,
 
 		// Decoding will only fail if the encoded base64 string is not a valid
 		// YAML document.
-		err = ErrBadHookData
+		err = ErrInvalidManifest
 	}
 
 	return mm, u, err
@@ -342,7 +342,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 	// We failed to decode some of the manifests, as long as we created some
 	// builds this is ok. Write a response back saying that some of the
 	// manifests were invalid.
-	if err == ErrBadHookData {
+	if err == ErrInvalidManifest {
 		web.Text(w, invalidManifests, http.StatusAccepted)
 	} else {
 		w.WriteHeader(http.StatusNoContent)

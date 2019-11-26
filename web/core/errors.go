@@ -4,7 +4,6 @@ import "github.com/andrewpillar/thrall/errors"
 
 var (
 	ErrAccessDenied         = errors.New("access denied")
-	ErrBadHookData          = errors.New("unexpected data from webhook")
 	ErrBuildNotRunning      = errors.New("build is not running")
 	ErrInvalidManifest      = errors.New("manifest is not valid")
 	ErrNamespaceTooDeep     = errors.New("namespace cannot exceed depth of 20")

@@ -45,9 +45,11 @@ type githubRepo struct {
 }
 
 type githubPull struct {
+	Action      string
 	Number      int64
 	PullRequest struct {
 		Title   string
+		User    githubUser
 		URL     string `json:"html_url"`
 		Head    struct {
 			Sha   string
@@ -62,7 +64,8 @@ type githubPull struct {
 }
 
 type githubPush struct {
-	Repo githubRepo `json:"repository"`
+	Ref        string
+	Repo       githubRepo `json:"repository"`
 	HeadCommit struct {
 		ID      string
 		URL     string
@@ -259,6 +262,13 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 		mm []config.Manifest
 		u  *model.User
 		t  *model.Trigger = &model.Trigger{}
+
+		actions = map[string]struct{}{
+			"opened":      {},
+			"reopened":    {},
+			"unlocked":    {},
+			"synchronize": {},
+		}
 	)
 
 	switch event {
@@ -274,9 +284,9 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 
 		t.Type = types.Push
 		t.Comment = push.HeadCommit.Message
-		t.Data.Set("provider", "github")
 		t.Data.Set("id", push.HeadCommit.ID)
 		t.Data.Set("url", push.HeadCommit.URL)
+		t.Data.Set("ref", push.Ref)
 		t.Data.Set("email", push.HeadCommit.Author["email"])
 		t.Data.Set("username", push.HeadCommit.Author["username"])
 		break
@@ -285,15 +295,26 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 
 		json.Unmarshal(body, pull)
 
+		if _, ok := actions[pull.Action]; !ok {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
 		mm, u, err = h.getGithubManifest(pull.PullRequest.Head.Repo, pull.PullRequest.Head.Sha)
+
+		action := pull.Action
+
+		if action == "synchronize" {
+			action = "synchronized"
+		}
 
 		t.Type = types.Pull
 		t.Comment = pull.PullRequest.Title
-		t.Data.Set("provider", "github")
-		t.Data.Set("number", strconv.FormatInt(pull.Number, 10))
+		t.Data.Set("id", strconv.FormatInt(pull.Number, 10))
 		t.Data.Set("url", pull.PullRequest.URL)
 		t.Data.Set("ref", pull.PullRequest.Base.Ref)
-		t.Data.Set("ref_url", pull.PullRequest.Base.Repo.HTMLURL)
+		t.Data.Set("username", pull.PullRequest.User.Login)
+		t.Data.Set("action", action)
 		break
 	}
 

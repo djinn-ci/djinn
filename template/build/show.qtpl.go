@@ -118,19 +118,31 @@ func StreamRenderTrigger(qw422016 *qt422016.Writer, b *model.Build) {
 			//line template/build/show.qtpl:80
 			qw422016.E().S(b.Trigger.Data["id"][:7])
 			//line template/build/show.qtpl:80
-			qw422016.N().S(`</a> `)
+			qw422016.N().S(`</a> to <span class="code">`)
+			//line template/build/show.qtpl:80
+			qw422016.E().S(b.Trigger.Data["ref"])
+			//line template/build/show.qtpl:80
+			qw422016.N().S(`</span> `)
 		//line template/build/show.qtpl:81
 		case types.Pull:
 			//line template/build/show.qtpl:81
-			qw422016.N().S(` opened pull request <a target="_blank" href="`)
+			qw422016.N().S(` `)
+			//line template/build/show.qtpl:82
+			qw422016.E().S(b.Trigger.Data["action"])
+			//line template/build/show.qtpl:82
+			qw422016.N().S(` pull request <a target="_blank" href="`)
 			//line template/build/show.qtpl:82
 			qw422016.E().S(b.Trigger.Data["url"])
 			//line template/build/show.qtpl:82
 			qw422016.N().S(`">#`)
 			//line template/build/show.qtpl:82
-			qw422016.E().S(b.Trigger.Data["number"])
+			qw422016.E().S(b.Trigger.Data["id"])
 			//line template/build/show.qtpl:82
-			qw422016.N().S(`</a> `)
+			qw422016.N().S(`</a> to <span class="code">`)
+			//line template/build/show.qtpl:82
+			qw422016.E().S(b.Trigger.Data["ref"])
+			//line template/build/show.qtpl:82
+			qw422016.N().S(`</span> `)
 			//line template/build/show.qtpl:83
 		}
 		//line template/build/show.qtpl:83

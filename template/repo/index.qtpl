@@ -75,9 +75,9 @@ var providerNames = map[string]string{
 									<input type="hidden" name="name" value="{%s r.Name %}">
 									<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
 								{% if !r.Enabled %}
-									<button type="submit" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
+									<button type="submit" class="btn btn-primary" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
 								{% else %}
-									<button type="submit" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Disable</button>
+									<button type="submit" class="btn btn-danger" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Disable</button>
 								{% endif %}
 								</form>
 							</td>

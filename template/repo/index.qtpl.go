@@ -197,7 +197,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 			//line template/repo/index.qtpl:77
 			if !r.Enabled {
 				//line template/repo/index.qtpl:77
-				qw422016.N().S(` <button type="submit" `)
+				qw422016.N().S(` <button type="submit" class="btn btn-primary" `)
 				//line template/repo/index.qtpl:78
 				if !r.Provider.Connected {
 					//line template/repo/index.qtpl:78
@@ -209,7 +209,7 @@ func (p *IndexPage) StreamBody(qw422016 *qt422016.Writer) {
 				//line template/repo/index.qtpl:79
 			} else {
 				//line template/repo/index.qtpl:79
-				qw422016.N().S(` <button type="submit" `)
+				qw422016.N().S(` <button type="submit" class="btn btn-danger" `)
 				//line template/repo/index.qtpl:80
 				if !r.Provider.Connected {
 					//line template/repo/index.qtpl:80

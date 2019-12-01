@@ -13,13 +13,14 @@ type Repo struct {
 
 	UserID     int64  `db:"user_id"`
 	ProviderID int64  `db:"provider_id"`
+	HookID     int64  `db:"hook_id"`
 	RepoID     int64  `db:"repo_id"`
-	Name       string `db:"name"`
-	Href       string `db:"href"`
+	Name       string `db:"-"`
+	Href       string `db:"-"`
 	Enabled    bool   `db:"enabled"`
 
-	User     *User     `db:"-",json:"-"`
-	Provider *Provider `db:"-",json:"-"`
+	User     *User     `db:"-" json:"-"`
+	Provider *Provider `db:"-" json:"-"`
 }
 
 type RepoStore struct {
@@ -49,13 +50,21 @@ func (r *Repo) LoadProvider() error {
 	return errors.Err(err)
 }
 
+func (r Repo) IsZero() bool {
+	return r.Model.IsZero() &&
+		r.UserID == 0 &&
+		r.ProviderID == 0 &&
+		r.HookID == 0 &&
+		r.RepoID == 0 &&
+		r.Name == ""
+}
+
 func (r Repo) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":     r.UserID,
 		"provider_id": r.ProviderID,
+		"hook_id":     r.HookID,
 		"repo_id":     r.RepoID,
-		"name":        r.Name,
-		"href":        r.Href,
 		"enabled":     r.Enabled,
 	}
 }
@@ -78,6 +87,33 @@ func (s RepoStore) All(opts ...query.Option) ([]*Repo, error) {
 	}
 
 	return rr, nil
+}
+
+func (s RepoStore) Get(opts ...query.Option) (*Repo, error) {
+	r := &Repo{
+		Model: Model{
+			DB: s.DB,
+		},
+		User:     s.User,
+		Provider: s.Provider,
+	}
+
+	baseOpts := []query.Option{
+		query.Columns("*"),
+		query.From(RepoTable),
+		ForUser(s.User),
+		ForProvider(s.Provider),
+	}
+
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(r, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return r, errors.Err(err)
 }
 
 func (s RepoStore) Create(rr ...*Repo) error {
@@ -103,7 +139,7 @@ func (s RepoStore) Find(id int64) (*Repo, error) {
 		ForProvider(s.Provider),
 	)
 
-	err := s.Get(r, q.Build(), q.Args()...)
+	err := s.Store.Get(r, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

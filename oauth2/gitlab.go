@@ -36,15 +36,15 @@ func (g GitLab) AuthURL() string {
 	return authURL(g.Config.Endpoint.AuthURL, g.Config.ClientID, gitlabScopes)
 }
 
-func (g GitLab) AddHook(c context.Context, tok string, id int64) error {
+func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
 	return nil
 }
 
-func (g GitLab) Repos(c context.Context, tok string) ([]*model.Repo, error) {
+func (g GitLab) Repos(p *model.Provider) ([]*model.Repo, error) {
 	return []*model.Repo{}, nil
 }
 
-func (g GitLab) Revoke(c context.Context, tok string) error {
+func (g GitLab) Revoke(p *model.Provider) error {
 	return nil
 }
 

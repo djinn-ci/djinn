@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
@@ -78,9 +77,7 @@ func (h Repo) loadRepos(c context.Context, pp []*model.Provider) ([]*model.Repo,
 			continue
 		}
 
-		b, _ := crypto.Decrypt(p.AccessToken)
-
-		tmp, err := provider.Repos(c, string(b))
+		tmp, err := provider.Repos(p)
 
 		if err != nil {
 			return rr, errors.Err(err)
@@ -139,9 +136,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	repos := u.RepoStore()
-
-	userRepos, err := repos.All()
+	userRepos, err := u.RepoStore().All()
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -149,27 +144,27 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	enabled := make(map[string]int64)
-
-	for _, repo := range userRepos {
-		key := fmt.Sprintf("%s-%v", providers[repo.ProviderID].Name, repo.RepoID)
-
-		if repo.Enabled {
-			enabled[key] = repo.ID
-		}
-	}
-
 	for _, r := range rr {
-		key := fmt.Sprintf("%s-%v", r.Provider.Name, r.RepoID)
+		for _, userRepo := range userRepos {
+			if userRepo.ProviderID == r.ProviderID && userRepo.RepoID == r.RepoID {
+				r.ID = userRepo.ID
+				r.Enabled = userRepo.Enabled
+			}
+		}
 
-		id, ok := enabled[key]
-
-		r.ID = id
-		r.Enabled = ok
 		r.Provider = providers[r.ProviderID]
 	}
 
 	provider := r.URL.Query().Get("provider")
+
+	if provider != "" {
+		for i, r := range rr {
+			if r.Provider.Name != provider {
+				rr = append(rr[:i], rr[i+1:]...)
+				i--
+			}
+		}
+	}
 
 	p := repo.IndexPage{
 		BasePage: template.BasePage{
@@ -254,11 +249,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, _ := crypto.Decrypt(p.AccessToken)
-
-	provider := h.Providers[f.Provider]
-
-	if err := provider.AddHook(r.Context(), string(b), f.RepoID); err != nil {
+	if err := h.Providers[f.Provider].ToggleRepo(p, f.RepoID); err != nil {
 		log.Error.Println(errors.Err(err))
 
 		cause := errors.Cause(err)
@@ -268,25 +259,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repos := u.RepoStore()
-
-	rp := repos.New()
-	rp.ProviderID = p.ID
-	rp.Name = f.Name
-	rp.RepoID = f.RepoID
-	rp.Enabled = true
-
-	if err := repos.Create(rp); err != nil {
-		log.Error.Println(errors.Err(err))
-
-		cause := errors.Cause(err)
-
-		h.FlashAlert(w, r, template.Danger("Failed to enable repository hooks: " + cause.Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
-	}
-
-	h.FlashAlert(w, r, template.Success("Enabled repository hooks for: " + rp.Name))
+	h.FlashAlert(w, r, template.Success("Repository hooks enabled"))
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 
@@ -295,11 +268,9 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	repos := u.RepoStore()
-
 	id, _ := strconv.ParseInt(vars["repo"], 10, 64)
 
-	rp, err := repos.Find(id)
+	repo, err := u.RepoStore().Find(id)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -311,12 +282,18 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if rp.IsZero() {
+	if repo.IsZero() {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
-	if err := rp.LoadProvider(); err != nil {
+	if !repo.Enabled {
+		h.FlashAlert(w, r, template.Success("Repository hooks disabled"))
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		return
+	}
+
+	if err := repo.LoadProvider(); err != nil {
 		log.Error.Println(errors.Err(err))
 
 		cause := errors.Cause(err)
@@ -326,9 +303,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rp.Enabled = false
-
-	if err := repos.Update(rp); err != nil {
+	if err := h.Providers[repo.Provider.Name].ToggleRepo(repo.Provider, repo.RepoID); err != nil {
 		log.Error.Println(errors.Err(err))
 
 		cause := errors.Cause(err)
@@ -338,6 +313,6 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Disabled repository hooks for: " + rp.Name))
+	h.FlashAlert(w, r, template.Success("Repository hooks disabled"))
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

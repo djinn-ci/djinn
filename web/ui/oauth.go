@@ -3,7 +3,6 @@ package ui
 import (
 	"net/http"
 
-	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/oauth2"
@@ -69,9 +68,7 @@ func (h Oauth) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, _ := crypto.Decrypt(p.AccessToken)
-
-	if err := provider.Revoke(r.Context(), string(b)); err != nil {
+	if err := provider.Revoke(p); err != nil {
 		log.Error.Println(errors.Err(err))
 
 		cause := errors.Cause(err)

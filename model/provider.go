@@ -51,6 +51,15 @@ func (p *Provider) LoadUser() error {
 	return errors.Err(err)
 }
 
+func (p *Provider) RepoStore() RepoStore {
+	return RepoStore{
+		Store: Store{
+			DB: p.DB,
+		},
+		Provider: p,
+	}
+}
+
 func (p Provider) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":          p.UserID,

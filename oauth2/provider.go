@@ -2,6 +2,8 @@ package oauth2
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -32,85 +34,9 @@ type Provider interface {
 	Secret() []byte
 }
 
-func auth(c context.Context, name string, tok *oauth2.Token, providers model.ProviderStore) (*model.Provider, error) {
-	access, _ := crypto.Encrypt([]byte(tok.AccessToken))
-	refresh, _ := crypto.Encrypt([]byte(tok.RefreshToken))
-
-	p, err := providers.FindByName(name)
-
-	if err != nil {
-		return p, errors.Err(err)
-	}
-
-	p.Name = name
-	p.AccessToken = access
-	p.RefreshToken = refresh
-	p.ExpiresAt = tok.Expiry
-	p.Connected = true
-
-	return p, nil
-}
-
-func authURL(rawurl, id string, scopes []string) string {
-	url, _ := url.Parse(rawurl)
-
-	q := url.Query()
-	q.Add("client_id", id)
-	q.Add("scope", strings.Join(scopes, " "))
-
-	url.RawQuery = q.Encode()
-
-	return url.String()
-}
-
-func httpGet(tok, url string) (*http.Response, error) {
-	req, err := http.NewRequest("GET", url, nil)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	req.Header.Set("Authorization", tok)
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-
-	cli := &http.Client{}
-
-	resp, err := cli.Do(req)
-
-	return resp, errors.Err(err)
-}
-
-func httpPost(tok, url string, r io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest("POST", url, r)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	req.Header.Set("Authorization", tok)
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-
-	cli := &http.Client{}
-
-	resp, err := cli.Do(req)
-
-	return resp, errors.Err(err)
-}
-
-func httpDelete(tok, url string) (*http.Response, error) {
-	req, err := http.NewRequest("DELETE", url, nil)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	req.Header.Set("Authorization", tok)
-
-	cli := &http.Client{}
-
-	resp, err := cli.Do(req)
-
-	return resp, errors.Err(err)
+type Client struct {
+	APIEndpoint string
+	Config      *oauth2.Config
 }
 
 func toggleRepo(p *model.Provider, repoId, hookId int64) error {
@@ -144,31 +70,136 @@ func toggleRepo(p *model.Provider, repoId, hookId int64) error {
 	return errors.Err(repos.Update(r))
 }
 
-func NewProvider(name, clientId, clientSecret, host, secret string) (Provider, error) {
-	cfg := &oauth2.Config{
-		ClientID:     clientId,
-		ClientSecret: clientSecret,
+func NewProvider(name, clientId, clientSecret, host, secret, endpoint string) (Provider, error) {
+	cli := Client{
+		Config: &oauth2.Config{
+			ClientID:     clientId,
+			ClientSecret: clientSecret,
+		},
 	}
 
 	switch name {
 	case "github":
-		cfg.Scopes = githubScopes
-		cfg.Endpoint = github.Endpoint
+		cli.APIEndpoint = githubURL
+		cli.Config.Scopes = githubScopes
+		cli.Config.Endpoint = github.Endpoint
 
 		return GitHub{
-			endpoint: host + "/hook/github",
-			secret:   secret,
-			Config:   cfg,
+			Client:       cli,
+			hookEndpoint: host + "/hook/github",
+			secret:       secret,
 		}, nil
 	case "gitlab":
-		cfg.Scopes = gitlabScopes
-		cfg.Endpoint = gitlab.Endpoint
+		if endpoint == "" {
+			endpoint = gitlabURL
+		}
+
+		cli.APIEndpoint = endpoint + "/api/v4"
+		cli.Config.Scopes = gitlabScopes
+		cli.Config.Endpoint = gitlab.Endpoint
+
+		if endpoint != "" {
+			cli.Config.Endpoint.AuthURL = endpoint + "/oauth/authorize"
+			cli.Config.Endpoint.TokenURL = endpoint + "/oauth/token"
+		}
 
 		return GitLab{
-			endpoint: host + "/hook/gitlab",
-			Config:   cfg,
+			Client:       cli,
+			hookEndpoint: host + "/hook/gitlab",
+			secret:       secret,
 		}, nil
 	default:
 		return nil, errors.Err(errors.New("unknown provider '" + name + "'"))
 	}
+}
+
+func (c Client) auth(ctx context.Context, name, code string, providers model.ProviderStore) error {
+	tok, err := c.Config.Exchange(ctx, code)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	access, _ := crypto.Encrypt([]byte(tok.AccessToken))
+	refresh, _ := crypto.Encrypt([]byte(tok.RefreshToken))
+
+	p, err := providers.FindByName(name)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	resp, err := c.Get(tok.AccessToken, c.APIEndpoint + "/user")
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	u := struct{
+		ID int64
+	}{}
+
+	dec := json.NewDecoder(resp.Body)
+	dec.Decode(&u)
+
+	p.ProviderUserID = sql.NullInt64{
+		Int64: u.ID,
+		Valid: true,
+	}
+	p.Name = name
+	p.AccessToken = access
+	p.RefreshToken = refresh
+	p.ExpiresAt = tok.Expiry
+	p.Connected = true
+
+	return errors.Err(providers.Update(p))
+}
+
+func (c Client) AuthURL() string {
+	u, _ := url.Parse(c.Config.Endpoint.AuthURL)
+
+	q := u.Query()
+	q.Add("client_id", c.Config.ClientID)
+	q.Add("scope", strings.Join(c.Config.Scopes, " "))
+
+	u.RawQuery = q.Encode()
+
+	return u.String()
+}
+
+func (c Client) do(method, tok, url string, r io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest(method, url, r)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	req.Header.Set("Authorization", "Bearer " + tok)
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+
+	cli := &http.Client{}
+
+	resp, err := cli.Do(req)
+
+	return resp, errors.Err(err)
+}
+
+func (c Client) Get(tok, url string) (*http.Response, error) {
+	resp, err := c.do("GET", tok, url, nil)
+
+	return resp, errors.Err(err)
+}
+
+func (c Client) Post(tok, url string, r io.Reader) (*http.Response, error) {
+	resp, err := c.do("POST", tok, url, r)
+
+	return resp, errors.Err(err)
+}
+
+func (c Client) Delete(tok, url string) (*http.Response, error) {
+	resp, err := c.do("DELETE", tok, url, nil)
+
+	return resp, errors.Err(err)
 }

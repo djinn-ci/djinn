@@ -3,7 +3,6 @@ package oauth2
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -14,15 +13,13 @@ import (
 	"github.com/andrewpillar/thrall/model"
 
 	"github.com/andrewpillar/query"
-
-	"golang.org/x/oauth2"
 )
 
 type GitHub struct {
-	endpoint string
-	secret   string
+	Client
 
-	Config *oauth2.Config
+	hookEndpoint string
+	secret       string
 }
 
 var (
@@ -35,49 +32,13 @@ var (
 )
 
 func (g GitHub) Auth(c context.Context, code string, providers model.ProviderStore) error {
-	tok, err := g.Config.Exchange(c, code)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	p, err := auth(c, "github", tok, providers)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	resp, err := httpGet("token " + tok.AccessToken, githubURL + "/user")
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	u := struct{
-		ID int64
-	}{}
-
-	dec := json.NewDecoder(resp.Body)
-	dec.Decode(&u)
-
-	p.ProviderUserID = sql.NullInt64{
-		Int64: u.ID,
-		Valid: true,
-	}
-
-	return errors.Err(providers.Update(p))
-}
-
-func (g GitHub) AuthURL() string {
-	return authURL(g.Config.Endpoint.AuthURL, g.Config.ClientID, githubScopes)
+	return errors.Err(g.auth(c, "github", code, providers))
 }
 
 func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
-	b, _ := crypto.Decrypt(p.AccessToken)
+	tok, _ := crypto.Decrypt(p.AccessToken)
 
-	tok := "token " + string(b)
-
-	respGet, err := httpGet(tok, fmt.Sprintf("%s/repositories/%v", githubURL, id))
+	respGet, err := g.Get(string(tok), fmt.Sprintf("%s/repositories/%v", g.APIEndpoint, id))
 
 	if err != nil {
 		return errors.Err(err)
@@ -108,7 +69,7 @@ func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 	if !r.Enabled {
 		body := map[string]interface{}{
 			"config": map[string]interface{}{
-				"url":          g.endpoint,
+				"url":          g.hookEndpoint,
 				"secret":       g.secret,
 				"content_type": "json",
 				"insecure_ssl": 0,
@@ -121,9 +82,9 @@ func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 		enc := json.NewEncoder(buf)
 		enc.Encode(body)
 
-		respPost, err := httpPost(
-			tok,
-			fmt.Sprintf("%s/repos/%s/%s/hooks", githubURL, repo.Owner.Login, repo.Name),
+		respPost, err := g.Post(
+			string(tok),
+			fmt.Sprintf("%s/repos/%s/%s/hooks", g.APIEndpoint, repo.Owner.Login, repo.Name),
 			buf,
 		)
 
@@ -143,9 +104,9 @@ func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 		return errors.Err(toggleRepo(p, id, hook.ID))
 	}
 
-	respDelete, err := httpDelete(
-		tok,
-		fmt.Sprintf("%s/repos/%s/%s/hooks/%v", githubURL, repo.Owner.Login, repo.Name, r.HookID),
+	respDelete, err := g.Delete(
+		string(tok),
+		fmt.Sprintf("%s/repos/%s/%s/hooks/%v", g.APIEndpoint, repo.Owner.Login, repo.Name, r.HookID),
 	)
 
 	if err != nil {
@@ -162,9 +123,9 @@ func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 }
 
 func (g GitHub) Repos(p *model.Provider) ([]*model.Repo, error) {
-	b, _ := crypto.Decrypt(p.AccessToken)
+	tok, _ := crypto.Decrypt(p.AccessToken)
 
-	resp, err := httpGet("token " + string(b), githubURL + "/user/repos?sort=updated")
+	resp, err := g.Get(string(tok), g.APIEndpoint + "/user/repos?sort=updated")
 
 	if err != nil {
 		return []*model.Repo{}, errors.Err(err)
@@ -203,13 +164,13 @@ func (g GitHub) Repos(p *model.Provider) ([]*model.Repo, error) {
 }
 
 func (g GitHub) Revoke(p *model.Provider) error {
-	b, _ := crypto.Decrypt(p.AccessToken)
+	tok, _ := crypto.Decrypt(p.AccessToken)
 
 	auth := g.Config.ClientID + ":" + g.Config.ClientSecret
 
 	req, err := http.NewRequest(
 		"DELETE",
-		fmt.Sprintf("%s/applications/%s/tokens/%s", githubURL, g.Config.ClientID, string(b)),
+		fmt.Sprintf("%s/applications/%s/tokens/%s", g.APIEndpoint, g.Config.ClientID, string(tok)),
 		nil,
 	)
 

@@ -5,35 +5,26 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
-
-	"golang.org/x/oauth2"
 )
 
 type GitLab struct {
-	endpoint string
+	Client
 
-	Config *oauth2.Config
+	hookEndpoint string
+	secret       string
 }
 
-var gitlabScopes = []string{
-	"read_repository",
-	"write_repository",
-}
-
-func (g GitLab) Auth(c context.Context, code string, providers model.ProviderStore) error {
-	tok, err := g.Config.Exchange(c, code)
-
-	if err != nil {
-		return errors.Err(err)
+var (
+	gitlabScopes = []string{
+		"read_repository",
+		"write_repository",
 	}
 
-	_, err = auth(c, "gitlab", tok, providers)
+	gitlabURL = "https://gitlab.com"
+)
 
-	return errors.Err(err)
-}
-
-func (g GitLab) AuthURL() string {
-	return authURL(g.Config.Endpoint.AuthURL, g.Config.ClientID, gitlabScopes)
+func (g GitLab) Auth(c context.Context, code string, providers model.ProviderStore) error {
+	return errors.Err(g.auth(c, "gitlab", code, providers))
 }
 
 func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {

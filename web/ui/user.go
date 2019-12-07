@@ -91,6 +91,8 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 					Name:    name,
 					AuthURL: p.AuthURL(),
 				}
+			} else {
+				set[name].AuthURL = p.AuthURL()
 			}
 		}
 

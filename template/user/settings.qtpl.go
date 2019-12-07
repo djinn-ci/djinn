@@ -159,7 +159,7 @@ func (p *SettingsPage) streamrenderProvider(qw422016 *qt422016.Writer, prv *mode
 //line template/user/settings.qtpl:47
 		qw422016.E().S(prv.Name)
 //line template/user/settings.qtpl:47
-		qw422016.N().S(`"> `)
+		qw422016.N().S(`" class="inline-block"> `)
 //line template/user/settings.qtpl:48
 		qw422016.N().S(p.CSRF)
 //line template/user/settings.qtpl:48

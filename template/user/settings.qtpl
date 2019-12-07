@@ -44,7 +44,7 @@ type ShowInvites struct {
 			<span>Connect</span>
 		</a>
 	{% else %}
-		<form method="POST" action="/oauth/{%s prv.Name %}">
+		<form method="POST" action="/oauth/{%s prv.Name %}" class="inline-block">
 			{%s= p.CSRF %}
 			<input type="hidden" name="_method" value="DELETE"/>
 			<button type="submit" class="provider-btn provider-{%s prv.Name %}">

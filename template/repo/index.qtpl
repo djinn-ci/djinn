@@ -9,9 +9,10 @@ import (
 type IndexPage struct {
 	template.BasePage
 
-	CSRF     string
-	Repos    []*model.Repo
-	Provider string
+	CSRF      string
+	Repos     []*model.Repo
+	Provider  string
+	Providers []*model.Provider
 }
 
 var providerNames = map[string]string{
@@ -38,7 +39,7 @@ var providerNames = map[string]string{
 							All
 						</a>
 					</li>
-					{% for _, prv := range p.User.Providers %}
+					{% for _, prv := range p.Providers %}
 						<li>
 							<a href="{%s p.URL.Path %}?provider={%s prv.Name %}" {% if p.Provider == prv.Name %}class="active"{% endif %}>{%s providerNames[prv.Name] %}</a>
 						</li>
@@ -94,7 +95,7 @@ var providerNames = map[string]string{
 {% endfunc %}
 
 {% func (p *IndexPage) Actions() %}
-	{% if len(p.User.Providers) > 0 %}
+	{% if len(p.Providers) > 0 %}
 		<form method="POST" action="/repos/reload">
 			{%s= p.CSRF %}
 			<input type="hidden" name="_method" value="PATCH">

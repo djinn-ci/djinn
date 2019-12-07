@@ -3,6 +3,7 @@ package ui
 import (
 	"net/http"
 	"path/filepath"
+	"sort"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -66,7 +67,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 
 		break
 	default:
-		set := make(map[string]struct{})
+		set := make(map[string]*model.Provider)
 
 		pp, err := u.ProviderStore().All(query.OrderAsc("name"))
 
@@ -77,19 +78,27 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, p := range pp {
-			set[p.Name] = struct{}{}
+			set[p.Name] = p
 		}
 
+		order := make([]string, 0, len(h.Providers))
+
 		for name, p := range h.Providers {
+			order = append(order, name)
+
 			if _, ok := set[name]; !ok {
-				pp = append(pp, &model.Provider{
+				set[name] = &model.Provider{
 					Name:    name,
 					AuthURL: p.AuthURL(),
-				})
+				}
 			}
 		}
 
-		sp.Providers = pp
+		sort.Strings(order)
+
+		for _, name := range order {
+			sp.Providers = append(sp.Providers, set[name])
+		}
 
 		p = &sp
 

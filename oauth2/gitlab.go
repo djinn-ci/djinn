@@ -1,10 +1,17 @@
 package oauth2
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
+
+	"github.com/andrewpillar/query"
 )
 
 type GitLab struct {
@@ -28,11 +35,97 @@ func (g GitLab) Auth(c context.Context, code string, providers model.ProviderSto
 }
 
 func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
-	return nil
+	tok, _ := crypto.Decrypt(p.AccessToken)
+
+	r, err := p.RepoStore().Get(query.Where("repo_id", "=", id))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if !r.Enabled {
+		body := map[string]interface{}{
+			"id":                      id,
+			"url":                     g.hookEndpoint,
+			"push_events":             true,
+			"merge_request_events":    true,
+			"enable_ssl_verification": true,
+			"token":                   g.secret,
+		}
+
+		buf := &bytes.Buffer{}
+
+		enc := json.NewEncoder(buf)
+		enc.Encode(body)
+
+		resp, err := g.Post(string(tok), fmt.Sprintf("%s/projects/%v/hooks", g.APIEndpoint, id), buf)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		defer resp.Body.Close()
+
+		hook := struct{
+			ID int64
+		}{}
+
+		dec := json.NewDecoder(resp.Body)
+		dec.Decode(&hook)
+
+		return errors.Err(toggleRepo(p, id, hook.ID))
+	}
+
+	resp, err := g.Delete(string(tok), fmt.Sprintf("%s/projects/%v/hooks/%v", g.APIEndpoint, id, r.HookID))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		return errors.Err(errors.New("failed to toggle repository hook: " + resp.Status))
+	}
+
+	return errors.Err(toggleRepo(p, id, r.HookID))
 }
 
 func (g GitLab) Repos(p *model.Provider) ([]*model.Repo, error) {
-	return []*model.Repo{}, nil
+	tok, _ := crypto.Decrypt(p.AccessToken)
+
+	resp, err := g.Get(string(tok), g.APIEndpoint + "/projects?simple=true&order_by=updated_at")
+
+	if err != nil {
+		return []*model.Repo{}, errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	projects := make([]struct{
+		ID     int64
+		Name   string
+		WebURL string `json:"web_url"`
+	}, 0)
+
+	dec := json.NewDecoder(resp.Body)
+	dec.Decode(&projects)
+
+	rr := make([]*model.Repo, 0, len(projects))
+
+	for _, proj := range projects {
+		r := &model.Repo{
+			ProviderID: p.ID,
+			RepoID:     proj.ID,
+			Name:       proj.Name,
+			Href:       proj.WebURL,
+			Provider:   p,
+		}
+
+		rr = append(rr, r)
+	}
+
+	return rr, nil
 }
 
 func (g GitLab) Revoke(p *model.Provider) error {
@@ -40,5 +133,5 @@ func (g GitLab) Revoke(p *model.Provider) error {
 }
 
 func (g GitLab) Secret() []byte {
-	return []byte{}
+	return []byte(g.secret)
 }

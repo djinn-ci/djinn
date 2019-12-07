@@ -96,7 +96,9 @@ func (h Repo) loadRepos(c context.Context, pp []*model.Provider) ([]*model.Repo,
 func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	u := h.User(r)
 
-	if err := u.LoadProviders(); err != nil {
+	pp, err := u.ProviderStore().All()
+
+	if err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -104,7 +106,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 
 	providers := make(map[int64]*model.Provider)
 
-	for _, p := range u.Providers {
+	for _, p := range pp {
 		if p.Connected {
 			u.Connected = true
 		}
@@ -121,7 +123,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(rr) == 0 {
-		rr, err = h.loadRepos(r.Context(), u.Providers)
+		rr, err = h.loadRepos(r.Context(), pp)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -171,9 +173,10 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 			User: u,
 			URL:  r.URL,
 		},
-		CSRF:     string(csrf.TemplateField(r)),
-		Repos:    rr,
-		Provider: provider,
+		CSRF:      string(csrf.TemplateField(r)),
+		Repos:     rr,
+		Provider:  provider,
+		Providers: pp,
 	}
 
 	d := template.NewDashboard(&p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))

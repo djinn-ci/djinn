@@ -74,19 +74,6 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	providers := u.ProviderStore()
-
-	for name := range h.Providers {
-		p := providers.New()
-		p.Name = name
-
-		if err := providers.Create(p); err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-	}
-
 	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
 

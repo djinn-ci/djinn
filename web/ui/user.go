@@ -66,7 +66,9 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 
 		break
 	default:
-		pp, err := u.ProviderStore().All()
+		set := make(map[string]struct{})
+
+		pp, err := u.ProviderStore().All(query.OrderAsc("name"))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -75,7 +77,16 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		}
 
 		for _, p := range pp {
-			p.AuthURL = h.Providers[p.Name].AuthURL()
+			set[p.Name] = struct{}{}
+		}
+
+		for name, p := range h.Providers {
+			if _, ok := set[name]; !ok {
+				pp = append(pp, &model.Provider{
+					Name:    name,
+					AuthURL: p.AuthURL(),
+				})
+			}
 		}
 
 		sp.Providers = pp

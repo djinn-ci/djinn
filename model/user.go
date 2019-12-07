@@ -18,8 +18,6 @@ type User struct {
 	Password  []byte      `db:"password"`
 	DeletedAt pq.NullTime `db:"deleted_at"`
 	Connected bool        `db:"-"`
-
-	Providers []*Provider
 }
 
 type UserStore struct {
@@ -82,14 +80,6 @@ func (u *User) KeyStore() KeyStore {
 		},
 		User: u,
 	}
-}
-
-func (u *User) LoadProviders() error {
-	var err error
-
-	u.Providers, err = u.ProviderStore().All()
-
-	return errors.Err(err)
 }
 
 func (u *User) NamespaceStore() NamespaceStore {

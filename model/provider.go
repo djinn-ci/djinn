@@ -37,6 +37,17 @@ func providerToInterface(pp []*Provider) func(i int) Interface {
 	}
 }
 
+func (p Provider) IsZero() bool {
+	return p.Model.IsZero() &&
+		p.UserID == 0 &&
+		!p.ProviderUserID.Valid &&
+		p.Name == "" &&
+		p.AccessToken == nil &&
+		p.RefreshToken == nil &&
+		!p.Connected &&
+		p.ExpiresAt == time.Time{}
+}
+
 func (p *Provider) LoadUser() error {
 	var err error
 

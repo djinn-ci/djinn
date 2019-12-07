@@ -123,12 +123,6 @@ func (c Client) auth(ctx context.Context, name, code string, providers model.Pro
 	access, _ := crypto.Encrypt([]byte(tok.AccessToken))
 	refresh, _ := crypto.Encrypt([]byte(tok.RefreshToken))
 
-	p, err := providers.FindByName(name)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
 	resp, err := c.Get(tok.AccessToken, c.APIEndpoint + "/user")
 
 	if err != nil {
@@ -144,6 +138,22 @@ func (c Client) auth(ctx context.Context, name, code string, providers model.Pro
 	dec := json.NewDecoder(resp.Body)
 	dec.Decode(&u)
 
+	var (
+		p      *model.Provider
+		create bool
+	)
+
+	p, err = providers.FindByName(name)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if p.IsZero() {
+		p = providers.New()
+		create = true
+	}
+
 	p.ProviderUserID = sql.NullInt64{
 		Int64: u.ID,
 		Valid: true,
@@ -153,6 +163,10 @@ func (c Client) auth(ctx context.Context, name, code string, providers model.Pro
 	p.RefreshToken = refresh
 	p.ExpiresAt = tok.Expiry
 	p.Connected = true
+
+	if create {
+		return errors.Err(providers.Create(p))
+	}
 
 	return errors.Err(providers.Update(p))
 }

@@ -79,6 +79,8 @@ func (h Oauth) Revoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.Connected = false
+	p.AccessToken = nil
+	p.RefreshToken = nil
 
 	if err := providers.Update(p); err != nil {
 		log.Error.Println(errors.Err(err))

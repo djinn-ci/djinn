@@ -16,9 +16,6 @@ import (
 
 type GitLab struct {
 	Client
-
-	hookEndpoint string
-	secret       string
 }
 
 var (
@@ -58,7 +55,7 @@ func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
 		enc := json.NewEncoder(buf)
 		enc.Encode(body)
 
-		resp, err := g.Post(string(tok), fmt.Sprintf("%s/projects/%v/hooks", g.APIEndpoint, id), buf)
+		resp, err := g.Post(string(tok), fmt.Sprintf("%s/projects/%v/hooks", g.Endpoint, id), buf)
 
 		if err != nil {
 			return errors.Err(err)
@@ -76,7 +73,7 @@ func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
 		return errors.Err(toggleRepo(p, id, hook.ID))
 	}
 
-	resp, err := g.Delete(string(tok), fmt.Sprintf("%s/projects/%v/hooks/%v", g.APIEndpoint, id, r.HookID))
+	resp, err := g.Delete(string(tok), fmt.Sprintf("%s/projects/%v/hooks/%v", g.Endpoint, id, r.HookID))
 
 	if err != nil {
 		return errors.Err(err)
@@ -94,7 +91,7 @@ func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
 func (g GitLab) Repos(p *model.Provider) ([]*model.Repo, error) {
 	tok, _ := crypto.Decrypt(p.AccessToken)
 
-	resp, err := g.Get(string(tok), g.APIEndpoint + "/projects?simple=true&order_by=updated_at")
+	resp, err := g.Get(string(tok), g.Endpoint + "/projects?simple=true&order_by=updated_at")
 
 	if err != nil {
 		return []*model.Repo{}, errors.Err(err)
@@ -130,8 +127,4 @@ func (g GitLab) Repos(p *model.Provider) ([]*model.Repo, error) {
 
 func (g GitLab) Revoke(p *model.Provider) error {
 	return nil
-}
-
-func (g GitLab) Secret() []byte {
-	return []byte(g.secret)
 }

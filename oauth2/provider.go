@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
@@ -16,8 +14,6 @@ import (
 	"github.com/andrewpillar/query"
 
 	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/github"
-	"golang.org/x/oauth2/gitlab"
 )
 
 type Provider interface {
@@ -35,8 +31,18 @@ type Provider interface {
 }
 
 type Client struct {
-	APIEndpoint string
-	Config      *oauth2.Config
+	hookEndpoint string
+	secret       string
+	Endpoint     string
+	Config       *oauth2.Config
+}
+
+type ProviderOpts struct {
+	Host         string
+	Endpoint     string
+	Secret       string
+	ClientID     string
+	ClientSecret string
 }
 
 func toggleRepo(p *model.Provider, repoId, hookId int64) error {
@@ -70,43 +76,48 @@ func toggleRepo(p *model.Provider, repoId, hookId int64) error {
 	return errors.Err(repos.Update(r))
 }
 
-func NewProvider(name, clientId, clientSecret, host, secret, endpoint string) (Provider, error) {
+func NewProvider(name string, opts ProviderOpts) (Provider, error) {
 	cli := Client{
-		Config: &oauth2.Config{
-			ClientID:     clientId,
-			ClientSecret: clientSecret,
+		hookEndpoint: opts.Host,
+		secret:       opts.Secret,
+		Endpoint:     opts.Endpoint,
+		Config:       &oauth2.Config{
+			ClientID:     opts.ClientID,
+			ClientSecret: opts.ClientSecret,
 		},
 	}
 
 	switch name {
 	case "github":
-		cli.APIEndpoint = githubURL
-		cli.Config.Scopes = githubScopes
-		cli.Config.Endpoint = github.Endpoint
-
-		return GitHub{
-			Client:       cli,
-			hookEndpoint: host + "/hook/github",
-			secret:       secret,
-		}, nil
-	case "gitlab":
-		if endpoint == "" {
-			endpoint = gitlabURL
+		if cli.Endpoint == "" {
+			cli.Endpoint = githubURL
 		}
 
-		cli.APIEndpoint = endpoint + "/api/v4"
-		cli.Config.Scopes = gitlabScopes
-		cli.Config.Endpoint = gitlab.Endpoint
+		cli.hookEndpoint += "/hook/github"
+		cli.Config.Scopes = githubScopes
+		cli.Config.Endpoint = oauth2.Endpoint{
+			AuthURL:  cli.Endpoint + "/login/oauth/authorize",
+			TokenURL: cli.Endpoint + "/login/oauth/access_token",
+		}
 
-		if endpoint != "" {
-			cli.Config.Endpoint.AuthURL = endpoint + "/oauth/authorize"
-			cli.Config.Endpoint.TokenURL = endpoint + "/oauth/token"
+		return GitHub{
+			Client: cli,
+		}, nil
+	case "gitlab":
+		if cli.Endpoint == "" {
+			cli.Endpoint = gitlabURL
+		}
+
+		cli.hookEndpoint += "/hook/gitlab"
+		cli.Endpoint += "/api/v4"
+		cli.Config.Scopes = gitlabScopes
+		cli.Config.Endpoint = oauth2.Endpoint{
+			AuthURL:  cli.Endpoint + "/oauth/authorize",
+			TokenURL: cli.Endpoint + "/oauth/token",
 		}
 
 		return GitLab{
-			Client:       cli,
-			hookEndpoint: host + "/hook/gitlab",
-			secret:       secret,
+			Client: cli,
 		}, nil
 	default:
 		return nil, errors.Err(errors.New("unknown provider '" + name + "'"))
@@ -123,7 +134,7 @@ func (c Client) auth(ctx context.Context, name, code string, providers model.Pro
 	access, _ := crypto.Encrypt([]byte(tok.AccessToken))
 	refresh, _ := crypto.Encrypt([]byte(tok.RefreshToken))
 
-	resp, err := c.Get(tok.AccessToken, c.APIEndpoint + "/user")
+	resp, err := c.Get(tok.AccessToken, c.Endpoint + "/user")
 
 	if err != nil {
 		return errors.Err(err)
@@ -172,15 +183,11 @@ func (c Client) auth(ctx context.Context, name, code string, providers model.Pro
 }
 
 func (c Client) AuthURL() string {
-	u, _ := url.Parse(c.Config.Endpoint.AuthURL)
+	return c.Config.AuthCodeURL(c.secret)
+}
 
-	q := u.Query()
-	q.Add("client_id", c.Config.ClientID)
-	q.Add("scope", strings.Join(c.Config.Scopes, " "))
-
-	u.RawQuery = q.Encode()
-
-	return u.String()
+func (c Client) Secret() []byte {
+	return []byte(c.secret)
 }
 
 func (c Client) do(method, tok, url string, r io.Reader) (*http.Response, error) {

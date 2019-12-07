@@ -187,7 +187,13 @@ func mainCommand(cmd cli.Command) {
 	providers := make(map[string]oauth2.Provider)
 
 	for _, p := range cfg.Providers {
-		provider, err := oauth2.NewProvider(p.Name, p.ClientID, p.ClientSecret, cfg.Host, p.Secret, p.Endpoint)
+		provider, err := oauth2.NewProvider(p.Name, oauth2.ProviderOpts{
+			Host:         cfg.Host,
+			Endpoint:     p.Endpoint,
+			Secret:       p.Secret,
+			ClientID:     p.ClientID,
+			ClientSecret: p.ClientSecret,
+		})
 
 		if err != nil {
 			log.Error.Fatalf("failed to configure oauth provider: %s\n", errors.Cause(err))

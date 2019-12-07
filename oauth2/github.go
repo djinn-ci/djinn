@@ -17,9 +17,6 @@ import (
 
 type GitHub struct {
 	Client
-
-	hookEndpoint string
-	secret       string
 }
 
 var (
@@ -38,7 +35,7 @@ func (g GitHub) Auth(c context.Context, code string, providers model.ProviderSto
 func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 	tok, _ := crypto.Decrypt(p.AccessToken)
 
-	respGet, err := g.Get(string(tok), fmt.Sprintf("%s/repositories/%v", g.APIEndpoint, id))
+	respGet, err := g.Get(string(tok), fmt.Sprintf("%s/repositories/%v", g.Endpoint, id))
 
 	if err != nil {
 		return errors.Err(err)
@@ -84,7 +81,7 @@ func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 
 		respPost, err := g.Post(
 			string(tok),
-			fmt.Sprintf("%s/repos/%s/%s/hooks", g.APIEndpoint, repo.Owner.Login, repo.Name),
+			fmt.Sprintf("%s/repos/%s/%s/hooks", g.Endpoint, repo.Owner.Login, repo.Name),
 			buf,
 		)
 
@@ -106,7 +103,7 @@ func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 
 	respDelete, err := g.Delete(
 		string(tok),
-		fmt.Sprintf("%s/repos/%s/%s/hooks/%v", g.APIEndpoint, repo.Owner.Login, repo.Name, r.HookID),
+		fmt.Sprintf("%s/repos/%s/%s/hooks/%v", g.Endpoint, repo.Owner.Login, repo.Name, r.HookID),
 	)
 
 	if err != nil {
@@ -125,7 +122,7 @@ func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 func (g GitHub) Repos(p *model.Provider) ([]*model.Repo, error) {
 	tok, _ := crypto.Decrypt(p.AccessToken)
 
-	resp, err := g.Get(string(tok), g.APIEndpoint + "/user/repos?sort=updated")
+	resp, err := g.Get(string(tok), g.Endpoint + "/user/repos?sort=updated")
 
 	if err != nil {
 		return []*model.Repo{}, errors.Err(err)
@@ -170,7 +167,7 @@ func (g GitHub) Revoke(p *model.Provider) error {
 
 	req, err := http.NewRequest(
 		"DELETE",
-		fmt.Sprintf("%s/applications/%s/tokens/%s", g.APIEndpoint, g.Config.ClientID, string(tok)),
+		fmt.Sprintf("%s/applications/%s/tokens/%s", g.Endpoint, g.Config.ClientID, string(tok)),
 		nil,
 	)
 
@@ -193,8 +190,4 @@ func (g GitHub) Revoke(p *model.Provider) error {
 	}
 
 	return nil
-}
-
-func (g GitHub) Secret() []byte {
-	return []byte(g.secret)
 }

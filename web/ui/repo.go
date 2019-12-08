@@ -160,10 +160,9 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	provider := r.URL.Query().Get("provider")
 
 	if provider != "" {
-		for i, r := range rr {
-			if r.Provider.Name != provider {
+		for i := len(rr) - 1; i > -1; i-- {
+			if rr[i].Provider.Name != provider {
 				rr = append(rr[:i], rr[i+1:]...)
-				i--
 			}
 		}
 	}

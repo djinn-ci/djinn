@@ -87,6 +87,7 @@ func NewProvider(name string, opts ProviderOpts) (Provider, error) {
 		Config:       &oauth2.Config{
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
+			RedirectURL:  opts.Host + "/oauth/" + name,
 		},
 	}
 
@@ -112,12 +113,12 @@ func NewProvider(name string, opts ProviderOpts) (Provider, error) {
 			cli.Endpoint = gitlabURL
 		}
 
-		cli.Endpoint += "/api/v4"
 		cli.Config.Scopes = gitlabScopes
 		cli.Config.Endpoint = oauth2.Endpoint{
 			AuthURL:  cli.Endpoint + "/oauth/authorize",
 			TokenURL: cli.Endpoint + "/oauth/token",
 		}
+		cli.Endpoint += "/api/v4"
 
 		return GitLab{
 			Client: cli,
@@ -144,6 +145,10 @@ func (c Client) auth(ctx context.Context, name, code string, providers model.Pro
 	}
 
 	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return errors.Err(errors.New("unexpected http status: " + resp.Status))
+	}
 
 	u := struct{
 		ID int64

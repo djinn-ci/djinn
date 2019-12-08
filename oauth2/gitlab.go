@@ -20,6 +20,7 @@ type GitLab struct {
 
 var (
 	gitlabScopes = []string{
+		"read_user",
 		"read_repository",
 		"write_repository",
 	}

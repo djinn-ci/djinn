@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
@@ -77,8 +78,10 @@ func toggleRepo(p *model.Provider, repoId, hookId int64) error {
 }
 
 func NewProvider(name string, opts ProviderOpts) (Provider, error) {
+	name = strings.ToLower(name)
+
 	cli := Client{
-		hookEndpoint: opts.Host,
+		hookEndpoint: opts.Host + "/hook/" + name,
 		secret:       opts.Secret,
 		Endpoint:     opts.Endpoint,
 		Config:       &oauth2.Config{
@@ -93,11 +96,12 @@ func NewProvider(name string, opts ProviderOpts) (Provider, error) {
 			cli.Endpoint = githubURL
 		}
 
-		cli.hookEndpoint += "/hook/github"
+		authUrl := strings.Replace(cli.Endpoint, "api.", "", 1)
+
 		cli.Config.Scopes = githubScopes
 		cli.Config.Endpoint = oauth2.Endpoint{
-			AuthURL:  cli.Endpoint + "/login/oauth/authorize",
-			TokenURL: cli.Endpoint + "/login/oauth/access_token",
+			AuthURL:  authUrl + "/login/oauth/authorize",
+			TokenURL: authUrl + "/login/oauth/access_token",
 		}
 
 		return GitHub{
@@ -108,7 +112,6 @@ func NewProvider(name string, opts ProviderOpts) (Provider, error) {
 			cli.Endpoint = gitlabURL
 		}
 
-		cli.hookEndpoint += "/hook/gitlab"
 		cli.Endpoint += "/api/v4"
 		cli.Config.Scopes = gitlabScopes
 		cli.Config.Endpoint = oauth2.Endpoint{

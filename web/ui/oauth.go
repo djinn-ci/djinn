@@ -30,6 +30,11 @@ func (h Oauth) Auth(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
+	if r.URL.Query().Get("state") != string(provider.Secret()) {
+		web.Text(w, "Not found", http.StatusNotFound)
+		return
+	}
+
 	if err := provider.Auth(r.Context(), r.URL.Query().Get("code"), u.ProviderStore()); err != nil {
 		log.Error.Println(errors.Err(err))
 

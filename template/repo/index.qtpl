@@ -61,7 +61,17 @@ var providerNames = map[string]string{
 					<tbody>
 						{% for _, r := range p.Repos %}
 							<tr>
-								<td><a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a></td>
+								<td>
+									<span class="muted">
+										{% switch r.Provider.Name %}
+										{% case "github" %}
+											{% cat "../../svgs/github.svg" %}
+										{% case "gitlab" %}
+											{% cat "../../svgs/gitlab.svg" %}
+										{% endswitch %}
+									</span>
+									<a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a>
+								</td>
 								{% if !r.Provider.Connected %}
 									<td class="warning">{% cat "../../svgs/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}</td>
 								{% else %}

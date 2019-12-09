@@ -19,11 +19,7 @@ type GitLab struct {
 }
 
 var (
-	gitlabScopes = []string{
-		"read_user",
-		"read_repository",
-		"write_repository",
-	}
+	gitlabScopes = []string{"api"}
 
 	gitlabURL = "https://gitlab.com"
 )
@@ -54,12 +50,20 @@ func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
 		buf := &bytes.Buffer{}
 
 		enc := json.NewEncoder(buf)
-		enc.Encode(body)
+		err = enc.Encode(body)
+
+		if err != nil {
+			println(err.Error())
+		}
 
 		resp, err := g.Post(string(tok), fmt.Sprintf("%s/projects/%v/hooks", g.Endpoint, id), buf)
 
 		if err != nil {
 			return errors.Err(err)
+		}
+
+		if resp.StatusCode != http.StatusCreated {
+			return errors.Err(errors.New("unexpected http status: " + resp.Status))
 		}
 
 		defer resp.Body.Close()
@@ -92,7 +96,9 @@ func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
 func (g GitLab) Repos(p *model.Provider) ([]*model.Repo, error) {
 	tok, _ := crypto.Decrypt(p.AccessToken)
 
-	resp, err := g.Get(string(tok), g.Endpoint + "/projects?simple=true&order_by=updated_at")
+	url := fmt.Sprintf("%s/users/%v/projects?simple=true&order_by=updated_at", g.Endpoint, p.ProviderUserID.Int64)
+
+	resp, err := g.Get(string(tok), url)
 
 	if err != nil {
 		return []*model.Repo{}, errors.Err(err)
@@ -102,7 +108,7 @@ func (g GitLab) Repos(p *model.Provider) ([]*model.Repo, error) {
 
 	projects := make([]struct{
 		ID     int64
-		Name   string
+		Name   string `json:"path_with_namespace"`
 		WebURL string `json:"web_url"`
 	}, 0)
 

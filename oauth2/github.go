@@ -89,6 +89,10 @@ func (g GitHub) ToggleRepo(p *model.Provider, id int64) error {
 			return errors.Err(err)
 		}
 
+		if respPost.StatusCode != http.StatusCreated {
+			return errors.Err(errors.New("unexpected http status: " + respPost.Status))
+		}
+
 		defer respPost.Body.Close()
 
 		hook := struct{

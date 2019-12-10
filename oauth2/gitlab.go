@@ -42,7 +42,7 @@ func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
 			"id":                      id,
 			"url":                     g.hookEndpoint,
 			"push_events":             true,
-			"merge_request_events":    true,
+			"merge_requests_events":   true,
 			"enable_ssl_verification": true,
 			"token":                   g.secret,
 		}

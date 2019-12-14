@@ -167,6 +167,29 @@ func (s UserStore) Create(uu ...*User) error {
 	return errors.Err(s.Store.Create(UserTable, models...))
 }
 
+func (s UserStore) Get(opts ...query.Option) (*User, error) {
+	u := &User{
+		Model: Model{
+			DB: s.DB,
+		},
+	}
+
+	baseOpts := []query.Option{
+		query.Columns("*"),
+		query.From(UserTable),
+	}
+
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(u, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return u, errors.Err(err)
+}
+
 func (s UserStore) Find(id int64) (*User, error) {
 	u, err := s.findBy("id", id)
 
@@ -186,7 +209,7 @@ func (s UserStore) findBy(col string, val interface{}) (*User, error) {
 		query.Where(col, "=", val),
 	)
 
-	err := s.Get(u, q.Build(), q.Args()...)
+	err := s.Store.Get(u, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -215,7 +238,7 @@ func (s UserStore) FindByHandle(handle string) (*User, error) {
 		query.OrWhere("email", "=", handle),
 	)
 
-	err := s.Get(u, q.Build(), q.Args()...)
+	err := s.Store.Get(u, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

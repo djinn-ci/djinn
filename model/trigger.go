@@ -33,20 +33,6 @@ func triggerToInterface(tt []*Trigger) func(i int) Interface {
 	}
 }
 
-func (t Trigger) CommentTitle() string {
-	if len(t.Comment) <= 72 {
-		return t.Comment
-	}
-
-	i := strings.Index(t.Comment, "\n")
-
-	if i > 72 {
-		return t.Comment[:72] + "..."
-	}
-
-	return t.Comment[:i]
-}
-
 func (t Trigger) CommentBody() string {
 	if len(t.Comment) < 72 {
 		return ""
@@ -59,6 +45,20 @@ func (t Trigger) CommentBody() string {
 	}
 
 	return t.Comment[i:]
+}
+
+func (t Trigger) CommentTitle() string {
+	if len(t.Comment) <= 72 {
+		return t.Comment
+	}
+
+	i := strings.Index(t.Comment, "\n")
+
+	if i > 72 {
+		return t.Comment[:72] + "..."
+	}
+
+	return t.Comment[:i]
 }
 
 func (t Trigger) Values() map[string]interface{} {
@@ -93,7 +93,7 @@ func (s TriggerStore) Create(tt ...*Trigger) error {
 	return errors.Err(s.Store.Create(TriggerTable, models...))
 }
 
-func (s TriggerStore) First() (*Trigger, error) {
+func (s TriggerStore) Get(opts ...query.Option) (*Trigger, error) {
 	t := &Trigger{
 		Model: Model{
 			DB: s.DB,
@@ -101,11 +101,13 @@ func (s TriggerStore) First() (*Trigger, error) {
 		Build: s.Build,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(TriggerTable),
 		ForBuild(s.Build),
-	)
+	}
+
+	q := query.Select(append(baseOpts, opts...)...)
 
 	err := s.Store.Get(t, q.Build(), q.Args()...)
 

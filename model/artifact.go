@@ -100,7 +100,7 @@ func (s ArtifactStore) Create(aa ...*Artifact) error {
 	return errors.Err(s.Store.Create(ArtifactTable, models...))
 }
 
-func (s ArtifactStore) findBy(col string, val interface{}) (*Artifact, error) {
+func (s ArtifactStore) Get(opts ...query.Option) (*Artifact, error) {
 	a := &Artifact{
 		Model: Model{
 			DB: s.DB,
@@ -109,31 +109,20 @@ func (s ArtifactStore) findBy(col string, val interface{}) (*Artifact, error) {
 		Job:   s.Job,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(ArtifactTable),
-		query.Where(col, "=", val),
 		ForBuild(s.Build),
 		ForJob(s.Job),
-	)
+	}
 
-	err := s.Get(a, q.Build(), q.Args()...)
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(a, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
-
-	return a, errors.Err(err)
-}
-
-func (s ArtifactStore) Find(id int64) (*Artifact, error) {
-	a, err := s.findBy("id", id)
-
-	return a, errors.Err(err)
-}
-
-func (s ArtifactStore) FindByHash(hash string) (*Artifact, error) {
-	a, err := s.findBy("hash", hash)
 
 	return a, errors.Err(err)
 }

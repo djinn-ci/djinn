@@ -5,6 +5,8 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
+
+	"github.com/andrewpillar/query"
 )
 
 type Image struct {
@@ -35,7 +37,7 @@ func (f *Image) Validate() error {
 		errs.Put("name", ErrFieldInvalid("Name", "can only contain letters, numbers, dashes, and dots"))
 	}
 
-	i, err := f.Images.FindByName(f.Name)
+	i, err := f.Images.Get(query.Where("name", "=", f.Name))
 
 	if err != nil {
 		errs.Put("image", errors.Cause(err))

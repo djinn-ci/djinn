@@ -19,6 +19,8 @@ import (
 	"github.com/andrewpillar/thrall/template/repo"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 
@@ -239,7 +241,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := u.ProviderStore().FindByName(f.Provider)
+	p, err := u.ProviderStore().Get(query.Where("name", "=", f.Provider))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -272,7 +274,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(vars["repo"], 10, 64)
 
-	repo, err := u.RepoStore().Find(id)
+	repo, err := u.RepoStore().Get(query.Where("id", "=", id))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

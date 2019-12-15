@@ -9,6 +9,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/mux"
 )
 
@@ -23,7 +25,7 @@ func (h Tag) Store(w http.ResponseWriter, r *http.Request) ([]*model.Tag, error)
 
 	id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
-	b, err := u.BuildStore().Find(id)
+	b, err := u.BuildStore().Get(query.Where("id", "=", id))
 
 	if err != nil {
 		return []*model.Tag{}, errors.Err(err)
@@ -62,7 +64,7 @@ func (h Tag) Destroy(r *http.Request) error {
 
 	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
 
-	b, err := u.BuildStore().Find(buildId)
+	b, err := u.BuildStore().Get(query.Where("id", "=", buildId))
 
 	if err != nil {
 		return errors.Err(err)
@@ -72,7 +74,7 @@ func (h Tag) Destroy(r *http.Request) error {
 
 	tags := b.TagStore()
 
-	t, err := tags.Find(tagId)
+	t, err := tags.Get(query.Where("id", "=", tagId))
 
 	if err != nil {
 		return errors.Err(err)

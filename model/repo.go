@@ -45,7 +45,7 @@ func (r *Repo) LoadProvider() error {
 		},
 	}
 
-	r.Provider, err = providers.Find(r.ProviderID)
+	r.Provider, err = providers.Get(query.Where("id", "=", r.ProviderID))
 
 	return errors.Err(err)
 }
@@ -89,6 +89,12 @@ func (s RepoStore) All(opts ...query.Option) ([]*Repo, error) {
 	return rr, nil
 }
 
+func (s RepoStore) Create(rr ...*Repo) error {
+	models := interfaceSlice(len(rr), repoToInterface(rr))
+
+	return s.Store.Create(RepoTable, models...)
+}
+
 func (s RepoStore) Get(opts ...query.Option) (*Repo, error) {
 	r := &Repo{
 		Model: Model{
@@ -106,38 +112,6 @@ func (s RepoStore) Get(opts ...query.Option) (*Repo, error) {
 	}
 
 	q := query.Select(append(baseOpts, opts...)...)
-
-	err := s.Store.Get(r, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return r, errors.Err(err)
-}
-
-func (s RepoStore) Create(rr ...*Repo) error {
-	models := interfaceSlice(len(rr), repoToInterface(rr))
-
-	return s.Store.Create(RepoTable, models...)
-}
-
-func (s RepoStore) Find(id int64) (*Repo, error) {
-	r := &Repo{
-		Model: Model{
-			DB: s.DB,
-		},
-		User:     s.User,
-		Provider: s.Provider,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.From(RepoTable),
-		query.Where("id", "=", id),
-		ForUser(s.User),
-		ForProvider(s.Provider),
-	)
 
 	err := s.Store.Get(r, q.Build(), q.Args()...)
 

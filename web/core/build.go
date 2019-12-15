@@ -262,7 +262,7 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 }
 
 func (h Build) Submit(b *model.Build, srv *machinery.Server) error {
-	i, err := h.Images.FindByName(b.Manifest.Driver["image"])
+	i, err := h.Images.Get(query.Where("name", "=", b.Manifest.Driver["image"]))
 
 	if err != nil {
 		return errors.Err(err)

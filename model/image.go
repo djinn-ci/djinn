@@ -46,7 +46,7 @@ func (i Image) LoadNamespace() error {
 		},
 	}
 
-	i.Namespace, err = namespaces.Find(i.NamespaceID.Int64)
+	i.Namespace, err = namespaces.Get(query.Where("id", "=", i.NamespaceID.Int64))
 
 	return errors.Err(err)
 }
@@ -105,13 +105,7 @@ func (s ImageStore) Delete(ii ...*Image) error {
 	return errors.Err(s.Store.Delete(ImageTable, models...))
 }
 
-func (s ImageStore) Find(id int64) (*Image, error) {
-	i, err := s.findBy("id", id)
-
-	return i, errors.Err(err)
-}
-
-func (s ImageStore) findBy(col string, val interface{}) (*Image, error) {
+func (s ImageStore) Get(opts ...query.Option) (*Image, error) {
 	i := &Image{
 		Model: Model{
 			DB: s.DB,
@@ -120,25 +114,20 @@ func (s ImageStore) findBy(col string, val interface{}) (*Image, error) {
 		Namespace: s.Namespace,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(ImageTable),
-		query.Where(col, "=", val),
 		ForUser(s.User),
 		ForNamespace(s.Namespace),
-	)
+	}
 
-	err := s.Get(i, q.Build(), q.Args()...)
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(i, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
-
-	return i, errors.Err(err)
-}
-
-func (s ImageStore) FindByName(name string) (*Image, error) {
-	i, err := s.findBy("name", name)
 
 	return i, errors.Err(err)
 }

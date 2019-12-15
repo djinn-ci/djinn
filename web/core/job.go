@@ -8,6 +8,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/mux"
 )
 
@@ -46,7 +48,7 @@ func (h Job) Show(r *http.Request) (*model.Job, error) {
 
 	id, _ := strconv.ParseInt(vars["job"], 10, 64)
 
-	j, err := b.JobStore().Find(id)
+	j, err := b.JobStore().Get(query.Where("id", "=", id))
 
 	if err != nil {
 		return j, errors.Err(err)

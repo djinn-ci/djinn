@@ -33,6 +33,26 @@ func inviteToInterface(ii ...*Invite) func(i int) Interface {
 	}
 }
 
+func loadInviteInviter(ii []*Invite) func(i int, u *User) {
+	return func(i int, u *User) {
+		inv := ii[i]
+
+		if inv.InviterID == u.ID {
+			inv.Inviter = u
+		}
+	}
+}
+
+func loadInviteNamespace(ii []*Invite) func(i int, n *Namespace) {
+	return func(i int, n *Namespace) {
+		inv := ii[i]
+
+		if inv.NamespaceID == n.ID {
+			inv.Namespace = n
+		}
+	}
+}
+
 func (i *Invite) LoadNamespace() error {
 	var err error
 
@@ -42,7 +62,7 @@ func (i *Invite) LoadNamespace() error {
 		},
 	}
 
-	i.Namespace, err = namespaces.Find(i.NamespaceID)
+	i.Namespace, err = namespaces.Get(query.Where("id", "=", i.NamespaceID))
 
 	return errors.Err(err)
 }
@@ -90,7 +110,7 @@ func (s InviteStore) Delete(ii ...*Invite) error {
 	return errors.Err(s.Store.Delete(InviteTable, models...))
 }
 
-func (s InviteStore) Find(id int64) (*Invite, error) {
+func (s InviteStore) Get(opts ...query.Option) (*Invite, error) {
 	i := &Invite{
 		Model: Model{
 			DB: s.DB,
@@ -98,43 +118,13 @@ func (s InviteStore) Find(id int64) (*Invite, error) {
 		Namespace: s.Namespace,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(InviteTable),
-		query.Where("id", "=", id),
 		ForNamespace(s.Namespace),
-	)
-
-	err := s.Get(i, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
 	}
 
-	return i, errors.Err(err)
-}
-
-func (s InviteStore) FindByHandle(handle string) (*Invite, error) {
-	i := &Invite{
-		Model: Model{
-			DB: s.DB,
-		},
-		Namespace: s.Namespace,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.From(InviteTable),
-		query.WhereQuery("invitee_id", "=",
-			query.Select(
-				query.Columns("id"),
-				query.From(UserTable),
-				query.Where("email", "=", handle),
-				query.OrWhere("username", "=", handle),
-			),
-		),
-		ForNamespace(s.Namespace),
-	)
+	q := query.Select(append(baseOpts, opts...)...)
 
 	err := s.Store.Get(i, q.Build(), q.Args()...)
 
@@ -143,26 +133,6 @@ func (s InviteStore) FindByHandle(handle string) (*Invite, error) {
 	}
 
 	return i, errors.Err(err)
-}
-
-func loadInviteInviter(ii []*Invite) func(i int, u *User) {
-	return func(i int, u *User) {
-		inv := ii[i]
-
-		if inv.InviterID == u.ID {
-			inv.Inviter = u
-		}
-	}
-}
-
-func loadInviteNamespace(ii []*Invite) func(i int, n *Namespace) {
-	return func(i int, n *Namespace) {
-		inv := ii[i]
-
-		if inv.NamespaceID == n.ID {
-			inv.Namespace = n
-		}
-	}
 }
 
 func (s InviteStore) Index(opts ...query.Option) ([]*Invite, error) {

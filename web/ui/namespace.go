@@ -12,6 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/core"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/csrf"
 )
 
@@ -55,7 +57,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	u := h.Core.User(r)
 
-	parent, err := u.NamespaceStore().FindByPath(r.URL.Query().Get("parent"))
+	parent, err := u.NamespaceStore().Get(query.Where("path", "=", r.URL.Query().Get("parent")))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

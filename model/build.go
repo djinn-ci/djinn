@@ -181,7 +181,7 @@ func (b *Build) LoadArtifacts() error {
 func (b *Build) LoadDriver() error {
 	var err error
 
-	b.Driver, err = b.DriverStore().First()
+	b.Driver, err = b.DriverStore().Get()
 
 	return errors.Err(err)
 }
@@ -195,7 +195,7 @@ func (b *Build) LoadNamespace() error {
 		},
 	}
 
-	b.Namespace, err = namespaces.Find(b.NamespaceID.Int64)
+	b.Namespace, err = namespaces.Get(query.Where("id", "=", b.NamespaceID.Int64))
 
 	return errors.Err(err)
 }
@@ -235,7 +235,7 @@ func (b *Build) LoadTags() error {
 func (b *Build) LoadTrigger() error {
 	var err error
 
-	b.Trigger, err = b.TriggerStore().First()
+	b.Trigger, err = b.TriggerStore().Get()
 
 	return errors.Err(err)
 }
@@ -249,7 +249,7 @@ func (b *Build) LoadUser() error {
 		},
 	}
 
-	b.User, err = users.Find(b.UserID)
+	b.User, err = users.Get(query.Where("id", "=", b.UserID))
 
 	return errors.Err(err)
 }
@@ -361,19 +361,7 @@ func (s BuildStore) Create(bb ...*Build) error {
 	return errors.Err(s.Store.Create(BuildTable, models...))
 }
 
-func (s BuildStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
-	paginator, err := s.Store.Paginate(BuildTable, page, opts...)
-
-	return paginator, errors.Err(err)
-}
-
-func (s BuildStore) Find(id int64) (*Build, error) {
-	b, err := s.findBy("id", id)
-
-	return b, errors.Err(err)
-}
-
-func (s BuildStore) findBy(col string, val interface{}) (*Build, error) {
+func (s BuildStore) Get(opts ...query.Option) (*Build, error) {
 	b := &Build{
 		Model: Model{
 			DB: s.DB,
@@ -382,15 +370,17 @@ func (s BuildStore) findBy(col string, val interface{}) (*Build, error) {
 		Namespace: s.Namespace,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(BuildTable),
-		query.Where(col, "=", val),
 		ForUser(s.User),
 		ForNamespace(s.Namespace),
-	)
+	}
 
-	err := s.Get(b, q.Build(), q.Args()...)
+
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(b, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -564,6 +554,12 @@ func (s BuildStore) New() *Build {
 	}
 
 	return b
+}
+
+func (s BuildStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(BuildTable, page, opts...)
+
+	return paginator, errors.Err(err)
 }
 
 func (s BuildStore) Update(bb ...*Build) error {

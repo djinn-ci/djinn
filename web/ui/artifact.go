@@ -10,6 +10,8 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/mux"
 )
 
@@ -28,7 +30,7 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 
 	artifactId, _ := strconv.ParseInt(vars["artifact"], 10, 64)
 
-	b, err := u.BuildStore().Find(buildId)
+	b, err := u.BuildStore().Get(query.Where("id", "=", buildId))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -36,7 +38,7 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := b.ArtifactStore().Find(artifactId)
+	a, err := b.ArtifactStore().Get(query.Where("id", "=", artifactId))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

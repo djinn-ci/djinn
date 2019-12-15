@@ -65,17 +65,6 @@ func NamespaceSharedWith(u *User) query.Option {
 	}
 }
 
-// Determine if the given user can add to a namespace.
-func (n Namespace) CanAdd(u *User) bool {
-	_, ok := n.Collaborators[u.ID]
-
-	if !ok {
-		ok = n.UserID == u.ID
-	}
-
-	return ok
-}
-
 func (n Namespace) AccessibleBy(u *User) bool {
 	switch n.Visibility {
 	case types.Public:
@@ -102,6 +91,40 @@ func (n *Namespace) BuildStore() BuildStore {
 		},
 		Namespace: n,
 	}
+}
+
+func (n Namespace) CanAdd(u *User) bool {
+	_, ok := n.Collaborators[u.ID]
+
+	if !ok {
+		ok = n.UserID == u.ID
+	}
+
+	return ok
+}
+
+func (n *Namespace) CascadeVisibility() error {
+	if n.ID != n.RootID.Int64 {
+		return nil
+	}
+
+	q := query.Update(
+		query.Table(NamespaceTable),
+		query.Set("visibility", n.Visibility),
+		query.Where("root_id", "=", n.RootID),
+	)
+
+	stmt, err := n.Prepare(q.Build())
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(q.Args()...)
+
+	return errors.Err(err)
 }
 
 func (n *Namespace) CollaboratorStore() CollaboratorStore {
@@ -131,6 +154,19 @@ func (n *Namespace) InviteStore() InviteStore {
 	}
 }
 
+func (n *Namespace) IsZero() bool {
+	return n.Model.IsZero() &&
+		n.UserID == 0 &&
+		!n.ParentID.Valid &&
+		n.Name == "" &&
+		n.Path == ""&&
+		n.Description == "" &&
+		n.Level == 0 &&
+		n.Visibility == types.Visibility(0) &&
+		n.CreatedAt == time.Time{} &&
+		n.UpdatedAt == time.Time{}
+}
+
 func (n *Namespace) KeyStore() KeyStore {
 	return KeyStore{
 		Store: Store{
@@ -158,71 +194,6 @@ func (n *Namespace) LoadCollaborators() error {
 	return nil
 }
 
-func (n *Namespace) ObjectStore() ObjectStore {
-	return ObjectStore{
-		Store: Store{
-			DB: n.DB,
-		},
-		Namespace: n,
-	}
-}
-
-func (n *Namespace) VariableStore() VariableStore {
-	return VariableStore{
-		Store: Store{
-			DB: n.DB,
-		},
-		Namespace: n,
-	}
-}
-
-func (n *Namespace) NamespaceStore() NamespaceStore {
-	return NamespaceStore{
-		Store: Store{
-			DB: n.DB,
-		},
-		User:      n.User,
-		Namespace: n,
-	}
-}
-
-func (n *Namespace) CascadeVisibility() error {
-	if n.ID != n.RootID.Int64 {
-		return nil
-	}
-
-	q := query.Update(
-		query.Table(NamespaceTable),
-		query.Set("visibility", n.Visibility),
-		query.Where("root_id", "=", n.RootID),
-	)
-
-	stmt, err := n.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(q.Args()...)
-
-	return errors.Err(err)
-}
-
-func (n *Namespace) IsZero() bool {
-	return n.Model.IsZero() &&
-		n.UserID == 0 &&
-		!n.ParentID.Valid &&
-		n.Name == "" &&
-		n.Path == ""&&
-		n.Description == "" &&
-		n.Level == 0 &&
-		n.Visibility == types.Visibility(0) &&
-		n.CreatedAt == time.Time{} &&
-		n.UpdatedAt == time.Time{}
-}
-
 func (n *Namespace) LoadParent() error {
 	if !n.ParentID.Valid {
 		n.Parent = &Namespace{}
@@ -239,7 +210,7 @@ func (n *Namespace) LoadParent() error {
 		User: n.User,
 	}
 
-	n.Parent, err = namespaces.Find(n.ParentID.Int64)
+	n.Parent, err = namespaces.Get(query.Where("id", "=", n.ParentID.Int64))
 
 	return errors.Err(err)
 }
@@ -269,9 +240,37 @@ func (n *Namespace) LoadUser() error {
 		},
 	}
 
-	n.User, err = users.Find(n.UserID)
+	n.User, err = users.Get(query.Where("id", "=", n.UserID))
 
 	return errors.Err(err)
+}
+
+func (n *Namespace) NamespaceStore() NamespaceStore {
+	return NamespaceStore{
+		Store: Store{
+			DB: n.DB,
+		},
+		User:      n.User,
+		Namespace: n,
+	}
+}
+
+func (n *Namespace) ObjectStore() ObjectStore {
+	return ObjectStore{
+		Store: Store{
+			DB: n.DB,
+		},
+		Namespace: n,
+	}
+}
+
+func (n *Namespace) VariableStore() VariableStore {
+	return VariableStore{
+		Store: Store{
+			DB: n.DB,
+		},
+		Namespace: n,
+	}
 }
 
 func (n Namespace) UIEndpoint(uri ...string) string {
@@ -319,12 +318,6 @@ func (s NamespaceStore) All(opts ...query.Option) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
-func (s NamespaceStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
-	paginator, err := s.Store.Paginate(NamespaceTable, page, opts...)
-
-	return paginator, errors.Err(err)
-}
-
 func (s NamespaceStore) Create(nn ...*Namespace) error {
 	models := interfaceSlice(len(nn), namespaceToInterface(nn))
 
@@ -356,7 +349,7 @@ func (s NamespaceStore) Delete(nn ...*Namespace) error {
 	return errors.Err(err)
 }
 
-func (s NamespaceStore) findBy(col string, val interface{}) (*Namespace, error) {
+func (s NamespaceStore) Get(opts ...query.Option) (*Namespace, error) {
 	n := &Namespace{
 		Model: Model{
 			DB: s.DB,
@@ -365,64 +358,16 @@ func (s NamespaceStore) findBy(col string, val interface{}) (*Namespace, error) 
 		Parent: s.Namespace,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(NamespaceTable),
-		query.Where(col, "=", val),
 		ForUser(s.User),
 		ForParent(s.Namespace),
-	)
-
-	err := s.Get(n, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
 	}
 
-	return n, errors.Err(err)
-}
+	q := query.Select(append(baseOpts, opts...)...)
 
-func (s NamespaceStore) Find(id int64) (*Namespace, error) {
-	n, err := s.findBy("id", id)
-
-	return n, errors.Err(err)
-}
-
-func (s NamespaceStore) FindByPath(path string) (*Namespace, error) {
-	n, err := s.findBy("path", path)
-
-	return n, errors.Err(err)
-}
-
-func (s NamespaceStore) FindRoot(id int64) (*Namespace, error) {
-	n := &Namespace{
-		Model: Model{
-			DB: s.DB,
-		},
-	}
-
-	rootq := query.Select(
-		query.Columns("root_id"),
-		query.From(NamespaceTable),
-		query.Where("id", "=", id),
-	)
-
-	q := query.Select(
-		query.Columns("*"),
-		query.From(NamespaceTable),
-		query.WhereQuery("root_id", "=", rootq),
-		query.WhereQuery("id", "=", rootq),
-	)
-
-	stmt, err := s.Preparex(q.Build())
-
-	if err != nil {
-		return n, errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	err = stmt.Get(n, q.Args()...)
+	err := s.Store.Get(n, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -534,6 +479,12 @@ func (s NamespaceStore) New() *Namespace {
 	}
 
 	return n
+}
+
+func (s NamespaceStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(NamespaceTable, page, opts...)
+
+	return paginator, errors.Err(err)
 }
 
 func (s NamespaceStore) Update(nn ...*Namespace) error {

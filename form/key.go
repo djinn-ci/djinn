@@ -4,6 +4,8 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
 
+	"github.com/andrewpillar/query"
+
 	"golang.org/x/crypto/ssh"
 )
 
@@ -43,7 +45,7 @@ func (f Key) Validate() error {
 	}
 
 	if checkUnique {
-		k, err := f.Keys.FindByName(f.Name)
+		k, err := f.Keys.Get(query.Where("name", "=", f.Name))
 
 		if err != nil {
 			return errors.Err(err)

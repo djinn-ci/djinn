@@ -3,6 +3,8 @@ package form
 import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
+
+	"github.com/andrewpillar/query"
 )
 
 type Object struct {
@@ -32,7 +34,7 @@ func (f *Object) Validate() error {
 		errs.Put("name", ErrFieldInvalid("Name", "can only contain letters, numbers, dashes, and dots"))
 	}
 
-	o, err := f.Objects.FindByName(f.Name)
+	o, err := f.Objects.Get(query.Where("name", "=", f.Name))
 
 	if err != nil {
 		return errors.Err(err)

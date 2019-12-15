@@ -162,7 +162,7 @@ func (c Client) auth(ctx context.Context, name, code string, providers model.Pro
 		create bool
 	)
 
-	p, err = providers.FindByName(name)
+	p, err = providers.Get(query.Where("name", "=", name))
 
 	if err != nil {
 		return errors.Err(err)

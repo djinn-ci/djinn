@@ -44,7 +44,7 @@ func (h Namespace) Get(path string, u *model.User) (*model.Namespace, error) {
 		username := parts[1]
 		path = parts[0]
 
-		u, err := h.Users.FindByUsername(username)
+		u, err := h.Users.Get(query.Where("username", "=", username))
 
 		if err != nil {
 			return &model.Namespace{}, errors.Err(err)
@@ -55,7 +55,7 @@ func (h Namespace) Get(path string, u *model.User) (*model.Namespace, error) {
 		}
 	}
 
-	n, err := namespaces.FindByPath(path)
+	n, err := namespaces.Get(query.Where("path", "=", path))
 
 	if err != nil {
 		return n, errors.Err(err)
@@ -192,7 +192,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) (*model.Namespa
 		return &model.Namespace{}, errors.Err(err)
 	}
 
-	parent, err := namespaces.FindByPath(f.Parent)
+	parent, err := namespaces.Get(query.Where("path", "=", f.Parent))
 
 	if err != nil {
 		return &model.Namespace{}, errors.Err(err)

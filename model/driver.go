@@ -45,7 +45,7 @@ func (s DriverStore) Create(dd ...*Driver) error {
 	return errors.Err(s.Store.Create(DriverTable, models...))
 }
 
-func (s DriverStore) First() (*Driver, error) {
+func (s DriverStore) Get(opts ...query.Option) (*Driver, error) {
 	d := &Driver{
 		Model: Model{
 			DB: s.DB,
@@ -53,11 +53,13 @@ func (s DriverStore) First() (*Driver, error) {
 		Build: s.Build,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(DriverTable),
 		ForBuild(s.Build),
-	)
+	}
+
+	q := query.Select(append(baseOpts, opts...)...)
 
 	err := s.Store.Get(d, q.Build(), q.Args()...)
 

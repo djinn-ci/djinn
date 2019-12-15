@@ -57,7 +57,7 @@ func (p *Provider) LoadUser() error {
 		},
 	}
 
-	p.User, err =  users.Find(p.UserID)
+	p.User, err =  users.Get(query.Where("id", "=", p.UserID))
 
 	return errors.Err(err)
 }
@@ -106,42 +106,6 @@ func (s ProviderStore) Create(pp ...*Provider) error {
 	models := interfaceSlice(len(pp), providerToInterface(pp))
 
 	return errors.Err(s.Store.Create(ProviderTable, models...))
-}
-
-func (s ProviderStore) Find(id int64) (*Provider, error) {
-	p, err := s.findBy("id", id)
-
-	return p, errors.Err(err)
-}
-
-func (s ProviderStore) findBy(col string, val interface{}) (*Provider, error) {
-	p := &Provider{
-		Model: Model{
-			DB: s.DB,
-		},
-		User: s.User,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.From(ProviderTable),
-		query.Where(col, "=", val),
-		ForUser(s.User),
-	)
-
-	err := s.Store.Get(p, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return p, errors.Err(err)
-}
-
-func (s ProviderStore) FindByName(name string) (*Provider, error) {
-	p, err := s.findBy("name", name)
-
-	return p, errors.Err(err)
 }
 
 func (s ProviderStore) Get(opts ...query.Option) (*Provider, error) {

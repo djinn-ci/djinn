@@ -9,6 +9,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/mux"
 )
 
@@ -21,13 +23,13 @@ type Collaborator struct {
 func (h Collaborator) Destroy(r *http.Request) error {
 	vars := mux.Vars(r)
 
-	owner, err := h.Users.FindByUsername(vars["username"])
+	owner, err := h.Users.Get(query.Where("username", "=", vars["username"]))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	n, err := owner.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
+	n, err := owner.NamespaceStore().Get(query.Where("path", "=", strings.TrimSuffix(vars["namespace"], "/")))
 
 	if err != nil {
 		return errors.Err(err)
@@ -35,7 +37,15 @@ func (h Collaborator) Destroy(r *http.Request) error {
 
 	collaborators := n.CollaboratorStore()
 
-	c, err := collaborators.FindByUsername(vars["collaborator"])
+	c, err := collaborators.Get(
+		query.WhereQuery("user_id", "=",
+			query.Select(
+				query.Columns("id"),
+				query.From(model.UserTable),
+				query.Where("username", "=", vars["collaborators"]),
+			),
+		),
+	)
 
 	if err != nil {
 		return errors.Err(err)
@@ -55,7 +65,7 @@ func (h Collaborator) Store(r *http.Request) (*model.Namespace, error) {
 
 	id, _ := strconv.ParseInt(vars["invite"], 10, 64)
 
-	i, err := h.Invites.Find(id)
+	i, err := h.Invites.Get(query.Where("id", "=", id))
 
 	if err != nil {
 		return &model.Namespace{}, errors.Err(err)

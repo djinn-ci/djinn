@@ -87,21 +87,6 @@ func (o *Object) BuildObjectStore() BuildObjectStore {
 	}
 }
 
-func (o Object) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"user_id":      o.UserID,
-		"namespace_id": o.NamespaceID,
-		"hash":         o.Hash,
-		"name":         o.Name,
-		"type":         o.Type,
-		"size":         o.Size,
-		"md5":          o.MD5,
-		"sha256":       o.SHA256,
-		"created_at":   o.CreatedAt,
-		"updated_at":   o.UpdatedAt,
-	}
-}
-
 func (o *Object) Destroy() error {
 	q := query.Update(
 		query.Table(ObjectTable),
@@ -143,7 +128,7 @@ func (o *Object) LoadNamespace() error {
 		},
 	}
 
-	o.Namespace, err = namespaces.Find(o.NamespaceID.Int64)
+	o.Namespace, err = namespaces.Get(query.Where("id", "=", o.NamespaceID.Int64))
 
 	return errors.Err(err)
 }
@@ -158,166 +143,19 @@ func (o Object) UIEndpoint(uri ...string) string {
 	return endpoint
 }
 
-func (s ObjectStore) All(opts ...query.Option) ([]*Object, error) {
-	oo := make([]*Object, 0)
-
-	opts = append([]query.Option{ForCollaborator(s.User), ForNamespace(s.Namespace)}, opts...)
-
-	err := s.Store.All(&oo, ObjectTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+func (o Object) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"user_id":      o.UserID,
+		"namespace_id": o.NamespaceID,
+		"hash":         o.Hash,
+		"name":         o.Name,
+		"type":         o.Type,
+		"size":         o.Size,
+		"md5":          o.MD5,
+		"sha256":       o.SHA256,
+		"created_at":   o.CreatedAt,
+		"updated_at":   o.UpdatedAt,
 	}
-
-	for _, o := range oo {
-		o.DB = s.DB
-		o.User = s.User
-	}
-
-	return oo, errors.Err(err)
-}
-
-func (s ObjectStore) interfaceSlice(oo ...*Object) []Interface {
-	ii := make([]Interface, len(oo), len(oo))
-
-	for i, o := range oo {
-		ii[i] = o
-	}
-
-	return ii
-}
-
-func (s ObjectStore) Create(oo ...*Object) error {
-	models := interfaceSlice(len(oo), objectToInterface(oo))
-
-	return errors.Err(s.Store.Create(ObjectTable, models...))
-}
-
-func (s ObjectStore) Delete(oo ...*Object) error {
-	models := interfaceSlice(len(oo), objectToInterface(oo))
-
-	return errors.Err(s.Store.Delete(ObjectTable, models...))
-}
-
-func (s ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
-	oo, err := s.All(append(opts, query.WhereRaw("deleted_at", "IS", "NULL"))...)
-
-	if err != nil {
-		return oo, errors.Err(err)
-	}
-
-	if err := s.LoadNamespaces(oo); err != nil {
-		return oo, errors.Err(err)
-	}
-
-	nn := make([]*Namespace, 0, len(oo))
-
-	for _, o := range oo {
-		if o.Namespace != nil {
-			nn = append(nn, o.Namespace)
-		}
-	}
-
-	namespaces := NamespaceStore{
-		Store: s.Store,
-	}
-
-	err = namespaces.LoadUsers(nn)
-
-	return oo, errors.Err(err)
-}
-
-func (s ObjectStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
-	paginator, err := s.Store.Paginate(ObjectTable, page, opts...)
-
-	return paginator, errors.Err(err)
-}
-
-func (s ObjectStore) findBy(col string, val interface{}) (*Object, error) {
-	o := &Object{
-		Model: Model{
-			DB: s.DB,
-		},
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.From(ObjectTable),
-		query.Where(col, "=", val),
-		ForUser(s.User),
-		ForNamespace(s.Namespace),
-	)
-
-	err := s.Get(o, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return o, errors.Err(err)
-}
-
-func (s ObjectStore) Find(id int64) (*Object, error) {
-	o, err := s.findBy("id", id)
-
-	return o, errors.Err(err)
-}
-
-func (s ObjectStore) FindByName(name string) (*Object, error) {
-	o, err := s.findBy("name", name)
-
-	return o, errors.Err(err)
-}
-
-func (s ObjectStore) loadNamespace(oo []*Object) func(i int, n *Namespace) {
-	return func(i int, n *Namespace) {
-		o := oo[i]
-
-		if o.NamespaceID.Int64 == n.ID {
-			o.Namespace = n
-		}
-	}
-}
-
-func (s ObjectStore) LoadNamespaces(oo []*Object) error {
-	if len(oo) == 0 {
-		return nil
-	}
-
-	models := interfaceSlice(len(oo), objectToInterface(oo))
-
-	namespaces := NamespaceStore{
-		Store: s.Store,
-	}
-
-	err := namespaces.Load(mapKey("namespace_id", models), s.loadNamespace(oo))
-
-	return errors.Err(err)
-}
-
-func (s ObjectStore) New() *Object {
-	o := &Object{
-		Model: Model{
-			DB: s.DB,
-		},
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	if s.User != nil {
-		o.UserID = s.User.ID
-	}
-
-	if s.Namespace != nil {
-		o.NamespaceID = sql.NullInt64{
-			Int64: s.Namespace.ID,
-			Valid: true,
-		}
-	}
-
-	return o
 }
 
 func (s BuildObjectStore) All(opts ...query.Option) ([]*BuildObject, error) {
@@ -428,4 +266,145 @@ func (s BuildObjectStore) Update(boo ...*BuildObject) error {
 	models := interfaceSlice(len(boo), buildObjectToInterface(boo))
 
 	return errors.Err(s.Store.Update(BuildObjectTable, models...))
+}
+
+func (s ObjectStore) All(opts ...query.Option) ([]*Object, error) {
+	oo := make([]*Object, 0)
+
+	opts = append([]query.Option{ForCollaborator(s.User), ForNamespace(s.Namespace)}, opts...)
+
+	err := s.Store.All(&oo, ObjectTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, o := range oo {
+		o.DB = s.DB
+		o.User = s.User
+	}
+
+	return oo, errors.Err(err)
+}
+
+func (s ObjectStore) Create(oo ...*Object) error {
+	models := interfaceSlice(len(oo), objectToInterface(oo))
+
+	return errors.Err(s.Store.Create(ObjectTable, models...))
+}
+
+func (s ObjectStore) Delete(oo ...*Object) error {
+	models := interfaceSlice(len(oo), objectToInterface(oo))
+
+	return errors.Err(s.Store.Delete(ObjectTable, models...))
+}
+
+func (s ObjectStore) Index(opts ...query.Option) ([]*Object, error) {
+	oo, err := s.All(append(opts, query.WhereRaw("deleted_at", "IS", "NULL"))...)
+
+	if err != nil {
+		return oo, errors.Err(err)
+	}
+
+	if err := s.LoadNamespaces(oo); err != nil {
+		return oo, errors.Err(err)
+	}
+
+	nn := make([]*Namespace, 0, len(oo))
+
+	for _, o := range oo {
+		if o.Namespace != nil {
+			nn = append(nn, o.Namespace)
+		}
+	}
+
+	namespaces := NamespaceStore{
+		Store: s.Store,
+	}
+
+	err = namespaces.LoadUsers(nn)
+
+	return oo, errors.Err(err)
+}
+
+func (s ObjectStore) Get(opts ...query.Option) (*Object, error) {
+	o := &Object{
+		Model: Model{
+			DB: s.DB,
+		},
+		User:      s.User,
+		Namespace: s.Namespace,
+	}
+
+	baseOpts := []query.Option{
+		query.Columns("*"),
+		query.From(ObjectTable),
+		ForUser(s.User),
+		ForNamespace(s.Namespace),
+	}
+
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(o, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return o, errors.Err(err)
+}
+
+func (s ObjectStore) loadNamespace(oo []*Object) func(i int, n *Namespace) {
+	return func(i int, n *Namespace) {
+		o := oo[i]
+
+		if o.NamespaceID.Int64 == n.ID {
+			o.Namespace = n
+		}
+	}
+}
+
+func (s ObjectStore) LoadNamespaces(oo []*Object) error {
+	if len(oo) == 0 {
+		return nil
+	}
+
+	models := interfaceSlice(len(oo), objectToInterface(oo))
+
+	namespaces := NamespaceStore{
+		Store: s.Store,
+	}
+
+	err := namespaces.Load(mapKey("namespace_id", models), s.loadNamespace(oo))
+
+	return errors.Err(err)
+}
+
+func (s ObjectStore) New() *Object {
+	o := &Object{
+		Model: Model{
+			DB: s.DB,
+		},
+		User:      s.User,
+		Namespace: s.Namespace,
+	}
+
+	if s.User != nil {
+		o.UserID = s.User.ID
+	}
+
+	if s.Namespace != nil {
+		o.NamespaceID = sql.NullInt64{
+			Int64: s.Namespace.ID,
+			Valid: true,
+		}
+	}
+
+	return o
+}
+
+func (s ObjectStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(ObjectTable, page, opts...)
+
+	return paginator, errors.Err(err)
 }

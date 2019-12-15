@@ -6,6 +6,8 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+
+	"github.com/andrewpillar/query"
 )
 
 var reVariable = regexp.MustCompile("^[^0-9]+[a-zA-Z0-9_]+$")
@@ -37,7 +39,7 @@ func (f Variable) Validate() error {
 		errs.Put("key", ErrFieldInvalid("Key", "can only contain letters, numbers, dashes, and have not leading numbers"))
 	}
 
-	v, err := f.Variables.FindByKey(f.Key)
+	v, err := f.Variables.Get(query.Where("key", "=", f.Key))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

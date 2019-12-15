@@ -13,6 +13,8 @@ import (
 	"github.com/andrewpillar/thrall/template/auth"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/csrf"
 
 	"golang.org/x/crypto/bcrypt"
@@ -104,7 +106,10 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.Users.FindByHandle(f.Handle)
+	u, err := h.Users.Get(
+		query.Where("username", "=", f.Handle),
+		query.OrWhere("email", "=", f.Handle),
+	)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

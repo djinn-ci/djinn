@@ -12,6 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/runner"
+
+	"github.com/andrewpillar/query"
 )
 
 type database struct {
@@ -24,13 +26,13 @@ type database struct {
 }
 
 func (d *database) findObject(name string) (*model.Object, error) {
-	u, err := d.users.Find(d.build.UserID)
+	u, err := d.users.Get(query.Where("id", "=", d.build.UserID))
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	o, err := u.ObjectStore().FindByName(name)
+	o, err := u.ObjectStore().Get(query.Where("name", "=", name))
 
 	return o, errors.Err(err)
 }
@@ -49,7 +51,7 @@ func (d *database) Collect(name string, r io.Reader) (int64, error) {
 
 	artifacts := d.build.ArtifactStore()
 
-	a, err := artifacts.FindByHash(strings.TrimSuffix(name, ".tar"))
+	a, err := artifacts.Get(query.Where("hash", "=", strings.TrimSuffix(name, ".tar")))
 
 	if err != nil {
 		return n, errors.Err(err)

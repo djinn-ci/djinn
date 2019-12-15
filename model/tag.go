@@ -85,7 +85,7 @@ func (s TagStore) Delete(tt ...*Tag) error {
 	return errors.Err(s.Store.Delete(TagTable, models...))
 }
 
-func (s TagStore) Find(id int64) (*Tag, error) {
+func (s TagStore) Get(opts ...query.Option) (*Tag, error) {
 	t := &Tag{
 		Model: Model{
 			DB: s.DB,
@@ -94,15 +94,16 @@ func (s TagStore) Find(id int64) (*Tag, error) {
 		User:  s.User,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(TagTable),
-		query.Where("id", "=", id),
 		ForBuild(s.Build),
 		ForUser(s.User),
-	)
+	}
 
-	err := s.Get(t, q.Build(), q.Args()...)
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(t, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil

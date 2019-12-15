@@ -5,6 +5,8 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 
+	"github.com/andrewpillar/query"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -47,7 +49,7 @@ func (f Email) Validate() error {
 	}
 
 	if f.Email != f.User.Email {
-		u, err := f.Users.FindByEmail(f.Email)
+		u, err := f.Users.Get(query.Where("email", "=", f.Email))
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

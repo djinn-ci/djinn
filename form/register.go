@@ -6,6 +6,8 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+
+	"github.com/andrewpillar/query"
 )
 
 var reEmail = regexp.MustCompile("@")
@@ -42,7 +44,7 @@ func (f Register) Validate() error {
 		errs.Put("email", ErrFieldInvalid("Email", ""))
 	}
 
-	u, err := f.Users.FindByEmail(f.Email)
+	u, err := f.Users.Get(query.Where("email", "=", f.Email))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -64,7 +66,7 @@ func (f Register) Validate() error {
 		errs.Put("username", ErrFieldInvalid("Username", "can only contain letters, numbers, dashes, and dots"))
 	}
 
-	u, err = f.Users.FindByUsername(f.Username)
+	u, err = f.Users.Get(query.Where("username", "=", f.Username))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

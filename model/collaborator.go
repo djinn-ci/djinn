@@ -79,6 +79,44 @@ func (s CollaboratorStore) All(opts ...query.Option) ([]*Collaborator, error) {
 	return cc, errors.Err(err)
 }
 
+func (s CollaboratorStore) Create(cc ...*Collaborator) error {
+	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
+
+	return errors.Err(s.Store.Create(CollaboratorTable, models...))
+}
+
+func (s CollaboratorStore) Delete(cc ...*Collaborator) error {
+	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
+
+	return errors.Err(s.Store.Delete(CollaboratorTable, models...))
+}
+
+func (s CollaboratorStore) Get(opts ...query.Option) (*Collaborator, error) {
+	c := &Collaborator{
+		Model: Model{
+			DB: s.DB,
+		},
+		Namespace: s.Namespace,
+		User:      s.User,
+	}
+
+	baseOpts := []query.Option{
+		query.Columns("*"),
+		query.From(CollaboratorTable),
+		ForRootNamespace(s.Namespace),
+	}
+
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(c, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return c, errors.Err(err)
+}
+
 func (s CollaboratorStore) Index(opts ...query.Option) ([]*Collaborator, error) {
 	cc, err := s.All(opts...)
 
@@ -101,6 +139,20 @@ func (s CollaboratorStore) loadUser(cc []*Collaborator) func(i int, u *User) {
 	}
 }
 
+func (c *Collaborator) LoadUser() error {
+	var err error
+
+	user := UserStore{
+		Store: Store{
+			DB: c.DB,
+		},
+	}
+
+	c.User, err = user.Get(query.Where("id", "=", c.UserID))
+
+	return errors.Err(err)
+}
+
 func (s CollaboratorStore) LoadUsers(cc []*Collaborator) error {
 	if len(cc) == 0 {
 		return nil
@@ -115,95 +167,6 @@ func (s CollaboratorStore) LoadUsers(cc []*Collaborator) error {
 	err := users.Load(mapKey("user_id", models), s.loadUser(cc))
 
 	return errors.Err(err)
-}
-
-func (s CollaboratorStore) Create(cc ...*Collaborator) error {
-	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
-
-	return errors.Err(s.Store.Create(CollaboratorTable, models...))
-}
-
-func (s CollaboratorStore) Delete(cc ...*Collaborator) error {
-	models := interfaceSlice(len(cc), collaboratorToInterface(cc...))
-
-	return errors.Err(s.Store.Delete(CollaboratorTable, models...))
-}
-
-func (c *Collaborator) LoadUser() error {
-	var err error
-
-	user := UserStore{
-		Store: Store{
-			DB: c.DB,
-		},
-	}
-
-	c.User, err = user.Find(c.UserID)
-
-	return errors.Err(err)
-}
-
-func (s CollaboratorStore) FindByUsername(username string) (*Collaborator, error) {
-	c := &Collaborator{
-		Model: Model{
-			DB: s.DB,
-		},
-		Namespace: s.Namespace,
-		User:      s.User,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.From(CollaboratorTable),
-		query.WhereQuery("user_id", "=",
-			query.Select(
-				query.Columns("id"),
-				query.From(UserTable),
-				query.Where("username", "=", username),
-			),
-		),
-		ForRootNamespace(s.Namespace),
-	)
-
-	err := s.Store.Get(c, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return c, errors.Err(err)
-}
-
-func (s CollaboratorStore) FindByHandle(handle string) (*Collaborator, error) {
-	c := &Collaborator{
-		Model: Model{
-			DB: s.DB,
-		},
-		Namespace: s.Namespace,
-		User:      s.User,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.From(CollaboratorTable),
-		query.WhereQuery("user_id", "=",
-			query.Select(
-				query.Columns("id"),
-				query.From(UserTable),
-				query.Where("email", "=", handle),
-				query.OrWhere("username", "=", handle),
-			),
-		),
-		ForRootNamespace(s.Namespace),
-	)
-
-	err := s.Store.Get(c, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	return c, errors.Err(err)
 }
 
 func (s CollaboratorStore) New() *Collaborator {

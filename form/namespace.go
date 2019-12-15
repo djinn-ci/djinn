@@ -7,6 +7,8 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/model/types"
+
+	"github.com/andrewpillar/query"
 )
 
 var reNamespace = regexp.MustCompile("^[a-zA-Z0-9]+$")
@@ -61,7 +63,7 @@ func (f Namespace) Validate() error {
 	}
 
 	if checkUnique {
-		n, err := f.Namespaces.FindByPath(f.Name)
+		n, err := f.Namespaces.Get(query.Where("path", "=", f.Name))
 
 		if err != nil {
 			return errors.Err(err)

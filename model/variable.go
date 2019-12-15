@@ -88,12 +88,6 @@ func (s BuildVariableStore) All(opts ...query.Option) ([]*BuildVariable, error) 
 	return vv, errors.Err(err)
 }
 
-func (s BuildVariableStore) Create(bvv ...*BuildVariable) error {
-	models := interfaceSlice(len(bvv), buildVariableToInterface(bvv))
-
-	return errors.Err(s.Store.Create(BuildVariableTable, models...))
-}
-
 func (s BuildVariableStore) Copy(vv []*Variable) error {
 	if len(vv) == 0 {
 		return nil
@@ -114,6 +108,12 @@ func (s BuildVariableStore) Copy(vv []*Variable) error {
 	}
 
 	return errors.Err(s.Create(bvv...))
+}
+
+func (s BuildVariableStore) Create(bvv ...*BuildVariable) error {
+	models := interfaceSlice(len(bvv), buildVariableToInterface(bvv))
+
+	return errors.Err(s.Store.Create(BuildVariableTable, models...))
 }
 
 func (s BuildVariableStore) LoadVariables(bvv []*BuildVariable) error {
@@ -173,29 +173,6 @@ func (s BuildVariableStore) New() *BuildVariable {
 	return bv
 }
 
-func (v Variable) IsZero() bool {
-	return v.Model.IsZero() && v.UserID == 0 && v.Key == "" && v.Value == ""
-}
-
-func (v Variable) UIEndpoint(uri ...string) string {
-	endpoint := fmt.Sprintf("/variables/%v", v.ID)
-
-	if len(uri) > 0 {
-		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
-	}
-
-	return endpoint
-}
-
-func (v Variable) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"user_id":      v.UserID,
-		"namespace_id": v.NamespaceID,
-		"key":          v.Key,
-		"value":        v.Value,
-	}
-}
-
 func (s VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 	vv := make([]*Variable, 0)
 
@@ -228,7 +205,7 @@ func (s VariableStore) Delete(vv ...*Variable) error {
 	return errors.Err(s.Store.Delete(VariableTable, models...))
 }
 
-func (s VariableStore) findBy(col string, val interface{}) (*Variable, error) {
+func (s VariableStore) Get(opts ...query.Option) (*Variable, error) {
 	v := &Variable{
 		Model: Model{
 			DB: s.DB,
@@ -237,31 +214,20 @@ func (s VariableStore) findBy(col string, val interface{}) (*Variable, error) {
 		Namespace: s.Namespace,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(VariableTable),
-		query.Where(col, "=", val),
 		ForUser(s.User),
 		ForNamespace(s.Namespace),
-	)
+	}
 
-	err := s.Get(v, q.Build(), q.Args()...)
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(v, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
-
-	return v, errors.Err(err)
-}
-
-func (s VariableStore) Find(id int64) (*Variable, error) {
-	v, err := s.findBy("id", id)
-
-	return v, errors.Err(err)
-}
-
-func (s VariableStore) FindByKey(key string) (*Variable, error) {
-	v, err := s.findBy("key", key)
 
 	return v, errors.Err(err)
 }
@@ -292,22 +258,6 @@ func (s VariableStore) Index(opts ...query.Option) ([]*Variable, error) {
 	err = namespaces.LoadUsers(nn)
 
 	return vv, errors.Err(err)
-}
-
-func (s VariableStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
-	paginator, err := s.Store.Paginate(VariableTable, page, opts...)
-
-	return paginator, errors.Err(err)
-}
-
-func (s VariableStore) interfaceSlice(vv ...*Variable) []Interface {
-	ii := make([]Interface, len(vv), len(vv))
-
-	for i, v := range vv {
-		ii[i] = v
-	}
-
-	return ii
 }
 
 func (s VariableStore) loadNamespace(vv []*Variable) func(i int, n *Namespace) {
@@ -357,4 +307,33 @@ func (s VariableStore) New() *Variable {
 	}
 
 	return v
+}
+
+func (s VariableStore) Paginate(page int64, opts ...query.Option) (Paginator, error) {
+	paginator, err := s.Store.Paginate(VariableTable, page, opts...)
+
+	return paginator, errors.Err(err)
+}
+
+func (v Variable) IsZero() bool {
+	return v.Model.IsZero() && v.UserID == 0 && v.Key == "" && v.Value == ""
+}
+
+func (v Variable) UIEndpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/variables/%v", v.ID)
+
+	if len(uri) > 0 {
+		endpoint = fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+
+	return endpoint
+}
+
+func (v Variable) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"user_id":      v.UserID,
+		"namespace_id": v.NamespaceID,
+		"key":          v.Key,
+		"value":        v.Value,
+	}
 }

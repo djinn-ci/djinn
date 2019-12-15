@@ -9,6 +9,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/mux"
 )
 
@@ -21,7 +23,7 @@ func (h Invite) Store(w http.ResponseWriter, r *http.Request) (*model.Invite, er
 
 	vars := mux.Vars(r)
 
-	owner, err := h.Users.FindByUsername(vars["username"])
+	owner, err := h.Users.Get(query.Where("username", "=", vars["username"]))
 
 	if err != nil {
 		return &model.Invite{}, errors.Err(err)
@@ -31,7 +33,7 @@ func (h Invite) Store(w http.ResponseWriter, r *http.Request) (*model.Invite, er
 		return &model.Invite{}, ErrAccessDenied
 	}
 
-	n, err := owner.NamespaceStore().FindByPath(strings.TrimSuffix(vars["namespace"], "/"))
+	n, err := owner.NamespaceStore().Get(query.Where("path", "=", strings.TrimSuffix(vars["namespace"], "/")))
 
 	if err != nil {
 		return &model.Invite{}, ErrNotFound

@@ -12,6 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/mux"
 )
 
@@ -26,10 +28,18 @@ type gate struct {
 	keys       model.KeyStore
 }
 
+func namespaceRoot(id int64) query.Query {
+	return query.Select(
+		query.Columns("root_id"),
+		query.From(model.NamespaceTable),
+		query.Where("id", "=", id),
+	)
+}
+
 func (g gate) build(u *model.User, r *http.Request) (*http.Request, bool) {
 	vars := mux.Vars(r)
 
-	owner, err := g.users.FindByUsername(vars["username"])
+	owner, err := g.users.Get(query.Where("username", "=", vars["username"]))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -40,7 +50,7 @@ func (g gate) build(u *model.User, r *http.Request) (*http.Request, bool) {
 
 	id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
-	b, err := owner.BuildStore().Find(id)
+	b, err := owner.BuildStore().Get(query.Where("id", "=", id))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -57,7 +67,10 @@ func (g gate) build(u *model.User, r *http.Request) (*http.Request, bool) {
 		return r, u.ID == b.UserID
 	}
 
-	root, err := g.namespaces.FindRoot(b.NamespaceID.Int64)
+	root, err := g.namespaces.Get(
+		query.WhereQuery("root_id", "=", namespaceRoot(b.NamespaceID.Int64)),
+		query.WhereQuery("id", "=", namespaceRoot(b.NamespaceID.Int64)),
+	)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -79,7 +92,7 @@ func (g gate) key(u *model.User, r *http.Request) (*http.Request, bool) {
 	)
 
 	load := func(id int64) (model.Interface, error) {
-		k, err = g.keys.Find(id)
+		k, err = g.keys.Get(query.Where("id", "=", id))
 
 		return k, errors.Err(err)
 	}
@@ -99,7 +112,7 @@ func (g gate) key(u *model.User, r *http.Request) (*http.Request, bool) {
 func (g gate) namespace(u *model.User, r *http.Request) (*http.Request, bool) {
 	vars := mux.Vars(r)
 
-	owner, err := g.users.FindByUsername(vars["username"])
+	owner, err := g.users.Get(query.Where("username", "=", vars["username"]))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -110,7 +123,7 @@ func (g gate) namespace(u *model.User, r *http.Request) (*http.Request, bool) {
 
 	path := strings.TrimSuffix(vars["namespace"], "/")
 
-	n, err := owner.NamespaceStore().FindByPath(path)
+	n, err := owner.NamespaceStore().Get(query.Where("path", "=", path))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -131,7 +144,10 @@ func (g gate) namespace(u *model.User, r *http.Request) (*http.Request, bool) {
 		return r, u.ID == n.UserID
 	}
 
-	root, err := g.namespaces.FindRoot(n.ID)
+	root, err := g.namespaces.Get(
+		query.WhereQuery("root_id", "=", namespaceRoot(n.ID)),
+		query.WhereQuery("id", "=", namespaceRoot(n.ID)),
+	)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -153,7 +169,7 @@ func (g gate) image(u *model.User, r *http.Request) (*http.Request, bool) {
 	)
 
 	load := func(id int64) (model.Interface, error) {
-		i, err = g.images.Find(id)
+		i, err = g.images.Get(query.Where("id", "=", id))
 
 		return i, errors.Err(err)
 	}
@@ -177,7 +193,7 @@ func (g gate) object(u *model.User, r *http.Request) (*http.Request, bool) {
 	)
 
 	load := func(id int64) (model.Interface, error) {
-		o, err = g.objects.Find(id)
+		o, err = g.objects.Get(query.Where("id", "=", id))
 
 		return o, errors.Err(err)
 	}
@@ -223,7 +239,10 @@ func (g gate) resource(name string, u *model.User, r *http.Request, fn load) (bo
 		return u.ID == userId, nil
 	}
 
-	root, err := g.namespaces.FindRoot(namespaceId.Int64)
+	root, err := g.namespaces.Get(
+		query.WhereQuery("root_id", "=", namespaceRoot(namespaceId.Int64)),
+		query.WhereQuery("id", "=", namespaceRoot(namespaceId.Int64)),
+	)
 
 	if err != nil {
 		return false, errors.Err(err)
@@ -244,7 +263,7 @@ func (g gate) variable(u *model.User, r *http.Request) (*http.Request, bool) {
 	)
 
 	load := func(id int64) (model.Interface, error) {
-		v, err = g.variables.Find(id)
+		v, err = g.variables.Get(query.Where("id", "=", id))
 
 		return v, errors.Err(err)
 	}

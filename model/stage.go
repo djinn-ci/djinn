@@ -86,7 +86,7 @@ func (s StageStore) Create(ss ...*Stage) error {
 	return errors.Err(s.Store.Create(StageTable, models...))
 }
 
-func (s StageStore) findBy(col string, val interface{}) (*Stage, error) {
+func (s StageStore) Get(opts ...query.Option) (*Stage, error) {
 	st := &Stage{
 		Model: Model{
 			DB: s.DB,
@@ -94,30 +94,19 @@ func (s StageStore) findBy(col string, val interface{}) (*Stage, error) {
 		Build: s.Build,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(StageTable),
-		query.Where(col, "=", val),
 		ForBuild(s.Build),
-	)
+	}
 
-	err := s.Get(st, q.Build(), q.Args()...)
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(st, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
 	}
-
-	return st, errors.Err(err)
-}
-
-func (s StageStore) Find(id int64) (*Stage, error) {
-	st, err := s.findBy("id", id)
-
-	return st, errors.Err(err)
-}
-
-func (s StageStore) FindByName(name string) (*Stage, error) {
-	st, err := s.findBy("name", name)
 
 	return st, errors.Err(err)
 }

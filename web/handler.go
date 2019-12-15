@@ -10,6 +10,8 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 )
@@ -158,7 +160,7 @@ func (h Handler) UserCookie(r *http.Request) (*model.User, error) {
 		return &model.User{}, nil
 	}
 
-	u, err := h.Users.Find(id)
+	u, err := h.Users.Get(query.Where("id", "=", id))
 
 	if u.DeletedAt.Valid {
 		return &model.User{}, nil

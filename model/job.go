@@ -82,7 +82,7 @@ func (j *Job) LoadBuild() error {
 		},
 	}
 
-	j.Build, err = builds.Find(j.BuildID)
+	j.Build, err = builds.Get(query.Where("id", "=", j.BuildID))
 
 	return errors.Err(err)
 }
@@ -96,7 +96,7 @@ func (j *Job) LoadStage() error {
 		},
 	}
 
-	j.Stage, err = stages.Find(j.StageID)
+	j.Stage, err = stages.Get(query.Where("id", "=", j.StageID))
 
 	return errors.Err(err)
 }
@@ -149,7 +149,7 @@ func (s JobStore) All(opts ...query.Option) ([]*Job, error) {
 	return jj, errors.Err(err)
 }
 
-func (s JobStore) findBy(col string, val interface{}) (*Job, error) {
+func (s JobStore) Get(opts ...query.Option) (*Job, error) {
 	j := &Job{
 		Model: Model{
 			DB: s.DB,
@@ -158,27 +158,20 @@ func (s JobStore) findBy(col string, val interface{}) (*Job, error) {
 		Stage: s.Stage,
 	}
 
-	q := query.Select(
+	baseOpts := []query.Option{
 		query.Columns("*"),
 		query.From(JobTable),
-		query.Where(col, "=", val),
 		ForBuild(s.Build),
 		ForStage(s.Stage),
-	)
+	}
 
-	err := s.Get(j, q.Build(), q.Args()...)
+	q := query.Select(append(baseOpts, opts...)...)
 
-	return j, errors.Err(err)
-}
+	err := s.Store.Get(j, q.Build(), q.Args()...)
 
-func (s JobStore) Find(id int64) (*Job, error) {
-	j, err := s.findBy("id", id)
-
-	return j, errors.Err(err)
-}
-
-func (s JobStore) FindByName(name string) (*Job, error) {
-	j, err := s.findBy("name", name)
+	if err == sql.ErrNoRows {
+		err = nil
+	}
 
 	return j, errors.Err(err)
 }

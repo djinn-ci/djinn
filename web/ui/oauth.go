@@ -9,6 +9,8 @@ import (
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/andrewpillar/query"
+
 	"github.com/gorilla/mux"
 )
 
@@ -61,7 +63,7 @@ func (h Oauth) Revoke(w http.ResponseWriter, r *http.Request) {
 
 	providers := u.ProviderStore()
 
-	p, err := providers.FindByName(name)
+	p, err := providers.Get(query.Where("name", "=", name))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

@@ -83,7 +83,7 @@ func (k *Key) LoadNamespace() error {
 		},
 	}
 
-	k.Namespace, err = namespaces.Find(k.NamespaceID.Int64)
+	k.Namespace, err = namespaces.Get(query.Where("id", "=", k.NamespaceID.Int64))
 
 	return errors.Err(err)
 }
@@ -206,6 +206,33 @@ func (s KeyStore) Delete(kk ...*Key) error {
 	return errors.Err(s.Store.Delete(KeyTable, models...))
 }
 
+func (s KeyStore) Get(opts ...query.Option) (*Key, error) {
+	k := &Key{
+		Model: Model{
+			DB: s.DB,
+		},
+		User:      s.User,
+		Namespace: s.Namespace,
+	}
+
+	baseOpts := []query.Option{
+		query.Columns("*"),
+		query.From(KeyTable),
+		ForUser(s.User),
+		ForNamespace(s.Namespace),
+	}
+
+	q := query.Select(append(baseOpts, opts...)...)
+
+	err := s.Store.Get(k, q.Build(), q.Args()...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	return k, errors.Err(err)
+}
+
 func (s KeyStore) loadNamespace(kk []*Key) func(i int, n *Namespace) {
 	return func(i int, n *Namespace) {
 		k := kk[i]
@@ -259,40 +286,6 @@ func (s KeyStore) Paginate(page int64, opts ...query.Option) (Paginator, error) 
 	paginator, err := s.Store.Paginate(KeyTable, page, opts...)
 
 	return paginator, errors.Err(err)
-}
-
-func (s KeyStore) findBy(col string, val interface{}) (*Key, error) {
-	k := &Key{
-		Model: Model{
-			DB: s.DB,
-		},
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	q := query.Select(
-		query.Columns("*"),
-		query.From(KeyTable),
-		query.Where(col, "=", val),
-		ForUser(s.User),
-		ForNamespace(s.Namespace),
-	)
-
-	err := s.Get(k, q.Build(), q.Args()...)
-
-	return k, errors.Err(err)
-}
-
-func (s KeyStore) Find(id int64) (*Key, error) {
-	k, err := s.findBy("id", id)
-
-	return k, errors.Err(err)
-}
-
-func (s KeyStore) FindByName(name string) (*Key, error) {
-	k, err := s.findBy("name", name)
-
-	return k, errors.Err(err)
 }
 
 func (s KeyStore) Update(kk ...*Key) error {

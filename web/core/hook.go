@@ -585,9 +585,11 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 
 		headCommit := push.Commits[len(push.Commits) - 1]
 
+		webUrl, _ := url.Parse(push.Project.WebURL)
+
 		urls, err := h.getGitlabManifestUrls(
 			tok,
-			fmt.Sprintf("%s/api/v4/projects/%v", r.Header.Get("Referer"), push.Project.ID),
+			fmt.Sprintf("%s/api/v4/projects/%v", webUrl.Scheme+"://"+webUrl.Host, push.Project.ID),
 			headCommit.ID,
 		)
 

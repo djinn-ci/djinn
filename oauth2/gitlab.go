@@ -50,11 +50,7 @@ func (g GitLab) ToggleRepo(p *model.Provider, id int64) error {
 		buf := &bytes.Buffer{}
 
 		enc := json.NewEncoder(buf)
-		err = enc.Encode(body)
-
-		if err != nil {
-			println(err.Error())
-		}
+		enc.Encode(body)
 
 		resp, err := g.Post(string(tok), fmt.Sprintf("%s/projects/%v/hooks", g.Endpoint, id), buf)
 

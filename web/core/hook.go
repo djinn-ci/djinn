@@ -543,12 +543,13 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type mergeData struct {
-		User  struct{
+		User    struct{
 			Name string
 		}
-		Attrs struct{
-			ID              int64
-			SourceBranch    string `json:"source_branch"`
+		Project repo
+		Attrs   struct{
+			ID              int64  `json:"iid"`
+			TargetBranch    string `json:"target_branch"`
 			SourceProjectID int64  `json:"source_project_id"`
 			AuthorID        int64  `json:"author_id"`
 			Title           string
@@ -637,9 +638,11 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		webUrl, _ := url.Parse(merge.Project.WebURL)
+
 		urls, err := h.getGitlabManifestUrls(
 			tok,
-			fmt.Sprintf("%s/api/v4/projects/%v", r.Header.Get("Referer"), merge.Attrs.SourceProjectID),
+			fmt.Sprintf("%s/api/v4/projects/%v", webUrl.Scheme+"://"+webUrl.Host, merge.Attrs.SourceProjectID),
 			merge.Attrs.LastCommit.ID,
 		)
 
@@ -661,10 +664,10 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 		t.Comment = merge.Attrs.Title
 		t.Data.Set("id", strconv.FormatInt(merge.Attrs.ID, 10))
 		t.Data.Set("url", merge.Attrs.URL)
-		t.Data.Set("ref", merge.Attrs.SourceBranch)
+		t.Data.Set("ref", merge.Attrs.TargetBranch)
 		t.Data.Set("username", merge.User.Name)
 		t.Data.Set("action", merge.Attrs.Action)
-		return
+		break
 	}
 
 	if err != nil {

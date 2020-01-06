@@ -170,6 +170,7 @@ func (s *UI) Hook() {
 	r := s.router.PathPrefix("/hook").Subrouter()
 
 	r.HandleFunc("/github", s.hook.Github)
+	r.HandleFunc("/gitlab", s.hook.Gitlab)
 }
 
 func (s *UI) Auth() {

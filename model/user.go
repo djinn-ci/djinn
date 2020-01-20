@@ -13,11 +13,12 @@ import (
 type User struct {
 	Model
 
-	Email     string      `db:"email"`
-	Username  string      `db:"username"`
-	Password  []byte      `db:"password"`
-	DeletedAt pq.NullTime `db:"deleted_at"`
-	Connected bool        `db:"-"`
+	Email       string              `db:"email"`
+	Username    string              `db:"username"`
+	Password    []byte              `db:"password"`
+	DeletedAt   pq.NullTime         `db:"deleted_at"`
+	Connected   bool                `db:"-"`
+	Permissions map[string]struct{} `db:"-"`
 }
 
 type UserStore struct {
@@ -56,6 +57,9 @@ func (s UserStore) Get(opts ...query.Option) (*User, error) {
 	u := &User{
 		Model: Model{
 			DB: s.DB,
+		},
+		Permissions: map[string]struct{}{
+			"build:write": {},
 		},
 	}
 

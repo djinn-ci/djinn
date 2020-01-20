@@ -90,7 +90,9 @@ type IndexPage struct {
 {% endfunc %}
 
 {% func (p *IndexPage) Actions() %}
-	<li><a href="/builds/create" class="btn btn-primary">Submit</a></li>
+	{% if _, ok := p.User.Permissions["build:write"]; ok %}
+		<li><a href="/builds/create" class="btn btn-primary">Submit</a></li>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *IndexPage) Navigation() %}{% endfunc %}

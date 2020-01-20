@@ -55,10 +55,6 @@ func (s *UI) Init() {
 	s.router.NotFoundHandler = http.HandlerFunc(notFound)
 	s.router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowed)
 
-//	assets := http.StripPrefix("/assets/", http.FileServer(http.Dir(s.Assets)))
-//
-//	s.router.PathPrefix("/assets/").Handler(assets)
-
 	store := model.Store{
 		DB: s.DB,
 	}

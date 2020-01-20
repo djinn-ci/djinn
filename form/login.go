@@ -3,7 +3,6 @@ package form
 type Login struct {
 	Handle     string `schema:"handle"`
 	Password   string `schema:"password"`
-	RememberMe bool   `schema:"remember_me"`
 }
 
 func (f Login) Fields() map[string]string {

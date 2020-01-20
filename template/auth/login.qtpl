@@ -44,9 +44,6 @@ type LoginPage struct {
 					{%= p.Error("password") %}
 				</div>
 				<div class="input-field">
-					<label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label>
-				</div>
-				<div class="input-field">
 					<button type="submit" class="btn btn-primary">Login</button>
 				</div>
 				<div class="input-field">Don't have an account? <a href="/register">Register</a></div>

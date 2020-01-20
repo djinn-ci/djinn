@@ -132,11 +132,8 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 	cookie := &http.Cookie{
 		Name:     "user",
 		HttpOnly: true,
-	}
-
-	if f.RememberMe {
-		cookie.MaxAge = maxAge
-		cookie.Expires = time.Now().Add(time.Duration(maxAge) * time.Second)
+		MaxAge:   maxAge,
+		Expires:  time.Now().Add(time.Duration(maxAge)*time.Second),
 	}
 
 	id := strconv.FormatInt(u.ID, 10)

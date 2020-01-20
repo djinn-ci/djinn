@@ -123,32 +123,32 @@ func (p *LoginPage) StreamBody(qw422016 *qt422016.Writer) {
 //line template/auth/login.qtpl:44
 	p.StreamError(qw422016, "password")
 //line template/auth/login.qtpl:44
-	qw422016.N().S(` </div> <div class="input-field"> <label><input type="checkbox" name="remember_me" value="true"/> Remember Me</label> </div> <div class="input-field"> <button type="submit" class="btn btn-primary">Login</button> </div> <div class="input-field">Don't have an account? <a href="/register">Register</a></div> </form> </div> </div> `)
-//line template/auth/login.qtpl:56
+	qw422016.N().S(` </div> <div class="input-field"> <button type="submit" class="btn btn-primary">Login</button> </div> <div class="input-field">Don't have an account? <a href="/register">Register</a></div> </form> </div> </div> `)
+//line template/auth/login.qtpl:53
 }
 
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 func (p *LoginPage) WriteBody(qq422016 qtio422016.Writer) {
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 	p.StreamBody(qw422016)
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 	qt422016.ReleaseWriter(qw422016)
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 }
 
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 func (p *LoginPage) Body() string {
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 	p.WriteBody(qb422016)
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 	qs422016 := string(qb422016.B)
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 	return qs422016
-//line template/auth/login.qtpl:56
+//line template/auth/login.qtpl:53
 }

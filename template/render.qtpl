@@ -45,7 +45,7 @@ func RenderSize(n int64) string {
 	<form class="form-field form-search">
 		<input type="text" name="search" class="form-text" placeholder="{%s prompt %}" autocomplete="off" value="{%s search %}"/>
 		{% if search != "" %}
-			<a class="muted" href="{%s uri %}">{% cat "../svgs/close.svg" %}</a>
+			<a class="muted" href="{%s uri %}">{% cat "../static/svg/close.svg" %}</a>
 		{% endif %}
 	</form>
 {% endfunc %}
@@ -53,38 +53,38 @@ func RenderSize(n int64) string {
 {% func RenderStatus(s runner.Status) %}
 	{% switch s %}
 		{% case runner.Queued %}
-			<span class="pill w-90 pill-dark">{% cat "../svgs/hourglass.svg" %} Queued</span>
+			<span class="pill w-90 pill-dark">{% cat "../static/svg/hourglass.svg" %} Queued</span>
 		{% case runner.Running %}
-			<span class="pill w-90 pill-blue">{% cat "../svgs/timer.svg" %} Running</span>
+			<span class="pill w-90 pill-blue">{% cat "../static/svg/timer.svg" %} Running</span>
 		{% case runner.Passed %}
-			<span class="pill w-90 pill-green">{% cat "../svgs/check.svg" %} Passed</span>
+			<span class="pill w-90 pill-green">{% cat "../static/svg/check.svg" %} Passed</span>
 		{% case runner.PassedWithFailures %}
-			<span class="pill w-90 pill-orange">{% cat "../svgs/warning.svg" %} Passed</span>
+			<span class="pill w-90 pill-orange">{% cat "../static/svg/warning.svg" %} Passed</span>
 		{% case runner.Failed %}
-			<span class="pill w-90 pill-red">{% cat "../svgs/close.svg" %} Failed</span>
+			<span class="pill w-90 pill-red">{% cat "../static/svg/close.svg" %} Failed</span>
 		{% case runner.Killed %}
-			<span class="pill w-90 pill-red">{% cat "../svgs/stop.svg" %} Killed</span>
+			<span class="pill w-90 pill-red">{% cat "../static/svg/stop.svg" %} Killed</span>
 		{% case runner.TimedOut %}
-			<span class="pill w-90 pill-gray">{% cat "../svgs/stopwatch.svg" %} Timed Out</span>
+			<span class="pill w-90 pill-gray">{% cat "../static/svg/stopwatch.svg" %} Timed Out</span>
 	{% endswitch %}
 {% endfunc %}
 
 {% func RenderShortStatus(s runner.Status) %}
 	{% switch s %}
 		{% case runner.Queued %}
-			<span class="pill-bubble pill-dark" title="Queued">{% cat "../svgs/hourglass.svg" %}</span>
+			<span class="pill-bubble pill-dark" title="Queued">{% cat "../static/svg/hourglass.svg" %}</span>
 		{% case runner.Running %}
-			<span class="pill-bubble pill-blue" title="Running">{% cat "../svgs/timer.svg" %}</span>
+			<span class="pill-bubble pill-blue" title="Running">{% cat "../static/svg/timer.svg" %}</span>
 		{% case runner.Passed %}
-			<span class="pill-bubble pill-green" title="Passed">{% cat "../svgs/check.svg" %}</span>
+			<span class="pill-bubble pill-green" title="Passed">{% cat "../static/svg/check.svg" %}</span>
 		{% case runner.PassedWithFailures %}
-			<span class="pill-bubble pill-orange" title="Passed">{% cat "../svgs/warning.svg" %}</span>
+			<span class="pill-bubble pill-orange" title="Passed">{% cat "../static/svg/warning.svg" %}</span>
 		{% case runner.Failed %}
-			<span class="pill-bubble pill-red" title="Failed">{% cat "../svgs/close.svg" %}</span>
+			<span class="pill-bubble pill-red" title="Failed">{% cat "../static/svg/close.svg" %}</span>
 		{% case runner.Killed %}
-			<span class="pill-bubble pill-red" title="Killed">{% cat "../svgs/stop.svg" %}</span>
+			<span class="pill-bubble pill-red" title="Killed">{% cat "../static/svg/stop.svg" %}</span>
 		{% case runner.TimedOut %}
-			<span class="pill-bubble pill-gray" title="Timed Out">{% cat "../svgs/stopwatch.svg" %}</span>
+			<span class="pill-bubble pill-gray" title="Timed Out">{% cat "../static/svg/stopwatch.svg" %}</span>
 	{% endswitch %}
 {% endfunc %}
 {% endcollapsespace %}

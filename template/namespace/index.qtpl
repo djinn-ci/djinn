@@ -68,15 +68,15 @@ type IndexPage struct {
 							</td>
 							<td class="align-right muted">
 								{% if p.User.ID != n.UserID %}
-									{% cat "../../svgs/users.svg" %}
+									{% cat "../../static/svg/users.svg" %}
 								{% endif %}
 								{% switch n.Visibility %}
 									{% case types.Private %}
-										{% cat "../../svgs/lock.svg" %}
+										{% cat "../../static/svg/lock.svg" %}
 									{% case types.Internal %}
-										{% cat "../../svgs/security.svg" %}
+										{% cat "../../static/svg/security.svg" %}
 									{% case types.Public %}
-										{% cat "../../svgs/public.svg" %}
+										{% cat "../../static/svg/public.svg" %}
 								{% endswitch %}
 							</td>
 						</tr>

@@ -202,7 +202,7 @@ type ShowTags struct {
 							<ul class="panel-actions">
 								<li>
 									<a class="btn btn-primary" href="{%s p.Build.UIEndpoint("output", "raw") %}">
-										{% cat "../../svgs/document.svg" %}<span>Raw</span>
+										{% cat "../../static/svg/document.svg" %}<span>Raw</span>
 									</a>
 								</li>
 							</ul>
@@ -223,7 +223,7 @@ type ShowTags struct {
 			<ul class="panel-actions">
 				<li>
 					<a class="btn btn-primary" href="{%s p.Build.UIEndpoint("manifest", "raw") %}">
-						{% cat "../../svgs/document.svg" %}<span>Raw</span>
+						{% cat "../../static/svg/document.svg" %}<span>Raw</span>
 					</a>
 				</li>
 			</ul>
@@ -286,7 +286,7 @@ type ShowTags struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="/" class="back">{% cat "../../svgs/back.svg" %}</a>
+	<a href="/" class="back">{% cat "../../static/svg/back.svg" %}</a>
 	{% if !p.Build.Namespace.IsZero() %}
 		<a href="{%s p.Build.Namespace.UIEndpoint() %}">{%s p.Build.Namespace.Name %}</a> /
 	{% endif %}
@@ -309,37 +309,37 @@ type ShowTags struct {
 {% func (p *ShowPage) Navigation() %}
 	<li>
 		<a href="{%s p.Build.UIEndpoint() %}" class="{%s template.Active(p.Build.UIEndpoint() == p.URL.Path) %}">
-			{% cat "../../svgs/eye.svg" %}<span>Overview</span>
+			{% cat "../../static/svg/eye.svg" %}<span>Overview</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Build.UIEndpoint("manifest") %}" class="{%s template.Active(p.Build.UIEndpoint("manifest") == p.URL.Path) %}">
-			{% cat "../../svgs/list.svg" %}<span>Manifest</span>
+			{% cat "../../static/svg/list.svg" %}<span>Manifest</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Build.UIEndpoint("objects") %}" class="{%s template.Active(p.Build.UIEndpoint("objects") == p.URL.Path) %}">
-			{% cat "../../svgs/upload.svg" %}<span>Objects</span>
+			{% cat "../../static/svg/upload.svg" %}<span>Objects</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Build.UIEndpoint("artifacts") %}" class="{%s template.Active(p.Build.UIEndpoint("artifacts") == p.URL.Path) %}">
-			{% cat "../../svgs/download.svg" %}<span>Artifacts</span>
+			{% cat "../../static/svg/download.svg" %}<span>Artifacts</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Build.UIEndpoint("variables") %}" class="{%s template.Active(p.Build.UIEndpoint("variables") == p.URL.Path) %}">
-			{% cat "../../svgs/code.svg" %}<span>Variables</span>
+			{% cat "../../static/svg/code.svg" %}<span>Variables</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Build.UIEndpoint("keys") %}" class="{%s template.Active(p.Build.UIEndpoint("keys") == p.URL.Path) %}">
-			{% cat "../../svgs/key.svg" %}<span>Keys</span>
+			{% cat "../../static/svg/key.svg" %}<span>Keys</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Build.UIEndpoint("tags") %}" class="{%s template.Active(p.Build.UIEndpoint("tags") == p.URL.Path) %}">
-			{% cat "../../svgs/tag.svg" %}<span>Tags</span>
+			{% cat "../../static/svg/tag.svg" %}<span>Tags</span>
 		</a>
 	</li>
 {% endfunc %}

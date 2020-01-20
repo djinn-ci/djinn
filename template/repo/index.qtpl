@@ -65,15 +65,15 @@ var providerNames = map[string]string{
 									<span class="muted">
 										{% switch r.Provider.Name %}
 										{% case "github" %}
-											{% cat "../../svgs/github.svg" %}
+											{% cat "../../static/svg/github.svg" %}
 										{% case "gitlab" %}
-											{% cat "../../svgs/gitlab.svg" %}
+											{% cat "../../static/svg/gitlab.svg" %}
 										{% endswitch %}
 									</span>
 									<a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a>
 								</td>
 								{% if !r.Provider.Connected %}
-									<td class="warning">{% cat "../../svgs/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}</td>
+									<td class="warning">{% cat "../../static/svg/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}</td>
 								{% else %}
 									<td></td>
 								{% endif %}

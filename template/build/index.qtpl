@@ -85,7 +85,7 @@ type IndexPage struct {
 {% func (p *IndexPage) Header() %}
 	Builds
 	{% if p.Tag != "" %}
-		<span class="pill pill-light">{%s p.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../svgs/close.svg" %}</a></span>
+		<span class="pill pill-light">{%s p.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../static/svg/close.svg" %}</a></span>
 	{% endif %}
 {% endfunc %}
 

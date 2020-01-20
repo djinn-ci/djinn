@@ -56,7 +56,7 @@ type IndexPage struct {
 								</td>
 								<td class="align-right">
 									{% if p.User.ID != o.UserID %}
-										<span class="muted">{% cat "../../svgs/users.svg" %}</span>
+										<span class="muted">{% cat "../../static/svg/users.svg" %}</span>
 									{% endif %}
 								</td>
 								<td class="align-right">

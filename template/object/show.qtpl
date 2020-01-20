@@ -52,13 +52,13 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="/objects" class="back">{% cat "../../svgs/back.svg" %}</a>
+	<a href="/objects" class="back">{% cat "../../static/svg/back.svg" %}</a>
 	{% if !p.Object.Namespace.IsZero() %}
 		<a href="{%s p.Object.Namespace.UIEndpoint() %}">{%s p.Object.Namespace.Name %}</a> /
 	{% endif %}
 	{%s p.Object.Name %}
 	{% if p.Index.Tag != "" %}
-		<span class="pill pill-light">{%s p.Index.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../svgs/close.svg" %}</a></span>
+		<span class="pill pill-light">{%s p.Index.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../static/svg/close.svg" %}</a></span>
 	{% endif %}
 {% endfunc %}
 

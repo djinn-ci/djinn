@@ -111,19 +111,19 @@ func (p *Form) disabled(vis types.Visibility) string {
 					<label class="form-option {%s p.disabled(types.Private) %}">
 						<input class="form-selector" type="radio" name="visibility" value="private" {%s p.checked(types.Private) %} {%s p.disabled(types.Private) %}/>
 						<strong>Private</strong>
-						{% cat "../../svgs/lock.svg" %}
+						{% cat "../../static/svg/lock.svg" %}
 						<div class="form-desc">You choose who can view builds in the namespace.</div>
 					</label>
 					<label class="form-option {%s p.disabled(types.Internal) %}">
 						<input class="form-selector" type="radio" name="visibility" value="internal" {%s p.checked(types.Internal) %} {%s p.disabled(types.Internal) %}/>
 						<strong>Internal</strong>
-						{% cat "../../svgs/security.svg" %}
+						{% cat "../../static/svg/security.svg" %}
 						<div class="form-desc">Anyone with an account will be able to view builds in the namespace.</div>
 					</label>
 					<label class="form-option {%s p.disabled(types.Public) %}">
 						<input class="form-selector" type="radio" name="visibility" value="public" {%s p.checked(types.Public) %} {%s p.disabled(types.Public) %}/>
 						<strong>Public</strong>
-						{% cat "../../svgs/public.svg" %}
+						{% cat "../../static/svg/public.svg" %}
 						<div class="form-desc">Anyone will be able to view builds in the namespace.</div>
 					</label>
 				</div>
@@ -154,14 +154,14 @@ func (p *Form) disabled(vis types.Visibility) string {
 
 {% func (p *Form) Header() %}
 	{% if p.Namespace != nil %}
-		<a class="back" href="{%s p.Namespace.UIEndpoint() %}">{% cat "../../svgs/back.svg" %}</a>
+		<a class="back" href="{%s p.Namespace.UIEndpoint() %}">{% cat "../../static/svg/back.svg" %}</a>
 		{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %} - Edit
 	{% else %}
 		{% if p.Parent != nil && !p.Parent.IsZero() %}
-			<a class="back" href="{%s p.Parent.UIEndpoint() %}">{% cat "../../svgs/back.svg" %}</a>
+			<a class="back" href="{%s p.Parent.UIEndpoint() %}">{% cat "../../static/svg/back.svg" %}</a>
 			{%= renderPath(p.Parent.User.Username, p.Parent.Path) %} - Create Sub-namespace
 		{% else %}
-			<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a> Create Namespace
+			<a class="back" href="/namespaces">{% cat "../../static/svg/back.svg" %}</a> Create Namespace
 		{% endif %}
 	{% endif %}
 {% endfunc %}

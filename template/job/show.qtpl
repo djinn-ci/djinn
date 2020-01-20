@@ -69,7 +69,7 @@ type ShowPage struct {
 					<div class="panel-header">
 						<h3>Output</h3>
 						<ul class="panel-actions">
-							<li><a class="btn btn-primary" href="{%s p.Job.UIEndpoint("output", "raw") %}">{% cat "../../svgs/document.svg" %}<span>Raw</span></a></li>
+							<li><a class="btn btn-primary" href="{%s p.Job.UIEndpoint("output", "raw") %}">{% cat "../../static/svg/document.svg" %}<span>Raw</span></a></li>
 						</ul>
 					</div>
 					{%= template.RenderCode(p.Job.Output.String) %}
@@ -90,7 +90,7 @@ type ShowPage struct {
 {% endfunc %}
 
 {% func (p *ShowPage) Header() %}
-	<a href="{%s p.Job.Build.UIEndpoint() %}" class="back">{% cat "../../svgs/back.svg" %}</a>
+	<a href="{%s p.Job.Build.UIEndpoint() %}" class="back">{% cat "../../static/svg/back.svg" %}</a>
 	{% if !p.Job.Build.Namespace.IsZero() %}
 		<a href="{%s p.Job.Build.Namespace.UIEndpoint() %}">{%s p.Job.Build.Namespace.Name %}</a> /
 	{% endif %}

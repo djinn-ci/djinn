@@ -143,13 +143,13 @@ type ShowCollaborators struct {
 
 {% func (p *ShowPage) Header() %}
 	{% if p.Namespace.Parent != nil %}
-		<a class="back" href="{%s p.Namespace.Parent.UIEndpoint() %}">{%cat "../../svgs/back.svg" %}</a>
+		<a class="back" href="{%s p.Namespace.Parent.UIEndpoint() %}">{%cat "../../static/svg/back.svg" %}</a>
 	{% else %}
-		<a class="back" href="/namespaces">{% cat "../../svgs/back.svg" %}</a>
+		<a class="back" href="/namespaces">{% cat "../../static/svg/back.svg" %}</a>
 	{% endif %}
 	{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %}
 	{% if p.Index.Tag != "" %}
-		<span class="pill pill-light">{%s p.Index.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../svgs/close.svg" %}</a></span>
+		<span class="pill pill-light">{%s p.Index.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../static/svg/close.svg" %}</a></span>
 	{% endif %}
 	<small>{%s p.Namespace.Description %}</small>
 {% endfunc %}
@@ -166,32 +166,32 @@ type ShowCollaborators struct {
 {% func (p *ShowPage) Navigation() %}
 	<li>
 		<a href="{%s p.Namespace.UIEndpoint() %}" class="{%s template.Active(p.Namespace.UIEndpoint() == p.URL.Path) %}">
-			{% cat "../../svgs/build.svg" %}<span>Builds</span>
+			{% cat "../../static/svg/build.svg" %}<span>Builds</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Namespace.UIEndpoint("-", "namespaces") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "namespaces") == p.URL.Path) %}">
-			{% cat "../../svgs/folder.svg" %}<span>Namespaces</span>
+			{% cat "../../static/svg/folder.svg" %}<span>Namespaces</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Namespace.UIEndpoint("-", "objects") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "objects") == p.URL.Path) %}">
-			{% cat "../../svgs/upload.svg" %}<span>Objects</span>
+			{% cat "../../static/svg/upload.svg" %}<span>Objects</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Namespace.UIEndpoint("-", "variables") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "variables") == p.URL.Path) %}">
-			{% cat "../../svgs/code.svg" %}<span>Variables</span>
+			{% cat "../../static/svg/code.svg" %}<span>Variables</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Namespace.UIEndpoint("-", "keys") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "keys") == p.URL.Path) %}">
-			{% cat "../../svgs/key.svg" %}<span>SSH Keys</span>
+			{% cat "../../static/svg/key.svg" %}<span>SSH Keys</span>
 		</a>
 	</li>
 	<li>
 		<a href="{%s p.Namespace.UIEndpoint("-", "collaborators") %}" class="{%s template.Active(p.Namespace.UIEndpoint("-", "collaborators") == p.URL.Path) %}">
-			{% cat "../../svgs/users.svg" %}<span>Collaborators</span>
+			{% cat "../../static/svg/users.svg" %}<span>Collaborators</span>
 		</a>
 	</li>
 {% endfunc %}

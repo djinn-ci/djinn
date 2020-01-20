@@ -72,7 +72,7 @@ func (p *Form) action() string {
 {% endfunc %}
 
 {% func (p *Form) Header() %}
-	<a class="back" href="/keys">{% cat "../../svgs/back.svg" %}</a>
+	<a class="back" href="/keys">{% cat "../../static/svg/back.svg" %}</a>
 	{% if p.Key != nil %}
 		{%s p.Key.Name %} - Edit
 	{% else %}

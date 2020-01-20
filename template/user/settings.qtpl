@@ -37,9 +37,9 @@ type ShowInvites struct {
 		<a href="{%s prv.AuthURL %}" class="provider-btn provider-{%s prv.Name %}">
 			{% switch prv.Name %}
 			{% case "github" %}
-				{% cat "../../svgs/github.svg" %}
+				{% cat "../../static/svg/github.svg" %}
 			{% case "gitlab" %}
-				{% cat "../../svgs/gitlab.svg" %}
+				{% cat "../../static/svg/gitlab.svg" %}
 			{% endswitch %}
 			<span>Connect</span>
 		</a>
@@ -50,9 +50,9 @@ type ShowInvites struct {
 			<button type="submit" class="provider-btn provider-{%s prv.Name %}">
 				{% switch prv.Name %}
 				{% case "github" %}
-					{% cat "../../svgs/github.svg" %}
+					{% cat "../../static/svg/github.svg" %}
 				{% case "gitlab" %}
-					{% cat "../../svgs/gitlab.svg" %}
+					{% cat "../../static/svg/gitlab.svg" %}
 				{% endswitch %}
 				<span>Disconnect</span>
 			</button>
@@ -171,16 +171,16 @@ type ShowInvites struct {
 {% func (p *SettingsPage) Navigation() %}
 	<li>
 		{% if p.URL.Path == "/settings" %}
-			<a href="/settings" class="active">{% cat "../../svgs/user.svg" %}<span>Account</span></a>
+			<a href="/settings" class="active">{% cat "../../static/svg/user.svg" %}<span>Account</span></a>
 		{% else %}
-			<a href="/settings">{% cat "../../svgs/user.svg" %}<span>Account</span></a>
+			<a href="/settings">{% cat "../../static/svg/user.svg" %}<span>Account</span></a>
 		{% endif %}
 	</li>
 	<li>
 		{% if p.URL.Path == "/settings/invites" %}
-			<a href="/settings/invites" class="active">{% cat "../../svgs/folder.svg" %}<span>Invites</span></a>
+			<a href="/settings/invites" class="active">{% cat "../../static/svg/folder.svg" %}<span>Invites</span></a>
 		{% else %}
-			<a href="/settings/invites">{% cat "../../svgs/folder.svg" %}<span>Invites</span></a>
+			<a href="/settings/invites">{% cat "../../static/svg/folder.svg" %}<span>Invites</span></a>
 		{% endif %}
 	</li>
 {% endfunc %}

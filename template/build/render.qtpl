@@ -12,37 +12,37 @@ import (
 		<ul class="panel-nav">
 			<li>
 				<a href="{%s uri %}" {% if status == "" %}class="active"{% endif %}>
-					{% cat "../../svgs/build.svg" %}<span>All</span>
+					{% cat "../../static/svg/build.svg" %}<span>All</span>
 				</a>
 			</li>
 			<li>
 				<a href="?status=queued" {% if status == "queued" %}class="active"{% endif %}>
-					{% cat "../../svgs/hourglass.svg" %}<span>Queued</span>
+					{% cat "../../static/svg/hourglass.svg" %}<span>Queued</span>
 				</a>
 			</li>
 			<li>
 				<a href="?status=running" {% if status == "running" %}class="active"{% endif %}>
-					{% cat "../../svgs/timer.svg" %}<span>Running</span>
+					{% cat "../../static/svg/timer.svg" %}<span>Running</span>
 				</a>
 			</li>
 			<li>
 				<a href="?status=passed" {% if status == "passed" %}class="active"{% endif %}>
-					{% cat "../../svgs/check.svg" %}<span>Passed</span>
+					{% cat "../../static/svg/check.svg" %}<span>Passed</span>
 				</a>
 			</li>
 			<li>
 				<a href="?status=failed" {% if status == "failed" %}class="active"{% endif %}>
-					{% cat "../../svgs/close.svg" %}<span>Failed</span>
+					{% cat "../../static/svg/close.svg" %}<span>Failed</span>
 				</a>
 			</li>
 			<li>
 				<a href="?status=killed" {% if status == "killed" %}class="active"{% endif %}>
-					{% cat "../../svgs/stop.svg" %}<span>Killed</span>
+					{% cat "../../static/svg/stop.svg" %}<span>Killed</span>
 				</a>
 			</li>
 			<li>
 				<a href="?status=timed_out" {% if status == "timed_out" %}class="active"{% endif %}>
-					{% cat "../../svgs/stopwatch.svg" %}<span>Timed Out</span>
+					{% cat "../../static/svg/stopwatch.svg" %}<span>Timed Out</span>
 				</a>
 			</li>
 		</ul>
@@ -95,9 +95,9 @@ import (
 					</td>
 					<td class="align-right">
 						{% if o.Placed %}
-							<span class="pill pill-green">{% cat "../../svgs/check.svg"  %} Placed</span>
+							<span class="pill pill-green">{% cat "../../static/svg/check.svg"  %} Placed</span>
 						{% else %}
-							<span class="pill pill-red">{% cat "../../svgs/close.svg" %} Not Placed</span>
+							<span class="pill pill-red">{% cat "../../static/svg/close.svg" %} Not Placed</span>
 						{% endif %}
 					</td>
 				</tr>

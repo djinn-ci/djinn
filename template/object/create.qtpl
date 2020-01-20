@@ -45,7 +45,7 @@ type CreatePage struct {
 {% endfunc %}
 
 {% func (p *CreatePage) Header() %}
-	<a href="/objects" class="back">{% cat "../../svgs/back.svg" %}</a> Create Object
+	<a href="/objects" class="back">{% cat "../../static/svg/back.svg" %}</a> Create Object
 {% endfunc %}
 
 {% func (p *CreatePage) Actions() %}{% endfunc %}

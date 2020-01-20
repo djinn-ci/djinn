@@ -14,8 +14,8 @@ type RegisterPage struct {
 	Register - Thrall
 {% endfunc %}
 
-{% func (p *RegisterPage) Styles() %}
-	<link rel="stylesheet" type="text/css" href="/assets/css/auth.css">
+{% func (p *RegisterPage) Footer() %}
+	<style type="text/css">{% cat "../../static/auth.css" %}</style>
 {% endfunc %}
 
 {% func (p *RegisterPage) Body() %}

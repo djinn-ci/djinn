@@ -14,8 +14,8 @@ type LoginPage struct {
 	Login - Thrall
 {% endfunc %}
 
-{% func (p *LoginPage) Styles() %}
-	<link rel="stylesheet" type="text/css" href="/assets/css/auth.css">
+{% func (p *LoginPage) Footer() %}
+	<style type="text/css">{% cat "../../static/auth.css" %}</style>
 {% endfunc %}
 
 {% func (p *LoginPage) Body() %}

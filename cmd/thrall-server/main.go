@@ -203,9 +203,7 @@ func mainCommand(cmd cli.Command) {
 	}
 
 	srv := server.Server{
-		Server: &http.Server{
-			Addr: cfg.Net.Listen,
-		},
+		Server:      &http.Server{Addr: cfg.Net.Listen},
 		Cert:        cfg.Net.SSL.Cert,
 		Key:         cfg.Net.SSL.Key,
 		DB:          db,
@@ -222,10 +220,7 @@ func mainCommand(cmd cli.Command) {
 		Middleware:  middleware,
 	}
 
-	ui := server.UI{
-		Server: srv,
-		Assets: "public",
-	}
+	ui := server.UI{Server: srv}
 
 	ui.Init()
 

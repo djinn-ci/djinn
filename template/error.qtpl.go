@@ -59,29 +59,33 @@ func (p *Error) Title() string {
 }
 
 //line template/error.qtpl:17
-func (p *Error) StreamStyles(qw422016 *qt422016.Writer) {
+func (p *Error) StreamFooter(qw422016 *qt422016.Writer) {
 //line template/error.qtpl:17
-	qw422016.N().S(` <link rel="stylesheet" type="text/css" href="/assets/css/error.css"> `)
+	qw422016.N().S(` <style type="text/css">`)
+//line template/error.qtpl:18
+	qw422016.N().S(`*{margin:0;padding:0}body{font-family:sans-serif;font-size:14px;background:#383e51;color:#fff}h1,h2{font-weight:400}.error{margin:0 auto;margin-top:150px;max-width:400px;padding:20px;text-align:center}.error h2{margin-top:20px}`)
+//line template/error.qtpl:18
+	qw422016.N().S(`</style> `)
 //line template/error.qtpl:19
 }
 
 //line template/error.qtpl:19
-func (p *Error) WriteStyles(qq422016 qtio422016.Writer) {
+func (p *Error) WriteFooter(qq422016 qtio422016.Writer) {
 //line template/error.qtpl:19
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line template/error.qtpl:19
-	p.StreamStyles(qw422016)
+	p.StreamFooter(qw422016)
 //line template/error.qtpl:19
 	qt422016.ReleaseWriter(qw422016)
 //line template/error.qtpl:19
 }
 
 //line template/error.qtpl:19
-func (p *Error) Styles() string {
+func (p *Error) Footer() string {
 //line template/error.qtpl:19
 	qb422016 := qt422016.AcquireByteBuffer()
 //line template/error.qtpl:19
-	p.WriteStyles(qb422016)
+	p.WriteFooter(qb422016)
 //line template/error.qtpl:19
 	qs422016 := string(qb422016.B)
 //line template/error.qtpl:19

@@ -35,8 +35,6 @@ type UI struct {
 	user         ui.User
 	variable     ui.Variable
 	gate         gate
-
-	Assets string
 }
 
 func (s *UI) Init() {
@@ -57,9 +55,9 @@ func (s *UI) Init() {
 	s.router.NotFoundHandler = http.HandlerFunc(notFound)
 	s.router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowed)
 
-	assets := http.StripPrefix("/assets/", http.FileServer(http.Dir(s.Assets)))
-
-	s.router.PathPrefix("/assets/").Handler(assets)
+//	assets := http.StripPrefix("/assets/", http.FileServer(http.Dir(s.Assets)))
+//
+//	s.router.PathPrefix("/assets/").Handler(assets)
 
 	store := model.Store{
 		DB: s.DB,

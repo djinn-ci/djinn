@@ -14,8 +14,8 @@ type Error struct {
 	Error - Thrall
 {% endfunc %}
 
-{% func (p *Error) Styles() %}
-	<link rel="stylesheet" type="text/css" href="/assets/css/error.css">
+{% func (p *Error) Footer() %}
+	<style type="text/css">{% cat "../static/error.css" %}</style>
 {% endfunc %}
 
 {% func (p *Error) Body() %}

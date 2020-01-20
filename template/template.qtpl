@@ -12,8 +12,6 @@ import (
 interface Dashboard {
 	Title()
 
-	Styles()
-
 	Body()
 
 	Footer()
@@ -29,8 +27,6 @@ interface Dashboard {
 {%
 interface Page {
 	Title()
-
-	Styles()
 
 	Body()
 
@@ -164,7 +160,6 @@ func (l level) String() string {
 			<meta charset="utf-8">
 			<meta content="width=device-width, initial-scal=1" name="viewport">
 			<title>{%= p.Title() %}</title>
-			{%= p.Styles() %}
 		</head>
 		<body>{%= p.Body() %}</body>
 		<footer>{%= p.Footer() %}</footer>
@@ -179,12 +174,11 @@ func (l level) String() string {
 	Thrall
 {% endfunc %}
 
-{% func (p *BasePage) Styles() %}
-	<link rel="stylesheet" type="text/css" href="/assets/css/main.css">
-{% endfunc %}
-
 {% func (p *BasePage) Body() %}{% endfunc %}
-{% func (p *BasePage) Footer() %}{% endfunc %}
+
+{% func (p *BasePage) Footer() %}
+	<style type="text/css">{% cat "../static/main.css" %}</style>
+{% endfunc %}
 
 {% func (p *baseDashboard) Body() %}
 	<div class="dashboard">

@@ -8,6 +8,8 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/lib/pq"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -24,6 +26,8 @@ type User struct {
 type UserStore struct {
 	Store
 }
+
+var ErrUserAuth = errors.New("Invalid user credentials")
 
 func userToInterface(uu []*User) func(i int) Interface {
 	return func(i int) Interface {
@@ -45,6 +49,23 @@ func (s UserStore) All(opts ...query.Option) ([]*User, error) {
 	}
 
 	return uu, nil
+}
+
+func (s UserStore) Auth(handle, password string) (*User, error) {
+	u, err := s.Get(
+		query.Where("email", "=", handle),
+		query.OrWhere("username", "=", handle),
+	)
+
+	if err != nil {
+		return u, errors.Err(err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword(u.Password, []byte(password)); err != nil {
+		return u, errors.Err(ErrUserAuth)
+	}
+
+	return u, nil
 }
 
 func (s UserStore) Create(uu ...*User) error {

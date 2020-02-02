@@ -8,12 +8,11 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/auth"
 	"github.com/andrewpillar/thrall/web"
-
-	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
 
@@ -106,21 +105,18 @@ func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.Users.Get(
-		query.Where("username", "=", f.Handle),
-		query.OrWhere("email", "=", f.Handle),
-	)
+	u, err := h.Users.Auth(f.Handle, f.Password)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
+		if errors.Cause(err) != model.ErrUserAuth {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
 
-	if err := bcrypt.CompareHashAndPassword(u.Password, []byte(f.Password)); err != nil {
 		errs := form.NewErrors()
-		errs.Put("handle", errors.New("Invalid login credentials"))
-		errs.Put("password", errors.New("Invalid login credentials"))
+		errs.Put("handle", model.ErrUserAuth)
+		errs.Put("password", model.ErrUserAuth)
 
 		h.FlashErrors(w, r, errs)
 		h.FlashForm(w, r, f)

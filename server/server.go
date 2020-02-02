@@ -2,6 +2,7 @@ package server
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/model"
@@ -23,6 +24,9 @@ type Server struct {
 
 	Cert string
 	Key  string
+
+	Build   string
+	Version string
 
 	router *mux.Router
 
@@ -58,63 +62,70 @@ type Server struct {
 }
 
 func notFound(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		web.JSONError(w, "Not found", http.StatusNotFound)
+		return
+	}
 	web.HTMLError(w, "Not found", http.StatusNotFound)
 }
 
 func methodNotAllowed(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		web.JSONError(w, "Method not allowed", http.StatusNotFound)
+		return
+	}
 	web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-func (s *Server) Init() {
-	store := model.Store{
-		DB: s.DB,
+func (s Server) about(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		data := map[string]string{
+			"version":  s.Version,
+			"revision": s.Build,
+		}
+
+		web.JSON(w, data, http.StatusOK)
+		return
 	}
+}
+
+func (s *Server) Init() {
+	store := model.Store{DB: s.DB}
+
+	s.router = mux.NewRouter()
+	s.Server.Handler = s.router
+
+	s.router.NotFoundHandler = http.HandlerFunc(notFound)
+	s.router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowed)
+	s.router.HandleFunc("/about", s.about)
 
 	s.namespace = core.Namespace{
 		Handler:    s.Handler,
-		Namespaces: model.NamespaceStore{
-			Store: store,
-		},
+		Namespaces: model.NamespaceStore{Store: store},
 	}
 
 	s.build = core.Build{
 		Handler:    s.Handler,
 		Namespace:  s.namespace,
-		Namespaces: model.NamespaceStore{
-			Store: store,
-		},
-		Builds:     model.BuildStore{
-			Store: store,
-		},
-		Images:     model.ImageStore{
-			Store: store,
-		},
-		Variables:  model.VariableStore{
-			Store: store,
-		},
-		Keys:       model.KeyStore{
-			Store: store,
-		},
-		Objects:    model.ObjectStore{
-			Store: store,
-		},
+		Namespaces: model.NamespaceStore{Store: store},
+		Builds:     model.BuildStore{Store: store},
+		Images:     model.ImageStore{Store: store},
+		Variables:  model.VariableStore{Store: store},
+		Keys:       model.KeyStore{Store: store},
+		Objects:    model.ObjectStore{Store: store},
 		Client:     s.Redis,
 		Queues:     s.Queues,
 	}
 
 	s.collaborator = core.Collaborator{
 		Handler: s.Handler,
-		Invites: model.InviteStore{
-			Store: store,
-		},
+		Invites: model.InviteStore{Store: store},
 	}
 
 	s.hook = core.Hook{
 		Handler:         s.Handler,
 		Build:           s.build,
-		Providers:       model.ProviderStore{
-			Store: store,
-		},
+		Providers:       model.ProviderStore{Store: store},
 		Oauth2Providers: s.Providers,
 	}
 
@@ -123,28 +134,18 @@ func (s *Server) Init() {
 		Namespace: s.namespace,
 		FileStore: s.Images,
 		Limit:     s.ImageLimit,
-		Images:    model.ImageStore{
-			Store: store,
-		},
+		Images:    model.ImageStore{Store: store},
 	}
 
-	s.invite = core.Invite{
-		Handler: s.Handler,
-	}
+	s.invite = core.Invite{Handler: s.Handler}
 
-	s.job = core.Job{
-		Handler: s.Handler,
-	}
+	s.job = core.Job{Handler: s.Handler}
 
 	s.key = core.Key{
 		Handler:    s.Handler,
 		Namespace:  s.namespace,
-		Keys:       model.KeyStore{
-			Store: store,
-		},
-		Namespaces: model.NamespaceStore{
-			Store: store,
-		},
+		Keys:       model.KeyStore{Store: store},
+		Namespaces: model.NamespaceStore{Store: store},
 	}
 
 	s.object = core.Object{
@@ -152,27 +153,17 @@ func (s *Server) Init() {
 		Namespace:  s.namespace,
 		FileStore:  s.Objects,
 		Limit:      s.ObjectLimit,
-		Namespaces: model.NamespaceStore{
-			Store: store,
-		},
-		Objects:   model.ObjectStore{
-			Store: store,
-		},
+		Namespaces: model.NamespaceStore{Store: store},
+		Objects:    model.ObjectStore{Store: store},
 	}
 
-	s.tag = core.Tag{
-		Handler: s.Handler,
-	}
+	s.tag = core.Tag{Handler: s.Handler}
 
 	s.variable = core.Variable{
 		Handler:    s.Handler,
 		Namespace:  s.namespace,
-		Namespaces: model.NamespaceStore{
-			Store: store,
-		},
-		Variables:  model.VariableStore{
-			Store: store,
-		},
+		Namespaces: model.NamespaceStore{Store: store},
+		Variables:  model.VariableStore{Store: store},
 	}
 }
 

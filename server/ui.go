@@ -11,7 +11,6 @@ import (
 	"github.com/andrewpillar/thrall/web/ui"
 
 	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
 )
 
 type UI struct {
@@ -38,8 +37,6 @@ type UI struct {
 }
 
 func (s *UI) Init() {
-	s.Server.Init()
-
 	gob.Register(form.NewErrors())
 	gob.Register(template.Alert{})
 	gob.Register(make(map[string]string))
@@ -50,34 +47,17 @@ func (s *UI) Init() {
 		csrf.FieldName("csrf_token"),
 	)
 
-	s.router = mux.NewRouter()
+	s.Server.Server.Handler = web.NewSpoof(s.router)
 
-	s.router.NotFoundHandler = http.HandlerFunc(notFound)
-	s.router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowed)
-
-	store := model.Store{
-		DB: s.DB,
-	}
+	store := model.Store{DB: s.DB}
 
 	s.gate = gate{
-		users:      model.UserStore{
-			Store: store,
-		},
-		namespaces: model.NamespaceStore{
-			Store: store,
-		},
-		images:     model.ImageStore{
-			Store: store,
-		},
-		objects:    model.ObjectStore{
-			Store: store,
-		},
-		variables:  model.VariableStore{
-			Store: store,
-		},
-		keys:       model.KeyStore{
-			Store: store,
-		},
+		users:      model.UserStore{Store: store},
+		namespaces: model.NamespaceStore{Store: store},
+		images:     model.ImageStore{Store: store},
+		objects:    model.ObjectStore{Store: store},
+		variables:  model.VariableStore{Store: store},
+		keys:       model.KeyStore{Store: store},
 	}
 
 	s.artifact = ui.Artifact{
@@ -115,8 +95,8 @@ func (s *UI) Init() {
 	}
 
 	s.oauth = ui.Oauth{
-		Handler:   s.Handler,
-		Providers: s.Providers,
+		Handler:        s.Handler,
+		Providers:      s.Providers,
 	}
 
 	s.object = ui.Object{
@@ -152,12 +132,6 @@ func (s *UI) Init() {
 		Variable: s.variable,
 		Key:      s.key,
 	}
-}
-
-func (s *UI) Serve() error {
-	s.Server.Server.Handler = web.NewSpoof(s.router)
-
-	return s.Server.Serve()
 }
 
 func (s *UI) Hook() {
@@ -199,8 +173,13 @@ func (s *UI) Auth() {
 func (s *UI) Oauth() {
 	r := s.router.PathPrefix("/oauth").Subrouter()
 
-	r.HandleFunc("/{provider}", s.oauth.Auth).Methods("GET")
-	r.HandleFunc("/{provider}", s.oauth.Revoke).Methods("DELETE")
+//	r.HandleFunc("/authorize", s.oauth.Auth).Methods("POST")
+//	r.HandleFunc("/token", s.oauth.Token)
+//	r.HandleFunc("/revoke", s.oauth.Revoke)
+//	r.HandleFunc("/introspect", s.oauth.Introspect)
+
+	r.HandleFunc("/{provider}", s.oauth.AuthClient).Methods("GET")
+	r.HandleFunc("/{provider}", s.oauth.RevokeClient).Methods("DELETE")
 
 	r.Use(s.csrf)
 }

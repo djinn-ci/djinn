@@ -206,6 +206,7 @@ func mainCommand(cmd cli.Command) {
 		Server:      &http.Server{Addr: cfg.Net.Listen},
 		Cert:        cfg.Net.SSL.Cert,
 		Key:         cfg.Net.SSL.Key,
+		Build:       Build,
 		DB:          db,
 		Redis:       client,
 		CSRFToken:   authKey,
@@ -220,32 +221,69 @@ func mainCommand(cmd cli.Command) {
 		Middleware:  middleware,
 	}
 
-	ui := server.UI{Server: srv}
+	serveUI := cmd.Flags.IsSet("ui")
+	serveAPI := cmd.Flags.IsSet("api")
 
-	ui.Init()
-
-	ui.Hook()
-
-	ui.Auth()
-	ui.Oauth()
-	ui.Guest()
-
-	ui.Namespace()
-	ui.Build()
-
-	if cfg.Images != "" {
-		ui.Image()
+	// No flags were given, so serve both.
+	if !serveUI && !serveAPI {
+		serveUI = true
+		serveAPI = true
 	}
 
-	ui.Object()
-	ui.Variable()
-	ui.Key()
+	srv.Init()
+
+	if serveUI {
+		ui := server.UI{Server: srv}
+
+		ui.Init()
+
+		ui.Hook()
+
+		ui.Auth()
+		ui.Oauth()
+		ui.Guest()
+
+		ui.Namespace()
+		ui.Build()
+
+		if cfg.Images != "" {
+			ui.Image()
+		}
+
+		ui.Object()
+		ui.Variable()
+		ui.Key()
+	}
+
+	var apiPrefix string
+
+	if serveAPI {
+		if serveUI {
+			apiPrefix = "api"
+		}
+
+		api := server.API{
+			Server: srv,
+			Prefix: apiPrefix,
+		}
+
+		api.Init()
+
+//		api.Namespace()
+		api.Build()
+
+//		if cfg.Images != "" {
+//			api.Image()
+//		}
+//
+//		api.Object()
+//		api.Variable()
+//		api.Key()
+	}
 
 	go func() {
-		if err := ui.Serve(); err != nil {
-			cause := errors.Cause(err)
-
-			if cause != http.ErrServerClosed {
+		if err := srv.Serve(); err != nil {
+			if cause := errors.Cause(err); cause != http.ErrServerClosed {
 				log.Error.Fatal(cause)
 			}
 		}
@@ -256,13 +294,17 @@ func mainCommand(cmd cli.Command) {
 
 	log.Info.Println("thrall-server started on", cfg.Net.Listen)
 
+	if apiPrefix != "" {
+		log.Info.Println("api routes being served under /"+apiPrefix)
+	}
+
 	c := make(chan os.Signal, 1)
 
 	signal.Notify(c, os.Interrupt, os.Kill)
 
 	sig := <-c
 
-	ui.Shutdown(ctx)
+	srv.Shutdown(ctx)
 
 	log.Info.Println("signal:", sig, "received, shutting down")
 }
@@ -279,6 +321,16 @@ func main() {
 		Handler:   func(f cli.Flag, c cli.Command) {
 			fmt.Println("thrall-server", Build)
 		},
+	})
+
+	cmd.AddFlag(&cli.Flag{
+		Name: "ui",
+		Long: "--ui",
+	})
+
+	cmd.AddFlag(&cli.Flag{
+		Name: "api",
+		Long: "--api",
 	})
 
 	cmd.AddFlag(&cli.Flag{

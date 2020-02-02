@@ -20,7 +20,7 @@ type Oauth struct {
 	Providers map[string]oauth2.Provider
 }
 
-func (h Oauth) Auth(w http.ResponseWriter, r *http.Request) {
+func (h Oauth) AuthClient(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["provider"]
 
 	provider, ok := h.Providers[name]
@@ -49,7 +49,7 @@ func (h Oauth) Auth(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
-func (h Oauth) Revoke(w http.ResponseWriter, r *http.Request) {
+func (h Oauth) RevokeClient(w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["provider"]
 
 	provider, ok := h.Providers[name]

@@ -241,6 +241,7 @@ func mainCommand(cmd cli.Command) {
 
 		ui.Auth()
 		ui.Oauth()
+		ui.Token()
 		ui.Guest()
 
 		ui.Namespace()

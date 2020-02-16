@@ -47,11 +47,13 @@ type Store struct {
 var (
 	sourceFmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=disable"
 
+	AppTable           = "oauth_apps"
 	ArtifactTable      = "artifacts"
 	BuildTable         = "builds"
 	BuildKeyTable      = "build_keys"
 	BuildObjectTable   = "build_objects"
 	BuildVariableTable = "build_variables"
+	CodeTable          = "oauth_codes"
 	CollaboratorTable  = "collaborators"
 	DriverTable        = "drivers"
 	ImageTable         = "images"
@@ -65,6 +67,7 @@ var (
 	RepoTable          = "repos"
 	StageTable         = "stages"
 	TagTable           = "tags"
+	TokenTable         = "oauth_tokens"
 	TriggerTable       = "triggers"
 	UserTable          = "users"
 	VariableTable      = "variables"
@@ -123,6 +126,15 @@ func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
 	log.Debug.Println("testing connection to database")
 
 	return db, errors.Err(db.Ping())
+}
+
+func ForApp(a *App) query.Option {
+	return func(q query.Query) query.Query {
+		if a == nil || a.IsZero() {
+			return q
+		}
+		return query.Where("app_id", "=", a.ID)(q)
+	}
 }
 
 func ForBuild(b *Build) query.Option {
@@ -372,6 +384,9 @@ func (s Store) Delete(table string, ii ...Interface) error {
 // Paginate returns a struct containing information about pagination for the
 // given table. It is expected for this to be used for querying against that
 // table to return the set of models at the specified offset.
+//
+// This takes the table to paginate, the current page, and any additional query
+// constraints.
 func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginator, error) {
 	p := Paginator{
 		Page: page,

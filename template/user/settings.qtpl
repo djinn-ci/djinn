@@ -183,5 +183,19 @@ type ShowInvites struct {
 			<a href="/settings/invites">{% cat "../../static/svg/folder.svg" %}<span>Invites</span></a>
 		{% endif %}
 	</li>
+	<li>
+		{% if p.URL.Path == "/settings/apps" %}
+			<a href="/settings/apps" class="active">{% cat "../../static/svg/folder.svg" %}<span>OAuth Apps</span></a>
+		{% else %}
+			<a href="/settings/apps">{% cat "../../static/svg/folder.svg" %}<span>OAuth Apps</span></a>
+		{% endif %}
+	</li>
+	<li>
+		{% if p.URL.Path == "/settings/tokens" %}
+			<a href="/settings/tokens" class="active">{% cat "../../static/svg/code.svg" %}<span>Access Tokens</span></a>
+		{% else %}
+			<a href="/settings/tokens">{% cat "../../static/svg/code.svg" %}<span>Access Tokens</span></a>
+		{% endif %}
+	</li>
 {% endfunc %}
 {% endcollapsespace %}

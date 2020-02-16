@@ -1,0 +1,106 @@
+{%
+import (
+	"strings"
+
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/model/types"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type Form struct {
+	template.BasePage
+	template.Form
+
+	Token  *model.Token
+	Scopes map[string]struct{}
+}
+
+func (p *Form) action() string {
+	if p.Token == nil {
+		return "/settings/tokens"
+	}
+
+	return p.Token.UIEndpoint()
+}
+
+func (p *Form) Field(field string) string {
+	old := p.Form.Fields[field]
+
+	if p.Token != nil {
+		if old != "" {
+			return old
+		}
+
+		if field == "name" {
+			return p.Token.Name
+		}
+		return ""
+	}
+
+	return old
+}
+%}
+
+{% collapsespace %}
+{% func (p *Form) Title() %}
+	{% if p.Token == nil %}
+		Settings - New Token
+	{% else %}
+		Settings - Edit Token
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Form) Header() %}
+	{% if p.Token == nil %}
+		<a href="/settings/tokens" class="back">{% cat "../../static/svg/back.svg" %}</a> New Token
+	{% else %}
+		<a href="/settings/tokens" class="back">{% cat "../../static/svg/back.svg" %}</a> Edit Token
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Form) Body() %}
+	<div class="panel">
+		{% if p.Token != nil %}
+			<form class="panel-body slim" method="POST" action="{%s p.Token.UIEndpoint() %}">
+				<input type="hidden" name="_method" value="PATCH"/>
+		{% else %}
+			<form class="panel-body slim" method="POST" action="/settings/tokens">
+		{% endif %}
+			{%s= p.CSRF %}
+			<div class="form-field">
+				<label class="label" for="name">Name</label>
+				<input type="text" class="form-text" id="name" name="name" value="{%s p.Field("name") %}" autocomplete="off"/>
+				{%= p.Error("name") %}
+			</div>
+			{% for _, res := range types.Resources %}
+				<div class="form-field">
+					<label class="label">{%s strings.Title(res.String()) %}</label>
+					{% for _, perm := range types.Permissions %}
+						{% if _, ok := p.Scopes[res.String()+":"+perm.String()]; ok %}
+							<label>
+								<input type="checkbox" name="scope[]" value="{%s res.String() %}:{%s perm.String() %}" checked="true"/> {%s strings.Title(perm.String()) %}
+							</label>
+						{% else %}
+							<label>
+								<input type="checkbox" name="scope[]" value="{%s res.String() %}:{%s perm.String() %}"/> {%s strings.Title(perm.String()) %}
+							</label>
+						{% endif %}
+					{% endfor %}
+				</div>
+			{% endfor %}
+			<div class="form-field">
+				{% if p.Token == nil %}
+					<button type="submit" class="btn btn-primary">Create</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Edit</button>
+				{% endif %}
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+
+{% func (p *Form) Actions() %}{% endfunc %}
+{% func (p *Form) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

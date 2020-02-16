@@ -1,0 +1,70 @@
+{%
+import (
+	"fmt"
+
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type IndexPage struct {
+	template.BasePage
+
+	CSRF   string
+	Tokens []*model.Token
+}
+%}
+
+{% collapsespace %}
+{% func (p *IndexPage) Title() %}
+	Settings - Access Tokens
+{% endfunc %}
+
+{% func (p *IndexPage) Body() %}
+	<div class="panel">
+		{% if len(p.Tokens) == 0 %}
+			<div class="panel-message muted">No access tokens created.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, t := range p.Tokens %}
+						<tr>
+							<td>
+								<strong><a href="{%s t.UIEndpoint() %}">{%s t.Name %}</a></strong>
+								{% if t.Token != nil %}
+									 - <span class="muted">{%s fmt.Sprintf("%x", t.Token) %}</span>
+								{% endif %}
+							</td>
+							<td class="align-right">
+								<form method="POST" action="/settings/tokens/{%v t.ID %}">
+									{%s= p.CSRF %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Delete</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *IndexPage) Header() %}
+	Tokens
+{% endfunc %}
+
+{% func (p *IndexPage) Actions() %}
+	<li>
+		<form method="POST" action="/settings/tokens/revoke">
+			{%s= p.CSRF %}
+			<input type="hidden" name="_method" value="DELETE"/>
+			<button type="submit" class="btn btn-danger">Revoke All</button>
+		</form>
+	</li>
+	<li><a href="/settings/tokens/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *IndexPage) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

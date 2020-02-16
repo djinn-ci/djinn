@@ -24,100 +24,92 @@ type Handler struct {
 	Users        model.UserStore
 }
 
-func (h *Handler) FlashAlert(w http.ResponseWriter, r *http.Request, a template.Alert) {
+func (h *Handler) FlashPut(w http.ResponseWriter, r *http.Request, key, val interface{}) {
 	sess, _ := h.Store.Get(r, sessionName)
-
-	sess.Values["alert"] = a
+	sess.Values[key] = val
 
 	if err := sess.Save(r, w); err != nil {
-		log.Error.Println(errors.Err(err))
+		log.Error.Println("failed to save session: " + errors.Err(err).Error())
 	}
+}
+
+func (h *Handler) FlashGet(w http.ResponseWriter, r *http.Request, key interface{}) interface{} {
+	sess, _ := h.Store.Get(r, sessionName)
+
+	val, ok := sess.Values[key]
+
+	if ok {
+		delete(sess.Values, key)
+		if err := sess.Save(r, w); err != nil {
+			log.Error.Println("failed to save session: " + errors.Err(err).Error())
+		}
+	}
+	return val
+}
+
+func (h *Handler) FlashAlert(w http.ResponseWriter, r *http.Request, a template.Alert) {
+	h.FlashPut(w, r, "alert", a)
 }
 
 func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Errors) {
-	sess, _ := h.Store.Get(r, sessionName)
-
-	sess.Values["Errors"] = e
-
-	if err := sess.Save(r, w); err != nil {
-		log.Error.Println(errors.Err(err))
-	}
+	h.FlashPut(w, r, "form_errors", e)
 }
 
 func (h *Handler) FlashForm(w http.ResponseWriter, r *http.Request, f form.Form) {
-	sess, _ := h.Store.Get(r, sessionName)
-
-	sess.Values["form"] = f.Fields()
-
-	if err := sess.Save(r, w); err != nil {
-		log.Error.Println(errors.Err(err))
-	}
+	h.FlashPut(w, r, "form_fields", f.Fields())
 }
 
 func (h *Handler) Alert(w http.ResponseWriter, r *http.Request) template.Alert {
-	sess, _ := h.Store.Get(r, sessionName)
+	val := h.FlashGet(w, r, "alert")
 
-	a, ok := sess.Values["alert"]
-
-	if ok {
-		delete(sess.Values, "alert")
-
-		if err := sess.Save(r, w); err != nil {
-			log.Error.Println(errors.Err(err))
-		}
-
-		return a.(template.Alert)
+	if val != nil {
+		return val.(template.Alert)
 	}
-
 	return template.Alert{}
 }
 
 func (h *Handler) Errors(w http.ResponseWriter, r *http.Request) form.Errors {
-	sess, _ := h.Store.Get(r, sessionName)
+	val := h.FlashGet(w, r, "form_errors")
 
-	e, ok := sess.Values["Errors"]
-
-	if ok {
-		delete(sess.Values, "Errors")
-
-		if err := sess.Save(r, w); err != nil {
-			log.Error.Println(errors.Err(err))
-		}
-
-		return e.(form.Errors)
+	if val != nil {
+		return val.(form.Errors)
 	}
-
 	return form.NewErrors()
 }
 
 func (h *Handler) Form(w http.ResponseWriter, r *http.Request) map[string]string {
-	sess, _ := h.Store.Get(r, sessionName)
+	val := h.FlashGet(w, r, "form_fields")
 
-	f, ok := sess.Values["form"]
-
-	if ok {
-		delete(sess.Values, "form")
-
-		if err := sess.Save(r, w); err != nil {
-			log.Error.Println(errors.Err(err))
-		}
-
-		return f.(map[string]string)
+	if val != nil {
+		return val.(map[string]string)
 	}
-
-	return make(map[string]string)
+	return map[string]string{}
 }
 
+// Validate the given form. If form validation fails with form.Errors then the
+// form and error will be flashed to the session. If any other error occurs
+// then that will be flashed as an alert. This will return the first error
+// that occurs, if an error is returned it is expected for the caller to
+// redirect back.
 func (h *Handler) ValidateForm(f form.Form, w http.ResponseWriter, r *http.Request) error {
 	if err := form.Unmarshal(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		h.FlashAlert(w, r, template.Danger("Failed to unmarshal form: " + cause.Error()))
+
 		return errors.Err(err)
 	}
 
 	if err := f.Validate(); err != nil {
-		h.FlashErrors(w, r, err.(form.Errors))
-		h.FlashForm(w, r, f)
+		if ferr, ok := err.(form.Errors); ok {
+			h.FlashErrors(w, r, ferr)
+			h.FlashForm(w, r, f)
+			return ferr
+		}
+		cause := errors.Cause(err)
 
-		return err
+		h.FlashAlert(w, r, template.Danger("Failed to validate form: " + cause.Error()))
+		return errors.Err(err)
 	}
 
 	return nil
@@ -159,6 +151,18 @@ func (h Handler) UserCookie(r *http.Request) (*model.User, error) {
 	if err != nil {
 		return &model.User{}, nil
 	}
+
+	u, err := h.Users.Get(query.Where("id", "=", id))
+
+	if u.DeletedAt.Valid {
+		return &model.User{}, nil
+	}
+
+	return u, errors.Err(err)
+}
+
+func (h Handler) UserToken(r *http.Request) (*model.User, error) {
+	id := r.Header.Get("Authorization")
 
 	u, err := h.Users.Get(query.Where("id", "=", id))
 

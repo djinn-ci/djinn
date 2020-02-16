@@ -31,6 +31,7 @@ type UI struct {
 	object       ui.Object
 	repo         ui.Repo
 	tag          ui.Tag
+	token        ui.Token
 	user         ui.User
 	variable     ui.Variable
 	gate         gate
@@ -58,6 +59,7 @@ func (s *UI) Init() {
 		objects:    model.ObjectStore{Store: store},
 		variables:  model.VariableStore{Store: store},
 		keys:       model.KeyStore{Store: store},
+		tokens:     model.TokenStore{Store: store},
 	}
 
 	s.artifact = ui.Artifact{
@@ -95,8 +97,13 @@ func (s *UI) Init() {
 	}
 
 	s.oauth = ui.Oauth{
-		Handler:        s.Handler,
-		Providers:      s.Providers,
+		Handler:   s.Handler,
+		Providers: s.Providers,
+	}
+
+	s.token = ui.Token{
+		Handler: s.Handler,
+		Tokens:  model.TokenStore{Store: store},
 	}
 
 	s.object = ui.Object{
@@ -155,6 +162,9 @@ func (s *UI) Auth() {
 	r.HandleFunc("/settings/email", s.user.Email).Methods("PATCH")
 	r.HandleFunc("/settings/password", s.user.Email).Methods("PATCH")
 	r.HandleFunc("/settings/invites", s.user.Settings).Methods("GET")
+	r.HandleFunc("/settings/apps", s.oauth.Index).Methods("GET")
+	r.HandleFunc("/settings/apps/create", s.oauth.Create).Methods("GET")
+	r.HandleFunc("/settings/apps", s.oauth.Store).Methods("POST")
 	r.HandleFunc("/logout", s.auth.Logout).Methods("POST")
 
 	r.HandleFunc("/invites/{invite:[0-9]+}", s.collaborator.Store).Methods("PATCH")
@@ -173,15 +183,29 @@ func (s *UI) Auth() {
 func (s *UI) Oauth() {
 	r := s.router.PathPrefix("/oauth").Subrouter()
 
-//	r.HandleFunc("/authorize", s.oauth.Auth).Methods("POST")
-//	r.HandleFunc("/token", s.oauth.Token)
+	r.HandleFunc("/authorize", s.oauth.Auth).Methods("GET", "POST")
+	r.HandleFunc("/token", s.oauth.Token)
 //	r.HandleFunc("/revoke", s.oauth.Revoke)
-//	r.HandleFunc("/introspect", s.oauth.Introspect)
 
 	r.HandleFunc("/{provider}", s.oauth.AuthClient).Methods("GET")
 	r.HandleFunc("/{provider}", s.oauth.RevokeClient).Methods("DELETE")
 
 	r.Use(s.csrf)
+}
+
+func (s *UI) Token() {
+	r := s.router.PathPrefix("/settings/tokens").Subrouter()
+
+	r.HandleFunc("", s.token.Index).Methods("GET")
+	r.HandleFunc("/create", s.token.Create).Methods("GET")
+	r.HandleFunc("", s.token.Store).Methods("POST")
+	r.HandleFunc("/{token}", s.token.Edit).Methods("GET")
+	r.HandleFunc("/{token}", s.token.Update).Methods("PATCH")
+	r.HandleFunc("/{token}/regenerate", s.token.Update).Methods("PATCH")
+	r.HandleFunc("/revoke", s.token.Destroy).Methods("DELETE")
+	r.HandleFunc("/{token}", s.token.Destroy).Methods("DELETE")
+
+	r.Use(s.Middleware.Gate(s.gate.token), s.csrf)
 }
 
 func (s *UI) Guest() {

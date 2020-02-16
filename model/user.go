@@ -136,6 +136,24 @@ func (s UserStore) Update(uu ...*User) error {
 	return errors.Err(s.Store.Update(UserTable, models...))
 }
 
+func (u *User) AppStore() AppStore {
+	return AppStore{
+		Store: Store{
+			DB: u.DB,
+		},
+		User: u,
+	}
+}
+
+func (u *User) CodeStore() CodeStore {
+	return CodeStore{
+		Store: Store{
+			DB: u.DB,
+		},
+		User: u,
+	}
+}
+
 func (u *User) BuildStore() BuildStore {
 	return BuildStore{
 		Store: Store{
@@ -217,6 +235,15 @@ func (u *User) ProviderStore() ProviderStore {
 
 func (u *User) RepoStore() RepoStore {
 	return RepoStore{
+		Store: Store{
+			DB: u.DB,
+		},
+		User: u,
+	}
+}
+
+func (u *User) TokenStore() TokenStore {
+	return TokenStore{
 		Store: Store{
 			DB: u.DB,
 		},

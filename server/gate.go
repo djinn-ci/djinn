@@ -26,6 +26,7 @@ type gate struct {
 	objects    model.ObjectStore
 	variables  model.VariableStore
 	keys       model.KeyStore
+	tokens     model.TokenStore
 }
 
 func namespaceRoot(id int64) query.Query {
@@ -254,6 +255,29 @@ func (g gate) resource(name string, u *model.User, r *http.Request, fn load) (bo
 	}
 
 	return root.AccessibleBy(u), nil
+}
+
+func (g gate) token(u *model.User, r *http.Request) (*http.Request, bool) {
+	base := filepath.Base(r.URL.Path)
+
+	if base == "tokens" || base == "create" || base == "revoke" {
+		return r, true
+	}
+
+	vars := mux.Vars(r)
+
+	t, err := g.tokens.Get(query.Where("id", "=", vars["token"]))
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		return r, false
+	}
+
+	if t.IsZero() {
+		return r, false
+	}
+
+	return r.WithContext(context.WithValue(r.Context(), "token", t)) , t.UserID == u.ID
 }
 
 func (g gate) variable(u *model.User, r *http.Request) (*http.Request, bool) {

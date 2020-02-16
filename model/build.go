@@ -352,7 +352,7 @@ func (s BuildStore) All(opts ...query.Option) ([]*Build, error) {
 		b.Namespace = s.Namespace
 	}
 
-	return bb, nil
+	return bb, errors.Err(err)
 }
 
 func (s BuildStore) Create(bb ...*Build) error {

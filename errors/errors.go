@@ -23,6 +23,15 @@ func New(s string) error {
 	return &e
 }
 
+func Cause(err error) error {
+	e, ok := err.(*Error)
+
+	if ok {
+		return Cause(e.Err)
+	}
+	return err
+}
+
 func Err(err error) error {
 	if err == nil {
 		return nil
@@ -51,14 +60,4 @@ func (e *Error) Error() string {
 
 func (e *errorStr) Error() string {
 	return string(*e)
-}
-
-func Cause(err error) error {
-	e, ok := err.(*Error)
-
-	if ok {
-		return Cause(e.Err)
-	}
-
-	return err
 }

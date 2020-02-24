@@ -5,16 +5,25 @@ import (
 	"regexp"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model"
 
 	"github.com/gorilla/schema"
 )
 
-var	reAlphaNumDotDash = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
+var	(
+	reAlphaNumDotDash = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
+
+	ErrValidation = errors.New("form validation failed")
+)
 
 type Form interface {
 	Validate() error
 
 	Fields() map[string]string
+}
+
+type Resource struct {
+	User *model.User
 }
 
 func ErrField(field string, err error) error {
@@ -41,6 +50,26 @@ func ErrFieldRequired(field string) error {
 	return errors.New(field + " can't be blank")
 }
 
+func getNamespace(u *model.User, path string) (*model.Namespace, error) {
+	n := &model.Namespace{}
+
+	if path == "" {
+		return n, nil
+	}
+
+	n, err := u.NamespaceStore().GetByPath(path)
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	if !n.CanAdd(u) {
+		return n, model.ErrPermission
+	}
+
+	return n, nil
+}
+
 func Unmarshal(f Form, r *http.Request) error {
 	if err := r.ParseForm(); err != nil {
 		return errors.Err(err)
@@ -50,12 +79,4 @@ func Unmarshal(f Form, r *http.Request) error {
 	dec.IgnoreUnknownKeys(true)
 
 	return errors.Err(dec.Decode(f, r.Form))
-}
-
-func UnmarshalAndValidate(f Form, r *http.Request) error {
-	if err := Unmarshal(f, r); err != nil {
-		return errors.Err(err)
-	}
-
-	return f.Validate()
 }

@@ -27,7 +27,6 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 
 	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
-
 	artifactId, _ := strconv.ParseInt(vars["artifact"], 10, 64)
 
 	b, err := u.BuildStore().Get(query.Where("id", "=", buildId))

@@ -17,12 +17,13 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
+
+	"github.com/gorilla/sessions"
 )
 
 type Image struct {
 	web.Handler
 
-	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Images     model.ImageStore
 	FileStore  filestore.FileStore
@@ -101,7 +102,7 @@ func (h Image) Show(r *http.Request) (*model.Image, error) {
 	return i, errors.Err(err)
 }
 
-func (h Image) Store(w http.ResponseWriter, r *http.Request) (*model.Image, error) {
+func (h Image) Store(w http.ResponseWriter, r *http.Request, sess *sessions.Session) (*model.Image, error) {
 	u := h.User(r)
 
 	images := u.ImageStore()
@@ -112,40 +113,21 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) (*model.Image, erro
 			Request: r,
 			Limit:   h.Limit,
 		},
-		Images:  images,
+		User:   u,
+		Images: images,
 	}
 
-	if err := form.Unmarshal(f, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			return &model.Image{}, form.ErrValidation
+		}
 		return &model.Image{}, errors.Err(err)
 	}
 
-	var err error
+	n, err := h.Namespaces.Get(query.Where("path", "=", f.Namespace))
 
-	n := &model.Namespace{}
-
-	if f.Namespace != "" {
-		n, err = h.Namespace.Get(f.Namespace, u)
-
-		if err != nil {
-			return &model.Image{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(u) {
-			h.FlashForm(w, r, f)
-
-			return &model.Image{}, errors.Err(ErrAccessDenied)
-		}
-
-		f.Images = n.ImageStore()
-	}
-
-	if err := f.Validate(); err != nil {
-		errs := err.(form.Errors)
-
-		h.FlashErrors(w, r, errs)
-		h.FlashForm(w, r, f)
-
-		return &model.Image{}, errors.Err(ErrValidationFailed)
+	if err != nil {
+		return &model.Image{}, errors.Err(err)
 	}
 
 	defer f.Upload.File.Close()

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 
 	"github.com/gorilla/mux"
@@ -22,7 +23,19 @@ type Middleware struct {
 // the other end of the current endpoint, hence the bool return value.
 type Gate func(u *model.User, r *http.Request) (*http.Request, bool)
 
+// Get the currently authenticated user from the request. Check for token
+// auth first, then fallback to cookie.
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, bool) {
+	if _, ok := r.Header["Authorization"]; ok {
+		u, err := h.UserToken(r)
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			return u, false
+		}
+		return u, !u.IsZero()
+	}
+
 	u, err := h.UserCookie(r)
 
 	if err != nil {
@@ -38,7 +51,6 @@ func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*model.User, b
 
 			http.SetCookie(w, c)
 		}
-
 		return u, false
 	}
 

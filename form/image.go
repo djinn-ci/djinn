@@ -10,11 +10,13 @@ import (
 )
 
 type Image struct {
-	Upload `schema:"-"`
+	Upload   `schema:"-"`
 
-	Images     model.ImageStore `schema:"-"`
-	Namespace  string           `schema:"namespace"`
-	Name       string           `schema:"name"`
+	User      *model.User      `schema:"-"`
+	Images    model.ImageStore `schema:"-"`
+
+	Namespace  string `schema:"namespace"`
+	Name       string `schema:"name"`
 }
 
 // QCOW magic number.
@@ -22,7 +24,8 @@ var magic = []byte{0x51, 0x46, 0x49, 0xFB}
 
 func (f Image) Fields() map[string]string {
 	return map[string]string{
-		"name": f.Name,
+		"namespace": f.Namespace,
+		"name":      f.Name,
 	}
 }
 
@@ -35,6 +38,16 @@ func (f *Image) Validate() error {
 
 	if !reAlphaNumDotDash.Match([]byte(f.Name)) {
 		errs.Put("name", ErrFieldInvalid("Name", "can only contain letters, numbers, dashes, and dots"))
+	}
+
+	n, err := getNamespace(f.User, f.Namespace)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if !n.IsZero() {
+		f.Images = n.ImageStore()
 	}
 
 	i, err := f.Images.Get(query.Where("name", "=", f.Name))

@@ -106,7 +106,6 @@ func (s *Server) Init() {
 
 	s.build = core.Build{
 		Handler:    s.Handler,
-		Namespace:  s.namespace,
 		Namespaces: model.NamespaceStore{Store: store},
 		Builds:     model.BuildStore{Store: store},
 		Images:     model.ImageStore{Store: store},
@@ -131,7 +130,6 @@ func (s *Server) Init() {
 
 	s.image = core.Image{
 		Handler:   s.Handler,
-		Namespace: s.namespace,
 		FileStore: s.Images,
 		Limit:     s.ImageLimit,
 		Images:    model.ImageStore{Store: store},
@@ -143,14 +141,12 @@ func (s *Server) Init() {
 
 	s.key = core.Key{
 		Handler:    s.Handler,
-		Namespace:  s.namespace,
 		Keys:       model.KeyStore{Store: store},
 		Namespaces: model.NamespaceStore{Store: store},
 	}
 
 	s.object = core.Object{
 		Handler:    s.Handler,
-		Namespace:  s.namespace,
 		FileStore:  s.Objects,
 		Limit:      s.ObjectLimit,
 		Namespaces: model.NamespaceStore{Store: store},
@@ -161,7 +157,6 @@ func (s *Server) Init() {
 
 	s.variable = core.Variable{
 		Handler:    s.Handler,
-		Namespace:  s.namespace,
 		Namespaces: model.NamespaceStore{Store: store},
 		Variables:  model.VariableStore{Store: store},
 	}

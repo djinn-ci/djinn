@@ -20,6 +20,8 @@ import (
 
 	"github.com/andrewpillar/query"
 
+	"github.com/gorilla/sessions"
+
 	"github.com/go-redis/redis"
 
 	"github.com/RichardKnop/machinery/v1"
@@ -28,7 +30,6 @@ import (
 type Build struct {
 	web.Handler
 
-	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Builds     model.BuildStore
 	Images     model.ImageStore
@@ -112,7 +113,7 @@ func (h Build) Kill(r *http.Request) error {
 	b := h.Build(r)
 
 	if b.Status != runner.Running {
-		return ErrBuildNotRunning
+		return errors.New("build not running")
 	}
 
 	_, err := h.Client.Publish(fmt.Sprintf("kill-%v", b.ID), b.Secret.String).Result()
@@ -150,7 +151,7 @@ func (h Build) Show(r *http.Request) (*model.Build, error) {
 
 func (h Build) store(m config.Manifest, u *model.User, t *model.Trigger, tags ...string) (*model.Build, error) {
 	if _, ok := h.Queues[m.Driver["type"]]; !ok {
-		return &model.Build{}, ErrUnsupportedDriver
+		return &model.Build{}, model.ErrDriver
 	}
 
 	secret, _ := crypto.HashNow()
@@ -164,10 +165,10 @@ func (h Build) store(m config.Manifest, u *model.User, t *model.Trigger, tags ..
 	}
 
 	if m.Namespace != "" {
-		n, err := h.Namespace.Get(m.Namespace, u)
+		n, err := u.NamespaceStore().GetByPath(m.Namespace)
 
 		if err != nil {
-			if err == ErrNamespaceNameInvalid {
+			if err == model.ErrNamespaceName {
 				return b, err
 			}
 
@@ -175,7 +176,7 @@ func (h Build) store(m config.Manifest, u *model.User, t *model.Trigger, tags ..
 		}
 
 		if !n.CanAdd(u) {
-			return b, ErrAccessDenied
+			return b, model.ErrPermission
 		}
 
 		b.Namespace = n
@@ -213,31 +214,16 @@ func (h Build) store(m config.Manifest, u *model.User, t *model.Trigger, tags ..
 	return b, errors.Err(err)
 }
 
-func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, error) {
+func (h Build) Store(r *http.Request, sess *sessions.Session) (*model.Build, error) {
 	u := h.User(r)
 
 	f := &form.Build{}
 
-	if err := form.Unmarshal(f, r); err != nil {
-		cause := errors.Cause(err)
-
-		if strings.Contains(cause.Error(), "cannot unmarshal") {
-			errs := form.NewErrors()
-			errs.Put("manifest", errors.New("Build manifest is invalid, check the YAML is valid"))
-
-			h.FlashErrors(w, r, errs)
-
-			return &model.Build{}, ErrValidationFailed
+	if err := h.ValidateForm(f, r, sess); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			return &model.Build{}, form.ErrValidation
 		}
-
 		return &model.Build{}, errors.Err(err)
-	}
-
-	if err := f.Validate(); err != nil {
-		h.FlashErrors(w, r, err.(form.Errors))
-		h.FlashForm(w, r, f)
-
-		return &model.Build{}, ErrValidationFailed
 	}
 
 	t := &model.Trigger{}
@@ -248,14 +234,12 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) (*model.Build, erro
 
 	b, err := h.store(f.Manifest, u, t, []string(f.Tags)...)
 
-	if err == ErrNamespaceNameInvalid {
+	if errors.Cause(err) == model.ErrNamespaceName && sess != nil {
 		errs := form.NewErrors()
 		errs.Put("manifest", errors.New("Namespace name can only contain letters and numbers"))
 
-		h.FlashErrors(w, r, errs)
-		h.FlashForm(w, r, f)
-
-		return b, ErrValidationFailed
+		sess.AddFlash(errs, "form_errors")
+		sess.AddFlash(f.Fields(), "form_fields")
 	}
 
 	return b, errors.Err(err)

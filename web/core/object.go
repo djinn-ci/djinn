@@ -17,12 +17,13 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
+
+	"github.com/gorilla/sessions"
 )
 
 type Object struct {
 	web.Handler
 
-	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Objects    model.ObjectStore
 	FileStore  filestore.FileStore
@@ -101,7 +102,7 @@ func (h Object) Show(r *http.Request) (*model.Object, error) {
 	return o, errors.Err(err)
 }
 
-func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, error) {
+func (h Object) Store(w http.ResponseWriter, r *http.Request, sess *sessions.Session) (*model.Object, error) {
 	u := h.User(r)
 
 	objects := u.ObjectStore()
@@ -119,41 +120,20 @@ func (h Object) Store(w http.ResponseWriter, r *http.Request) (*model.Object, er
 				"multipart/x-zip",
 			},
 		},
+		User:    u,
 		Objects: objects,
 	}
 
-	if err := form.Unmarshal(f, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			return &model.Object{}, form.ErrValidation
+		}
 		return &model.Object{}, errors.Err(err)
 	}
 
-	var err error
+	n, err := h.Namespaces.Get(query.Where("path", "=", f.Namespace))
 
-	n := &model.Namespace{}
-
-	if f.Namespace != "" {
-		n, err = h.Namespace.Get(f.Namespace, u)
-
-		if err != nil {
-			return &model.Object{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(u) {
-			h.FlashForm(w, r, f)
-
-			return &model.Object{}, errors.Err(ErrAccessDenied)
-		}
-
-		f.Objects = n.ObjectStore()
-	}
-
-	if err := f.Validate(); err != nil {
-		if ferr, ok := err.(form.Errors); ok {
-			h.FlashErrors(w, r, ferr)
-			h.FlashForm(w, r, f)
-
-			return &model.Object{}, ErrValidationFailed
-		}
-
+	if err != nil {
 		return &model.Object{}, errors.Err(err)
 	}
 

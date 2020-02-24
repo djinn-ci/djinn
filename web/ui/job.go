@@ -19,6 +19,9 @@ type Job struct {
 }
 
 func (h Job) Show(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	j, err := h.Core.Show(r)
 
 	if err != nil {
@@ -39,7 +42,7 @@ func (h Job) Show(w http.ResponseWriter, r *http.Request) {
 		Job: j,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

@@ -3,6 +3,7 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -39,6 +40,8 @@ type NamespaceStore struct {
 	User      *User
 	Namespace *Namespace
 }
+
+var namespaceMaxDepth int64 = 20
 
 func namespaceToInterface(nn []*Namespace) func(i int) Interface {
 	return func(i int) Interface {
@@ -347,6 +350,95 @@ func (s NamespaceStore) Delete(nn ...*Namespace) error {
 	_, err = stmt.Exec(q.Args()...)
 
 	return errors.Err(err)
+}
+
+// GetByPath returns the namespace by the given path. If it does not exist
+// then it will be created, including all grandparents, and then returned.
+// The namespace for a given user will be returned if the path contains
+// an '@'.
+func (s NamespaceStore) GetByPath(path string) (*Namespace, error) {
+	users := UserStore{Store: s.Store}
+
+	if strings.Contains(path, "@") {
+		parts := strings.Split(path, "@")
+
+		username := parts[1]
+		path = parts[0]
+
+		u, err := users.Get(query.Where("username", "=", username))
+
+		if err != nil {
+			return &Namespace{}, errors.Err(err)
+		}
+
+		if !u.IsZero() {
+			s.User = u
+		}
+	}
+
+	n, err := s.Get(query.Where("path", "=", path))
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	if !n.IsZero() {
+		err = n.LoadCollaborators()
+
+		return n, errors.Err(err)
+	}
+
+	p := &Namespace{}
+
+	parts := strings.Split(path, "/")
+
+	for i, name := range parts {
+		if p.Level + 1 > namespaceMaxDepth {
+			break
+		}
+
+		if matched, err := regexp.Match("^[a-zA-Z0-9]+$", []byte(name)); !matched || err != nil {
+			if i == 0 && len(parts) == 1 {
+				return n, ErrNamespaceName
+			}
+
+			break
+		}
+
+		n = s.New()
+		n.Name = name
+		n.Path = name
+		n.Level = p.Level + 1
+
+		if !p.IsZero() {
+			n.RootID = p.RootID
+			n.ParentID = sql.NullInt64{
+				Int64: p.ID,
+				Valid: true,
+			}
+
+			n.Path = strings.Join([]string{p.Path, n.Name}, "/")
+		}
+
+		if err := s.Create(n); err != nil {
+			return n, errors.Err(err)
+		}
+
+		if p.IsZero() {
+			n.RootID = sql.NullInt64{
+				Int64: n.ID,
+				Valid: true,
+			}
+
+			if err := s.Update(n); err != nil {
+				return n, errors.Err(err)
+			}
+		}
+
+		p = n
+	}
+
+	return n, nil
 }
 
 func (s NamespaceStore) Get(opts ...query.Option) (*Namespace, error) {

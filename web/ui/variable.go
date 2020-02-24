@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
@@ -44,6 +45,9 @@ func (h Variable) indexPage(variables model.VariableStore, r *http.Request, opts
 }
 
 func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	p, err := h.indexPage(u.VariableStore(), r)
@@ -54,55 +58,61 @@ func (h Variable) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := template.NewDashboard(&p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(&p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Variable) Create(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	p := &variable.CreatePage{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Core.Errors(w, r),
-			Fields: h.Core.Form(w, r),
+			Errors: h.Core.FormErrors(sess),
+			Fields: h.Core.FormFields(sess),
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
-	v, err := h.Core.Store(w, r)
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
+	v, err := h.Core.Store(r, sess)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
 		switch cause {
-		case core.ErrValidationFailed:
+		case form.ErrValidation:
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		case core.ErrAccessDenied:
-			h.Core.FlashAlert(w, r, template.Danger("Failed to create variable: could not add to namespace"))
+		case model.ErrPermission:
+			sess.AddFlash(template.Danger("Failed to create variable: could not add to namespace"), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		default:
 			log.Error.Println(errors.Err(err))
-
-			h.Core.FlashAlert(w, r, template.Danger("Failed to create variable: " + cause.Error()))
+			sess.AddFlash(template.Danger("Failed to create variable: " + cause.Error()), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
-
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Variable has been added: " + v.Key))
-
+	sess.AddFlash(template.Success("Variable has been added: " + v.Key), "alert")
 	http.Redirect(w, r, "/variables", http.StatusSeeOther)
 }
 
 func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	v := h.Core.Variable(r)
 
 	if err := h.Core.Destroy(r); err != nil {
@@ -110,12 +120,11 @@ func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.Core.FlashAlert(w, r, template.Danger("Failed to delete variable: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to delete variable: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Variable has been deleted: " + v.Key))
-
+	sess.AddFlash(template.Success("Variable has been deleted: " + v.Key), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

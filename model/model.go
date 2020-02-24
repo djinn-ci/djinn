@@ -72,6 +72,13 @@ var (
 	UserTable          = "users"
 	VariableTable      = "variables"
 
+	ErrAuth           = errors.New("invalid credentials")
+	ErrDriver         = errors.New("unknown driver")
+	ErrNamespaceDepth = errors.New("namespace cannot exceed depth of 20")
+	ErrNamespaceName  = errors.New("namespace name can only contain letters and numbers")
+	ErrNotFound       = errors.New("not found")
+	ErrPermission     = errors.New("permission denied")
+
 	PageLimit int64 = 25
 )
 

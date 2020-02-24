@@ -10,17 +10,19 @@ import (
 type Object struct {
 	Upload `schema:"-"`
 
-	Objects   model.ObjectStore `schema:"-"`
+	User    *model.User       `schema:"-"`
+	Objects model.ObjectStore `schema:"-"`
+
 	Namespace string `schema:"namespace"`
 	Name      string `schema:"name"`
 }
 
 func (f Object) Fields() map[string]string {
-	m := make(map[string]string)
-	m["namespace"] = f.Namespace
-	m["name"] = f.Name
+	return map[string]string{
+		"namespace": f.Namespace,
+		"name":      f.Name,
+	}
 
-	return m
 }
 
 func (f *Object) Validate() error {
@@ -32,6 +34,16 @@ func (f *Object) Validate() error {
 
 	if !reAlphaNumDotDash.Match([]byte(f.Name)) {
 		errs.Put("name", ErrFieldInvalid("Name", "can only contain letters, numbers, dashes, and dots"))
+	}
+
+	n, err := getNamespace(f.User, f.Namespace)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if !n.IsZero() {
+		f.Objects = n.ObjectStore()
 	}
 
 	o, err := f.Objects.Get(query.Where("name", "=", f.Name))

@@ -13,21 +13,20 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
+
+	"github.com/gorilla/sessions"
 )
 
 type Key struct {
 	web.Handler
 
-	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Keys       model.KeyStore
 }
 
 func (h Key) Key(r *http.Request) *model.Key {
 	val := r.Context().Value("key")
-
 	k, _ := val.(*model.Key)
-
 	return k
 }
 
@@ -71,47 +70,26 @@ func (h Key) Index(keys model.KeyStore, r *http.Request, opts ...query.Option) (
 	return kk, paginator, errors.Err(err)
 }
 
-func (h Key) Store(w http.ResponseWriter, r *http.Request) (*model.Key, error) {
+func (h Key) Store(r *http.Request, sess *sessions.Session) (*model.Key, error) {
 	u := h.User(r)
 
 	keys := u.KeyStore()
 
 	f := &form.Key{
+		User: u,
 		Keys: keys,
 	}
 
-	if err := form.Unmarshal(f, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			return &model.Key{}, form.ErrValidation
+		}
 		return &model.Key{}, errors.Err(err)
 	}
 
-	var err error
+	n, err := h.Namespaces.Get(query.Where("path", "=", f.Namespace))
 
-	n := &model.Namespace{}
-
-	if f.Namespace != "" {
-		n, err = h.Namespace.Get(f.Namespace, u)
-
-		if err != nil {
-			return &model.Key{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(u) {
-			h.FlashForm(w, r, f)
-
-			return &model.Key{}, errors.Err(ErrAccessDenied)
-		}
-
-		f.Keys = n.KeyStore()
-	}
-
-	if err := f.Validate(); err != nil {
-		if ferr, ok := err.(form.Errors); ok {
-			h.FlashErrors(w, r, ferr)
-			h.FlashForm(w, r, f)
-
-			return &model.Key{}, ErrValidationFailed
-		}
-
+	if err != nil {
 		return &model.Key{}, errors.Err(err)
 	}
 
@@ -135,38 +113,35 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) (*model.Key, error) {
 	return k, errors.Err(err)
 }
 
-func (h Key) Update(w http.ResponseWriter, r *http.Request) (*model.Key, error) {
+func (h Key) Update(r *http.Request, sess *sessions.Session) (*model.Key, error) {
 	u := h.User(r)
 	k := h.Key(r)
 
 	f := &form.Key{
+		User: u,
 		Keys: h.Keys,
 	}
 
-	if err := form.Unmarshal(f, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			return &model.Key{}, form.ErrValidation
+		}
 		return &model.Key{}, errors.Err(err)
 	}
 
-	if f.Namespace != "" {
-		n, err := h.Namespace.Get(f.Namespace, u)
+	n, err := h.Namespaces.Get(query.Where("path", "=", f.Namespace))
 
-		if err != nil {
-			return &model.Key{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(u) {
-			return &model.Key{}, errors.Err(ErrAccessDenied)
-		}
-
-		k.NamespaceID = sql.NullInt64{
-			Int64: n.ID,
-			Valid: true,
-		}
+	if err != nil {
+		return &model.Key{}, errors.Err(err)
 	}
 
+	k.NamespaceID = sql.NullInt64{
+		Int64: n.ID,
+		Valid: true,
+	}
 	k.Config = f.Config
 
-	err := h.Keys.Update(k)
+	err = h.Keys.Update(k)
 
 	return k, errors.Err(err)
 }

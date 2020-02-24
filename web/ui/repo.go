@@ -96,6 +96,9 @@ func (h Repo) loadRepos(c context.Context, pp []*model.Provider) ([]*model.Repo,
 }
 
 func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 
 	pp, err := u.ProviderStore().All()
@@ -180,12 +183,15 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		Providers: pp,
 	}
 
-	d := template.NewDashboard(&p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(&p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 
 	pp, err := u.ProviderStore().All()
@@ -195,7 +201,7 @@ func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to refresh repository cache: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to refresh repository cache: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -207,7 +213,7 @@ func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to refresh repository cache: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to refresh repository cache: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -217,16 +223,19 @@ func (h Repo) Reload(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to refresh repository cache: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to refresh repository cache: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Successfully reloaded repositories"))
+	sess.AddFlash(template.Success("Successfully reloaded repositories"), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 
 func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 
 	f := &form.Repo{}
@@ -236,7 +245,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to enable repository hooks: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to enable repository hooks: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -248,7 +257,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to enable repository hooks: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to enable repository hooks: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -258,16 +267,19 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to enable repository hooks: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to enable repository hooks: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Repository hooks enabled"))
+	sess.AddFlash(template.Success("Repository hooks enabled"), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 
 func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	vars := mux.Vars(r)
 
 	u := h.User(r)
@@ -281,7 +293,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to disable repository hooks: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to disable repository hooks: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -292,7 +304,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !repo.Enabled {
-		h.FlashAlert(w, r, template.Success("Repository hooks disabled"))
+		sess.AddFlash(template.Success("Repository hooks disabled"), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -302,7 +314,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to disable repository hooks: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to disable repository hooks: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -312,11 +324,11 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to disable repository hooks: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to disable repository hooks: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Repository hooks disabled"))
+	sess.AddFlash(template.Success("Repository hooks disabled"), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

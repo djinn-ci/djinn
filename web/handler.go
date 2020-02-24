@@ -24,95 +24,41 @@ type Handler struct {
 	Users        model.UserStore
 }
 
-func (h *Handler) FlashPut(w http.ResponseWriter, r *http.Request, key, val interface{}) {
-	sess, _ := h.Store.Get(r, sessionName)
-	sess.Values[key] = val
+func (h *Handler) Alert(sess *sessions.Session) template.Alert {
+	val := sess.Flashes("alert")
 
-	if err := sess.Save(r, w); err != nil {
-		log.Error.Println("failed to save session: " + errors.Err(err).Error())
+	if val == nil {
+		return template.Alert{}
 	}
+	return val[0].(template.Alert)
 }
 
-func (h *Handler) FlashGet(w http.ResponseWriter, r *http.Request, key interface{}) interface{} {
+func (h *Handler) FormErrors(sess *sessions.Session) form.Errors {
+	val := sess.Flashes("form_errors")
+
+	if val == nil {
+		return form.NewErrors()
+	}
+	return val[0].(form.Errors)
+}
+
+func (h *Handler) FormFields(sess *sessions.Session) map[string]string {
+	val := sess.Flashes("form_fields")
+
+	if val == nil {
+		return map[string]string{}
+	}
+	return val[0].(map[string]string)
+}
+
+func (h *Handler) Session(r *http.Request) (*sessions.Session, func(*http.Request, http.ResponseWriter)) {
 	sess, _ := h.Store.Get(r, sessionName)
 
-	val, ok := sess.Values[key]
-
-	if ok {
-		delete(sess.Values, key)
+	return sess, func(r *http.Request, w http.ResponseWriter) {
 		if err := sess.Save(r, w); err != nil {
-			log.Error.Println("failed to save session: " + errors.Err(err).Error())
+			log.Error.Println("failed to save session", errors.Err(err))
 		}
 	}
-	return val
-}
-
-func (h *Handler) FlashAlert(w http.ResponseWriter, r *http.Request, a template.Alert) {
-	h.FlashPut(w, r, "alert", a)
-}
-
-func (h *Handler) FlashErrors(w http.ResponseWriter, r *http.Request, e form.Errors) {
-	h.FlashPut(w, r, "form_errors", e)
-}
-
-func (h *Handler) FlashForm(w http.ResponseWriter, r *http.Request, f form.Form) {
-	h.FlashPut(w, r, "form_fields", f.Fields())
-}
-
-func (h *Handler) Alert(w http.ResponseWriter, r *http.Request) template.Alert {
-	val := h.FlashGet(w, r, "alert")
-
-	if val != nil {
-		return val.(template.Alert)
-	}
-	return template.Alert{}
-}
-
-func (h *Handler) Errors(w http.ResponseWriter, r *http.Request) form.Errors {
-	val := h.FlashGet(w, r, "form_errors")
-
-	if val != nil {
-		return val.(form.Errors)
-	}
-	return form.NewErrors()
-}
-
-func (h *Handler) Form(w http.ResponseWriter, r *http.Request) map[string]string {
-	val := h.FlashGet(w, r, "form_fields")
-
-	if val != nil {
-		return val.(map[string]string)
-	}
-	return map[string]string{}
-}
-
-// Validate the given form. If form validation fails with form.Errors then the
-// form and error will be flashed to the session. If any other error occurs
-// then that will be flashed as an alert. This will return the first error
-// that occurs, if an error is returned it is expected for the caller to
-// redirect back.
-func (h *Handler) ValidateForm(f form.Form, w http.ResponseWriter, r *http.Request) error {
-	if err := form.Unmarshal(f, r); err != nil {
-		cause := errors.Cause(err)
-
-		h.FlashAlert(w, r, template.Danger("Failed to unmarshal form: " + cause.Error()))
-
-		return errors.Err(err)
-	}
-
-	if err := f.Validate(); err != nil {
-		if ferr, ok := err.(form.Errors); ok {
-			h.FlashErrors(w, r, ferr)
-			h.FlashForm(w, r, f)
-			return ferr
-		}
-		cause := errors.Cause(err)
-
-		h.FlashAlert(w, r, template.Danger("Failed to validate form: " + cause.Error()))
-		return errors.Err(err)
-	}
-
-	return nil
 }
 
 func (h Handler) User(r *http.Request) *model.User {
@@ -120,11 +66,9 @@ func (h Handler) User(r *http.Request) *model.User {
 
 	u, _ := val.(*model.User)
 
-	if u != nil {
-		return u
+	if u == nil {
+		u, _ = h.UserCookie(r)
 	}
-
-	u, _ = h.UserCookie(r)
 
 	return u
 }
@@ -171,4 +115,31 @@ func (h Handler) UserToken(r *http.Request) (*model.User, error) {
 	}
 
 	return u, errors.Err(err)
+}
+
+func (h *Handler) ValidateForm(f form.Form, r *http.Request, sess *sessions.Session) error {
+	if err := form.Unmarshal(f, r); err != nil {
+		if sess != nil {
+			cause := errors.Cause(err)
+			sess.AddFlash(template.Danger("Failed to unmarshal form: " + cause.Error()), "alert")
+		}
+		return errors.Err(err)
+	}
+
+	if err := f.Validate(); err != nil {
+		if ferr, ok := err.(form.Errors); ok {
+			if sess != nil {
+				sess.AddFlash(ferr, "form_errors")
+				sess.AddFlash(f.Fields(), "form_fields")
+			}
+			return ferr
+		}
+
+		if sess != nil {
+			cause := errors.Cause(err)
+			sess.AddFlash(template.Danger("Failed to validate form: " + cause.Error()), "alert")
+		}
+		return errors.Err(err)
+	}
+	return nil
 }

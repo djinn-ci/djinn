@@ -4,7 +4,9 @@ import (
 	"net/http"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/web/core"
@@ -15,28 +17,30 @@ type Invite struct {
 }
 
 func (h Invite) Store(w http.ResponseWriter, r *http.Request) {
-	_, err := h.Core.Store(w, r)
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
 
-	if err != nil {
+	if _, err := h.Core.Store(r, sess); err != nil {
 		cause := errors.Cause(err)
 
-		if cause == core.ErrValidationFailed {
+		switch cause {
+		case form.ErrValidation:
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		}
-
-		if cause == core.ErrNotFound || cause == core.ErrAccessDenied {
+		case model.ErrNotFound:
+			fallthrough
+		case model.ErrPermission:
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}
 
 		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to invite user: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to invite user: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Invite sent"))
+	sess.AddFlash(template.Success("Invite sent"), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 

@@ -10,8 +10,9 @@ import (
 )
 
 type Key struct {
-	Keys model.KeyStore `schema:"-"`
+	User *model.User    `schema:"-"`
 	Key  *model.Key     `schema:"-"`
+	Keys model.KeyStore `schema:"-"`
 
 	Namespace string `schema:"namespace"`
 	Name      string `schema:"name"`
@@ -20,13 +21,12 @@ type Key struct {
 }
 
 func (f Key) Fields() map[string]string {
-	m := make(map[string]string)
-	m["namespace"] = f.Namespace
-	m["name"] = f.Name
-	m["key"] = f.Priv
-	m["config"] = f.Config
-
-	return m
+	return map[string]string{
+		"namespace": f.Namespace,
+		"name":      f.Name,
+		"key":       f.Priv,
+		"config":    f.Config,
+	}
 }
 
 func (f Key) Validate() error {
@@ -34,6 +34,16 @@ func (f Key) Validate() error {
 
 	if f.Name == "" {
 		errs.Put("name", ErrFieldRequired("Name"))
+	}
+
+	n, err := getNamespace(f.User, f.Namespace)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if !n.IsZero() {
+		f.Keys = n.KeyStore()
 	}
 
 	checkUnique := true

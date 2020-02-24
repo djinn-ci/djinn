@@ -3,7 +3,6 @@ package core
 import (
 	"database/sql"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 
@@ -13,6 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
+
+	"github.com/gorilla/sessions"
 )
 
 type Namespace struct {
@@ -29,95 +30,6 @@ func (h Namespace) Namespace(r *http.Request) *model.Namespace {
 	n, _ := val.(*model.Namespace)
 
 	return n
-}
-
-// Get a namespace by the given path. If the namespace does not exist then it
-// will be created on the fly along with each sub-namespace. A namespace for a
-// specific user can be retrieved like this if there is an '@' in the path. For
-// example 'parent/child@user'.
-func (h Namespace) Get(path string, u *model.User) (*model.Namespace, error) {
-	namespaces := u.NamespaceStore()
-
-	if strings.Contains(path, "@") {
-		parts := strings.Split(path, "@")
-
-		username := parts[1]
-		path = parts[0]
-
-		u, err := h.Users.Get(query.Where("username", "=", username))
-
-		if err != nil {
-			return &model.Namespace{}, errors.Err(err)
-		}
-
-		if !u.IsZero() {
-			namespaces = u.NamespaceStore()
-		}
-	}
-
-	n, err := namespaces.Get(query.Where("path", "=", path))
-
-	if err != nil {
-		return n, errors.Err(err)
-	}
-
-	if !n.IsZero() {
-		err = n.LoadCollaborators()
-
-		return n, errors.Err(err)
-	}
-
-	p := &model.Namespace{}
-
-	parts := strings.Split(path, "/")
-
-	for i, name := range parts {
-		if p.Level + 1 > NamespaceMaxDepth {
-			break
-		}
-
-		if matched, err := regexp.Match("^[a-zA-Z0-9]+$", []byte(name)); !matched || err != nil {
-			if i == 0 && len(parts) == 1 {
-				return n, ErrNamespaceNameInvalid
-			}
-
-			break
-		}
-
-		n = namespaces.New()
-		n.Name = name
-		n.Path = name
-		n.Level = p.Level + 1
-
-		if !p.IsZero() {
-			n.RootID = p.RootID
-			n.ParentID = sql.NullInt64{
-				Int64: p.ID,
-				Valid: true,
-			}
-
-			n.Path = strings.Join([]string{p.Path, n.Name}, "/")
-		}
-
-		if err := namespaces.Create(n); err != nil {
-			return n, errors.Err(err)
-		}
-
-		if p.IsZero() {
-			n.RootID = sql.NullInt64{
-				Int64: n.ID,
-				Valid: true,
-			}
-
-			if err := namespaces.Update(n); err != nil {
-				return n, errors.Err(err)
-			}
-		}
-
-		p = n
-	}
-
-	return n, nil
 }
 
 func (h Namespace) Destroy(r *http.Request) error {
@@ -174,7 +86,7 @@ func (h Namespace) Index(namespaces model.NamespaceStore, r *http.Request, opts 
 	return nn, paginator, errors.Err(err)
 }
 
-func (h Namespace) Store(w http.ResponseWriter, r *http.Request) (*model.Namespace, error) {
+func (h Namespace) Store(r *http.Request, sess *sessions.Session) (*model.Namespace, error) {
 	u := h.User(r)
 
 	namespaces := u.NamespaceStore()
@@ -184,9 +96,9 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) (*model.Namespa
 		UserID:     u.ID,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
 		if _, ok := err.(form.Errors); ok {
-			return &model.Namespace{}, ErrValidationFailed
+			return &model.Namespace{}, form.ErrValidation
 		}
 
 		return &model.Namespace{}, errors.Err(err)
@@ -216,7 +128,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) (*model.Namespa
 	}
 
 	if n.Level >= NamespaceMaxDepth {
-		return n, ErrNamespaceTooDeep
+		return n, model.ErrNamespaceDepth
 	}
 
 	if err := namespaces.Create(n); err != nil {
@@ -237,7 +149,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) (*model.Namespa
 	return n, nil
 }
 
-func (h Namespace) Update(w http.ResponseWriter, r *http.Request) (*model.Namespace, error) {
+func (h Namespace) Update(r *http.Request, sess *sessions.Session) (*model.Namespace, error) {
 	u := h.User(r)
 	n := h.Namespace(r)
 
@@ -247,11 +159,10 @@ func (h Namespace) Update(w http.ResponseWriter, r *http.Request) (*model.Namesp
 		UserID:     n.UserID,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
 		if _, ok := err.(form.Errors); ok {
-			return &model.Namespace{}, ErrValidationFailed
+			return &model.Namespace{}, form.ErrValidation
 		}
-
 		return &model.Namespace{}, errors.Err(err)
 	}
 

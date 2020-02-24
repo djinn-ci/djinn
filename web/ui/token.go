@@ -31,6 +31,9 @@ func (h Token) token(r *http.Request) *model.Token {
 }
 
 func (h Token) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 
 	tt, err := u.TokenStore().All()
@@ -42,10 +45,10 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, t := range tt {
-		val := h.FlashGet(w, r, "token_id")
+		val := sess.Flashes("token_id")
 
 		if val != nil {
-			if id, _ := val.(int64); id == t.ID {
+			if id, _ := val[0].(int64); id == t.ID {
 				continue
 			}
 		}
@@ -62,18 +65,21 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 		Tokens: tt,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Token) Create(w http.ResponseWriter, r *http.Request) {
-	f := h.Form(w, r)
+	sess, save := h.Session(r)
+	defer save(r, w)
+
+	f := h.FormFields(sess)
 
 	p := &token.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Errors(w, r),
+			Errors: h.FormErrors(sess),
 			Fields: f,
 		},
 		Scopes: make(map[string]struct{}),
@@ -85,12 +91,15 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 		p.Scopes[sc] = struct{}{}
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Token) Store(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 
 	tokens := u.TokenStore()
@@ -99,7 +108,7 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 		Tokens: tokens,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
 		if _, ok := err.(form.Errors); !ok {
 			log.Error.Println(errors.Err(err))
 		}
@@ -132,31 +141,37 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.FlashPut(w, r, "token_id", t.ID)
+	sess.AddFlash(t.ID, "token_id")
 
 	http.Redirect(w, r, "/settings/tokens", http.StatusSeeOther)
 }
 
 func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	t := h.token(r)
-	f := h.Form(w, r)
+	f := h.FormFields(sess)
 
 	p := &token.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Errors(w, r),
+			Errors: h.FormErrors(sess),
 			Fields: f,
 		},
 		Token:  t,
 		Scopes: t.Permissions(),
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Token) Update(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 	t := h.token(r)
 
@@ -165,7 +180,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 		Token:  t,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
 		if _, ok := err.(form.Errors); !ok {
 			log.Error.Println(errors.Err(err))
 		}
@@ -185,14 +200,14 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 	if err := h.Tokens.Update(t); err != nil {
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to update token: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to update token: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.FlashPut(w, r, "token_id", t.ID)
+	sess.AddFlash(t.ID, "token_id")
+	sess.AddFlash(template.Success("Token has been updated: " + t.Name), "alert")
 
-	h.FlashAlert(w, r, template.Success("Token has been updated: " + t.Name))
 	http.Redirect(w, r, "/settings/tokens", http.StatusSeeOther)
 }
 

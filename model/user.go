@@ -27,8 +27,6 @@ type UserStore struct {
 	Store
 }
 
-var ErrUserAuth = errors.New("Invalid user credentials")
-
 func userToInterface(uu []*User) func(i int) Interface {
 	return func(i int) Interface {
 		return uu[i]
@@ -62,7 +60,7 @@ func (s UserStore) Auth(handle, password string) (*User, error) {
 	}
 
 	if err := bcrypt.CompareHashAndPassword(u.Password, []byte(password)); err != nil {
-		return u, errors.Err(ErrUserAuth)
+		return u, ErrAuth
 	}
 
 	return u, nil

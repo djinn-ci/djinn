@@ -11,21 +11,20 @@ import (
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
+
+	"github.com/gorilla/sessions"
 )
 
 type Variable struct {
 	web.Handler
 
-	Namespace  Namespace
 	Namespaces model.NamespaceStore
 	Variables  model.VariableStore
 }
 
 func (h Variable) Variable(r *http.Request) *model.Variable {
 	val := r.Context().Value("variable")
-
 	v, _ := val.(*model.Variable)
-
 	return v
 }
 
@@ -69,47 +68,26 @@ func (h Variable) Index(variables model.VariableStore, r *http.Request, opts ...
 	return vv, paginator, errors.Err(err)
 }
 
-func (h Variable) Store(w http.ResponseWriter, r *http.Request) (*model.Variable, error) {
+func (h Variable) Store(r *http.Request, sess *sessions.Session) (*model.Variable, error) {
 	u := h.User(r)
 
 	variables := u.VariableStore()
 
 	f := &form.Variable{
+		User:      u,
 		Variables: variables,
 	}
 
-	if err := form.Unmarshal(f, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
+		if _, ok := err.(form.Errors); ok {
+			return &model.Variable{}, form.ErrValidation
+		}
 		return &model.Variable{}, errors.Err(err)
 	}
 
-	var err error
+	n, err := h.Namespaces.Get(query.Where("path", "=", f.Namespace))
 
-	n := &model.Namespace{}
-
-	if f.Namespace != "" {
-		n, err = h.Namespace.Get(f.Namespace, u)
-
-		if err != nil {
-			return &model.Variable{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(u) {
-			h.FlashForm(w, r, f)
-
-			return &model.Variable{}, errors.Err(err)
-		}
-
-		f.Variables = n.VariableStore()
-	}
-
-	if err := f.Validate(); err != nil {
-		if ferr, ok := err.(form.Errors); ok {
-			h.FlashErrors(w, r, ferr)
-			h.FlashForm(w, r, f)
-
-			return &model.Variable{}, ErrValidationFailed
-		}
-
+	if err != nil {
 		return &model.Variable{}, errors.Err(err)
 	}
 

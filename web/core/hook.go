@@ -488,7 +488,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 	if err := h.submitBuilds(mm, u, t); err != nil {
 		cause := errors.Cause(err)
 
-		if cause == ErrNamespaceNameInvalid {
+		if cause == model.ErrNamespaceName {
 			web.Text(w, invalidNamespaceName, http.StatusBadRequest)
 			return
 		}
@@ -682,7 +682,7 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 	if err := h.submitBuilds(mm, u, t); err != nil {
 		cause := errors.Cause(err)
 
-		if cause == ErrNamespaceNameInvalid {
+		if cause == model.ErrNamespaceName {
 			web.Text(w, invalidNamespaceName, http.StatusBadRequest)
 			return
 		}

@@ -7,6 +7,7 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/template/namespace"
 	"github.com/andrewpillar/thrall/web"
@@ -27,6 +28,9 @@ type Namespace struct {
 }
 
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	nn, paginator, err := h.Core.Index(u.NamespaceStore(), r)
@@ -49,12 +53,15 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		Search:     search,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	parent, err := u.NamespaceStore().Get(query.Where("path", "=", r.URL.Query().Get("parent")))
@@ -73,8 +80,8 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	p := &namespace.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Core.Errors(w, r),
-			Fields: h.Core.Form(w, r),
+			Errors: h.Core.FormErrors(sess),
+			Fields: h.Core.FormFields(sess),
 		},
 	}
 
@@ -82,34 +89,35 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		p.Parent = parent
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
-	n, err := h.Core.Store(w, r)
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
+	n, err := h.Core.Store(r, sess)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if cause == core.ErrValidationFailed {
+		switch cause {
+		case form.ErrValidation:
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		}
-
-		if cause == core.ErrNamespaceTooDeep {
+		case model.ErrNamespaceDepth:
 			errs := form.NewErrors()
 			errs.Put("namespace", cause)
 
-			h.Core.FlashErrors(w, r, errs)
-
+			sess.AddFlash(errs, "form_errors")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 
 		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to create namespace: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to create namespace: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -118,6 +126,9 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 	n := h.Core.Namespace(r)
 
@@ -221,8 +232,8 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		p = &namespace.ShowCollaborators{
 			ShowPage:      sp,
 			CSRF:          string(csrf.TemplateField(r)),
-			Fields:        h.Core.Form(w, r),
-			Errors:        h.Core.Errors(w, r),
+			Fields:        h.Core.FormFields(sess),
+			Errors:        h.Core.FormErrors(sess),
 			Collaborators: cc,
 		}
 
@@ -243,12 +254,15 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	n := h.Core.Namespace(r)
 
 	if err := n.LoadParents(); err != nil {
@@ -260,40 +274,45 @@ func (h Namespace) Edit(w http.ResponseWriter, r *http.Request) {
 	p := &namespace.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Core.Errors(w, r),
-			Fields: h.Core.Form(w, r),
+			Errors: h.Core.FormErrors(sess),
+			Fields: h.Core.FormFields(sess),
 		},
 		Namespace: n,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Namespace) Update(w http.ResponseWriter, r *http.Request) {
-	n, err := h.Core.Update(w, r)
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
+	n, err := h.Core.Update(r, sess)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if _, ok := cause.(form.Errors); ok {
+		if cause == form.ErrValidation {
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 
 		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to update namespace: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to update namespace: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Namespace changes saved"))
-
+	sess.AddFlash(template.Success("Namespace changes saved"), "alert")
 	http.Redirect(w, r, n.UIEndpoint(), http.StatusSeeOther)
 }
 
 func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	n := h.Core.Namespace(r)
 
 	if err := h.Core.Destroy(r); err != nil {
@@ -301,12 +320,11 @@ func (h Namespace) Destroy(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.Core.FlashAlert(w, r, template.Danger("Failed to delete namespace: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to delete namespace: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Namespace has been deleted: " + n.Path))
-
+	sess.AddFlash(template.Success("Namespace has been deleted: " + n.Path), "alert")
 	http.Redirect(w, r, "/namespaces", http.StatusSeeOther)
 }

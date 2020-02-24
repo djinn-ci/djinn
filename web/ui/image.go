@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
@@ -47,6 +48,9 @@ func (h Image) indexPage(images model.ImageStore, r *http.Request) (image.IndexP
 }
 
 func (h Image) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	p, err := h.indexPage(u.ImageStore(), r)
@@ -57,51 +61,56 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := template.NewDashboard(&p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(&p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Image) Create(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	p := &file.CreatePage{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Core.Errors(w, r),
-			Fields: h.Core.Form(w, r),
+			Errors: h.Core.FormErrors(sess),
+			Fields: h.Core.FormFields(sess),
 		},
 		Name:   "image",
 		Action: "/images",
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Image) Store(w http.ResponseWriter, r *http.Request) {
-	i, err := h.Core.Store(w, r)
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
+	i, err := h.Core.Store(w, r, sess)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
 		switch cause {
-		case core.ErrValidationFailed:
+		case form.ErrValidation:
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		case core.ErrAccessDenied:
-			h.Core.FlashAlert(w, r, template.Danger("Failed to create SSH key: could not add to namespace"))
+		case model.ErrPermission:
+			sess.AddFlash(template.Danger("Failed to create image: could not add to namespace"), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		default:
 			log.Error.Println(errors.Err(err))
-
-			h.Core.FlashAlert(w, r, template.Danger("Failed to create SSH key: " + cause.Error()))
+			sess.AddFlash(template.Danger("Failed to create image: " + cause.Error()))
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Image has been added: " + i.Name))
+	sess.AddFlash(template.Success("Image has been added: " + i.Name), "alert")
 
 	http.Redirect(w, r, "/images", http.StatusSeeOther)
 }
@@ -135,6 +144,9 @@ func (h Image) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Image) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	i := h.Core.Image(r)
 
 	if err := h.Core.Destroy(r); err != nil {
@@ -144,12 +156,12 @@ func (h Image) Destroy(w http.ResponseWriter, r *http.Request) {
 			log.Error.Println(errors.Err(err))
 		}
 
-		h.Core.FlashAlert(w, r, template.Danger("Failed to delete image: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to delete image: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Image has been deleted: " + i.Name))
+	sess.AddFlash(template.Success("Image has been deleted: " + i.Name), "alert")
 
 	ref := r.Header.Get("Referer")
 

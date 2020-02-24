@@ -28,7 +28,18 @@ type User struct {
 	Providers map[string]oauth2.Provider
 }
 
+func (h User) CreateApp(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h User) StoreApp(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func (h User) Settings(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 
 	base := filepath.Base(r.URL.Path)
@@ -43,8 +54,8 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 	sp := user.SettingsPage{
 		BasePage: bp,
 		Form:     template.Form{
-			Errors: h.Errors(w, r),
-			Fields: h.Form(w, r),
+			Errors: h.FormErrors(sess),
+			Fields: h.FormFields(sess),
 		},
 		CSRF:     string(csrf.TemplateField(r)),
 	}
@@ -107,12 +118,15 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h User) Email(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 
 	f := &form.Email{
@@ -120,7 +134,7 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 		Users: h.Users,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -132,17 +146,19 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to update account: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to update account: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Email has been updated"))
-
+	sess.AddFlash(template.Success("Email has been updated"), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 
 func (h User) Password(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	u := h.User(r)
 
 	f := &form.Password{
@@ -150,7 +166,7 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 		Users: h.Users,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -162,7 +178,7 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to update account: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to update account: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -174,12 +190,11 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.FlashAlert(w, r, template.Danger("Failed to update account: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to update account: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.FlashAlert(w, r, template.Success("Password has been updated"))
-
+	sess.AddFlash(template.Success("Password has been updated"), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

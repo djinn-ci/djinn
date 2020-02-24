@@ -53,6 +53,9 @@ func (h Build) indexPage(builds model.BuildStore, r *http.Request, opts ...query
 }
 
 func (h Build) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	p, err := h.indexPage(u.BuildStore(), r)
@@ -63,51 +66,55 @@ func (h Build) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := template.NewDashboard(&p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(&p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Build) Create(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	p := &build.CreatePage{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Core.Errors(w, r),
-			Fields: h.Core.Form(w, r),
+			Errors: h.Core.FormErrors(sess),
+			Fields: h.Core.FormFields(sess),
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Build) Store(w http.ResponseWriter, r *http.Request) {
-	b, err := h.Core.Store(w, r)
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
+	b, err := h.Core.Store(r, sess)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
 		switch cause {
-		case core.ErrValidationFailed:
+		case form.ErrValidation:
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		case core.ErrUnsupportedDriver:
+		case model.ErrDriver:
 			errs := form.NewErrors()
 			errs.Put("manifest", cause)
 
-			h.Core.FlashErrors(w, r, errs)
-
+			sess.AddFlash(errs, "form_errors")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		case core.ErrAccessDenied:
-			h.Core.FlashAlert(w, r, template.Danger("Failed to create build: could not add to namespace"))
+		case model.ErrPermission:
+			sess.AddFlash(template.Danger("Failed to create build: could not add to namespace"), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		default:
 			log.Error.Println(errors.Err(err))
-
-			h.Core.FlashAlert(w, r, template.Danger("Failed to create build: " + cause.Error()))
+			sess.AddFlash(template.Danger("Failed to create build: " + cause.Error()), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
@@ -115,18 +122,20 @@ func (h Build) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Core.Submit(b, h.Core.Queues[b.Manifest.Driver["type"]]); err != nil {
 		cause := errors.Cause(err)
-
-		h.Core.FlashAlert(w, r, template.Danger("Failed to create build: " + cause.Error()))
+		log.Error.Println(errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to create build: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Build submitted: #" + strconv.FormatInt(b.ID, 10)))
-
+	sess.AddFlash(template.Success("Build submitted: #" + strconv.FormatInt(b.ID, 10)), "alert")
 	http.Redirect(w, r, b.UIEndpoint(), http.StatusSeeOther)
 }
 
 func (h Build) Show(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	b, err := h.Core.Show(r)
@@ -262,20 +271,25 @@ func (h Build) Show(w http.ResponseWriter, r *http.Request) {
 		break
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Build) Kill(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	if err := h.Core.Kill(r); err != nil {
+		log.Error.Println(errors.Err(err))
+
 		cause := errors.Cause(err)
 
-		h.Core.FlashAlert(w, r, template.Danger("Failed to kill build: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to kill build: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Build killed"))
+	sess.AddFlash(template.Success("Build killed"), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

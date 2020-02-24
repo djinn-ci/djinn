@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
@@ -48,6 +49,9 @@ func (h Key) indexPage(keys model.KeyStore, r *http.Request, opts ...query.Optio
 }
 
 func (h Key) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	p, err := h.indexPage(u.KeyStore(), r)
@@ -58,48 +62,61 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := template.NewDashboard(&p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(&p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Key) Create(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	p := &key.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Core.Errors(w, r),
-			Fields: h.Core.Form(w, r),
+			Errors: h.Core.FormErrors(sess),
+			Fields: h.Core.FormFields(sess),
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Key) Store(w http.ResponseWriter, r *http.Request) {
-	k, err := h.Core.Store(w, r)
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
+	k, err := h.Core.Store(r, sess)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if cause == core.ErrValidationFailed {
+		switch cause {
+		case form.ErrValidation:
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		case model.ErrPermission:
+			sess.AddFlash(template.Danger("Failed to create key: could not add to namespace"), "alert")
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		default:
+			log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to create key: " + cause.Error()), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
-
-		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to create SSH key: " + cause.Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Key has been added: " + k.Name))
-
+	sess.AddFlash(template.Success("Key has been added: " + k.Name), "alert")
 	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }
 
 func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	k := h.Core.Key(r)
 
 	if err := k.LoadNamespace(); err != nil {
@@ -111,50 +128,59 @@ func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 	p := &key.Form{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Core.Errors(w, r),
-			Fields: h.Core.Form(w, r),
+			Errors: h.Core.FormErrors(sess),
+			Fields: h.Core.FormFields(sess),
 		},
 		Key: k,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Key) Update(w http.ResponseWriter, r *http.Request) {
-	k, err := h.Core.Update(w, r)
+	sess, save:= h.Core.Session(r)
+	defer save(r, w)
+
+	k, err := h.Core.Update(r, sess)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if cause == core.ErrValidationFailed {
+		switch cause {
+		case form.ErrValidation:
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		case model.ErrPermission:
+			sess.AddFlash(template.Danger("Failed to update key: could not add to namespace"), "alert")
+			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+			return
+		default:
+			log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to update key: " + cause.Error()), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
-
-		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to update  SSH key: " + cause.Error()))
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Key changes saved for: " + k.Name))
-
+	sess.AddFlash(template.Success("Key changes saved for: " + k.Name), "alert")
 	http.Redirect(w, r, "/keys", http.StatusSeeOther)
 }
 
 func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	k := h.Core.Key(r)
 
 	if err := h.Keys.Delete(k); err != nil {
 		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()))
+		sess.AddFlash(template.Danger("Failed to delete SSH key: " + errors.Cause(err).Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Key has been deleted: " + k.Name))
-
+	sess.AddFlash(template.Success("Key has been deleted: " + k.Name), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

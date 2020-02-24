@@ -12,13 +12,14 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/mux"
+	"github.com/gorilla/sessions"
 )
 
 type Invite struct {
 	web.Handler
 }
 
-func (h Invite) Store(w http.ResponseWriter, r *http.Request) (*model.Invite, error) {
+func (h Invite) Store(r *http.Request, sess *sessions.Session) (*model.Invite, error) {
 	u := h.User(r)
 
 	vars := mux.Vars(r)
@@ -30,13 +31,13 @@ func (h Invite) Store(w http.ResponseWriter, r *http.Request) (*model.Invite, er
 	}
 
 	if u.ID != owner.ID {
-		return &model.Invite{}, ErrAccessDenied
+		return &model.Invite{}, model.ErrPermission
 	}
 
 	n, err := owner.NamespaceStore().Get(query.Where("path", "=", strings.TrimSuffix(vars["namespace"], "/")))
 
 	if err != nil {
-		return &model.Invite{}, ErrNotFound
+		return &model.Invite{}, model.ErrNotFound
 	}
 
 	invites := n.InviteStore()
@@ -48,11 +49,10 @@ func (h Invite) Store(w http.ResponseWriter, r *http.Request) (*model.Invite, er
 		Inviter:       owner,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
+	if err := h.ValidateForm(f, r, sess); err != nil {
 		if _, ok := err.(form.Errors); ok {
-			return &model.Invite{}, ErrValidationFailed
+			return &model.Invite{}, form.ErrValidation
 		}
-
 		return &model.Invite{}, errors.Err(err)
 	}
 

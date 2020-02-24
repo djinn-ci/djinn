@@ -6,6 +6,7 @@ import (
 	"regexp"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
@@ -50,6 +51,9 @@ func (h Object) indexPage(objects model.ObjectStore, r *http.Request) (object.In
 }
 
 func (h Object) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	p, err := h.indexPage(u.ObjectStore(), r)
@@ -60,12 +64,15 @@ func (h Object) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	d := template.NewDashboard(&p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(&p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Object) Show(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	u := h.Core.User(r)
 
 	o, err := h.Core.Show(r)
@@ -100,52 +107,57 @@ func (h Object) Show(w http.ResponseWriter, r *http.Request) {
 		Index:  bp,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Object) Create(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	p := &file.CreatePage{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.Core.Errors(w, r),
-			Fields: h.Core.Form(w, r),
+			Errors: h.Core.FormErrors(sess),
+			Fields: h.Core.FormFields(sess),
 		},
 		Name:   "object",
 		Action: "/objects",
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Core.Alert(w, r), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, h.Core.Alert(sess), string(csrf.TemplateField(r)))
 
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Object) Store(w http.ResponseWriter, r *http.Request) {
-	o, err := h.Core.Store(w, r)
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
+	o, err := h.Core.Store(w, r, sess)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
 		switch cause {
-		case core.ErrValidationFailed:
+		case form.ErrValidation:
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
-		case core.ErrAccessDenied:
-			h.Core.FlashAlert(w, r, template.Danger("Failed to create object: could not add to namespace"))
+		case model.ErrPermission:
+			sess.AddFlash(template.Danger("Failed to create object: could not add to namespace"), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		default:
 			log.Error.Println(errors.Err(err))
 
-			h.Core.FlashAlert(w, r, template.Danger("Failed to create object: " + cause.Error()))
+			sess.AddFlash(template.Danger("Failed to create object: " + cause.Error()), "alert")
 			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 			return
 		}
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Object has been added: " + o.Name))
-
+	sess.AddFlash(template.Success("Object has been added: " + o.Name), "alert")
 	http.Redirect(w, r, "/objects", http.StatusSeeOther)
 }
 
@@ -178,6 +190,9 @@ func (h Object) Download(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	o := h.Core.Object(r)
 
 	if err := h.Core.Destroy(r); err != nil {
@@ -187,12 +202,12 @@ func (h Object) Destroy(w http.ResponseWriter, r *http.Request) {
 			log.Error.Println(errors.Err(err))
 		}
 
-		h.Core.FlashAlert(w, r, template.Danger("Failed to delete object: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to delete object: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Object has been deleted: " + o.Name))
+	sess.AddFlash(template.Success("Object has been deleted: " + o.Name), "alert")
 
 	ref := r.Header.Get("Referer")
 

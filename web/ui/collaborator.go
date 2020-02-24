@@ -16,23 +16,27 @@ type Collaborator struct {
 }
 
 func (h Collaborator) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	if err := h.Core.Destroy(r); err != nil {
 		log.Error.Println(errors.Err(err))
 
 		cause := errors.Cause(err)
 
-		h.Core.FlashAlert(w, r, template.Danger("Failed to remove collaborator: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to remove collaborator: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	vars := mux.Vars(r)
-
-	h.Core.FlashAlert(w, r, template.Success("Collaborator removed: " + vars["collaborator"]))
+	sess.AddFlash(template.Success("Collaborator removed: " + mux.Vars(r)["collaborator"]), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }
 
 func (h Collaborator) Store(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	n, err := h.Core.Store(r)
 
 	if err != nil {
@@ -40,11 +44,11 @@ func (h Collaborator) Store(w http.ResponseWriter, r *http.Request) {
 
 		cause := errors.Cause(err)
 
-		h.Core.FlashAlert(w, r, template.Danger("Failed to accept invite: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to accept invite: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("You are now a collaborator in: " + n.Name))
+	sess.AddFlash(template.Success("You are now a collaborator in: " + n.Name), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

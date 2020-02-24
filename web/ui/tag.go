@@ -14,11 +14,14 @@ type Tag struct {
 }
 
 func (h Tag) Store(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	if _, err := h.Core.Store(w, r); err != nil {
 		cause := errors.Err(err)
 
 		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to tag build: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to tag build: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
@@ -27,16 +30,18 @@ func (h Tag) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Tag) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Core.Session(r)
+	defer save(r, w)
+
 	if err := h.Core.Destroy(r); err != nil {
 		cause := errors.Err(err)
 
 		log.Error.Println(errors.Err(err))
-		h.Core.FlashAlert(w, r, template.Danger("Failed to tag build: " + cause.Error()))
+		sess.AddFlash(template.Danger("Failed to tag build: " + cause.Error()), "alert")
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
-	h.Core.FlashAlert(w, r, template.Success("Tag has been deleted"))
-
+	sess.AddFlash(template.Success("Tag has been deleted"), "alert")
 	http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 }

@@ -28,15 +28,17 @@ type Auth struct {
 }
 
 func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	if r.Method == "GET" {
 		p := &auth.RegisterPage{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
-				Errors: h.Errors(w, r),
-				Fields: h.Form(w, r),
+				Errors: h.FormErrors(sess),
+				Fields: h.FormFields(sess),
 			},
 		}
-
 		web.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
@@ -45,14 +47,11 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 		Users: h.Users,
 	}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
-		if _, ok := err.(form.Errors); ok {
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-			return
+	if err := h.ValidateForm(f, r, sess); err != nil {
+		if _, ok := err.(form.Errors); !ok {
+			log.Error.Println(errors.Err(err))
 		}
-
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
@@ -79,47 +78,46 @@ func (h Auth) Register(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Auth) Login(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+	defer save(r, w)
+
 	if r.Method == "GET" {
 		p := &auth.LoginPage{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
-				Errors: h.Errors(w, r),
-				Fields: h.Form(w, r),
+				Errors: h.FormErrors(sess),
+				Fields: h.FormFields(sess),
 			},
 		}
-
 		web.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
 	f := &form.Login{}
 
-	if err := h.ValidateForm(f, w, r); err != nil {
-		if _, ok := err.(form.Errors); ok {
-			http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
-			return
+	if err := h.ValidateForm(f, r, sess); err != nil {
+		if _, ok := err.(form.Errors); !ok {
+			log.Error.Println(errors.Err(err))
 		}
-
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return
 	}
 
 	u, err := h.Users.Auth(f.Handle, f.Password)
 
 	if err != nil {
-		if errors.Cause(err) != model.ErrUserAuth {
+		if errors.Cause(err) != model.ErrAuth {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 
 		errs := form.NewErrors()
-		errs.Put("handle", model.ErrUserAuth)
-		errs.Put("password", model.ErrUserAuth)
+		errs.Put("handle", model.ErrAuth)
+		errs.Put("password", model.ErrAuth)
 
-		h.FlashErrors(w, r, errs)
-		h.FlashForm(w, r, f)
+		sess.AddFlash(errs, "form_errors")
+		sess.AddFlash(f.Fields(), "form_fields")
 
 		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
 		return

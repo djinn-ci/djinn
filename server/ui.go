@@ -94,6 +94,7 @@ func (s *UI) Init() {
 
 	s.key = ui.Key{
 		Core: s.Server.key,
+		Keys: model.KeyStore{Store: store},
 	}
 
 	s.oauth = ui.Oauth{

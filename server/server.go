@@ -129,10 +129,11 @@ func (s *Server) Init() {
 	}
 
 	s.image = core.Image{
-		Handler:   s.Handler,
-		FileStore: s.Images,
-		Limit:     s.ImageLimit,
-		Images:    model.ImageStore{Store: store},
+		Handler:    s.Handler,
+		FileStore:  s.Images,
+		Limit:      s.ImageLimit,
+		Images:     model.ImageStore{Store: store},
+		Namespaces: model.NamespaceStore{Store: store},
 	}
 
 	s.invite = core.Invite{Handler: s.Handler}

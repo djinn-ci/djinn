@@ -60,21 +60,19 @@ func (h Build) Index(builds model.BuildStore, r *http.Request, opts ...query.Opt
 		page = 1
 	}
 
-	index := []query.Option{
+	opts = append([]query.Option{
 		model.BuildTag(tag),
 		model.BuildSearch(search),
 		model.BuildStatus(status),
-	}
+	}, opts...)
 
-	paginator, err := builds.Paginate(page, append(index, opts...)...)
+	paginator, err := builds.Paginate(page, opts...)
 
 	if err != nil {
 		return []*model.Build{}, paginator, errors.Err(err)
 	}
 
-	index = append(index, query.OrderDesc("created_at"))
-
-	bb, err := builds.All(append(index, opts...)...)
+	bb, err := builds.All(append(opts, query.OrderDesc("created_at"))...)
 
 	if err != nil {
 		return bb, paginator, errors.Err(err)

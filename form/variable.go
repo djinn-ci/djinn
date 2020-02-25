@@ -13,6 +13,7 @@ import (
 var reVariable = regexp.MustCompile("^[^0-9]+[a-zA-Z0-9_]+$")
 
 type Variable struct {
+	User      *model.User         `schema:"-"`
 	Variables model.VariableStore `schema:"-"`
 
 	Namespace string `schema:"namespace"`
@@ -21,11 +22,10 @@ type Variable struct {
 }
 
 func (f Variable) Fields() map[string]string {
-	m := make(map[string]string)
-	m["key"] = f.Key
-	m["value"] = f.Value
-
-	return m
+	return map[string]string{
+		"key":   f.Key,
+		"value": f.Value,
+	}
 }
 
 func (f Variable) Validate() error {
@@ -37,6 +37,16 @@ func (f Variable) Validate() error {
 
 	if !reVariable.Match([]byte(f.Key)) {
 		errs.Put("key", ErrFieldInvalid("Key", "can only contain letters, numbers, dashes, and have not leading numbers"))
+	}
+
+	n, err := getNamespace(f.User, f.Namespace)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if !n.IsZero() {
+		f.Variables = n.VariableStore()
 	}
 
 	v, err := f.Variables.Get(query.Where("key", "=", f.Key))

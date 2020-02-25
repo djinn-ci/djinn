@@ -261,7 +261,7 @@ func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
 //line template/token/form.qtpl:96
 	} else {
 //line template/token/form.qtpl:96
-		qw422016.N().S(` <button type="submit" class="btn btn-primary">Edit</button> `)
+		qw422016.N().S(` <button type="submit" class="btn btn-primary">Save</button> `)
 //line template/token/form.qtpl:98
 	}
 //line template/token/form.qtpl:98

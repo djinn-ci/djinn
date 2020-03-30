@@ -2,6 +2,7 @@ package errors
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"runtime"
@@ -52,7 +53,7 @@ func Err(err error) error {
 	return &Error{
 		Err:  err,
 		Func: funcName,
-		File: strings.TrimPrefix(filepath.Join(parts[1:]...), "/"),
+		File: strings.TrimPrefix(filepath.Join(parts[1:]...), string(os.PathSeparator)),
 		Line: l,
 	}
 }

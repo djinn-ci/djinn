@@ -3,7 +3,9 @@ package errors
 import (
 	"fmt"
 	"path"
+	"path/filepath"
 	"runtime"
+	"strings"
 )
 
 var skip = 1
@@ -19,7 +21,6 @@ type errorStr string
 
 func New(s string) error {
 	e := errorStr(s)
-
 	return &e
 }
 
@@ -37,7 +38,7 @@ func Err(err error) error {
 		return nil
 	}
 
-	pc, f, l, _ := runtime.Caller(skip)
+	pc, fname, l, _ := runtime.Caller(skip)
 	pcFunc := runtime.FuncForPC(pc)
 
 	funcName := ""
@@ -46,18 +47,18 @@ func Err(err error) error {
 		funcName = pcFunc.Name()
 	}
 
+	parts := strings.Split(fname, "thrall")
+
 	return &Error{
 		Err:  err,
 		Func: funcName,
-		File: path.Base(f),
+		File: strings.TrimPrefix(filepath.Join(parts[1:]...), "/"),
 		Line: l,
 	}
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s[%s:%d]: %s", path.Base(e.Func), path.Base(e.File), e.Line, e.Err)
+	return fmt.Sprintf("%s - %s:%d: %s", path.Base(e.Func), e.File, e.Line, e.Err)
 }
 
-func (e *errorStr) Error() string {
-	return string(*e)
-}
+func (e *errorStr) Error() string { return string(*e) }

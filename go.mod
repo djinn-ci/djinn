@@ -28,7 +28,6 @@ require (
 	github.com/gorilla/sessions v1.2.0
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/klauspost/compress v1.10.1 // indirect
 	github.com/lib/pq v1.3.0
 	github.com/onsi/ginkgo v1.10.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
@@ -38,13 +37,8 @@ require (
 	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71 // indirect
 	github.com/valyala/quicktemplate v1.4.1
-	go.mongodb.org/mongo-driver v1.3.0 // indirect
 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
-	golang.org/x/exp v0.0.0-20200213203834-85f925bdd4d0 // indirect
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	golang.org/x/sys v0.0.0-20200217220822-9197077df867 // indirect
-	golang.org/x/tools v0.0.0-20200218205902-f8e42dc47720 // indirect
-	google.golang.org/genproto v0.0.0-20200218151345-dad8c97a84f5 // indirect
 	gopkg.in/yaml.v2 v2.2.8
 	gotest.tools v2.2.0+incompatible // indirect
 )

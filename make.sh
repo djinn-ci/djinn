@@ -106,7 +106,13 @@ case "$1" in
 		;;
 	*)
 		if [ "$1" = "" ]; then
-			go test -v -cover ./...
+			go test -cover ./...
+			code="$?"
+
+			if [ ! "$code" -eq 0 ]; then
+				exit "$code"
+			fi
+
 			ui
 			build
 		else

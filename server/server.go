@@ -59,7 +59,7 @@ type UI struct {
 	CSRF func(http.Handler) http.Handler
 }
 
-// Init will initialize the API server, and register the necessary types with
+// Init will initialize the UI server, and register the necessary types with
 // gob for encoding session data, such as form errors, form fields, and alerts.
 // This will also wrap the underlying Router with a handler for spoofing HTTP
 // methods, such as PATCH, and DELETE.

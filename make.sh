@@ -3,7 +3,7 @@
 TAGS="netgo osusergo"
 LFLAGS="-ldflags \"-X=main.Build=$(git rev-parse HEAD)\""
 
-for bin in go qtc yarn; do
+for bin in go stringer qtc yarn; do
 	if ! hash "$bin"; then
 		>&2 printf "missing binary %s\n" "$bin"
 		exit 1
@@ -36,6 +36,8 @@ build() {
 	if [ -z "$cmd" ]; then
 		cmd="thrall thrall-server thrall-worker"
 	fi
+
+	go generate ./...
 
 	for c in "$cmd"; do
 		if [ ! -d cmd/"$c" ]; then

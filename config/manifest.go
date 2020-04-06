@@ -70,7 +70,7 @@ func (m *Manifest) Scan(val interface{}) error {
 	s, ok := str.(string)
 
 	if !ok {
-		return errors.Err(errors.New("expected string value for manifest"))
+		return errors.New("expected string value for manifest")
 	}
 
 	if len(s) == 0 {

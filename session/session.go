@@ -128,7 +128,7 @@ func (s *Store) Save(r *http.Request, w http.ResponseWriter, sess *sessions.Sess
 	}
 
 	if s.MaxLength != 0 && len(b) > s.MaxLength {
-		return errors.Err(errors.New("session value too big"))
+		return errors.New("session value too big")
 	}
 
 	duration := time.Duration(time.Second * time.Duration(s.MaxAge))

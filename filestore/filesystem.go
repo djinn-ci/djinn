@@ -69,7 +69,7 @@ func (fs *FileSystem) Place(name string, w io.Writer) (int64, error) {
 	}
 
 	if info.IsDir() {
-		return 0, errors.Err(errors.New("cannot place directory as an object"))
+		return 0, errors.New("cannot place directory as an object")
 	}
 
 	f, err := os.Open(src)

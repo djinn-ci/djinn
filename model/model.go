@@ -154,7 +154,7 @@ func Bind(fk, pk string, mm ...Model) func(int, Model) {
 }
 
 // CompareKeys compares the two given interface values, assuming they are
-// either of type int64, or sql.NulltIn64.
+// either of type int64, or sql.NullInt64.
 func CompareKeys(a, b interface{}) bool {
 	var (
 		fk int64
@@ -229,7 +229,7 @@ func Scan(val interface{}) ([]byte, error) {
 	b, ok := str.([]byte)
 
 	if !ok {
-		return []byte{}, errors.Err(errors.New("failed to Scan bytes"))
+		return []byte{}, errors.New("failed to Scan bytes")
 	}
 	return []byte(b), nil
 }

@@ -47,7 +47,7 @@ func Decrypt(b []byte) ([]byte, error) {
 	size := gcm.NonceSize()
 
 	if len(b) < size {
-		return nil, errors.Err(errors.New("cipher text is too short"))
+		return nil, errors.New("cipher text is too short")
 	}
 
 	nonce := b[:size]
@@ -82,7 +82,7 @@ func Encrypt(b []byte) ([]byte, error) {
 
 func Hash(i []int) (string, error) {
 	if hd == nil {
-		return "", errors.Err(errors.New("hashing not initialized"))
+		return "", errors.New("hashing not initialized")
 	}
 
 	id, err := hd.Encode(i)

@@ -4,42 +4,34 @@ import (
 	"database/sql/driver"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/model"
 )
 
 type Status uint8
 
+//go:generate stringer -type Status -linecomment
 const (
-	Queued Status = iota
-	Running
-	Passed
-	PassedWithFailures
-	Failed
-	Killed
-	TimedOut
+	Queued Status = iota // queued
+	Running              // running
+	Passed               // passed
+	PassedWithFailures   // passed_with_failures
+	Failed               // failed
+	Killed               // killed
+	TimedOut             // timed_out
 )
 
-func scan(val interface{}) ([]byte, error) {
-	if val == nil {
-		return []byte{}, nil
-	}
-
-	str, err := driver.String.ConvertValue(val)
-
-	if err != nil {
-		return []byte{}, errors.Err(err)
-	}
-
-	b, ok := str.([]byte)
-
-	if !ok {
-		return []byte{}, errors.Err(errors.New("failed to scan bytes"))
-	}
-
-	return b, nil
+var statusMap = map[string]Status{
+	"queued":               Queued,
+	"running":              Running,
+	"passed":               Passed,
+	"passed_with_failures": PassedWithFailures,
+	"failed":               Failed,
+	"killed":               Killed,
+	"timed_out":            TimedOut,
 }
 
 func (s *Status) Scan(val interface{}) error {
-	b, err := scan(val)
+	b, err := model.Scan(val)
 
 	if err != nil {
 		return errors.Err(err)
@@ -49,80 +41,21 @@ func (s *Status) Scan(val interface{}) error {
 		(*s) = Status(0)
 		return nil
 	}
-
 	return errors.Err(s.UnmarshalText(b))
 }
 
-func (s Status) Signal() {}
-
-func (s Status) String() string {
-	switch s {
-		case Queued:
-			return "queued"
-		case Running:
-			return "running"
-		case Passed:
-			return "passed"
-		case Failed:
-			return "failed"
-		case PassedWithFailures:
-			return "passed with failures"
-		case Killed:
-			return "killed"
-		case TimedOut:
-			return "timed out"
-		default:
-			return "unknown status"
-	}
-}
-
 func (s *Status) UnmarshalText(b []byte) error {
-	str := string(b)
+	var ok bool
 
-	switch str {
-		case "queued":
-			(*s) = Queued
-			return nil
-		case "running":
-			(*s) = Running
-			return nil
-		case "failed":
-			(*s) = Failed
-			return nil
-		case "passed":
-			(*s) = Passed
-			return nil
-		case "passed_with_failures":
-			(*s) = PassedWithFailures
-			return nil
-		case "killed":
-			(*s) = Killed
-			return nil
-		case "timed_out":
-			(*s) = TimedOut
-			return nil
-		default:
-			return errors.Err(errors.New("unknown status " + str))
+	str := string(b)
+	(*s), ok = statusMap[str]
+
+	if !ok {
+		return errors.New("unknown status "+str)
 	}
+	return nil
 }
 
 func (s Status) Value() (driver.Value, error) {
-	switch s {
-		case Queued:
-			return driver.Value("queued"), nil
-		case Running:
-			return driver.Value("running"), nil
-		case Passed:
-			return driver.Value("passed"), nil
-		case Failed:
-			return driver.Value("failed"), nil
-		case PassedWithFailures:
-			return driver.Value("passed_with_failures"), nil
-		case Killed:
-			return driver.Value("killed"), nil
-		case TimedOut:
-			return driver.Value("timed_out"), nil
-		default:
-			return driver.Value(""), errors.Err(errors.New("unknown status"))
-	}
+	return driver.Value(s.String()), nil
 }

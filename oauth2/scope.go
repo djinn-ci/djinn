@@ -129,7 +129,7 @@ func UnmarshalScope(s string) (Scope, error) {
 		resource, ok := resources[itemParts[0]]
 
 		if !ok {
-			return sc, errors.Err(errors.New("unknown resource: " + itemParts[0]))
+			return sc, errors.New("unknown resource: " + itemParts[0])
 		}
 
 		currPerm := m[resource]
@@ -140,7 +140,7 @@ func UnmarshalScope(s string) (Scope, error) {
 			perm, ok := perms[p]
 
 			if !ok {
-				return sc, errors.Err(errors.New("unknow permission: " + p))
+				return sc, errors.New("unknow permission: " + p)
 			}
 
 			currPerm |= perm
@@ -201,7 +201,7 @@ func (sc *Scope) Scan(val interface{}) error {
 	}
 
 	if len(b) % 2 != 0 {
-		return errors.Err(errors.New("invalid scope bytes"))
+		return errors.New("invalid scope bytes")
 	}
 
 	i := 0

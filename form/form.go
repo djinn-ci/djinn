@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/schema"
 )
 
-var	ErrValidation = errors.New("form validation failed")
+var ErrValidation = errors.New("form validation failed")
 
 type Form interface {
 	Validate() error

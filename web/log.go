@@ -29,15 +29,12 @@ func newLogResponseWriter(w http.ResponseWriter) *logResponseWriter {
 
 func (l *logResponseWriter) Write(b []byte) (int, error) {
 	n, err := l.ResponseWriter.Write(b)
-
 	l.size += n
-
 	return n, err
 }
 
 func (l *logResponseWriter) WriteHeader(status int) {
 	l.ResponseWriter.WriteHeader(status)
-
 	l.status = status
 }
 
@@ -73,6 +70,5 @@ func (h Log) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if uri == "" {
 		uri = r.URL.RequestURI()
 	}
-
 	log.Info.Println(host, "-", username, r.Method, uri, r.Proto, lrw.status, lrw.size)
 }

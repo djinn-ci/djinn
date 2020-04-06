@@ -12,13 +12,7 @@ done
 
 ui() {
 	if [ -z "$1" ]; then
-		components=$(find . -name template -type d)
-
-		for c in "$components"; do
-			set -x
-			qtc -dir "$c"
-			set +x
-		done
+		find . -name template -type d -exec qtc -dir {} \;
 	else
 		dir="$1/template"
 
@@ -31,14 +25,9 @@ ui() {
 			exit 1
 		fi
 
-		set -x
 		qtc -dir "$dir"
-		set +x
 	fi
-
-	set -x
 	yarn run css
-	set +x
 }
 
 build() {
@@ -55,7 +44,6 @@ build() {
 		fi
 		set -x
 		go build $LFLAGS -tags "$TAGS" -o "$c".out ./cmd/"$c"
-		set +x
 	done
 }
 
@@ -65,8 +53,8 @@ help_() {
 			printf "compile the ui templates\n"
 			printf "usage: make.sh ui [component]\n\n"
 			printf "components:\n"
-			components=$(find . -name template -type d | tr '/' ' ')
-			components=$(echo "$components" | awk '{ print $2}' | grep -v template)
+			components=$(find . -name template -type d | tr '/' ' ' | sort)
+			components=$(echo "$components" | awk '{ print $2 }' | grep -v template)
 			for c in $components; do
 				printf "  %s\n" "$c"
 			done
@@ -113,6 +101,8 @@ case "$1" in
 		;;
 	clean)
 		rm -f *.out
+		rm -f *.tar
+		go clean -x -testcache
 		;;
 	*)
 		if [ "$1" = "" ]; then

@@ -5,7 +5,6 @@
 *.key
 node_modules/
 .vimrc
-mgrt.yml
 thrall-driver.toml
 thrall-worker.toml
 thrall-server.toml

@@ -1,0 +1,53 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/oauth2"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type AppForm struct {
+	template.BasePage
+	template.Form
+}
+
+type TokenForm struct {
+	template.BasePage
+	template.Form
+
+	Token  *oauth2.Token
+	Scopes map[string]struct{}
+}
+%}
+
+{% collapsespace %}
+{% func (p *AppForm) Title() %}
+	AppForm OAuth App - Thrall
+{% endfunc %}
+
+{% func (p *AppForm) Body() %}
+
+{% endfunc %}
+
+{% func (p *AppForm) Header() %}
+
+{% endfunc %}
+
+{% func (p *AppForm) Actions() %}{% endfunc %}
+{% func (p *AppForm) Navigation() %}{% endfunc %}
+
+{% func (p *TokenForm) Title() %}
+	AppForm OAuth App - Thrall
+{% endfunc %}
+
+{% func (p *TokenForm) Body() %}
+
+{% endfunc %}
+
+{% func (p *TokenForm) Header() %}
+
+{% endfunc %}
+
+{% func (p *TokenForm) Actions() %}{% endfunc %}
+{% func (p *TokenForm) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

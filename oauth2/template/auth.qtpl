@@ -1,0 +1,73 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/oauth2"
+	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
+)
+%}
+
+
+{% code
+type Auth struct {
+	template.Form
+
+	User        *user.User
+	Name        string
+	ClientID    string
+	RedirectURI string
+	State       string
+	Scope       oauth2.Scope
+}
+%}
+
+{% collapsespace %}
+{% func (p *Auth) Title() %}
+	Authenticate App - Thrall
+{% endfunc %}
+
+{% func (p *Auth) Footer() %}
+	<style type="text/css">{% cat "../../static/auth.css" %}</style>
+{% endfunc %}
+
+{% func (p *Auth) Body() %}
+	<div class="auth-page">
+		<div class="auth-form">
+			<div class="auth-header">
+				<div class="brand">
+					<div class="left"></div>
+					<div class="right"></div>
+				</div>
+				<h1>Authorize {%s p.Name %}</h1>
+			</div>
+		</div>
+		<form method="POST" action="/oauth/authorize">
+			{%s= p.CSRF %}
+			<input type="hidden" name="client_id" value="{%s p.ClientID %}"/>
+			{% if p.User == nil %}
+				<input type="hidden" name="authenticate" value="true"/>
+				<div class="input-field">
+					<label>Email / Username</label>
+					<input class="text" type="text" name="handle" value="{%s p.Fields["handle"] %}" autocomplete="off"/>
+					{%= p.Error("handle") %}
+				</div>
+				<div class="input-field">
+					<label>Password</label>
+					<input class="text" type="password" name="password" autocomplete="off"/>
+					{%= p.Error("password") %}			
+				</div>
+			{% endif %}
+			<div class="input-field">
+				<label>Requested Scopes</label>
+				<ul>
+					{% for _, sc := range p.Scope.Spread() %}
+						<li>{%s sc %}
+					{% endfor %}
+				</ul>
+			</div>
+			<div class="input-field">
+				<button type="submit" class="btn btn-primary">Authorize</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

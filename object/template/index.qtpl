@@ -1,0 +1,95 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/object"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type Index struct {
+	template.BasePage
+
+	CSRF      string
+	Paginator model.Paginator
+	Objects   []*object.Object
+	Search    string
+}
+%}
+
+{% collapsespace %}
+{% func (p *Index) Title() %}
+	Objects - Thrall
+{% endfunc %}
+
+{% func (p *Index) Body() %}
+	<div class="panel">
+		{% if len(p.Objects) == 0 && p.Search == "" %}
+			<div class="panel-message muted">Objects are files that can be used in build environments.</div>
+		{% else %}
+			<div class="panel-header">{%= template.RenderSearch(p.URL.Path, p.Search, "Find an object...") %}</div>
+			{% if len(p.Objects) == 0 && p.Search != "" %}
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<table class="table">
+					<thead>
+						<tr>
+							<th>NAME</th>
+							<th>TYPE</th>
+							<th>SIZE</th>
+							<th>NAMESPACE</th>
+							<th></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, o := range p.Objects %}
+							<tr>
+								<td><a href="{%s o.Endpoint() %}">{%s o.Name %}</a></td>
+								<td><span class="code">{%s o.Type %}</span></td>
+								<td>{%s template.RenderSize(o.Size) %}</td>
+								<td>
+									{% if o.Namespace != nil %}
+										<a href="{%s o.Namespace.Endpoint() %}">{%s o.Namespace.Path %}</a>
+									{% else %}
+										<span class="muted">--</span>
+									{% endif %}
+								</td>
+								<td class="align-right">
+									{% if p.User.ID != o.UserID %}
+										<span class="muted">{% cat "../../static/svg/users.svg" %}</span>
+									{% endif %}
+								</td>
+								<td class="align-right">
+									{% if p.User.ID == o.UserID || o.Namespace != nil && o.Namespace.UserID == p.User.ID %}
+										<form method="POST" action="{%s o.Endpoint() %}">
+											{%s= string(p.CSRF) %}
+											<input type="hidden" name="_method" value="DELETE"/>
+											<button type="submit" class="btn btn-danger">Delete</button>
+										</form>
+									{% endif %}
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			{% endif %}
+		{% endif %}
+	</div>
+	{%= template.RenderPaginator(p.URL.Path, p.Paginator) %}
+{% endfunc %}
+
+{% func (p *Index) Section() %}
+	{%= p.Body() %}
+{% endfunc %}
+
+{% func (p *Index) Header() %}
+	Objects
+{% endfunc %}
+
+{% func (p *Index) Actions() %}
+	<li><a href="/objects/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *Index) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

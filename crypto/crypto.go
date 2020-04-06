@@ -15,9 +15,8 @@ import (
 var (
 	hd *hashids.HashID
 
-	Key []byte
-
-	Alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	Key      []byte
+	Alphabet string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
 func InitHashing(salt string, l int) error {

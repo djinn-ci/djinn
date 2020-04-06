@@ -1,0 +1,54 @@
+{%
+import "github.com/andrewpillar/thrall/template"
+%}
+
+{% code
+type Login struct {
+	template.BasePage
+	template.Form
+}
+%}
+
+{% collapsespace %}
+{% func (p *Login) Title() %}
+	Login - Thrall
+{% endfunc %}
+
+{% func (p *Login) Footer() %}
+	<style type="text/css">{% cat "../../static/auth.css" %}</style>
+{% endfunc %}
+
+{% func (p *Login) Body() %}
+	<div class="auth-page">
+		<div class="auth-form">
+			<div class="auth-header">
+				<div class="brand">
+					<div class="left"></div>
+					<div class="right"></div>
+				</div>
+				<h1>Login to Thrall</h1>
+			</div>
+			<form method="POST" action="/login">
+				{%s= string(p.CSRF) %}
+				{% if p.Errors.First("login") != "" %}
+					{%= p.Error("login") %}
+				{% endif %}
+				<div class="input-field">
+					<label>Email / Username</label>
+					<input class="text" type="text" name="handle" value="{%s p.Fields["handle"] %}" autocomplete="off"/>
+					{%= p.Error("handle") %}
+				</div>
+				<div class="input-field">
+					<label>Password</label>
+					<input class="text" type="password" name="password" autocomplete="off"/>
+					{%= p.Error("password") %}
+				</div>
+				<div class="input-field">
+					<button type="submit" class="btn btn-primary">Login</button>
+				</div>
+				<div class="input-field">Don't have an account? <a href="/register">Register</a></div>
+			</form>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"os"
 	"os/signal"
 
@@ -18,7 +17,8 @@ import (
 var (
 	setupStage = "setup"
 
-	Build string
+	Build   string
+	Version string
 )
 
 func mainCommand(c cli.Command) {
@@ -55,17 +55,20 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	placerURL, _ := url.Parse(c.Flags.GetString("objects"))
-	collectorURL, _ := url.Parse(c.Flags.GetString("artifacts"))
-
-	placer, err := filestore.NewFileSystem(placerURL)
+	placer, err := filestore.NewFileSystem(config.Storage{
+		Kind: "file",
+		Path: c.Flags.GetString("objects"),
+	})
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 
-	collector, err := filestore.NewFileSystem(collectorURL)
+	collector, err := filestore.NewFileSystem(config.Storage{
+		Kind: "file",
+		Path: c.Flags.GetString("artifacts"),
+	})
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
@@ -218,7 +221,7 @@ func main() {
 		Long:      "--version",
 		Exclusive: true,
 		Handler:   func(f cli.Flag, c cli.Command) {
-			fmt.Println("thrall", Build)
+			fmt.Println("thrall", Build, Version)
 		},
 	})
 

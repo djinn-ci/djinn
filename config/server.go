@@ -11,9 +11,9 @@ import (
 type Server struct {
 	Host string
 
-	Images    string
-	Artifacts string
-	Objects   string
+	Images    Storage
+	Artifacts Storage
+	Objects   Storage
 
 	Net struct {
 		Listen string
@@ -63,6 +63,12 @@ type Server struct {
 	}
 }
 
+type Storage struct {
+	Kind  string
+	Path  string
+	Limit int64
+}
+
 func DecodeServer(r io.Reader) (Server, error) {
 	dec := toml.NewDecoder(r)
 
@@ -72,5 +78,14 @@ func DecodeServer(r io.Reader) (Server, error) {
 		return server, errors.Err(err)
 	}
 
+	if server.Images.Kind == "" {
+		server.Images.Kind = "file"
+	}
+	if server.Objects.Kind == "" {
+		server.Objects.Kind = "file"
+	}
+	if server.Artifacts.Kind == "" {
+		server.Artifacts.Kind = "file"
+	}
 	return server, nil
 }

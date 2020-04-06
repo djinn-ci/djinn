@@ -89,8 +89,7 @@ func (m Manifest) String() string {
 	if err != nil {
 		return ""
 	}
-
-	return string(b)
+	return strings.TrimSuffix(string(b), "\n")
 }
 
 func (m Manifest) Value() (driver.Value, error) {

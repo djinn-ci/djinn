@@ -29,7 +29,6 @@ func createScript(j *runner.Job) *bytes.Buffer {
 	for _, cmd := range j.Commands {
 		fmt.Fprintf(buf, "%s\n", cmd)
 	}
-
 	return buf
 }
 

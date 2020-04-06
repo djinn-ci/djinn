@@ -1,0 +1,48 @@
+{% import "github.com/andrewpillar/thrall/template" %}
+
+{% code
+type Create struct {
+	template.BasePage
+	template.Form
+}
+%}
+
+{% collapsespace %}
+{% func (p *Create) Title() %}
+	Submit Build - Thrall
+{% endfunc %}
+
+{% func (p *Create) Body() %}
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="/builds">
+			{%s= string(p.CSRF) %}
+			{% if p.Errors.First("build") != "" %}
+				{%= p.Error("build") %}
+			{% endif %}
+			<div class="form-field">
+				<label class="label" for="manifest">Manifest</label>
+				<textarea class="form-text form-code" id="manifest" name="manifest">{%s p.Fields["manifest"] %}</textarea>
+				{%= p.Error("manifest") %}
+			</div>
+			<div class="form-field">
+				<label class="label" for="comment">Comment <small>(optional)</small></label>
+				<textarea class="form-text form-code" id="comment" name="comment">{%s p.Fields["comment"] %}</textarea>
+			</div>
+			<div class="form-field">
+				<label class="label" for="tags">Tags <small>(optional)</small></label>
+				<input class="form-text" type="text" id="tags" name="tags" value="{%s p.Fields["tags"] %}" autocomplete="off"/>
+			</div>
+			<div class="form-field">
+				<button type="submit" class="btn btn-primary">Submit</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+
+{% func (p *Create) Header() %}
+	<a href="/" class="back">{% cat "../../static/svg/back.svg" %}</a> Submit Build
+{% endfunc %}
+
+{% func (p *Create) Actions() %}{% endfunc %}
+{% func (p *Create) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

@@ -2,11 +2,10 @@ package filestore
 
 import (
 	"io"
-	"net/url"
 	"os"
 	"path/filepath"
-	"strconv"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
 )
 
@@ -15,22 +14,22 @@ type FileSystem struct {
 	Limit int64
 }
 
-func NewFileSystem(u *url.URL) (*FileSystem, error) {
-	info, err := os.Stat(u.Path)
+var _ FileStore = (*FileSystem)(nil)
+
+func NewFileSystem(cfg config.Storage) (*FileSystem, error) {
+	info, err := os.Stat(cfg.Path)
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
 	if !info.IsDir() {
-		return nil, errors.Err(errors.New("path '" + u.Path + "' is not a directory"))
+		return nil, errors.New("not a directory "+cfg.Path)
 	}
 
-	limit, _ := strconv.ParseInt(u.Query().Get("limit"), 10, 64)
-
 	return &FileSystem{
-		Dir:   u.Path,
-		Limit: limit,
+		Dir:   cfg.Path,
+		Limit: cfg.Limit,
 	}, nil
 }
 

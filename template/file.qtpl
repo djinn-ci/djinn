@@ -1,0 +1,19 @@
+
+
+{% code
+type FileForm struct {
+	Form
+}
+%}
+
+{% collapsespace %}
+{% func (p *FileForm) Title() %}{% endfunc %}
+
+{% func (p *FileForm) Section() %}
+	<div class="form-field">
+		<label class="label" for="file">File</label>
+		<input type="file" id="file" name="file"/>
+		{%= p.Error("file") %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

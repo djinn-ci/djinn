@@ -1,0 +1,87 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type Show struct {
+	template.BasePage
+	template.Section
+
+	Namespace *namespace.Namespace
+	CSRF      string
+	Tag       string
+}
+%}
+
+{% collapsespace %}
+{% func (p *Show) Title() %}
+	{%s p.Namespace.Path %} - {%= p.Section.Title() %}
+{% endfunc %}
+
+{% func (p *Show) Body() %}
+	{%= p.Section.Section() %}
+{% endfunc %}
+
+{% func (p *Show) Header() %}
+	{% if p.Namespace.Parent != nil %}
+		<a class="back" href="{%s p.Namespace.Parent.Endpoint() %}">{%cat "../../static/svg/back.svg" %}</a>
+	{% else %}
+		<a class="back" href="/namespaces">{% cat "../../static/svg/back.svg" %}</a>
+	{% endif %}
+	{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %}
+	{% if p.Tag != "" %}
+		<span class="pill pill-light">{%s p.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../static/svg/close.svg" %}</a></span>
+	{% endif %}
+	<small>{%s p.Namespace.Description %}</small>
+{% endfunc %}
+
+{% func (p *Show) Actions() %}
+	{% if p.User != nil && p.User.ID == p.Namespace.UserID %}
+		<li><a href="{%s p.Namespace.Endpoint() %}/-/edit" class="btn btn-primary">Edit</a></li>
+		{% if p.Namespace.Level + 1 < namespace.MaxDepth %}
+			<li><a href="/namespaces/create?parent={%s p.Namespace.Path %}" class="btn btn-primary">Create</a></li>
+		{% endif %}
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Show) Navigation() %}
+	<li>
+		<a href="{%s p.Namespace.Endpoint() %}" class="{%s template.Active(p.Namespace.Endpoint() == p.URL.Path) %}">
+			{% cat "../../static/svg/build.svg" %}<span>Builds</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.Endpoint("-", "namespaces") %}" class="{%s template.Active(p.Namespace.Endpoint("-", "namespaces") == p.URL.Path) %}">
+			{% cat "../../static/svg/folder.svg" %}<span>Namespaces</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.Endpoint("-", "images") %}" class="{%s template.Active(p.Namespace.Endpoint("-", "images") == p.URL.Path) %}">
+			{% cat "../../static/svg/image.svg" %}<span>Images</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.Endpoint("-", "objects") %}" class="{%s template.Active(p.Namespace.Endpoint("-", "objects") == p.URL.Path) %}">
+			{% cat "../../static/svg/upload.svg" %}<span>Objects</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.Endpoint("-", "variables") %}" class="{%s template.Active(p.Namespace.Endpoint("-", "variables") == p.URL.Path) %}">
+			{% cat "../../static/svg/code.svg" %}<span>Variables</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.Endpoint("-", "keys") %}" class="{%s template.Active(p.Namespace.Endpoint("-", "keys") == p.URL.Path) %}">
+			{% cat "../../static/svg/key.svg" %}<span>SSH Keys</span>
+		</a>
+	</li>
+	<li>
+		<a href="{%s p.Namespace.Endpoint("-", "collaborators") %}" class="{%s template.Active(p.Namespace.Endpoint("-", "collaborators") == p.URL.Path) %}">
+			{% cat "../../static/svg/users.svg" %}<span>Collaborators</span>
+		</a>
+	</li>
+{% endfunc %}
+{% endcollapsespace %}

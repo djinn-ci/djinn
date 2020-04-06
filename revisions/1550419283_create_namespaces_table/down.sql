@@ -1,2 +1,0 @@
-DROP TABLE IF EXISTS namespaces CASCADE;
-DROP TYPE IF EXISTS visibility;

@@ -1,0 +1,91 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/key"
+	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type Index struct {
+	template.BasePage
+
+	CSRF      string
+	Paginator model.Paginator
+	Keys      []*key.Key
+	Search    string
+}
+%}
+
+{% collapsespace %}
+{% func (p *Index) Title() %}
+	SSH Keys - Thrall
+{% endfunc %}
+
+{% func (p *Index) Body() %}
+	<div class="panel">
+		{% if len(p.Keys) == 0 && p.Search == "" %}
+			<div class="panel-message muted">SSH keys can allow build environments to access other environments.</div>
+		{% else %}
+			<div class="panel-header">{%= template.RenderSearch(p.URL.Path, p.Search, "Find an SSH key...") %}</div>
+			{% if len(p.Keys) == 0 && p.Search != "" %}
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<table class="table">
+					<thead>
+						<tr>
+							<th>NAME</th>
+							<th>NAMESPACE</th>
+							<th></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, k := range p.Keys %}
+							<tr>
+								<td><a href="{%s k.Endpoint("edit") %}">{%s k.Name %}</a></td>
+								<td>
+									{% if k.Namespace != nil %}
+										<a href="{%s k.Namespace.Endpoint() %}">{%s k.Namespace.Path %}</a>
+									{% else %}
+										<span class="muted">--</span>
+									{% endif %}
+								</td>
+								<td class="align-right">
+									{% if p.User.ID != k.UserID %}
+										<span class="muted">{% cat "../../static/svg/users.svg" %}</span>
+									{% endif %}
+								</td>
+								<td class="align-right">
+									{% if p.User.ID == k.UserID || k.Namespace != nil && k.Namespace.UserID == p.User.ID %}
+									<form method="POST" action="{%s k.Endpoint() %}">
+										{%s= p.CSRF %}
+										<input type="hidden" name="_method" value="DELETE"/>
+										<button type="submit" class="btn btn-danger">Delete</button>
+									</form>
+									{% endif %}
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			{% endif %}
+		{% endif %}
+	</div>
+	{%= template.RenderPaginator(p.URL.Path, p.Paginator) %}
+{% endfunc %}
+
+{% func (p *Index) Section() %}
+	{%= p.Body() %}
+{% endfunc %}
+
+{% func (p *Index) Header() %}
+	SSH Keys
+{% endfunc %}
+
+{% func (p *Index) Actions() %}
+	<li><a href="/keys/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *Index) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

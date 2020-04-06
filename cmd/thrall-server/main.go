@@ -4,34 +4,48 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
-	"strconv"
 	"time"
 
 	"github.com/andrewpillar/cli"
 
+	buildweb "github.com/andrewpillar/thrall/build/web"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
+	imageweb "github.com/andrewpillar/thrall/image/web"
+	keyweb "github.com/andrewpillar/thrall/key/web"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
+	namespaceweb "github.com/andrewpillar/thrall/namespace/web"
 	"github.com/andrewpillar/thrall/oauth2"
+	oauth2web "github.com/andrewpillar/thrall/oauth2/web"
+	objectweb "github.com/andrewpillar/thrall/object/web"
+	"github.com/andrewpillar/thrall/provider"
+	repoweb "github.com/andrewpillar/thrall/repo/web"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
+	"github.com/andrewpillar/thrall/user"
+	variableweb "github.com/andrewpillar/thrall/variable/web"
+	userweb "github.com/andrewpillar/thrall/user/web"
 	"github.com/andrewpillar/thrall/web"
 
+	"github.com/gorilla/csrf"
+	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 
-	"github.com/go-redis/redis"
+	goredis "github.com/go-redis/redis"
 
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
-var Build string
+var (
+	Version string
+	Build   string
+)
 
 func mainCommand(cmd cli.Command) {
 	f, err := os.Open(cmd.Flags.GetString("config"))
@@ -83,16 +97,16 @@ func mainCommand(cmd cli.Command) {
 
 	log.Info.Println("connected to postgresql database")
 
-	client := redis.NewClient(&redis.Options{
+	redis := goredis.NewClient(&goredis.Options{
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,
 	})
 
-	if _, err := client.Ping().Result(); err != nil {
+	if _, err := redis.Ping().Result(); err != nil {
 		log.Error.Fatalf("failed to ping redis: %s\n", err)
 	}
 
-	defer client.Close()
+	defer redis.Close()
 
 	log.Info.Println("connected to redis database")
 
@@ -131,46 +145,21 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("block key must be either 16, 24, or 32 bytes in size\n")
 	}
 
-	handler := web.Handler{
-		Store:        session.New(client, blockKey),
-		SecureCookie: securecookie.New(hashKey, blockKey),
-		Users:        model.UserStore{
-			Store: model.Store{
-				DB: db,
-			},
-		},
-	}
+	var imageStore filestore.FileStore
 
-	middleware := web.Middleware{
-		Handler: handler,
-	}
-
-	var (
-		images     filestore.FileStore
-		imageLimit int64
-	)
-
-	if cfg.Images != "" {
-		images, err = filestore.New(cfg.Images)
+	if cfg.Images.Path != "" {
+		imageStore, err = filestore.New(cfg.Images)
 
 		if err != nil {
 			log.Error.Fatalf("failed to create image store: %s\n", err)
 		}
-
-		u, _ := url.Parse(cfg.Images)
-
-		imageLimit, _ = strconv.ParseInt(u.Query().Get("limit"), 10, 64)
 	}
 
-	objects, err := filestore.New(cfg.Objects)
+	objectStore, err := filestore.New(cfg.Objects)
 
 	if err != nil {
 		log.Error.Fatalf("failed to create object store: %s\n", err)
 	}
-
-	objectUrl, _ := url.Parse(cfg.Objects)
-
-	objectLimit, _ := strconv.ParseInt(objectUrl.Query().Get("limit"), 10, 64)
 
 	artifacts, err := filestore.New(cfg.Artifacts)
 
@@ -187,7 +176,7 @@ func mainCommand(cmd cli.Command) {
 	providers := make(map[string]oauth2.Provider)
 
 	for _, p := range cfg.Providers {
-		provider, err := oauth2.NewProvider(p.Name, oauth2.ProviderOpts{
+		provider, err := provider.New(p.Name, provider.Opts{
 			Host:         cfg.Host,
 			Endpoint:     p.Endpoint,
 			Secret:       p.Secret,
@@ -202,23 +191,23 @@ func mainCommand(cmd cli.Command) {
 		providers[p.Name] = provider
 	}
 
+	handler := web.Handler{
+		DB:           db,
+		Store:        session.New(redis, blockKey),
+		SecureCookie: securecookie.New(hashKey, blockKey),
+		Users:        user.NewStore(db),
+		Tokens:       oauth2.NewTokenStore(db),
+	}
+
+	middleware := web.Middleware{Handler: handler}
+
 	srv := server.Server{
-		Server:      &http.Server{Addr: cfg.Net.Listen},
-		Cert:        cfg.Net.SSL.Cert,
-		Key:         cfg.Net.SSL.Key,
-		Build:       Build,
-		DB:          db,
-		Redis:       client,
-		CSRFToken:   authKey,
-		Images:      images,
-		Artifacts:   artifacts,
-		Objects:     objects,
-		Queues:      queues,
-		Providers:   providers,
-		ImageLimit:  imageLimit,
-		ObjectLimit: objectLimit,
-		Handler:     handler,
-		Middleware:  middleware,
+		Server:  &http.Server{
+			Addr: cfg.Net.Listen,
+		},
+		Router:  mux.NewRouter(),
+		Cert:    cfg.Net.SSL.Cert,
+		Key:     cfg.Net.SSL.Key,
 	}
 
 	serveUI := cmd.Flags.IsSet("ui")
@@ -230,37 +219,79 @@ func mainCommand(cmd cli.Command) {
 		serveAPI = true
 	}
 
-	srv.Init()
+	srv.AddRouter("auth", &userweb.Router{
+		Middleware: middleware,
+	})
+
+	srv.AddRouter("build", &buildweb.Router{
+		Middleware: middleware,
+		Artifacts:  artifacts,
+		Redis:      redis,
+		Queues:     queues,
+	})
+
+	srv.AddRouter("namespace", &namespaceweb.Router{
+		Middleware: middleware,
+	})
+
+	srv.AddRouter("repo", &repoweb.Router{
+		Redis:      redis,
+		Middleware: middleware,
+	})
+
+	srv.AddRouter("image", &imageweb.Router{
+		Middleware: middleware,
+		FileStore:  imageStore,
+		Limit:      cfg.Images.Limit,
+	})
+
+	srv.AddRouter("object", &objectweb.Router{
+		Middleware: middleware,
+		FileStore:  objectStore,
+		Limit:      cfg.Objects.Limit,
+	})
+
+	srv.AddRouter("variable", &variableweb.Router{
+		Middleware: middleware,
+	})
+
+	srv.AddRouter("key", &keyweb.Router{
+		Middleware: middleware,
+	})
+
+	srv.AddRouter("oauth2", &oauth2web.Router{
+		Middleware: middleware,
+		Providers:  providers,
+	})
+
+	srv.Init(handler)
 
 	if serveUI {
-		ui := server.UI{Server: srv}
-
-		ui.Init()
-
-		ui.Hook()
-
-		ui.Auth()
-		ui.Oauth()
-		ui.Token()
-		ui.Guest()
-
-		ui.Namespace()
-		ui.Build()
-
-		if cfg.Images != "" {
-			ui.Image()
+		ui := server.UI{
+			Server: srv,
+			CSRF:   csrf.Protect(
+				authKey,
+				csrf.RequestHeader("X-CSRF-Token"),
+				csrf.FieldName("csrf_token"),
+			),
 		}
 
-		ui.Object()
-		ui.Variable()
-		ui.Key()
+		ui.Init()
+		ui.Register("build", buildweb.Gate(db))
+		ui.Register("repo", repoweb.Gate(db))
+		ui.Register("namespace", namespaceweb.Gate(db))
+		ui.Register("image", imageweb.Gate(db))
+		ui.Register("object", objectweb.Gate(db))
+		ui.Register("variable", variableweb.Gate(db))
+		ui.Register("key", keyweb.Gate(db))
+		ui.Register("oauth2")
 	}
 
 	var apiPrefix string
 
 	if serveAPI {
 		if serveUI {
-			apiPrefix = "api"
+			apiPrefix = "/api"
 		}
 
 		api := server.API{
@@ -269,17 +300,12 @@ func mainCommand(cmd cli.Command) {
 		}
 
 		api.Init()
-
-//		api.Namespace()
-		api.Build()
-
-//		if cfg.Images != "" {
-//			api.Image()
-//		}
-//
-//		api.Object()
-//		api.Variable()
-//		api.Key()
+//		api.Register("build", buildweb.Gate(db))
+//		api.Register("namespace", namespaceweb.Gate(db))
+//		api.Register("image", imageweb.Gate(db))
+//		api.Register("object", objectweb.Gate(db))
+//		api.Register("variable", variableweb.Gate(db))
+//		api.Register("key", keyweb.Gate(db))
 	}
 
 	go func() {
@@ -296,7 +322,7 @@ func mainCommand(cmd cli.Command) {
 	log.Info.Println("thrall-server started on", cfg.Net.Listen)
 
 	if apiPrefix != "" {
-		log.Info.Println("api routes being served under /"+apiPrefix)
+		log.Info.Println("api routes being served under", cfg.Net.Listen+"/"+apiPrefix)
 	}
 
 	c := make(chan os.Signal, 1)

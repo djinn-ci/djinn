@@ -11,119 +11,66 @@ import (
 
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/user"
 )
 
-//line template/template.qtpl:12
+//line template/template.qtpl:13
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line template/template.qtpl:12
+//line template/template.qtpl:13
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line template/template.qtpl:12
-type Dashboard interface {
-//line template/template.qtpl:12
-	Title() string
-//line template/template.qtpl:12
-	StreamTitle(qw422016 *qt422016.Writer)
-//line template/template.qtpl:12
-	WriteTitle(qq422016 qtio422016.Writer)
-//line template/template.qtpl:12
-	Body() string
-//line template/template.qtpl:12
-	StreamBody(qw422016 *qt422016.Writer)
-//line template/template.qtpl:12
-	WriteBody(qq422016 qtio422016.Writer)
-//line template/template.qtpl:12
-	Footer() string
-//line template/template.qtpl:12
-	StreamFooter(qw422016 *qt422016.Writer)
-//line template/template.qtpl:12
-	WriteFooter(qq422016 qtio422016.Writer)
-//line template/template.qtpl:12
-	Actions() string
-//line template/template.qtpl:12
-	StreamActions(qw422016 *qt422016.Writer)
-//line template/template.qtpl:12
-	WriteActions(qq422016 qtio422016.Writer)
-//line template/template.qtpl:12
-	Header() string
-//line template/template.qtpl:12
-	StreamHeader(qw422016 *qt422016.Writer)
-//line template/template.qtpl:12
-	WriteHeader(qq422016 qtio422016.Writer)
-//line template/template.qtpl:12
-	Navigation() string
-//line template/template.qtpl:12
-	StreamNavigation(qw422016 *qt422016.Writer)
-//line template/template.qtpl:12
-	WriteNavigation(qq422016 qtio422016.Writer)
-//line template/template.qtpl:12
-}
-
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 type Page interface {
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	Title() string
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	StreamTitle(qw422016 *qt422016.Writer)
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	WriteTitle(qq422016 qtio422016.Writer)
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	Body() string
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	StreamBody(qw422016 *qt422016.Writer)
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	WriteBody(qq422016 qtio422016.Writer)
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	Footer() string
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	StreamFooter(qw422016 *qt422016.Writer)
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 	WriteFooter(qq422016 qtio422016.Writer)
-//line template/template.qtpl:28
+//line template/template.qtpl:13
 }
 
-//line template/template.qtpl:38
+//line template/template.qtpl:23
 type Section interface {
-//line template/template.qtpl:38
+//line template/template.qtpl:23
 	Title() string
-//line template/template.qtpl:38
+//line template/template.qtpl:23
 	StreamTitle(qw422016 *qt422016.Writer)
-//line template/template.qtpl:38
+//line template/template.qtpl:23
 	WriteTitle(qq422016 qtio422016.Writer)
-//line template/template.qtpl:38
+//line template/template.qtpl:23
 	Section() string
-//line template/template.qtpl:38
+//line template/template.qtpl:23
 	StreamSection(qw422016 *qt422016.Writer)
-//line template/template.qtpl:38
+//line template/template.qtpl:23
 	WriteSection(qq422016 qtio422016.Writer)
-//line template/template.qtpl:38
+//line template/template.qtpl:23
 }
 
-//line template/template.qtpl:46
-type Alert struct {
-	Level   level
-	Message string
-}
-
+//line template/template.qtpl:31
 type BasePage struct {
 	URL  *url.URL
-	User *model.User
-}
-
-type baseDashboard struct {
-	Dashboard
-
-	alert Alert
-	URL   *url.URL
-	CSRF  string
+	User *user.User
 }
 
 type Form struct {
@@ -132,47 +79,13 @@ type Form struct {
 	Fields map[string]string
 }
 
-type level uint8
-
-const (
-	success level = iota
-	warn
-	danger
-)
-
-var (
-	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
-	BuildsURI       = "(^\\/$|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
-	SettingsURI     = "\\/settings\\/?"
-	RepositoriesURI = "\\/repos\\/?"
-)
-
-func pattern(name string) string {
-	return "(^\\/" + name + "\\/?[a-z0-9\\/?]*$)"
-}
-
-func NewDashboard(d Dashboard, url *url.URL, a Alert, csrf string) *baseDashboard {
-	return &baseDashboard{
-		Dashboard: d,
-		alert:     a,
-		URL:       url,
-		CSRF:      csrf,
-	}
-}
+func pattern(name string) string { return "(^\\/" + name + "\\/?[a-z0-9\\/?]*$)" }
 
 func Active(condition bool) string {
 	if condition {
 		return "active"
 	}
-
 	return ""
-}
-
-func Danger(msg string) Alert {
-	return Alert{
-		Level:   danger,
-		Message: msg,
-	}
 }
 
 func Match(uri, pattern string) bool {
@@ -181,608 +94,263 @@ func Match(uri, pattern string) bool {
 	if err != nil {
 		return false
 	}
-
 	return matched
 }
 
-func Success(msg string) Alert {
-	return Alert{
-		Level:   success,
-		Message: msg,
-	}
-}
-
-func Warn(msg string) Alert {
-	return Alert{
-		Level:   warn,
-		Message: msg,
-	}
-}
-
-func (a Alert) IsZero() bool {
-	return a.Level == level(0) && a.Message == ""
-}
-
-func (l level) String() string {
-	switch l {
-	case success:
-		return "success"
-	case warn:
-		return "warn"
-	case danger:
-		return "danger"
-	default:
-		return ""
-	}
-}
-
-//line template/template.qtpl:156
+//line template/template.qtpl:62
 func StreamRender(qw422016 *qt422016.Writer, p Page) {
-//line template/template.qtpl:156
+//line template/template.qtpl:62
 	qw422016.N().S(` <!DOCTYPE HTML> <html lang="en"> <head> <meta charset="utf-8"> <meta content="width=device-width, initial-scal=1" name="viewport"> <title>`)
-//line template/template.qtpl:162
+//line template/template.qtpl:68
 	p.StreamTitle(qw422016)
-//line template/template.qtpl:162
+//line template/template.qtpl:68
 	qw422016.N().S(`</title> </head> <body>`)
-//line template/template.qtpl:164
+//line template/template.qtpl:70
 	p.StreamBody(qw422016)
-//line template/template.qtpl:164
+//line template/template.qtpl:70
 	qw422016.N().S(`</body> <footer>`)
-//line template/template.qtpl:165
+//line template/template.qtpl:71
 	p.StreamFooter(qw422016)
-//line template/template.qtpl:165
+//line template/template.qtpl:71
 	qw422016.N().S(`</footer> </html> `)
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 }
 
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 func WriteRender(qq422016 qtio422016.Writer, p Page) {
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 	StreamRender(qw422016, p)
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 }
 
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 func Render(p Page) string {
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 	WriteRender(qb422016, p)
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 	qs422016 := string(qb422016.B)
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 	return qs422016
-//line template/template.qtpl:167
+//line template/template.qtpl:73
 }
 
-//line template/template.qtpl:169
-func (f Form) StreamError(qw422016 *qt422016.Writer, field string) {
-//line template/template.qtpl:169
-	qw422016.N().S(` <div class="form-error">`)
-//line template/template.qtpl:170
-	qw422016.E().S(f.Errors.First(field))
-//line template/template.qtpl:170
-	qw422016.N().S(`</div> `)
-//line template/template.qtpl:171
-}
-
-//line template/template.qtpl:171
-func (f Form) WriteError(qq422016 qtio422016.Writer, field string) {
-//line template/template.qtpl:171
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/template.qtpl:171
-	f.StreamError(qw422016, field)
-//line template/template.qtpl:171
-	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:171
-}
-
-//line template/template.qtpl:171
-func (f Form) Error(field string) string {
-//line template/template.qtpl:171
-	qb422016 := qt422016.AcquireByteBuffer()
-//line template/template.qtpl:171
-	f.WriteError(qb422016, field)
-//line template/template.qtpl:171
-	qs422016 := string(qb422016.B)
-//line template/template.qtpl:171
-	qt422016.ReleaseByteBuffer(qb422016)
-//line template/template.qtpl:171
-	return qs422016
-//line template/template.qtpl:171
-}
-
-//line template/template.qtpl:173
-func (p *BasePage) StreamTitle(qw422016 *qt422016.Writer) {
-//line template/template.qtpl:173
-	qw422016.N().S(` Thrall `)
-//line template/template.qtpl:175
-}
-
-//line template/template.qtpl:175
-func (p *BasePage) WriteTitle(qq422016 qtio422016.Writer) {
-//line template/template.qtpl:175
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/template.qtpl:175
-	p.StreamTitle(qw422016)
-//line template/template.qtpl:175
-	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:175
-}
-
-//line template/template.qtpl:175
-func (p *BasePage) Title() string {
-//line template/template.qtpl:175
-	qb422016 := qt422016.AcquireByteBuffer()
-//line template/template.qtpl:175
-	p.WriteTitle(qb422016)
-//line template/template.qtpl:175
-	qs422016 := string(qb422016.B)
-//line template/template.qtpl:175
-	qt422016.ReleaseByteBuffer(qb422016)
-//line template/template.qtpl:175
-	return qs422016
-//line template/template.qtpl:175
-}
-
-//line template/template.qtpl:177
-func (p *BasePage) StreamBody(qw422016 *qt422016.Writer) {
-//line template/template.qtpl:177
-}
-
-//line template/template.qtpl:177
-func (p *BasePage) WriteBody(qq422016 qtio422016.Writer) {
-//line template/template.qtpl:177
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/template.qtpl:177
-	p.StreamBody(qw422016)
-//line template/template.qtpl:177
-	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:177
-}
-
-//line template/template.qtpl:177
-func (p *BasePage) Body() string {
-//line template/template.qtpl:177
-	qb422016 := qt422016.AcquireByteBuffer()
-//line template/template.qtpl:177
-	p.WriteBody(qb422016)
-//line template/template.qtpl:177
-	qs422016 := string(qb422016.B)
-//line template/template.qtpl:177
-	qt422016.ReleaseByteBuffer(qb422016)
-//line template/template.qtpl:177
-	return qs422016
-//line template/template.qtpl:177
-}
-
-//line template/template.qtpl:179
-func (p *BasePage) StreamFooter(qw422016 *qt422016.Writer) {
-//line template/template.qtpl:179
-	qw422016.N().S(` <style type="text/css">`)
-//line template/template.qtpl:180
-	qw422016.N().S(`*{margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Sego UI Symbol";font-size:14px;background:#eee;color:#444}a{color:#146de0;cursor:pointer;text-decoration:none}a:hover{text-decoration:underline}button{cursor:pointer}h1,h2,h3,h4,h5,h6{font-weight:400}.btn{border:none;border-radius:3px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Sego UI Symbol";padding:10px;padding-left:15px;padding-right:15px;color:#fff}.btn svg{fill:#fff}.btn:hover{text-decoration:none}.btn-primary{background:#61a0ea}.btn-primary:hover{background:#5090d9}.btn-danger{background:#de4141}.btn-danger:hover{background:#cd3030}.code{padding:3px;border-radius:3px;background:#e6f0f5;font-family:monospace}.code-wrap{overflow-x:auto;overflow-y:hidden}table.code{background:#272b39;color:#fff;width:100%;font-family:monospace;font-size:12px;border-collapse:collapse;border-spacing:0}table.code .line-number{text-align:right;-moz-user-select:none;-ms-user-select:none;-webkit-user-select:none;min-width:30px;width:1%;padding-left:10px;padding-right:10px;line-height:20px}table.code .line-number a{display:block;color:rgba(255,255,255,.3)}table.code .line{padding-left:10px;padding-right:10px;line-height:20px;white-space:pre;overflow:visible;word-wrap:normal}table.code .line:target{background:#383e51}.col-75{width:75%;box-sizing:border-box}.col-25{width:25%;box-sizing:border-box}.dashboard .sidebar{position:fixed;top:0;left:0;height:100%;width:225px;background:#383e51}.dashboard .sidebar .sidebar-header{color:#fff;padding:20px;background:#272b39}.dashboard .sidebar .sidebar-header .logo{margin-top:-5px;margin-right:10px;display:inline-block;vertical-align:middle}.dashboard .sidebar .sidebar-header .logo .left{margin-left:3px;display:inline-block;width:0;height:0;border-style:solid;border-width:25px 0 0 15px;border-color:transparent transparent transparent #fff}.dashboard .sidebar .sidebar-header .logo .right{margin-left:3px;display:inline-block;width:0;height:0;border-style:solid;border-width:0 0 25px 15px;border-color:transparent transparent #fff transparent}.dashboard .sidebar .sidebar-header h2{display:inline-block}.dashboard .sidebar .sidebar-nav{list-style:none}.dashboard .sidebar .sidebar-nav li{display:block}.dashboard .sidebar .sidebar-nav li a,.dashboard .sidebar .sidebar-nav li button{display:block;color:rgba(255,255,255,.5);padding:15px}.dashboard .sidebar .sidebar-nav li a svg,.dashboard .sidebar .sidebar-nav li button svg{margin-right:3px;display:inline-block;vertical-align:middle;fill:rgba(255,255,255,.5);width:15px}.dashboard .sidebar .sidebar-nav li a span,.dashboard .sidebar .sidebar-nav li button span{margin-top:2px;display:inline-block;vertical-align:middle}.dashboard .sidebar .sidebar-nav li button{width:100%;border:none;text-align:left;background:rgba(0,0,0,0)}.dashboard .sidebar .sidebar-nav li a.active,.dashboard .sidebar .sidebar-nav li a:hover,.dashboard .sidebar .sidebar-nav li button:hover{text-decoration:none;background:#272b39;color:#fff}.dashboard .sidebar .sidebar-nav li a.active svg,.dashboard .sidebar .sidebar-nav li a:hover svg,.dashboard .sidebar .sidebar-nav li button:hover svg{fill:#fff}.dashboard .sidebar .sidebar-nav li.sidebar-nav-header{padding:15px;font-weight:700;color:#fff}.dashboard-header{margin-bottom:10px}.dashboard-header h1{float:left}.dashboard-header h1 .back{margin-top:2px;display:inline-block;vertical-align:middle}.dashboard-header h1 .back svg{fill:#7f7f7f}.dashboard-header h1 .back:hover{text-decoration:none}.dashboard-header h1 .back:hover svg{fill:#444}.dashboard-header h1 small{margin-top:10px;display:block;font-size:16px;color:rgba(0,0,0,.5)}.dashboard-header .pill{margin-top:-5px;margin-left:10px}.dashboard-header .dashboard-actions{float:right;list-style:none}.dashboard-header .dashboard-actions li{display:inline}.dashboard-header .dashboard-actions li form{display:inline-block}.dashboard-header .dashboard-actions li a{cursor:pointer;display:inline-block}.dashboard-nav{list-style:none}.dashboard-nav li{display:inline}.dashboard-nav li a{display:inline-block;padding:15px;color:#9f9f9f}.dashboard-nav li a svg{margin-right:3px;width:20px;vertical-align:middle;display:inline-block;fill:#9f9f9f}.dashboard-nav li a span{margin-top:2px;display:inline-block;vertical-align:middle}.dashboard-nav li a.active,.dashboard-nav li a:hover{text-decoration:none;color:#272b39}.dashboard-nav li a.active svg,.dashboard-nav li a:hover svg{fill:#272b39}.dashboard-content{margin-left:225px}.dashboard-content .alert{overflow:auto;padding:15px}.dashboard-content .alert .alert-message{float:left;color:rgba(0,0,0,.6)}.dashboard-content .alert a{float:right;display:inline-block}.dashboard-content .alert a svg{width:15px;height:15px;fill:rgba(0,0,0,.4)}.dashboard-content .alert a:hover svg{fill:rgba(0,0,0,.5)}.dashboard-content .alert-success{background:#caf5ca;border-bottom:solid 1px #a0dfa0}.dashboard-content .alert-warn{background:#fff3cd;border-bottom:solid 1px #d9c995}.dashboard-content .alert-danger{background:#ffd4d4;border-bottom:solid 1px #e19e9e}.dashboard-content .dashboard-wrap{padding:20px}.form-field+.form-field{margin-top:15px}.form-field{overflow:auto}.form-field .label{margin-bottom:5px;display:block;font-weight:700}.form-field .label small{color:rgba(0,0,0,.5)}.form-field .form-error{margin-top:5px;color:#ff4343;min-height:20px}.form-field .form-text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Sego UI Symbol";font-size:14px;padding:10px;outline:0;border-radius:3px;box-sizing:border-box;width:100%;border:solid 1px #e4e4e4}.form-field .form-text:focus{border:solid 1px #c2c2c2}.form-field .form-code{min-height:250px;font-family:monospace}.form-field textarea.form-text{min-width:100%;max-width:100%}.form-field .form-option+.form-option{margin-top:10px}.form-field .form-option{display:block;cursor:pointer;overflow:auto}.form-field .form-option .form-selector{margin-right:5px;display:inline-block;float:left;outline:0}.form-field .form-option svg{margin-right:5px;float:left;fill:rgba(0,0,0,.4)}.form-field .disabled{color:#aaa;cursor:not-allowed}.form-field .disabled svg{fill:#aaa}.form-search{float:right;padding:7px}.form-search .form-text{width:auto}.form-search a svg{margin-top:-3px;fill:#e4e4e4;width:20px;vertical-align:middle;display:inline-block}.form-search a:hover svg{fill:#c2c2c2}.form-field-inline .form-text{display:inline-block;width:auto}.panel+.panel{margin-top:15px}.panel{background:#fff;border-radius:3px;box-shadow:0 2px 4px 0 rgba(0,0,0,.1)}.panel .panel-body{padding:15px}.panel .panel-message{font-size:20px;padding:150px;text-align:center}.panel .panel-footer{border-top:solid 1px #e4e4e4;padding:15px}.panel table.code{border-radius:0 0 3px 3px}.panel-header{border-bottom:solid 1px #e4e4e4;overflow:auto}.panel-header h3{float:left;padding:15px;font-weight:700}.panel-header .panel-nav{list-style:none;float:left}.panel-header .panel-nav li{display:inline}.panel-header .panel-nav li a{display:inline-block;padding:15px;padding-left:17px;padding-right:17px;color:rgba(0,0,0,.4)}.panel-header .panel-nav li a svg{margin-right:3px;width:15px;vertical-align:middle;display:inline-block;fill:rgba(0,0,0,.4)}.panel-header .panel-nav li a span{margin-top:2px;vertical-align:middle;display:inline-block}.panel-header .panel-nav li a.active,.panel-header .panel-nav li a:hover{text-decoration:none;border-bottom:solid 2px #383e51;color:#383e51}.panel-header .panel-nav li a.active svg,.panel-header .panel-nav li a:hover svg{fill:#383e51}.panel-header .panel-actions{float:right;list-style:none;padding:7px}.panel-header .panel-actions .btn{padding:5px;padding-left:12px;padding-right:12px}.panel-header .panel-actions li{display:inline}.panel-header .panel-actions li a{display:inline-block}.panel-header .panel-actions li a svg{margin-right:3px;width:15px;vertical-align:middle;display:inline-block}.panel-header .panel-actions li a span{margin-top:2px;vertical-align:middle;display:inline-block}.pill{display:inline-block;text-align:center;padding:3px;padding-left:10px;padding-right:10px;border-radius:25px;color:#fff;font-size:14px;vertical-align:middle}.pill a{text-decoration:none}.pill svg{margin-top:-2px;display:inline-block;vertical-align:middle;width:15px;fill:#fff}.pill-bubble{margin-right:5px;border-radius:100%;width:25px;height:25px;text-align:center;display:inline-block}.pill-bubble svg{width:15px;fill:#fff;vertical-align:middle}a.pill:hover{text-decoration:none}.pill-light{background:#61a0ea}a.pill-light:hover{background:#5090d9}.pill-gray{background:#6a7393}.pill-dark{background:#272b39}.pill-red{background:#c64242}.pill-green{background:#269326}.pill-blue{background:#61a0ea}.pill-orange{background:#ff7400}.providers{margin-bottom:15px}.provider-btn{display:inline-block;border-radius:3px;color:#fff;border:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Sego UI Symbol";padding:10px;padding-left:15px;padding-right:15px}.provider-btn svg{margin-right:5px;fill:#fff;vertical-align:middle}.provider-btn span{display:inline-block;vertical-align:middle}.provider-btn:hover{text-decoration:none}.provider-github{background:#24292e}.provider-github:hover{background:#353a3f}.provider-gitlab{background:#fa7035}.provider-gitlab:hover{background:#e65328}.table{border-collapse:collapse;width:100%}.table td,.table th{padding:10px}.table td svg,.table th svg{width:15px;display:inline-block;vertical-align:middle}.table td form,.table th form{display:inline-block}.table td.warning{color:#ff7400}.table td.warning svg{fill:#ff7400}.table th{background:rgba(0,0,0,.03);border-bottom:solid 1px #e4e4e4;text-align:left;color:rgba(0,0,0,.5);font-weight:400}.table tr{border-bottom:solid 1px #e4e4e4}.table tr:last-child{border-bottom:none}.table .cell-pill{width:100px}.table .cell-date{text-align:right!important;width:250px}.overflow{overflow:auto}.muted{color:#9f9f9f}.muted svg{fill:#9f9f9f}.align-center{text-align:center}.align-right{text-align:right}.inline-block{display:inline-block}.separator{margin-top:20px;margin-bottom:20px;border-bottom:solid 1px #cfcfcf}.slim{margin:0 auto;max-width:600px}.left{float:left}.right{float:right}.w-90{width:90px}.mb-10{margin-bottom:10px}.pr-5{padding-right:5px}.pl-5{padding-left:5px}.paginator{margin:0 auto;list-style:none;max-width:250px}.paginator li{display:inline}.paginator li a{display:inline-block;box-sizing:border-box;text-align:center;padding:10px;width:50%}.paginator li a.disabled{cursor:not-allowed;color:rgba(0,0,0,.5)}.paginator li a:hover{text-decoration:none}.paginator li .prev:hover{border-radius:3px 0 0 3px;background:#61a0ea;color:#fff}.paginator li .next:hover{border-radius:0 3px 3px 0;background:#61a0ea;color:#fff}`)
-//line template/template.qtpl:180
-	qw422016.N().S(`</style> `)
-//line template/template.qtpl:181
-}
-
-//line template/template.qtpl:181
-func (p *BasePage) WriteFooter(qq422016 qtio422016.Writer) {
-//line template/template.qtpl:181
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/template.qtpl:181
-	p.StreamFooter(qw422016)
-//line template/template.qtpl:181
-	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:181
-}
-
-//line template/template.qtpl:181
-func (p *BasePage) Footer() string {
-//line template/template.qtpl:181
-	qb422016 := qt422016.AcquireByteBuffer()
-//line template/template.qtpl:181
-	p.WriteFooter(qb422016)
-//line template/template.qtpl:181
-	qs422016 := string(qb422016.B)
-//line template/template.qtpl:181
-	qt422016.ReleaseByteBuffer(qb422016)
-//line template/template.qtpl:181
-	return qs422016
-//line template/template.qtpl:181
-}
-
-//line template/template.qtpl:183
-func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
-//line template/template.qtpl:183
-	qw422016.N().S(` <div class="dashboard"> <div class="dashboard-content"> `)
-//line template/template.qtpl:186
-	if !p.alert.IsZero() {
-//line template/template.qtpl:186
-		qw422016.N().S(` <div class="alert alert-`)
-//line template/template.qtpl:187
-		qw422016.E().S(p.alert.Level.String())
-//line template/template.qtpl:187
-		qw422016.N().S(`"> <div class="alert-message">`)
-//line template/template.qtpl:188
-		qw422016.E().S(p.alert.Message)
-//line template/template.qtpl:188
-		qw422016.N().S(`</div> <a href="`)
-//line template/template.qtpl:189
-		qw422016.E().S(p.URL.Path)
-//line template/template.qtpl:189
-		qw422016.N().S(`">`)
-//line template/template.qtpl:189
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M18.984 6.422l-5.578 5.578 5.578 5.578-1.406 1.406-5.578-5.578-5.578 5.578-1.406-1.406 5.578-5.578-5.578-5.578 1.406-1.406 5.578 5.578 5.578-5.578z"></path>
-</svg>
-`)
-//line template/template.qtpl:189
-		qw422016.N().S(`</a> </div> `)
-//line template/template.qtpl:191
-	}
-//line template/template.qtpl:191
-	qw422016.N().S(` <div class="dashboard-wrap"> <div class="dashboard-header"> <div class="overflow"> <h1>`)
-//line template/template.qtpl:195
-	p.Dashboard.StreamHeader(qw422016)
-//line template/template.qtpl:195
-	qw422016.N().S(`</h1> <ul class="dashboard-actions">`)
-//line template/template.qtpl:196
-	p.Dashboard.StreamActions(qw422016)
-//line template/template.qtpl:196
-	qw422016.N().S(`</ul> </div> <ul class="dashboard-nav">`)
-//line template/template.qtpl:198
-	p.Dashboard.StreamNavigation(qw422016)
-//line template/template.qtpl:198
-	qw422016.N().S(`</ul> </div> <div class="dashboard-body">`)
-//line template/template.qtpl:200
-	p.Dashboard.StreamBody(qw422016)
-//line template/template.qtpl:200
-	qw422016.N().S(`</div> </div> </div> <div class="sidebar"> <div class="sidebar-header"> <div class="logo"><div class="left"></div><div class="right"></div></div> <h2>Thrall</h2> </div> <ul class="sidebar-nav"> <li class="sidebar-nav-header">MANAGE</li> `)
-//line template/template.qtpl:210
-	if Match(p.URL.Path, BuildsURI) {
-//line template/template.qtpl:210
-		qw422016.N().S(` <li><a href="/" class="active">`)
-//line template/template.qtpl:211
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M22.688 18.984c0.422 0.281 0.422 0.984-0.094 1.406l-2.297 2.297c-0.422 0.422-0.984 0.422-1.406 0l-9.094-9.094c-2.297 0.891-4.969 0.422-6.891-1.5-2.016-2.016-2.531-5.016-1.313-7.406l4.406 4.313 3-3-4.313-4.313c2.391-1.078 5.391-0.703 7.406 1.313 1.922 1.922 2.391 4.594 1.5 6.891z"></path>
-</svg>
-`)
-//line template/template.qtpl:211
-		qw422016.N().S(`<span>Builds</span></a></li> `)
-//line template/template.qtpl:212
-	} else {
-//line template/template.qtpl:212
-		qw422016.N().S(` <li><a href="/">`)
-//line template/template.qtpl:213
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M22.688 18.984c0.422 0.281 0.422 0.984-0.094 1.406l-2.297 2.297c-0.422 0.422-0.984 0.422-1.406 0l-9.094-9.094c-2.297 0.891-4.969 0.422-6.891-1.5-2.016-2.016-2.531-5.016-1.313-7.406l4.406 4.313 3-3-4.313-4.313c2.391-1.078 5.391-0.703 7.406 1.313 1.922 1.922 2.391 4.594 1.5 6.891z"></path>
-</svg>
-`)
-//line template/template.qtpl:213
-		qw422016.N().S(`<span>Builds</span></a></li> `)
-//line template/template.qtpl:214
-	}
-//line template/template.qtpl:214
-	qw422016.N().S(` `)
-//line template/template.qtpl:215
-	if Match(p.URL.Path, NamespacesURI) {
-//line template/template.qtpl:215
-		qw422016.N().S(` <li><a href="/namespaces" class="active">`)
-//line template/template.qtpl:216
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M9.984 3.984l2.016 2.016h8.016c1.078 0 1.969 0.938 1.969 2.016v9.984c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h6z"></path>
-</svg>
-`)
-//line template/template.qtpl:216
-		qw422016.N().S(`<span>Namespaces</span></a></li> `)
-//line template/template.qtpl:217
-	} else {
-//line template/template.qtpl:217
-		qw422016.N().S(` <li><a href="/namespaces">`)
-//line template/template.qtpl:218
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M9.984 3.984l2.016 2.016h8.016c1.078 0 1.969 0.938 1.969 2.016v9.984c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h6z"></path>
-</svg>
-`)
-//line template/template.qtpl:218
-		qw422016.N().S(`<span>Namespaces</span></a></li> `)
-//line template/template.qtpl:219
-	}
-//line template/template.qtpl:219
-	qw422016.N().S(` `)
-//line template/template.qtpl:220
-	if Match(p.URL.Path, RepositoriesURI) {
-//line template/template.qtpl:220
-		qw422016.N().S(` <li><a href="/repos" class="active">`)
-//line template/template.qtpl:221
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M20.016 12v-8.016h-5.016v8.016l2.484-1.5zM20.016 2.016c1.078 0 1.969 0.891 1.969 1.969v12c0 1.078-0.891 2.016-1.969 2.016h-12c-1.078 0-2.016-0.938-2.016-2.016v-12c0-1.078 0.938-1.969 2.016-1.969h12zM3.984 6v14.016h14.016v1.969h-14.016c-1.078 0-1.969-0.891-1.969-1.969v-14.016h1.969z"></path>
-</svg>
-`)
-//line template/template.qtpl:221
-		qw422016.N().S(`<span>Repositories</span></a></li> `)
-//line template/template.qtpl:222
-	} else {
-//line template/template.qtpl:222
-		qw422016.N().S(` <li><a href="/repos">`)
-//line template/template.qtpl:223
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M20.016 12v-8.016h-5.016v8.016l2.484-1.5zM20.016 2.016c1.078 0 1.969 0.891 1.969 1.969v12c0 1.078-0.891 2.016-1.969 2.016h-12c-1.078 0-2.016-0.938-2.016-2.016v-12c0-1.078 0.938-1.969 2.016-1.969h12zM3.984 6v14.016h14.016v1.969h-14.016c-1.078 0-1.969-0.891-1.969-1.969v-14.016h1.969z"></path>
-</svg>
-`)
-//line template/template.qtpl:223
-		qw422016.N().S(`<span>Repositories</span></a></li> `)
-//line template/template.qtpl:224
-	}
-//line template/template.qtpl:224
-	qw422016.N().S(` `)
-//line template/template.qtpl:225
-	if Match(p.URL.Path, pattern("images")) {
-//line template/template.qtpl:225
-		qw422016.N().S(` <li><a href="/images" class="active">`)
-//line template/template.qtpl:226
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M8.484 13.5l-3.469 4.5h13.969l-4.5-6-3.469 4.5zM21 18.984c0 1.078-0.938 2.016-2.016 2.016h-13.969c-1.078 0-2.016-0.938-2.016-2.016v-13.969c0-1.078 0.938-2.016 2.016-2.016h13.969c1.078 0 2.016 0.938 2.016 2.016v13.969z"></path>
-</svg>
-`)
-//line template/template.qtpl:226
-		qw422016.N().S(`<span>Images</span></a></li> `)
-//line template/template.qtpl:227
-	} else {
-//line template/template.qtpl:227
-		qw422016.N().S(` <li><a href="/images">`)
-//line template/template.qtpl:228
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M8.484 13.5l-3.469 4.5h13.969l-4.5-6-3.469 4.5zM21 18.984c0 1.078-0.938 2.016-2.016 2.016h-13.969c-1.078 0-2.016-0.938-2.016-2.016v-13.969c0-1.078 0.938-2.016 2.016-2.016h13.969c1.078 0 2.016 0.938 2.016 2.016v13.969z"></path>
-</svg>
-`)
-//line template/template.qtpl:228
-		qw422016.N().S(`<span>Images</span></a></li> `)
-//line template/template.qtpl:229
-	}
-//line template/template.qtpl:229
-	qw422016.N().S(` `)
-//line template/template.qtpl:230
-	if Match(p.URL.Path, pattern("objects")) {
-//line template/template.qtpl:230
-		qw422016.N().S(` <li><a href="/objects" class="active">`)
-//line template/template.qtpl:231
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M5.016 18h13.969v2.016h-13.969v-2.016zM9 15.984v-6h-3.984l6.984-6.984 6.984 6.984h-3.984v6h-6z"></path>
-</svg>
-`)
-//line template/template.qtpl:231
-		qw422016.N().S(`<span>Objects</span></a></li> `)
-//line template/template.qtpl:232
-	} else {
-//line template/template.qtpl:232
-		qw422016.N().S(` <li><a href="/objects">`)
-//line template/template.qtpl:233
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M5.016 18h13.969v2.016h-13.969v-2.016zM9 15.984v-6h-3.984l6.984-6.984 6.984 6.984h-3.984v6h-6z"></path>
-</svg>
-`)
-//line template/template.qtpl:233
-		qw422016.N().S(`<span>Objects</span></a></li> `)
-//line template/template.qtpl:234
-	}
-//line template/template.qtpl:234
-	qw422016.N().S(` `)
-//line template/template.qtpl:235
-	if Match(p.URL.Path, pattern("variables")) {
-//line template/template.qtpl:235
-		qw422016.N().S(` <li><a href="/variables" class="active">`)
-//line template/template.qtpl:236
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M14.578 16.594l4.641-4.594-4.641-4.594 1.406-1.406 6 6-6 6zM9.422 16.594l-1.406 1.406-6-6 6-6 1.406 1.406-4.641 4.594z"></path>
-</svg>
-`)
-//line template/template.qtpl:236
-		qw422016.N().S(`<span>Variables</span></a></li> `)
-//line template/template.qtpl:237
-	} else {
-//line template/template.qtpl:237
-		qw422016.N().S(` <li><a href="/variables">`)
-//line template/template.qtpl:238
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M14.578 16.594l4.641-4.594-4.641-4.594 1.406-1.406 6 6-6 6zM9.422 16.594l-1.406 1.406-6-6 6-6 1.406 1.406-4.641 4.594z"></path>
-</svg>
-`)
-//line template/template.qtpl:238
-		qw422016.N().S(`<span>Variables</span></a></li> `)
-//line template/template.qtpl:239
-	}
-//line template/template.qtpl:239
-	qw422016.N().S(` `)
-//line template/template.qtpl:240
-	if Match(p.URL.Path, pattern("keys")) {
-//line template/template.qtpl:240
-		qw422016.N().S(` <li><a href="/keys" class="active">`)
-//line template/template.qtpl:241
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M6.984 14.016c1.078 0 2.016-0.938 2.016-2.016s-0.938-2.016-2.016-2.016-1.969 0.938-1.969 2.016 0.891 2.016 1.969 2.016zM12.656 9.984h10.359v4.031h-2.016v3.984h-3.984v-3.984h-4.359c-0.797 2.344-3.047 3.984-5.672 3.984-3.328 0-6-2.672-6-6s2.672-6 6-6c2.625 0 4.875 1.641 5.672 3.984z"></path>
-</svg>
-`)
-//line template/template.qtpl:241
-		qw422016.N().S(`<span>Keys</span></a></li> `)
-//line template/template.qtpl:242
-	} else {
-//line template/template.qtpl:242
-		qw422016.N().S(` <li><a href="/keys">`)
-//line template/template.qtpl:243
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M6.984 14.016c1.078 0 2.016-0.938 2.016-2.016s-0.938-2.016-2.016-2.016-1.969 0.938-1.969 2.016 0.891 2.016 1.969 2.016zM12.656 9.984h10.359v4.031h-2.016v3.984h-3.984v-3.984h-4.359c-0.797 2.344-3.047 3.984-5.672 3.984-3.328 0-6-2.672-6-6s2.672-6 6-6c2.625 0 4.875 1.641 5.672 3.984z"></path>
-</svg>
-`)
-//line template/template.qtpl:243
-		qw422016.N().S(`<span>Keys</span></a></li> `)
-//line template/template.qtpl:244
-	}
-//line template/template.qtpl:244
-	qw422016.N().S(` <li class="sidebar-nav-header">ACCOUNT</li> `)
-//line template/template.qtpl:246
-	if Match(p.URL.Path, SettingsURI) {
-//line template/template.qtpl:246
-		qw422016.N().S(` <li><a href="/settings" class="active">`)
-//line template/template.qtpl:247
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M12 15.516c1.922 0 3.516-1.594 3.516-3.516s-1.594-3.516-3.516-3.516-3.516 1.594-3.516 3.516 1.594 3.516 3.516 3.516zM19.453 12.984l2.109 1.641c0.188 0.141 0.234 0.422 0.094 0.656l-2.016 3.469c-0.141 0.234-0.375 0.281-0.609 0.188l-2.484-0.984c-0.516 0.375-1.078 0.75-1.688 0.984l-0.375 2.625c-0.047 0.234-0.234 0.422-0.469 0.422h-4.031c-0.234 0-0.422-0.188-0.469-0.422l-0.375-2.625c-0.609-0.234-1.172-0.563-1.688-0.984l-2.484 0.984c-0.234 0.094-0.469 0.047-0.609-0.188l-2.016-3.469c-0.141-0.234-0.094-0.516 0.094-0.656l2.109-1.641c-0.047-0.328-0.047-0.656-0.047-0.984s0-0.656 0.047-0.984l-2.109-1.641c-0.188-0.141-0.234-0.422-0.094-0.656l2.016-3.469c0.141-0.234 0.375-0.281 0.609-0.188l2.484 0.984c0.516-0.375 1.078-0.75 1.688-0.984l0.375-2.625c0.047-0.234 0.234-0.422 0.469-0.422h4.031c0.234 0 0.422 0.188 0.469 0.422l0.375 2.625c0.609 0.234 1.172 0.563 1.688 0.984l2.484-0.984c0.234-0.094 0.469-0.047 0.609 0.188l2.016 3.469c0.141 0.234 0.094 0.516-0.094 0.656l-2.109 1.641c0.047 0.328 0.047 0.656 0.047 0.984s0 0.656-0.047 0.984z"></path>
-</svg>
-`)
-//line template/template.qtpl:247
-		qw422016.N().S(`<span>Settings</span></a></li> `)
-//line template/template.qtpl:248
-	} else {
-//line template/template.qtpl:248
-		qw422016.N().S(` <li><a href="/settings">`)
-//line template/template.qtpl:249
-		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M12 15.516c1.922 0 3.516-1.594 3.516-3.516s-1.594-3.516-3.516-3.516-3.516 1.594-3.516 3.516 1.594 3.516 3.516 3.516zM19.453 12.984l2.109 1.641c0.188 0.141 0.234 0.422 0.094 0.656l-2.016 3.469c-0.141 0.234-0.375 0.281-0.609 0.188l-2.484-0.984c-0.516 0.375-1.078 0.75-1.688 0.984l-0.375 2.625c-0.047 0.234-0.234 0.422-0.469 0.422h-4.031c-0.234 0-0.422-0.188-0.469-0.422l-0.375-2.625c-0.609-0.234-1.172-0.563-1.688-0.984l-2.484 0.984c-0.234 0.094-0.469 0.047-0.609-0.188l-2.016-3.469c-0.141-0.234-0.094-0.516 0.094-0.656l2.109-1.641c-0.047-0.328-0.047-0.656-0.047-0.984s0-0.656 0.047-0.984l-2.109-1.641c-0.188-0.141-0.234-0.422-0.094-0.656l2.016-3.469c0.141-0.234 0.375-0.281 0.609-0.188l2.484 0.984c0.516-0.375 1.078-0.75 1.688-0.984l0.375-2.625c0.047-0.234 0.234-0.422 0.469-0.422h4.031c0.234 0 0.422 0.188 0.469 0.422l0.375 2.625c0.609 0.234 1.172 0.563 1.688 0.984l2.484-0.984c0.234-0.094 0.469-0.047 0.609 0.188l2.016 3.469c0.141 0.234 0.094 0.516-0.094 0.656l-2.109 1.641c0.047 0.328 0.047 0.656 0.047 0.984s0 0.656-0.047 0.984z"></path>
-</svg>
-`)
-//line template/template.qtpl:249
-		qw422016.N().S(`<span>Settings</span></a></li> `)
-//line template/template.qtpl:250
-	}
-//line template/template.qtpl:250
-	qw422016.N().S(` <li> <form method="POST" action="/logout"> `)
-//line template/template.qtpl:253
-	qw422016.N().S(string(p.CSRF))
-//line template/template.qtpl:253
-	qw422016.N().S(` <button type="submit">`)
-//line template/template.qtpl:254
-	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M18.984 3c1.078 0 2.016 0.938 2.016 2.016v13.969c0 1.078-0.938 2.016-2.016 2.016h-13.969c-1.125 0-2.016-0.938-2.016-2.016v-3.984h2.016v3.984h13.969v-13.969h-13.969v3.984h-2.016v-3.984c0-1.078 0.891-2.016 2.016-2.016h13.969zM10.078 15.609l2.578-2.625h-9.656v-1.969h9.656l-2.578-2.625 1.406-1.406 5.016 5.016-5.016 5.016z"></path>
-</svg>
-`)
-//line template/template.qtpl:254
-	qw422016.N().S(`<span>Logout</span></button> </form> </li> </ul> </div> </div> `)
-//line template/template.qtpl:260
-}
-
-//line template/template.qtpl:260
-func (p *baseDashboard) WriteBody(qq422016 qtio422016.Writer) {
-//line template/template.qtpl:260
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/template.qtpl:260
-	p.StreamBody(qw422016)
-//line template/template.qtpl:260
-	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:260
-}
-
-//line template/template.qtpl:260
-func (p *baseDashboard) Body() string {
-//line template/template.qtpl:260
-	qb422016 := qt422016.AcquireByteBuffer()
-//line template/template.qtpl:260
-	p.WriteBody(qb422016)
-//line template/template.qtpl:260
-	qs422016 := string(qb422016.B)
-//line template/template.qtpl:260
-	qt422016.ReleaseByteBuffer(qb422016)
-//line template/template.qtpl:260
-	return qs422016
-//line template/template.qtpl:260
-}
-
-//line template/template.qtpl:263
+//line template/template.qtpl:76
 func StreamRenderPaginator(qw422016 *qt422016.Writer, uri string, p model.Paginator) {
-//line template/template.qtpl:264
+//line template/template.qtpl:77
 	if len(p.Pages) > 1 {
-//line template/template.qtpl:264
+//line template/template.qtpl:77
 		qw422016.N().S(`<ul class="paginator panel">`)
-//line template/template.qtpl:266
+//line template/template.qtpl:79
 		if p.Page == p.Prev {
-//line template/template.qtpl:266
+//line template/template.qtpl:79
 			qw422016.N().S(`<li><a class="disabled">Previous</a></li>`)
-//line template/template.qtpl:268
+//line template/template.qtpl:81
 		} else {
-//line template/template.qtpl:268
+//line template/template.qtpl:81
 			qw422016.N().S(`<li><a href="`)
-//line template/template.qtpl:269
+//line template/template.qtpl:82
 			qw422016.E().S(uri)
-//line template/template.qtpl:269
+//line template/template.qtpl:82
 			qw422016.N().S(`?page=`)
-//line template/template.qtpl:269
+//line template/template.qtpl:82
 			qw422016.E().V(p.Prev)
-//line template/template.qtpl:269
+//line template/template.qtpl:82
 			qw422016.N().S(`" class="prev">Previous</a></li>`)
-//line template/template.qtpl:270
+//line template/template.qtpl:83
 		}
-//line template/template.qtpl:271
+//line template/template.qtpl:84
 		if p.Page == p.Next {
-//line template/template.qtpl:271
+//line template/template.qtpl:84
 			qw422016.N().S(`<li><a class="disabled">Next</a></li>`)
-//line template/template.qtpl:273
+//line template/template.qtpl:86
 		} else {
-//line template/template.qtpl:273
+//line template/template.qtpl:86
 			qw422016.N().S(`<li><a href="`)
-//line template/template.qtpl:274
+//line template/template.qtpl:87
 			qw422016.E().S(uri)
-//line template/template.qtpl:274
+//line template/template.qtpl:87
 			qw422016.N().S(`?page=`)
-//line template/template.qtpl:274
+//line template/template.qtpl:87
 			qw422016.E().V(p.Next)
-//line template/template.qtpl:274
+//line template/template.qtpl:87
 			qw422016.N().S(`" class="next">Next</a></li>`)
-//line template/template.qtpl:275
+//line template/template.qtpl:88
 		}
-//line template/template.qtpl:275
+//line template/template.qtpl:88
 		qw422016.N().S(`</ul>`)
-//line template/template.qtpl:277
+//line template/template.qtpl:90
 	}
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 }
 
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 func WriteRenderPaginator(qq422016 qtio422016.Writer, uri string, p model.Paginator) {
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 	StreamRenderPaginator(qw422016, uri, p)
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 	qt422016.ReleaseWriter(qw422016)
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 }
 
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 func RenderPaginator(uri string, p model.Paginator) string {
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 	WriteRenderPaginator(qb422016, uri, p)
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 	qs422016 := string(qb422016.B)
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/template.qtpl:278
+//line template/template.qtpl:91
 	return qs422016
-//line template/template.qtpl:278
+//line template/template.qtpl:91
+}
+
+//line template/template.qtpl:94
+func (f Form) StreamError(qw422016 *qt422016.Writer, field string) {
+//line template/template.qtpl:94
+	qw422016.N().S(` <div class="form-error">`)
+//line template/template.qtpl:94
+	qw422016.E().S(f.Errors.First(field))
+//line template/template.qtpl:94
+	qw422016.N().S(`</div> `)
+//line template/template.qtpl:94
+}
+
+//line template/template.qtpl:94
+func (f Form) WriteError(qq422016 qtio422016.Writer, field string) {
+//line template/template.qtpl:94
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line template/template.qtpl:94
+	f.StreamError(qw422016, field)
+//line template/template.qtpl:94
+	qt422016.ReleaseWriter(qw422016)
+//line template/template.qtpl:94
+}
+
+//line template/template.qtpl:94
+func (f Form) Error(field string) string {
+//line template/template.qtpl:94
+	qb422016 := qt422016.AcquireByteBuffer()
+//line template/template.qtpl:94
+	f.WriteError(qb422016, field)
+//line template/template.qtpl:94
+	qs422016 := string(qb422016.B)
+//line template/template.qtpl:94
+	qt422016.ReleaseByteBuffer(qb422016)
+//line template/template.qtpl:94
+	return qs422016
+//line template/template.qtpl:94
+}
+
+//line template/template.qtpl:95
+func (p *BasePage) StreamTitle(qw422016 *qt422016.Writer) {
+//line template/template.qtpl:95
+	qw422016.N().S(` Thrall `)
+//line template/template.qtpl:95
+}
+
+//line template/template.qtpl:95
+func (p *BasePage) WriteTitle(qq422016 qtio422016.Writer) {
+//line template/template.qtpl:95
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line template/template.qtpl:95
+	p.StreamTitle(qw422016)
+//line template/template.qtpl:95
+	qt422016.ReleaseWriter(qw422016)
+//line template/template.qtpl:95
+}
+
+//line template/template.qtpl:95
+func (p *BasePage) Title() string {
+//line template/template.qtpl:95
+	qb422016 := qt422016.AcquireByteBuffer()
+//line template/template.qtpl:95
+	p.WriteTitle(qb422016)
+//line template/template.qtpl:95
+	qs422016 := string(qb422016.B)
+//line template/template.qtpl:95
+	qt422016.ReleaseByteBuffer(qb422016)
+//line template/template.qtpl:95
+	return qs422016
+//line template/template.qtpl:95
+}
+
+//line template/template.qtpl:96
+func (p *BasePage) StreamBody(qw422016 *qt422016.Writer) {
+//line template/template.qtpl:96
+}
+
+//line template/template.qtpl:96
+func (p *BasePage) WriteBody(qq422016 qtio422016.Writer) {
+//line template/template.qtpl:96
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line template/template.qtpl:96
+	p.StreamBody(qw422016)
+//line template/template.qtpl:96
+	qt422016.ReleaseWriter(qw422016)
+//line template/template.qtpl:96
+}
+
+//line template/template.qtpl:96
+func (p *BasePage) Body() string {
+//line template/template.qtpl:96
+	qb422016 := qt422016.AcquireByteBuffer()
+//line template/template.qtpl:96
+	p.WriteBody(qb422016)
+//line template/template.qtpl:96
+	qs422016 := string(qb422016.B)
+//line template/template.qtpl:96
+	qt422016.ReleaseByteBuffer(qb422016)
+//line template/template.qtpl:96
+	return qs422016
+//line template/template.qtpl:96
+}
+
+//line template/template.qtpl:97
+func (p *BasePage) StreamFooter(qw422016 *qt422016.Writer) {
+//line template/template.qtpl:97
+	qw422016.N().S(` <style type="text/css">`)
+//line template/template.qtpl:97
+	qw422016.N().S(`*{margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Sego UI Symbol";font-size:14px;background:#eee;color:#444}a{color:#146de0;cursor:pointer;text-decoration:none}a:hover{text-decoration:underline}button{cursor:pointer}h1,h2,h3,h4,h5,h6{font-weight:400}.btn{border:none;border-radius:3px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Sego UI Symbol";padding:10px;padding-left:15px;padding-right:15px;color:#fff}.btn svg{fill:#fff}.btn:hover{text-decoration:none}.btn-primary{background:#61a0ea}.btn-primary:hover{background:#5090d9}.btn-danger{background:#de4141}.btn-danger:hover{background:#cd3030}.code{padding:3px;border-radius:3px;background:#e6f0f5;font-family:monospace}.code-wrap{overflow-x:auto;overflow-y:hidden}table.code{background:#272b39;color:#fff;width:100%;font-family:monospace;font-size:12px;border-collapse:collapse;border-spacing:0}table.code .line-number{text-align:right;-moz-user-select:none;-ms-user-select:none;-webkit-user-select:none;min-width:30px;width:1%;padding-left:10px;padding-right:10px;line-height:20px}table.code .line-number a{display:block;color:rgba(255,255,255,.3)}table.code .line{padding-left:10px;padding-right:10px;line-height:20px;white-space:pre;overflow:visible;word-wrap:normal}table.code .line:target{background:#383e51}.col-75{width:75%;box-sizing:border-box}.col-25{width:25%;box-sizing:border-box}.dashboard .sidebar{position:fixed;top:0;left:0;height:100%;width:225px;background:#383e51}.dashboard .sidebar .sidebar-header{color:#fff;padding:20px;background:#272b39}.dashboard .sidebar .sidebar-header .logo{margin-top:-5px;margin-right:10px;display:inline-block;vertical-align:middle}.dashboard .sidebar .sidebar-header .logo .left{margin-left:3px;display:inline-block;width:0;height:0;border-style:solid;border-width:25px 0 0 15px;border-color:transparent transparent transparent #fff}.dashboard .sidebar .sidebar-header .logo .right{margin-left:3px;display:inline-block;width:0;height:0;border-style:solid;border-width:0 0 25px 15px;border-color:transparent transparent #fff transparent}.dashboard .sidebar .sidebar-header h2{display:inline-block}.dashboard .sidebar .sidebar-nav{list-style:none}.dashboard .sidebar .sidebar-nav li{display:block}.dashboard .sidebar .sidebar-nav li a,.dashboard .sidebar .sidebar-nav li button{display:block;color:rgba(255,255,255,.5);padding:15px}.dashboard .sidebar .sidebar-nav li a svg,.dashboard .sidebar .sidebar-nav li button svg{margin-right:3px;display:inline-block;vertical-align:middle;fill:rgba(255,255,255,.5);width:15px}.dashboard .sidebar .sidebar-nav li a span,.dashboard .sidebar .sidebar-nav li button span{margin-top:2px;display:inline-block;vertical-align:middle}.dashboard .sidebar .sidebar-nav li button{width:100%;border:none;text-align:left;background:rgba(0,0,0,0)}.dashboard .sidebar .sidebar-nav li a.active,.dashboard .sidebar .sidebar-nav li a:hover,.dashboard .sidebar .sidebar-nav li button:hover{text-decoration:none;background:#272b39;color:#fff}.dashboard .sidebar .sidebar-nav li a.active svg,.dashboard .sidebar .sidebar-nav li a:hover svg,.dashboard .sidebar .sidebar-nav li button:hover svg{fill:#fff}.dashboard .sidebar .sidebar-nav li.sidebar-nav-header{padding:15px;font-weight:700;color:#fff}.dashboard-header{margin-bottom:10px}.dashboard-header h1{float:left}.dashboard-header h1 .back{margin-top:2px;display:inline-block;vertical-align:middle}.dashboard-header h1 .back svg{fill:#7f7f7f}.dashboard-header h1 .back:hover{text-decoration:none}.dashboard-header h1 .back:hover svg{fill:#444}.dashboard-header h1 small{margin-top:10px;display:block;font-size:16px;color:rgba(0,0,0,.5)}.dashboard-header .pill{margin-top:-5px;margin-left:10px}.dashboard-header .dashboard-actions{float:right;list-style:none}.dashboard-header .dashboard-actions li{display:inline}.dashboard-header .dashboard-actions li form{display:inline-block}.dashboard-header .dashboard-actions li a{cursor:pointer;display:inline-block}.dashboard-nav{list-style:none}.dashboard-nav li{display:inline}.dashboard-nav li a{display:inline-block;padding:15px;color:#9f9f9f}.dashboard-nav li a svg{margin-right:3px;width:20px;vertical-align:middle;display:inline-block;fill:#9f9f9f}.dashboard-nav li a span{margin-top:2px;display:inline-block;vertical-align:middle}.dashboard-nav li a.active,.dashboard-nav li a:hover{text-decoration:none;color:#272b39}.dashboard-nav li a.active svg,.dashboard-nav li a:hover svg{fill:#272b39}.dashboard-content{margin-left:225px}.dashboard-content .alert{overflow:auto;padding:15px}.dashboard-content .alert .alert-message{float:left;color:rgba(0,0,0,.6)}.dashboard-content .alert a{float:right;display:inline-block}.dashboard-content .alert a svg{width:15px;height:15px;fill:rgba(0,0,0,.4)}.dashboard-content .alert a:hover svg{fill:rgba(0,0,0,.5)}.dashboard-content .alert-success{background:#caf5ca;border-bottom:solid 1px #a0dfa0}.dashboard-content .alert-warn{background:#fff3cd;border-bottom:solid 1px #d9c995}.dashboard-content .alert-danger{background:#ffd4d4;border-bottom:solid 1px #e19e9e}.dashboard-content .dashboard-wrap{padding:20px}.form-field+.form-field{margin-top:15px}.form-field{overflow:auto}.form-field .label{margin-bottom:5px;display:block;font-weight:700}.form-field .label small{color:rgba(0,0,0,.5)}.form-field .form-error{margin-top:5px;color:#ff4343;min-height:20px}.form-field .form-text{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Sego UI Symbol";font-size:14px;padding:10px;outline:0;border-radius:3px;box-sizing:border-box;width:100%;border:solid 1px #e4e4e4}.form-field .form-text:focus{border:solid 1px #c2c2c2}.form-field .form-code{min-height:250px;font-family:monospace}.form-field textarea.form-text{min-width:100%;max-width:100%}.form-field .form-option+.form-option{margin-top:10px}.form-field .form-option{display:block;cursor:pointer;overflow:auto}.form-field .form-option .form-selector{margin-right:5px;display:inline-block;float:left;outline:0}.form-field .form-option svg{margin-right:5px;float:left;fill:rgba(0,0,0,.4)}.form-field .disabled{color:#aaa;cursor:not-allowed}.form-field .disabled svg{fill:#aaa}.form-search{float:right;padding:7px}.form-search .form-text{width:auto}.form-search a svg{margin-top:-3px;fill:#e4e4e4;width:20px;vertical-align:middle;display:inline-block}.form-search a:hover svg{fill:#c2c2c2}.form-field-inline .form-text{display:inline-block;width:auto}.panel+.panel{margin-top:15px}.panel{background:#fff;border-radius:3px;box-shadow:0 2px 4px 0 rgba(0,0,0,.1)}.panel .panel-body{padding:15px}.panel .panel-message{font-size:20px;padding:150px;text-align:center}.panel .panel-footer{border-top:solid 1px #e4e4e4;padding:15px}.panel table.code{border-radius:0 0 3px 3px}.panel-header{border-bottom:solid 1px #e4e4e4;overflow:auto}.panel-header h3{float:left;padding:15px;font-weight:700}.panel-header .panel-nav{list-style:none;float:left}.panel-header .panel-nav li{display:inline}.panel-header .panel-nav li a{display:inline-block;padding:15px;padding-left:17px;padding-right:17px;color:rgba(0,0,0,.4)}.panel-header .panel-nav li a svg{margin-right:3px;width:15px;vertical-align:middle;display:inline-block;fill:rgba(0,0,0,.4)}.panel-header .panel-nav li a span{margin-top:2px;vertical-align:middle;display:inline-block}.panel-header .panel-nav li a.active,.panel-header .panel-nav li a:hover{text-decoration:none;border-bottom:solid 2px #383e51;color:#383e51}.panel-header .panel-nav li a.active svg,.panel-header .panel-nav li a:hover svg{fill:#383e51}.panel-header .panel-actions{float:right;list-style:none;padding:7px}.panel-header .panel-actions .btn{padding:5px;padding-left:12px;padding-right:12px}.panel-header .panel-actions li{display:inline}.panel-header .panel-actions li a{display:inline-block}.panel-header .panel-actions li a svg{margin-right:3px;width:15px;vertical-align:middle;display:inline-block}.panel-header .panel-actions li a span{margin-top:2px;vertical-align:middle;display:inline-block}.pill{display:inline-block;text-align:center;padding:3px;padding-left:10px;padding-right:10px;border-radius:25px;color:#fff;font-size:14px;vertical-align:middle}.pill a{text-decoration:none}.pill svg{margin-top:-2px;display:inline-block;vertical-align:middle;width:15px;fill:#fff}.pill-bubble{margin-right:5px;border-radius:100%;width:25px;height:25px;text-align:center;display:inline-block}.pill-bubble svg{width:15px;fill:#fff;vertical-align:middle}a.pill:hover{text-decoration:none}.pill-light{background:#61a0ea}a.pill-light:hover{background:#5090d9}.pill-gray{background:#6a7393}.pill-dark{background:#272b39}.pill-red{background:#c64242}.pill-green{background:#269326}.pill-blue{background:#61a0ea}.pill-orange{background:#ff7400}.providers{margin-bottom:15px}.provider-btn{display:inline-block;border-radius:3px;color:#fff;border:none;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif,"Apple Color Emoji","Segoe UI Emoji","Sego UI Symbol";padding:10px;padding-left:15px;padding-right:15px}.provider-btn svg{margin-right:5px;fill:#fff;vertical-align:middle}.provider-btn span{display:inline-block;vertical-align:middle}.provider-btn:hover{text-decoration:none}.provider-github{background:#24292e}.provider-github:hover{background:#353a3f}.provider-gitlab{background:#fa7035}.provider-gitlab:hover{background:#e65328}.table{border-collapse:collapse;width:100%}.table td,.table th{padding:10px}.table td svg,.table th svg{width:15px;display:inline-block;vertical-align:middle}.table td form,.table th form{display:inline-block}.table td.warning{color:#ff7400}.table td.warning svg{fill:#ff7400}.table th{background:rgba(0,0,0,.03);border-bottom:solid 1px #e4e4e4;text-align:left;color:rgba(0,0,0,.5);font-weight:400}.table tr{border-bottom:solid 1px #e4e4e4}.table tr:last-child{border-bottom:none}.table .cell-pill{width:100px}.table .cell-date{text-align:right!important;width:250px}.overflow{overflow:auto}.muted{color:#9f9f9f}.muted svg{fill:#9f9f9f}.align-center{text-align:center}.align-right{text-align:right}.inline-block{display:inline-block}.separator{margin-top:20px;margin-bottom:20px;border-bottom:solid 1px #cfcfcf}.slim{margin:0 auto;max-width:600px}.left{float:left}.right{float:right}.w-90{width:90px}.mb-10{margin-bottom:10px}.pr-5{padding-right:5px}.pl-5{padding-left:5px}.paginator{margin:0 auto;list-style:none;max-width:250px}.paginator li{display:inline}.paginator li a{display:inline-block;box-sizing:border-box;text-align:center;padding:10px;width:50%}.paginator li a.disabled{cursor:not-allowed;color:rgba(0,0,0,.5)}.paginator li a:hover{text-decoration:none}.paginator li .prev:hover{border-radius:3px 0 0 3px;background:#61a0ea;color:#fff}.paginator li .next:hover{border-radius:0 3px 3px 0;background:#61a0ea;color:#fff}`)
+//line template/template.qtpl:97
+	qw422016.N().S(`</style> `)
+//line template/template.qtpl:97
+}
+
+//line template/template.qtpl:97
+func (p *BasePage) WriteFooter(qq422016 qtio422016.Writer) {
+//line template/template.qtpl:97
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line template/template.qtpl:97
+	p.StreamFooter(qw422016)
+//line template/template.qtpl:97
+	qt422016.ReleaseWriter(qw422016)
+//line template/template.qtpl:97
+}
+
+//line template/template.qtpl:97
+func (p *BasePage) Footer() string {
+//line template/template.qtpl:97
+	qb422016 := qt422016.AcquireByteBuffer()
+//line template/template.qtpl:97
+	p.WriteFooter(qb422016)
+//line template/template.qtpl:97
+	qs422016 := string(qb422016.B)
+//line template/template.qtpl:97
+	qt422016.ReleaseByteBuffer(qb422016)
+//line template/template.qtpl:97
+	return qs422016
+//line template/template.qtpl:97
 }

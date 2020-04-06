@@ -1,0 +1,65 @@
+{%
+import (
+	htmltemplate "html/template"
+
+	"github.com/andrewpillar/thrall/oauth2"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type AppIndex struct {
+	template.BasePage
+
+	Apps []*oauth2.App
+}
+
+type TokenIndex struct {
+	template.BasePage
+
+	CSRF   htmltemplate.HTML
+	Tokens []*oauth2.Token
+}
+%}
+
+{% collapsespace %}
+{% func (p *AppIndex) Title() %}
+	OAuth Apps - Thrall
+{% endfunc %}
+
+{% func (p *AppIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Apps) == 0 %}
+			<div class="panel-message muted">No OAuth applications created.</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *AppIndex) Header() %}
+	OAuth Apps
+{% endfunc %}
+
+{% func (p *AppIndex) Actions() %}
+	<li><a href="/settings/apps/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *AppIndex) Navigation() %}{% endfunc %}
+
+{% func (p *TokenIndex) Title() %}
+	Access Tokens - Thrall
+{% endfunc %}
+
+{% func (p *TokenIndex) Body() %}
+
+{% endfunc %}
+
+{% func (p *TokenIndex) Header() %}
+	Access Tokens
+{% endfunc %}
+
+{% func (p *TokenIndex) Actions() %}
+	<li><a href="/settings/tokens/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *TokenIndex) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

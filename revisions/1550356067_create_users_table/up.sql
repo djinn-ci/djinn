@@ -1,9 +1,0 @@
-CREATE TABLE users (
-	id         SERIAL PRIMARY KEY,
-	email      VARCHAR NOT NULL UNIQUE,
-	username   VARCHAR NOT NULL UNIQUE,
-	password   BYTEA NOT NULL,
-	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-	updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-	deleted_at TIMESTAMP NULL
-);

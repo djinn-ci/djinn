@@ -18,22 +18,17 @@ func HTMLError(w http.ResponseWriter, message string, status int) {
 		Code:    status,
 		Message: message,
 	}
-
 	HTML(w, template.Render(p), status)
 }
 
 func JSONError(w http.ResponseWriter, message string, status int) {
-	data := map[string]string{"message": message}
-
-	JSON(w, data, status)
+	JSON(w, map[string]string{"message": message}, status)
 }
 
 func JSON(w http.ResponseWriter, data interface{}, status int) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-
-	enc := json.NewEncoder(w)
-	enc.Encode(data)
+	json.NewEncoder(w).Encode(data)
 }
 
 func Text(w http.ResponseWriter, content string, status int) {

@@ -1,0 +1,47 @@
+{% import "github.com/andrewpillar/thrall/template" %}
+
+{% code
+type Create struct {
+	template.BasePage
+	template.Form
+
+	FileForm template.Section
+}
+%}
+
+{% collapsespace %}
+{% func (p *Create) Title() %}
+	Create Object - Thrall
+{% endfunc %}
+
+{% func (p *Create) Body() %}
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="/objects" enctype="multipart/form-data">
+			{%s= string(p.CSRF) %}
+			{% if p.Errors.First("object") != "" %}
+				{%= p.Error("object") %}
+			{% endif %}
+			<div class="form-field">
+				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
+				<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Fields["namespace"] %}" autocomplete="off"/>
+			</div>
+			<div class="form-field">
+				<label class="label" for="name">Name</label>
+				<input class="form-text" type="text" id="name" name="name" value="{%s p.Fields["name"] %}" autocomplete="off"/>
+				{%= p.Error("name") %}
+			</div>
+			{%= p.FileForm.Section() %}
+			<div class="form-field">
+				<button type="submit" class="btn btn-primary">Create</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+
+{% func (p *Create) Header() %}
+	<a href="/objects" class="back">{% cat "../../static/svg/back.svg" %}</a> Create Object
+{% endfunc %}
+
+{% func (p *Create) Actions() %}{% endfunc %}
+{% func (p *Create) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

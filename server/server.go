@@ -1,172 +1,138 @@
 package server
 
 import (
+	"encoding/gob"
 	"net/http"
-	"strings"
 
-	"github.com/andrewpillar/thrall/filestore"
-	"github.com/andrewpillar/thrall/model"
-	"github.com/andrewpillar/thrall/oauth2"
+	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/web"
-	"github.com/andrewpillar/thrall/web/core"
-
-	"github.com/jmoiron/sqlx"
 
 	"github.com/gorilla/mux"
-
-	"github.com/go-redis/redis"
-
-	"github.com/RichardKnop/machinery/v1"
 )
+
+type Router interface {
+	// Init will initialize the router with the base web.Handler.
+	Init(web.Handler)
+
+	// RegisterUI will register the router's UI routes with the given
+	// mux.Router. It will also pass through the CSRF middleware function, and
+	// a variadic list of gates to apply to the routes being registered.
+	RegisterUI(*mux.Router, func(http.Handler) http.Handler, ...web.Gate)
+
+	// RegisterAPI will register the router's API routes with the given
+	// mux.Router. Unlike RegisterUI, this does not take a CSRF middleware
+	// function, and only the variadic list of gates.
+	RegisterAPI(*mux.Router, ...web.Gate)
+}
 
 type Server struct {
 	*http.Server
 
-	Cert string
-	Key  string
+	// Router is the mux.Router to use for registering routes.
+	Router  *mux.Router
 
-	Build   string
-	Version string
+	// Routers defines the routers for the server, along with their name,
+	Routers map[string]Router
 
-	router *mux.Router
-
-	build        core.Build
-	collaborator core.Collaborator
-	image        core.Image
-	hook         core.Hook
-	invite       core.Invite
-	job          core.Job
-	key          core.Key
-	namespace    core.Namespace
-	object       core.Object
-	tag          core.Tag
-	variable     core.Variable
-
-	DB    *sqlx.DB
-	Redis *redis.Client
-
-	CSRFToken []byte
-
-	Images    filestore.FileStore
-	Objects   filestore.FileStore
-	Artifacts filestore.FileStore
-
-	ImageLimit  int64
-	ObjectLimit int64
-
-	Queues    map[string]*machinery.Server
-	Providers map[string]oauth2.Provider
-
-	Handler    web.Handler
-	Middleware web.Middleware
+	// Cert and Key define the paths to the certificate and key to use for
+	// serving over TLS.
+	Cert    string
+	Key     string
 }
 
-func notFound(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		web.JSONError(w, "Not found", http.StatusNotFound)
-		return
+type API struct {
+	Server
+
+	apiRouter *mux.Router
+
+	// Prefix defines the router prefix to register the API routes against.
+	Prefix string
+}
+
+type UI struct {
+	Server
+
+	// CSRF defines the middleware function to use for protecting form submissions
+	// from CSRF attacks.
+	CSRF func(http.Handler) http.Handler
+}
+
+// Init will initialize the API server, and register the necessary types with
+// gob for encoding session data, such as form errors, form fields, and alerts.
+// This will also wrap the underlying Router with a handler for spoofing HTTP
+// methods, such as PATCH, and DELETE.
+func (s *UI) Init() {
+	gob.Register(form.NewErrors())
+	gob.Register(template.Alert{})
+	gob.Register(make(map[string]string))
+
+	if s.Router == nil {
+		panic("initializing ui server with nil router")
 	}
-	web.HTMLError(w, "Not found", http.StatusNotFound)
+
+	s.Server.Server.Handler = web.NewSpoof(s.Router)
 }
 
-func methodNotAllowed(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		web.JSONError(w, "Method not allowed", http.StatusNotFound)
-		return
-	}
-	web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
-}
-
-func (s Server) about(w http.ResponseWriter, r *http.Request) {
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		data := map[string]string{
-			"version":  s.Version,
-			"revision": s.Build,
-		}
-
-		web.JSON(w, data, http.StatusOK)
-		return
+// Register will register the UI routers of the given name with the given
+// gates.
+func (s *UI) Register(name string, gates ...web.Gate) {
+	if r, ok := s.Routers[name]; ok {
+		r.RegisterUI(s.Router, s.CSRF, gates...)
 	}
 }
 
-func (s *Server) Init() {
-	store := model.Store{DB: s.DB}
-
-	s.router = mux.NewRouter()
-	s.Server.Handler = s.router
-
-	s.router.NotFoundHandler = http.HandlerFunc(notFound)
-	s.router.MethodNotAllowedHandler = http.HandlerFunc(methodNotAllowed)
-	s.router.HandleFunc("/about", s.about)
-
-	s.namespace = core.Namespace{
-		Handler:    s.Handler,
-		Namespaces: model.NamespaceStore{Store: store},
+// Init will initialize the API server. This will create a new subrouter to
+// register the routes on if the Prefix for the API server was set.
+func (s *API) Init() {
+	if s.Router == nil {
+		panic("initializing api server with nil router")
 	}
 
-	s.build = core.Build{
-		Handler:    s.Handler,
-		Namespaces: model.NamespaceStore{Store: store},
-		Builds:     model.BuildStore{Store: store},
-		Images:     model.ImageStore{Store: store},
-		Variables:  model.VariableStore{Store: store},
-		Keys:       model.KeyStore{Store: store},
-		Objects:    model.ObjectStore{Store: store},
-		Client:     s.Redis,
-		Queues:     s.Queues,
-	}
+	s.apiRouter = s.Router
 
-	s.collaborator = core.Collaborator{
-		Handler: s.Handler,
-		Invites: model.InviteStore{Store: store},
-	}
-
-	s.hook = core.Hook{
-		Handler:         s.Handler,
-		Build:           s.build,
-		Providers:       model.ProviderStore{Store: store},
-		Oauth2Providers: s.Providers,
-	}
-
-	s.image = core.Image{
-		Handler:    s.Handler,
-		FileStore:  s.Images,
-		Limit:      s.ImageLimit,
-		Images:     model.ImageStore{Store: store},
-		Namespaces: model.NamespaceStore{Store: store},
-	}
-
-	s.invite = core.Invite{Handler: s.Handler}
-
-	s.job = core.Job{Handler: s.Handler}
-
-	s.key = core.Key{
-		Handler:    s.Handler,
-		Keys:       model.KeyStore{Store: store},
-		Namespaces: model.NamespaceStore{Store: store},
-	}
-
-	s.object = core.Object{
-		Handler:    s.Handler,
-		FileStore:  s.Objects,
-		Limit:      s.ObjectLimit,
-		Namespaces: model.NamespaceStore{Store: store},
-		Objects:    model.ObjectStore{Store: store},
-	}
-
-	s.tag = core.Tag{Handler: s.Handler}
-
-	s.variable = core.Variable{
-		Handler:    s.Handler,
-		Namespaces: model.NamespaceStore{Store: store},
-		Variables:  model.VariableStore{Store: store},
+	if s.Prefix != "" {
+		s.apiRouter = s.Router.PathPrefix(s.Prefix).Subrouter()
 	}
 }
 
+// Register will register the API routers of the given name with the given
+// gates.
+func (s *API) Register(name string, gates ...web.Gate) {
+	if r, ok := s.Routers[name]; ok {
+		r.RegisterAPI(s.apiRouter, gates...)
+	}
+}
+
+// Init initializes all of the routers given to the server with the given base
+// web.Handler.
+func (s *Server) Init(h web.Handler) {
+	if s.Router == nil {
+		panic("initializing server with nil router")
+	}
+
+	s.Server.Handler = s.Router
+
+	for _, r := range s.Routers {
+		r.Init(h)
+	}
+}
+
+// AddRouter adds the given router to the server with the given name. If the
+// router already exists, then it will be replaced.
+func (s *Server) AddRouter(name string, r Router) {
+	if s.Routers == nil {
+		s.Routers = make(map[string]Router)
+	}
+	s.Routers[name] = r
+}
+
+// Serve will bind the server to the given address. If a certificate and key
+// were given, then the server will be served over TLS.
 func (s *Server) Serve() error {
 	if s.Cert != "" && s.Key != "" {
-		return s.ListenAndServeTLS(s.Cert, s.Key)
+		return errors.Err(s.ListenAndServeTLS(s.Cert, s.Key))
 	}
-
-	return s.ListenAndServe()
+	return errors.Err(s.ListenAndServe())
 }

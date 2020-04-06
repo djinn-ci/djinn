@@ -1,2 +1,0 @@
-DROP TABLE collaborators CASCADE;
-DROP TABLE invites CASCADE;

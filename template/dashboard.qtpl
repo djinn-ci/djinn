@@ -1,0 +1,177 @@
+{%
+import (
+	"net/url"
+)
+%}
+
+{%
+interface Dashboard {
+	Title()
+
+	Body()
+
+	Footer()
+
+	Actions()
+
+	Header()
+
+	Navigation()
+}
+%}
+
+{% code
+type baseDashboard struct {
+	Dashboard
+
+	alert Alert
+	URL   *url.URL
+	CSRF  string
+}
+
+type Alert struct {
+	Level   level
+	Message string
+}
+
+type level uint8
+
+const (
+	success level = iota
+	warn
+	danger
+)
+
+var (
+	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
+	BuildsURI       = "(^\\/$|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
+	SettingsURI     = "\\/settings\\/?"
+	RepositoriesURI = "\\/repos\\/?"
+)
+
+func NewDashboard(d Dashboard, url *url.URL, a Alert, csrf string) *baseDashboard {
+	return &baseDashboard{
+		Dashboard: d,
+		alert:     a,
+		URL:       url,
+		CSRF:      csrf,
+	}
+}
+
+func Danger(msg string) Alert {
+	return Alert{
+		Level:   danger,
+		Message: msg,
+	}
+}
+
+func Success(msg string) Alert {
+	return Alert{
+		Level:   success,
+		Message: msg,
+	}
+}
+
+func Warn(msg string) Alert {
+	return Alert{
+		Level:   warn,
+		Message: msg,
+	}
+}
+
+func (a Alert) IsZero() bool { return a.Level == level(0) && a.Message == "" }
+
+func (l level) String() string {
+	switch l {
+	case success:
+		return "success"
+	case warn:
+		return "warn"
+	case danger:
+		return "danger"
+	default:
+		return ""
+	}
+}
+%}
+
+{% collapsespace %}
+{% func (p *baseDashboard) Body() %}
+	<div class="dashboard">
+		<div class="dashboard-content">
+			{% if !p.alert.IsZero() %}
+				<div class="alert alert-{%s p.alert.Level.String() %}">
+					<div class="alert-message">{%s p.alert.Message %}</div>
+					<a href="{%s p.URL.Path %}">{% cat "../static/svg/close.svg" %}</a>
+				</div>
+			{% endif %}
+			<div class="dashboard-wrap">
+				<div class="dashboard-header">
+					<div class="overflow">
+						<h1>{%= p.Dashboard.Header() %}</h1>
+						<ul class="dashboard-actions">{%= p.Dashboard.Actions() %}</ul>
+					</div>
+					<ul class="dashboard-nav">{%= p.Dashboard.Navigation() %}</ul>
+				</div>
+				<div class="dashboard-body">{%= p.Dashboard.Body() %}</div>
+			</div>
+		</div>
+		<div class="sidebar">
+			<div class="sidebar-header">
+				<div class="logo"><div class="left"></div><div class="right"></div></div>
+				<h2>Thrall</h2>
+			</div>
+			<ul class="sidebar-nav">
+				<li class="sidebar-nav-header">MANAGE</li>
+				{% if Match(p.URL.Path, BuildsURI) %}
+					<li><a href="/" class="active">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
+				{% else %}
+					<li><a href="/">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
+				{% endif %}
+				{% if Match(p.URL.Path, NamespacesURI) %}
+					<li><a href="/namespaces" class="active">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
+				{% else %}
+					<li><a href="/namespaces">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
+				{% endif %}
+				{% if Match(p.URL.Path, RepositoriesURI) %}
+					<li><a href="/repos" class="active">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>
+				{% else %}
+					<li><a href="/repos">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>
+				{% endif %}
+				{% if Match(p.URL.Path, pattern("images")) %}
+					<li><a href="/images" class="active">{% cat "../static/svg/image.svg" %}<span>Images</span></a></li>
+				{% else %}
+					<li><a href="/images">{% cat "../static/svg/image.svg" %}<span>Images</span></a></li>
+				{% endif %}
+				{% if Match(p.URL.Path, pattern("objects")) %}
+					<li><a href="/objects" class="active">{% cat "../static/svg/upload.svg" %}<span>Objects</span></a></li>
+				{% else %}
+					<li><a href="/objects">{% cat "../static/svg/upload.svg" %}<span>Objects</span></a></li>
+				{% endif %}
+				{% if Match(p.URL.Path, pattern("variables")) %}
+					<li><a href="/variables" class="active">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
+				{% else %}
+					<li><a href="/variables">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
+				{% endif %}
+				{% if Match(p.URL.Path, pattern("keys")) %}
+					<li><a href="/keys" class="active">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
+				{% else %}
+					<li><a href="/keys">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
+				{% endif %}
+				<li class="sidebar-nav-header">ACCOUNT</li>
+				{% if Match(p.URL.Path, SettingsURI) %}
+					<li><a href="/settings" class="active">{% cat "../static/svg/settings.svg" %}<span>Settings</span></a></li>
+				{% else %}
+					<li><a href="/settings">{% cat "../static/svg/settings.svg" %}<span>Settings</span></a></li>
+				{% endif %}
+				<li>
+					<form method="POST" action="/logout">
+						{%s= string(p.CSRF) %}
+						<button type="submit">{% cat "../static/svg/logout.svg" %}<span>Logout</span></button>
+					</form>
+				</li>
+			</ul>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

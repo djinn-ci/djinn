@@ -1,0 +1,47 @@
+{%
+import (
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type Create struct {
+	template.BasePage
+	template.Form
+
+	FileForm template.Section
+}
+%}
+
+{% collapsespace %}
+{% func (p *Create) Title() %}
+	Add Image - Thrall
+{% endfunc %}
+
+{% func (p *Create) Body() %}
+	<div class="panel">
+		<form class="panel-body slim" method="POST">
+			{%s= string(p.CSRF) %}
+			<div class="form-field">
+				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
+				<input class="form-text" type="text" id="namescpace" name="namespace" value="{%s p.Fields["namespace"] %}" autocomplete="off"/>
+			</div>
+			<div class="form-field">
+				<label class="label" for="name">Name</label>
+				<input class="form-text" type="text" id="name" name="name" value="{%s p.Fields["name"] %}" autocomplete="off"/>
+			</div>
+			{%= p.FileForm.Section() %}
+			<dif class="form-field">
+				<button type="submit" class="btn btn-primary">Create</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+
+{% func (p *Create) Header() %}
+	<a href="/images" class="back">{% cat "../../static/svg/back.svg" %}</a> Add Image
+{% endfunc %}
+
+{% func (p *Create) Actions() %}{% endfunc %}
+{% func (p *Create) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

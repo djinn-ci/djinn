@@ -1,0 +1,226 @@
+{%
+import (
+	"fmt"
+
+	"github.com/andrewpillar/thrall/build"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% collapsespace %}
+{% func RenderStatusNav(uri, status string) %}
+	{% stripspace %}
+		<ul class="panel-nav">
+			<li>
+				<a href="{%s uri %}" {% if status == "" %}class="active"{% endif %}>
+					{% cat "../../static/svg/build.svg" %}<span>All</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=queued" {% if status == "queued" %}class="active"{% endif %}>
+					{% cat "../../static/svg/hourglass.svg" %}<span>Queued</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=running" {% if status == "running" %}class="active"{% endif %}>
+					{% cat "../../static/svg/timer.svg" %}<span>Running</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=passed" {% if status == "passed" %}class="active"{% endif %}>
+					{% cat "../../static/svg/check.svg" %}<span>Passed</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=failed" {% if status == "failed" %}class="active"{% endif %}>
+					{% cat "../../static/svg/close.svg" %}<span>Failed</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=killed" {% if status == "killed" %}class="active"{% endif %}>
+					{% cat "../../static/svg/stop.svg" %}<span>Killed</span>
+				</a>
+			</li>
+			<li>
+				<a href="?status=timed_out" {% if status == "timed_out" %}class="active"{% endif %}>
+					{% cat "../../static/svg/stopwatch.svg" %}<span>Timed Out</span>
+				</a>
+			</li>
+		</ul>
+	{% endstripspace %}
+{% endfunc %}
+
+{% func RenderArtifactTable(aa []*build.Artifact, uri, search string) %}
+	{% if len(aa) == 0 && search == "" %}
+		<div class="panel-message muted">No artifacts have been collected from this build.</div> 
+	{% else %}
+		<div class="panel-header">{%= template.RenderSearch(uri, search, "Find an artifact...") %}</div>
+		{% if len(aa) == 0 && search != "" %}
+			<div class="panel-message muted">No results found.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>SOURCE</th>
+						<th>NAME</th>
+						<tH>SIZE</th>
+						<th>MD5</th>
+						<th>SHA256</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, a := range aa %}
+						<tr>
+							<td><span class="code">{%s a.Source %}</span></td>
+							<td><a href="{%s a.Endpoint("download", a.Name) %}">{%s a.Name %}</a></td>
+							<td>{%s template.RenderSize(a.Size.Int64) %}</td>
+							<td>
+								<span class="code">
+									{% if len(a.MD5) == 0 %}
+										--
+									{% else %}
+										{%s fmt.Sprintf("%x", a.MD5) %}
+									{% endif %}
+								</span>
+							</td>
+							<td>
+								<span class="code">
+									{% if len(a.SHA256) == 0 %}
+										--
+									{% else %}
+										{%s fmt.Sprintf("%x", a.SHA256) %}
+									{% endif %}
+								</span>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	{% endif %}
+{% endfunc %}
+
+{% func RenderObjectTable(oo []*build.Object) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>SOURCE</th>
+				<th>NAME</th>
+				<th>TYPE</th>
+				<th>MD5</th>
+				<th>SHA256</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, o := range oo %}
+				<tr>
+					<td>
+						{% if o != nil && !o.Object.DeletedAt.Valid %}
+							<a href="{%s o.Object.Endpoint() %}">{%s o.Source %}</a>
+						{% else %}
+							<a title="Object not found"><strike>{%s o.Source %}</strike></a>
+						{% endif %}
+					</td>
+					<td><span class="code">{%s o.Name %}</span></td>
+					<td>
+						{% if o.Object != nil %}
+							<span class="code">{%s o.Object.Type %}</span>
+						{% else %}
+							<span class="code">--</span>
+						{% endif %}
+					</td>
+					<td>
+						{% if o != nil %}
+							<span class="code">{%s fmt.Sprintf("%x", o.Object.MD5) %}</span>
+						{% else %}
+							<span class="code">--</span>
+						{% endif %}
+					</td>
+					<td>
+						{% if o != nil %}
+							<span class="code">{%s fmt.Sprintf("%x", o.Object.SHA256) %}</span>
+						{% else %}
+							<span class="code">--</span>
+						{% endif %}
+					</td>
+					<td class="align-right">
+						{% if o.Placed %}
+							<span class="pill pill-green">{% cat "../../static/svg/check.svg"  %} Placed</span>
+						{% else %}
+							<span class="pill pill-red">{% cat "../../static/svg/close.svg" %} Not Placed</span>
+						{% endif %}
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func RenderTagTable(tt []*build.Tag, csrf string) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>TAG</th>
+				<th>TAGGED BY</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, t := range tt %}
+				<tr>
+					<td><a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a></td>
+					<td>{%s t.User.Username %} &lt;{%s t.User.Email %}&gt;</td>
+					<td class="align-right">
+						<form method="POST" action="{%s t.Endpoint() %}">
+							{%s= csrf %}
+							<input type="hidden" name="_method" value="DELETE">
+							<button type="submit" class="btn btn-danger">Delete</button>
+						</form>
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func RenderVariableTable(vv []*build.Variable) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>KEY</th>
+				<th>VALUE</th>
+				<th>FROM MANIFEST</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, v := range vv %}
+				<tr>
+					<td><span class="code">{%s v.Key %}</span></td>
+					<td><span class="code">{%s v.Value %}</span></td>
+					<td>{% if v.VariableID.Valid %}False{% else %}True{% endif %}</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func RenderKeyTable(kk []*build.Key) %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>KEY</th>
+				<th>LOCATION</th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, k := range kk %}
+				<tr>
+					<td><span class="code">{%s k.Name %}</span></td>
+					<td><span class="code">{%s k.Location %}</span></td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+{% endcollapsespace %}

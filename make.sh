@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 TAGS="netgo osusergo"
 LFLAGS="-ldflags \"-X=main.Build=$(git rev-parse HEAD)\""
 
@@ -9,6 +11,18 @@ for bin in go stringer qtc yarn; do
 		exit 1
 	fi
 done
+
+yarn_() {
+	bin="node_modules/.bin/lessc"
+
+	if [ ! -f "$bin" ]; then
+		yarn install
+	fi
+
+	"$bin" --clean-css static/less/main.less static/main.css
+	"$bin" --clean-css static/less/auth.less static/auth.css
+	"$bin" --clean-css static/less/error.less static/error.css
+}
 
 ui() {
 	if [ -z "$1" ]; then
@@ -24,10 +38,9 @@ ui() {
 			>&2 printf "cannot find directory %s\n" "$dir"
 			exit 1
 		fi
-
 		qtc -dir "$dir"
 	fi
-	yarn run css
+	yarn_
 }
 
 build() {
@@ -45,7 +58,7 @@ build() {
 			exit 1
 		fi
 		set -x
-		go build $LFLAGS -tags "$TAGS" -o "$c".out ./cmd/"$c"
+		GOOS="$GOOS" GOARCH="$GOARCH" go build $LFLAGS -tags "$TAGS" -o "$c".out ./cmd/"$c"
 	done
 }
 
@@ -109,12 +122,6 @@ case "$1" in
 	*)
 		if [ "$1" = "" ]; then
 			go test -cover ./...
-			code="$?"
-
-			if [ ! "$code" -eq 0 ]; then
-				exit "$code"
-			fi
-
 			ui
 			build
 		else

@@ -1,7 +1,4 @@
 {
-  "scripts": {
-    "css": "lessc --clean-css static/less/main.less static/main.css;lessc --clean-css static/less/auth.less static/auth.css;lessc --clean-css static/less/error.less static/error.css"
-  },
   "resolutions": {
     "source-map": "0.6.1",
     "punycode": "2.1.1",

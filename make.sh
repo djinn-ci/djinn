@@ -7,7 +7,9 @@ LFLAGS="-ldflags \"-X=main.Build=$(git rev-parse HEAD)\""
 
 for bin in go stringer qtc yarn; do
 	if ! hash "$bin"; then
+		url=$(grep "^$bin" make.dep | awk '{ print $2 }')
 		>&2 printf "missing binary %s\n" "$bin"
+		>&2 printf "install binary via: %s\n" "$url"
 		exit 1
 	fi
 done

@@ -82,6 +82,8 @@ type Model interface {
 	Values() map[string]interface{}
 }
 
+type selectFunc func(interface{}, string, ...interface{}) error
+
 // Store is a simple struct for performing SELECT, INSERT, UPDATE, and
 // DELETE queries on tables.
 type Store struct {
@@ -136,18 +138,19 @@ func NewLoaders() Loaders {
 	return Loaders(make(map[string]Loader))
 }
 
-// Bind returns a LoaderFunc that checks to see if the foreign key on
-// the model at index i matches the primary key of the model being loaded. If
-// so, then that model is bound to the model at index i. This typically assumes
-// that the foreign key, and primary key are int64.
-func Bind(fk, pk string, mm ...Model) func(int, Model) {
+// Bind returns a LoaderFunc that checks to see if the key on the target model,
+// specified via a, at index i matches the key on the model being loaded,
+// specified via b. If so, then that model is bound to the target model. This
+// typically assumes that both the keys being retrieved have an underlying type
+// of int64.
+func Bind(a, b string, mm ...Model) func(int, Model) {
 	return func(i int, r Model) {
 		if i > len(mm) || len(mm) == 0 {
 			return
 		}
 
 		m := mm[i]
-		if CompareKeys(getKey(fk, m), getKey(pk, r)) {
+		if CompareKeys(getKey(a, m), getKey(b, r)) {
 			m.Bind(r)
 		}
 	}
@@ -337,9 +340,7 @@ func (m *Loaders) Put(name string, l Loader) {
 // Get returns a Loader of the given name.
 func (m *Loaders) Get(name string) Loader { return (*m)[name] }
 
-// Get performs a SELECT query on the given table using the given query
-// options. This will return a single record from the given table.
-func (s Store) Get(i interface{}, table string, opts ...query.Option) error {
+func (s Store) doSelect(fn selectFunc, i interface{}, table string, opts ...query.Option) error {
 	opts = append([]query.Option{
 		query.Columns("*"),
 		query.From(table),
@@ -347,7 +348,7 @@ func (s Store) Get(i interface{}, table string, opts ...query.Option) error {
 
 	q := query.Select(opts...)
 
-	err := s.DB.Get(i, q.Build(), q.Args()...)
+	err := fn(i, q.Build(), q.Args()...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -355,23 +356,17 @@ func (s Store) Get(i interface{}, table string, opts ...query.Option) error {
 	return errors.Err(err)
 }
 
+// Get performs a SELECT query on the given table using the given query
+// options. This will return a single record from the given table.
+func (s Store) Get(i interface{}, table string, opts ...query.Option) error {
+	return errors.Err(s.doSelect(s.DB.Get, i, table, opts...))
+}
+
 // All performs a SELECT query on the given table using the given query
 // options. The given interface is expected to be a slice, which is then
 // populated via sqlx.
 func (s Store) All(i interface{}, table string, opts ...query.Option) error {
-	opts = append([]query.Option{
-		query.Columns("*"),
-		query.From(table),
-	}, opts...)
-
-	q := query.Select(opts...)
-
-	err := s.Select(i, q.Build(), q.Args()...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return errors.Err(err)
+	return errors.Err(s.doSelect(s.DB.Select, i, table, opts...))
 }
 
 // Create performs an INSERT on the given table for each given model. The ID of

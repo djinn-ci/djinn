@@ -5,8 +5,8 @@ set -e
 TAGS="netgo osusergo"
 LFLAGS="-ldflags \"-X=main.Build=$(git rev-parse HEAD)\""
 
-for bin in go stringer qtc yarn; do
-	if ! hash "$bin"; then
+for bin in $(grep -vE "^#" make.dep | awk '{ print $1 }'); do
+	if ! hash "$bin" 2> /dev/null; then
 		url=$(grep "^$bin" make.dep | awk '{ print $2 }')
 		>&2 printf "missing binary %s\n" "$bin"
 		>&2 printf "install binary via: %s\n" "$url"

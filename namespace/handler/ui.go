@@ -51,7 +51,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, u), r)
+	nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, u), r.URL.Query())
 
 	if err  != nil {
 		log.Error.Println(errors.Err(err))
@@ -197,7 +197,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	switch base {
 	case "namespaces":
-		nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, n), r)
+		nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, n), r.URL.Query())
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -213,7 +213,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			Search:     q.Get("search"),
 		}
 	case "images":
-		ii, paginator, err := image.NewStore(h.DB, n).Index(r)
+		ii, paginator, err := image.NewStore(h.DB, n).Index(r.URL.Query())
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -229,7 +229,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			Search:    q.Get("search"),
 		}
 	case "objects":
-		oo, paginator, err := object.NewStore(h.DB, n).Index(r)
+		oo, paginator, err := object.NewStore(h.DB, n).Index(r.URL.Query())
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -261,7 +261,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			Search:    q.Get("search"),
 		}
 	case "keys":
-		kk, paginator, err := key.NewStore(h.DB, n).Index(r)
+		kk, paginator, err := key.NewStore(h.DB, n).Index(r.URL.Query())
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -286,7 +286,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	default:
-		bb, paginator, err := build.NewStore(h.DB, n).Index(r)
+		bb, paginator, err := build.NewStore(h.DB, n).Index(r.URL.Query())
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

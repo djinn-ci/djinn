@@ -26,7 +26,7 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	kk, paginator, err := h.IndexWithRelations(key.NewStore(h.DB, u), r)
+	kk, paginator, err := h.IndexWithRelations(key.NewStore(h.DB, u), r.URL.Query())
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

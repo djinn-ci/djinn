@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/andrewpillar/thrall/crypto"
@@ -29,8 +30,8 @@ func (h Key) Model(r *http.Request) *key.Key {
 	return k
 }
 
-func (h Key) IndexWithRelations(s key.Store, r *http.Request) ([]*key.Key, model.Paginator, error) {
-	kk, paginator, err := s.Index(r)
+func (h Key) IndexWithRelations(s key.Store, vals url.Values) ([]*key.Key, model.Paginator, error) {
+	kk, paginator, err := s.Index(vals)
 
 	if err != nil {
 		return kk, paginator, errors.Err(err)

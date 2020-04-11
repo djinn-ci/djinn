@@ -3,7 +3,7 @@ package namespace
 import (
 	"database/sql"
 	"fmt"
-	"net/http"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -316,17 +316,15 @@ func (s Store) All(opts ...query.Option) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
-func (s Store) Index(r *http.Request, opts ...query.Option) ([]*Namespace, model.Paginator, error) {
-	q := r.URL.Query()
-
-	page, err := strconv.ParseInt(q.Get("page"), 10, 64)
+func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, model.Paginator, error) {
+	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
 		page = 1
 	}
 
 	opts = append([]query.Option{
-		model.Search("path", q.Get("search")),
+		model.Search("path", vals.Get("search")),
 	}, opts...)
 
 	paginator, err := s.Paginate(page, opts...)

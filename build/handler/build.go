@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -93,8 +94,8 @@ func (h Build) Model(r *http.Request) *build.Build {
 	return b
 }
 
-func (h Build) IndexWithRelations(s build.Store, r *http.Request, opts ...query.Option) ([]*build.Build, model.Paginator, error) {
-	bb, paginator, err := s.Index(r, opts...)
+func (h Build) IndexWithRelations(s build.Store, vals url.Values) ([]*build.Build, model.Paginator, error) {
+	bb, paginator, err := s.Index(vals)
 
 	if err != nil {
 		return bb, paginator, errors.Err(err)

@@ -31,7 +31,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	oo, paginator, err := h.IndexWithRelations(object.NewStore(h.DB, u), r)
+	oo, paginator, err := h.IndexWithRelations(object.NewStore(h.DB, u), r.URL.Query())
 
 	if err != nil {
 		log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
@@ -141,7 +141,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 	selectq := build.SelectObject("build_id", query.Where("object_id", "=", o.ID))
 
-	bb, paginator, err := h.Builds.Index(r, query.WhereQuery("id", "IN", selectq))
+	bb, paginator, err := h.Builds.Index(r.URL.Query(), query.WhereQuery("id", "IN", selectq))
 
 	if err != nil {
 		log.Error.Println(r.Method, r.URL.Path, errors.Err(err))

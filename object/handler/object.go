@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"net/http"
+	"net/url"
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/crypto"
@@ -45,8 +46,8 @@ func (h Object) Delete(r *http.Request) error {
 	return errors.Err(h.FileStore.Remove(o.Hash))
 }
 
-func (h Object) IndexWithRelations(s object.Store, r *http.Request) ([]*object.Object, model.Paginator, error) {
-	oo, paginator, err := s.Index(r)
+func (h Object) IndexWithRelations(s object.Store, vals url.Values) ([]*object.Object, model.Paginator, error) {
+	oo, paginator, err := s.Index(vals)
 
 	if err != nil {
 		return oo, paginator, errors.Err(err)

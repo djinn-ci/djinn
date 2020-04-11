@@ -34,7 +34,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	bb, paginator, err := h.IndexWithRelations(build.NewStore(h.DB, u), r)
+	bb, paginator, err := h.IndexWithRelations(build.NewStore(h.DB, u), r.URL.Query())
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

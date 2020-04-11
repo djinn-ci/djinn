@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"fmt"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -65,8 +64,8 @@ func Test_StoreIndex(t *testing.T) {
 		},
 	}
 
-	requests := []*http.Request{
-		&http.Request{URL: &url.URL{RawQuery: "search=blackmesa"}},
+	vals := []url.Values{
+		url.Values(map[string][]string{"search": []string{"blackmesa"}}),
 	}
 
 	for i, test := range tests {
@@ -78,7 +77,7 @@ func Test_StoreIndex(t *testing.T) {
 
 		store.Bind(test.models...)
 
-		if _, _, err := store.Index(requests[i], test.opts...); err != nil {
+		if _, _, err := store.Index(vals[i], test.opts...); err != nil {
 			t.Fatal(errors.Cause(err))
 		}
 

@@ -3,6 +3,7 @@ package handler
 import (
 	"database/sql"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/andrewpillar/thrall/build"
@@ -36,8 +37,8 @@ func (h Namespace) Delete(r *http.Request) error {
 	return errors.Err(err)
 }
 
-func (h Namespace) IndexWithRelations(s namespace.Store, r *http.Request, opts ...query.Option) ([]*namespace.Namespace, model.Paginator, error) {
-	nn, paginator, err := s.Index(r, opts...)
+func (h Namespace) IndexWithRelations(s namespace.Store, vals url.Values) ([]*namespace.Namespace, model.Paginator, error) {
+	nn, paginator, err := s.Index(vals)
 
 	if err != nil {
 		return []*namespace.Namespace{}, paginator, errors.Err(err)

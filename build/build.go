@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"database/sql"
 	"encoding/json"
-	"net/http"
+	"net/url"
 	"fmt"
 	"strconv"
 	"strings"
@@ -326,19 +326,17 @@ func (s Store) All(opts ...query.Option) ([]*Build, error) {
 	return bb, errors.Err(err)
 }
 
-func (s Store) Index(r *http.Request, opts ...query.Option) ([]*Build, model.Paginator, error) {
-	q := r.URL.Query()
-
-	page, err := strconv.ParseInt(q.Get("page"), 10, 64)
+func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Build, model.Paginator, error) {
+	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
 		page = 1
 	}
 
 	opts = append([]query.Option{
-		WhereTag(q.Get("tag")),
-		WhereSearch(q.Get("search")),
-		WhereStatus(q.Get("status")),
+		WhereTag(vals.Get("tag")),
+		WhereSearch(vals.Get("search")),
+		WhereStatus(vals.Get("status")),
 	}, opts...)
 
 	paginator, err := s.Paginate(page, opts...)

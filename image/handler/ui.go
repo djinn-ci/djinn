@@ -28,7 +28,7 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	ii, paginator, err := h.IndexWithRelations(image.NewStore(h.DB, u), r)
+	ii, paginator, err := h.IndexWithRelations(image.NewStore(h.DB, u), r.URL.Query())
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

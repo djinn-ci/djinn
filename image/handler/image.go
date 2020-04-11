@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"net/url"
 	"io"
 	"os"
 	"path/filepath"
@@ -15,8 +16,6 @@ import (
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/web"
-
-	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/sessions"
 )
@@ -46,8 +45,8 @@ func (h Image) Delete(r *http.Request) error {
 	return errors.Err(err)
 }
 
-func (h Image) IndexWithRelations(s image.Store, r *http.Request, opts ...query.Option) ([]*image.Image, model.Paginator, error) {
-	ii, paginator, err := s.Index(r, opts...)
+func (h Image) IndexWithRelations(s image.Store, vals url.Values) ([]*image.Image, model.Paginator, error) {
+	ii, paginator, err := s.Index(vals)
 
 	if err != nil {
 		return ii, paginator, errors.Err(err)

@@ -49,7 +49,7 @@ build() {
 	cmd="$1"
 
 	if [ -z "$cmd" ]; then
-		cmd="thrall thrall-server thrall-worker"
+		cmd="$(ls cmd)"
 	fi
 
 	go generate ./...

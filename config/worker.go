@@ -34,9 +34,6 @@ type Worker struct {
 	Artifacts Storage
 	Objects   Storage
 
-	SSH  SSH
-	Qemu Qemu
-
 	Log struct {
 		Level string
 		File  string

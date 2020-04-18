@@ -10,20 +10,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
 
-	"github.com/gorilla/mux"
-
 	"github.com/go-redis/redis"
+
+	"github.com/jmoiron/sqlx"
 
 	"github.com/lib/pq"
 
@@ -31,197 +30,212 @@ import (
 )
 
 type worker struct {
-	client *redis.Client
-	queue  *machinery.Server
-	router *mux.Router
+	db    *sqlx.DB
+	redis *redis.Client
 
-	store model.Store
+	driver  config.Driver
+	timeout time.Duration
 
-	concurrency int
-	driverCfg   config.Driver
-	timeout     time.Duration
-
-	users  model.UserStore
-	builds model.BuildStore
-
-	objects   filestore.FileStore
-	artifacts filestore.FileStore
-
+	server *machinery.Server
 	worker *machinery.Worker
+
+	placer    runner.Placer
+	collector runner.Collector
+
+	users  user.Store
+	builds build.Store
+	jobs   build.JobStore
 }
 
-func (w *worker) init(qname string) {
-	w.builds = model.BuildStore{
-		Store: w.store,
-	}
-	w.users = model.UserStore{
-		Store: w.store,
-	}
-
-	w.queue.RegisterTask("run_build", w.runBuild)
-
-	w.worker = w.queue.NewWorker("thrall-worker-" + qname, w.concurrency)
+func (w *worker) init(name string, concurrency int) {
+	w.server.RegisterTask("run_build", w.run)
+	w.worker = w.server.NewWorker("thrall-worker-"+name, concurrency)
+	w.users = user.NewStore(w.db)
+	w.builds = build.NewStore(w.db)
+	w.jobs = build.NewJobStore(w.db)
 }
 
-func (w worker) loadBuild(s string) (*model.Build, error) {
+func (w *worker) getBuildObjects(b *build.Build) (runner.Passthrough, error) {
+	objs := runner.Passthrough{}
+
+	kk, err := build.NewKeyStore(w.db, b).All()
+
+	if err != nil {
+		return objs, errors.Err(err)
+	}
+
+	for _, k := range kk {
+		objs.Set("key:"+k.Name, k.Location)
+	}
+
+	oo, err := build.NewObjectStore(w.db, b).All()
+
+	if err != nil {
+		return objs, errors.Err(err)
+	}
+
+	for _, o := range oo {
+		objs.Set(o.Source, o.Name)
+	}
+	return objs, nil
+}
+
+func (w *worker) getBuildVars(b *build.Build) ([]string, error) {
+	env := make([]string, 0)
+
+	vv, err := build.NewVariableStore(w.db, b).All()
+
+	if err != nil {
+		return env, errors.Err(err)
+	}
+
+	for _, v := range vv {
+		env = append(env, v.Key+"="+v.Value)
+	}
+	return env, nil
+}
+
+func (w *worker) getBuildStages(b *build.Build) (map[int64]*runner.Stage, error) {
+	m := make(map[int64]*runner.Stage)
+	ss, err := build.NewStageStore(w.db, b).All()
+
+	if err != nil {
+		return m, errors.Err(err)
+	}
+
+	for _, s := range ss {
+		m[s.ID] = &runner.Stage{
+			Name:    s.Name,
+			CanFail: s.CanFail,
+		}
+	}
+	return m, nil
+}
+
+func (w *worker) getBuildJobs(b *build.Build, stages map[int64]*runner.Stage) (map[int64]*runner.Job, error) {
+	m := make(map[int64]*runner.Job)
+	jj, err := build.NewJobStore(w.db, b).All()
+
+	if err != nil {
+		return m, errors.Err(err)
+	}
+
+	aa, err := build.NewArtifactStore(w.db, b).All()
+
+	if err != nil {
+		return m, errors.Err(err)
+	}
+
+	for _, j := range jj {
+		m[j.ID] = &runner.Job{
+			Name:     m[j.StageID].Name,
+			Commands: strings.Split(j.Commands, "\n"),
+		}
+		stages[j.StageID].Add(m[j.ID])
+	}
+
+	for _, a := range aa {
+		m[a.JobID].Artifacts.Set(a.Source, a.Hash)
+	}
+	return m, nil
+}
+
+func (w *worker) run(s string) error {
 	b := w.builds.New()
 
-	dec := json.NewDecoder(strings.NewReader(s))
-	dec.Decode(b)
+	json.NewDecoder(strings.NewReader(s)).Decode(b)
 
-	if err := b.LoadDriver(); err != nil {
-		return b, errors.Err(err)
+	if b.Status == runner.Killed {
+		b.Status = runner.Killed
+		b.Output = sql.NullString{
+			String: "build killed",
+			Valid:  true,
+		}
+		b.FinishedAt = pq.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
+
+		if err := w.builds.Update(b); err != nil {
+			return errors.Err(err)
+		}
+		return errors.Err(w.updateJobs(b, make(map[int64]*bytes.Buffer)))
 	}
 
-	if err := b.LoadObjects(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.BuildObjectStore().LoadObjects(b.Objects); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadKeys(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadVariables(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	if err := b.LoadStages(); err != nil {
-		return b, errors.Err(err)
-	}
-
-	err := b.StageStore().LoadJobs(b.Stages)
-
-	return b, errors.Err(err)
-}
-
-func (w worker) runBuild(s string) error {
-	b, err := w.loadBuild(s)
+	objs, err := w.getBuildObjects(b)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	jj := make([]*model.Job, 0)
+	vars, err := w.getBuildVars(b)
 
-	for _, s := range b.Stages {
-		jj = append(jj, s.Jobs...)
-	}
-
-	jobs := b.JobStore()
-
-	if err := jobs.LoadArtifacts(jj); err != nil {
+	if err != nil {
 		return errors.Err(err)
 	}
 
-	objs := runner.Passthrough{}
+	stages, err := w.getBuildStages(b)
 
-	for _, o := range b.Objects {
-		objs.Set(o.Source, o.Name)
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	keyBuffers := make(map[string]*bytes.Buffer)
+	jobs, err := w.getBuildJobs(b, stages)
 
-	sshConfig := &bytes.Buffer{}
-
-	// Use object placement to add keys to the build env. Prefix each name with
-	// 'mem:' to tell the placer to look in the database for the key to add.
-	for _, k := range b.Keys {
-		objs.Values["mem:" + k.Name] = k.Location
-
-		b, err := crypto.Decrypt(k.Key)
-
-		if err != nil {
-			continue
-		}
-
-		sshConfig.WriteString(k.Config)
-
-		keyBuffers[k.Name] = bytes.NewBuffer(b)
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	objs.Set("mem:ssh_config", "/root/.ssh/config")
-	keyBuffers["ssh_config"] = sshConfig
+	buildDriver, err := build.NewDriverStore(w.db, b).Get()
 
-	env := make([]string, len(b.Variables), len(b.Variables))
-
-	for i, v := range b.Variables {
-		env[i] = v.Key + "=" + v.Value
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	buffers := make(map[int64]*bytes.Buffer)
+	var (
+		driverBuffer *bytes.Buffer
+		runnerBuffer *bytes.Buffer = &bytes.Buffer{}
+	)
 
-	buf := &bytes.Buffer{}
+	jobBuffers := make(map[int64]*bytes.Buffer)
+	jobIds := make(map[string]int64)
 
 	r := runner.Runner{
-		Writer:    buf,
-		Env:       env,
+		Writer:    runnerBuffer,
+		Env:       vars,
 		Objects:   objs,
-		Placer:    &database{
-			Placer:     w.objects,
-			memObjects: keyBuffers,
-			build:      b,
-			users:      w.users,
+		Placer:    &placer{
+			db:      w.db,
+			build:   b,
+			objects: w.placer,
 		},
-		Collector: &database{
-			Collector:  w.artifacts,
-			build:      b,
-			users:      w.users,
-		},
+		Collector: build.NewArtifactStoreWithCollector(w.db, w.collector, b),
 	}
 
-	mjobs := make(map[string]*model.Job)
+	for id, job := range jobs {
+		jobBuffers[id] = &bytes.Buffer{}
+		jobIds[job.Name] = id
 
-	createDriverId := int64(0)
+		job.Writer = io.MultiWriter(runnerBuffer, jobBuffers[id])
 
-	for _, s := range b.Stages {
-		rs := &runner.Stage{
-			Name:    s.Name,
-			CanFail: s.CanFail,
+		if job.Name == "create driver" {
+			driverBuffer = jobBuffers[id]
 		}
-
-		for _, j := range s.Jobs {
-			buffers[j.ID] = &bytes.Buffer{}
-			mjobs[j.Name] = j
-
-			if j.Name == "create driver" {
-				createDriverId = j.ID
-			}
-
-			artifacts := runner.Passthrough{}
-
-			for _, a := range j.Artifacts {
-				artifacts.Set(a.Source, a.Hash)
-			}
-
-			rj := &runner.Job{
-				Writer:    io.MultiWriter(buf, buffers[j.ID]),
-				Name:      j.Name,
-				Commands:  strings.Split(j.Commands, "\n"),
-				Artifacts: artifacts,
-			}
-
-			rs.Add(rj)
-		}
-
-		r.Add(rs)
 	}
 
-	cfg := make(map[string]string)
+	for _, stage := range stages {
+		r.Add(stage)
+	}
 
-	json.Unmarshal([]byte(b.Driver.Config), &cfg)
+	cfg := config.Driver{
+		Config: make(map[string]string),
+		SSH:    w.driver.SSH,
+		Qemu:   w.driver.Qemu,
+	}
 
-	d, err := driver.New(
-		io.MultiWriter(buf, buffers[createDriverId]),
-		config.Driver{
-			Config: cfg,
-			SSH:    w.driverCfg.SSH,
-			Qemu:   w.driverCfg.Qemu,
-		},
-	)
+	json.Unmarshal([]byte(buildDriver.Config), &cfg.Config)
+
+	d, err := driver.New(io.MultiWriter(runnerBuffer, driverBuffer), cfg)
 
 	if err != nil {
 		return errors.Err(err)
@@ -237,34 +251,40 @@ func (w worker) runBuild(s string) error {
 		return errors.Err(err)
 	}
 
-	r.HandleJobStart(func(rj runner.Job) {
-		j := mjobs[rj.Name]
+	r.HandleJobStart(func(j runner.Job) {
+		id := jobIds[j.Name]
 
-		j.Status = runner.Running
-		j.StartedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
+		err := w.jobs.Update(&build.Job{
+			ID:        id,
+			Status:    j.Status,
+			StartedAt: pq.NullTime{
+				Time:  time.Now(),
+				Valid: true,
+			},
+		})
 
-		if err := jobs.Update(j); err != nil {
+		if err != nil {
 			log.Error.Println(errors.Err(err))
 		}
 	})
 
-	r.HandleJobComplete(func(rj runner.Job) {
-		j := mjobs[rj.Name]
+	r.HandleJobComplete(func(j runner.Job) {
+		id := jobIds[j.Name]
 
-		j.Status = rj.Status
-		j.Output = sql.NullString{
-			String: buffers[j.ID].String(),
-			Valid:  true,
-		}
-		j.FinishedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
+		err := w.jobs.Update(&build.Job{
+			ID:     id,
+			Status: j.Status,
+			Output: sql.NullString{
+				String: jobBuffers[id].String(),
+				Valid:  true,
+			},
+			FinishedAt: pq.NullTime{
+				Time:  time.Now(),
+				Valid: true,
+			},
+		})
 
-		if err := jobs.Update(j); err != nil {
+		if err != nil {
 			log.Error.Println(errors.Err(err))
 		}
 	})
@@ -272,7 +292,7 @@ func (w worker) runBuild(s string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
 
-	sub := w.client.Subscribe(fmt.Sprintf("kill-%v", b.ID))
+	sub := w.redis.Subscribe(fmt.Sprintf("kill-%v", b.ID))
 	defer sub.Close()
 
 	go func() {
@@ -281,7 +301,6 @@ func (w worker) runBuild(s string) error {
 		if msg == nil {
 			return
 		}
-
 		if msg.Payload == b.Secret.String {
 			cancel()
 		}
@@ -291,7 +310,7 @@ func (w worker) runBuild(s string) error {
 
 	b.Status = r.Status
 	b.Output = sql.NullString{
-		String: buf.String(),
+		String: runnerBuffer.String(),
 		Valid:  true,
 	}
 	b.FinishedAt = pq.NullTime{
@@ -302,28 +321,34 @@ func (w worker) runBuild(s string) error {
 	if err := w.builds.Update(b); err != nil {
 		return errors.Err(err)
 	}
+	return errors.Err(w.updateJobs(b, jobBuffers))
+}
 
-	jj, err = jobs.All(query.WhereRaw("finished_at", "IS", "NULL"))
+func (w *worker) updateJobs(b *build.Build, buffers map[int64]*bytes.Buffer) error {
+	jobs := build.NewJobStore(w.db, b)
+
+	jj, err := jobs.All(query.WhereRaw("finished_at", "IS", "NULL"))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
 	for _, j := range jj {
-		j.Status = r.Status
-		j.Output = sql.NullString{
-			String: buffers[j.ID].String(),
-			Valid:  true,
+		j.Status = b.Status
+
+		if buf, ok := buffers[j.ID]; ok {
+			j.Output = sql.NullString{
+				String: buf.String(),
+				Valid:  true,
+			}
 		}
+
 		j.FinishedAt = pq.NullTime{
 			Time:  time.Now(),
 			Valid: true,
 		}
-
-		if err := jobs.Update(j); err != nil {
-			return errors.Err(err)
-		}
 	}
 
-	return nil
+	err = jobs.Update(jj...)
+	return errors.Err(err)
 }

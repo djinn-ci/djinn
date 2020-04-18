@@ -128,9 +128,8 @@ func mainCommand(cmd cli.Command) {
 		})
 
 		if err != nil {
-			log.Error.Fatalf("failed to setup queue: %s\n", err)
+			log.Error.Fatalf("failed to setup queue %s: %s\n", d.Queue, err)
 		}
-
 		queues[d.Type] = queue
 	}
 
@@ -151,20 +150,20 @@ func mainCommand(cmd cli.Command) {
 		imageStore, err = filestore.New(cfg.Images)
 
 		if err != nil {
-			log.Error.Fatalf("failed to create image store: %s\n", err)
+			log.Error.Fatalf("failed to create image store: %s\n", errors.Cause(err))
 		}
 	}
 
 	objectStore, err := filestore.New(cfg.Objects)
 
 	if err != nil {
-		log.Error.Fatalf("failed to create object store: %s\n", err)
+		log.Error.Fatalf("failed to create object store: %s\n", errors.Cause(err))
 	}
 
 	artifacts, err := filestore.New(cfg.Artifacts)
 
 	if err != nil {
-		log.Error.Fatalf("failed to create artifact store: %s\n", err)
+		log.Error.Fatalf("failed to create artifact store: %s\n", errors.Cause(err))
 	}
 
 	authKey := []byte(cfg.Crypto.Auth)

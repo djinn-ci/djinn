@@ -70,7 +70,6 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 				if err != nil {
 					break
 				}
-
 				client <- cli
 			}
 		}
@@ -154,7 +153,6 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 	}
 
 	cli.Remove(script)
-
 	d.collectArtifacts(j.Writer, j, c)
 }
 
@@ -263,8 +261,6 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 			continue
 		}
 	}
-
 	fmt.Fprintf(d.Writer, "\n")
-
 	return nil
 }

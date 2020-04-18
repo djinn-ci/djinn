@@ -14,8 +14,7 @@ var (
 	errStageNotFound = errors.New("stage could not be found")
 	errRunFailed     = errors.New("run failed")
 
-	createTimeout = time.Duration(time.Minute * 5)
-
+	createTimeout   = time.Duration(time.Minute * 5)
 	contextStatuses = map[error]Status{
 		context.Canceled:         Killed,
 		context.DeadlineExceeded: TimedOut,
@@ -24,15 +23,20 @@ var (
 
 type jobHandler func(j Job)
 
-// Placer allows for placing files into the given io.Writer.
 type Placer interface {
+	// Place will take the object of the given name and write its contents to
+	// the given io.Writer. The number of bytes written from the given
+	// io.Writer are returned, along with any errors that occur.
 	Place(name string, w io.Writer) (int64, error)
 
+	// Stat will return the os.FileInfo of the object of the given name.
 	Stat(name string) (os.FileInfo, error)
 }
 
-// Collector allows for collecting files from the given io.Reader.
 type Collector interface {
+	// Collect will read from the given io.Reader and store what was read as an
+	// artifact under the given name. The number of bytes read from the given
+	// io.Reader are returned, along with any errors that occur.
 	Collect(name string, r io.Reader) (int64, error)
 }
 
@@ -60,13 +64,8 @@ type Stage struct {
 	CanFail bool
 }
 
-func (r *Runner) HandleJobComplete(f jobHandler) {
-	r.handleJobComplete = f
-}
-
-func (r *Runner) HandleJobStart(f jobHandler) {
-	r.handleJobStart = f
-}
+func (r *Runner) HandleJobComplete(f jobHandler) { r.handleJobComplete = f }
+func (r *Runner) HandleJobStart(f jobHandler) { r.handleJobStart = f }
 
 func (r *Runner) Add(stages ...*Stage) {
 	if r.stages == nil {
@@ -99,7 +98,6 @@ func (r *Runner) Remove(stages ...string) {
 				break
 			}
 		}
-
 		r.order = append(r.order[:i], r.order[i + 1:]...)
 	}
 }
@@ -123,7 +121,6 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 		} else {
 			r.Status = status
 		}
-
 		return errRunFailed
 	}
 
@@ -135,7 +132,6 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 				break
 			}
 		}
-
 		done <- struct{}{}
 	}()
 
@@ -146,13 +142,11 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 		err := c.Err()
 
 		r.Status = contextStatuses[err]
-
 		return err
 	case <-done:
 		if r.Status == Failed {
 			return errRunFailed
 		}
-
 		return nil
 	}
 }
@@ -170,7 +164,6 @@ func (r Runner) printLastJobStatus() {
 	if len(r.lastJob.errs) > 0 {
 		fmt.Fprintf(r.Writer, "\n")
 	}
-
 	fmt.Fprintf(r.Writer, "Done. Run %s\n", r.Status)
 }
 
@@ -190,7 +183,6 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 			if r.handleJobStart != nil {
 				r.handleJobStart(*j)
 			}
-
 			d.Execute(j, r.Collector)
 		}
 
@@ -210,25 +202,20 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 			for _, err := range j.errs {
 				fmt.Fprintf(r.Writer, "ERR: %s\n", err)
 			}
-
 			return errors.New("failed to run job: " + j.Name)
 		}
 	}
 
 	fmt.Fprintf(r.Writer, "\n")
-
 	return nil
 }
 
-func (r Runner) Stages() map[string]*Stage {
-	return r.stages
-}
+func (r Runner) Stages() map[string]*Stage { return r.stages }
 
 func (s *Stage) Add(jobs ...*Job) {
 	for _, j := range jobs {
 		j.Stage = s.Name
 		j.canFail = s.CanFail
-
 		s.jobs.Put(j)
 	}
 }

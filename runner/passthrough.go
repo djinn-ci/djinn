@@ -27,7 +27,6 @@ func (p *Passthrough) Set(key, val string) {
 	if p.Values == nil {
 		p.Values = make(map[string]string)
 	}
-
 	p.Values[key] = val
 }
 
@@ -41,7 +40,6 @@ func (p Passthrough) MarshalYAML() (interface{}, error) {
 	for k, v := range p.Values {
 		ss = append(ss, k + " => " + v)
 	}
-
 	return ss, nil
 }
 
@@ -71,9 +69,7 @@ func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		if len(parts) > 1 {
 			val = strings.TrimSpace(parts[1])
 		}
-
 		p.Values[key] = val
 	}
-
 	return nil
 }

@@ -64,6 +64,9 @@ func (d *QEMU) Create(c context.Context, env []string, objects runner.Passthroug
 
 	out := make(chan string)
 
+	// TODO: Need to actually check the error returned from qemu-system- binary
+	// for bound ports to get the listen address. Concurrent runs of this
+	// driver result in the same port trying to be bound to.
 	go func() {
 		out <- resolveListenAddr(d.hostfwd)
 	}()

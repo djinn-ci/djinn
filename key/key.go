@@ -267,7 +267,3 @@ func (s Store) Load(key string, vals []interface{}, load model.LoaderFunc) error
 	}
 	return nil
 }
-
-func (s Store) LoadNamespaces(kk []*Key) error {
-	return nil
-}

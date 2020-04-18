@@ -135,26 +135,25 @@ func (m Manifest) Validate() error {
 	}
 
 	switch typ {
-		case "docker":
-			for _, key := range []string{"image", "workspace"} {
-				if m.Driver[key] == "" {
-					return errors.New("driver type docker requires " + key)
-				}
+	case "docker":
+		for _, key := range []string{"image", "workspace"} {
+			if m.Driver[key] == "" {
+				return errors.New("driver type docker requires " + key)
 			}
-		case "qemu":
-			if m.Driver["image"] == "" {
-				return errors.New("driver type qemu requires image")
+		}
+	case "qemu":
+		if m.Driver["image"] == "" {
+			return errors.New("driver type qemu requires image")
+		}
+	case "ssh":
+		for _, key := range []string{"address", "username"} {
+			if m.Driver[key] == "" {
+				return errors.New("driver type ssh requires " + key)
 			}
-		case "ssh":
-			for _, key := range []string{"address", "username"} {
-				if m.Driver[key] == "" {
-					return errors.New("driver type ssh requires " + key)
-				}
-			}
-		default:
-			return errors.New("unknown driver type " + typ)
+		}
+	default:
+		return errors.New("unknown driver type " + typ)
 	}
-
 	return nil
 }
 

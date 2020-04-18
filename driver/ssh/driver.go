@@ -79,7 +79,7 @@ func Timeout(d time.Duration) Option {
 	}
 }
 
-func Configure(opts ...Option) runner.DriverConfFunc {
+func Configure(opts ...Option) runner.DriverConf {
 	return func(w io.Writer) (runner.Driver, error) {
 		if w == nil {
 			return nil, errConf("nil io.Writer")

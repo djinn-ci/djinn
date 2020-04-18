@@ -18,24 +18,24 @@ type Driver interface {
 	Destroy()
 }
 
-type DriverConfFunc func(io.Writer) (Driver, error)
+type DriverConf func(io.Writer) (Driver, error)
 
 var (
-	driverConfsMu sync.RWMutex
-	driverConfs   = make(map[string]DriverConfFunc)
+	driverMu sync.RWMutex
+	drivers  = make(map[string]DriverConf)
 )
 
-func RegisterDriver(name string, fn DriverConfFunc) {
-	driverConfsMu.Lock()
-	defer driverConfsMu.Unlock()
-	driverConfs[name] = fn
+func ConfigureDriver(name string, fn DriverConf) {
+	driverMu.Lock()
+	defer driverMu.Unlock()
+	drivers[name] = fn
 }
 
-func GetDriver(name string) (DriverConfFunc, error) {
-	driverConfsMu.Lock()
-	defer driverConfsMu.Unlock()
+func GetDriver(name string) (DriverConf, error) {
+	driverMu.Lock()
+	defer driverMu.Unlock()
 
-	if fn, ok := driverConfs[name]; ok {
+	if fn, ok := drivers[name]; ok {
 		return fn, nil
 	}
 	return nil, errors.New("no such driver:"+name)

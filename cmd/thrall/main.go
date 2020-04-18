@@ -40,8 +40,8 @@ func qemuRealpath(dir string) func(string) (string, error) {
 	}
 }
 
-func registerDrivers(driver config.Driver, manifest config.Manifest) {
-	runner.RegisterDriver(
+func configureDrivers(driver config.Driver, manifest config.Manifest) {
+	runner.ConfigureDriver(
 		"qemu",
 		qemu.Configure(
 			qemu.Key(driver.QEMU.Key),
@@ -52,7 +52,7 @@ func registerDrivers(driver config.Driver, manifest config.Manifest) {
 		),
 	)
 
-	runner.RegisterDriver(
+	runner.ConfigureDriver(
 		"ssh",
 		ssh.Configure(
 			ssh.User(driver.SSH.User),
@@ -100,7 +100,7 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	registerDrivers(driverCfg, manifest)
+	configureDrivers(driverCfg, manifest)
 
 	placer, err := filestore.NewFileSystem(config.Storage{
 		Kind: "file",

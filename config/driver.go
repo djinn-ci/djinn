@@ -35,6 +35,5 @@ func DecodeDriver(r io.Reader) (Driver, error) {
 	if err := dec.Decode(&driver); err != nil {
 		return driver, errors.Err(err)
 	}
-
 	return driver, nil
 }

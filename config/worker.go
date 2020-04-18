@@ -13,10 +13,9 @@ type Worker struct {
 	Parallelism int
 	Queue       string
 	Timeout     string
-	Images      string
 
 	Crypto struct {
-		Key string
+		Block string
 	}
 
 	Redis struct {
@@ -31,8 +30,9 @@ type Worker struct {
 		Password string
 	}
 
-	Artifacts string
-	Objects   string
+	Images    Storage
+	Artifacts Storage
+	Objects   Storage
 
 	SSH  SSH
 	Qemu Qemu
@@ -55,6 +55,5 @@ func DecodeWorker(r io.Reader) (Worker, error) {
 	if worker.Parallelism == 0 {
 		worker.Parallelism = runtime.NumCPU()
 	}
-
 	return worker, nil
 }

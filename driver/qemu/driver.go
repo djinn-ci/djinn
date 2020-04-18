@@ -60,6 +60,13 @@ func CPUs(n int) Option {
 	}
 }
 
+func Memory(memory int) Option {
+	return func (q *QEMU) (*QEMU, error) {
+		q.memory = memory
+		return q, nil
+	}
+}
+
 func Image(image string) Option {
 	return func(q *QEMU) (*QEMU, error) {
 		q.image = image

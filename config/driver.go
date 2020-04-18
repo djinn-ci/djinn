@@ -12,7 +12,7 @@ type Driver struct {
 	Config map[string]string `toml:"-"`
 
 	SSH  SSH
-	Qemu Qemu
+	QEMU QEMU
 }
 
 type SSH struct {
@@ -21,9 +21,9 @@ type SSH struct {
 	Timeout int
 }
 
-type Qemu struct {
+type QEMU struct {
 	Disks  string
-	Port   int64
+	Key    string
 	CPUs   int
 	Memory int
 }

@@ -5,11 +5,15 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
+	"time"
 
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/driver"
+	"github.com/andrewpillar/thrall/driver/ssh"
+	"github.com/andrewpillar/thrall/driver/qemu"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/runner"
 )
@@ -21,6 +25,43 @@ var (
 	Version string
 )
 
+func qemuRealpath(dir string) func(string) (string, error) {
+	return func(name string) (string, error) {
+		path := filepath.Join(dir, name)
+		info, err := os.Stat(path)
+
+		if err != nil {
+			return "", err
+		}
+		if info.IsDir() {
+			return "", errors.New("image is not a file")
+		}
+		return path, nil
+	}
+}
+
+func registerDrivers(driver config.Driver, manifest config.Manifest) {
+	runner.RegisterDriver(
+		"qemu",
+		qemu.Configure(
+			qemu.Key(driver.QEMU.Key),
+			qemu.CPUs(driver.QEMU.CPUs),
+			qemu.Memory(driver.QEMU.Memory),
+			qemu.Image(manifest.Driver["image"]),
+			qemu.Realpath(qemuRealpath(driver.QEMU.Disks)),
+		),
+	)
+
+	runner.RegisterDriver(
+		"ssh",
+		ssh.Configure(
+			ssh.User(driver.SSH.User),
+			ssh.Key(driver.SSH.Key),
+			ssh.Timeout(time.Duration(time.Second*time.Duration(driver.SSH.Timeout))),
+		),
+	)
+}
+
 func mainCommand(c cli.Command) {
 	mf, err := os.Open(c.Flags.GetString("manifest"))
 
@@ -29,19 +70,7 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	df, err := os.Open(c.Flags.GetString("driver"))
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
-	}
-
-	driverCfg, err := config.DecodeDriver(df)
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
-	}
+	defer mf.Close()
 
 	manifest, err := config.DecodeManifest(mf)
 
@@ -54,6 +83,24 @@ func mainCommand(c cli.Command) {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
+
+	df, err := os.Open(c.Flags.GetString("driver"))
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
+	defer df.Close()
+
+	driverCfg, err := config.DecodeDriver(df)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
+	registerDrivers(driverCfg, manifest)
 
 	placer, err := filestore.NewFileSystem(config.Storage{
 		Kind: "file",
@@ -151,14 +198,14 @@ func mainCommand(c cli.Command) {
 		}
 	}
 
-	d, err := driver.New(
-		os.Stdout,
-		config.Driver{
-			Config: manifest.Driver,
-			SSH:    driverCfg.SSH,
-			Qemu:   driverCfg.Qemu,
-		},
-	)
+	configure, err := runner.GetDriver(manifest.Driver["type"])
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to get driver: %s\n", err)
+		os.Exit(1)
+	}
+
+	d, err := configure(os.Stdout)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to configure driver: %s\n", err)

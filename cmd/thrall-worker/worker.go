@@ -54,8 +54,8 @@ func (w *worker) init(name string, concurrency int) {
 	w.jobs = build.NewJobStore(w.db)
 }
 
-func (w *worker) qemuRealPath(b *build.Build) func(string) (string, error) {
-	return func(name string) (string, error) {
+func (w *worker) qemuRealPath(b *build.Build) func(string, string) (string, error) {
+	return func(arch, name string) (string, error) {
 		i, err := image.NewStore(w.db).Get(
 			query.Where("user_id", "=", b.UserID),
 			query.Where("name", "=", name),
@@ -64,7 +64,12 @@ func (w *worker) qemuRealPath(b *build.Build) func(string) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		return filepath.Join(w.driver.QEMU.Disks, i.Hash), nil
+
+		if i.IsZero() {
+			name = filepath.Join(strings.Split(name, "/")...)
+			return filepath.Join(w.driver.QEMU.Disks, "_base", arch, name), nil
+		}
+		return filepath.Join(w.driver.QEMU.Disks, arch, i.Hash), nil
 	}
 }
 

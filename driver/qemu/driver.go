@@ -18,7 +18,7 @@ import (
 	"github.com/andrewpillar/thrall/runner"
 )
 
-type realpathFunc func(string) (string, error)
+type realpathFunc func(string, string) (string, error)
 
 type Option func(*QEMU) (*QEMU, error)
 
@@ -115,7 +115,7 @@ func Configure(opts ...Option) runner.DriverConf {
 }
 
 func (q *QEMU) runCmd() error {
-	disk, err := q.realpath(q.image)
+	disk, err := q.realpath(q.arch, q.image)
 
 	if err != nil {
 		return err

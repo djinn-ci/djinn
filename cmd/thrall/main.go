@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/cli"
@@ -25,9 +26,9 @@ var (
 	Version string
 )
 
-func qemuRealpath(dir string) func(string) (string, error) {
-	return func(name string) (string, error) {
-		path := filepath.Join(dir, name)
+func qemuRealpath(dir string) func(string, string) (string, error) {
+	return func(arch, name string) (string, error) {
+		path := filepath.Join(dir, arch, filepath.Join(strings.Split(name, "/")...))
 		info, err := os.Stat(path)
 
 		if err != nil {

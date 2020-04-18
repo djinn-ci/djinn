@@ -54,13 +54,14 @@ build() {
 
 	go generate ./...
 
-	for c in "$cmd"; do
+	for c in $cmd; do
 		if [ ! -d cmd/"$c" ]; then
 			>&2 printf "unknown package %s\n" "$c"
 			exit 1
 		fi
 		set -x
 		GOOS="$GOOS" GOARCH="$GOARCH" go build $LFLAGS -tags "$TAGS" -o "$c".out ./cmd/"$c"
+		set +x
 	done
 }
 

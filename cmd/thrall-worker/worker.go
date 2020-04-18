@@ -7,13 +7,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/driver"
+	"github.com/andrewpillar/thrall/driver/ssh"
+	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/image"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/user"
@@ -30,21 +33,17 @@ import (
 )
 
 type worker struct {
-	db    *sqlx.DB
-	redis *redis.Client
-
-	driver  config.Driver
-	timeout time.Duration
-
-	server *machinery.Server
-	worker *machinery.Worker
-
+	db        *sqlx.DB
+	redis     *redis.Client
+	driver    config.Driver
+	timeout   time.Duration
+	server    *machinery.Server
+	worker    *machinery.Worker
 	placer    runner.Placer
 	collector runner.Collector
-
-	users  user.Store
-	builds build.Store
-	jobs   build.JobStore
+	users     user.Store
+	builds    build.Store
+	jobs      build.JobStore
 }
 
 func (w *worker) init(name string, concurrency int) {
@@ -53,6 +52,42 @@ func (w *worker) init(name string, concurrency int) {
 	w.users = user.NewStore(w.db)
 	w.builds = build.NewStore(w.db)
 	w.jobs = build.NewJobStore(w.db)
+}
+
+func (w *worker) qemuRealPath(b *build.Build) func(string) (string, error) {
+	return func(name string) (string, error) {
+		i, err := image.NewStore(w.db).Get(
+			query.Where("user_id", "=", b.UserID),
+			query.Where("name", "=", name),
+		)
+
+		if err != nil {
+			return "", err
+		}
+		return filepath.Join(w.driver.QEMU.Disks, i.Hash), nil
+	}
+}
+
+func (w *worker) configureDrivers(b *build.Build, cfg map[string]string) {
+	runner.ConfigureDriver(
+		"qemu",
+		qemu.Configure(
+			qemu.Key(w.driver.QEMU.Key),
+			qemu.CPUs(w.driver.QEMU.CPUs),
+			qemu.Memory(w.driver.QEMU.Memory),
+			qemu.Image(cfg["image"]),
+			qemu.Realpath(w.qemuRealPath(b)),
+		),
+	)
+
+	runner.ConfigureDriver(
+		"ssh",
+		ssh.Configure(
+			ssh.User(w.driver.SSH.User),
+			ssh.Key(w.driver.SSH.Key),
+			ssh.Timeout(time.Duration(time.Second*time.Duration(w.driver.SSH.Timeout))),
+		),
+	)
 }
 
 func (w *worker) getBuildObjects(b *build.Build) (runner.Passthrough, error) {
@@ -227,15 +262,18 @@ func (w *worker) run(s string) error {
 		r.Add(stage)
 	}
 
-	cfg := config.Driver{
-		Config: make(map[string]string),
-		SSH:    w.driver.SSH,
-		Qemu:   w.driver.Qemu,
+	cfg := make(map[string]string)
+	json.Unmarshal([]byte(buildDriver.Config), &cfg)
+
+	w.configureDrivers(b, cfg)
+
+	configure, err := runner.GetDriver(cfg["type"])
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	json.Unmarshal([]byte(buildDriver.Config), &cfg.Config)
-
-	d, err := driver.New(io.MultiWriter(runnerBuffer, driverBuffer), cfg)
+	d, err := configure(io.MultiWriter(runnerBuffer, driverBuffer))
 
 	if err != nil {
 		return errors.Err(err)

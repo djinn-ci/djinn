@@ -104,7 +104,7 @@ func (h Image) realStore(s image.Store, f namespace.ResourceForm, name string, r
 	}
 
 	dst, err := h.FileStore.OpenFile(
-		filepath.Join("qemu", name + "::" + hash),
+		filepath.Join("qemu", hash),
 		os.O_CREATE|os.O_WRONLY,
 		os.FileMode(0755),
 	)

@@ -1,14 +1,16 @@
-package driver
+package ssh
 
 import (
 	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -17,28 +19,99 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type Option func(*SSH) (*SSH, error)
+
 type SSH struct {
 	io.Writer
 
-	client *ssh.Client
-
-	env []string
-
-	address  string
-	username string
-	timeout  time.Duration
-	key      string
+	client  *ssh.Client
+	env     []string
+	addr    string
+	user    string
+	key     string
+	timeout time.Duration
 }
 
-func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
-	fmt.Fprintf(d.Writer, "Running with SSH driver...\n")
+var (
+	_ runner.Driver = (*SSH)(nil)
+
+	timeout = time.Duration(time.Second*60)
+)
+
+func errConf(err string) error { return errors.New("cannot configure SSH driver:"+err) }
+
+func Address(addr string) Option {
+	return func(s *SSH) (*SSH, error) {
+		if _, _, err := net.SplitHostPort(addr); err != nil {
+			return nil, err
+		}
+		s.addr = addr
+		return s, nil
+	}
+}
+
+func User(user string) Option {
+	return func(s *SSH) (*SSH, error) {
+		s.user = user
+		return s, nil
+	}
+}
+
+func Key(key string) Option {
+	return func(s *SSH) (*SSH, error) {
+		info, err := os.Stat(key)
+
+		if err != nil {
+			return nil, err
+		}
+		if info.IsDir() {
+			return nil, errors.New("key must be a file not a directory")
+		}
+		s.key = key
+		return s, nil
+	}
+}
+
+func Timeout(d time.Duration) Option {
+	return func(s *SSH) (*SSH, error) {
+		s.timeout = d
+		return s, nil
+	}
+}
+
+func Configure(opts ...Option) runner.DriverConfFunc {
+	return func(w io.Writer) (runner.Driver, error) {
+		if w == nil {
+			return nil, errConf("nil io.Writer")
+		}
+
+		var (
+			ssh = &SSH{
+				timeout: timeout,
+			}
+			err error
+		)
+
+		for _, opt := range opts {
+			ssh, err = opt(ssh)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+		return ssh, nil
+	}
+}
+
+func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+	fmt.Fprintf(s.Writer, "Running with SSH driver...\n")
 
 	ticker := time.NewTicker(time.Second)
-	after := time.After(d.timeout)
+	after := time.After(s.timeout)
 
 	client := make(chan *ssh.Client)
 
-	b, err := ioutil.ReadFile(d.key)
+	b, err := ioutil.ReadFile(s.key)
 
 	if err != nil {
 		return err
@@ -55,7 +128,7 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 			select {
 			case <-ticker.C:
 				cfg := &ssh.ClientConfig{
-					User: d.username,
+					User: s.user,
 					Auth: []ssh.AuthMethod{
 						ssh.PublicKeys(signer),
 					},
@@ -63,9 +136,9 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 					Timeout:         time.Second,
 				}
 
-				fmt.Fprintf(d.Writer, "Connecting to %s...\n", d.address)
+				fmt.Fprintf(s.Writer, "Connecting to %s...\n", s.addr)
 
-				cli, err := ssh.Dial("tcp", d.address, cfg)
+				cli, err := ssh.Dial("tcp", s.addr, cfg)
 
 				if err != nil {
 					break
@@ -79,20 +152,19 @@ func (d *SSH) Create(c context.Context, env []string, objects runner.Passthrough
 	case <-c.Done():
 		return c.Err()
 	case <-after:
-		return fmt.Errorf("Timed out trying to connect to %s...\n", d.address)
+		return fmt.Errorf("Timed out trying to connect to %s...\n", s.addr)
 	case cli := <-client:
-		d.client = cli
+		s.client = cli
 	}
 
-	fmt.Fprintf(d.Writer, "Established SSH connection to %s...\n\n", d.address)
+	fmt.Fprintf(s.Writer, "Established SSH connection to %s...\n\n", s.addr)
 
-	d.env = env
-
-	return d.placeObjects(objects, p)
+	s.env = env
+	return s.PlaceObjects(objs, p)
 }
 
-func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
-	sess, err := d.client.NewSession()
+func (s *SSH) Execute(j *runner.Job, c runner.Collector) {
+	sess, err := s.client.NewSession()
 
 	if err != nil {
 		j.Failed(err)
@@ -102,9 +174,9 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 	defer sess.Close()
 
 	script := strings.Replace(j.Name + ".sh", " ", "-", -1)
-	buf := createScript(j)
+	buf := driver.CreateScript(j)
 
-	cli, err := sftp.NewClient(d.client)
+	cli, err := sftp.NewClient(s.client)
 
 	if err != nil {
 		j.Failed(err)
@@ -129,7 +201,7 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 
 	f.Close()
 
-	for _, e := range d.env {
+	for _, e := range s.env {
 		parts := strings.SplitN(e, "=", 2)
 
 		if len(parts) > 1 {
@@ -153,21 +225,21 @@ func (d *SSH) Execute(j *runner.Job, c runner.Collector) {
 	}
 
 	cli.Remove(script)
-	d.collectArtifacts(j.Writer, j, c)
+	s.collectArtifacts(j.Writer, j, c)
 }
 
-func (d *SSH) Destroy() {
-	if d.client != nil {
-		d.client.Close()
+func (s *SSH) Destroy() {
+	if s.client != nil {
+		s.client.Close()
 	}
 }
 
-func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
+func (s *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 	if len(j.Artifacts.Values) == 0 {
 		return
 	}
 
-	cli, err := sftp.NewClient(d.client)
+	cli, err := sftp.NewClient(s.client)
 
 	if err != nil {
 		j.Failed(err)
@@ -208,12 +280,12 @@ func (d *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 	}
 }
 
-func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
+func (s *SSH) PlaceObjects(objects runner.Passthrough, p runner.Placer) error {
 	if len(objects.Values) == 0 {
 		return nil
 	}
 
-	cli, err := sftp.NewClient(d.client)
+	cli, err := sftp.NewClient(s.client)
 
 	if err != nil {
 		return err
@@ -222,13 +294,13 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 	defer cli.Close()
 
 	for src, dst := range objects.Values {
-		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
+		fmt.Fprintf(s.Writer, "Placing object %s => %s\n", src, dst)
 
 		f, err := cli.OpenFile(dst, os.O_WRONLY|os.O_APPEND|os.O_CREATE)
 
 		if err != nil {
 			fmt.Fprintf(
-				d.Writer,
+				s.Writer,
 				"Failed to place object %s => %s: %s\n",
 				src,
 				dst,
@@ -241,7 +313,7 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 
 		if err := f.Chmod(0600); err != nil {
 			fmt.Fprintf(
-				d.Writer,
+				s.Writer,
 				"Failed to place object %s => %s: %s\n",
 				src,
 				dst,
@@ -252,7 +324,7 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 
 		if _, err := p.Place(src, f); err != nil {
 			fmt.Fprintf(
-				d.Writer,
+				s.Writer,
 				"Failed to place object %s => %s: %s\n",
 				src,
 				dst,
@@ -261,6 +333,6 @@ func (d *SSH) placeObjects(objects runner.Passthrough, p runner.Placer) error {
 			continue
 		}
 	}
-	fmt.Fprintf(d.Writer, "\n")
+	fmt.Fprintf(s.Writer, "\n")
 	return nil
 }

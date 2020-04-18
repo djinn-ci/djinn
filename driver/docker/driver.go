@@ -1,4 +1,4 @@
-package driver
+package docker
 
 import (
 	"archive/tar"
@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -19,31 +20,63 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
+var _ runner.Driver = (*Docker)(nil)
+
+func errConf(err string) error { return errors.New("cannot configure Docker driver:"+err) }
+
+type Option func(*Docker) (*Docker, error)
+
 type Docker struct {
 	io.Writer
 
-	client *client.Client
-	volume types.Volume
-
+	client     *client.Client
+	volume     types.Volume
 	env        []string
 	containers []string
-
 	image      string
 	workspace  string
 }
 
-func NewDocker(w io.Writer, image, workspace string) *Docker {
-	return &Docker{
-		Writer:     w,
-		image:      image,
-		workspace:  workspace,
+func Image(image string) Option {
+	return func(d *Docker) (*Docker, error) {
+		d.image = image
+		return d, nil
 	}
 }
 
-func (d *Docker) Create(c context.Context, env []string, objects runner.Passthrough, p runner.Placer) error {
-	fmt.Fprintf(d.Writer, "Running with Docker driver...\n")
+func Workspace(workspace string) Option {
+	return func(d *Docker) (*Docker, error) {
+		d.workspace = workspace
+		return d, nil
+	}
+}
 
+func Configure(opts ...Option) runner.DriverConfFunc {
+	return func(w io.Writer) (runner.Driver, error) {
+		if w == nil {
+			return nil, errConf("nil io.Writer")
+		}
+
+		var (
+			docker = &Docker{}
+			err error
+		)
+
+		for _, opt := range opts {
+			docker, err = opt(docker)
+
+			if err != nil {
+				return nil, err
+			}
+		}
+		return docker, nil
+	}
+}
+
+func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
 	var err error
+
+	fmt.Fprintf(d.Writer, "Running with Docker driver...\n")
 
 	d.client, err = client.NewEnvClient()
 
@@ -72,7 +105,6 @@ func (d *Docker) Create(c context.Context, env []string, objects runner.Passthro
 		defer rc.Close()
 
 		io.Copy(ioutil.Discard, rc)
-
 		done <- struct{}{}
 	}()
 
@@ -91,24 +123,18 @@ func (d *Docker) Create(c context.Context, env []string, objects runner.Passthro
 		return err
 	}
 
-	fmt.Fprintf(d.Writer, "Using Docker image %s - %s...\n\n", d.image, image.ID)
+	fmt.Fprintf(d.Writer, "Using Docker image %s - %s...\n", d.image, image.ID)
 
 	d.env = env
-
-	return d.placeObjects(objects, p)
+	return d.placeObjects(objs, p)
 }
 
 func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	hostCfg := &container.HostConfig{
 		Mounts: []mount.Mount{
-			mount.Mount{
-				Type:   mount.TypeVolume,
-				Source: d.volume.Name,
-				Target: d.workspace,
-			},
+			mount.Mount{Type: mount.TypeVolume, Source: d.volume.Name, Target: d.workspace},
 		},
 	}
-
 	cfg := &container.Config{
 		Image: d.image,
 		Cmd:   []string{"true"},
@@ -125,12 +151,12 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 	d.containers = append(d.containers, ctr.ID)
 
-	script := strings.Replace(j.Name + ".sh", " ", "-", -1)
-	buf := createScript(j)
+	script := strings.Replace(j.Name+".sh", " ", "-", -1)
+	buf := driver.CreateScript(j)
 
 	header := &tar.Header{
 		Typeflag: tar.TypeReg,
-		Name:     "/bin/" + script,
+		Name:     "/bin/"+script,
 		Size:     int64(buf.Len()),
 		Mode:     755,
 	}
@@ -187,12 +213,10 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 			if err == io.EOF {
 				return
 			}
-
 			return
 		}
 
 		defer rc.Close()
-
 		stdcopy.StdCopy(j.Writer, ioutil.Discard, rc)
 	}()
 
@@ -200,13 +224,13 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	code := 0
 
 	select {
-		case err := <-errs:
-			if err != nil {
-				j.Failed(err)
-				return
-			}
-		case resp := <-status:
-			code = int(resp.StatusCode)
+	case err := <-errs:
+		if err != nil {
+			j.Failed(err)
+			return
+		}
+	case resp := <-status:
+		code = int(resp.StatusCode)
 	}
 
 	if code != 0 {
@@ -246,24 +270,23 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 				if err == io.EOF {
 					break
 				}
-
 				fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", src, dst, err)
 				break
 			}
 
 			switch header.Typeflag {
-				case tar.TypeDir:
-					break
-				case tar.TypeReg:
-					if _, err := c.Collect(dst, tr); err != nil {
-						fmt.Fprintf(
-							j.Writer,
-							"Failed to collect artifact %s => %s: %s\n",
-							src,
-							dst,
-							errors.Cause(err),
-						)
-					}
+			case tar.TypeDir:
+				break
+			case tar.TypeReg:
+				if _, err := c.Collect(dst, tr); err != nil {
+					fmt.Fprintf(
+						j.Writer,
+						"Failed to collect artifact %s => %s: %s\n",
+						src,
+						dst,
+						errors.Cause(err),
+					)
+				}
 			}
 		}
 	}
@@ -288,12 +311,11 @@ func (d *Docker) Destroy() {
 	for _, ctr := range d.containers {
 		d.client.ContainerRemove(ctx, ctr, opts)
 	}
-
 	d.client.VolumeRemove(ctx, d.volume.Name, true)
 }
 
-func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error {
-	if len(objects.Values) == 0 {
+func (d *Docker) placeObjects(objs runner.Passthrough, p runner.Placer) error {
+	if len(objs.Values) == 0 {
 		return nil
 	}
 
@@ -320,7 +342,7 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 		return err
 	}
 
-	for src, dst := range objects.Values {
+	for src, dst := range objs.Values {
 		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
 
 		info, err := p.Stat(src)
@@ -361,10 +383,7 @@ func (d *Docker) placeObjects(objects runner.Passthrough, p runner.Placer) error
 			fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
 		}
 	}
-
 	d.client.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{})
-
 	fmt.Fprintf(d.Writer, "\n")
-
 	return nil
 }

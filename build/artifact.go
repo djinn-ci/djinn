@@ -1,12 +1,17 @@
 package build
 
 import (
+	"crypto/md5"
+	"crypto/sha256"
 	"database/sql"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
 
@@ -32,14 +37,16 @@ type Artifact struct {
 type ArtifactStore struct {
 	model.Store
 
-	Build *Build
-	Job   *Job
+	collector runner.Collector
+	Build     *Build
+	Job       *Job
 }
 
 var (
-	_ model.Model  = (*Artifact)(nil)
-	_ model.Binder = (*ArtifactStore)(nil)
-	_ model.Loader = (*ArtifactStore)(nil)
+	_ model.Model      = (*Artifact)(nil)
+	_ model.Binder     = (*ArtifactStore)(nil)
+	_ model.Loader     = (*ArtifactStore)(nil)
+	_ runner.Collector = (*ArtifactStore)(nil)
 
 	artifactTable = "build_artifacts"
 )
@@ -47,6 +54,15 @@ var (
 func NewArtifactStore(db *sqlx.DB, mm ...model.Model) ArtifactStore {
 	s := ArtifactStore{
 		Store: model.Store{DB: db},
+	}
+	s.Bind(mm...)
+	return s
+}
+
+func NewArtifactStoreWithCollector(db *sqlx.DB, c runner.Collector, mm ...model.Model) ArtifactStore {
+	s := ArtifactStore{
+		Store:     model.Store{DB: db},
+		collector: c,
 	}
 	s.Bind(mm...)
 	return s
@@ -211,4 +227,36 @@ func (s ArtifactStore) Get(opts ...query.Option) (*Artifact, error) {
 		err = nil
 	}
 	return a, errors.Err(err)
+}
+
+func (s ArtifactStore) Collect(name string, r io.Reader) (int64, error) {
+	if s.collector == nil {
+		return 0, errors.New("cannot collect artifact: nil collector")
+	}
+
+	md5 := md5.New()
+	sha256 := sha256.New()
+	tee := io.TeeReader(r, io.MultiWriter(md5, sha256))
+
+	n, err := s.collector.Collect(name, tee)
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	a, err := s.Get(query.Where("hash", "=", strings.TrimSuffix(name, ".tar")))
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	a.Size = sql.NullInt64{
+		Int64: n,
+		Valid: true,
+	}
+	a.MD5 = md5.Sum(nil)
+	a.SHA256 = sha256.Sum(nil)
+
+	err = s.Update(a)
+	return n, errors.Err(err)
 }

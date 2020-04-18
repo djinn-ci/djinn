@@ -2,9 +2,14 @@ package build
 
 import (
 	"database/sql"
+	"io"
+	"os"
+	"time"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
 
@@ -23,6 +28,14 @@ type Key struct {
 	Build *Build `db:"-"`
 }
 
+// keyInfo is a bare minimum implementation of the os.FileInfo interface just
+// so we can return it from the KeyStore.Stat call.
+type keyInfo struct {
+	name    string
+	size    int64
+	modTime time.Time
+}
+
 type KeyStore struct {
 	model.Store
 
@@ -30,9 +43,11 @@ type KeyStore struct {
 }
 
 var (
-	_ model.Model  = (*Key)(nil)
-	_ model.Binder = (*KeyStore)(nil)
-	_ model.Loader = (*KeyStore)(nil)
+	_ os.FileInfo   = (*keyInfo)(nil)
+	_ model.Model   = (*Key)(nil)
+	_ model.Binder  = (*KeyStore)(nil)
+	_ model.Loader  = (*KeyStore)(nil)
+	_ runner.Placer = (*KeyStore)(nil)
 
 	keyTable = "build_keys"
 )
@@ -50,6 +65,13 @@ func KeyModel(kk []*Key) func(int) model.Model {
 		return kk[i]
 	}
 }
+
+func (i *keyInfo) Name() string { return i.name }
+func (i *keyInfo) Size() int64 { return i.size }
+func (*keyInfo) Mode() os.FileMode { return os.FileMode(0600) }
+func (i *keyInfo) ModTime() time.Time { return i.modTime }
+func (i *keyInfo) IsDir() bool { return false }
+func (i *keyInfo) Sys() interface{} { return nil }
 
 func (k *Key) Bind(mm ...model.Model) {
 	if k == nil {
@@ -149,6 +171,23 @@ func (s KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	return kk, errors.Err(err)
 }
 
+func (s KeyStore) Get(opts ...query.Option) (*Key, error) {
+	k := &Key{
+		Build: s.Build,
+	}
+
+	opts = append([]query.Option{
+		model.Where(s.Build, "build_id"),
+	}, opts...)
+
+	err := s.Store.Get(k, keyTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+	return k, errors.Err(err)
+}
+
 func (s KeyStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	kk, err := s.All(query.Where(key, "IN", vals...))
 
@@ -162,4 +201,50 @@ func (s KeyStore) Load(key string, vals []interface{}, load model.LoaderFunc) er
 		}
 	}
 	return nil
+}
+
+func (s KeyStore) getKeyToPlace(name string) (*Key, error) {
+	k, err := s.Get(query.Where("name", "=", name))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if k.IsZero() {
+		return nil, errors.New("cannot find key: "+name)
+	}
+	return k, nil
+}
+
+func (s KeyStore) Place(name string, w io.Writer) (int64, error) {
+	k, err := s.getKeyToPlace(name)
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+
+	b, err := crypto.Decrypt(k.Key)
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+
+	n, err := w.Write(b)
+	return int64(n), errors.Err(err)
+}
+
+func (s KeyStore) Stat(name string) (os.FileInfo, error) {
+	k, err := s.getKeyToPlace(name)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	b, err := crypto.Decrypt(k.Key)
+
+	return &keyInfo{
+		name:    k.Name,
+		size:    int64(len(b)),
+		modTime: time.Now(),
+	}, errors.Err(err)
 }

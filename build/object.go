@@ -2,11 +2,14 @@ package build
 
 import (
 	"database/sql"
+	"io"
+	"os"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/object"
+	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
 
@@ -29,14 +32,16 @@ type Object struct {
 type ObjectStore struct {
 	model.Store
 
+	placer runner.Placer
 	Build  *Build
 	Object *object.Object
 }
 
 var (
-	_ model.Model  = (*Object)(nil)
-	_ model.Binder = (*ObjectStore)(nil)
-	_ model.Loader = (*ObjectStore)(nil)
+	_ model.Model   = (*Object)(nil)
+	_ model.Binder  = (*ObjectStore)(nil)
+	_ model.Loader  = (*ObjectStore)(nil)
+	_ runner.Placer = (*ObjectStore)(nil)
 
 	objectTable = "build_objects"
 )
@@ -44,6 +49,15 @@ var (
 func NewObjectStore(db *sqlx.DB, mm ...model.Model) ObjectStore {
 	s := ObjectStore{
 		Store: model.Store{DB: db},
+	}
+	s.Bind(mm...)
+	return s
+}
+
+func NewObjectStoreWithPlacer(db *sqlx.DB, p runner.Placer, mm ...model.Model) ObjectStore {
+	s := ObjectStore{
+		Store:  model.Store{DB: db},
+		placer: p,
 	}
 	s.Bind(mm...)
 	return s
@@ -210,4 +224,59 @@ func (s ObjectStore) Load(key string, vals []interface{}, load model.LoaderFunc)
 		}
 	}
 	return nil
+}
+
+func (s ObjectStore) getObjectToPlace(name string) (*Object, error) {
+	if s.placer == nil {
+		return nil, errors.New("cannot place object: nil placer")
+	}
+
+	o, err := s.Get(query.Where("source", "=", name))
+
+	if err != nil {
+		return o, errors.Err(err)
+	}
+
+	if o.IsZero() {
+		return o, errors.New("cannot find object: "+name)
+	}
+
+	o.Object, err = object.NewStore(s.DB).Get(query.Where("id", "=", o.ObjectID))
+
+	if err != nil {
+		return o, errors.Err(err)
+	}
+
+	if o.Object.IsZero() {
+		return o, errors.New("cannot find object: "+name)
+	}
+	return o, nil
+}
+
+func (s ObjectStore) Place(name string, w io.Writer) (int64, error) {
+	o, err := s.getObjectToPlace(name)
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+
+	n, errPlace := s.placer.Place(o.Object.Hash, w)
+
+	o.Placed = errPlace == nil
+
+	if err := s.Update(o); err != nil {
+		return n, errors.Err(err)
+	}
+	return n, errors.Err(errPlace)
+}
+
+func (s ObjectStore) Stat(name string) (os.FileInfo, error) {
+	o, err := s.getObjectToPlace(name)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	info, err := s.placer.Stat(o.Object.Hash)
+	return info, errors.Err(err)
 }

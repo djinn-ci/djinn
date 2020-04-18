@@ -31,7 +31,7 @@ type Server struct {
 	*http.Server
 
 	// Router is the mux.Router to use for registering routes.
-	Router  *mux.Router
+	Router *mux.Router
 
 	// Routers defines the routers for the server, along with their name,
 	Routers map[string]Router

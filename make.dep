@@ -1,7 +1,7 @@
 # Simple binary dependency file listing the locations to install the various
 # build dependencies from.
 
-go https://golang.org/dl
-yarn https://yarnpkg.com/getting-started/install
-stringer https://github.com/golang/tools
-qtc https://github.com/valyala/quicktemplate#quick-start
+go        https://golang.org/dl
+yarn      https://yarnpkg.com/getting-started/install
+stringer  https://github.com/golang/tools
+qtc       https://github.com/valyala/quicktemplate#quick-start

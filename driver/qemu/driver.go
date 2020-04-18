@@ -48,20 +48,29 @@ func errConf(err string) error { return errors.New("cannot configure QEMU driver
 
 func Arch(arch string) Option {
 	return func(q *QEMU) (*QEMU, error) {
+		if arch == "" {
+			return q, nil
+		}
 		q.arch = arch
 		return q, nil
 	}
 }
 
-func CPUs(n int) Option {
+func CPUs(cpus int) Option {
 	return func(q *QEMU) (*QEMU, error) {
-		q.cpus = n
+		if cpus == 0 {
+			return q, nil
+		}
+		q.cpus = cpus
 		return q, nil
 	}
 }
 
 func Memory(memory int) Option {
 	return func (q *QEMU) (*QEMU, error) {
+		if memory == 0 {
+			return q, nil
+		}
 		q.memory = memory
 		return q, nil
 	}
@@ -69,6 +78,9 @@ func Memory(memory int) Option {
 
 func Image(image string) Option {
 	return func(q *QEMU) (*QEMU, error) {
+		if image == "" {
+			return q, errors.New("missing image for QEMU driver")
+		}
 		q.image = image
 		return q, nil
 	}
@@ -83,6 +95,9 @@ func Realpath(fn realpathFunc) Option {
 
 func Key(key string) Option {
 	return func(q *QEMU) (*QEMU, error) {
+		if key == "" {
+			return q, errors.New("missing key for QEMU driver")
+		}
 		q.sshopts = append(q.sshopts, driverssh.Key(key))
 		return q, nil
 	}

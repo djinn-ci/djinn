@@ -74,6 +74,9 @@ func Key(key string) Option {
 
 func Timeout(d time.Duration) Option {
 	return func(s *SSH) (*SSH, error) {
+		if d == 0 {
+			return s, nil
+		}
 		s.timeout = d
 		return s, nil
 	}

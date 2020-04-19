@@ -2,10 +2,19 @@ package driver
 
 import (
 	"bytes"
+	"io"
 	"fmt"
 
 	"github.com/andrewpillar/thrall/runner"
+
+	"github.com/pelletier/go-toml"
 )
+
+type ConfigureFunc func(io.Writer, *toml.Tree, ...Option) runner.Driver
+
+type ValidatorFunc func(*toml.Tree) error
+
+type Option func(runner.Driver) runner.Driver
 
 var preamble = "#!/bin/sh\nexec 2>&1\nset -ex\n\n"
 

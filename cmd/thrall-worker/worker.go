@@ -29,13 +29,15 @@ import (
 
 	"github.com/lib/pq"
 
+	"github.com/pelletier/go-toml"
+
 	"github.com/RichardKnop/machinery/v1"
 )
 
 type worker struct {
 	db        *sqlx.DB
 	redis     *redis.Client
-	driver    config.Driver
+	driver    *toml.Tree
 	timeout   time.Duration
 	server    *machinery.Server
 	worker    *machinery.Worker
@@ -55,6 +57,12 @@ func (w *worker) init(name string, concurrency int) {
 }
 
 func (w *worker) qemuRealPath(b *build.Build) func(string, string) (string, error) {
+	if !w.driver.Has("qemu") {
+		return func(_, _ string) (string, error) { return "", nil }
+	}
+
+	disks := w.driver.Get("qemu.disks").(string)
+
 	return func(arch, name string) (string, error) {
 		i, err := image.NewStore(w.db).Get(
 			query.Where("user_id", "=", b.UserID),
@@ -67,31 +75,10 @@ func (w *worker) qemuRealPath(b *build.Build) func(string, string) (string, erro
 
 		if i.IsZero() {
 			name = filepath.Join(strings.Split(name, "/")...)
-			return filepath.Join(w.driver.QEMU.Disks, "_base", arch, name), nil
+			return filepath.Join(disks, "_base", arch, name), nil
 		}
-		return filepath.Join(w.driver.QEMU.Disks, arch, i.Hash), nil
+		return filepath.Join(disks, arch, i.Hash), nil
 	}
-}
-
-func (w *worker) configureDrivers(b *build.Build, cfg map[string]string) {
-	runner.ConfigureDriver(
-		"qemu",
-		qemu.Configure(
-			qemu.Key(w.driver.QEMU.Key),
-			qemu.CPUs(w.driver.QEMU.CPUs),
-			qemu.Memory(w.driver.QEMU.Memory),
-			qemu.Image(cfg["image"]),
-			qemu.Realpath(w.qemuRealPath(b)),
-		),
-	)
-
-	runner.ConfigureDriver(
-		"ssh",
-		ssh.Configure(
-			ssh.Key(w.driver.SSH.Key),
-			ssh.Timeout(time.Duration(time.Second*time.Duration(w.driver.SSH.Timeout))),
-		),
-	)
 }
 
 func (w *worker) getBuildObjects(b *build.Build) (runner.Passthrough, error) {
@@ -269,24 +256,30 @@ func (w *worker) run(s string) error {
 	cfg := make(map[string]string)
 	json.Unmarshal([]byte(buildDriver.Config), &cfg)
 
-	w.configureDrivers(b, cfg)
-
-	configure, err := runner.GetDriver(cfg["type"])
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	d, err := configure(io.MultiWriter(runnerBuffer, driverBuffer))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
 	b.Status = runner.Running
 	b.StartedAt = pq.NullTime{
 		Time:  time.Now(),
 		Valid: true,
+	}
+
+	if !w.driver.Has(cfg["type"]) {
+		fmt.Fprintf(runnerBuffer, "driver %s has not been configured for the worker\n", cfg["type"])
+		fmt.Fprintf(runnerBuffer, "killing build...\n")
+
+		b.Status = runner.Killed
+		b.Output = sql.NullString{
+			String: runnerBuffer.String(),
+			Valid:  true,
+		}
+		b.FinishedAt = pq.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
+
+		if err := w.builds.Update(b); err != nil {
+			return errors.Err(err)
+		}
+		return errors.Err(w.updateJobs(b, jobBuffers))
 	}
 
 	if err := w.builds.Update(b); err != nil {
@@ -347,6 +340,14 @@ func (w *worker) run(s string) error {
 			cancel()
 		}
 	}()
+
+	d := config.GetDriverConfig(cfg["type"])(
+		io.MultiWriter(runnerBuffer, driverBuffer),
+		w.driver.Get(cfg["type"]).(*toml.Tree),
+		ssh.Address(cfg["address"]),
+		qemu.Image(cfg["image"]),
+		qemu.Realpath(w.qemuRealPath(b)),
+	)
 
 	r.Run(ctx, d)
 

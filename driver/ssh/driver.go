@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net"
 	"os"
 	"strings"
 	"time"
@@ -13,6 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
+
+	"github.com/pelletier/go-toml"
 
 	"github.com/pkg/sftp"
 
@@ -32,79 +33,53 @@ type SSH struct {
 	timeout time.Duration
 }
 
-var (
-	_ runner.Driver = (*SSH)(nil)
+var _ runner.Driver = (*SSH)(nil)
 
-	timeout = time.Duration(time.Second*60)
-)
-
-func errConf(err string) error { return errors.New("cannot configure SSH driver:"+err) }
-
-func Address(addr string) Option {
-	return func(s *SSH) (*SSH, error) {
-		if _, _, err := net.SplitHostPort(addr); err != nil {
-			return nil, err
+func Address(addr string) driver.Option {
+	return func(d runner.Driver) runner.Driver {
+		if s, ok := d.(*SSH); ok {
+			s.addr = addr
+			return s
 		}
-		s.addr = addr
-		return s, nil
+		return d
 	}
 }
 
-func User(user string) Option {
-	return func(s *SSH) (*SSH, error) {
-		s.user = user
-		return s, nil
+func Validate(tree *toml.Tree) error {
+	for _, key := range []string{"timeout", "key"} {
+		if !tree.Has(key) {
+			return errors.New("ssh config missing property "+key)
+		}
 	}
+
+	if _, ok := tree.Get("timeout").(int64); !ok {
+		return errors.New("ssh timeout is not an integer")
+	}
+
+	if _, ok := tree.Get("key").(string); !ok {
+		return errors.New("ssh key is not a string")
+	}
+	return nil
 }
 
-func Key(key string) Option {
-	return func(s *SSH) (*SSH, error) {
-		info, err := os.Stat(key)
+func Configure(w io.Writer, tree *toml.Tree, opts ...driver.Option) runner.Driver {
+	timeout, ok := tree.Get("timeout").(int)
 
-		if err != nil {
-			return nil, err
-		}
-		if info.IsDir() {
-			return nil, errors.New("key must be a file not a directory")
-		}
-		s.key = key
-		return s, nil
+	if !ok {
+		timeout = 60
 	}
-}
 
-func Timeout(d time.Duration) Option {
-	return func(s *SSH) (*SSH, error) {
-		if d == 0 {
-			return s, nil
-		}
-		s.timeout = d
-		return s, nil
+	var ssh runner.Driver = &SSH{
+		Writer: w,
+		user:   "root",
+		key:     tree.Get("key").(string),
+		timeout: time.Duration(time.Second*time.Duration(timeout)),
 	}
-}
 
-func Configure(opts ...Option) runner.DriverConf {
-	return func(w io.Writer) (runner.Driver, error) {
-		if w == nil {
-			return nil, errConf("nil io.Writer")
-		}
-
-		var (
-			ssh = &SSH{
-				Writer:  w,
-				timeout: timeout,
-			}
-			err error
-		)
-
-		for _, opt := range opts {
-			ssh, err = opt(ssh)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-		return ssh, nil
+	for _, opt := range opts {
+		ssh = opt(ssh)
 	}
+	return ssh
 }
 
 func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {

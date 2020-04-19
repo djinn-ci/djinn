@@ -16,6 +16,8 @@ import (
 
 	"github.com/go-redis/redis"
 
+	"github.com/pelletier/go-toml"
+
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
@@ -48,10 +50,14 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to decode worker config: %s\n", err)
 	}
 
-	driverCfg, err := config.DecodeDriver(df)
+	tree, err := toml.LoadReader(df)
 
 	if err != nil {
-		log.Error.Fatalf("failed to decode driver config: %s\n", err)
+		log.Error.Fatalf("failed to load driver config: %s\n", err)
+	}
+
+	if err := config.ValidateDrivers(tree); err != nil {
+		log.Error.Fatalf("driver config validation failed: %s\n", err)
 	}
 
 	if cfg.Queue == "" {
@@ -138,7 +144,7 @@ func mainCommand(c cli.Command) {
 	w := worker{
 		db:        db,
 		redis:     redis,
-		driver:    driverCfg,
+		driver:    tree,
 		timeout:   timeout,
 		server:    queue,
 		placer:    objects,

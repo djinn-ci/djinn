@@ -9,31 +9,33 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
+	"github.com/andrewpillar/thrall/driver"
 	driverssh "github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
+
+	"github.com/pelletier/go-toml"
 )
 
 type realpathFunc func(string, string) (string, error)
-
-type Option func(*QEMU) (*QEMU, error)
 
 type QEMU struct {
 	io.Writer
 
 	ssh      *driverssh.SSH
-	sshopts  []driverssh.Option
+	sshtree  *toml.Tree
+	sshopts  []driver.Option
 	pidfile  *os.File
 	process  *os.Process
 	realpath realpathFunc
 	image    string
 	arch     string
-	cpus     int
-	memory   int
+	cpus     int64
+	memory   int64
 	port     int64
 }
 
@@ -41,94 +43,109 @@ var (
 	_ runner.Driver = (*QEMU)(nil)
 
 	tcpMaxPort int64 = 65535
-	timeout          = time.Duration(time.Second*60)
 )
 
-func errConf(err string) error { return errors.New("cannot configure QEMU driver:"+err) }
-
-func Arch(arch string) Option {
-	return func(q *QEMU) (*QEMU, error) {
-		if arch == "" {
-			return q, nil
+func Arch(arch string) driver.Option {
+	return func(d runner.Driver) runner.Driver {
+		if q, ok := d.(*QEMU); ok {
+			q.arch = arch
+			return q
 		}
-		q.arch = arch
-		return q, nil
+		return d
 	}
 }
 
-func CPUs(cpus int) Option {
-	return func(q *QEMU) (*QEMU, error) {
-		if cpus == 0 {
-			return q, nil
+func Image(image string) driver.Option {
+	return func(d runner.Driver) runner.Driver {
+		if q, ok := d.(*QEMU); ok {
+			q.image = image
+			return q
 		}
-		q.cpus = cpus
-		return q, nil
+		return d
 	}
 }
 
-func Memory(memory int) Option {
-	return func (q *QEMU) (*QEMU, error) {
-		if memory == 0 {
-			return q, nil
+func Realpath(realpath realpathFunc) driver.Option {
+	return func(d runner.Driver) runner.Driver {
+		if q, ok := d.(*QEMU); ok {
+			q.realpath = realpath
+			return q
 		}
-		q.memory = memory
-		return q, nil
+		return d
 	}
 }
 
-func Image(image string) Option {
-	return func(q *QEMU) (*QEMU, error) {
-		if image == "" {
-			return q, errors.New("missing image for QEMU driver")
+func Validate(tree *toml.Tree) error {
+	for _, key := range []string{"key", "disks", "cpus", "memory"} {
+		if !tree.Has(key) {
+			return errors.New("qemu config missing property "+key)
 		}
-		q.image = image
-		return q, nil
 	}
+
+	if _, ok := tree.Get("key").(string); !ok {
+		return errors.New("qemu key is not a string")
+	}
+
+	if _, ok := tree.Get("disks").(string); !ok {
+		return errors.New("qemu disks is not an string")
+	}
+
+	if _, ok := tree.Get("cpus").(int64); !ok {
+		return errors.New("qemu cpus is not an integer")
+	}
+
+	if _, ok := tree.Get("memory").(int64); !ok {
+		return errors.New("qemu memory is not an integer")
+	}
+	return nil
 }
 
-func Realpath(fn realpathFunc) Option {
-	return func(q *QEMU) (*QEMU, error) {
-		q.realpath = fn
-		return q, nil
+func Configure(w io.Writer, tree *toml.Tree, opts ...driver.Option) runner.Driver {
+	cpus, ok := tree.Get("cpus").(int64)
+
+	if !ok {
+		cpus = 1
 	}
-}
 
-func Key(key string) Option {
-	return func(q *QEMU) (*QEMU, error) {
-		if key == "" {
-			return q, errors.New("missing key for QEMU driver")
-		}
-		q.sshopts = append(q.sshopts, driverssh.Key(key))
-		return q, nil
+	memory, ok := tree.Get("memory").(int64)
+
+	if !ok {
+		memory = 2048
 	}
-}
 
-func Configure(opts ...Option) runner.DriverConf {
-	return func(w io.Writer) (runner.Driver, error) {
-		if w == nil {
-			return nil, errConf("nil io.Writer")
-		}
+	disks, ok := tree.Get("disks").(string)
 
-		var (
-			qemu = &QEMU{
-				Writer: w,
-				arch:   "x86_64",
-				cpus:   1,
-				memory: 2048,
-				port:   2222,
-			}
-			err error
-		)
+	if !ok {
+		disks = "."
+	}
 
-		for _, opt := range opts {
-			qemu, err = opt(qemu)
+	var qemu runner.Driver = &QEMU{
+		Writer:   w,
+		arch:     "x86_64",
+		cpus:     cpus,
+		memory:   memory,
+		port:     2222,
+		sshtree:  tree,
+		realpath: func(arch, name string) (string, error) {
+			name = filepath.Join(strings.Split(name, "/")...)
+			path := filepath.Join(disks, arch, name)
+
+			info, err := os.Stat(path)
 
 			if err != nil {
-				return nil, errConf(err.Error())
+				return "", err
 			}
-		}
-		return qemu, nil
+			if info.IsDir() {
+				return "", errors.New("image is not a file")
+			}
+			return path, nil
+		},
 	}
+
+	for _, opt := range opts {
+		qemu = opt(qemu)
+	}
+	return qemu
 }
 
 func (q *QEMU) runCmd() error {
@@ -150,9 +167,9 @@ func (q *QEMU) runCmd() error {
 			"-pidfile",
 			q.pidfile.Name(),
 			"-smp",
-			fmt.Sprintf("%d", q.cpus),
+			strconv.FormatInt(q.cpus, 10),
 			"-m",
-			fmt.Sprintf("%d", q.memory),
+			strconv.FormatInt(q.memory, 10),
 			"-net",
 			"nic,model=virtio",
 			"-net",
@@ -167,13 +184,14 @@ func (q *QEMU) runCmd() error {
 
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = q.Writer
-		cmd.Stderr = io.MultiWriter(q.Writer, buf)
+		cmd.Stderr = buf
 
 		if err := cmd.Run(); err != nil {
 			if strings.Contains(buf.String(), "Could not set up host forwarding rule") {
 				q.port++
 				continue
 			}
+			io.Copy(q.Writer, buf)
 			return err
 		}
 		break
@@ -210,13 +228,7 @@ func (q *QEMU) Create(c context.Context, env []string, objs runner.Passthrough, 
 		return err
 	}
 
-	ssh, err := driverssh.Configure(q.sshopts...)(ioutil.Discard)
-
-	if err != nil {
-		return err
-	}
-
-	q.ssh = ssh.(*driverssh.SSH)
+	q.ssh = driverssh.Configure(ioutil.Discard, q.sshtree, q.sshopts...).(*driverssh.SSH)
 
 	b, err := ioutil.ReadAll(q.pidfile)
 

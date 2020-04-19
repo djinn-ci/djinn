@@ -40,6 +40,28 @@ type Collector interface {
 	Collect(name string, r io.Reader) (int64, error)
 }
 
+type Driver interface {
+	// Each driver should implement the io.Writer interface, so that the driver
+	// can write the output of what it's doing to the underlying io.Writer
+	// implementation, for example os.Stdout. 
+	io.Writer
+
+	// Create will create the driver, and prepare it so it will be ready for
+	// jobs to be executed on it. It takes a context that will be used to cancel
+	// out of the creation of the driver quickly. The env slice of strings are
+	// the environment variables that will be set on the driver, the strings in
+	// the slice are formatted as key=value. The given Placer will be used to
+	// place the given objects in the driver.
+	Create(c context.Context, env []string, objs Passthrough, p Placer) error
+
+	// Execute will run the given job on the driver, and use the given
+	// Collector, to collect any artifacts for that job.
+	Execute(j *Job, c Collector)
+
+	// Destroy will tear down the driver.
+	Destroy()
+}
+
 type Runner struct {
 	io.Writer
 

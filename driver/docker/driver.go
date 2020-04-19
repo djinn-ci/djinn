@@ -18,13 +18,11 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+
+	"github.com/pelletier/go-toml"
 )
 
 var _ runner.Driver = (*Docker)(nil)
-
-func errConf(err string) error { return errors.New("cannot configure Docker driver:"+err) }
-
-type Option func(*Docker) (*Docker, error)
 
 type Docker struct {
 	io.Writer
@@ -37,40 +35,37 @@ type Docker struct {
 	workspace  string
 }
 
-func Image(image string) Option {
-	return func(d *Docker) (*Docker, error) {
-		d.image = image
-		return d, nil
+func Image(image string) driver.Option {
+	return func(d runner.Driver) runner.Driver {
+		if dock, ok := d.(*Docker); ok {
+			dock.image = image
+			return dock
+		}
+		return d
 	}
 }
 
-func Workspace(workspace string) Option {
-	return func(d *Docker) (*Docker, error) {
-		d.workspace = workspace
-		return d, nil
+func Workspace(workspace string) driver.Option {
+	return func(d runner.Driver) runner.Driver {
+		if dock, ok := d.(*Docker); ok {
+			dock.workspace = workspace
+			return dock
+		}
+		return d
 	}
 }
 
-func Configure(opts ...Option) runner.DriverConf {
-	return func(w io.Writer) (runner.Driver, error) {
-		if w == nil {
-			return nil, errConf("nil io.Writer")
-		}
+func Validate(_ *toml.Tree) error { return nil }
 
-		var (
-			docker = &Docker{}
-			err error
-		)
-
-		for _, opt := range opts {
-			docker, err = opt(docker)
-
-			if err != nil {
-				return nil, err
-			}
-		}
-		return docker, nil
+func Configure(w io.Writer, tree *toml.Tree, opts ...driver.Option) runner.Driver {
+	var docker runner.Driver = &Docker{
+		Writer:    w,
 	}
+
+	for _, opt := range opts {
+		docker = opt(docker)
+	}
+	return docker
 }
 
 func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {

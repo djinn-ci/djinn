@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/andrewpillar/cli"
 
@@ -17,6 +16,8 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/runner"
+
+	"github.com/pelletier/go-toml"
 )
 
 var (
@@ -39,27 +40,6 @@ func qemuRealpath(dir string) func(string, string) (string, error) {
 		}
 		return path, nil
 	}
-}
-
-func configureDrivers(driver config.Driver, manifest config.Manifest) {
-	runner.ConfigureDriver(
-		"qemu",
-		qemu.Configure(
-			qemu.Key(driver.QEMU.Key),
-			qemu.CPUs(driver.QEMU.CPUs),
-			qemu.Memory(driver.QEMU.Memory),
-			qemu.Image(manifest.Driver["image"]),
-			qemu.Realpath(qemuRealpath(driver.QEMU.Disks)),
-		),
-	)
-
-	runner.ConfigureDriver(
-		"ssh",
-		ssh.Configure(
-			ssh.Key(driver.SSH.Key),
-			ssh.Timeout(time.Duration(time.Second*time.Duration(driver.SSH.Timeout))),
-		),
-	)
 }
 
 func mainCommand(c cli.Command) {
@@ -93,14 +73,17 @@ func mainCommand(c cli.Command) {
 
 	defer df.Close()
 
-	driverCfg, err := config.DecodeDriver(df)
+	tree, err := toml.LoadReader(df)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 
-	configureDrivers(driverCfg, manifest)
+	if err := config.ValidateDrivers(tree); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
 
 	placer, err := filestore.NewFileSystem(config.Storage{
 		Kind: "file",
@@ -198,19 +181,12 @@ func mainCommand(c cli.Command) {
 		}
 	}
 
-	configure, err := runner.GetDriver(manifest.Driver["type"])
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to get driver: %s\n", err)
-		os.Exit(1)
-	}
-
-	d, err := configure(os.Stdout)
-
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to configure driver: %s\n", err)
-		os.Exit(1)
-	}
+	d := config.GetDriverConfig(manifest.Driver["type"])(
+		os.Stdout,
+		tree.Get(manifest.Driver["type"]).(*toml.Tree),
+		ssh.Address(manifest.Driver["address"]),
+		qemu.Image(manifest.Driver["image"]),
+	)
 
 	only := c.Flags.GetAll("stage")
 

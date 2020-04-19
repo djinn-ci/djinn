@@ -1,6 +1,6 @@
 module github.com/andrewpillar/thrall
 
-go 1.12
+go 1.14
 
 replace github.com/docker/docker => github.com/docker/engine v0.0.0-20181106193140-f5749085e9cb
 
@@ -14,7 +14,6 @@ require (
 	github.com/RichardKnop/machinery v1.7.3
 	github.com/andrewpillar/cli v1.1.1
 	github.com/andrewpillar/query v0.0.0-20191019135750-af6f8cc7b7a7
-	github.com/aws/aws-sdk-go v1.29.5 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -40,5 +39,4 @@ require (
 	golang.org/x/crypto v0.0.0-20200214034016-1d94cc7ab1c6
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
 	gopkg.in/yaml.v2 v2.2.8
-	gotest.tools v2.2.0+incompatible // indirect
 )

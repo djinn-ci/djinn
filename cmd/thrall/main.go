@@ -11,6 +11,7 @@ import (
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/driver/docker"
 	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
@@ -184,6 +185,8 @@ func mainCommand(c cli.Command) {
 	d := config.GetDriverConfig(manifest.Driver["type"])(
 		os.Stdout,
 		tree.Get(manifest.Driver["type"]).(*toml.Tree),
+		docker.Image(manifest.Driver["image"]),
+		docker.Workspace(manifest.Driver["workspace"]),
 		ssh.Address(manifest.Driver["address"]),
 		qemu.Image(manifest.Driver["image"]),
 	)

@@ -13,6 +13,7 @@ import (
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/driver/docker"
 	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
@@ -344,6 +345,8 @@ func (w *worker) run(s string) error {
 	d := config.GetDriverConfig(cfg["type"])(
 		io.MultiWriter(runnerBuffer, driverBuffer),
 		w.driver.Get(cfg["type"]).(*toml.Tree),
+		docker.Image(cfg["image"]),
+		docker.Workspace(cfg["workspace"]),
 		ssh.Address(cfg["address"]),
 		qemu.Image(cfg["image"]),
 		qemu.Realpath(w.qemuRealPath(b)),

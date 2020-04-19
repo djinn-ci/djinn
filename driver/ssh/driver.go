@@ -90,6 +90,7 @@ func Configure(opts ...Option) runner.DriverConf {
 
 		var (
 			ssh = &SSH{
+				Writer:  w,
 				timeout: timeout,
 			}
 			err error
@@ -107,6 +108,10 @@ func Configure(opts ...Option) runner.DriverConf {
 }
 
 func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+	if s.Writer == nil {
+		return errors.New("cannot create driver with nil io.Writer")
+	}
+
 	fmt.Fprintf(s.Writer, "Running with SSH driver...\n")
 
 	ticker := time.NewTicker(time.Second)
@@ -131,7 +136,7 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 			select {
 			case <-ticker.C:
 				cfg := &ssh.ClientConfig{
-					User: s.user,
+					User: "root",
 					Auth: []ssh.AuthMethod{
 						ssh.PublicKeys(signer),
 					},

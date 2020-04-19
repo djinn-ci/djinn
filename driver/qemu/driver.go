@@ -111,9 +111,11 @@ func Configure(opts ...Option) runner.DriverConf {
 
 		var (
 			qemu = &QEMU{
+				Writer: w,
 				arch:   "x86_64",
 				cpus:   1,
 				memory: 2048,
+				port:   2222,
 			}
 			err error
 		)
@@ -187,7 +189,12 @@ func (q *QEMU) runCmd() error {
 func (q *QEMU) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
 	var err error
 
+	if q.Writer == nil {
+		return errors.New("cannot create driver with nil io.Writer")
+	}
+
 	fmt.Fprintf(q.Writer, "Running with QEMU driver...\n")
+	fmt.Fprintf(q.Writer, "Creating machine with arch %s...\n", q.arch)
 
 	q.pidfile, err = ioutil.TempFile("", "thrall-qemu-")
 
@@ -195,13 +202,15 @@ func (q *QEMU) Create(c context.Context, env []string, objs runner.Passthrough, 
 		return err
 	}
 
+	defer q.pidfile.Close()
+
 	fmt.Fprintf(q.Writer, "Booting machine with image %s...\n", q.image)
 
 	if err := q.runCmd(); err != nil {
 		return err
 	}
 
-	ssh, err := driverssh.Configure(q.sshopts...)(q.Writer)
+	ssh, err := driverssh.Configure(q.sshopts...)(ioutil.Discard)
 
 	if err != nil {
 		return err
@@ -243,8 +252,9 @@ func (q *QEMU) Create(c context.Context, env []string, objs runner.Passthrough, 
 func (q *QEMU) Execute(j *runner.Job, c runner.Collector) { q.ssh.Execute(j, c) }
 
 func (q *QEMU) Destroy() {
-	q.ssh.Destroy()
-
+	if q.ssh != nil {
+		q.ssh.Destroy()
+	}
 	if q.process != nil {
 		q.process.Kill()
 	}

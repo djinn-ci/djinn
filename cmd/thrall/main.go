@@ -56,7 +56,6 @@ func configureDrivers(driver config.Driver, manifest config.Manifest) {
 	runner.ConfigureDriver(
 		"ssh",
 		ssh.Configure(
-			ssh.User(driver.SSH.User),
 			ssh.Key(driver.SSH.Key),
 			ssh.Timeout(time.Duration(time.Second*time.Duration(driver.SSH.Timeout))),
 		),

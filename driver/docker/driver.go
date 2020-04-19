@@ -76,6 +76,10 @@ func Configure(opts ...Option) runner.DriverConf {
 func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
 	var err error
 
+	if d.Writer == nil {
+		return errors.New("cannot create driver with nil io.Writer")
+	}
+
 	fmt.Fprintf(d.Writer, "Running with Docker driver...\n")
 
 	d.client, err = client.NewEnvClient()

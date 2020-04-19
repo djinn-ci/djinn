@@ -88,7 +88,6 @@ func (w *worker) configureDrivers(b *build.Build, cfg map[string]string) {
 	runner.ConfigureDriver(
 		"ssh",
 		ssh.Configure(
-			ssh.User(w.driver.SSH.User),
 			ssh.Key(w.driver.SSH.Key),
 			ssh.Timeout(time.Duration(time.Second*time.Duration(w.driver.SSH.Timeout))),
 		),

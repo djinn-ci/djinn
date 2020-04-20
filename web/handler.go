@@ -120,36 +120,36 @@ func (h Handler) UserCookie(r *http.Request) (*user.User, error) {
 	return u, errors.Err(err)
 }
 
-func (h Handler) UserToken(r *http.Request) (*user.User, error) {
+func (h Handler) UserToken(r *http.Request) (*user.User, *oauth2.Token, error) {
 	prefix := "Bearer "
 	tok := r.Header.Get("Authorization")
 
 	if !strings.HasPrefix(tok, prefix) {
-		return &user.User{}, nil
+		return &user.User{}, &oauth2.Token{}, nil
 	}
 
 	b, err := hex.DecodeString(tok[len(prefix):])
 
 	if err != nil {
-		return &user.User{}, errors.Err(err)
+		return &user.User{}, &oauth2.Token{}, errors.Err(err)
 	}
 
 	t, err := h.Tokens.Get(query.Where("token", "=", b))
 
 	if err != nil {
-		return &user.User{}, errors.Err(err)
+		return &user.User{}, t, errors.Err(err)
 	}
 
 	if t.IsZero() {
-		return &user.User{}, nil
+		return &user.User{}, t, nil
 	}
 
 	u, err := h.Users.Get(query.Where("id", "=", t.UserID))
 
 	if u.DeletedAt.Valid {
-		return &user.User{}, nil
+		return &user.User{}, t, nil
 	}
-	return u, errors.Err(err)
+	return u, t, errors.Err(err)
 }
 
 func (h *Handler) ValidateForm(f form.Form, r *http.Request, sess *sessions.Session) error {

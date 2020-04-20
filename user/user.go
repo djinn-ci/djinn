@@ -153,11 +153,7 @@ func (s Store) Update(uu ...*User) error {
 }
 
 func (s Store) Get(opts ...query.Option) (*User, error) {
-	u := &User{
-		Permissions: map[string]struct{}{
-			"build:write": {},
-		},
-	}
+	u := &User{}
 
 	err := s.Store.Get(u, table, opts...)
 

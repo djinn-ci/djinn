@@ -13,6 +13,7 @@ import (
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -102,11 +103,15 @@ func Resource(db *sqlx.DB, name string, r *http.Request, get modelFunc) (bool, e
 // auth first, then fallback to cookie.
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bool) {
 	if _, ok := r.Header["Authorization"]; ok {
-		u, err := h.UserToken(r)
+		u, t, err := h.UserToken(r)
 
 		if err != nil {
 			log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 			return u, false
+		}
+
+		if !u.IsZero() {
+			u.Permissions = t.Permissions()
 		}
 		return u, !u.IsZero()
 	}
@@ -128,6 +133,14 @@ func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bo
 			log.Error.Println(errors.Err(err))
 		}
 		return u, false
+	}
+
+	if !u.IsZero() {
+		for _, res := range oauth2.Resources {
+			u.Permissions[res.String()+":read"] = struct{}{}
+			u.Permissions[res.String()+":write"] = struct{}{}
+			u.Permissions[res.String()+":delete"] = struct{}{}
+		}
 	}
 	return u, !u.IsZero()
 }

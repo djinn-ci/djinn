@@ -6,8 +6,8 @@ import (
 	"image/png"
 	"io"
 	"math/rand"
-	"net/http/httptest"
 	"mime/multipart"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -35,9 +35,6 @@ func createImage(t *testing.T) image.Image {
 		}
 	}
 	return img
-}
-
-func createFormFile(w io.Writer, t *testing.T) {
 }
 
 func Test_FileValidate(t *testing.T) {

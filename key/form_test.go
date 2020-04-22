@@ -1,13 +1,10 @@
-package object
+package key
 
 import (
-	"image"
-	"image/color"
-	"image/png"
-	"io"
-	"math/rand"
-	"mime/multipart"
-	"net/http/httptest"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"regexp"
 	"testing"
 	"time"
@@ -23,9 +20,6 @@ import (
 )
 
 var (
-	width  = 200
-	height = 100
-
 	namespaceCols = []string{
 		"id",
 		"user_id",
@@ -45,24 +39,17 @@ var (
 	}
 )
 
-func createImage(t *testing.T) image.Image {
-	img := image.NewRGBA(image.Rectangle{
-		image.Point{0, 0},
-		image.Point{width, height},
-	})
+func genKey(t *testing.T) []byte {
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
 
-	rand.Seed(time.Now().UnixNano())
-
-	for i := 0; i < width; i++ {
-		for j := 0; j < height; j++ {
-			r := uint8(rand.Intn(255))
-			g := uint8(rand.Intn(255))
-			b := uint8(rand.Intn(255))
-
-			img.Set(i, j, color.RGBA{r, g, b, 0xFF})
-		}
+	if err != nil {
+		t.Fatal(err)
 	}
-	return img
+
+	return pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	})
 }
 
 func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() error) {
@@ -75,25 +62,30 @@ func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() erro
 }
 
 func Test_FormValidate(t *testing.T) {
-	objectStore, objectMock, objectClose := store(t)
-	defer objectClose()
+	keyStore, keyMock, keyClose := store(t)
+	defer keyClose()
 
 	namespaceStore, namespaceMock, namespaceClose := namespaceStore(t)
 	defer namespaceClose()
 
-	tests := []struct {
+	tests := []struct{
 		form        Form
+		key         *Key
+		namespace   *namespace.Namespace
 		errs        []string
 		shouldError bool
 	}{
 		{
 			Form{
 				ResourceForm: namespace.ResourceForm{
-					Namespaces: namespaceStore,
+					User: &user.User{ID: 10},
 				},
-				Objects:      objectStore,
-				Name:         "rand.png",
+				Keys:       keyStore,
+				Name:       "private",
+				PrivateKey: string(genKey(t)),
 			},
+			&Key{},
+			&namespace.Namespace{},
 			[]string{},
 			false,
 		},
@@ -104,9 +96,12 @@ func Test_FormValidate(t *testing.T) {
 					Namespace:  "blackmesa",
 					User:       &user.User{ID: 10},
 				},
-				Objects:      objectStore,
-				Name:         "rand.png",
+				Keys:       keyStore,
+				Name:       "private",
+				PrivateKey: string(genKey(t)),
 			},
+			&Key{},
+			&namespace.Namespace{},
 			[]string{},
 			false,
 		},
@@ -117,9 +112,41 @@ func Test_FormValidate(t *testing.T) {
 					Namespace:  "blackmesa",
 					User:       &user.User{ID: 10},
 				},
-				Objects:      objectStore,
+				Keys:       keyStore,
 			},
+			&Key{},
+			&namespace.Namespace{},
 			[]string{"name"},
+			true,
+		},
+		{
+			Form{
+				ResourceForm: namespace.ResourceForm{
+					Namespaces: namespaceStore,
+					Namespace:  "blackmesa",
+					User:       &user.User{ID: 10},
+				},
+				Keys:       keyStore,
+			},
+			&Key{},
+			&namespace.Namespace{},
+			[]string{"name", "key"},
+			true,
+		},
+		{
+			Form{
+				ResourceForm: namespace.ResourceForm{
+					Namespaces: namespaceStore,
+					Namespace:  "blackmesa",
+					User:       &user.User{ID: 10},
+				},
+				Keys:       keyStore,
+				Name:       "private",
+				PrivateKey: string(genKey(t)),
+			},
+			&Key{},
+			&namespace.Namespace{},
+			[]string{"name", "key"},
 			true,
 		},
 	}
@@ -139,37 +166,9 @@ func Test_FormValidate(t *testing.T) {
 			)
 		}
 
-		objectMock.ExpectQuery(
-			regexp.QuoteMeta("SELECT * FROM objects WHERE (name = $1)"),
-		).WithArgs(test.form.Name).WillReturnRows(sqlmock.NewRows(objectCols))
-
-		pr, pw := io.Pipe()
-
-		mw := multipart.NewWriter(pw)
-
-		go func() {
-			defer mw.Close()
-
-			w, err := mw.CreateFormFile("file", "rand.png")
-
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if err := png.Encode(w, createImage(t)); err != nil {
-				t.Fatal(err)
-			}
-		}()
-
-		r := httptest.NewRequest("POST", "/", pr)
-		r.Header.Add("Content-Type", mw.FormDataContentType())
-
-		w := httptest.NewRecorder()
-
-		test.form.File = form.File{
-			Writer:  w,
-			Request: r,
-		}
+		keyMock.ExpectQuery(
+			regexp.QuoteMeta("SELECT * FROM keys WHERE (name = $1)"),
+		).WithArgs(test.form.Name).WillReturnRows(sqlmock.NewRows(keyCols))
 
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {

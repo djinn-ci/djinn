@@ -300,7 +300,7 @@ func (s Store) All(opts ...query.Option) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
 	opts = append([]query.Option{
-		WhereCollaborator(s.User),
+		SharedWith(s.User),
 		model.Where(s.Namespace, "parent_id"),
 	}, opts...)
 
@@ -349,7 +349,7 @@ func (s Store) Get(opts ...query.Option) (*Namespace, error) {
 	}
 
 	opts = append([]query.Option{
-		WhereCollaborator(s.User),
+		SharedWith(s.User),
 		model.Where(s.Namespace, "parent_id"),
 	}, opts...)
 

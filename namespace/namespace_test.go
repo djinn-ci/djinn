@@ -113,10 +113,10 @@ func Test_StoreAll(t *testing.T) {
 			[]model.Model{},
 		},
 		{
-			"SELECT * FROM namespaces WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3) AND (path LIKE $4)",
+			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (path LIKE $3)",
 			[]query.Option{model.Search("path", "example_path")},
 			sqlmock.NewRows(namespaceCols),
-			[]driver.Value{1, 1, 1, "%example_path%"},
+			[]driver.Value{1, 1, "%example_path%"},
 			[]model.Model{&user.User{ID: 1}},
 		},
 		{
@@ -155,11 +155,10 @@ func Test_StoreGet(t *testing.T) {
 			[]model.Model{},
 		},
 		{
-
-			"SELECT * FROM namespaces WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
+			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2)))",
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
-			[]driver.Value{1, 1, 1},
+			[]driver.Value{1, 1},
 			[]model.Model{&user.User{ID: 1}},
 		},
 		{
@@ -177,11 +176,10 @@ func Test_StoreGet(t *testing.T) {
 			[]model.Model{},
 		},
 		{
-
-			"SELECT * FROM namespaces WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3) AND (path LIKE $4)",
+			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (path LIKE $3)",
 			[]query.Option{model.Search("path", "blackmesa")},
 			sqlmock.NewRows(namespaceCols),
-			[]driver.Value{1, 1, 1, "%blackmesa%"},
+			[]driver.Value{1, 1, "%blackmesa%"},
 			[]model.Model{&user.User{ID: 1}},
 		},
 		{

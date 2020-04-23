@@ -245,7 +245,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			Search:    q.Get("search"),
 		}
 	case "variables":
-		vv, paginator, err := variable.NewStore(h.DB, n).Index(r)
+		vv, paginator, err := variable.NewStore(h.DB, n).Index(r.URL.Query())
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))

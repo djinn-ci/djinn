@@ -41,6 +41,7 @@ func (f File) Validate() error {
 	if err != nil {
 		if strings.Contains(err.Error(), "no such file") {
 			errs.Put("file", ErrFieldRequired("File"))
+			return errs.Err()
 		}
 		return errors.Err(err)
 	}

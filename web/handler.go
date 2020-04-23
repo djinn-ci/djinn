@@ -162,7 +162,9 @@ func (h *Handler) ValidateForm(f form.Form, r *http.Request, sess *sessions.Sess
 	}
 
 	if err := f.Validate(); err != nil {
-		if ferr, ok := err.(form.Errors); ok {
+		cause := errors.Cause(err)
+
+		if ferr, ok := cause.(form.Errors); ok {
 			if sess != nil {
 				sess.AddFlash(ferr, "form_errors")
 				sess.AddFlash(f.Fields(), "form_fields")
@@ -171,7 +173,6 @@ func (h *Handler) ValidateForm(f form.Form, r *http.Request, sess *sessions.Sess
 		}
 
 		if sess != nil {
-			cause := errors.Cause(err)
 			sess.AddFlash(template.Danger("Failed to validate form: " + cause.Error()), "alert")
 		}
 		return errors.Err(err)

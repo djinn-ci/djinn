@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/cli"
@@ -186,7 +187,6 @@ func mainCommand(cmd cli.Command) {
 		if err != nil {
 			log.Error.Fatalf("failed to configure oauth provider: %s\n", errors.Cause(err))
 		}
-
 		providers[p.Name] = provider
 	}
 
@@ -200,13 +200,22 @@ func mainCommand(cmd cli.Command) {
 
 	middleware := web.Middleware{Handler: handler}
 
+	r := mux.NewRouter()
+	r.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			web.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		web.Text(w, "Method not allowed", http.StatusMethodNotAllowed)
+	})
+
 	srv := server.Server{
-		Server:  &http.Server{
+		Server: &http.Server{
 			Addr: cfg.Net.Listen,
 		},
-		Router:  mux.NewRouter(),
-		Cert:    cfg.Net.SSL.Cert,
-		Key:     cfg.Net.SSL.Key,
+		Router: r,
+		Cert:   cfg.Net.SSL.Cert,
+		Key:    cfg.Net.SSL.Key,
 	}
 
 	serveUI := cmd.Flags.IsSet("ui")
@@ -219,6 +228,7 @@ func mainCommand(cmd cli.Command) {
 	}
 
 	srv.AddRouter("auth", &userweb.Router{
+		Providers:  providers,
 		Middleware: middleware,
 	})
 
@@ -227,6 +237,7 @@ func mainCommand(cmd cli.Command) {
 		Artifacts:  artifacts,
 		Redis:      redis,
 		Queues:     queues,
+		Providers:  providers,
 	})
 
 	srv.AddRouter("namespace", &namespaceweb.Router{
@@ -235,6 +246,7 @@ func mainCommand(cmd cli.Command) {
 
 	srv.AddRouter("repo", &repoweb.Router{
 		Redis:      redis,
+		Providers:  providers,
 		Middleware: middleware,
 	})
 
@@ -276,6 +288,7 @@ func mainCommand(cmd cli.Command) {
 		}
 
 		ui.Init()
+		ui.Register("auth")
 		ui.Register("build", buildweb.Gate(db))
 		ui.Register("repo", repoweb.Gate(db))
 		ui.Register("namespace", namespaceweb.Gate(db))
@@ -321,7 +334,7 @@ func mainCommand(cmd cli.Command) {
 	log.Info.Println("thrall-server started on", cfg.Net.Listen)
 
 	if apiPrefix != "" {
-		log.Info.Println("api routes being served under", cfg.Net.Listen+"/"+apiPrefix)
+		log.Info.Println("api routes being served under", cfg.Net.Listen+apiPrefix)
 	}
 
 	c := make(chan os.Signal, 1)

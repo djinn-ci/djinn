@@ -13,7 +13,9 @@ import (
 	"github.com/andrewpillar/thrall/key"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/object"
+	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/variable"
@@ -37,6 +39,7 @@ type Router struct {
 	Artifacts  filestore.FileStore
 	Redis      *redis.Client
 	Queues     map[string]*machinery.Server
+	Providers  map[string]oauth2.Provider
 }
 
 var _ server.Router = (*Router)(nil)
@@ -105,26 +108,32 @@ func (r *Router) Init(h web.Handler) {
 	loaders.Put("build_trigger", triggers)
 
 	r.build = handler.Build{
-		Handler:    h,
-		Loaders:    loaders,
-		Builds:     build.NewStore(h.DB),
-		Tags:       tags,
-		Triggers:   triggers,
-		Stages:     build.NewStageStore(h.DB),
-		Artifacts:  build.NewArtifactStore(h.DB),
-		Keys:       key.NewStore(h.DB),
-		Namespaces: namespaces,
-		Objects:    object.NewStore(h.DB),
-		Images:     image.NewStore(h.DB),
-		Variables:  variable.NewStore(h.DB),
-		FileStore:  r.Artifacts,
-		Client:     r.Redis,
-		Queues:     r.Queues,
+		Handler:         h,
+		Loaders:         loaders,
+		Builds:          build.NewStore(h.DB),
+		Tags:            tags,
+		Triggers:        triggers,
+		Stages:          build.NewStageStore(h.DB),
+		Artifacts:       build.NewArtifactStore(h.DB),
+		Keys:            key.NewStore(h.DB),
+		Namespaces:      namespaces,
+		Objects:         object.NewStore(h.DB),
+		Providers:       provider.NewStore(h.DB),
+		Images:          image.NewStore(h.DB),
+		Variables:       variable.NewStore(h.DB),
+		FileStore:       r.Artifacts,
+		Client:          r.Redis,
+		Queues:          r.Queues,
+		Oauth2Providers: r.Providers,
 	}
 }
 
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
 	build := handler.UI{Build: r.build}
+	hook := handler.Hook{Build: r.build}
+
+	mux.HandleFunc("/hook/github", hook.Github).Methods("POST")
+	mux.HandleFunc("/hook/gitlab", hook.Gitlab).Methods("POST")
 
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/", build.Index).Methods("GET")

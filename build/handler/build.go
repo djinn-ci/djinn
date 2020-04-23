@@ -20,7 +20,9 @@ import (
 	"github.com/andrewpillar/thrall/key"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/object"
+	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/variable"
 	"github.com/andrewpillar/thrall/web"
@@ -47,12 +49,14 @@ type Build struct {
 	Keys       key.Store
 	Namespaces namespace.Store
 	Objects    object.Store
+	Providers  provider.Store
 	Images     image.Store
 	Variables  variable.Store
 	FileStore  filestore.FileStore
 
-	Client *redis.Client
-	Queues map[string]*machinery.Server
+	Client          *redis.Client
+	Queues          map[string]*machinery.Server
+	Oauth2Providers map[string]oauth2.Provider
 }
 
 func copyKeys(s build.KeyStore, kk []*key.Key) error {

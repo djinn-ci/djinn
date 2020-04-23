@@ -229,12 +229,14 @@ func Scan(val interface{}) ([]byte, error) {
 		return []byte{}, errors.Err(err)
 	}
 
-	b, ok := str.([]byte)
-
-	if !ok {
-		return []byte{}, errors.New("failed to Scan bytes")
+	switch str.(type) {
+	case string:
+		return []byte(str.(string)), nil
+	case []byte:
+		return str.([]byte), nil
+	default:
+		return []byte{}, errors.New("failed to Scan bytes - not a string or byte slice")
 	}
-	return []byte(b), nil
 }
 
 // Search returns a WHERE LIKE clause for the given column and pattern. If the

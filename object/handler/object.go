@@ -84,18 +84,9 @@ func (h Object) ShowWithRelations(r *http.Request) (*object.Object, error) {
 	return o, errors.Err(err)
 }
 
-func (h Object) realStore(s object.Store, f namespace.ResourceForm, name, typ string, r io.Reader) (*object.Object, error) {
-	if f.Namespace != "" {
-		n, err := f.Namespaces.GetByPath(f.Namespace)
-
-		if err != nil {
-			return &object.Object{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(f.User) {
-			return &object.Object{}, namespace.ErrPermission
-		}
-		s.Bind(n)
+func (h Object) realStore(s object.Store, res namespace.Resource, name, typ string, r io.Reader) (*object.Object, error) {
+	if err := res.BindNamespace(&s); err != nil {
+		return &object.Object{}, errors.Err(err)
 	}
 
 	hash, err := crypto.HashNow()
@@ -140,19 +131,17 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request, sess *session
 
 	objects := object.NewStore(h.DB, u)
 
-	rf := namespace.ResourceForm{
-		User:          u,
-		Namespaces:    namespace.NewStore(h.DB, u),
-		Collaborators: namespace.NewCollaboratorStore(h.DB),
-	}
 	f := &object.Form{
 		File: form.File{
 			Writer:  w,
 			Request: r,
 			Limit:   h.Limit,
 		},
-		ResourceForm: rf,
-		Objects:      objects,
+		Resource: namespace.Resource{
+			User:       u,
+			Namespaces: namespace.NewStore(h.DB, u),
+		},
+		Objects:  objects,
 	}
 
 	if err := h.ValidateForm(f, r, sess); err != nil {
@@ -161,6 +150,6 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request, sess *session
 
 	defer f.File.Close()
 
-	o, err := h.realStore(objects, rf, f.Name, f.Info.Header.Get("Content-Type"), f.File)
+	o, err := h.realStore(objects, f.Resource, f.Name, f.Info.Header.Get("Content-Type"), f.File)
 	return o, errors.Err(err)
 }

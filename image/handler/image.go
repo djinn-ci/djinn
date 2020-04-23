@@ -83,18 +83,9 @@ func (h Image) Get(r *http.Request) (*image.Image, error) {
 	return i, errors.Err(err)
 }
 
-func (h Image) realStore(s image.Store, f namespace.ResourceForm, name string, r io.Reader) (*image.Image, error) {
-	if f.Namespace != "" {
-		n, err := f.Namespaces.GetByPath(f.Namespace)
-
-		if err != nil {
-			return &image.Image{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(f.User) {
-			return &image.Image{}, namespace.ErrPermission
-		}
-		s.Bind(n)
+func (h Image) realStore(s image.Store, res namespace.Resource, name string, r io.Reader) (*image.Image, error) {
+	if err := res.BindNamespace(&s); err != nil {
+		return &image.Image{}, errors.Err(err)
 	}
 
 	hash, err := crypto.HashNow()
@@ -133,19 +124,17 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request, sess *sessions
 
 	images := image.NewStore(h.DB, u)
 
-	rf := namespace.ResourceForm{
-		User:          u,
-		Namespaces:    namespace.NewStore(h.DB, u),
-		Collaborators: namespace.NewCollaboratorStore(h.DB),
-	}
 	f := &image.Form{
 		File: form.File{
 			Writer:  w,
 			Request: r,
 			Limit:   h.Limit,
 		},
-		ResourceForm: rf,
-		Images:       images,
+		Resource: namespace.Resource{
+			User:       u,
+			Namespaces: namespace.NewStore(h.DB, u),
+		},
+		Images:   images,
 	}
 
 	if err := h.ValidateForm(f, r, sess); err != nil {
@@ -154,6 +143,6 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request, sess *sessions
 
 	defer f.File.Close()
 
-	i, err := h.realStore(images, rf, f.Name, f.File)
+	i, err := h.realStore(images, f.Resource, f.Name, f.File)
 	return i, errors.Err(err)
 }

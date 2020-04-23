@@ -36,6 +36,12 @@ type Namespace struct {
 	Collaborators map[int64]struct{} `db:"-"`
 }
 
+type Resource struct {
+	User       *user.User `schema:"-"`
+	Namespaces Store      `schema:"-"`
+	Namespace  string     `schema:"namespace"`
+}
+
 type Store struct {
 	model.Store
 
@@ -96,6 +102,25 @@ func SharedWith(m model.Model) query.Option {
 			),
 		)(q)
 	}
+}
+
+func (r Resource) BindNamespace(b model.Binder) error {
+	if r.Namespace == "" {
+		return nil
+	}
+
+	n, err := r.Namespaces.GetByPath(r.Namespace)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if n.Collaborators != nil && !n.CanAdd(r.User) {
+		return ErrPermission
+	}
+
+	b.Bind(n)
+	return nil
 }
 
 func (n Namespace) AccessibleBy(m model.Model) bool {

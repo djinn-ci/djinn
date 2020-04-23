@@ -21,14 +21,6 @@ type Form struct {
 	Visibility  Visibility `schema:"visibility"`
 }
 
-type ResourceForm struct {
-	User          *user.User        `schema:"-"`
-	Namespaces    Store             `schema:"-"`
-	Collaborators CollaboratorStore `schema:"-"`
-
-	Namespace string `schema:"namespace"`
-}
-
 type InviteForm struct {
 	Collaborators CollaboratorStore `schema:"-"`
 	Invites       InviteStore       `schema:"-"`
@@ -41,7 +33,6 @@ type InviteForm struct {
 
 var (
 	_ form.Form = (*Form)(nil)
-	_ form.Form = (*ResourceForm)(nil)
 	_ form.Form = (*InviteForm)(nil)
 )
 
@@ -96,31 +87,6 @@ func (f Form) Validate() error {
 		errs.Put("description", form.ErrFieldInvalid("Description", "must be shorter than 255 characters in length"))
 	}
 	return errs.Err()
-}
-
-func (f ResourceForm) Fields() map[string]string { return map[string]string{} }
-
-func (f ResourceForm) Validate() error {
-	n, err := f.Namespaces.GetByPath(f.Namespace)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	f.Collaborators.Bind(n)
-
-	cc, err := f.Collaborators.All()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	n.LoadCollaborators(cc)
-
-	if !n.CanAdd(f.User) {
-		return ErrPermission
-	}
-	return nil
 }
 
 func (f InviteForm) Fields() map[string]string {

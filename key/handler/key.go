@@ -74,12 +74,11 @@ func (h Key) StoreModel(r *http.Request, sess *sessions.Session) (*key.Key, erro
 	keys := key.NewStore(h.DB, u)
 
 	f := &key.Form{
-		ResourceForm: namespace.ResourceForm{
-			User:          u,
-			Namespaces:    namespace.NewStore(h.DB, u),
-			Collaborators: namespace.NewCollaboratorStore(h.DB),
+		Resource: namespace.Resource{
+			User:       u,
+			Namespaces: namespace.NewStore(h.DB, u),
 		},
-		Keys: keys,
+		Keys:     keys,
 	}
 
 	if err := h.ValidateForm(f, r, sess); err != nil {
@@ -121,12 +120,11 @@ func (h Key) UpdateModel(r *http.Request, sess *sessions.Session) (*key.Key, err
 	keys := key.NewStore(h.DB, u)
 
 	f := &key.Form{
-		ResourceForm: namespace.ResourceForm{
-			User:          u,
-			Namespaces:    namespace.NewStore(h.DB, u),
-			Collaborators: namespace.NewCollaboratorStore(h.DB),
+		Resource: namespace.Resource{
+			User:       u,
+			Namespaces: namespace.NewStore(h.DB, u),
 		},
-		Keys: keys,
+		Keys:     keys,
 	}
 
 	if err := h.ValidateForm(f, r, sess); err != nil {

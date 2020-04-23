@@ -12,7 +12,7 @@ import (
 )
 
 type Form struct {
-	namespace.ResourceForm
+	namespace.Resource
 	form.File `schema:"-"`
 
 	Images Store  `schema:"-"`
@@ -36,7 +36,7 @@ func (f Form) Fields() map[string]string {
 func (f *Form) Validate() error {
 	errs := form.NewErrors()
 
-	if err := f.ResourceForm.Validate(); err != nil {
+	if err := f.Resource.BindNamespace(&f.Images); err != nil {
 		return errors.Err(err)
 	}
 
@@ -59,11 +59,15 @@ func (f *Form) Validate() error {
 	}
 
 	if err := f.File.Validate(); err != nil {
-		for k, v := range err.(form.Errors) {
-			for _, err := range v {
-				errs.Put(k, errors.New(err))
+		if ferrs, ok := err.(form.Errors); ok {
+			for k, v := range ferrs {
+				for _, err := range v {
+					errs.Put(k, errors.New(err))
+				}
 			}
+			return errs.Err()
 		}
+		return errors.Err(err)
 	}
 
 	if f.File.File != nil {

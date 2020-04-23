@@ -27,7 +27,7 @@ func (h Variable) Model(r *http.Request) *variable.Variable {
 }
 
 func (h Variable) IndexWithRelations(s variable.Store, r *http.Request) ([]*variable.Variable, model.Paginator, error) {
-	vv, paginator, err := s.Index(r)
+	vv, paginator, err := s.Index(r.URL.Query())
 
 	if err != nil {
 		return vv, paginator, errors.Err(err)
@@ -54,10 +54,9 @@ func (h Variable) StoreModel(r *http.Request, sess *sessions.Session) (*variable
 	variables := variable.NewStore(h.DB, u)
 
 	f := &variable.Form{
-		ResourceForm: namespace.ResourceForm{
-			User:          u,
-			Namespaces:    namespace.NewStore(h.DB, u),
-			Collaborators: namespace.NewCollaboratorStore(h.DB),
+		Resource:  namespace.Resource{
+			User:       u,
+			Namespaces: namespace.NewStore(h.DB, u),
 		},
 		Variables: variables,
 	}

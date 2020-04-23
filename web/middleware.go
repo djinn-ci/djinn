@@ -137,9 +137,9 @@ func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bo
 
 	if !u.IsZero() {
 		for _, res := range oauth2.Resources {
-			u.Permissions[res.String()+":read"] = struct{}{}
-			u.Permissions[res.String()+":write"] = struct{}{}
-			u.Permissions[res.String()+":delete"] = struct{}{}
+			u.SetPermission(res.String()+":read")
+			u.SetPermission(res.String()+":write")
+			u.SetPermission(res.String()+":delete")
 		}
 	}
 	return u, !u.IsZero()
@@ -191,6 +191,7 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				r, ok, err = g(u, r)
 
 				if err != nil {
+					log.Error.Println(errors.Err(err))
 					errh(w, "Something went wrong", http.StatusInternalServerError)
 					return
 				}

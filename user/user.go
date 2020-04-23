@@ -98,9 +98,12 @@ func (u *User) IsZero() bool {
 		!u.DeletedAt.Valid
 }
 
-func (u User) Endpoint(...string) string { return "" }
+func (u *User) Endpoint(...string) string { return "" }
 
-func (u User) Values() map[string]interface{} {
+func (u *User) Values() map[string]interface{} {
+	if u == nil {
+		return map[string]interface{}{}
+	}
 	return map[string]interface{}{
 		"email":      u.Email,
 		"username":   u.Username,
@@ -108,6 +111,13 @@ func (u User) Values() map[string]interface{} {
 		"updated_at": u.UpdatedAt,
 		"deleted_at": u.DeletedAt,
 	}
+}
+
+func (u *User) SetPermission(perm string) {
+	if u.Permissions == nil {
+		u.Permissions = make(map[string]struct{})
+	}
+	u.Permissions[perm] = struct{}{}
 }
 
 func (s *Store) Bind(_ ...model.Model) {}

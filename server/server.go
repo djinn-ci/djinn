@@ -38,8 +38,8 @@ type Server struct {
 
 	// Cert and Key define the paths to the certificate and key to use for
 	// serving over TLS.
-	Cert    string
-	Key     string
+	Cert string
+	Key  string
 }
 
 type API struct {

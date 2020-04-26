@@ -12,15 +12,11 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/driver/docker"
-	"github.com/andrewpillar/thrall/driver/ssh"
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/image"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/runner"
-	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
 
@@ -30,40 +26,29 @@ import (
 
 	"github.com/lib/pq"
 
-	"github.com/pelletier/go-toml"
-
 	"github.com/RichardKnop/machinery/v1"
 )
 
 type worker struct {
-	db        *sqlx.DB
-	redis     *redis.Client
-	driver    *toml.Tree
-	timeout   time.Duration
-	server    *machinery.Server
-	worker    *machinery.Worker
-	placer    runner.Placer
-	collector runner.Collector
-	users     user.Store
-	builds    build.Store
-	jobs      build.JobStore
+	db         *sqlx.DB
+	redis      *redis.Client
+	driverconf map[string]map[string]interface{}
+	drivers    *driver.Store
+	timeout    time.Duration
+	server     *machinery.Server
+	worker     *machinery.Worker
+	placer     runner.Placer
+	collector  runner.Collector
+	builds     build.Store
 }
 
 func (w *worker) init(name string, concurrency int) {
 	w.server.RegisterTask("run_build", w.run)
 	w.worker = w.server.NewWorker("thrall-worker-"+name, concurrency)
-	w.users = user.NewStore(w.db)
 	w.builds = build.NewStore(w.db)
-	w.jobs = build.NewJobStore(w.db)
 }
 
-func (w *worker) qemuRealPath(b *build.Build) func(string, string) (string, error) {
-	if !w.driver.Has("qemu") {
-		return func(_, _ string) (string, error) { return "", nil }
-	}
-
-	disks := w.driver.Get("qemu.disks").(string)
-
+func (w *worker) qemuRealPath(b *build.Build, disks string) func(string, string) (string, error) {
 	return func(arch, name string) (string, error) {
 		i, err := image.NewStore(w.db).Get(
 			query.Where("user_id", "=", b.UserID),
@@ -82,95 +67,15 @@ func (w *worker) qemuRealPath(b *build.Build) func(string, string) (string, erro
 	}
 }
 
-func (w *worker) getBuildObjects(b *build.Build) (runner.Passthrough, error) {
-	objs := runner.Passthrough{}
-
-	kk, err := build.NewKeyStore(w.db, b).All()
-
-	if err != nil {
-		return objs, errors.Err(err)
+func (w *worker) run(id int64) error {
+	b := workerBuild{
+		db:     w.db,
+		builds: w.builds,
 	}
 
-	for _, k := range kk {
-		objs.Set("key:"+k.Name, k.Location)
+	if err := b.load(id); err != nil {
+		return errors.Err(err)
 	}
-
-	oo, err := build.NewObjectStore(w.db, b).All()
-
-	if err != nil {
-		return objs, errors.Err(err)
-	}
-
-	for _, o := range oo {
-		objs.Set(o.Source, o.Name)
-	}
-	return objs, nil
-}
-
-func (w *worker) getBuildVars(b *build.Build) ([]string, error) {
-	env := make([]string, 0)
-
-	vv, err := build.NewVariableStore(w.db, b).All()
-
-	if err != nil {
-		return env, errors.Err(err)
-	}
-
-	for _, v := range vv {
-		env = append(env, v.Key+"="+v.Value)
-	}
-	return env, nil
-}
-
-func (w *worker) getBuildStages(b *build.Build) (map[int64]*runner.Stage, error) {
-	m := make(map[int64]*runner.Stage)
-	ss, err := build.NewStageStore(w.db, b).All()
-
-	if err != nil {
-		return m, errors.Err(err)
-	}
-
-	for _, s := range ss {
-		m[s.ID] = &runner.Stage{
-			Name:    s.Name,
-			CanFail: s.CanFail,
-		}
-	}
-	return m, nil
-}
-
-func (w *worker) getBuildJobs(b *build.Build, stages map[int64]*runner.Stage) (map[int64]*runner.Job, error) {
-	m := make(map[int64]*runner.Job)
-	jj, err := build.NewJobStore(w.db, b).All()
-
-	if err != nil {
-		return m, errors.Err(err)
-	}
-
-	aa, err := build.NewArtifactStore(w.db, b).All()
-
-	if err != nil {
-		return m, errors.Err(err)
-	}
-
-	for _, j := range jj {
-		m[j.ID] = &runner.Job{
-			Name:     m[j.StageID].Name,
-			Commands: strings.Split(j.Commands, "\n"),
-		}
-		stages[j.StageID].Add(m[j.ID])
-	}
-
-	for _, a := range aa {
-		m[a.JobID].Artifacts.Set(a.Source, a.Hash)
-	}
-	return m, nil
-}
-
-func (w *worker) run(s string) error {
-	b := w.builds.New()
-
-	json.NewDecoder(strings.NewReader(s)).Decode(b)
 
 	if b.Status == runner.Killed {
 		b.Status = runner.Killed
@@ -183,40 +88,10 @@ func (w *worker) run(s string) error {
 			Valid: true,
 		}
 
-		if err := w.builds.Update(b); err != nil {
+		if err := w.builds.Update(b.Build); err != nil {
 			return errors.Err(err)
 		}
-		return errors.Err(w.updateJobs(b, make(map[int64]*bytes.Buffer)))
-	}
-
-	objs, err := w.getBuildObjects(b)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	vars, err := w.getBuildVars(b)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	stages, err := w.getBuildStages(b)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	jobs, err := w.getBuildJobs(b, stages)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	buildDriver, err := build.NewDriverStore(w.db, b).Get()
-
-	if err != nil {
-		return errors.Err(err)
+		return errors.Err(b.updateJobs())
 	}
 
 	var (
@@ -224,38 +99,29 @@ func (w *worker) run(s string) error {
 		runnerBuffer *bytes.Buffer = &bytes.Buffer{}
 	)
 
-	jobBuffers := make(map[int64]*bytes.Buffer)
-	jobIds := make(map[string]int64)
-
-	r := runner.Runner{
-		Writer:    runnerBuffer,
-		Env:       vars,
-		Objects:   objs,
-		Placer:    &placer{
-			db:      w.db,
-			build:   b,
-			objects: w.placer,
-		},
-		Collector: build.NewArtifactStoreWithCollector(w.db, w.collector, b),
-	}
-
-	for id, job := range jobs {
-		jobBuffers[id] = &bytes.Buffer{}
-		jobIds[job.Name] = id
-
-		job.Writer = io.MultiWriter(runnerBuffer, jobBuffers[id])
-
-		if job.Name == "create driver" {
-			driverBuffer = jobBuffers[id]
+	for _, j := range b.jobs {
+		if j.Name == "create driver" {
+			driverBuffer = b.buffers[j.ID]
+			break
 		}
 	}
 
-	for _, stage := range stages {
-		r.Add(stage)
+	r := runner.Runner{
+		Writer:    runnerBuffer,
+		Env:       b.vars,
+		Objects:   b.objects,
+		Placer:    &placer{
+			db:      w.db,
+			build:   b.Build,
+			objects: w.placer,
+		},
+		Collector: build.NewArtifactStoreWithCollector(w.db, w.collector, b.Build),
 	}
 
+	r.Add(b.stages...)
+
 	cfg := make(map[string]string)
-	json.Unmarshal([]byte(buildDriver.Config), &cfg)
+	json.Unmarshal([]byte(b.Driver.Config), &cfg)
 
 	b.Status = runner.Running
 	b.StartedAt = pq.NullTime{
@@ -263,67 +129,12 @@ func (w *worker) run(s string) error {
 		Valid: true,
 	}
 
-	if !w.driver.Has(cfg["type"]) {
-		fmt.Fprintf(runnerBuffer, "driver %s has not been configured for the worker\n", cfg["type"])
-		fmt.Fprintf(runnerBuffer, "killing build...\n")
-
-		b.Status = runner.Killed
-		b.Output = sql.NullString{
-			String: runnerBuffer.String(),
-			Valid:  true,
-		}
-		b.FinishedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
-
-		if err := w.builds.Update(b); err != nil {
-			return errors.Err(err)
-		}
-		return errors.Err(w.updateJobs(b, jobBuffers))
-	}
-
-	if err := w.builds.Update(b); err != nil {
+	if err := w.builds.Update(b.Build); err != nil {
 		return errors.Err(err)
 	}
 
-	r.HandleJobStart(func(j runner.Job) {
-		id := jobIds[j.Name]
-
-		err := w.jobs.Update(&build.Job{
-			ID:        id,
-			Status:    j.Status,
-			StartedAt: pq.NullTime{
-				Time:  time.Now(),
-				Valid: true,
-			},
-		})
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-		}
-	})
-
-	r.HandleJobComplete(func(j runner.Job) {
-		id := jobIds[j.Name]
-
-		err := w.jobs.Update(&build.Job{
-			ID:     id,
-			Status: j.Status,
-			Output: sql.NullString{
-				String: jobBuffers[id].String(),
-				Valid:  true,
-			},
-			FinishedAt: pq.NullTime{
-				Time:  time.Now(),
-				Valid: true,
-			},
-		})
-
-		if err != nil {
-			log.Error.Println(errors.Err(err))
-		}
-	})
+	r.HandleJobStart(b.handleJobStart)
+	r.HandleJobComplete(b.handleJobComplete)
 
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
@@ -342,15 +153,43 @@ func (w *worker) run(s string) error {
 		}
 	}()
 
-	d := config.GetDriverConfig(cfg["type"])(
-		io.MultiWriter(runnerBuffer, driverBuffer),
-		w.driver.Get(cfg["type"]).(*toml.Tree),
-		docker.Image(cfg["image"]),
-		docker.Workspace(cfg["workspace"]),
-		ssh.Address(cfg["address"]),
-		qemu.Image(cfg["image"]),
-		qemu.Realpath(w.qemuRealPath(b)),
-	)
+	driverInit, err := w.drivers.Get(cfg["type"])
+
+	if err != nil {
+		fmt.Fprintf(runnerBuffer, "driver %s has not been configured for the worker\n", cfg["type"])
+		fmt.Fprintf(runnerBuffer, "killing build...\n")
+
+		b.Status = runner.Killed
+		b.Output = sql.NullString{
+			String: runnerBuffer.String(),
+			Valid:  true,
+		}
+		b.FinishedAt = pq.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
+
+		if err := w.builds.Update(b.Build); err != nil {
+			return errors.Err(err)
+		}
+		return errors.Err(b.updateJobs())
+	}
+
+	merged := make(map[string]interface{})
+
+	for k, v := range cfg {
+		merged[k] = v
+	}
+
+	for k, v := range w.driverconf[cfg["type"]] {
+		merged[k] = v
+	}
+
+	d := driverInit(io.MultiWriter(runnerBuffer, driverBuffer), merged)
+
+	if q, ok := d.(*qemu.QEMU); ok {
+		q.Realpath = w.qemuRealPath(b.Build, merged["disks"].(string))
+	}
 
 	r.Run(ctx, d)
 
@@ -364,37 +203,8 @@ func (w *worker) run(s string) error {
 		Valid: true,
 	}
 
-	if err := w.builds.Update(b); err != nil {
+	if err := w.builds.Update(b.Build); err != nil {
 		return errors.Err(err)
 	}
-	return errors.Err(w.updateJobs(b, jobBuffers))
-}
-
-func (w *worker) updateJobs(b *build.Build, buffers map[int64]*bytes.Buffer) error {
-	jobs := build.NewJobStore(w.db, b)
-
-	jj, err := jobs.All(query.WhereRaw("finished_at", "IS", "NULL"))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, j := range jj {
-		j.Status = b.Status
-
-		if buf, ok := buffers[j.ID]; ok {
-			j.Output = sql.NullString{
-				String: buf.String(),
-				Valid:  true,
-			}
-		}
-
-		j.FinishedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
-	}
-
-	err = jobs.Update(jj...)
-	return errors.Err(err)
+	return errors.Err(b.updateJobs())
 }

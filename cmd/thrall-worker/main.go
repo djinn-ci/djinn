@@ -7,6 +7,10 @@ import (
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/driver"
+	"github.com/andrewpillar/thrall/driver/docker"
+	"github.com/andrewpillar/thrall/driver/ssh"
+	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/model"
@@ -25,6 +29,12 @@ import (
 var (
 	Version string
 	Build   string
+
+	driverInits = map[string]driver.Init{
+		"docker": docker.Init,
+		"ssh":    ssh.Init,
+		"qemu":   qemu.Init,
+	}
 )
 
 func mainCommand(c cli.Command) {
@@ -58,6 +68,12 @@ func mainCommand(c cli.Command) {
 
 	if err := config.ValidateDrivers(tree); err != nil {
 		log.Error.Fatalf("driver config validation failed: %s\n", err)
+	}
+
+	drivers := driver.NewStore()
+
+	for _, name := range tree.Keys() {
+		drivers.Register(name, driverInits[name])
 	}
 
 	if cfg.Queue == "" {
@@ -141,14 +157,23 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to parse worker timeout: %s\n", err)
 	}
 
+	driverconf := make(map[string]map[string]interface{})
+
+	for _, key := range tree.Keys() {
+		tree = tree.Get(key).(*toml.Tree)
+
+		driverconf[key] = tree.ToMap()
+	}
+
 	w := worker{
-		db:        db,
-		redis:     redis,
-		driver:    tree,
-		timeout:   timeout,
-		server:    queue,
-		placer:    objects,
-		collector: artifacts,
+		db:         db,
+		redis:      redis,
+		driverconf: driverconf,
+		drivers:    drivers,
+		timeout:    timeout,
+		server:     queue,
+		placer:     objects,
+		collector:  artifacts,
 	}
 
 	w.init(cfg.Queue, cfg.Parallelism)

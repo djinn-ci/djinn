@@ -5,16 +5,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"path/filepath"
-	"strings"
 
 	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/driver/docker"
 	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/driver/qemu"
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -26,22 +24,13 @@ var (
 
 	Build   string
 	Version string
-)
 
-func qemuRealpath(dir string) func(string, string) (string, error) {
-	return func(arch, name string) (string, error) {
-		path := filepath.Join(dir, arch, filepath.Join(strings.Split(name, "/")...))
-		info, err := os.Stat(path)
-
-		if err != nil {
-			return "", err
-		}
-		if info.IsDir() {
-			return "", errors.New("image is not a file")
-		}
-		return path, nil
+	driverInits = map[string]driver.Init{
+		"docker": docker.Init,
+		"ssh":    ssh.Init,
+		"qemu":   qemu.Init,
 	}
-}
+)
 
 func mainCommand(c cli.Command) {
 	mf, err := os.Open(c.Flags.GetString("manifest"))
@@ -84,6 +73,12 @@ func mainCommand(c cli.Command) {
 	if err := config.ValidateDrivers(tree); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
+	}
+
+	drivers := driver.NewStore()
+
+	for _, name := range tree.Keys() {
+		drivers.Register(name, driverInits[name])
 	}
 
 	placer, err := filestore.NewFileSystem(config.Storage{
@@ -160,36 +155,32 @@ func mainCommand(c cli.Command) {
 
 	stages := r.Stages()
 
-	for _, s := range stages {
-		jobId := 1
+	prev := ""
+	jobId := 1
 
-		for _, j := range manifest.Jobs {
-			if s.Name != j.Stage {
-				continue
-			}
+	for _, j := range manifest.Jobs {
+		stage, ok := stages[j.Stage]
 
-			if j.Name == "" {
-				j.Name = fmt.Sprintf("%s.%d", j.Stage, jobId)
-				jobId++
-			}
-
-			s.Add(&runner.Job{
-				Writer:    os.Stdout,
-				Name:      j.Name,
-				Commands:  j.Commands,
-				Artifacts: j.Artifacts,
-			})
+		if !ok {
+			continue
 		}
-	}
 
-	d := config.GetDriverConfig(manifest.Driver["type"])(
-		os.Stdout,
-		tree.Get(manifest.Driver["type"]).(*toml.Tree),
-		docker.Image(manifest.Driver["image"]),
-		docker.Workspace(manifest.Driver["workspace"]),
-		ssh.Address(manifest.Driver["address"]),
-		qemu.Image(manifest.Driver["image"]),
-	)
+		if j.Stage != prev {
+			jobId = 1
+		}
+
+		if j.Name == "" {
+			j.Name = fmt.Sprintf("%s.%d", j.Stage, jobId)
+			jobId++
+		}
+
+		stage.Add(&runner.Job{
+			Writer:    os.Stdout,
+			Name:      j.Name,
+			Commands:  j.Commands,
+			Artifacts: j.Artifacts,
+		})
+	}
 
 	only := c.Flags.GetAll("stage")
 
@@ -224,6 +215,29 @@ func mainCommand(c cli.Command) {
 		<-sigs
 		cancel()
 	}()
+
+	driverInit, err := drivers.Get(manifest.Driver["type"])
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
+	merged := make(map[string]interface{})
+
+	for _, key := range tree.Keys() {
+		tree := tree.Get(key).(*toml.Tree)
+
+		for k, v := range tree.ToMap() {
+			merged[k] = v
+		}
+	}
+
+	for k, v := range manifest.Driver {
+		merged[k] = v
+	}
+
+	d := driverInit(os.Stdout, merged)
 
 	if err := r.Run(ctx, d); err != nil {
 		os.Exit(1)

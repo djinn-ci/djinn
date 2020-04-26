@@ -18,8 +18,6 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
-
-	"github.com/pelletier/go-toml"
 )
 
 var _ runner.Driver = (*Docker)(nil)
@@ -31,41 +29,19 @@ type Docker struct {
 	volume     types.Volume
 	env        []string
 	containers []string
-	image      string
-	workspace  string
+
+	Image      string
+	Workspace  string
 }
 
-func Image(image string) driver.Option {
-	return func(d runner.Driver) runner.Driver {
-		if dock, ok := d.(*Docker); ok {
-			dock.image = image
-			return dock
-		}
-		return d
-	}
-}
+func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
+	image, _ := cfg["image"].(string)
+	workspace, _ := cfg["workspace"].(string)
 
-func Workspace(workspace string) driver.Option {
-	return func(d runner.Driver) runner.Driver {
-		if dock, ok := d.(*Docker); ok {
-			dock.workspace = workspace
-			return dock
-		}
-		return d
+	return &Docker{
+		Image:     image,
+		Workspace: workspace,
 	}
-}
-
-func Validate(_ *toml.Tree) error { return nil }
-
-func Configure(w io.Writer, tree *toml.Tree, opts ...driver.Option) runner.Driver {
-	var docker runner.Driver = &Docker{
-		Writer:    w,
-	}
-
-	for _, opt := range opts {
-		docker = opt(docker)
-	}
-	return docker
 }
 
 func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
@@ -94,7 +70,7 @@ func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough
 			return
 		}
 
-		rc, err := d.client.ImagePull(c, d.image, types.ImagePullOptions{})
+		rc, err := d.client.ImagePull(c, d.Image, types.ImagePullOptions{})
 
 		if err != nil {
 			errs <- err
@@ -116,13 +92,13 @@ func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough
 		return err
 	}
 
-	image, _, err := d.client.ImageInspectWithRaw(c, d.image)
+	image, _, err := d.client.ImageInspectWithRaw(c, d.Image)
 
 	if err != nil {
 		return err
 	}
 
-	fmt.Fprintf(d.Writer, "Using Docker image %s - %s...\n", d.image, image.ID)
+	fmt.Fprintf(d.Writer, "Using Docker image %s - %s...\n", d.Image, image.ID)
 
 	d.env = env
 	return d.placeObjects(objs, p)
@@ -131,11 +107,11 @@ func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough
 func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	hostCfg := &container.HostConfig{
 		Mounts: []mount.Mount{
-			mount.Mount{Type: mount.TypeVolume, Source: d.volume.Name, Target: d.workspace},
+			mount.Mount{Type: mount.TypeVolume, Source: d.volume.Name, Target: d.Workspace},
 		},
 	}
 	cfg := &container.Config{
-		Image: d.image,
+		Image: d.Image,
 		Cmd:   []string{"true"},
 	}
 
@@ -173,7 +149,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 		io.Copy(tw, buf)
 	}()
 
-	err = d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
+	err = d.client.CopyToContainer(ctx, ctr.ID, d.Workspace, pr, types.CopyToContainerOptions{})
 
 	if err != nil {
 		j.Failed(err)
@@ -319,7 +295,7 @@ func (d *Docker) placeObjects(objs runner.Passthrough, p runner.Placer) error {
 	}
 
 	cfg := &container.Config{
-		Image: d.image,
+		Image: d.Image,
 		Cmd:   []string{"true"},
 	}
 
@@ -328,7 +304,7 @@ func (d *Docker) placeObjects(objs runner.Passthrough, p runner.Placer) error {
 			mount.Mount{
 				Type:   mount.TypeVolume,
 				Source: d.volume.Name,
-				Target: d.workspace,
+				Target: d.Workspace,
 			},
 		},
 	}
@@ -358,7 +334,7 @@ func (d *Docker) placeObjects(objs runner.Passthrough, p runner.Placer) error {
 			continue
 		}
 
-		header.Name = strings.TrimPrefix(dst, d.workspace)
+		header.Name = strings.TrimPrefix(dst, d.Workspace)
 
 		pr, pw := io.Pipe()
 		defer pr.Close()
@@ -376,7 +352,7 @@ func (d *Docker) placeObjects(objs runner.Passthrough, p runner.Placer) error {
 			}
 		}(src)
 
-		err = d.client.CopyToContainer(ctx, ctr.ID, d.workspace, pr, types.CopyToContainerOptions{})
+		err = d.client.CopyToContainer(ctx, ctr.ID, d.Workspace, pr, types.CopyToContainerOptions{})
 
 		if err != nil {
 			fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))

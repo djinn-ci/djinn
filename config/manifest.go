@@ -52,7 +52,6 @@ func UnmarshalManifest(b []byte) (Manifest, error) {
 	manifest := Manifest{}
 
 	err := yaml.Unmarshal(b, &manifest)
-
 	return manifest, errors.Err(err)
 }
 
@@ -170,7 +169,6 @@ func (s Source) MarshalYAML() (interface{}, error) {
 	if s.Dir != "" {
 		dir = s.Dir
 	}
-
 	return s.URL + " " + ref + " => " + dir, nil
 }
 
@@ -207,6 +205,5 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	urlParts := strings.Split(s.URL, "/")
 
 	s.Dir = urlParts[len(urlParts) - 1]
-
 	return nil
 }

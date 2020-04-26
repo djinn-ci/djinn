@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -13,73 +14,47 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
-	"github.com/pelletier/go-toml"
-
 	"github.com/pkg/sftp"
 
 	"golang.org/x/crypto/ssh"
 )
-
-type Option func(*SSH) (*SSH, error)
 
 type SSH struct {
 	io.Writer
 
 	client  *ssh.Client
 	env     []string
-	addr    string
-	user    string
-	key     string
-	timeout time.Duration
+
+	Addr    string
+	User    string
+	Key     string
+	Timeout time.Duration
 }
 
 var _ runner.Driver = (*SSH)(nil)
 
-func Address(addr string) driver.Option {
-	return func(d runner.Driver) runner.Driver {
-		if s, ok := d.(*SSH); ok {
-			s.addr = addr
-			return s
-		}
-		return d
-	}
-}
+func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
+	key, ok := cfg["key"].(string)
 
-func Validate(tree *toml.Tree) error {
-	for _, key := range []string{"timeout", "key"} {
-		if !tree.Has(key) {
-			return errors.New("ssh config missing property "+key)
-		}
+	if !ok {
+		key = filepath.Join(os.Getenv("HOME"), ".ssh", "id_rsa")
 	}
 
-	if _, ok := tree.Get("timeout").(int64); !ok {
-		return errors.New("ssh timeout is not an integer")
-	}
-
-	if _, ok := tree.Get("key").(string); !ok {
-		return errors.New("ssh key is not a string")
-	}
-	return nil
-}
-
-func Configure(w io.Writer, tree *toml.Tree, opts ...driver.Option) runner.Driver {
-	timeout, ok := tree.Get("timeout").(int)
+	timeout, ok := cfg["timeout"].(int64)
 
 	if !ok {
 		timeout = 60
 	}
 
-	var ssh runner.Driver = &SSH{
-		Writer: w,
-		user:   "root",
-		key:     tree.Get("key").(string),
-		timeout: time.Duration(time.Second*time.Duration(timeout)),
-	}
+	addr, _ := cfg["address"].(string)
 
-	for _, opt := range opts {
-		ssh = opt(ssh)
+	return &SSH{
+		Writer:  w,
+		Addr:    addr,
+		User:    "root",
+		Key:     key,
+		Timeout: time.Duration(time.Second*time.Duration(timeout)),
 	}
-	return ssh
 }
 
 func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
@@ -90,11 +65,11 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 	fmt.Fprintf(s.Writer, "Running with SSH driver...\n")
 
 	ticker := time.NewTicker(time.Second)
-	after := time.After(s.timeout)
+	after := time.After(s.Timeout)
 
 	client := make(chan *ssh.Client)
 
-	b, err := ioutil.ReadFile(s.key)
+	b, err := ioutil.ReadFile(s.Key)
 
 	if err != nil {
 		return err
@@ -111,7 +86,7 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 			select {
 			case <-ticker.C:
 				cfg := &ssh.ClientConfig{
-					User: "root",
+					User: s.User,
 					Auth: []ssh.AuthMethod{
 						ssh.PublicKeys(signer),
 					},
@@ -119,9 +94,9 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 					Timeout:         time.Second,
 				}
 
-				fmt.Fprintf(s.Writer, "Connecting to %s...\n", s.addr)
+				fmt.Fprintf(s.Writer, "Connecting to %s...\n", s.Addr)
 
-				cli, err := ssh.Dial("tcp", s.addr, cfg)
+				cli, err := ssh.Dial("tcp", s.Addr, cfg)
 
 				if err != nil {
 					break
@@ -135,12 +110,12 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 	case <-c.Done():
 		return c.Err()
 	case <-after:
-		return fmt.Errorf("Timed out trying to connect to %s...\n", s.addr)
+		return fmt.Errorf("Timed out trying to connect to %s...\n", s.Addr)
 	case cli := <-client:
 		s.client = cli
 	}
 
-	fmt.Fprintf(s.Writer, "Established SSH connection to %s...\n\n", s.addr)
+	fmt.Fprintf(s.Writer, "Established SSH connection to %s...\n\n", s.Addr)
 
 	s.env = env
 	return s.PlaceObjects(objs, p)

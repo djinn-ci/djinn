@@ -2,6 +2,7 @@ package build
 
 import (
 	"database/sql"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
@@ -20,6 +21,7 @@ type Stage struct {
 	Name       string        `db:"name"`
 	CanFail    bool          `db:"can_fail"`
 	Status     runner.Status `db:"status"`
+	CreatedAt  time.Time     `db:"created_at"`
 	StartedAt  pq.NullTime   `db:"started_at"`
 	FinishedAt pq.NullTime   `db:"finished_at"`
 
@@ -110,6 +112,13 @@ func (s *Stage) Values() map[string]interface{} {
 		"status":      s.Status,
 		"started_at":  s.StartedAt,
 		"finished_at": s.FinishedAt,
+	}
+}
+
+func (s Stage) Stage() *runner.Stage {
+	return &runner.Stage{
+		Name:    s.Name,
+		CanFail: s.CanFail,
 	}
 }
 

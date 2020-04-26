@@ -3,6 +3,9 @@ package build
 import (
 	"database/sql"
 	"fmt"
+	"io"
+	"strings"
+	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
@@ -23,6 +26,7 @@ type Job struct {
 	Commands   string         `db:"commands"`
 	Status     runner.Status  `db:"status"`
 	Output     sql.NullString `db:"output"`
+	CreatedAt  time.Time      `db:"created_at"`
 	StartedAt  pq.NullTime    `db:"started_at"`
 	FinishedAt pq.NullTime    `db:"finished_at"`
 
@@ -127,6 +131,21 @@ func (j Job) Values() map[string]interface{} {
 		"output":      j.Output,
 		"started_at":  j.StartedAt,
 		"finished_at": j.FinishedAt,
+	}
+}
+
+func (j Job) Job(w io.Writer) *runner.Job {
+	artifacts := runner.Passthrough{}
+
+	for _, a := range j.Artifacts {
+		artifacts.Set(a.Source, a.Hash)
+	}
+
+	return &runner.Job{
+		Writer:    w,
+		Name:      j.Name,
+		Commands:  strings.Split(j.Commands, "\n"),
+		Artifacts: artifacts,
 	}
 }
 

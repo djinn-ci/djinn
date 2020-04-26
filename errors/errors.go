@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path"
@@ -20,8 +21,15 @@ type Error struct {
 
 type errorStr string
 
+type errorSlice []error
+
 func New(s string) error {
 	e := errorStr(s)
+	return &e
+}
+
+func MultiError(err ...error) error {
+	e := errorSlice(err)
 	return &e
 }
 
@@ -48,7 +56,7 @@ func Err(err error) error {
 		funcName = pcFunc.Name()
 	}
 
-	parts := strings.Split(fname, "thrall")
+	parts := strings.SplitN(fname, "thrall", 2)
 
 	return &Error{
 		Err:  err,
@@ -63,3 +71,12 @@ func (e *Error) Error() string {
 }
 
 func (e *errorStr) Error() string { return string(*e) }
+
+func (e *errorSlice) Error() string {
+	buf := &bytes.Buffer{}
+
+	for _, err := range (*e) {
+		buf.WriteString(err.Error()+"\n")
+	}
+	return buf.String()
+}

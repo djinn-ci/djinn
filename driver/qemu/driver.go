@@ -100,7 +100,19 @@ func (q *QEMU) runCmd() error {
 		return err
 	}
 
+	var pidfile *os.File
+
 	for q.port < tcpMaxPort {
+		pidfile, err = ioutil.TempFile("", "thrall-qemu-")
+
+		if err != nil {
+			return err
+		}
+
+		if err != nil {
+			return err
+		}
+
 		hostfwd := net.JoinHostPort("127.0.0.1", strconv.FormatInt(q.port, 10))
 
 		bin := fmt.Sprintf("qemu-system-%s", q.Arch)
@@ -110,7 +122,7 @@ func (q *QEMU) runCmd() error {
 			"-display",
 			"none",
 			"-pidfile",
-			q.pidfile.Name(),
+			pidfile.Name(),
 			"-smp",
 			strconv.FormatInt(q.CPUs, 10),
 			"-m",
@@ -132,6 +144,9 @@ func (q *QEMU) runCmd() error {
 		cmd.Stderr = buf
 
 		if err := cmd.Run(); err != nil {
+			pidfile.Close()
+			os.Remove(pidfile.Name())
+
 			if strings.Contains(buf.String(), "Could not set up host forwarding rule") {
 				q.port++
 				continue
@@ -142,6 +157,7 @@ func (q *QEMU) runCmd() error {
 		break
 	}
 
+	q.pidfile = pidfile
 	q.ssh = &driverssh.SSH{
 		Writer:  ioutil.Discard,
 		Addr:    net.JoinHostPort("127.0.0.1", strconv.FormatInt(q.port, 10)),
@@ -161,14 +177,6 @@ func (q *QEMU) Create(c context.Context, env []string, objs runner.Passthrough, 
 
 	fmt.Fprintf(q.Writer, "Running with QEMU driver...\n")
 	fmt.Fprintf(q.Writer, "Creating machine with arch %s...\n", q.Arch)
-
-	q.pidfile, err = ioutil.TempFile("", "thrall-qemu-")
-
-	if err != nil {
-		return err
-	}
-
-	defer q.pidfile.Close()
 
 	fmt.Fprintf(q.Writer, "Booting machine with image %s...\n", q.Image)
 
@@ -214,9 +222,12 @@ func (q *QEMU) Destroy() {
 		q.ssh.Destroy()
 	}
 	if q.process != nil {
-		q.process.Kill()
+		if err := q.process.Kill(); err != nil {
+			println("Destroy ERR", err.Error())
+		}
 	}
 	if q.pidfile != nil {
+		q.pidfile.Close()
 		os.Remove(q.pidfile.Name())
 	}
 }

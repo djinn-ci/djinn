@@ -3,9 +3,12 @@ package server
 import (
 	"encoding/gob"
 	"net/http"
+	"runtime/debug"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/web"
 
@@ -59,6 +62,24 @@ type UI struct {
 	CSRF func(http.Handler) http.Handler
 }
 
+func recoverHandler(h http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				errh := web.HTMLError
+
+				if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+					errh = web.JSONError
+				}
+
+				log.Error.Println(r.Method, r.URL, err, string(debug.Stack()))
+				errh(w, "Something went wrong", http.StatusInternalServerError)
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
+}
+
 // Init will initialize the UI server, and register the necessary types with
 // gob for encoding session data, such as form errors, form fields, and alerts.
 // This will also wrap the underlying Router with a handler for spoofing HTTP
@@ -71,8 +92,7 @@ func (s *UI) Init() {
 	if s.Router == nil {
 		panic("initializing ui server with nil router")
 	}
-
-	s.Server.Server.Handler = web.NewSpoof(s.Router)
+	s.Server.Server.Handler = recoverHandler(web.NewSpoof(s.Router))
 }
 
 // Register will register the UI routers of the given name with the given
@@ -95,6 +115,7 @@ func (s *API) Init() {
 	if s.Prefix != "" {
 		s.apiRouter = s.Router.PathPrefix(s.Prefix).Subrouter()
 	}
+	s.Server.Server.Handler = recoverHandler(s.apiRouter)
 }
 
 // Register will register the API routers of the given name with the given

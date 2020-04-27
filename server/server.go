@@ -80,19 +80,42 @@ func recoverHandler(h http.Handler) http.HandlerFunc {
 	})
 }
 
+func spoofHandler(h http.Handler) http.HandlerFunc {
+	methods := map[string]struct{}{
+		"PATCH":  {},
+		"PUT":    {},
+		"DELETE": {},
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			typ := r.Header.Get("Content-Type")
+
+			if strings.HasPrefix(typ, "application/x-www-form-urlencoded") ||
+				strings.HasPrefix(typ, "multipart/form-data") {
+				method := r.PostFormValue("_method")
+
+				if _, ok := methods[method]; ok {
+					r.Method = method
+				}
+			}
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 // Init will initialize the UI server, and register the necessary types with
 // gob for encoding session data, such as form errors, form fields, and alerts.
 // This will also wrap the underlying Router with a handler for spoofing HTTP
 // methods, such as PATCH, and DELETE.
 func (s *UI) Init() {
-	gob.Register(form.NewErrors())
-	gob.Register(template.Alert{})
-	gob.Register(make(map[string]string))
-
 	if s.Router == nil {
 		panic("initializing ui server with nil router")
 	}
-	s.Server.Server.Handler = recoverHandler(web.NewSpoof(s.Router))
+
+	gob.Register(form.NewErrors())
+	gob.Register(template.Alert{})
+	gob.Register(make(map[string]string))
 }
 
 // Register will register the UI routers of the given name with the given
@@ -115,7 +138,6 @@ func (s *API) Init() {
 	if s.Prefix != "" {
 		s.apiRouter = s.Router.PathPrefix(s.Prefix).Subrouter()
 	}
-	s.Server.Server.Handler = recoverHandler(s.apiRouter)
 }
 
 // Register will register the API routers of the given name with the given
@@ -133,7 +155,7 @@ func (s *Server) Init(h web.Handler) {
 		panic("initializing server with nil router")
 	}
 
-	s.Server.Handler = s.Router
+	s.Server.Handler = recoverHandler(spoofHandler(s.Router))
 
 	for _, r := range s.Routers {
 		r.Init(h)

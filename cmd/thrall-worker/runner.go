@@ -43,6 +43,15 @@ func newBuildRunner(db *sqlx.DB, b *build.Build, c runner.Collector, p runner.Pl
 	}
 }
 
+func (r *buildRunner) driverJob() *build.Job {
+	for _, j := range r.jobs {
+		if j.Name == "create driver" {
+			return j
+		}
+	}
+	return nil
+}
+
 func (r *buildRunner) driverBuffer() *bytes.Buffer {
 	for _, j := range r.jobs {
 		if j.Name == "create driver" {
@@ -128,8 +137,8 @@ func (r *buildRunner) load() error {
 		stage.Add(job)
 	}
 
-	for _, stage := range stages {
-		r.runner.Add(stage)
+	for _, s := range ss{
+		r.runner.Add(stages[s.ID])
 	}
 
 	r.runner.Writer = r.buf
@@ -145,9 +154,26 @@ func (r *buildRunner) load() error {
 func (r *buildRunner) run(c context.Context, d runner.Driver) error {
 	builds := build.NewStore(r.db)
 
+	r.runner.HandleDriverCreate(func() {
+		j := r.driverJob()
+		j.Status = runner.Running
+		j.StartedAt = pq.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
+
+		if err := build.NewJobStore(r.db).Update(j); err != nil {
+			log.Error.Println(errors.Err(err))
+		}
+	})
+
 	r.runner.HandleJobStart(func(job runner.Job) {
+		if job.Name == "create driver" {
+			return
+		}
+
 		j := r.jobs[job.Stage+job.Name]
-		j.Status = job.Status
+		j.Status = runner.Running
 		j.StartedAt = pq.NullTime{
 			Time:  time.Now(),
 			Valid: true,

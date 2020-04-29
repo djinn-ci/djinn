@@ -28,7 +28,7 @@ var _ runner.Placer = (*placer)(nil)
 func (p *placer) Place(name string, w io.Writer) (int64, error) {
 	var pl runner.Placer = build.NewObjectStoreWithPlacer(p.db, p.objects, p.build)
 
-	if strings.HasPrefix("key:", name) {
+	if strings.HasPrefix(name, "key:") {
 		name = strings.SplitN(name, ":", 2)[1]
 		pl = build.NewKeyStore(p.db, p.build)
 	}

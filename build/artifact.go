@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -157,7 +156,18 @@ func (s *ArtifactStore) Bind(mm ...model.Model) {
 	}
 }
 
-func (s ArtifactStore) Load(key string, vals []interface{}, fn model.LoaderFunc) error {
+func (s ArtifactStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+	ss, err := s.All(query.Where(key, "IN", vals...))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for i := range vals {
+		for _, s := range ss {
+			load(i, s)
+		}
+	}
 	return nil
 }
 
@@ -178,13 +188,11 @@ func (s ArtifactStore) New() *Artifact {
 	}
 
 	if s.Build != nil {
-		_, id := s.Build.Primary()
-		a.BuildID = id
+		a.BuildID = s.Build.ID
 	}
 
 	if s.Job != nil {
-		_, id := s.Job.Primary()
-		a.JobID = id
+		a.JobID = s.Job.ID
 	}
 	return a
 }
@@ -234,17 +242,21 @@ func (s ArtifactStore) Collect(name string, r io.Reader) (int64, error) {
 		return 0, errors.New("cannot collect artifact: nil collector")
 	}
 
+	a, err := s.Get(query.Where("name", "=", name))
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+
 	md5 := md5.New()
 	sha256 := sha256.New()
 	tee := io.TeeReader(r, io.MultiWriter(md5, sha256))
 
-	n, err := s.collector.Collect(name, tee)
+	n, err := s.collector.Collect(a.Hash, tee)
 
-	if err != nil {
-		return n, errors.Err(err)
+	if errors.Cause(err) == io.EOF {
+		err = nil
 	}
-
-	a, err := s.Get(query.Where("hash", "=", strings.TrimSuffix(name, ".tar")))
 
 	if err != nil {
 		return n, errors.Err(err)

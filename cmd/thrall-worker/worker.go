@@ -15,6 +15,7 @@ import (
 	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/image"
+	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"

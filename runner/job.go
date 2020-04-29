@@ -7,7 +7,6 @@ type Job struct {
 
 	errs    []error
 	canFail bool
-	after   jobStore
 
 	Stage     string
 	Name      string
@@ -16,18 +15,21 @@ type Job struct {
 	Status    Status
 }
 
-type jobStore map[string]*Job
+type jobStore struct {
+	order []string
+	curr  int
+	jobs  map[string]*Job
+}
 
 func (j Job) isZero() bool {
 	return j.Writer == nil &&
-           len(j.errs) == 0 &&
-           !j.canFail &&
-           j.after == nil &&
-           j.Stage == "" &&
-           j.Name == "" &&
-           len(j.Commands) == 0 &&
-           j.Artifacts.Values == nil &&
-           j.Status == Status(0)
+		len(j.errs) == 0 &&
+		!j.canFail &&
+		j.Stage == "" &&
+		j.Name == "" &&
+		len(j.Commands) == 0 &&
+		j.Artifacts.Values == nil &&
+		j.Status == Status(0)
 }
 
 // Mark a job as failed. The only errors that should be passed to this method
@@ -45,26 +47,31 @@ func (j *Job) Failed(err error) {
 	}
 }
 
-func (s jobStore) Get(name string) (*Job, bool) {
-	if j, ok := s[name]; ok {
-		return j, ok
+func (j jobStore) len() int { return len(j.jobs) }
+
+func (s *jobStore) next() (*Job, bool) {
+	if s.curr >= len(s.order) {
+		return nil, false
 	}
 
-	for _, j := range s {
-		after, ok := j.after.Get(name)
-
-		if ok {
-			return after, ok
-		}
-	}
-
-	return nil, false
+	j, ok := s.jobs[s.order[s.curr]]
+	s.curr++
+	return j, ok
 }
 
-func (s *jobStore) Put(j *Job) {
-	if (*s) == nil {
-		(*s) = make(map[string]*Job)
+func (s *jobStore) get(name string) (*Job, bool) {
+	j, ok := s.jobs[name]
+	return j, ok
+}
+
+func (s *jobStore) put(j *Job) {
+	if s.order == nil {
+		s.order = make([]string, 0)
+	}
+	if s.jobs == nil {
+		s.jobs = make(map[string]*Job)
 	}
 
-	(*s)[j.Name] = j
+	s.order = append(s.order, j.Name)
+	s.jobs[j.Name] = j
 }

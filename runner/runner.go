@@ -21,23 +21,23 @@ var (
 	}
 )
 
-type jobHandler func(j Job)
+type jobHandler func(Job)
 
 type Placer interface {
 	// Place will take the object of the given name and write its contents to
 	// the given io.Writer. The number of bytes written from the given
 	// io.Writer are returned, along with any errors that occur.
-	Place(name string, w io.Writer) (int64, error)
+	Place(string, io.Writer) (int64, error)
 
 	// Stat will return the os.FileInfo of the object of the given name.
-	Stat(name string) (os.FileInfo, error)
+	Stat(string) (os.FileInfo, error)
 }
 
 type Collector interface {
 	// Collect will read from the given io.Reader and store what was read as an
 	// artifact under the given name. The number of bytes read from the given
 	// io.Reader are returned, along with any errors that occur.
-	Collect(name string, r io.Reader) (int64, error)
+	Collect(string, io.Reader) (int64, error)
 }
 
 type Driver interface {
@@ -52,11 +52,11 @@ type Driver interface {
 	// the environment variables that will be set on the driver, the strings in
 	// the slice are formatted as key=value. The given Placer will be used to
 	// place the given objects in the driver.
-	Create(c context.Context, env []string, objs Passthrough, p Placer) error
+	Create(context.Context, []string, Passthrough, Placer) error
 
 	// Execute will run the given job on the driver, and use the given
 	// Collector, to collect any artifacts for that job.
-	Execute(j *Job, c Collector)
+	Execute(*Job, Collector)
 
 	// Destroy will tear down the driver.
 	Destroy()
@@ -65,8 +65,9 @@ type Driver interface {
 type Runner struct {
 	io.Writer
 
-	handleJobStart    jobHandler
-	handleJobComplete jobHandler
+	handleDriverCreate func()
+	handleJobStart     jobHandler
+	handleJobComplete  jobHandler
 
 	order   []string
 	stages  map[string]*Stage
@@ -86,6 +87,7 @@ type Stage struct {
 	CanFail bool
 }
 
+func (r *Runner) HandleDriverCreate(f func()) { r.handleDriverCreate = f}
 func (r *Runner) HandleJobComplete(f jobHandler) { r.handleJobComplete = f }
 func (r *Runner) HandleJobStart(f jobHandler) { r.handleJobStart = f }
 
@@ -129,6 +131,10 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 
 	ct, cancel := context.WithTimeout(c, createTimeout)
 	defer cancel()
+
+	if r.handleDriverCreate != nil {
+		r.handleDriverCreate()
+	}
 
 	if err := d.Create(ct, r.Env, r.Objects, r.Placer); err != nil {
 		cause := errors.Cause(err)
@@ -196,11 +202,17 @@ func (r *Runner) realRunStage(name string, d Driver) error {
 		return errStageNotFound
 	}
 
-	if len(stage.jobs) == 0 {
+	if stage.jobs.len() == 0 {
 		return nil
 	}
 
-	for _, j := range stage.jobs {
+	for {
+		j, ok := stage.jobs.next()
+
+		if !ok {
+			break
+		}
+
 		if len(j.Commands) > 0 {
 			if r.handleJobStart != nil {
 				r.handleJobStart(*j)
@@ -238,6 +250,8 @@ func (s *Stage) Add(jobs ...*Job) {
 	for _, j := range jobs {
 		j.Stage = s.Name
 		j.canFail = s.CanFail
-		s.jobs.Put(j)
+		s.jobs.put(j)
 	}
 }
+
+func (s Stage) Get(name string) (*Job, bool) { return s.jobs.get(name) }

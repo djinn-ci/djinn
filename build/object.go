@@ -262,6 +262,10 @@ func (s ObjectStore) Place(name string, w io.Writer) (int64, error) {
 
 	n, errPlace := s.placer.Place(o.Object.Hash, w)
 
+	if errors.Cause(errPlace) == io.EOF {
+		errPlace = nil
+	}
+
 	o.Placed = errPlace == nil
 
 	if err := s.Update(o); err != nil {

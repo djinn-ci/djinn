@@ -160,9 +160,9 @@ func mainCommand(c cli.Command) {
 	driverconf := make(map[string]map[string]interface{})
 
 	for _, key := range tree.Keys() {
-		tree = tree.Get(key).(*toml.Tree)
+		subtree := tree.Get(key).(*toml.Tree)
 
-		driverconf[key] = tree.ToMap()
+		driverconf[key] = subtree.ToMap()
 	}
 
 	w := worker{

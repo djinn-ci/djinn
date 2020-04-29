@@ -13,8 +13,8 @@ import (
 )
 
 type placer struct {
-	db     *sqlx.DB
-	build  *build.Build
+	db      *sqlx.DB
+	build   *build.Build
 	objects runner.Placer
 }
 

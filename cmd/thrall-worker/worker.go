@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -68,14 +67,13 @@ func (w *worker) qemuRealPath(b *build.Build, disks string) func(string, string)
 }
 
 func (w *worker) run(id int64) error {
-	b := workerBuild{
-		db:     w.db,
-		builds: w.builds,
-	}
+	b, err := w.builds.Get(query.Where("id", "=", id))
 
-	if err := b.load(id); err != nil {
+	if err != nil {
 		return errors.Err(err)
 	}
+
+	r := newBuildRunner(w.db, b, w.collector, w.placer)
 
 	if b.Status == runner.Killed {
 		b.Status = runner.Killed
@@ -88,53 +86,46 @@ func (w *worker) run(id int64) error {
 			Valid: true,
 		}
 
-		if err := w.builds.Update(b.Build); err != nil {
+		if err := w.builds.Update(b); err != nil {
 			return errors.Err(err)
 		}
-		return errors.Err(b.updateJobs())
+		return errors.Err(r.updateJobs())
 	}
 
-	var (
-		driverBuffer *bytes.Buffer
-		runnerBuffer *bytes.Buffer = &bytes.Buffer{}
-	)
+	buildDriver, err := build.NewDriverStore(w.db, b).Get()
 
-	for _, j := range b.jobs {
-		if j.Name == "create driver" {
-			driverBuffer = b.buffers[j.ID]
-			break
-		}
-	}
-
-	r := runner.Runner{
-		Writer:    runnerBuffer,
-		Env:       b.vars,
-		Objects:   b.objects,
-		Placer:    &placer{
-			db:      w.db,
-			build:   b.Build,
-			objects: w.placer,
-		},
-		Collector: build.NewArtifactStoreWithCollector(w.db, w.collector, b.Build),
-	}
-
-	r.Add(b.stages...)
-
-	cfg := make(map[string]string)
-	json.Unmarshal([]byte(b.Driver.Config), &cfg)
-
-	b.Status = runner.Running
-	b.StartedAt = pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
-
-	if err := w.builds.Update(b.Build); err != nil {
+	if err != nil {
 		return errors.Err(err)
 	}
 
-	r.HandleJobStart(b.handleJobStart)
-	r.HandleJobComplete(b.handleJobComplete)
+	cfg := make(map[string]string)
+	json.Unmarshal([]byte(buildDriver.Config), &cfg)
+
+	driverInit, err := w.drivers.Get(cfg["type"])
+
+	if err != nil {
+		fmt.Fprintf(r.buf, "driver %s has not been configured for the worker\n", cfg["type"])
+		fmt.Fprintf(r.buf, "killing build...\n")
+
+		b.Status = runner.Killed
+		b.Output = sql.NullString{
+			String: r.buf.String(),
+			Valid:  true,
+		}
+		b.FinishedAt = pq.NullTime{
+			Time:  time.Now(),
+			Valid: true,
+		}
+
+		if err := w.builds.Update(b); err != nil {
+			return errors.Err(err)
+		}
+		return errors.Err(r.updateJobs())
+	}
+
+	if err := r.load(); err != nil {
+		return errors.Err(err)
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
 	defer cancel()
@@ -153,28 +144,6 @@ func (w *worker) run(id int64) error {
 		}
 	}()
 
-	driverInit, err := w.drivers.Get(cfg["type"])
-
-	if err != nil {
-		fmt.Fprintf(runnerBuffer, "driver %s has not been configured for the worker\n", cfg["type"])
-		fmt.Fprintf(runnerBuffer, "killing build...\n")
-
-		b.Status = runner.Killed
-		b.Output = sql.NullString{
-			String: runnerBuffer.String(),
-			Valid:  true,
-		}
-		b.FinishedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
-
-		if err := w.builds.Update(b.Build); err != nil {
-			return errors.Err(err)
-		}
-		return errors.Err(b.updateJobs())
-	}
-
 	merged := make(map[string]interface{})
 
 	for k, v := range cfg {
@@ -185,26 +154,10 @@ func (w *worker) run(id int64) error {
 		merged[k] = v
 	}
 
-	d := driverInit(io.MultiWriter(runnerBuffer, driverBuffer), merged)
+	d := driverInit(io.MultiWriter(r.buf, r.driverBuffer()), merged)
 
 	if q, ok := d.(*qemu.QEMU); ok {
-		q.Realpath = w.qemuRealPath(b.Build, merged["disks"].(string))
+		q.Realpath = w.qemuRealPath(b, merged["disks"].(string))
 	}
-
-	r.Run(ctx, d)
-
-	b.Status = r.Status
-	b.Output = sql.NullString{
-		String: runnerBuffer.String(),
-		Valid:  true,
-	}
-	b.FinishedAt = pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
-
-	if err := w.builds.Update(b.Build); err != nil {
-		return errors.Err(err)
-	}
-	return errors.Err(b.updateJobs())
+	return errors.Err(r.run(ctx, d))
 }

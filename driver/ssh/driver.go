@@ -182,8 +182,8 @@ func (s *SSH) Execute(j *runner.Job, c runner.Collector) {
 		j.Status = runner.Passed
 	}
 
-	cli.Remove(script)
 	s.collectArtifacts(j.Writer, j, c)
+	cli.Remove(script)
 }
 
 func (s *SSH) Destroy() {
@@ -259,7 +259,7 @@ func (s *SSH) PlaceObjects(objects runner.Passthrough, p runner.Placer) error {
 		if err != nil {
 			fmt.Fprintf(
 				s.Writer,
-				"Failed to place object %s => %s: %s\n",
+				"Failed to open object file on guest %s => %s: %s\n",
 				src,
 				dst,
 				errors.Cause(err),
@@ -269,10 +269,10 @@ func (s *SSH) PlaceObjects(objects runner.Passthrough, p runner.Placer) error {
 
 		defer f.Close()
 
-		if err := f.Chmod(0600); err != nil {
+		if err := f.Chmod(0700); err != nil {
 			fmt.Fprintf(
 				s.Writer,
-				"Failed to place object %s => %s: %s\n",
+				"Failed to chmod 0700 object %s => %s: %s\n",
 				src,
 				dst,
 				errors.Cause(err),

@@ -200,7 +200,13 @@ func MapKey(key string, mm []Model) []interface{} {
 // type.
 func LoadRelations(rr map[string]RelationFunc, loaders Loaders, mm ...Model) error {
 	for relation, fn := range rr {
-		if err := fn(loaders.Get(relation), mm...); err != nil {
+		l, ok := loaders.Get(relation)
+
+		if !ok {
+			continue
+		}
+
+		if err := fn(l, mm...); err != nil {
 			return errors.Err(err)
 		}
 	}
@@ -340,7 +346,13 @@ func (m *Loaders) Put(name string, l Loader) {
 }
 
 // Get returns a Loader of the given name.
-func (m *Loaders) Get(name string) Loader { return (*m)[name] }
+func (m *Loaders) Get(name string) (Loader, bool) {
+	if m == nil {
+		return nil, false
+	}
+	l, ok := (*m)[name]
+	return l, ok
+}
 
 func (s Store) doSelect(fn selectFunc, i interface{}, table string, opts ...query.Option) error {
 	opts = append([]query.Option{
@@ -487,6 +499,10 @@ func (s Store) Delete(table string, mm ...Model) error {
 // not the data itself. It is expected for a subsequent All call to be made
 // using the paginator information to get the desired data.
 func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginator, error) {
+	if page <= 0 {
+		page = 1
+	}
+
 	p := Paginator{Page: page}
 
 	opts = append([]query.Option{
@@ -511,20 +527,25 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 	}
 
 	pages := (count / PageLimit) + 1
-	p.Offset = (page - 1) * PageLimit
+
+	if p.Page > count {
+		p.Page = pages
+	}
+
+	p.Offset = (p.Page - 1) * PageLimit
 
 	for i := int64(0); i < pages; i++ {
 		p.Pages = append(p.Pages, i + 1)
 	}
 
-	p.Next = page + 1
-	p.Prev = page - 1
+	p.Next = p.Page + 1
+	p.Prev = p.Page - 1
 
 	if p.Prev < 1 {
 		p.Prev = 1
 	}
 
-	if p.Next > pages {
+	if p.Next > p.Page {
 		p.Next = pages
 	}
 	return p, nil

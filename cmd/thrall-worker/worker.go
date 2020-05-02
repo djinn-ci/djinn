@@ -15,7 +15,6 @@ import (
 	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/image"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
@@ -63,7 +62,7 @@ func (w *worker) qemuRealPath(b *build.Build, disks string) func(string, string)
 			name = filepath.Join(strings.Split(name, "/")...)
 			return filepath.Join(disks, "_base", arch, name), nil
 		}
-		return filepath.Join(disks, arch, i.Hash), nil
+		return filepath.Join(disks, i.Hash), nil
 	}
 }
 
@@ -158,6 +157,7 @@ func (w *worker) run(id int64) error {
 	d := driverInit(io.MultiWriter(r.buf, r.driverBuffer()), merged)
 
 	if q, ok := d.(*qemu.QEMU); ok {
+		q.Image = strings.Replace(q.Image, "..", "", -1)
 		q.Realpath = w.qemuRealPath(b, merged["disks"].(string))
 	}
 	return errors.Err(r.run(ctx, d))

@@ -3,7 +3,13 @@
 set -e
 
 TAGS="netgo osusergo"
-LFLAGS="-ldflags \"-X=main.Build=$(git rev-parse HEAD)\""
+BUILD="-X=main.Build=$(git rev-parse HEAD)"
+
+if [ -z "$LDFLAGS" ]; then
+	LDFLAGS="$BUILD"
+else
+	LDFLAGS="$LDFLAGS $BUILD"
+fi
 
 for bin in $(grep -vE "^#" make.dep | awk '{ print $1 }'); do
 	if ! hash "$bin" 2> /dev/null; then
@@ -60,7 +66,7 @@ build() {
 			exit 1
 		fi
 		set -x
-		GOOS="$GOOS" GOARCH="$GOARCH" go build $LFLAGS -tags "$TAGS" -o "$c".out ./cmd/"$c"
+		GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags "$LDFLAGS" -tags "$TAGS" -o "$c".out ./cmd/"$c"
 		set +x
 	done
 }
@@ -92,9 +98,12 @@ help_() {
 		clean)
 			printf "remove built binaries\n"
 			;;
+		css)
+			printf "compile the less to css\n"
+			;;
 		*)
 			printf "build the server and offline runner\n"
-			printf "usage: make.sh [ui|runner|server|worker|clean]\n"
+			printf "usage: make.sh [clean|css|runner|server|ui|worker]\n"
 			;;
 	esac
 }
@@ -121,6 +130,9 @@ case "$1" in
 		rm -f *.out
 		rm -f *.tar
 		go clean -x -testcache
+		;;
+	css)
+		yarn_
 		;;
 	*)
 		if [ "$1" = "" ]; then

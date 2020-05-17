@@ -4,8 +4,6 @@
 type Create struct {
 	template.BasePage
 	template.Form
-
-	FileForm template.Section
 }
 %}
 
@@ -30,7 +28,7 @@ type Create struct {
 				<input class="form-text" type="text" id="name" name="name" value="{%s p.Fields["name"] %}" autocomplete="off"/>
 				{%= p.Error("name") %}
 			</div>
-			{%= p.FileForm.Section() %}
+			{%= template.FileInput(p.Form) %}
 			<div class="form-field">
 				<button type="submit" class="btn btn-primary">Create</button>
 			</div>

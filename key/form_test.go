@@ -4,10 +4,10 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"database/sql/driver"
 	"encoding/pem"
 	"regexp"
 	"testing"
-	"time"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -19,27 +19,16 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var (
-	namespaceCols = []string{
-		"id",
-		"user_id",
-		"root_id",
-		"parent_id",
-		"name",
-		"path",
-		"description",
-		"level",
-		"visibility",
-		"created_at",
-	}
+func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() error) {
+	db, mock, err := sqlmock.New()
 
-	collabCols = []string{
-		"namespace_id",
-		"user_id",
+	if err != nil {
+		t.Fatal(err)
 	}
-)
+	return namespace.NewStore(sqlx.NewDb(db, "sqlmock")), mock, db.Close
+}
 
-func genKey(t *testing.T) []byte {
+func spoofKey(t *testing.T) []byte {
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 
 	if err != nil {
@@ -52,13 +41,10 @@ func genKey(t *testing.T) []byte {
 	})
 }
 
-func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() error) {
-	db, mock, err := sqlmock.New()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-	return namespace.NewStore(sqlx.NewDb(db, "sqlmock")), mock, db.Close
+func spoofInvalidKey() []byte {
+	key := make([]byte, 1024)
+	rand.Reader.Read(key)
+	return key
 }
 
 func Test_FormValidate(t *testing.T) {
@@ -70,121 +56,100 @@ func Test_FormValidate(t *testing.T) {
 
 	tests := []struct{
 		form        Form
-		key         *Key
-		namespace   *namespace.Namespace
 		errs        []string
 		shouldError bool
 	}{
 		{
 			Form{
-				ResourceForm: namespace.ResourceForm{
-					User: &user.User{ID: 10},
+				Resource: namespace.Resource{
+					User:       &user.User{ID: 10},
+					Namespaces: namespaceStore,
+					Namespace:  "blackmesa",
 				},
 				Keys:       keyStore,
-				Name:       "private",
-				PrivateKey: string(genKey(t)),
+				Name:      "private",
+				PrivateKey: string(spoofKey(t)),
 			},
-			&Key{},
-			&namespace.Namespace{},
 			[]string{},
 			false,
 		},
 		{
 			Form{
-				ResourceForm: namespace.ResourceForm{
-					Namespaces: namespaceStore,
-					Namespace:  "blackmesa",
-					User:       &user.User{ID: 10},
-				},
 				Keys:       keyStore,
-				Name:       "private",
-				PrivateKey: string(genKey(t)),
+				Name:      "private",
+				PrivateKey: string(spoofKey(t)),
 			},
-			&Key{},
-			&namespace.Namespace{},
 			[]string{},
 			false,
 		},
 		{
 			Form{
-				ResourceForm: namespace.ResourceForm{
-					Namespaces: namespaceStore,
-					Namespace:  "blackmesa",
-					User:       &user.User{ID: 10},
-				},
 				Keys:       keyStore,
+				PrivateKey: string(spoofKey(t)),
 			},
-			&Key{},
-			&namespace.Namespace{},
 			[]string{"name"},
 			true,
 		},
 		{
 			Form{
-				ResourceForm: namespace.ResourceForm{
-					Namespaces: namespaceStore,
-					Namespace:  "blackmesa",
-					User:       &user.User{ID: 10},
-				},
+				Name:       "private",
 				Keys:       keyStore,
+				PrivateKey: string(spoofInvalidKey()),
 			},
-			&Key{},
-			&namespace.Namespace{},
-			[]string{"name", "key"},
+			[]string{"key"},
 			true,
 		},
 		{
-			Form{
-				ResourceForm: namespace.ResourceForm{
-					Namespaces: namespaceStore,
-					Namespace:  "blackmesa",
-					User:       &user.User{ID: 10},
-				},
-				Keys:       keyStore,
-				Name:       "private",
-				PrivateKey: string(genKey(t)),
-			},
-			&Key{},
-			&namespace.Namespace{},
+			Form{Keys: keyStore},
 			[]string{"name", "key"},
 			true,
 		},
 	}
 
 	for _, test := range tests {
+		uniqueQuery := "SELECT * FROM keys WHERE (name = $1)"
+		uniqueArgs := []driver.Value{test.form.Name}
+
 		if test.form.Namespace != "" {
+			var (
+				collabId    int64 = 13
+				namespaceId int64 = 1
+				userId      int64 = 10
+			)
+
+			uniqueQuery = "SELECT * FROM keys WHERE (namespace_id = $1 AND name = $2)"
+			uniqueArgs = []driver.Value{namespaceId, test.form.Name}
+
 			namespaceMock.ExpectQuery(
 				regexp.QuoteMeta("SELECT * FROM namespaces WHERE (path = $1)"),
 			).WithArgs(test.form.Namespace).WillReturnRows(
-				sqlmock.NewRows(namespaceCols).AddRow(1, 10, 1, 0, "blackmesa", "blackmesa", "", 1, namespace.Internal, time.Now()),
+				sqlmock.NewRows([]string{"id", "root_id"}).AddRow(namespaceId, namespaceId),
 			)
 
 			namespaceMock.ExpectQuery(
 				regexp.QuoteMeta("SELECT * FROM namespace_collaborators WHERE (namespace_id = $1)"),
-			).WithArgs(1).WillReturnRows(
-				sqlmock.NewRows(collabCols).AddRow(1, test.form.User.ID),
+			).WithArgs(namespaceId).WillReturnRows(
+				sqlmock.NewRows([]string{"id", "user_id", "namespace_id"}).AddRow(collabId, userId, namespaceId),
 			)
 		}
 
 		keyMock.ExpectQuery(
-			regexp.QuoteMeta("SELECT * FROM keys WHERE (name = $1)"),
-		).WithArgs(test.form.Name).WillReturnRows(sqlmock.NewRows(keyCols))
+			regexp.QuoteMeta(uniqueQuery),
+		).WithArgs(uniqueArgs...).WillReturnRows(sqlmock.NewRows(keyCols))
 
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {
-				if len(test.errs) == 0 {
-					continue
-				}
+				cause := errors.Cause(err)
 
-				ferrs, ok := err.(form.Errors)
+				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, it was not\n%s\n", errors.Cause(err))
+					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Errorf("expected '%s' to be in form.Errors\n", err)
 					}
 				}
 				continue

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/model"
@@ -41,7 +42,7 @@ func Gate(db *sqlx.DB) web.Gate {
 		)
 
 		ok, err := web.Resource(db, "object", r, func(id int64) (model.Model, error) {
-			o, err := objects.Get(query.Where("id", "=", id))
+			o, err = objects.Get(query.Where("id", "=", id))
 			return o, errors.Err(err)
 		})
 
@@ -52,12 +53,16 @@ func Gate(db *sqlx.DB) web.Gate {
 
 func (r *Router) Init(h web.Handler) {
 	loaders := model.NewLoaders()
+	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
+	loaders.Put("build_tag", build.NewTagStore(h.DB))
+	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
 	r.object = handler.Object{
 		Handler:    h,
 		Loaders:    loaders,
 		Objects:    object.NewStore(h.DB),
+		Builds:     build.NewStore(h.DB),
 		FileStore:  r.FileStore,
 		Limit:      r.Limit,
 	}

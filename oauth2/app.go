@@ -1,8 +1,13 @@
 package oauth2
 
 import (
+	"bytes"
 	"database/sql"
+	"fmt"
+	"strings"
+	"time"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/user"
@@ -10,20 +15,18 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/jmoiron/sqlx"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 type App struct {
-	ID           int64  `db:"id"`
-	UserID       int64  `db:"user_id"`
-	ClientID     []byte `db:"client_id"`
-	ClientSecret []byte `db:"client_secret"`
-	Name         string `db:"name"`
-	Description  string `db:"description"`
-	Domain       string `db:"domain"`
-	HomeURI      string `db:"home_uri"`
-	RedirectURI  string `db:"redirect_uri"`
+	ID           int64     `db:"id"`
+	UserID       int64     `db:"user_id"`
+	ClientID     []byte    `db:"client_id"`
+	ClientSecret []byte    `db:"client_secret"`
+	Name         string    `db:"name"`
+	Description  string    `db:"description"`
+	HomeURI      string    `db:"home_uri"`
+	RedirectURI  string    `db:"redirect_uri"`
+	CreatedAt    time.Time `db:"created_at"`
 
 	User *user.User `db:"-"`
 }
@@ -43,20 +46,28 @@ var (
 	ErrAuth = errors.New("authentication failed")
 )
 
-func NewAppStore(db *sqlx.DB, mm ...model.Model) AppStore {
-	s := AppStore{
+// NewAppStore returns a new AppStore for querying the oauth_apps table. Each
+// model passed to this function will be bound to the returned AppStore.
+func NewAppStore(db *sqlx.DB, mm ...model.Model) *AppStore {
+	s := &AppStore{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// AppModel is called along with model.Slice to convert the given slice of App
+// models to a slice of model.Model interfaces.
 func AppModel(aa []*App) func(int) model.Model {
 	return func(i int) model.Model {
 		return aa[i]
 	}
 }
 
+// Bind the given models to the current Namespace. This will only bind the
+// model if they are one of the following,
+//
+// - *user.User
 func (a *App) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -66,21 +77,11 @@ func (a *App) Bind(mm ...model.Model) {
 	}
 }
 
-func (a *App) Kind() string { return "oauth2_app" }
-
 func (a *App) SetPrimary(id int64) {
-	if a == nil {
-		return
-	}
 	a.ID = id
 }
 
-func (a *App) Primary() (string, int64) {
-	if a == nil {
-		return "id", 0
-	}
-	return "id", a.ID
-}
+func (a *App) Primary() (string, int64) { return "id", a.ID }
 
 func (a *App) IsZero() bool {
 	return a == nil || a.ID == 0 &&
@@ -89,31 +90,37 @@ func (a *App) IsZero() bool {
 		len(a.ClientSecret) == 0 &&
 		a.Name == "" &&
 		a.Description == "" &&
-		a.Domain == "" &&
 		a.HomeURI == "" &&
 		a.RedirectURI == ""
 }
 
-func (a *App) Endpoint(_ ...string) string { return "" }
+// Endpoint returns the endpoint for the current App, and appends any of the
+// given uri parts to the returned endpoint.
+func (a *App) Endpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/settings/apps/%v", a.ID)
+
+	if len(uri) > 0 {
+		return fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+	return endpoint
+}
 
 func (a *App) Values() map[string]interface{} {
-	if a == nil {
-		return map[string]interface{}{}
-	}
-
 	return map[string]interface{}{
 		"user_id":       a.UserID,
 		"client_id":     a.ClientID,
 		"client_secret": a.ClientSecret,
 		"name":          a.Name,
 		"description":   a.Description,
-		"domain":        a.Domain,
 		"home_uri":      a.HomeURI,
 		"redirect_uri":  a.RedirectURI,
 	}
 }
 
-func (s AppStore) New() *App {
+
+// New returns a new App binding any non-nil models to it from the current
+// AppStore.
+func (s *AppStore) New() *App {
 	a := &App{
 		User: s.User,
 	}
@@ -124,6 +131,10 @@ func (s AppStore) New() *App {
 	return a
 }
 
+// Bind the given models to the current Namespace. This will only bind the
+// model if they are one of the following,
+//
+// - *user.User
 func (s *AppStore) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -133,22 +144,27 @@ func (s *AppStore) Bind(mm ...model.Model) {
 	}
 }
 
-func (s AppStore) Create(aa ...*App) error {
+// Create inserts the given App models into the oauth_apps table.
+func (s *AppStore) Create(aa ...*App) error {
 	mm := model.Slice(len(aa), AppModel(aa))
 	return errors.Err(s.Store.Create(appTable, mm...))
 }
 
-func (s AppStore) Update(aa ...*App) error {
+// Update updates the given App models in the oauth_apps table.
+func (s *AppStore) Update(aa ...*App) error {
 	mm := model.Slice(len(aa), AppModel(aa))
 	return errors.Err(s.Store.Update(appTable, mm...))
 }
 
-func (s AppStore) Delete(aa ...*App) error {
+// Delete deletes the given App models from the oauth_apps table.
+func (s *AppStore) Delete(aa ...*App) error {
 	mm := model.Slice(len(aa), AppModel(aa))
 	return errors.Err(s.Store.Delete(appTable, mm...))
 }
 
-func (s AppStore) All(opts ...query.Option) ([]*App, error) {
+// All returns a slice of App models, applying each query.Option that is
+// given. The model.Where option is applied to the bound User model.
+func (s *AppStore) All(opts ...query.Option) ([]*App, error) {
 	aa := make([]*App, 0)
 
 	opts = append([]query.Option{
@@ -167,7 +183,9 @@ func (s AppStore) All(opts ...query.Option) ([]*App, error) {
 	return aa, errors.Err(err)
 }
 
-func (s AppStore) Get(opts ...query.Option) (*App, error) {
+// Get returns a single App model, applying each query.Option that is given.
+// The model.Where option is applied to the bound User model.
+func (s *AppStore) Get(opts ...query.Option) (*App, error) {
 	a := &App{
 		User: s.User,
 	}
@@ -184,14 +202,20 @@ func (s AppStore) Get(opts ...query.Option) (*App, error) {
 	return a, errors.Err(err)
 }
 
-func (s AppStore) Auth(id, secret []byte) (*App, error) {
+// Auth finds the App model for the given client ID and checks that the given
+// client secret matches what is in the database. If it matches, then the App
+// model is returned. If authentication fails then ErrAuth is returned, if any
+// other errors occur then they are wrapped via errors.Err.
+func (s *AppStore) Auth(id, secret []byte) (*App, error) {
 	a, err := s.Get(query.Where("client_id", "=", id))
 
 	if err != nil {
 		return a, errors.Err(err)
 	}
 
-	if err := bcrypt.CompareHashAndPassword(a.ClientSecret, secret); err != nil {
+	dec, _ := crypto.Decrypt(a.ClientSecret)
+
+	if !bytes.Equal(dec, secret) {
 		return a, ErrAuth
 	}
 	return a, nil

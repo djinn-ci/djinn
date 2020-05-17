@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/model"
 )
 
+// Type represents the type of driver being used.
 type Type uint8
 
 //go:generate stringer -type Type -linecomment
@@ -28,6 +29,8 @@ var (
 	}
 )
 
+// Scan assumes the given interface value is either a byte slice or a string,
+// and turns the underlying value into the corresponding Type.
 func (t *Type) Scan(val interface{}) error {
 	b, err := model.Scan(val)
 
@@ -42,6 +45,9 @@ func (t *Type) Scan(val interface{}) error {
 	return errors.Err(t.UnmarshalText(b))
 }
 
+// UnmarshalText unmarshals the given byte slice setting the underlying Type
+// for that driver. If the byte slice is not of a valid driver then an error
+// is returned.
 func (t *Type) UnmarshalText(b []byte) error {
 	var ok bool
 
@@ -54,6 +60,6 @@ func (t *Type) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (t Type) Value() (driver.Value, error) {
-	return driver.Value(t.String()), nil
-}
+// Value returns a string value of the driver Type to be inserted into the
+// database.
+func (t Type) Value() (driver.Value, error) { return driver.Value(t.String()), nil }

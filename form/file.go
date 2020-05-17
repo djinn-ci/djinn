@@ -8,19 +8,36 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 )
 
+// File provides an implementation of the Form interface to validate file
+// uploads via HTTP. It embeds the underlying multipart.File type from the
+// stdlib.
 type File struct {
 	multipart.File
 
-	Writer     http.ResponseWriter
-	Request    *http.Request
-	Limit      int64
-	Info       *multipart.FileHeader
+	// Writer is the ResponseWriter to which the HTTP response will be written.
+	Writer http.ResponseWriter
+
+	// Request is the current HTTP request through which the file is being
+	// uploaded.
+	Request *http.Request
+
+	// Limit specifies the maximum size of the file to be uploaded.
+	Limit int64
+
+	// Info is the header of the uploaded file.
+	Info *multipart.FileHeader
+
+	// Disallowed is a list of MIME types that are not considered to be valid.
 	Disallowed []string
 }
 
+// Fields is a stub method to statisfy the Form interface, and returns only
+// an empty map.
 func (f File) Fields() map[string]string { return map[string]string{} }
 
-func (f File) Validate() error {
+// Validate checks to see if a file was uploaded, is within the given limit,
+// and if the MIME type of the file is valid.
+func (f *File) Validate() error {
 	errs := NewErrors()
 
 	if f.Limit > 0 {

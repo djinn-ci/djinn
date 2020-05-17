@@ -24,6 +24,9 @@ var (
 	_ form.Form = (*TagForm)(nil)
 )
 
+// UnmarshalText parses the slice of bytes as a comma separated string. Each
+// delineation will be treated as a separate tag, and appended to the
+// underlying string slice.
 func (t *tags) UnmarshalText(b []byte) error {
 	str := string(b)
 	parts := strings.Split(str, ",")
@@ -41,8 +44,11 @@ func (t *tags) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (t tags) String() string { return strings.Join(t, ",") }
+// String returns the comma concatenated string of tags.
+func (t *tags) String() string { return strings.Join((*t), ",") }
 
+// Fields returns the fields of the build form. If the manifest is empty then
+// return an empty string instead of a pair of {}.
 func (f Form) Fields() map[string]string {
 	manifest := f.Manifest.String()
 
@@ -57,6 +63,8 @@ func (f Form) Fields() map[string]string {
 	}
 }
 
+// Validate checks to see if there is a manifest, and if that manifest has the
+// bare minimum for a build to be submitted.
 func (f Form) Validate() error {
 	errs := form.NewErrors()
 
@@ -69,5 +77,10 @@ func (f Form) Validate() error {
 	return errs.Err()
 }
 
+// Fields is a stub method to statisfy the form.Form interface. It returns an
+// empty map.
 func (f TagForm) Fields() map[string]string { return map[string]string{} }
+
+// Validate is a stub method to satisfy the form.Form interface. It returns
+// nil.
 func (f TagForm) Validate() error { return nil }

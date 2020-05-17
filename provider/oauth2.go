@@ -9,14 +9,27 @@ import (
 	xoauth2 "golang.org/x/oauth2"
 )
 
+// Opts is a struct that contains common fields used across the provider
+// implementations for OAuth2 authentication.
 type Opts struct {
-	Host         string
-	Endpoint     string
-	Secret       string
+	// Host is the hostname of the server on which Thrall is running. This
+	// is used when creating webhooks, and should never be localhost.
+	Host string
+
+	// Endpoint is the endpoint for the provider's API that is used when making
+	// API callouts.
+	Endpoint string
+
+	// Secret is the secret string used to authenticate webhooks received from
+	// the provider.
+	Secret string
+
 	ClientID     string
 	ClientSecret string
 }
 
+// New returns a new oauth2.Provider for the given provider name, configuring
+// the underlying client with the given Opts struct.
 func New(name string, opts Opts) (oauth2.Provider, error) {
 	cli := client{
 		hookEndpoint: opts.Host+"/hook/"+name,

@@ -1,3 +1,5 @@
+// Package server provides an HTTP server implementation that wraps the
+// http.Server from the stdlib, and a Router interface for implementing routing. 
 package server
 
 import (
@@ -15,6 +17,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Router defines how a router should be implemented to be used for the Server.
+// It is perfectly valid for the RegisterUI or RegisterAPI methods to be simple
+// stubs to statisfy the interface is a Router doesn't need to expose either via
+// the Server.
 type Router interface {
 	// Init will initialize the router with the base web.Handler.
 	Init(web.Handler)
@@ -30,6 +36,8 @@ type Router interface {
 	RegisterAPI(*mux.Router, ...web.Gate)
 }
 
+// Server is a wrapper around the stdlib http.Server. It provides a simple
+// mechanism of adding Routers for routing requests.
 type Server struct {
 	*http.Server
 
@@ -45,6 +53,8 @@ type Server struct {
 	Key  string
 }
 
+// API wraps the Server struct, and uses a separate mux.Router for serving
+// routes for the API.
 type API struct {
 	Server
 
@@ -54,6 +64,7 @@ type API struct {
 	Prefix string
 }
 
+// UI wraps the Server struct, and provides CSRF middleware for each route.
 type UI struct {
 	Server
 

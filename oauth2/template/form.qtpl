@@ -1,5 +1,8 @@
 {%
 import (
+	"fmt"
+	"strings"
+
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -9,6 +12,8 @@ import (
 type AppForm struct {
 	template.BasePage
 	template.Form
+
+	App *oauth2.App
 }
 
 type TokenForm struct {
@@ -18,34 +23,194 @@ type TokenForm struct {
 	Token  *oauth2.Token
 	Scopes map[string]struct{}
 }
+
+func (p *TokenForm) field(field string) string {
+	old := p.Form.Fields[field]
+
+	if p.Token != nil {
+		if old != "" {
+			return old
+		}
+
+		if field == "name" {
+			return p.Token.Name
+		}
+		return ""
+	}
+	return old
+}
+
+func (p *AppForm) action() string {
+	if p.App == nil {
+		return "/settings/apps"
+	}
+	return p.App.Endpoint()
+}
+
+func (p *AppForm) field(field string) string {
+	old := p.Form.Fields[field]
+
+	if p.App != nil {
+		if old != "" {
+			return old
+		}
+
+		switch field {
+		case "name":
+			return p.App.Name
+		case "description":
+			return p.App.Description
+		case "homepage_uri":
+			return p.App.HomeURI
+		case "redirect_uri":
+			return p.App.RedirectURI
+		default:
+			return ""
+		}
+	}
+	return old
+}
 %}
 
 {% collapsespace %}
 {% func (p *AppForm) Title() %}
-	AppForm OAuth App - Thrall
+	{% if p.App == nil %}
+		Settings - New App
+	{% else %}
+		Settings - Edit App
+	{% endif %}
 {% endfunc %}
 
 {% func (p *AppForm) Body() %}
-
+	<div class="panel">
+		{% if p.App != nil %}
+			<div class="panel-body slim">
+				<h1 class="mb-10">{%s p.App.Name %}</h1>
+				<div class="mb-10">
+					<strong>Client ID</strong><br/><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientID) %}</span><br/><br/>
+					<strong>Client Secret</strong><br/><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientSecret) %}</span></br>
+				</div>
+				<form method="POST" action="{%s p.App.Endpoint("revoke") %}" class="inline-block">
+					{%s= p.CSRF %}
+					<input type="hidden" name="_method" value="PATCH"/>
+					<div class="form-field-inline">
+						<button type="submit" class="btn btn-danger">Revoke Tokens</button>
+					</div>
+				</form>
+				<form method="POST" action="{%s p.App.Endpoint("reset") %}" class="inline-block">
+					{%s= p.CSRF %}
+					<input type="hidden" name="_method" value="PATCH"/>
+					<button type="submit" class="btn btn-danger">Reset Secret</button>
+				</form>
+			</div>
+			<form class="panel-body slim" method="POST" action="{%s p.App.Endpoint() %}">
+				{%s= p.CSRF %}
+				<input type="hidden" name="_method" value="PATCH"/>
+		{% else %}
+			<form class="panel-body slim" method="POST" action="/settings/apps">
+				{%s= p.CSRF %}
+		{% endif %}
+			<div class="form-field">
+				<label class="label" for="name">Name</label>
+				<input type="text" class="form-text" id="name" name="name" value="{%s p.field("name") %}" autocomplete="off"/>
+				{%= p.Error("name") %}
+			</div>
+			<div class="form-field">
+				<label class="label" for="description">Description <small>(optional)</small></label>
+				<textarea class="form-text" id="description" name="description">{%s p.field("description") %}</textarea>
+			</div>
+			<div class="form-field">
+				<label class="label" for="homepage_uri">Homepage URI</label>
+				<input type="text" class="form-text" id="homepage_uri" name="homepage_uri" value="{%s p.field("homepage_uri") %}" autocomplete="off"/>
+				{%= p.Error("homepage_uri") %}
+			</div>
+			<div class="form-field">
+				<label class="label" for="redirect_uri">Redirect URI</label>
+				<input type="text" class="form-text" id="redirect_uri" name="redirect_uri" value="{%s p.field("redirect_uri") %}" autocomplete="off"/>
+				{%= p.Error("redirect_uri") %}
+			</div>
+			<div class="form-field">
+				{% if p.App == nil %}
+					<button type="submit" class="btn btn-primary">Create</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Save</button>
+				{% endif %}
+			</div>
+		</form>
+	</div>
 {% endfunc %}
 
 {% func (p *AppForm) Header() %}
-
+	{% if p.App == nil %}
+		<a href="/settings/apps" class="back">{% cat "../../static/svg/back.svg" %}</a> Settings - New App
+	{% else %}
+		<a href="/settings/apps" class="back">{% cat "../../static/svg/back.svg" %}</a> Settings - Edit App
+	{% endif %}
 {% endfunc %}
 
 {% func (p *AppForm) Actions() %}{% endfunc %}
 {% func (p *AppForm) Navigation() %}{% endfunc %}
 
 {% func (p *TokenForm) Title() %}
-	AppForm OAuth App - Thrall
+	{% if p.Token == nil %}
+		Settings - New Token
+	{% else %}
+		Settings - Edit Token
+	{% endif %}
 {% endfunc %}
 
 {% func (p *TokenForm) Body() %}
-
+	<div class="panel">
+		{% if p.Token != nil %}
+			<form method="POST" action="{%s p.Token.Endpoint("regenerate") %}" class="panel-body slim mb-10">
+				<input type="hidden" name="_method" value="PATCH"/>
+				{%s= p.CSRF %}
+				<button type="submit" class="btn btn-danger right">Regenerate</button>
+			</form>
+			<form class="panel-body slim" method="POST" action="{%s p.Token.Endpoint() %}">
+				<input type="hidden" name="_method" value="PATCH"/>
+		{% else %}
+			<form class="panel-body slim" method="POST" action="/settings/tokens">
+		{% endif %}
+			{%s= p.CSRF %}
+			<div class="form-field">
+				<label class="label" for="name">Name</label>
+				<input type="text" class="form-text" id="name" name="name" value="{%s p.field("name") %}" autocomplete="off"/>
+				{%= p.Error("name") %}
+			</div>
+			{% for _, res := range oauth2.Resources %}
+				<div class="form-field">
+					<label class="label">{%s strings.Title(res.String()) %}</label>
+					{% for _, perm := range oauth2.Permissions %}
+						{% if _, ok := p.Scopes[res.String()+":"+perm.String()]; ok %}
+							<label>
+								<input type="checkbox" name="scope[]" value="{%s res.String() %}:{%s perm.String() %}" checked="true"/> {%s strings.Title(perm.String()) %}
+							</label>
+						{% else %}
+							<label>
+								<input type="checkbox" name="scope[]" value="{%s res.String() %}:{%s perm.String() %}"/> {%s strings.Title(perm.String()) %}
+							</label>
+						{% endif %}
+					{% endfor %}
+				</div>
+			{% endfor %}
+			<div class="form-field">
+				{% if p.Token == nil %}
+					<button type="submit" class="btn btn-primary">Create</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Save</button>
+				{% endif %}
+			</div>
+		</form>
+	</div>
 {% endfunc %}
 
 {% func (p *TokenForm) Header() %}
-
+	{% if p.Token == nil %}
+		<a href="/settings/tokens" class="back">{% cat "../../static/svg/back.svg" %}</a> Settings - New Token
+	{% else %}
+		<a href="/settings/tokens" class="back">{% cat "../../static/svg/back.svg" %}</a> Settings - Edit Token
+	{% endif %}
 {% endfunc %}
 
 {% func (p *TokenForm) Actions() %}{% endfunc %}

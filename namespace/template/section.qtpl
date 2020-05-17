@@ -1,0 +1,129 @@
+{%
+import (
+	htmltemplate "html/template"
+
+	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type section struct {}
+
+type InviteIndex struct {
+	section
+	template.BasePage
+
+	CSRF    htmltemplate.HTML
+	Invites []*namespace.Invite
+}
+
+type CollaboratorIndex struct {
+	section
+	template.BasePage
+	template.Form
+
+	CSRF          htmltemplate.HTML
+	Namespace     *namespace.Namespace
+	Collaborators []*namespace.Collaborator
+}
+%}
+
+{% collapsespace %}
+{% func (p *section) Header() %}{% endfunc %}
+{% func (p *section) Actions() %}{% endfunc %}
+
+{% func (p *InviteIndex) Title() %}
+	Settings - Namespace Invites
+{% endfunc %}
+
+
+{% func (p *InviteIndex) Header() %}
+	Settings - Namespace Invites
+{% endfunc %}
+
+{% func (p *InviteIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Invites) == 0 %}
+			<div class="panel-message muted">No new namespace invites.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAMESPACE</th>
+						<th>INVITED BY</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, i := range p.Invites %}
+						<tr>
+							<td>{%s i.Namespace.Path %}</td>
+							<td>{%s i.Inviter.Username %}</td>
+							<td class="align-right">
+								<form method="POST" action="{%s i.Endpoint() %}">
+									{%v= p.CSRF %}
+									<input type="hidden" name="_method" value="PATCH"/>
+									<button type="submit" class="btn btn-primary">Accept</button>
+								</form>
+								<form method="POST" action="{%s i.Endpoint() %}">
+									{%v= p.CSRF %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Reject</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *CollaboratorIndex) Title() %}
+	Namespace Collaborators
+{% endfunc %}
+
+{% func (p *CollaboratorIndex) Body() %}
+	<div class="panel">
+		<div class="panel-header panel-body">
+			<form method="POST" action="{%s p.Namespace.Endpoint("-", "collaborators") %}">
+				{%v= p.CSRF %}
+				<div class="form-field form-field-inline">
+					<input type="text" class="form-text" name="handle" placeholder="Add a collaborator..." autocomplete="off"/>
+					<button type="submit" class="btn btn-primary">Add</button>
+					{%= p.Error("handle") %}
+				</div>
+			</form>
+		</div>
+		{% if len(p.Collaborators) == 0 %}
+			<div class="panel-message muted">Invite users to this namespace to collaborate with them.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>USER</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, c := range p.Collaborators %}
+						<tr>
+							<td>{%s c.User.Username %} &lt;{%s c.User.Email %}&gt;</td>
+							{% if p.User.ID == p.Namespace.UserID %}
+								<td class="align-right">
+									<form method="POST" action="{%s c.Endpoint() %}">
+										{%v= p.CSRF %}
+										<input type="hidden" name="_method" value="DELETE"/>
+										<button type="submit" class="btn btn-danger">Delete</button>
+									</form>
+								</td>
+							{% endif %}
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

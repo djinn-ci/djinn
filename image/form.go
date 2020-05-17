@@ -15,18 +15,18 @@ type Form struct {
 	namespace.Resource
 	form.File `schema:"-"`
 
-	Images Store  `schema:"-"`
+	Images *Store `schema:"-"`
 	Name   string `schema:"name"`
 }
 
 var (
 	_ form.Form = (*Form)(nil)
 
-	rename = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
+	rename = regexp.MustCompile("^[a-zA-Z0-9_\\-]+$")
 	magic  = []byte{0x51, 0x46, 0x49, 0xFB}
 )
 
-func (f Form) Fields() map[string]string {
+func (f *Form) Fields() map[string]string {
 	return map[string]string{
 		"namespace": f.Namespace,
 		"name":      f.Name,
@@ -36,7 +36,7 @@ func (f Form) Fields() map[string]string {
 func (f *Form) Validate() error {
 	errs := form.NewErrors()
 
-	if err := f.Resource.BindNamespace(&f.Images); err != nil {
+	if err := f.Resource.BindNamespace(f.Images); err != nil {
 		return errors.Err(err)
 	}
 
@@ -45,7 +45,7 @@ func (f *Form) Validate() error {
 	}
 
 	if !rename.Match([]byte(f.Name)) {
-		errs.Put("name", form.ErrFieldInvalid("Name", "can only contain letters, numbers, dashes, and dots"))
+		errs.Put("name", form.ErrFieldInvalid("Name", "can only contain letters, numbers, and dashes"))
 	}
 
 	i, err := f.Images.Get(query.Where("name", "=", f.Name))
@@ -71,7 +71,7 @@ func (f *Form) Validate() error {
 	}
 
 	if f.File.File != nil {
-		buf := make([]byte, 0, 4)
+		buf := make([]byte, 4, 4)
 
 		if _, err := f.File.Read(buf); err != nil {
 			return errors.Err(err)

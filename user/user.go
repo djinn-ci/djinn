@@ -1,3 +1,4 @@
+// Package user provides the model implementation for the User entity.
 package user
 
 import (
@@ -25,7 +26,6 @@ type User struct {
 	UpdatedAt time.Time   `db:"updated_at"`
 	DeletedAt pq.NullTime `db:"deleted_at"`
 
-	Connected   bool                `db:"-"`
 	Permissions map[string]struct{} `db:"-"`
 }
 
@@ -44,14 +44,18 @@ var (
 	ErrAuth = errors.New("invalid credentials")
 )
 
-func NewStore(db *sqlx.DB, mm ...model.Model) Store {
-	s := Store{
+// NewStore returns a new Store for querying the users table. Each model
+// passed to this function will be bound to the returned Store.
+func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+	s := &Store{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// Select returns a query that selects the given column from the users table,
+// with each given query.Option applied to the returned query.
 func Select(col string, opts ...query.Option) query.Query {
 	return query.Select(append([]query.Option{
 		query.Columns(col),
@@ -59,6 +63,9 @@ func Select(col string, opts ...query.Option) query.Query {
 	}, opts...)...)
 }
 
+// WhereHandle returns a query.Option that when applied to a query will add two
+// WHERE clauses that will check the given handle against the email column or
+// the username column.
 func WhereHandle(handle string) query.Option {
 	return query.Options(
 		query.Where("email", "=", handle),
@@ -66,26 +73,25 @@ func WhereHandle(handle string) query.Option {
 	)
 }
 
+// Model is called along with model.Slice to convert the given slice of User
+// models to a slice of model.Model interfaces.
 func Model(uu []*User) func(int) model.Model {
 	return func(i int) model.Model {
 		return uu[i]
 	}
 }
 
-func (u *User) Bind(_ ...model.Model) {}
-func (u *User) Kind() string { return "user" }
+// Bind is a stub method to satisfy the model.Model interface.
+func (*User) Bind(_ ...model.Model) {}
+
+// Endpoint is a stub method to satisy the model.Model interface.
+func (*User) Endpoint(_ ...string) string { return "" }
 
 func (u *User) SetPrimary(id int64) {
-	if u == nil {
-		return
-	}
 	u.ID = id
 }
 
 func (u *User) Primary() (string, int64) {
-	if u == nil {
-		return "id", 0
-	}
 	return "id", u.ID
 }
 
@@ -98,12 +104,7 @@ func (u *User) IsZero() bool {
 		!u.DeletedAt.Valid
 }
 
-func (u *User) Endpoint(...string) string { return "" }
-
 func (u *User) Values() map[string]interface{} {
-	if u == nil {
-		return map[string]interface{}{}
-	}
 	return map[string]interface{}{
 		"email":      u.Email,
 		"username":   u.Username,
@@ -113,6 +114,8 @@ func (u *User) Values() map[string]interface{} {
 	}
 }
 
+// SetPermission set's the given permission in the underlying Permissions map
+// of the current User. If the map is nil then it will be initialized.
 func (u *User) SetPermission(perm string) {
 	if u.Permissions == nil {
 		u.Permissions = make(map[string]struct{})
@@ -120,9 +123,12 @@ func (u *User) SetPermission(perm string) {
 	u.Permissions[perm] = struct{}{}
 }
 
+// Bind is a stub method to statisy the model.Binder interface.
 func (s *Store) Bind(_ ...model.Model) {}
 
-func (s Store) All(opts ...query.Option) ([]*User, error) {
+// All returns a slice of User models, applying each query.Option that is
+// given.
+func (s *Store) All(opts ...query.Option) ([]*User, error) {
 	uu := make([]*User, 0)
 
 	err := s.Store.All(&uu, table, opts...)
@@ -133,7 +139,10 @@ func (s Store) All(opts ...query.Option) ([]*User, error) {
 	return uu, errors.Err(err)
 }
 
-func (s Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+// Load loads in a slice of User models where the given key is in the list
+// of given vals. Each model is loaded individually via a call to the given
+// load callback.
+func (s *Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	uu, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
@@ -148,21 +157,23 @@ func (s Store) Load(key string, vals []interface{}, load model.LoaderFunc) error
 	return nil
 }
 
-func (s Store) New() *User {
-	return &User{}
-}
+// New returns a new zero-value User model.
+func (*Store) New() *User { return &User{} }
 
-func (s Store) Create(uu ...*User) error {
+// Create inserts the given User models into the users table.
+func (s *Store) Create(uu ...*User) error {
 	models := model.Slice(len(uu), Model(uu))
 	return errors.Err(s.Store.Create(table, models...))
 }
 
-func (s Store) Update(uu ...*User) error {
+// Update updates the given Build models in the users table.
+func (s *Store) Update(uu ...*User) error {
 	models := model.Slice(len(uu), Model(uu))
 	return errors.Err(s.Store.Update(table, models...))
 }
 
-func (s Store) Get(opts ...query.Option) (*User, error) {
+// Get returns a single User model, applying each query.Option that is given.
+func (s *Store) Get(opts ...query.Option) (*User, error) {
 	u := &User{}
 
 	err := s.Store.Get(u, table, opts...)
@@ -173,7 +184,9 @@ func (s Store) Get(opts ...query.Option) (*User, error) {
 	return u, errors.Err(err)
 }
 
-func (s Store) Auth(handle, password string) (*User, error) {
+// Auth looks up the user by the given handle, and checks that the given
+// password matches the hash in the database.
+func (s *Store) Auth(handle, password string) (*User, error) {
 	u, err := s.Get(WhereHandle(handle))
 
 	if err != nil {

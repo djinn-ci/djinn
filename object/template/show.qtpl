@@ -47,7 +47,7 @@ type Show struct {
 			</tr>
 		</table>
 	</div>
-	{%= p.Section.Section() %}
+	{%= p.Section.Body() %}
 {% endfunc %}
 
 {% func (p *Show) Header() %}

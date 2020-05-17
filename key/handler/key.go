@@ -20,8 +20,8 @@ type Key struct {
 	web.Handler
 
 	Loaders    model.Loaders
-	Namespaces namespace.Store
-	Keys       key.Store
+	Namespaces *namespace.Store
+	Keys       *key.Store
 }
 
 func (h Key) Model(r *http.Request) *key.Key {
@@ -30,7 +30,7 @@ func (h Key) Model(r *http.Request) *key.Key {
 	return k
 }
 
-func (h Key) IndexWithRelations(s key.Store, vals url.Values) ([]*key.Key, model.Paginator, error) {
+func (h Key) IndexWithRelations(s *key.Store, vals url.Values) ([]*key.Key, model.Paginator, error) {
 	kk, paginator, err := s.Index(vals)
 
 	if err != nil {
@@ -60,12 +60,15 @@ func (h Key) ShowWithRelations(r *http.Request) (*key.Key, error) {
 		return k, errors.Err(err)
 	}
 
-	err := h.Users.Load(
-		"id",
-		[]interface{}{k.Namespace.Values()["user_id"]},
-		model.Bind("user_id", "id", k.Namespace),
-	)
-	return k, errors.Err(err)
+	if k.Namespace != nil {
+		err := h.Users.Load(
+			"id",
+			[]interface{}{k.Namespace.Values()["user_id"]},
+			model.Bind("user_id", "id", k.Namespace),
+		)
+		return k, errors.Err(err)
+	}
+	return k, nil
 }
 
 func (h Key) StoreModel(r *http.Request, sess *sessions.Session) (*key.Key, error) {
@@ -90,10 +93,6 @@ func (h Key) StoreModel(r *http.Request, sess *sessions.Session) (*key.Key, erro
 
 		if err != nil {
 			return &key.Key{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(u) {
-			return &key.Key{}, namespace.ErrPermission
 		}
 		keys.Bind(n)
 	}

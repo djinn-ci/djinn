@@ -1,3 +1,5 @@
+// Package session provides an implementation of the sessions.Session interface
+// for Redis.
 package session
 
 import (
@@ -35,7 +37,6 @@ type Store struct {
 
 func deserialize(b []byte, sess *sessions.Session) error {
 	dec := gob.NewDecoder(bytes.NewBuffer(b))
-
 	return dec.Decode(&sess.Values)
 }
 
@@ -46,10 +47,11 @@ func serialize(sess *sessions.Session) ([]byte, error) {
 	if err := enc.Encode(sess.Values); err != nil {
 		return nil, errors.Err(err)
 	}
-
 	return buf.Bytes(), nil
 }
 
+// New returns a new sessions.Store implementation fo Redis using the given
+// redis.Client, and the given keyPairs for the secure cookie.
 func New(client *redis.Client, keyPairs ...[]byte) *Store {
 	return &Store{
 		client:    client,
@@ -63,12 +65,13 @@ func New(client *redis.Client, keyPairs ...[]byte) *Store {
 	}
 }
 
+// Get returns the named session from the given *http.Request.
 func (s *Store) Get(r *http.Request, name string) (*sessions.Session, error) {
 	sess, err := sessions.GetRegistry(r).Get(s, name)
-
 	return sess, errors.Err(err)
 }
 
+// New returns a new session for the given request with the given name.
 func (s *Store) New(r *http.Request, name string) (*sessions.Session, error) {
 	sess := sessions.NewSession(s, name)
 
@@ -97,13 +100,13 @@ func (s *Store) New(r *http.Request, name string) (*sessions.Session, error) {
 		if err := deserialize([]byte(data), sess); err != nil {
 			return sess, errors.Err(err)
 		}
-
 		sess.IsNew = false
 	}
-
 	return sess, errors.Err(err)
 }
 
+// Save saves the given session, updating the cookie that stores the session
+// data in the given request and response.
 func (s *Store) Save(r *http.Request, w http.ResponseWriter, sess *sessions.Session) error {
 	if sess.Options.MaxAge <= 0 {
 		if _, err := s.client.Del(prefix + sess.ID).Result(); err != nil {
@@ -111,7 +114,6 @@ func (s *Store) Save(r *http.Request, w http.ResponseWriter, sess *sessions.Sess
 		}
 
 		http.SetCookie(w, sessions.NewCookie(sess.Name(), "", sess.Options))
-
 		return nil
 	}
 
@@ -146,6 +148,5 @@ func (s *Store) Save(r *http.Request, w http.ResponseWriter, sess *sessions.Sess
 	}
 
 	http.SetCookie(w, sessions.NewCookie(sess.Name(), encoded, sess.Options))
-
 	return nil
 }

@@ -58,6 +58,8 @@ func validateQEMU(tree *toml.Tree) error {
 	return nil
 }
 
+// ValidateDriver takes the given toml.Tree and validates its configuration
+// based off the driver the configuration is for.
 func ValidateDrivers(tree *toml.Tree) error {
 	keys := tree.Keys()
 

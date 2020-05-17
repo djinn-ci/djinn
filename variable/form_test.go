@@ -1,56 +1,135 @@
 package variable
 
 import (
+	"database/sql/driver"
+	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/user"
+
+	"github.com/DATA-DOG/go-sqlmock"
+
+	"github.com/jmoiron/sqlx"
 )
 
+func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() error) {
+	db, mock, err := sqlmock.New()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	return namespace.NewStore(sqlx.NewDb(db, "sqlmock")), mock, db.Close
+}
+
 func Test_FormValidate(t *testing.T) {
+	variableStore, variableMock, variableClose := store(t)
+	defer variableClose()
+
+	namespaceStore, namespaceMock, namespaceClose := namespaceStore(t)
+	defer namespaceClose()
+
 	tests := []struct{
 		form        Form
 		errs        []string
 		shouldError bool
 	}{
 		{
-			Form{Key: "PGADDR", Value: "postgres://root:secret@localhost/thrall"},
+			Form{
+				Resource: namespace.Resource{
+					User:       &user.User{ID: 10},
+					Namespaces: namespaceStore,
+					Namespace:  "aperture",
+				},
+				Variables: variableStore,
+				Key:       "PGADDR",
+				Value:     "postgres://thrall:secret@localhost:5432/thrall",
+			},
 			[]string{},
 			false,
 		},
 		{
-			Form{Key: "0PGADDR", Value: "postgres://root:secret@localhost/thrall"},
+			Form{
+				Variables: variableStore,
+				Key:       "PGADDR",
+				Value:     "postgres://thrall:secret@localhost:5432/thrall",
+			},
+			[]string{},
+			false,
+		},
+		{
+			Form{
+				Variables: variableStore,
+				Key:       "0PGADDR",
+				Value:     "postgres://thrall:secret@localhost:5432/thrall",
+			},
 			[]string{"key"},
 			true,
 		},
 		{
-			Form{Key: "0PGADDR", Value: ""},
-			[]string{"key", "value"},
+			Form{
+				Variables: variableStore,
+				Key:       "0PGADDR",
+			},
+			[]string{"value"},
 			true,
 		},
 		{
-			Form{Key: "", Value: ""},
+			Form{
+				Variables: variableStore,
+				Key:       "0PGADDR",
+			},
 			[]string{"key", "value"},
 			true,
 		},
 	}
 
 	for _, test := range tests {
+		uniqueQuery := "SELECT * FROM variables WHERE (key = $1)"
+		uniqueArgs := []driver.Value{test.form.Key}
+
+		if test.form.Namespace != "" {
+			var (
+				collabId    int64 = 13
+				namespaceId int64 = 1
+				userId      int64 = 10
+			)
+
+			uniqueQuery = "SELECT * FROM variables WHERE (namespace_id = $1 AND key = $2)"
+			uniqueArgs = []driver.Value{namespaceId, test.form.Key}
+
+			namespaceMock.ExpectQuery(
+				regexp.QuoteMeta("SELECT * FROM namespaces WHERE (path = $1)"),
+			).WithArgs(test.form.Namespace).WillReturnRows(
+				sqlmock.NewRows([]string{"id", "root_id"}).AddRow(namespaceId, namespaceId),
+			)
+
+			namespaceMock.ExpectQuery(
+				regexp.QuoteMeta("SELECT * FROM namespace_collaborators WHERE (namespace_id = $1)"),
+			).WithArgs(namespaceId).WillReturnRows(
+				sqlmock.NewRows([]string{"id", "user_id", "namespace_id"}).AddRow(collabId, userId, namespaceId),
+			)
+		}
+
+		variableMock.ExpectQuery(
+			regexp.QuoteMeta(uniqueQuery),
+		).WithArgs(uniqueArgs...).WillReturnRows(sqlmock.NewRows(variableCols))
+
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {
-				if len(test.errs) == 0 {
-					continue
-				}
+				cause := errors.Cause(err)
 
-				ferrs, ok := err.(form.Errors)
+				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, it was not\n%s\n", errors.Cause(err))
+					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Errorf("expected '%s' to be in form.Errors\n", err)
 					}
 				}
 				continue

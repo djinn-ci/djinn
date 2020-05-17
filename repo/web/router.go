@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/repo"
 	"github.com/andrewpillar/thrall/repo/handler"
 	"github.com/andrewpillar/thrall/server"
@@ -26,6 +27,7 @@ type Router struct {
 	repo handler.Repo
 
 	Redis      *redis.Client
+	Providers  map[string]oauth2.Provider
 	Middleware web.Middleware
 }
 
@@ -66,16 +68,17 @@ func Gate(db *sqlx.DB) web.Gate {
 
 func (r *Router) Init(h web.Handler) {
 	r.repo = handler.Repo{
-		Handler: h,
-		Redis:   r.Redis,
-		Repos:   repo.NewStore(h.DB),
+		Handler:   h,
+		Redis:     r.Redis,
+		Providers: r.Providers,
+		Repos:     repo.NewStore(h.DB),
 	}
 }
 
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/repos", r.repo.Index).Methods("GET")
-	auth.HandleFunc("/repo/reload", r.repo.Update).Methods("PATCH")
+	auth.HandleFunc("/repos/reload", r.repo.Update).Methods("PATCH")
 	auth.HandleFunc("/repos/enable", r.repo.Store).Methods("POST")
 	auth.HandleFunc("/repos/disable/{repo:[0-9]+}", r.repo.Destroy).Methods("DELETE")
 	auth.Use(r.Middleware.Gate(gates...), csrf)

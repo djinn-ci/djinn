@@ -32,11 +32,41 @@ type Router struct {
 
 var _ server.Router = (*Router)(nil)
 
+// Gate returns a web.Gate that checks if the current authenticated User has
+// the access permissions to the current Namespace, or if they are a
+// Collaborator in that Namespace. If the current User can access the current
+// Namespace, then it is set in the request's context.
 func Gate(db *sqlx.DB) web.Gate {
 	users := user.NewStore(db)
 	namespaces := namespace.NewStore(db)
 
+	ownerPaths := map[string]struct{}{
+		"edit":          {},
+		"collaborators": {},
+	}
+
+	ownerMethods := map[string]struct{}{
+		"POST":   {},
+		"PATCH":  {},
+		"DELETE": {},
+	}
+
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
+		var ok bool
+
+		switch r.Method {
+		case "GET":
+			_, ok = u.Permissions["namespace:read"]
+		case "POST", "PATCH":
+			_, ok = u.Permissions["namespace:write"]
+		case "DELETE":
+			_, ok = u.Permissions["namespace:delete"]
+		}
+
+		if !ok {
+			return r, false, nil
+		}
+
 		vars := mux.Vars(r)
 
 		owner, err := users.Get(query.Where("username", "=", vars["username"]))
@@ -57,15 +87,20 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, false, errors.Err(err)
 		}
 
+		// Can the current user modify/delete the current namespace.
+		if _, ok := ownerMethods[r.Method]; ok {
+			if owner.ID != u.ID {
+				return r, false, nil
+			}
+		}
+
+		if _, ok := ownerPaths[filepath.Base(r.URL.Path)]; ok {
+			if owner.ID != u.ID {
+				return r, false, nil
+			}
+		}
+
 		r = r.WithContext(context.WithValue(r.Context(), "namespace", n))
-
-		if filepath.Base(r.URL.Path) == "edit" {
-			return r, u.ID == n.UserID, nil
-		}
-
-		if r.Method == "DELETE" || r.Method == "PATCH" {
-			return r, u.ID == n.UserID, nil
-		}
 
 		root, err := namespaces.Get(
 			query.WhereQuery("root_id", "=", namespace.SelectRootID(n.ID)),
@@ -87,12 +122,17 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
+// Init initialiases the primary handle.namespace for handling the primary
+// logic of Namespace creation and management. This will setup the model.Loader
+// for relationship loading, and the related model stores. The exported
+// properties on the Router itself are pased through to the underlying
+// handler.Namspace.
 func (r *Router) Init(h web.Handler) {
 	namespaces := namespace.NewStore(h.DB)
 
 	loaders := model.NewLoaders()
-	loaders.Put("namespace", namespaces)
 	loaders.Put("user", h.Users)
+	loaders.Put("namespace", namespaces)
 	loaders.Put("build_tag", build.NewTagStore(h.DB))
 	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
@@ -110,15 +150,27 @@ func (r *Router) Init(h web.Handler) {
 
 	r.collaborator = handler.Collaborator{
 		Handler:    h,
-		Namespaces: namespaces,
 		Invites:    namespace.NewInviteStore(h.DB),
+		Namespaces: namespaces,
 	}
 }
 
+// RegisterUI registers the UI routes for Namespace creation, and management.
+// There are two types of routes, simple auth routes, and individual namespace
+// routes. These routes respond with a text/html Content-Type.
+//
+// simple auth routes - These routes (/namespaces, /namespaces/create,
+// /settings/invites, /invites/{invite:[0-9]+}) havbe the auth middleware
+// applied to them to check if a user is authenticated to access the route. The
+// given http.Handler is applied to these routes for CSRF protection.
+//
+// individual namespace routes - These routes (prefixed with
+// /n/{username}/{namespace:[a-zA-Z0-9\\/?]+}), use the given http.Handler for
+// CSRF protection, and the given gates for auth checks, and permission checks.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
 	namespace := handler.UI{
-		Namespace:    r.namespace,
-		Invite:       handler.InviteUI{
+		Namespace: r.namespace,
+		Invite:    handler.InviteUI{
 			Invite: r.invite,
 		},
 		Collaborator: handler.CollaboratorUI{
@@ -131,8 +183,8 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/namespaces/create", namespace.Create).Methods("GET")
 	auth.HandleFunc("/namespaces", namespace.Store).Methods("POST")
 	auth.HandleFunc("/settings/invites", namespace.Invite.Index).Methods("GET")
-	auth.HandleFunc("/settings/invites/{invite:[0-9]+}", namespace.Collaborator.Store).Methods("PATCH")
-	auth.HandleFunc("/settings/invites/{invite:[0-9]+}", namespace.Collaborator.Destroy).Methods("DELETE")
+	auth.HandleFunc("/invites/{invite:[0-9]+}", namespace.Collaborator.Store).Methods("PATCH")
+	auth.HandleFunc("/invites/{invite:[0-9]+}", namespace.Invite.Destroy).Methods("DELETE")
 	auth.Use(r.Middleware.Auth, csrf)
 
 	sr := mux.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
@@ -151,4 +203,16 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.Use(r.Middleware.Gate(gates...), csrf)
 }
 
-func (r *Router) RegisterAPI(mux *mux.Router, gates ...web.Gate) {}
+// RegisterAPI registers the API routes for namespace creation and management.
+// There are two types of routes, simple auth routes, and individual namespace
+// routes. These routes respond with a application/json Content-Type.
+//
+// simple auth routes - These routes (/namespaces, /namespaces/create,
+// /settings/invites, /invites/{invite:[0-9]+}) havbe the auth middleware
+// applied to them to check if a user is authenticated to access the route.
+//
+// individual namespace routes - These routes (prefixed with
+// /n/{username}/{namespace:[a-zA-Z0-9\\/?]+}), use the given gates for auth
+// checks, and permission checks.
+func (r *Router) RegisterAPI(mux *mux.Router, gates ...web.Gate) {
+}

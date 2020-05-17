@@ -11,7 +11,7 @@ import (
 )
 
 type Form struct {
-	Namespaces Store      `schema:"-"`
+	Namespaces *Store     `schema:"-"`
 	Namespace  *Namespace `schema:"-"`
 
 	UserID      int64      `schema:"-"`
@@ -22,11 +22,15 @@ type Form struct {
 }
 
 type InviteForm struct {
-	Collaborators CollaboratorStore `schema:"-"`
-	Invites       InviteStore       `schema:"-"`
-	Users         user.Store        `schema:"-"`
-	Inviter       *user.User        `schema:"-"`
-	Invitee       *user.User        `schema:"-"`
+	Collaborators *CollaboratorStore `schema:"-"`
+	Invites       *InviteStore       `schema:"-"`
+	Users         *user.Store        `schema:"-"`
+
+	// Inviter is the original User who sent the invite.
+	Inviter *user.User `schema:"-"`
+
+	// Invitee is the User who received the invite.
+	Invitee *user.User `schema:"-"`
 
 	Handle string `schema:"handle"`
 }
@@ -36,6 +40,8 @@ var (
 	_ form.Form = (*InviteForm)(nil)
 )
 
+// Fields returns a map of the Name and Description fields in the Namespace
+// form.
 func (f Form) Fields() map[string]string {
 	return map[string]string{
 		"name":        f.Name,
@@ -43,6 +49,12 @@ func (f Form) Fields() map[string]string {
 	}
 }
 
+// Validate checks to see if the Namespace Name is present, between 3 and 32
+// characters in length, contains only letters and numbers, and is unique to
+// the current Namespace. This uniqueness check is skipped if a Namespace is
+// set, and the Name field already matches that name (assuming it's being
+// edited). The description field is checked to see if it is less than 255
+// characters in length, if present.
 func (f Form) Validate() error {
 	errs := form.NewErrors()
 
@@ -89,13 +101,19 @@ func (f Form) Validate() error {
 	return errs.Err()
 }
 
-func (f InviteForm) Fields() map[string]string {
+// Fields returns a map of just the Handle field from the current InviteForm.
+func (f *InviteForm) Fields() map[string]string {
 	return map[string]string{
 		"handle": f.Handle,
 	}
 }
 
-func (f InviteForm) Validate() error {
+// Validate checks to see if the current InviteForm has the handle of the User
+// being invited available, if the User being invited is not the current User,
+// and if that User actually exists, and is not already in the Namespace. If
+// all of these checks pass, then the User being invited is set as the Invitee
+// field on the InviteForm.
+func (f *InviteForm) Validate() error {
 	errs := form.NewErrors()
 
 	if f.Handle == "" {
@@ -115,6 +133,8 @@ func (f InviteForm) Validate() error {
 	if u.IsZero() {
 		errs.Put("handle", errors.New("Could not find user"))
 	}
+
+	f.Invitee = u
 
 	selectq := user.Select("id", user.WhereHandle(f.Handle))
 
@@ -139,6 +159,5 @@ func (f InviteForm) Validate() error {
 	}
 
 	f.Invitee = u
-
 	return errs.Err()
 }

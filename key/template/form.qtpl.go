@@ -92,7 +92,7 @@ func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
 //line key/template/form.qtpl:36
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> `)
 //line key/template/form.qtpl:39
-	if p.Key != nil {
+	if p.Key != nil && p.Key.Namespace != nil {
 //line key/template/form.qtpl:39
 		qw422016.N().S(` <input class="form-text" type="text" id="namespace" name="namespace" value="`)
 //line key/template/form.qtpl:40

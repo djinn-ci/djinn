@@ -16,8 +16,8 @@ type Variable struct {
 	web.Handler
 
 	Loaders    model.Loaders
-	Namespaces namespace.Store
-	Variables  variable.Store
+	Namespaces *namespace.Store
+	Variables  *variable.Store
 }
 
 func (h Variable) Model(r *http.Request) *variable.Variable {
@@ -26,7 +26,7 @@ func (h Variable) Model(r *http.Request) *variable.Variable {
 	return v
 }
 
-func (h Variable) IndexWithRelations(s variable.Store, r *http.Request) ([]*variable.Variable, model.Paginator, error) {
+func (h Variable) IndexWithRelations(s *variable.Store, r *http.Request) ([]*variable.Variable, model.Paginator, error) {
 	vv, paginator, err := s.Index(r.URL.Query())
 
 	if err != nil {

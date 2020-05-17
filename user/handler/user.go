@@ -53,7 +53,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 		if _, ok := err.(form.Errors); !ok {
 			log.Error.Println(errors.Err(err))
 		}
-		http.Redirect(w, r, r.Header.Get("Referer"), http.StatusSeeOther)
+		h.RedirectBack(w, r)
 		return
 	}
 
@@ -75,7 +75,22 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
+
+	providers := provider.NewStore(h.DB)
+
+	for name := range h.Providers {
+		p := providers.New()
+		p.Name = name
+		p.UserID = u.ID
+		p.Connected = false
+
+		if err := providers.Create(p); err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	}
+	h.Redirect(w, r, "/login")
 }
 
 func (h User) Login(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +168,7 @@ func (h User) Logout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Unix(0, 0),
 	})
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	h.Redirect(w, r, "/")
 }
 
 func (h User) Settings(w http.ResponseWriter, r *http.Request) {
@@ -196,7 +211,12 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 			URL:  r.URL,
 			User: u,
 		},
-		User: u,
+		Form: template.Form{
+			CSRF:   string(csrf.TemplateField(r)),
+			Errors: h.FormErrors(sess),
+			Fields: h.FormFields(sess),
+		},
+		Providers: make([]*provider.Provider, 0, len(h.Providers)),
 	}
 
 	for _, name := range order {

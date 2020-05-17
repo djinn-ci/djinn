@@ -2,7 +2,6 @@ package provider
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,6 +10,7 @@ import (
 	"github.com/andrewpillar/thrall/oauth2"
 )
 
+// GitHub provides an oauth2.Provider implementation for the GitHub REST API.
 type GitHub struct {
 	client
 }
@@ -25,6 +25,10 @@ var (
 	}
 )
 
+// ToggleRepo will either add or remove the webhook to the repository of the
+// given ID depending on whether it was previously enabled as determined by
+// the given callback. The new webhook will trigger on push and pull_request
+// events.
 func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, bool, error)) (int64, error) {
 	respGet, err := g.Get(string(tok), fmt.Sprintf("%s/repositories/%v", g.Endpoint, id))
 
@@ -45,8 +49,7 @@ func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 		}
 	}{}
 
-	dec := json.NewDecoder(respGet.Body)
-	dec.Decode(&repo)
+	json.NewDecoder(respGet.Body).Decode(&repo)
 
 	hookId, ok, err := enabled(id)
 
@@ -67,8 +70,7 @@ func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 
 		buf := &bytes.Buffer{}
 
-		enc := json.NewEncoder(buf)
-		enc.Encode(body)
+		json.NewEncoder(buf).Encode(body)
 
 		url := fmt.Sprintf("%s/repos/%s/%s/hooks", g.Endpoint, repo.Owner.Login, repo.Name)
 		respPost, err := g.Post(string(tok), url, buf)
@@ -104,67 +106,43 @@ func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 	if respDelete.StatusCode != http.StatusNoContent {
 		return 0, errors.New("unexpected http status "+respDelete.Status)
 	}
-	return hookId, nil
+	return 0, nil
 }
 
-func (g GitHub) Repos(tok []byte) ([]oauth2.Repo, error) {
-	resp, err := g.Get(string(tok), g.Endpoint+"/user/repositories?sort=updated")
+func (g GitHub) Repos(tok []byte, page int64) (oauth2.Repos, error) {
+	resp, err := g.Get(string(tok), fmt.Sprintf("%s/user/repos?sort=updated&page=%v", g.Endpoint, page))
 
 	if err != nil {
-		return []oauth2.Repo{}, errors.Err(err)
+		return oauth2.Repos{}, errors.Err(err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return []oauth2.Repo{}, errors.New("unexpected status code "+resp.Status)
+		return oauth2.Repos{}, errors.New("unexpected status code "+resp.Status)
 	}
 
-	repos := make([]struct{
+	next, prev := getNextAndPrev(resp.Header.Get("Link"))
+
+	repos := oauth2.Repos{
+		Next:  next,
+		Prev:  prev,
+	}
+
+	items := make([]struct{
 		ID       int64
 		FullName string `json:"full_name"`
 		HTMLURL  string `json:"html_url"`
 	}, 0)
 
-	dec := json.NewDecoder(resp.Body)
-	dec.Decode(&repos)
+	json.NewDecoder(resp.Body).Decode(&items)
 
-	rr := make([]oauth2.Repo, 0, len(repos))
-
-	for _, repo := range repos {
-		rr = append(rr, oauth2.Repo{
-			ID:   repo.ID,
-			Name: repo.FullName,
-			Href: repo.HTMLURL,
+	for _, item := range items {
+		repos.Items = append(repos.Items, oauth2.Repo{
+			ID:   item.ID,
+			Name: item.FullName,
+			Href: item.HTMLURL,
 		})
 	}
-	return rr, nil
-}
-
-func (g GitHub) Revoke(tok []byte) error {
-	auth := g.Config.ClientID+":"+g.Config.ClientSecret
-
-	url := fmt.Sprintf("%s/applications/%s/token/%s", g.Endpoint, g.Config.ClientID, string(tok))
-	req, err := http.NewRequest("DELETE", url, nil)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	req.Header.Set("Authorization", "basic "+base64.StdEncoding.EncodeToString([]byte(auth)))
-
-	cli := &http.Client{}
-
-	resp, err := cli.Do(req)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent {
-		return errors.New("unexpecred status code "+resp.Status)
-	}
-	return nil
+	return repos, nil
 }

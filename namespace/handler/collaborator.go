@@ -19,8 +19,8 @@ import (
 type Collaborator struct {
 	web.Handler
 
-	Namespaces namespace.Store
-	Invites    namespace.InviteStore
+	Invites    *namespace.InviteStore
+	Namespaces *namespace.Store
 }
 
 func (h Collaborator) StoreModel(r *http.Request) (*namespace.Namespace, error) {
@@ -37,7 +37,7 @@ func (h Collaborator) StoreModel(r *http.Request) (*namespace.Namespace, error) 
 	err = h.Namespaces.Load(
 		"id",
 		[]interface{}{i.NamespaceID},
-		model.Bind("namespace_id", "id"),
+		model.Bind("namespace_id", "id", i),
 	)
 
 	if err != nil {

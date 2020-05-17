@@ -30,6 +30,9 @@ var statusMap = map[string]Status{
 	"timed_out":            TimedOut,
 }
 
+// Scan scans the given interface value into the current Status. If the value
+// scans into an empty byte slice, then the Status is set to Queued, otherwise
+// UnmarshalText is used to attempt to try and get the Status.
 func (s *Status) Scan(val interface{}) error {
 	b, err := model.Scan(val)
 
@@ -44,6 +47,9 @@ func (s *Status) Scan(val interface{}) error {
 	return errors.Err(s.UnmarshalText(b))
 }
 
+// UnmarshalText unmarshals the given byte slice into the current Status, if it
+// is a valid Status for the Runner. If the byte slice is of an unknown Status
+// then the error "unknown status" is returned.
 func (s *Status) UnmarshalText(b []byte) error {
 	var ok bool
 
@@ -56,6 +62,6 @@ func (s *Status) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (s Status) Value() (driver.Value, error) {
-	return driver.Value(s.String()), nil
-}
+// Value returns the underlying string value for the current status to be used
+// for database insertion.
+func (s Status) Value() (driver.Value, error) { return driver.Value(s.String()), nil }

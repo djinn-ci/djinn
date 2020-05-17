@@ -24,7 +24,7 @@ type Image struct {
 	web.Handler
 
 	Loaders    model.Loaders
-	Images     image.Store
+	Images     *image.Store
 	FileStore  filestore.FileStore
 	Limit      int64
 }
@@ -41,11 +41,11 @@ func (h Image) Delete(r *http.Request) error {
 	if err := h.Images.Delete(i); err != nil {
 		return errors.Err(err)
 	}
-	err := h.FileStore.Remove(filepath.Join(i.Driver.String(), i.Name+"::"+i.Hash))
+	err := h.FileStore.Remove(filepath.Join(i.Driver.String(), i.Hash))
 	return errors.Err(err)
 }
 
-func (h Image) IndexWithRelations(s image.Store, vals url.Values) ([]*image.Image, model.Paginator, error) {
+func (h Image) IndexWithRelations(s *image.Store, vals url.Values) ([]*image.Image, model.Paginator, error) {
 	ii, paginator, err := s.Index(vals)
 
 	if err != nil {
@@ -83,8 +83,8 @@ func (h Image) Get(r *http.Request) (*image.Image, error) {
 	return i, errors.Err(err)
 }
 
-func (h Image) realStore(s image.Store, res namespace.Resource, name string, r io.Reader) (*image.Image, error) {
-	if err := res.BindNamespace(&s); err != nil {
+func (h Image) realStore(s *image.Store, res namespace.Resource, name string, r io.Reader) (*image.Image, error) {
+	if err := res.BindNamespace(s); err != nil {
 		return &image.Image{}, errors.Err(err)
 	}
 

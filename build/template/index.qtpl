@@ -47,6 +47,7 @@ type Index struct {
 							<th>NAMESPACE</th>
 							<th></th>
 							<th></th>
+							<th></th>
 						</tr>
 					</thead>
 					<tbody>
@@ -73,6 +74,11 @@ type Index struct {
 									{%v b.FinishedAt.Time.Sub(b.StartedAt.Time) %}
 								{% endif %}
 							</td>
+							<td class="align-right">
+								{% if p.User.ID != b.UserID %}
+									<span class="muted">{% cat "../../static/svg/users.svg" %}</span>
+								{% endif %}
+							</td>
 						</tr>
 					{% endfor %}
 					</tbody>
@@ -80,7 +86,7 @@ type Index struct {
 			{% endif %}
 		{% endif %}
 	</div>
-	{%= template.RenderPaginator(p.URL.Path, p.Paginator) %}
+	{%= template.RenderPaginator(p.URL, p.Paginator) %}
 {% endfunc %}
 
 {% func (p *Index) Section() %}

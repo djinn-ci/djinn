@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -40,19 +39,24 @@ type Gate func(u *user.User, r *http.Request) (*http.Request, bool, error)
 // Resource returns whether the current user has access to the given resource.
 // The resource's ID will be taken from the request based on the name, this is
 // passed back to the modelFunc which will return the underlying model for that
-// resource.
+// resource. The name of the resource is also used to check against the
+// permissions of that user.
 func Resource(db *sqlx.DB, name string, r *http.Request, get modelFunc) (bool, error) {
-	val := r.Context().Value("user")
-	u, ok := val.(*user.User)
+	u := r.Context().Value("user").(*user.User)
 
-	if !ok {
-		return false, errors.New("user not in request context")
+	var ok bool
+
+	switch r.Method {
+	case "GET":
+		_, ok = u.Permissions[name+":read"]
+	case "POST", "PATCH":
+		_, ok = u.Permissions[name+":write"]
+	case "DELETE":
+		_, ok = u.Permissions[name+":delete"]
 	}
 
-	base := filepath.Base(r.URL.Path)
-
-	if base == name + "s" || base == "create" {
-		return !u.IsZero(), nil
+	if !ok {
+		return false, nil
 	}
 
 	vars := mux.Vars(r)
@@ -145,22 +149,27 @@ func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bo
 	return u, !u.IsZero()
 }
 
+// Guest redirects the user back to the homepage if they're already
+// authenticated. Otherwise it let's them continue with the request.
 func (h Middleware) Guest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, ok := h.auth(w, r); ok {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
+			h.Redirect(w, r, "/")
 			return
 		}
 		next.ServeHTTP(w, r)
 	})
 }
 
+// Auth redirects the user back to /login if they're not authenticated, however
+// it let's them continue if they are, and set's the user in the request
+// context.
 func (h Middleware) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		u, ok := h.auth(w, r)
 
 		if !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			h.Redirect(w, r, "/login")
 			return
 		}
 
@@ -170,6 +179,8 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 	})
 }
 
+// Gate returns a mux.MiddlewareFunc that when called will iterate over the
+// given gates to determine if the user can access the next request.
 func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

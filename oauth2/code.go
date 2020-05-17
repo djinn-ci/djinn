@@ -13,6 +13,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Code is the struct of the OAuth codes that are issued to generate the final
+// token for authentication over the API.
 type Code struct {
 	ID        int64     `db:"id"`
 	UserID    int64     `db:"user_id"`
@@ -39,20 +41,29 @@ var (
 	codeTable = "oauth_codes"
 )
 
-func NewCodeStore(db *sqlx.DB, mm ...model.Model) CodeStore {
-	s := CodeStore{
+// NewCodeStore returns a new CodeStore for querying the oauth_codes table. Each
+// model passed to this function will be bound to the returned CodeStore.
+func NewCodeStore(db *sqlx.DB, mm ...model.Model) *CodeStore {
+	s := &CodeStore{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// CodeModel is called along with model.Slice to convert the given slice of
+// Code models to a slice of model.Model interfaces.
 func CodeModel(cc []*Code) func(int) model.Model {
 	return func(i int) model.Model {
 		return cc[i]
 	}
 }
 
+// Bind the given models to the current Code. This will only bind the model if
+// they are one of the following,
+//
+// - *app.App
+// - *user.User
 func (c *Code) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -64,21 +75,11 @@ func (c *Code) Bind(mm ...model.Model) {
 	}
 }
 
-func (c *Code) Kind() string { return "oauth_code" }
-
 func (c *Code) SetPrimary(id int64) {
-	if c == nil {
-		return
-	}
 	c.ID = id
 }
 
-func (c *Code) Primary() (string, int64) {
-	if c == nil {
-		return "id", 0
-	}
-	return "id", c.ID
-}
+func (c *Code) Primary() (string, int64) { return "id", c.ID }
 
 func (c *Code) IsZero() bool {
 	return c == nil || c.ID == 0 &&
@@ -87,12 +88,11 @@ func (c *Code) IsZero() bool {
 		c.ExpiresAt == time.Time{}
 }
 
+// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
+// string.
 func (*Code) Endpoint(_ ...string) string { return "" }
 
 func (c *Code) Values() map[string]interface{} {
-	if c == nil {
-		return map[string]interface{}{}
-	}
 	return map[string]interface{}{
 		"code":       c.Code,
 		"scope":      c.Scope,
@@ -100,7 +100,9 @@ func (c *Code) Values() map[string]interface{} {
 	}
 }
 
-func (s CodeStore) New() *Code {
+// New returns a new Code binding any non-nil models to it from the current
+// CodeStore.
+func (s *CodeStore) New() *Code {
 	c := &Code{
 		User: s.User,
 	}
@@ -111,6 +113,11 @@ func (s CodeStore) New() *Code {
 	return c
 }
 
+// Bind the given models to the current Code. This will only bind the model if
+// they are one of the following,
+//
+// - *app.App
+// - *user.User
 func (s *CodeStore) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -122,17 +129,22 @@ func (s *CodeStore) Bind(mm ...model.Model) {
 	}
 }
 
-func (s CodeStore) Create(cc ...*Code) error {
+// Create inserts the given Code models into the oauth_codes table.
+func (s *CodeStore) Create(cc ...*Code) error {
 	mm := model.Slice(len(cc), CodeModel(cc))
 	return errors.Err(s.Store.Create(codeTable, mm...))
 }
 
-func (s CodeStore) Delete(cc ...*Code) error {
+// Delete deletes the given Code models from the oauth_codes table.
+func (s *CodeStore) Delete(cc ...*Code) error {
 	mm := model.Slice(len(cc), CodeModel(cc))
 	return errors.Err(s.Store.Delete(codeTable, mm...))
 }
 
-func (s CodeStore) Get(opts ...query.Option) (*Code, error) {
+// Get returns a single Code model, applying each query.Option that is given.
+// The model.Where option is applied to the bound User model and bound App
+// model.
+func (s *CodeStore) Get(opts ...query.Option) (*Code, error) {
 	c := &Code{
 		User: s.User,
 		App:  s.App,

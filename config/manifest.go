@@ -33,10 +33,11 @@ type Job struct {
 	Stage     string             `yaml:",omitempty"`
 	Name      string             `yaml:",omitempty"`
 	Commands  []string           `yaml:",omitempty"`
-	Depends   []string           `yaml:",omitempty"`
 	Artifacts runner.Passthrough `yaml:",omitempty"`
 }
 
+// DecodeManifest takes the given io.Reader, and decodes its content into a
+// Manifest, which is then returned.
 func DecodeManifest(r io.Reader) (Manifest, error) {
 	dec := yaml.NewDecoder(r)
 	manifest := Manifest{}
@@ -48,6 +49,7 @@ func DecodeManifest(r io.Reader) (Manifest, error) {
 	return manifest, nil
 }
 
+// UnmarshalManifest unmarshals the given bytes into Manifest, and returns it.
 func UnmarshalManifest(b []byte) (Manifest, error) {
 	manifest := Manifest{}
 
@@ -55,6 +57,8 @@ func UnmarshalManifest(b []byte) (Manifest, error) {
 	return manifest, errors.Err(err)
 }
 
+// Scan unmarshals the given interface value, assuming the underlying value is
+// that of a string.
 func (m *Manifest) Scan(val interface{}) error {
 	if val == nil {
 		return nil
@@ -78,10 +82,10 @@ func (m *Manifest) Scan(val interface{}) error {
 
 	buf := bytes.NewBufferString(s)
 	dec := yaml.NewDecoder(buf)
-
 	return errors.Err(dec.Decode(m))
 }
 
+// String returns the marshalled string of the manifest.
 func (m Manifest) String() string {
 	b, err := yaml.Marshal(m)
 
@@ -91,15 +95,19 @@ func (m Manifest) String() string {
 	return strings.TrimSuffix(string(b), "\n")
 }
 
+// Value returns a marshalled version of the manifest to be inserted into the
+// database.
 func (m Manifest) Value() (driver.Value, error) {
 	buf := &bytes.Buffer{}
 
 	enc := yaml.NewEncoder(buf)
 	enc.Encode(&m)
-
 	return driver.Value(buf.String()), nil
 }
 
+// UnmarshalText unmarshals the given bytes into a temporary anonymous struct
+// that matches Manifest. This is then copied into the underlying Manifest
+// itself.
 func (m *Manifest) UnmarshalText(b []byte) error {
 	tmp := struct{
 		Namespace     string             `yaml:",omitempty"`
@@ -126,6 +134,8 @@ func (m *Manifest) UnmarshalText(b []byte) error {
 	return errors.Err(err)
 }
 
+// Validate checks the manifest to see if the minimum configuration for a
+// driver to execute is available.
 func (m Manifest) Validate() error {
 	typ := m.Driver["type"]
 
@@ -145,10 +155,8 @@ func (m Manifest) Validate() error {
 			return errors.New("driver type qemu requires image")
 		}
 	case "ssh":
-		for _, key := range []string{"address", "username"} {
-			if m.Driver[key] == "" {
-				return errors.New("driver type ssh requires " + key)
-			}
+		if m.Driver["address"] == "" {
+			return errors.New("driver type ssh requires address")
 		}
 	default:
 		return errors.New("unknown driver type " + typ)
@@ -156,6 +164,7 @@ func (m Manifest) Validate() error {
 	return nil
 }
 
+// MarshalYAML marshals the YAML of a source URL into a string.
 func (s Source) MarshalYAML() (interface{}, error) {
 	urlParts := strings.Split(s.URL, "/")
 
@@ -172,7 +181,8 @@ func (s Source) MarshalYAML() (interface{}, error) {
 	return s.URL + " " + ref + " => " + dir, nil
 }
 
-// Source URLs can be in the format of:
+// UnmarshalYAML unmarshals the YAML for a source URL. Source URLs can be in
+// the format of:
 //
 //   [url] [ref] => [dir]
 //

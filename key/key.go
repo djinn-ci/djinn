@@ -1,3 +1,4 @@
+// Package key providers the model.Model implementation for the Key entity.
 package key
 
 import (
@@ -50,8 +51,8 @@ var (
 	}
 )
 
-func NewStore(db *sqlx.DB, mm ...model.Model) Store {
-	s := Store{
+func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+	s := &Store{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
@@ -70,41 +71,26 @@ func Model(kk []*Key) func(int)model.Model {
 }
 
 func (k *Key) Bind(mm ...model.Model) {
-	if k == nil {
-		return
-	}
 
 	for _, m := range mm {
-		switch m.Kind() {
-		case "user":
+		switch m.(type) {
+		case *user.User:
 			k.User = m.(*user.User)
-		case "namespace":
+		case *namespace.Namespace:
 			k.Namespace = m.(*namespace.Namespace)
 		}
 	}
 }
 
-func (k *Key) Kind() string { return "key" }
-
 func (k *Key) SetPrimary(id int64) {
-	if k == nil {
-		return
-	}
 	k.ID = id
 }
 
 func (k *Key) Primary() (string, int64) {
-	if k == nil {
-		return "id", 0
-	}
 	return "id", k.ID
 }
 
 func (k *Key) Endpoint(uri ...string) string {
-	if k == nil {
-		return ""
-	}
-
 	endpoint := fmt.Sprintf("/keys/%v", k.ID)
 
 	if len(uri) > 0 {
@@ -124,10 +110,6 @@ func (k *Key) IsZero() bool {
 }
 
 func (k *Key) Values() map[string]interface{} {
-	if k == nil {
-		return map[string]interface{}{}
-	}
-
 	return map[string]interface{}{
 		"user_id":      k.UserID,
 		"namespace_id": k.NamespaceID,
@@ -137,14 +119,14 @@ func (k *Key) Values() map[string]interface{} {
 	}
 }
 
-func (s Store) New() *Key {
+func (s *Store) New() *Key {
 	k := &Key{
 		User:      s.User,
 		Namespace: s.Namespace,
 	}
 
 	if s.User != nil {
-		k.UserID = k.ID
+		k.UserID = s.User.ID
 	}
 
 	if s.Namespace != nil {
@@ -167,27 +149,27 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-func (s Store) Create(kk ...*Key) error {
+func (s *Store) Create(kk ...*Key) error {
 	models := model.Slice(len(kk), Model(kk))
 	return errors.Err(s.Store.Create(table, models...))
 }
 
-func (s Store) Update(kk ...*Key) error {
+func (s *Store) Update(kk ...*Key) error {
 	models := model.Slice(len(kk), Model(kk))
 	return errors.Err(s.Store.Update(table, models...))
 }
 
-func (s Store) Delete(kk ...*Key) error {
+func (s *Store) Delete(kk ...*Key) error {
 	models := model.Slice(len(kk), Model(kk))
 	return errors.Err(s.Store.Delete(table, models...))
 }
 
-func (s Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
+func (s *Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
 	paginator, err := s.Store.Paginate(table, page, opts...)
 	return paginator, errors.Err(err)
 }
 
-func (s Store) All(opts ...query.Option) ([]*Key, error) {
+func (s *Store) All(opts ...query.Option) ([]*Key, error) {
 	kk := make([]*Key, 0)
 
 	opts = append([]query.Option{
@@ -208,7 +190,7 @@ func (s Store) All(opts ...query.Option) ([]*Key, error) {
 	return kk, errors.Err(err)
 }
 
-func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Key, model.Paginator, error) {
+func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Key, model.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
@@ -234,7 +216,7 @@ func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Key, model.Pagin
 	return kk, paginator, errors.Err(err)
 }
 
-func (s Store) Get(opts ...query.Option) (*Key, error) {
+func (s *Store) Get(opts ...query.Option) (*Key, error) {
 	k := &Key{
 		User:      s.User,
 		Namespace: s.Namespace,
@@ -253,7 +235,7 @@ func (s Store) Get(opts ...query.Option) (*Key, error) {
 	return k, errors.Err(err)
 }
 
-func (s Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+func (s *Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	kk, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {

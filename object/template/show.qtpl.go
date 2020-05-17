@@ -96,7 +96,7 @@ func (p *Show) StreamBody(qw422016 *qt422016.Writer) {
 //line object/template/show.qtpl:46
 	qw422016.N().S(`</span></td> </tr> </table> </div> `)
 //line object/template/show.qtpl:50
-	p.Section.StreamSection(qw422016)
+	p.Section.StreamBody(qw422016)
 //line object/template/show.qtpl:50
 	qw422016.N().S(` `)
 //line object/template/show.qtpl:51

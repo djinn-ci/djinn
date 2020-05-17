@@ -12,7 +12,10 @@ import (
 	"github.com/andrewpillar/thrall/oauth2"
 	oauth2template "github.com/andrewpillar/thrall/oauth2/template"
 	"github.com/andrewpillar/thrall/template"
+	usertemplate "github.com/andrewpillar/thrall/user/template"
 	"github.com/andrewpillar/thrall/web"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
 )
@@ -32,7 +35,7 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	tt, err := oauth2.NewTokenStore(h.DB, u).All()
+	tt, err := oauth2.NewTokenStore(h.DB, u).All(query.OrderDesc("created_at"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -40,11 +43,11 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	for _, t := range tt {
-		val := sess.Flashes("token_id")
+	flashes := sess.Flashes("token_id")
 
-		if val != nil {
-			if id, _ := val[0].(int64); id == t.ID {
+	for _, t := range tt {
+		if flashes != nil && len(flashes) > 0 {
+			if id, _ := flashes[0].(int64); id == t.ID {
 				continue
 			}
 		}
@@ -53,13 +56,17 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 
 	csrfField := csrf.TemplateField(r)
 
-	p := &oauth2template.TokenIndex{
-		BasePage: template.BasePage{
-			URL:  r.URL,
-			User: u,
+	bp := template.BasePage{
+		URL:  r.URL,
+		User: u,
+	}
+
+	p := &usertemplate.Settings{
+		BasePage: bp,
+		Section:  &oauth2template.TokenIndex{
+			CSRF:     csrfField,
+			Tokens:   tt,
 		},
-		CSRF:   csrfField,
-		Tokens: tt,
 	}
 	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrfField))
 	save(r, w)
@@ -72,7 +79,7 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	csrfField := string(csrf.TemplateField(r))
 	f := h.FormFields(sess)
 
-	p := &oauth2template.TokenForm{
+	section := &oauth2template.TokenForm{
 		Form: template.Form{
 			CSRF:   csrfField,
 			Errors: h.FormErrors(sess),
@@ -84,7 +91,14 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	scope := strings.Split(f["scope"], " ")
 
 	for _, sc := range scope {
-		p.Scopes[sc] = struct{}{}
+		section.Scopes[sc] = struct{}{}
+	}
+
+	p := &usertemplate.Settings{
+		BasePage: template.BasePage{
+			URL:  r.URL,
+		},
+		Section:  section,
 	}
 
 	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
@@ -173,6 +187,29 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 
 	tokens := oauth2.NewTokenStore(h.DB, u)
 
+	if filepath.Base(r.URL.Path) == "regenerate" {
+		t.Token = make([]byte, 16)
+
+		if _, err := rand.Read(t.Token); err != nil {
+			log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to update token"), "alert")
+			h.RedirectBack(w, r)
+			return
+		}
+
+		if err := tokens.Update(t); err != nil {
+			log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to update token"), "alert")
+			h.RedirectBack(w, r)
+			return
+		}
+
+		sess.AddFlash(t.ID, "token_id")
+		sess.AddFlash(template.Success("Token has been updated: "+t.Name), "alert")
+		h.Redirect(w, r, "/settings/tokens")
+		return
+	}
+
 	f := &oauth2.TokenForm{
 		Tokens: tokens,
 		Token:  t,
@@ -189,17 +226,6 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 
 	t.Name = f.Name
 	t.Scope, _ = oauth2.UnmarshalScope(strings.Join(f.Scope, " "))
-
-	if filepath.Base(r.URL.Path) == "regenerate" {
-		t.Token = make([]byte, 16)
-
-		if _, err := rand.Read(t.Token); err != nil {
-			log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to update token"), "alert")
-			h.RedirectBack(w, r)
-			return
-		}
-	}
 
 	if err := tokens.Update(t); err != nil {
 		log.Error.Println(errors.Err(err))

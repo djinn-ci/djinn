@@ -1,3 +1,4 @@
+// Package ssh provides an implemention of an SSH driver for executing jobs on.
 package ssh
 
 import (
@@ -25,14 +26,35 @@ type SSH struct {
 	client  *ssh.Client
 	env     []string
 
-	Addr    string
-	User    string
-	Key     string
+	// Addr is the address of the machine to connect to.
+	Addr string
+
+	// User is the user to connect via SSH as.
+	User string
+
+	// Key is the path to the SSH key to use during SSH.
+	Key string
+
+	// Timeout is the timeout to use when attempting the SSH connection.
 	Timeout time.Duration
 }
 
 var _ runner.Driver = (*SSH)(nil)
 
+// Init initializes a new SSH driver using the given io.Writer, and
+// configuration map. Detailed below are the values, types, and default values
+// that are used in the configuration map.
+//
+// Key - The key for the SSH driver is specified via the "key" field. It is
+// expected for this to be a string, the default value is $HOME/.ssh/.id_rsa.
+//
+// Timeout - The timeout for the SSH driver is specified via the "timeout"
+// field. It is expected for this to be an int64 for the timeout in seconds. The
+// default value is 60.
+//
+// Address - The address for the SSH driver is specified via the "address"
+// field. It is expected for this to be a string, there is no default value
+// for this.
 func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	key, ok := cfg["key"].(string)
 
@@ -57,6 +79,9 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	}
 }
 
+// Create opens up the SSH connection to the remote machine as configured via a
+// previous call to Init. The given env slice is used to set an unexported
+// variable for setting environment variables during job execution.
 func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
 	if s.Writer == nil {
 		return errors.New("cannot create driver with nil io.Writer")
@@ -121,6 +146,11 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 	return s.PlaceObjects(objs, p)
 }
 
+// Execute will perform the given runner.Job. This turns it into a shell script
+// that is executed on the remote machine once placed via SFTP. Before the job
+// is executed however, the environment variables given via Create are set for
+// the SSH session being used to invoke the script. The stderr, and stdout
+// streams are forwarded to the underlying io.Writer.
 func (s *SSH) Execute(j *runner.Job, c runner.Collector) {
 	sess, err := s.client.NewSession()
 
@@ -186,6 +216,7 @@ func (s *SSH) Execute(j *runner.Job, c runner.Collector) {
 	cli.Remove(script)
 }
 
+// Destroy closes the SSH connection.
 func (s *SSH) Destroy() {
 	if s.client != nil {
 		s.client.Close()
@@ -238,6 +269,8 @@ func (s *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 	}
 }
 
+// PlaceObjects copies the given objects from the given placer onto the
+// environment via SFTP.
 func (s *SSH) PlaceObjects(objects runner.Passthrough, p runner.Placer) error {
 	if len(objects.Values) == 0 {
 		return nil

@@ -14,7 +14,7 @@ type Form struct {
 	namespace.Resource
 
 	Key        *Key   `schema:"-"`
-	Keys       Store  `schema:"-"`
+	Keys       *Store `schema:"-"`
 	Name       string `schema:"name"`
 	PrivateKey string `schema:"key"`
 	Config     string `schema:"config"`
@@ -38,7 +38,7 @@ func (f Form) Validate() error {
 		errs.Put("name", form.ErrFieldRequired("Name"))
 	}
 
-	if err := f.Resource.BindNamespace(&f.Keys); err != nil {
+	if err := f.Resource.BindNamespace(f.Keys); err != nil {
 		return errors.Err(err)
 	}
 

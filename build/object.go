@@ -46,29 +46,35 @@ var (
 	objectTable = "build_objects"
 )
 
-func NewObjectStore(db *sqlx.DB, mm ...model.Model) ObjectStore {
-	s := ObjectStore{
+// NewObjectStore returns a new ObjectStore for querying the build_objects
+// table. Each model passed to this function will be bound to the returned
+// ObjectStore.
+func NewObjectStore(db *sqlx.DB, mm ...model.Model) *ObjectStore {
+	s := &ObjectStore{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-func NewObjectStoreWithPlacer(db *sqlx.DB, p runner.Placer, mm ...model.Model) ObjectStore {
-	s := ObjectStore{
-		Store:  model.Store{DB: db},
-		placer: p,
-	}
-	s.Bind(mm...)
+// NewObjectStoreWithCollector returns a new ObjectStore with the given
+// runner.Placer to use for object placement.
+func NewObjectStoreWithPlacer(db *sqlx.DB, p runner.Placer, mm ...model.Model) *ObjectStore {
+	s := NewObjectStore(db, mm...)
+	s.placer = p
 	return s
 }
 
+// ObjectModel is called along with model.Slice to convert the given slice of
+// Object models to a slice of model.Model interfaces.
 func ObjectModel(oo []*Object) func(int) model.Model {
 	return func(i int) model.Model {
 		return oo[i]
 	}
 }
 
+// SelectObject returns SELECT query that will select the given column from the
+// build_objects table with the given query options applied.
 func SelectObject(col string, opts ...query.Option) query.Query {
 	return query.Select(append([]query.Option{
 		query.Columns(col),
@@ -76,11 +82,12 @@ func SelectObject(col string, opts ...query.Option) query.Query {
 	}, opts...)...)
 }
 
+// Bind the given models to the current Object. This will only bind the model
+// if they are one of the following,
+//
+// - *Build
+// - *object.Object
 func (o *Object) Bind(mm ...model.Model) {
-	if o == nil {
-		return
-	}
-
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
@@ -91,22 +98,16 @@ func (o *Object) Bind(mm ...model.Model) {
 	}
 }
 
-func (*Object) Kind() string { return "build_object" }
-
 func (o *Object) SetPrimary(id int64) {
-	if o == nil {
-		return
-	}
 	o.ID = id
 }
 
 func (o *Object) Primary() (string, int64) {
-	if o == nil {
-		return "id", 0
-	}
 	return "id", o.ID
 }
 
+// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
+// string.
 func (*Object) Endpoint(_ ...string) string { return "" }
 
 func (o *Object) IsZero() bool {
@@ -119,7 +120,7 @@ func (o *Object) IsZero() bool {
 		o.CreatedAt == time.Time{}
 }
 
-func (o Object) Values() map[string]interface{} {
+func (o *Object) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id":   o.BuildID,
 		"object_id":  o.ObjectID,
@@ -129,7 +130,9 @@ func (o Object) Values() map[string]interface{} {
 	}
 }
 
-func (s ObjectStore) New() *Object {
+// New returns a new Object binding any non-nil models to it from the current
+// ObjectStore.
+func (s *ObjectStore) New() *Object {
 	o := &Object{
 		Build:  s.Build,
 		Object: s.Object,
@@ -150,17 +153,22 @@ func (s ObjectStore) New() *Object {
 	return o
 }
 
-func (s ObjectStore) Create(oo ...*Object) error {
+// Create inserts the given Object models into the build_objects table.
+func (s *ObjectStore) Create(oo ...*Object) error {
 	models := model.Slice(len(oo), ObjectModel(oo))
 	return errors.Err(s.Store.Create(objectTable, models...))
 }
 
-func (s ObjectStore) Update(oo ...*Object) error {
+// Update updates the given Object models in the build_objects table.
+func (s *ObjectStore) Update(oo ...*Object) error {
 	models := model.Slice(len(oo), ObjectModel(oo))
 	return errors.Err(s.Store.Update(objectTable, models...))
 }
 
-func (s ObjectStore) All(opts ...query.Option) ([]*Object, error) {
+// All returns a slice of Object models, applying each query.Option that is
+// given. Each model that is bound to the store will be applied to the list of
+// query options via model.Where.
+func (s *ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 	oo := make([]*Object, 0)
 
 	opts = append([]query.Option{
@@ -181,7 +189,10 @@ func (s ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 	return oo, errors.Err(err)
 }
 
-func (s ObjectStore) Get(opts ...query.Option) (*Object, error) {
+// Get returns a single Object model, applying each query.Option that is given.
+// Each model that is bound to the store will be applied to the list of query
+// options via model.Where.
+func (s *ObjectStore) Get(opts ...query.Option) (*Object, error) {
 	o := &Object{
 		Build: s.Build,
 		Object: s.Object,
@@ -200,6 +211,11 @@ func (s ObjectStore) Get(opts ...query.Option) (*Object, error) {
 	return o, errors.Err(err)
 }
 
+// Bind the given models to the current ObjectStore. This will only bind the
+// model if they are one of the following,
+//
+// - *Build
+// - *object.Object
 func (s *ObjectStore) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -211,7 +227,11 @@ func (s *ObjectStore) Bind(mm ...model.Model) {
 	}
 }
 
-func (s ObjectStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+// Load loads in a slice of Object models where the given key is in the list of
+// given vals. Each model is loaded individually via a call to the given load
+// callback. This method calls ObjectStore.All under the hood, so any bound
+// models will impact the models being loaded.
+func (s *ObjectStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	oo, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
@@ -226,7 +246,7 @@ func (s ObjectStore) Load(key string, vals []interface{}, load model.LoaderFunc)
 	return nil
 }
 
-func (s ObjectStore) getObjectToPlace(name string) (*Object, error) {
+func (s *ObjectStore) getObjectToPlace(name string) (*Object, error) {
 	if s.placer == nil {
 		return nil, errors.New("cannot place object: nil placer")
 	}
@@ -253,7 +273,9 @@ func (s ObjectStore) getObjectToPlace(name string) (*Object, error) {
 	return o, nil
 }
 
-func (s ObjectStore) Place(name string, w io.Writer) (int64, error) {
+// Place looks up the Object by the given name, and updates it once object
+// placement has been done via the underlying runner.Placer on the store.
+func (s *ObjectStore) Place(name string, w io.Writer) (int64, error) {
 	o, err := s.getObjectToPlace(name)
 
 	if err != nil {
@@ -274,7 +296,9 @@ func (s ObjectStore) Place(name string, w io.Writer) (int64, error) {
 	return n, errors.Err(errPlace)
 }
 
-func (s ObjectStore) Stat(name string) (os.FileInfo, error) {
+// Stat returns the os.FileInfo of the Object by the given name. This uses the
+// underlying runner.Placer on the store.
+func (s *ObjectStore) Stat(name string) (os.FileInfo, error) {
 	o, err := s.getObjectToPlace(name)
 
 	if err != nil {

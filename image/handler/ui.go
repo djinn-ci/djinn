@@ -58,16 +58,11 @@ func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 
 	csrfField := string(csrf.TemplateField(r))
 
-	f := template.Form{
-		CSRF:   csrfField,
-		Errors: h.FormErrors(sess),
-		Fields: h.FormFields(sess),
-	}
-
 	p := &imagetemplate.Create{
-		Form:     f,
-		FileForm: &template.FileForm{
-			Form: f,
+		Form: template.Form{
+			CSRF:   csrfField,
+			Errors: h.FormErrors(sess),
+			Fields: h.FormFields(sess),
 		},
 	}
 	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
@@ -113,7 +108,7 @@ func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := h.FileStore.Open(filepath.Join(i.Driver.String(), i.Name+"::"+i.Hash))
+	f, err := h.FileStore.Open(filepath.Join(i.Driver.String(), i.Hash))
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {
@@ -126,7 +121,6 @@ func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer f.Close()
-
 	http.ServeContent(w, r, i.Name, i.CreatedAt, f)
 }
 

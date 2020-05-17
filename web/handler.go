@@ -28,10 +28,12 @@ type Handler struct {
 
 	Store        sessions.Store
 	SecureCookie *securecookie.SecureCookie
-	Users        user.Store
-	Tokens       oauth2.TokenStore
+	Users        *user.Store
+	Tokens       *oauth2.TokenStore
 }
 
+// Alert returns the first alert that was flashed to the session. If no alert
+// exists, then an empty alert is returned instead.
 func (h *Handler) Alert(sess *sessions.Session) template.Alert {
 	val := sess.Flashes("alert")
 
@@ -41,6 +43,9 @@ func (h *Handler) Alert(sess *sessions.Session) template.Alert {
 	return val[0].(template.Alert)
 }
 
+// FormErrors returns the map that has been flashed to the session under the
+// form_errors key. If the key does not exist, then an empty form.Errors is
+// returned instead.
 func (h *Handler) FormErrors(sess *sessions.Session) form.Errors {
 	val := sess.Flashes("form_errors")
 
@@ -50,6 +55,9 @@ func (h *Handler) FormErrors(sess *sessions.Session) form.Errors {
 	return val[0].(form.Errors)
 }
 
+// FormFields returns the map that has been flashed to the session under the
+// form_fields key. If the key does not exist, then an empty map is returned
+// instead.
 func (h *Handler) FormFields(sess *sessions.Session) map[string]string {
 	val := sess.Flashes("form_fields")
 
@@ -59,16 +67,20 @@ func (h *Handler) FormFields(sess *sessions.Session) map[string]string {
 	return val[0].(map[string]string)
 }
 
+// Redirect redirects to the given URL, and saves the session in the process.
 func (h *Handler) Redirect(w http.ResponseWriter, r *http.Request, url string) {
 	_, save := h.Session(r)
 	save(r, w)
 	http.Redirect(w, r, url, http.StatusSeeOther)
 }
 
+// RedirectBack redirects to the Referer of the given request.
 func (h *Handler) RedirectBack(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, r.Header.Get("Referer"))
 }
 
+// Session returns the session for the current request, and a callback for
+// saving the returned session.
 func (h *Handler) Session(r *http.Request) (*sessions.Session, func(*http.Request, http.ResponseWriter)) {
 	sess, _ := h.Store.Get(r, sessionName)
 
@@ -79,6 +91,7 @@ func (h *Handler) Session(r *http.Request) (*sessions.Session, func(*http.Reques
 	}
 }
 
+// User returns the current user from the given requests context.
 func (h Handler) User(r *http.Request) *user.User {
 	val := r.Context().Value("user")
 
@@ -90,6 +103,8 @@ func (h Handler) User(r *http.Request) *user.User {
 	return u
 }
 
+// UserCookie returns the current user from the request cookie if the cookie
+// exists.
 func (h Handler) UserCookie(r *http.Request) (*user.User, error) {
 	c, err := r.Cookie("user")
 
@@ -120,6 +135,8 @@ func (h Handler) UserCookie(r *http.Request) (*user.User, error) {
 	return u, errors.Err(err)
 }
 
+// UserToken returns the current user from the request if the Authorization
+// header is present.
 func (h Handler) UserToken(r *http.Request) (*user.User, *oauth2.Token, error) {
 	prefix := "Bearer "
 	tok := r.Header.Get("Authorization")
@@ -152,6 +169,9 @@ func (h Handler) UserToken(r *http.Request) (*user.User, *oauth2.Token, error) {
 	return u, t, errors.Err(err)
 }
 
+// ValidateForm unmarshals the HTTP form data into the given form.Form, and
+// validates it. If any errors occur, then the form errors, and fields are
+// flashed to the form_errors, and form_fields keys respectively.
 func (h *Handler) ValidateForm(f form.Form, r *http.Request, sess *sessions.Session) error {
 	if err := form.Unmarshal(f, r); err != nil {
 		if sess != nil {

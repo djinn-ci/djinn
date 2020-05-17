@@ -1,3 +1,6 @@
+// Package provider providers the model.Model implementation for the Provider
+// entity, and implementations for the oauth2.Provider interface for the
+// different Git providers that can be used to authenticate against.
 package provider
 
 import (
@@ -40,20 +43,37 @@ var (
 	table = "providers"
 )
 
-func NewStore(db *sqlx.DB, mm ...model.Model) Store {
-	s := Store{
+// NewStore returns a new Store for querying the providers table. Each model
+// passed to this function will be bound to the returned Store.
+func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+	s := &Store{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// Model is called along with model.Slice to convert the given slice of
+// Provider models to a slice of model.Model interfaces.
 func Model(pp []*Provider) func(int) model.Model {
 	return func(i int) model.Model {
 		return pp[i]
 	}
 }
 
+// Select returns a query that selects the given column from the providers
+// table, with each given query.Option applied to the returned query.
+func Select(col string, opts ...query.Option) query.Query {
+	return query.Select(append([]query.Option{
+		query.Columns(col),
+		query.From(table),
+	}, opts...)...)
+}
+
+// Bind the given models to the current Provider. This will only bind the model
+// if they are one of the following,
+//
+// - *user.User
 func (p *Provider) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -63,22 +83,14 @@ func (p *Provider) Bind(mm ...model.Model) {
 	}
 }
 
-func (p *Provider) Kind() string { return "provider "}
-
 func (p *Provider) SetPrimary(id int64) {
-	if p == nil {
-		return
-	}
 	p.ID = id
 }
 
-func (p *Provider) Primary() (string, int64) {
-	if p == nil {
-		return "id", 0
-	}
-	return "id", p.ID
-}
+func (p *Provider) Primary() (string, int64) { return "id", p.ID }
 
+// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
+// string.
 func (*Provider) Endpoint(_ ...string) string { return "" }
 
 func (p *Provider) IsZero() bool {
@@ -93,9 +105,6 @@ func (p *Provider) IsZero() bool {
 }
 
 func (p *Provider) Values() map[string]interface{} {
-	if p == nil {
-		return map[string]interface{}{}
-	}
 	return map[string]interface{}{
 		"user_id":          p.UserID,
 		"provider_user_id": p.ProviderUserID,
@@ -107,7 +116,9 @@ func (p *Provider) Values() map[string]interface{} {
 	}
 }
 
-func (s Store) New() *Provider {
+// New returns a new Provider binding any non-nil models to it from the current
+// Store.
+func (s *Store) New() *Provider {
 	p := &Provider{
 		User: s.User,
 	}
@@ -118,6 +129,10 @@ func (s Store) New() *Provider {
 	return p
 }
 
+// Bind the given models to the current Provider. This will only bind the model
+// if they are one of the following,
+//
+// - *user.User
 func (s *Store) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -127,22 +142,27 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-func (s Store) Create(pp ...*Provider) error {
+// Create inserts the given Provider models into the providers table.
+func (s *Store) Create(pp ...*Provider) error {
 	mm := model.Slice(len(pp), Model(pp))
 	return errors.Err(s.Store.Create(table, mm...))
 }
 
-func (s Store) Update(pp ...*Provider) error {
+// Update updates the given Provider models in the providers table.
+func (s *Store) Update(pp ...*Provider) error {
 	mm := model.Slice(len(pp), Model(pp))
 	return errors.Err(s.Store.Update(table, mm...))
 }
 
-func (s Store) Delete(pp ...*Provider) error {
+// Delete deletes the given Provider models from the providers table.
+func (s *Store) Delete(pp ...*Provider) error {
 	mm := model.Slice(len(pp), Model(pp))
 	return errors.Err(s.Store.Delete(table, mm...))
 }
 
-func (s Store) Get(opts ...query.Option) (*Provider, error) {
+// Get returns a single Provider model, applying each query.Option that is
+// given. The model.Where option is applied to the *user.User bound model.
+func (s *Store) Get(opts ...query.Option) (*Provider, error) {
 	p := &Provider{
 		User: s.User,
 	}
@@ -159,7 +179,9 @@ func (s Store) Get(opts ...query.Option) (*Provider, error) {
 	return p, errors.Err(err)
 }
 
-func (s Store) All(opts ...query.Option) ([]*Provider, error) {
+// All returns a slice of Provider models, applying each query.Option that is
+// given. The model.Where option is applied to the *user.User bound model.
+func (s *Store) All(opts ...query.Option) ([]*Provider, error) {
 	pp := make([]*Provider, 0)
 
 	opts = append([]query.Option{

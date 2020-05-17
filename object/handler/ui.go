@@ -61,16 +61,11 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 
 	csrfField := string(csrf.TemplateField(r))
 
-	f := template.Form{
-		CSRF:   csrfField,
-		Errors: h.FormErrors(sess),
-		Fields: h.FormFields(sess),
-	}
-
 	p := &objecttemplate.Create{
-		Form:     f,
-		FileForm: &template.FileForm{
-			Form: f,
+		Form: template.Form{
+			CSRF:   csrfField,
+			Errors: h.FormErrors(sess),
+			Fields: h.FormFields(sess),
 		},
 	}
 	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
@@ -144,6 +139,12 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	bb, paginator, err := h.Builds.Index(r.URL.Query(), query.WhereQuery("id", "IN", selectq))
 
 	if err != nil {
+		log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := build.LoadRelations(h.Loaders, bb...); err != nil {
 		log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

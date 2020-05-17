@@ -85,7 +85,9 @@ type Index struct {
 {% endfunc %}
 
 {% func (p *Index) Actions() %}
-	<li><a href="/images/create" class="btn btn-primary">Create</a></li>
+	{% if _, ok := p.User.Permissions["image:write"]; ok %}
+		<li><a href="/images/create" class="btn btn-primary">Create</a></li>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *Index) Navigation() %}{% endfunc %}

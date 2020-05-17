@@ -40,25 +40,30 @@ var (
 	tagTable = "build_tags"
 )
 
-func NewTagStore(db *sqlx.DB, mm ...model.Model) TagStore {
-	s := TagStore{
+// NewTagStore returns a new TagStore for querying the build_tags table.
+// Each model passed to this function will be bound to the returned TagStore.
+func NewTagStore(db *sqlx.DB, mm ...model.Model) *TagStore {
+	s := &TagStore{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// TagModel is called along with model.Slice to convert the given slice of
+// Tag models to a slice of model.Model interfaces.
 func TagModel(tt []*Tag) func(int) model.Model {
 	return func(i int) model.Model {
 		return tt[i]
 	}
 }
 
+// Bind the given models to the current Tag. This will only bind the model if
+// they are one of the following,
+//
+// - *user.User
+// - *Build
 func (t *Tag) Bind(mm ...model.Model) {
-	if t == nil {
-		return
-	}
-
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -69,27 +74,17 @@ func (t *Tag) Bind(mm ...model.Model) {
 	}
 }
 
-func (*Tag) Kind() string { return "build_tag" }
-
-func (t *Tag) Primary() (string, int64) {
-	if t == nil {
-		return "id", 0
-	}
+func (t Tag) Primary() (string, int64) {
 	return "id", t.ID
 }
 
 func (t *Tag) SetPrimary(i int64) {
-	if t == nil {
-		return
-	}
 	t.ID = i
 }
 
-func (t *Tag) Endpoint(uri ...string) string {
-	if t == nil {
-		return ""
-	}
-
+// Endpoint returns the endpoint for the current Tag. If nil, or if missing
+// a bound Build model, then an empty string is returned.
+func (t Tag) Endpoint(uri ...string) string {
 	if t.Build == nil || t.Build.IsZero() {
 		return ""
 	}
@@ -107,10 +102,6 @@ func (t *Tag) IsZero() bool {
 }
 
 func (t *Tag) Values() map[string]interface{} {
-	if t == nil {
-		return map[string]interface{}{}
-	}
-
 	return map[string]interface{}{
 		"user_id":  t.UserID,
 		"build_id": t.BuildID,
@@ -118,16 +109,20 @@ func (t *Tag) Values() map[string]interface{} {
 	}
 }
 
+// Create inserts the given Tag models into the build_tags table.
 func (s TagStore) Create(tt ...*Tag) error {
 	models := model.Slice(len(tt), TagModel(tt))
 	return errors.Err(s.Store.Create(tagTable, models...))
 }
 
+// Delete removes the given Tag models from the build_tags table.
 func (s TagStore) Delete(tt ...*Tag) error {
 	models := model.Slice(len(tt), TagModel(tt))
 	return errors.Err(s.Store.Delete(tagTable, models...))
 }
 
+// New returns a new Tag binding any non-nil models to it from the current
+// TagStore.
 func (s TagStore) New() *Tag {
 	t := &Tag{
 		User:  s.User,
@@ -146,6 +141,11 @@ func (s TagStore) New() *Tag {
 	return t
 }
 
+// Bind the given models to the current Tag. This will only bind the model if
+// they are one of the following,
+//
+// - *user.User
+// - *Build
 func (s *TagStore) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -157,6 +157,9 @@ func (s *TagStore) Bind(mm ...model.Model) {
 	}
 }
 
+// All returns a slice of Tag models, applying each query.Option that is given.
+// The model.Where option is used on the Build bound model to limit the query
+// to those relations.
 func (s TagStore) All(opts ...query.Option) ([]*Tag, error) {
 	tt := make([]*Tag, 0)
 
@@ -176,6 +179,9 @@ func (s TagStore) All(opts ...query.Option) ([]*Tag, error) {
 	return tt, errors.Err(err)
 }
 
+// Get returns a single Tag model, applying each query.Option that is given.
+// The model.Where option is used on the Build bound model to limit the query
+// to those relations.
 func (s TagStore) Get(opts ...query.Option) (*Tag, error) {
 	t := &Tag{
 		Build: s.Build,
@@ -195,6 +201,10 @@ func (s TagStore) Get(opts ...query.Option) (*Tag, error) {
 	return t, errors.Err(err)
 }
 
+// Load loads in a slice of Job models where the given key is in the list of
+// given vals. Each model is loaded individually via a call to the given load
+// callback. This method calls JobStore.All under the hood, so any bound models
+// will impact the models being loaded.
 func (s TagStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	tt, err := s.All(query.Where(key, "IN", vals...))
 

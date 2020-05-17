@@ -1,5 +1,6 @@
 {%
 import (
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/repo"
 	"github.com/andrewpillar/thrall/template"
@@ -11,8 +12,9 @@ type Index struct {
 	template.BasePage
 
 	CSRF      string
+	Paginator model.Paginator
 	Repos     []*repo.Repo
-	Provider  string
+	Provider  *provider.Provider
 	Providers []*provider.Provider
 }
 
@@ -33,85 +35,85 @@ var providerNames = map[string]string{
 
 {% func (p *Index) Body() %}
 	<div class="panel">
-		{% if !p.User.Connected && len(p.Repos) == 0 %}
-			<div class="panel-message muted">Connect to GitHub or GitLab to trigger builds on pushes, and pull reqests made on a repository. Get started by connecting from your account <a href="/settings">settings</a>.
-		{% else %}
-			<div class="panel-header">
-				{% stripspace %}
-				<ul class="panel-nav">
+		<div class="panel-header">
+			{% stripspace %}
+			<ul class="panel-nav">
+				{% for _, prv := range p.Providers %}
 					<li>
-						<a href="{%s p.URL.Path %}" {% if p.Provider == "" %}class="active"{% endif %}>
-							All
-						</a>
+						<a href="{%s p.URL.Path %}?provider={%s prv.Name %}" {% if p.Provider.Name == prv.Name %}class="active"{% endif %}>{%s providerNames[prv.Name] %}</a>
 					</li>
-					{% for _, prv := range p.Providers %}
-						<li>
-							<a href="{%s p.URL.Path %}?provider={%s prv.Name %}" {% if p.Provider == prv.Name %}class="active"{% endif %}>{%s providerNames[prv.Name] %}</a>
-						</li>
-					{% endfor %}
-				</ul>
-				{% endstripspace %}
+				{% endfor %}
+			</ul>
+			{% endstripspace %}
+		</div>
+		{% if !p.Provider.Connected && len(p.Providers) == 0 %}
+			<div class="panel-message muted">
+				Connect to a Git provider to trigger builds on pushes, and pull requests. Get started by connecting from your account <a href="/settings">settings</a>.
 			</div>
-			{% if len(p.Repos) == 0 %}
-				<div class="panel-message muted">No {%s providerNames[p.Provider] %} repositories.</div>
-			{% else %}
-				<table class="table">
-					<thead>
+		{% elseif !p.Provider.Connected %}
+			<div class="panel-message muted">
+				Connect to {%s providerNames[p.Provider.Name] %} to trigger builds on pushes, and pull requests. Get started by connecting from your account <a href="/settings">settings</a>.
+			</div>
+		{% elseif len(p.Repos) == 0 %}
+			<div class="panel-message muted">No {%s providerNames[p.Provider.Name] %} repositories.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, r := range p.Repos %}
 						<tr>
-							<th>NAME</th>
-							<th></th>
-							<th></th>
-						</tr>
-					</thead>
-					<tbody>
-						{% for _, r := range p.Repos %}
-							<tr>
-								<td>
-									<span class="muted">
-										{% switch r.Provider.Name %}
-										{% case "github" %}
-											{% cat "../../static/svg/github.svg" %}
-										{% case "gitlab" %}
-											{% cat "../../static/svg/gitlab.svg" %}
-										{% endswitch %}
-									</span>
-									<a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a>
-								</td>
-								{% if !r.Provider.Connected %}
-									<td class="warning">{% cat "../../static/svg/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}</td>
+							<td>
+								<span class="muted">
+									{% switch r.Provider.Name %}
+									{% case "github" %}
+										{% cat "../../static/svg/github.svg" %}
+									{% case "gitlab" %}
+										{% cat "../../static/svg/gitlab.svg" %}
+									{% endswitch %}
+								</span>
+								<a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a>
+							</td>
+							{% if !r.Provider.Connected %}
+								<td class="warning">{% cat "../../static/svg/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}</td>
+							{% else %}
+								<td></td>
+							{% endif %}
+							<td class="align-right">
+								{% if !r.Enabled %}
+									<form method="POST" action="/repos/enable">
 								{% else %}
-									<td></td>
+									<form method="POST" action="/repos/disable/{%v r.ID %}">
+										<input type="hidden" name="_method" value="DELETE"/>
 								{% endif %}
-								<td class="align-right">
-									{% if !r.Enabled %}
-										<form method="POST" action="/repos/enable">
-									{% else %}
-										<form method="POST" action="/repos/disable/{%v r.ID %}">
-											<input type="hidden" name="_method" value="DELETE"/>
-									{% endif %}
-										{%s= p.CSRF %}
-										<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
-										<input type="hidden" name="name" value="{%s r.Name %}">
-										<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
-									{% if !r.Enabled %}
-										<button type="submit" class="btn btn-primary" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
-									{% else %}
-										<button type="submit" class="btn btn-danger" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Disable</button>
-									{% endif %}
-									</form>
-								</td>
-							</tr>
-						{% endfor %}
-					</tbody>
-				</table>
-			{% endif %}
+									{%s= p.CSRF %}
+									<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
+									<input type="hidden" name="name" value="{%s r.Name %}">
+									<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
+								{% if !r.Enabled %}
+									<button type="submit" class="btn btn-primary" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
+								{% else %}
+									<button type="submit" class="btn btn-danger" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Disable</button>
+								{% endif %}
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
 		{% endif %}
 	</div>
+	{%= template.RenderPaginator(p.URL, p.Paginator) %}
 {% endfunc %}
 
 {% func (p *Index) Actions() %}
 	{% if len(p.Providers) > 0 %}
-		<form method="POST" action="/repos/reload">
+		<form method="POST" action="/repos/reload?provider={%s p.Provider.Name %}&page={%v p.Paginator.Page %}">
 			{%s= p.CSRF %}
 			<input type="hidden" name="_method" value="PATCH">
 			<button type="submit" class="btn btn-primary">Reload</button>

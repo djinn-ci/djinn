@@ -16,13 +16,6 @@ type Index struct {
 	Namespaces []*namespace.Namespace
 	Search     string
 }
-
-type InviteIndex struct {
-	template.BasePage
-
-	CSRF    string
-	Invites []*namespace.Invite
-}
 %}
 
 {% collapsespace %}
@@ -81,12 +74,12 @@ type InviteIndex struct {
 									{% cat "../../static/svg/users.svg" %}
 								{% endif %}
 								{% switch n.Visibility %}
-									{% case namespace.Private %}
-										{% cat "../../static/svg/lock.svg" %}
-									{% case namespace.Internal %}
-										{% cat "../../static/svg/security.svg" %}
-									{% case namespace.Public %}
-										{% cat "../../static/svg/public.svg" %}
+								{% case namespace.Private %}
+									{% cat "../../static/svg/lock.svg" %}
+								{% case namespace.Internal %}
+									{% cat "../../static/svg/security.svg" %}
+								{% case namespace.Public %}
+									{% cat "../../static/svg/public.svg" %}
 								{% endswitch %}
 							</td>
 						</tr>
@@ -96,11 +89,7 @@ type InviteIndex struct {
 			{% endif %}
 		{% endif %}
 	</div>
-	{%= template.RenderPaginator(p.URL.Path, p.Paginator) %}
-{% endfunc %}
-
-{% func (p *Index) Section() %}
-	{%= p.Body() %}
+	{%= template.RenderPaginator(p.URL, p.Paginator) %}
 {% endfunc %}
 
 {% func (p *Index) Header() %}
@@ -114,12 +103,4 @@ type InviteIndex struct {
 {% endfunc %}
 
 {% func (p *Index) Navigation() %}{% endfunc %}
-
-{% func (p *InviteIndex) Title() %}
-	Namespace Invites
-{% endfunc %}
-
-{% func (p *InviteIndex) Section() %}
-
-{% endfunc %}
 {% endcollapsespace %}

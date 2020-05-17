@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -32,6 +33,12 @@ var _ server.Router = (*Router)(nil)
 
 func tokenGate(db *sqlx.DB) web.Gate {
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
+		base := filepath.Base(r.URL.Path)
+
+		if base == "tokens" || base == "create" || base == "revoke" {
+			return r, !u.IsZero(), nil
+		}
+
 		id, _ := strconv.ParseInt(mux.Vars(r)["token"], 10, 64)
 
 		t, err := oauth2.NewTokenStore(db, u).Get(query.Where("id", "=", id))
@@ -68,6 +75,10 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/apps", r.app.Index).Methods("GET")
 	auth.HandleFunc("/apps/create", r.app.Create).Methods("GET")
 	auth.HandleFunc("/apps", r.app.Store).Methods("POST")
+	auth.HandleFunc("/apps/{app}", r.app.Show).Methods("GET")
+	auth.HandleFunc("/apps/{app}", r.app.Update).Methods("PATCH")
+	auth.HandleFunc("/apps/{app}/revoke", r.app.Update).Methods("PATCH")
+	auth.HandleFunc("/apps/{app}/reset", r.app.Update).Methods("PATCH")
 	auth.Use(r.Middleware.Auth, csrf)
 
 	tok := mux.PathPrefix("/settings/tokens").Subrouter()

@@ -2,7 +2,6 @@
 import (
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/user"
 )
 %}
 
@@ -11,7 +10,6 @@ type Settings struct {
 	template.BasePage
 	template.Form
 
-	User      *user.User
 	Providers []*provider.Provider
 	Section   template.Section
 }
@@ -52,7 +50,7 @@ type Settings struct {
 
 {% func (p *Settings) Body() %}
 	{% if p.Section != nil %}
-		{%= p.Section.Section() %}
+		{%= p.Section.Body() %}
 	{% else %}
 		<div class="panel">
 			<div class="panel-body slim">
@@ -115,10 +113,18 @@ type Settings struct {
 {% endfunc %}
 
 {% func (p *Settings) Header() %}
-	Settings{% if p.Section != nil %} - {%= p.Section.Title() %}{% endif %}
+	{% if p.Section != nil %}
+		{%= p.Section.Header() %}
+	{% else %}
+		Settings
+	{% endif %}
 {% endfunc %}
 
-{% func (p *Settings) Actions() %}{% endfunc %}
+{% func (p *Settings) Actions() %}
+	{% if p.Section != nil %}
+		{%= p.Section.Actions() %}
+	{% endif %}
+{% endfunc %}
 
 {% func (p *Settings) Navigation() %}
 	<li>
@@ -143,7 +149,7 @@ type Settings struct {
 		{% endif %}
 	</li>
 	<li>
-		{% if p.URL.Path == "/settings/tokens" %}
+		{% if p.URL.Path == "/settings/tokens" || p.URL.Path == "/settings/tokens/create" %}
 			<a href="/settings/tokens" class="active">{% cat "../../static/svg/code.svg" %}<span>Access Tokens</span></a>
 		{% else %}
 			<a href="/settings/tokens">{% cat "../../static/svg/code.svg" %}<span>Access Tokens</span></a>

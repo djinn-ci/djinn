@@ -8,6 +8,14 @@ import (
 	"github.com/andrewpillar/thrall/model"
 )
 
+// Visibility represents the visibility level of a Namespace, there are three
+// possible values it could be,
+//
+// Private  - only the owner and collaborators can view the Namespace and its
+//            contents
+// Internal - only authenticated users can view the Namespace and its contents
+// Public   - anyone can view the Namespace and its contents, authenticated or
+//            not
 type Visibility uint8
 
 //go:generate stringer -type Visibility -linecomment
@@ -28,6 +36,9 @@ var (
 	}
 )
 
+// Scan scans the given interface value into a byte slice and will attempt to
+// turn it into the correct Visibility value. If it succeeds then it set's it
+// on the current Visibility, otherwise an error is returned.
 func (v *Visibility) Scan(val interface{}) error {
 	b, err := model.Scan(val)
 
@@ -42,6 +53,9 @@ func (v *Visibility) Scan(val interface{}) error {
 	return errors.Err(v.UnmarshalText(b))
 }
 
+// UnmarshalText takes the given byte slice, and attempts to map it to a known
+// Visibility. If it is a known Visibility, then that the current Visibility is
+// set to that, otherwise an error is returned.
 func (v *Visibility) UnmarshalText(b []byte) error {
 	var ok bool
 
@@ -54,6 +68,6 @@ func (v *Visibility) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (v Visibility) Value() (driver.Value, error) {
-	return driver.Value(v.String()), nil
-}
+// Value returns the string value of the current Visibility so it can be
+// inserted into the database.
+func (v Visibility) Value() (driver.Value, error) { return driver.Value(v.String()), nil }

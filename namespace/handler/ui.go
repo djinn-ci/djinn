@@ -143,7 +143,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, n.Endpoint())
 }
 
-func (h Namespace) loadParents(n *namespace.Namespace) error {
+func (h Namespace) loadParent(n *namespace.Namespace) error {
 	if !n.ParentID.Valid {
 		return nil
 	}
@@ -151,15 +151,13 @@ func (h Namespace) loadParents(n *namespace.Namespace) error {
 	p, err := h.Namespaces.Get(query.Where("id", "=", n.ParentID))
 
 	if err != nil {
-		return errors.Err(err)
+		return nil
 	}
 
 	n.Parent = p
 
-	if n.ID == n.RootID.Int64 {
-		return nil
-	}
-	return errors.Err(h.loadParents(n.Parent))
+	err = h.Users.Load("id", []interface{}{n.Parent.UserID}, model.Bind("user_id", "id", n.Parent))
+	return errors.Err(err)
 }
 
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
@@ -175,7 +173,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.loadParents(n); err != nil {
+	if err := h.loadParent(n); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -277,14 +275,39 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			Search:    q.Get("search"),
 		}
 	case "collaborators":
-		_, err := namespace.NewCollaboratorStore(h.DB, n).All()
+		cc, err := namespace.NewCollaboratorStore(h.DB, n).All()
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
-		return
+
+		mm := make([]model.Model, 0, len(cc))
+
+		for _, c := range cc {
+			mm = append(mm, c)
+		}
+
+		err = h.Users.Load("id", model.MapKey("user_id", mm), model.Bind("user_id", "id", mm...))
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		p.Section = &namespacetemplate.CollaboratorIndex{
+			BasePage:      bp,
+			Form:          template.Form{
+				CSRF:   csrfField,
+				Errors: h.FormErrors(sess),
+				Fields: h.FormFields(sess),
+			},
+			CSRF:          csrf.TemplateField(r),
+			Namespace:     n,
+			Collaborators: cc,
+		}
 	default:
 		bb, paginator, err := build.NewStore(h.DB, n).Index(r.URL.Query())
 
@@ -337,7 +360,7 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 
 	n := h.Model(r)
 
-	if err := h.loadParents(n); err != nil {
+	if err := h.loadParent(n); err != nil {
 		log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -393,7 +416,7 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 		alert = template.Danger("Failed to delete namespace")
 	}
 	sess.AddFlash(alert, "alert")
-	h.RedirectBack(w, r)
+	h.Redirect(w, r, "/namespaces")
 }
 
 func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
@@ -417,13 +440,13 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 			User: u,
 		},
 		Section: &namespacetemplate.InviteIndex{
-			CSRF:    csrfField,
+			CSRF:    csrf.TemplateField(r),
 			Invites: ii,
 		},
 	}
 	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
 	save(r, w)
-	web.HTMLError(w, template.Render(d), http.StatusOK)
+	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h InviteUI) Store(w http.ResponseWriter, r *http.Request) {
@@ -437,10 +460,7 @@ func (h InviteUI) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		switch cause {
-		case model.ErrNotFound:
-			fallthrough
-		case namespace.ErrPermission:
+		if cause == model.ErrNotFound || cause == namespace.ErrPermission {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}
@@ -453,6 +473,25 @@ func (h InviteUI) Store(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+func (h InviteUI) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	alert := template.Success("Invite rejected")
+
+	if err := h.Delete(r); err != nil {
+		if err == model.ErrNotFound {
+			web.HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
+		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		alert = template.Danger("Failed to reject invite")
+	}
+
+	sess.AddFlash(alert, "alert")
+	h.RedirectBack(w, r)
+}
+
 func (h CollaboratorUI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -461,7 +500,7 @@ func (h CollaboratorUI) Store(w http.ResponseWriter, r *http.Request) {
 	alert := template.Success("Your are now a collaborator in:" + n.Name)
 
 	if err != nil {
-		log.Error.Println(r.URL, r.Method, errors.Err(err))
+		log.Error.Println(r.Method, r.URL, errors.Err(err))
 		alert = template.Danger("Failed to accept invite")
 	}
 
@@ -472,9 +511,14 @@ func (h CollaboratorUI) Store(w http.ResponseWriter, r *http.Request) {
 func (h CollaboratorUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	alert := template.Danger("Collaborator removed: "+mux.Vars(r)["collaborator"])
+	alert := template.Success("Collaborator removed: "+mux.Vars(r)["collaborator"])
 
 	if err := h.Delete(r); err != nil {
+		if err == model.ErrNotFound {
+			web.HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
 		log.Error.Println(r.URL, r.Method, errors.Err(err))
 		alert = template.Danger("Failed to remove collaborator")
 	}

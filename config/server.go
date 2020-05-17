@@ -8,6 +8,7 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
+// Server represents the configuration used for the thrall-server.
 type Server struct {
 	Host string
 
@@ -46,7 +47,6 @@ type Server struct {
 	Log struct {
 		Level  string
 		File   string
-		Access bool
 	}
 
 	Drivers []struct {
@@ -69,6 +69,8 @@ type Storage struct {
 	Limit int64
 }
 
+// DecodeServer takes the given io.Reader, and decodes the its content into a
+// Server, which is then returned.
 func DecodeServer(r io.Reader) (Server, error) {
 	dec := toml.NewDecoder(r)
 

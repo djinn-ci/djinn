@@ -2,6 +2,7 @@
 import (
 	"net/url"
 	"regexp"
+	"strconv"
 
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/model"
@@ -16,14 +17,6 @@ interface Page {
 	Body()
 
 	Footer()
-}
-%}
-
-{%
-interface Section {
-	Title()
-
-	Section()
 }
 %}
 
@@ -56,9 +49,25 @@ func Match(uri, pattern string) bool {
 	}
 	return matched
 }
+
+func pageURL(url url.URL, page int64) string {
+	q := url.Query()
+	q.Set("page", strconv.FormatInt(page, 10))
+
+	url.RawQuery = q.Encode()
+	return url.String()
+}
 %}
 
 {% collapsespace %}
+{% func FileInput(f Form) %}
+	<div class="form-field">
+		<label class="label" for="file">File</label>
+		<input type="file" id="file" name="file"/>
+		{%= f.Error("file") %}
+	</div>
+{% endfunc %}
+
 {% func Render(p Page) %}
 	<!DOCTYPE HTML>
 	<html lang="en">
@@ -73,18 +82,18 @@ func Match(uri, pattern string) bool {
 {% endfunc %}
 
 {% stripspace %}
-{% func RenderPaginator(uri string, p model.Paginator) %}
+{% func RenderPaginator(url *url.URL, p model.Paginator) %}
 	{% if len(p.Pages) > 1 %}
 		<ul class="paginator panel">
 			{% if p.Page == p.Prev %}
 				<li><a class="disabled">Previous</a></li>
 			{% else %}
-				<li><a href="{%s uri %}?page={%v p.Prev %}" class="prev">Previous</a></li>
+				<li><a href="{%s pageURL(*url, p.Prev) %}" class="prev">Previous</a></li>
 			{% endif %}
 			{% if p.Page == p.Next %}
 				<li><a class="disabled">Next</a></li>
 			{% else %}
-				<li><a href="{%s uri %}?page={%v p.Next %}" class="next">Next</a></li>
+				<li><a href="{%s pageURL(*url, p.Next) %}" class="next">Next</a></li>
 			{% endif %}
 		</ul>
 	{% endif %}
@@ -92,6 +101,7 @@ func Match(uri, pattern string) bool {
 {% endstripspace %}
 
 {% func (f Form) Error(field string) %} <div class="form-error">{%s f.Errors.First(field) %}</div> {% endfunc %}
+
 {% func (p *BasePage) Title() %} Thrall {% endfunc %}
 {% func (p *BasePage) Body() %}{% endfunc %}
 {% func (p *BasePage) Footer() %} <style type="text/css">{% cat "../static/main.css" %}</style> {% endfunc %}

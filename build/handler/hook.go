@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha1"
+	"database/sql"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -247,19 +248,13 @@ func (h Hook) getGitlabManifestUrls(tok, rawUrl, ref string) ([]string, error) {
 	return urls, nil
 }
 
-func (h Hook) getToken(name string, id int64) (string, error) {
+func (h Hook) getProvider(name string, userId int64) (*provider.Provider, error) {
 	p, err := h.Providers.Get(
-		query.Where("provider_user_id", "=", id),
+		query.Where("provider_user_id", "=", userId),
 		query.Where("name", "=", name),
 		query.Where("connected", "=", true),
 	)
-
-	if err != nil {
-		return "", errors.Err(err)
-	}
-
-	tok, _ := crypto.Decrypt(p.AccessToken)
-	return string(tok), nil
+	return p, errors.Err(err)
 }
 
 func (h Hook) submitBuilds(mm []config.Manifest, u *user.User, t *build.Trigger) error {
@@ -296,7 +291,8 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 
 	if err != nil {
-		web.Text(w, err.Error(), http.StatusForbidden)
+		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.Text(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -309,7 +305,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 	expected := hmac.New(sha1.New, provider.Secret())
 	expected.Write(body)
 
-	if !hmac.Equal(expected.Sum(nil), provider.Secret()) {
+	if !hmac.Equal(expected.Sum(nil), actual) {
 		web.Text(w, "Invalid request signature\n", http.StatusForbidden)
 		return
 	}
@@ -388,13 +384,16 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		tok, err := h.getToken("github", push.Repo.Owner.ID)
+		p, err := h.getProvider("github", push.Repo.Owner.ID)
 
 		if err != nil {
 			log.Error.Println(r.Method, r.URL, errors.Err(errors.Err(err)))
 			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 			return
 		}
+
+		b, _ := crypto.Decrypt(p.AccessToken)
+		tok := string(b)
 
 		urls, err := h.getGithubManifestUrls(tok, push.Repo.ContentsURL, push.HeadCommit.ID)
 
@@ -406,6 +405,10 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 
 		mm, manifestErr = h.loadManifests(decodeBase64JSONManifest, tok, urls)
 
+		t.ProviderID = sql.NullInt64{
+			Int64: p.ID,
+			Valid: true,
+		}
 		t.Type = build.Push
 		t.Comment = push.HeadCommit.Message
 		t.Data.Set("id", push.HeadCommit.ID)
@@ -433,13 +436,16 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		tok, err := h.getToken("github", pull.PullRequest.User.ID)
+		p, err := h.getProvider("github", pull.PullRequest.User.ID)
 
 		if err != nil {
 			log.Error.Println(r.Method, r.URL, errors.Err(errors.Err(err)))
 			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 			return
 		}
+
+		b, _ := crypto.Decrypt(p.AccessToken)
+		tok := string(b)
 
 		urls, err := h.getGithubManifestUrls(tok, pull.PullRequest.Head.Repo.ContentsURL, pull.PullRequest.Head.Sha)
 
@@ -457,6 +463,10 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 			action = "synchronized"
 		}
 
+		t.ProviderID = sql.NullInt64{
+			Int64: p.ID,
+			Valid: true,
+		}
 		t.Type = build.Pull
 		t.Comment = pull.PullRequest.Title
 		t.Data.Set("id", strconv.FormatInt(pull.Number, 10))
@@ -557,13 +567,16 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		tok, err := h.getToken("gitlab", push.UserID)
+		p, err := h.getProvider("gitlab", push.UserID)
 
 		if err != nil {
 			log.Error.Println(r.Method, r.URL, errors.Err(errors.Err(err)))
 			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 			return
 		}
+
+		b, _ := crypto.Decrypt(p.AccessToken)
+		tok := string(b)
 
 		head := push.Commits[len(push.Commits)-1]
 		url, _ := url.Parse(push.Project.WebURL)
@@ -606,13 +619,16 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		tok, err := h.getToken("gitlab", merge.Attrs.AuthorID)
+		p, err := h.getProvider("gitlab", merge.Attrs.AuthorID)
 
 		if err != nil {
 			log.Error.Println(r.Method, r.URL, errors.Err(errors.Err(err)))
 			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 			return
 		}
+
+		b, _ := crypto.Decrypt(p.AccessToken)
+		tok := string(b)
 
 		url, _ := url.Parse(merge.Project.WebURL)
 

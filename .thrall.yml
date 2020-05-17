@@ -1,10 +1,9 @@
-namespace: thrall/webhook
 driver:
   type: qemu
   image: centos/7
 stages:
-  - os
+- os
 jobs:
-  - stage: os
-    commands:
-      - cat /etc/os-release
+- stage: os
+  commands:
+  - cat /etc/os-release

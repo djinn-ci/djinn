@@ -20,6 +20,18 @@ interface Dashboard {
 }
 %}
 
+{%
+interface Section {
+	Title()
+
+	Header()
+
+	Actions()
+
+	Body()
+}
+%}
+
 {% code
 type baseDashboard struct {
 	Dashboard

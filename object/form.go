@@ -14,7 +14,7 @@ type Form struct {
 	namespace.Resource
 	form.File `schema:"-"`
 
-	Objects Store  `schema:"-"`
+	Objects *Store `schema:"-"`
 	Name    string `schema:"name"`
 }
 
@@ -24,6 +24,8 @@ var (
 	rename = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
 )
 
+// Fields returns a map of fields for the current Form. This map will contain
+// the Namespace, and Name fields of the current Form.
 func (f Form) Fields() map[string]string {
 	return map[string]string{
 		"namespace": f.Namespace,
@@ -31,10 +33,14 @@ func (f Form) Fields() map[string]string {
 	}
 }
 
-func (f Form) Validate() error {
+// Validate will bind a Namespace to the Form's Store, if the Namespace field
+// is present. The presence of the Name field is then checked, followed by a
+// validity check for that Name (is only letters, numbers, dashes, and dots). A
+// uniqueness check on the Name is then done for the current Namespace.
+func (f *Form) Validate() error {
 	errs := form.NewErrors()
 
-	if err := f.Resource.BindNamespace(&f.Objects); err != nil {
+	if err := f.Resource.BindNamespace(f.Objects); err != nil {
 		return errors.Err(err)
 	}
 

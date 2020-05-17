@@ -9,6 +9,7 @@ import (
 	"github.com/pelletier/go-toml"
 )
 
+// Worker represents the configuration used for the thrall-worker.
 type Worker struct {
 	Parallelism int
 	Queue       string
@@ -40,6 +41,8 @@ type Worker struct {
 	}
 }
 
+// DecodeWorker takes the given io.Reader, and decodes its content to a Worker,
+// which is then returned.
 func DecodeWorker(r io.Reader) (Worker, error) {
 	dec := toml.NewDecoder(r)
 

@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/repo"
@@ -29,70 +32,83 @@ type Repo struct {
 	web.Handler
 
 	Redis     *redis.Client
-	Repos     repo.Store
+	Repos     *repo.Store
 	Providers map[string]oauth2.Provider
 }
 
-var cacheKey = "repos-%v"
+type repos struct {
+	Paginator model.Paginator
+	Items     []*repo.Repo
+}
 
-func (h Repo) cachePut(id int64, rr []*repo.Repo) error {
+var cacheKey = "repos-%s-%v-%v"
+
+func (h Repo) cachePut(name string, id, page int64, repos repos) error {
 	buf := &bytes.Buffer{}
 
-	json.NewEncoder(buf).Encode(rr)
+	json.NewEncoder(buf).Encode(repos)
 
-	_, err := h.Redis.Set(fmt.Sprintf(cacheKey, id), buf.String(), time.Hour).Result()
+	_, err := h.Redis.Set(fmt.Sprintf(cacheKey, name, id, page), buf.String(), time.Hour).Result()
 	return errors.Err(err)
 }
 
-func (h Repo) cacheGet(id int64) ([]*repo.Repo, error) {
-	rr := make([]*repo.Repo, 0)
+func (h Repo) cacheGet(name string, id, page int64) (repos, error) {
+	repos := repos{}
 
-	s, err := h.Redis.Get(fmt.Sprintf(cacheKey, id)).Result()
+	s, err := h.Redis.Get(fmt.Sprintf(cacheKey, name, id, page)).Result()
 
 	if err != nil {
 		if err == redis.Nil {
-			return rr, nil
+			return repos, nil
 		}
-		return rr, errors.Err(err)
+		return repos, errors.Err(err)
 	}
 
-	err = json.NewDecoder(strings.NewReader(s)).Decode(&rr)
-	return rr, errors.Err(err)
+	err = json.NewDecoder(strings.NewReader(s)).Decode(&repos)
+	return repos, errors.Err(err)
 }
 
-func (h Repo) loadRepos(pp []*provider.Provider) ([]*repo.Repo, error) {
-	rr := make([]*repo.Repo, 0)
-
-	for _, p := range pp {
-		if !p.Connected {
-			continue
-		}
-
-		provider, ok := h.Providers[p.Name]
-
-		if !ok {
-			continue
-		}
-
-		tok, _ := crypto.Decrypt(p.AccessToken)
-
-		tmp, err := provider.Repos(tok)
-
-		if err != nil {
-			return rr, errors.Err(err)
-		}
-
-		for _, r := range tmp {
-			rr = append(rr, &repo.Repo{
-				UserID:     p.UserID,
-				ProviderID: p.ID,
-				RepoID:     r.ID,
-				Name:       r.Name,
-				Href:       r.Href,
-			})
-		}
+func (h Repo) loadRepos(p *provider.Provider, page int64) (repos, error) {
+	repos := repos{
+		Paginator: model.Paginator{
+			Page: page,
+		},
+		Items:     make([]*repo.Repo, 0),
 	}
-	return rr, nil
+
+	if !p.Connected {
+		return repos, nil
+	}
+
+	prv, ok := h.Providers[p.Name]
+
+	if !ok {
+		return repos, nil
+	}
+
+	tok, _ := crypto.Decrypt(p.AccessToken)
+
+	tmp, err := prv.Repos(tok, page)
+
+	if err != nil {
+		return repos, errors.Err(err)
+	}
+
+	repos.Paginator.Next = tmp.Next
+	repos.Paginator.Prev = tmp.Prev
+	repos.Paginator.Pages = []int64{tmp.Next, tmp.Prev}
+
+	for _, r := range tmp.Items {
+		repos.Items = append(repos.Items, &repo.Repo{
+			UserID:     p.UserID,
+			ProviderID: p.ID,
+			RepoID:     r.ID,
+			Name:       r.Name,
+			Href:       r.Href,
+			Provider:   p,
+		})
+	}
+	return repos, nil
 }
 
 func (h Repo) Model(r *http.Request) *repo.Repo {
@@ -106,7 +122,15 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	pp, err := provider.NewStore(h.DB, u).All()
+	opt := query.OrderAsc("name")
+
+	if name := r.URL.Query().Get("provider"); name != "" {
+		opt = query.Where("name", "=", name)
+	}
+
+	providers := provider.NewStore(h.DB, u)
+
+	prv, err := providers.Get(opt)
 
 	if err != nil {
 		log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -114,16 +138,13 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	providers := make(map[int64]*provider.Provider)
+	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
 
-	for _, p := range pp {
-		if p.Connected {
-			u.Connected = true
-		}
-		providers[p.ID] = p
+	if err != nil {
+		page = 1
 	}
 
-	rr, err := h.cacheGet(u.ID)
+	repos, err := h.cacheGet(prv.Name, u.ID, page)
 
 	if err != nil {
 		log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -131,8 +152,8 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(rr) == 0 {
-		rr, err = h.loadRepos(pp)
+	if len(repos.Items) == 0 {
+		repos, err = h.loadRepos(prv, page)
 
 		if err != nil {
 			log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -140,14 +161,14 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.cachePut(u.ID, rr); err != nil {
+		if err := h.cachePut(prv.Name, u.ID, page, repos); err != nil {
 			log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	connected, err := repo.NewStore(h.DB, u).All()
+	enabled, err := repo.NewStore(h.DB, u, prv).All(query.Where("enabled", "=", true))
 
 	if err != nil {
 		log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -157,25 +178,23 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 
 	m := make(map[int64]int64)
 
-	for _, r := range connected {
-		m[r.ProviderID+r.RepoID] = r.ID
+	for _, repo := range enabled {
+		m[repo.RepoID] = repo.ID
 	}
 
-	for _, r := range rr {
-		if id, ok := m[r.ProviderID+r.RepoID]; ok {
+	for _, r := range repos.Items {
+		if id, ok := m[r.RepoID]; ok {
 			r.ID = id
+			r.Enabled = true
 		}
-		r.Provider = providers[r.ProviderID]
 	}
 
-	provider := r.URL.Query().Get("provider")
+	pp, err := providers.All(query.OrderAsc("name"))
 
-	if provider != "" {
-		for i := len(rr) - 1; i > -1; i-- {
-			if rr[i].Provider.Name != provider {
-				rr = append(rr[:i], rr[i+1:]...)
-			}
-		}
+	if err != nil {
+		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	csrfField := string(csrf.TemplateField(r))
@@ -186,8 +205,9 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 			User: u,
 		},
 		CSRF:      csrfField,
-		Repos:     rr,
-		Provider:  provider,
+		Paginator: repos.Paginator,
+		Repos:     repos.Items,
+		Provider:  prv,
 		Providers: pp,
 	}
 	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
@@ -200,7 +220,7 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	pp, err := provider.NewStore(h.DB).All()
+	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", r.URL.Query().Get("provider")))
 
 	if err != nil {
 		log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -209,7 +229,13 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rr, err := h.loadRepos(pp)
+	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+
+	if err != nil {
+		page = 1
+	}
+
+	repos, err := h.loadRepos(p, page)
 
 	if err != nil {
 		log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -218,14 +244,14 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cachePut(u.ID, rr); err != nil {
+	if err := h.cachePut(p.Name, u.ID, page, repos); err != nil {
 		log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to refresh repository cache"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Danger("Successfully reloaded repository cache"), "alert")
+	sess.AddFlash(template.Success("Successfully reloaded repository cache"), "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -234,6 +260,13 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 	f := &repo.Form{}
+
+	if err := form.Unmarshal(f, r); err != nil {
+		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
 
 	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", f.Provider))
 
@@ -272,7 +305,11 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rp.UserID = u.ID
+	rp.ProviderID = p.ID
 	rp.HookID = hookId
+	rp.RepoID = f.RepoID
+	rp.Enabled = hookId != 0
 
 	fn := h.Repos.Update
 

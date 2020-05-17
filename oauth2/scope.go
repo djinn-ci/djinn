@@ -53,6 +53,7 @@ const (
 	Namespace                    // namespace
 	Object                       // object
 	Variable                     // variable
+	Key                          // key
 )
 
 var (
@@ -71,6 +72,7 @@ var (
 		Namespace,
 		Object,
 		Variable,
+		Key,
 	}
 
 	perms map[string]Permission = map[string]Permission{
@@ -88,10 +90,17 @@ var (
 		"namespace":    Namespace,
 		"object":       Object,
 		"variable":     Variable,
+		"key":          Key,
 	}
 )
 
-// Diff two scopes and return the scope difference from a
+// Diff returns the a new Scope that is the difference between Scopes a and b.
+// You would typically check the length of the returned Scope to see if there
+// was a difference like so,
+//
+//   if len(ScopeDiff(a, b)) > 0 {
+//       ...
+//   }
 func ScopeDiff(a, b Scope) Scope {
 	m := make(map[int]struct{})
 
@@ -110,8 +119,8 @@ func ScopeDiff(a, b Scope) Scope {
 }
 
 // UnmarshalScope takes a space delimited scope string in the format of
-// resource:permission and returns the scope. An error is returned if the
-// given scope string is invalid.
+// resource:permission and returns the unmarshalled Scope. An error is returned
+// if the given scope string is invalid.
 func UnmarshalScope(s string) (Scope, error) {
 	m := make(map[Resource]Permission)
 
@@ -157,9 +166,7 @@ func UnmarshalScope(s string) (Scope, error) {
 	return sc, nil
 }
 
-func (i scopeItem) bytes() []byte {
-	return []byte{byte(i.Resource), byte(i.Permission)}
-}
+func (i scopeItem) bytes() []byte { return []byte{byte(i.Resource), byte(i.Permission)} }
 
 func (i scopeItem) String() string {
 	s := i.Resource.String()+":"
@@ -185,10 +192,10 @@ func (p Permission) Expand() []Permission {
 }
 
 // Determine if the given permission mask exists in the permission.
-func (p Permission) Has(mask Permission) bool {
-	return p & mask == mask
-}
+func (p Permission) Has(mask Permission) bool { return p & mask == mask }
 
+// Scan scans the underlying byte slice value of the given interface into the
+// curent Scope if it is valid.
 func (sc *Scope) Scan(val interface{}) error {
 	if (*sc) == nil {
 		(*sc) = Scope(make([]scopeItem, 0))
@@ -216,7 +223,7 @@ func (sc *Scope) Scan(val interface{}) error {
 	return nil
 }
 
-// Spread out the scopes in a slice of resource:permission strings.
+// Spread returns a slice of resource:permission strings.
 func (sc Scope) Spread() []string {
 	s := make([]string, 0)
 
@@ -230,6 +237,10 @@ func (sc Scope) Spread() []string {
 	return s
 }
 
+// String returns a space delimited string of all the resources and their
+// respective permissions as a single string, for example,
+//
+//   build:read,write namespace:read variable:read,write,delete
 func (sc Scope) String() string {
 	items := make([]string, 0, len(sc))
 
@@ -239,12 +250,17 @@ func (sc Scope) String() string {
 	return strings.Join(items, " ")
 }
 
+// UnmarshalText unmarshals the given byte slice into the current Scope
+// if it is valid. Under the hood this calls UnmarshalScope, so the byte
+// slice is expected to be a space delimited string.
 func (sc *Scope) UnmarshalText(b []byte) error {
 	var err error
 	(*sc), err = UnmarshalScope(string(b))
 	return errors.Err(err)
 }
 
+// Value returns the raw byte pairs of a Scope that can be inserted into the
+// database.
 func (sc Scope) Value() (driver.Value, error) {
 	b := make([]byte, 0)
 

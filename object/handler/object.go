@@ -25,8 +25,8 @@ type Object struct {
 	web.Handler
 
 	Loaders    model.Loaders
-	Objects    object.Store
-	Builds     build.Store
+	Objects    *object.Store
+	Builds     *build.Store
 	FileStore  filestore.FileStore
 	Limit      int64
 }
@@ -46,7 +46,7 @@ func (h Object) Delete(r *http.Request) error {
 	return errors.Err(h.FileStore.Remove(o.Hash))
 }
 
-func (h Object) IndexWithRelations(s object.Store, vals url.Values) ([]*object.Object, model.Paginator, error) {
+func (h Object) IndexWithRelations(s *object.Store, vals url.Values) ([]*object.Object, model.Paginator, error) {
 	oo, paginator, err := s.Index(vals)
 
 	if err != nil {
@@ -76,16 +76,19 @@ func (h Object) ShowWithRelations(r *http.Request) (*object.Object, error) {
 		return o, errors.Err(err)
 	}
 
-	err := h.Users.Load(
-		"id",
-		[]interface{}{o.Namespace.Values()["user_id"]},
-		model.Bind("user_id", "id", o.Namespace),
-	)
-	return o, errors.Err(err)
+	if o.Namespace != nil {
+		err := h.Users.Load(
+			"id",
+			[]interface{}{o.Namespace.Values()["user_id"]},
+			model.Bind("user_id", "id", o.Namespace),
+		)
+		return o, errors.Err(err)
+	}
+	return o, nil
 }
 
-func (h Object) realStore(s object.Store, res namespace.Resource, name, typ string, r io.Reader) (*object.Object, error) {
-	if err := res.BindNamespace(&s); err != nil {
+func (h Object) realStore(s *object.Store, res namespace.Resource, name, typ string, r io.Reader) (*object.Object, error) {
+	if err := res.BindNamespace(s); err != nil {
 		return &object.Object{}, errors.Err(err)
 	}
 

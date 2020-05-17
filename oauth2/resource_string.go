@@ -16,11 +16,12 @@ func _() {
 	_ = x[Namespace-6]
 	_ = x[Object-7]
 	_ = x[Variable-8]
+	_ = x[Key-9]
 }
 
-const _Resource_name = "artifactbuildcollaboratorinviteimagenamespaceobjectvariable"
+const _Resource_name = "artifactbuildcollaboratorinviteimagenamespaceobjectvariablekey"
 
-var _Resource_index = [...]uint8{0, 8, 13, 25, 31, 36, 45, 51, 59}
+var _Resource_index = [...]uint8{0, 8, 13, 25, 31, 36, 45, 51, 59, 62}
 
 func (i Resource) String() string {
 	i -= 1

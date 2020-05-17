@@ -1,3 +1,5 @@
+// Package model providers basic interfaces for modelling data from the
+// database.
 package model
 
 import (
@@ -5,6 +7,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
@@ -56,10 +59,6 @@ type Loaders map[string]Loader
 // primary keys.
 type Model interface {
 	Binder
-
-	// Kind will return the kind of model. This is typically used when calling
-	// Bind on a model to determine if the model ought to be bound.
-	Kind() string
 
 	// SetPrimary will set the value of the primary key.
 	SetPrimary(int64)
@@ -133,10 +132,8 @@ func getKey(key string, m Model) interface{} {
 	return m.Values()[key]
 }
 
-// NewLoaders creates a new empty Loaders type.
-func NewLoaders() Loaders {
-	return Loaders(make(map[string]Loader))
-}
+// NewLoaders creates a new empty Loaders store.
+func NewLoaders() Loaders { return Loaders(make(map[string]Loader)) }
 
 // Bind returns a LoaderFunc that checks to see if the key on the target model,
 // specified via a, at index i matches the key on the model being loaded,
@@ -252,7 +249,7 @@ func Search(col, pattern string) query.Option {
 		if pattern == "" {
 			return q
 		}
-		return query.Where(col, "LIKE", "%"+pattern+"%")(q)
+		return query.Where("LOWER("+col+")", "LIKE", "%"+strings.ToLower(pattern)+"%")(q)
 	}
 }
 
@@ -526,13 +523,19 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 		return p, errors.Err(err)
 	}
 
-	pages := (count / PageLimit) + 1
+	pages := int64(count) / int64(PageLimit)
+
+	if count % PageLimit != 0 {
+		pages++
+	}
 
 	if p.Page > count {
 		p.Page = pages
 	}
 
-	p.Offset = (p.Page - 1) * PageLimit
+	if p.Page != 0 {
+		p.Offset = (p.Page - 1) * PageLimit
+	}
 
 	for i := int64(0); i < pages; i++ {
 		p.Pages = append(p.Pages, i + 1)
@@ -545,7 +548,7 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 		p.Prev = 1
 	}
 
-	if p.Next > p.Page {
+	if p.Next > pages {
 		p.Next = pages
 	}
 	return p, nil

@@ -1,6 +1,5 @@
 {%
 import (
-	"net/url"
 	"time"
 
 	"github.com/andrewpillar/thrall/build"
@@ -20,81 +19,57 @@ type Show struct {
 	CSRF  string
 }
 
-type Manifest struct {
-	Build *build.Build
-}
-
-type Objects struct {
-	Build   *build.Build
-	Objects []*build.Object
-}
-
-type Artifacts struct {
-	URL       *url.URL
-	Search    string
-	Build     *build.Build
-	Artifacts []*build.Artifact
-}
-
-type Variables struct {
-	Build     *build.Build
-	Variables []*build.Variable
-}
-
-type Keys struct {
-	Build *build.Build
-	Keys  []*build.Key
-}
-
-type Tags struct {
-	CSRF  string
-	Build *build.Build
-	Tags  []*build.Tag
-}
 
 type Job struct {
 	template.BasePage
 
 	Job *build.Job
 }
+
+var timeFormat = "Jan 02, 2006, at 15:04:05"
 %}
 
 {% collapsespace %}
+{% func renderTimestamp(t time.Time) %}
+{% code
+	duration := time.Now().Sub(t)
+	formatted := t.Format(timeFormat)
+%}
+	{% if duration < (24 * time.Hour) %}
+		<span title="{%s formatted %}">{%v durafmt.Parse(duration).LimitFirstN(2) %}</span> ago
+	{% else %}
+		{%s formatted %}
+	{% endif %}
+{% endfunc %}
+
 {% func RenderTrigger(b *build.Build) %}
 	{% code
 		title := b.Trigger.CommentTitle()
 		comment := b.Trigger.CommentBody()
-
-		duration := time.Now().Sub(b.CreatedAt)
-		parsedDur := durafmt.Parse(duration).LimitFirstN(2)
 	%}
 	<div class="panel">
 		<div class="panel-body">
-			{% if b.Trigger.Comment != "" %}
-				<div class="comment-header mb-10">
-					<div class="comment-title">
-						{%= template.RenderShortStatus(b.Status) %}
+			<div class="comment-header mb-10">
+				<div class="comment-title">
+					{%= template.RenderShortStatus(b.Status) %}
+					{% if b.Trigger.Comment != "" %}
 						<strong>{%s title %}</strong>
-					</div>
-					<strong>{%s b.Trigger.Data["username"] %}</strong>
-					{% switch b.Trigger.Type %}
-					{% case build.Manual %}
-						submitted
-					{% case build.Push %}
-						committed <a target="_blank" href="{%s b.Trigger.Data["url"] %}">{%s b.Trigger.Data["id"][:7] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
-					{% case build.Pull %}
-						{%s b.Trigger.Data["action"] %} pull request <a target="_blank" href="{%s b.Trigger.Data["url"] %}">#{%s b.Trigger.Data["id"] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
-					{% endswitch %}
-					{% if duration < (24 * time.Hour) %}
-						- <span title="{%s b.CreatedAt.Format("Jan 02, 2006, at 15:04") %}">{%s parsedDur.String() %} </span> ago
 					{% else %}
-						- {%s b.CreatedAt.Format("Jan 02, 2006, at 15:04") %}
+						<em class="muted">No build comment.</em>
 					{% endif %}
 				</div>
-				<pre>{%s comment %}</pre>
-			{% else %}
-				<em class="muted">No build comment.</em>
-			{% endif %}
+				<strong>{%s b.Trigger.Data["username"] %}</strong>
+				{% switch b.Trigger.Type %}
+				{% case build.Manual %}
+					submitted
+				{% case build.Push %}
+					committed <a target="_blank" href="{%s b.Trigger.Data["url"] %}">{%s b.Trigger.Data["id"][:7] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
+				{% case build.Pull %}
+					{%s b.Trigger.Data["action"] %} pull request <a target="_blank" href="{%s b.Trigger.Data["url"] %}">#{%s b.Trigger.Data["id"] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
+				{% endswitch %}
+				{%= renderTimestamp(b.CreatedAt) %}
+			</div>
+			{% if b.Trigger.Comment != "" %}<pre>{%s comment %}</pre>{% endif %}
 		</div>
 		{% if len(b.Tags) > 0 %}
 			<div class="panel-footer">
@@ -114,46 +89,16 @@ type Job struct {
 	{% endif %}
 {% endfunc %}
 
-{% func (p *Artifacts) Title() %}
-	Build #{%v p.Build.ID %} - Artifacts
-{% endfunc %}
-
-{% func (p *Keys) Title() %}
-	Build #{%v p.Build.ID %} - Keys
-{% endfunc %}
-
-{% func (p *Manifest) Title() %}
-	Build #{%v p.Build.ID %} - Manifest
-{% endfunc %}
-
-{% func (p *Objects) Title() %}
-	Build #{%v p.Build.ID %} - Objects
-{% endfunc %}
-
-{% func (p *Tags) Title() %}
-	Build #{%v p.Build.ID %} - Tags
-{% endfunc %}
-
-{% func (p *Variables) Title() %}
-	Build #{%v p.Build.ID %} - Variables
-{% endfunc %}
-
 {% func (p *Show) Body() %}
 	<div class="overflow">
 		<div class="col-25 pr-5 left">
 			<div class="panel">
 				<table class="table">
 					<tr>
-						<td>Submitted:</td>
-						<td class="align-right">
-							{%s p.Build.CreatedAt.Format("2006-01-02T15:04:05") %}
-						</td>
-					</tr>
-					<tr>
 						<td>Started at:</td>
 						<td class="align-right">
 							{% if p.Build.StartedAt.Valid %}
-								{%s p.Build.StartedAt.Time.Format("2006-01-02T15:04:05") %}
+								{%s p.Build.StartedAt.Time.Format(timeFormat) %}
 							{% else %}
 								<span class="muted">--</span>
 							{% endif %}
@@ -163,7 +108,7 @@ type Job struct {
 						<td>Finished at:</td>
 						<td class="align-right">
 							{% if p.Build.FinishedAt.Valid %}
-								{%s p.Build.FinishedAt.Time.Format("2006-01-02T15:04:05") %}
+								{%s p.Build.FinishedAt.Time.Format(timeFormat) %}
 							{% else %}
 								<span class="muted">--</span>
 							{% endif %}
@@ -175,7 +120,7 @@ type Job struct {
 							{% if !p.Build.FinishedAt.Valid || !p.Build.StartedAt.Valid %}
 								<span class="muted">--</span>
 							{% else %}
-								{%v p.Build.FinishedAt.Time.Sub(p.Build.StartedAt.Time) %}
+								{%v durafmt.Parse(p.Build.FinishedAt.Time.Sub(p.Build.StartedAt.Time)).LimitFirstN(2) %}
 							{% endif %}
 						</td>
 					</tr>
@@ -204,7 +149,7 @@ type Job struct {
 		<div class="col-75 pl-5 right">
 			{%= RenderTrigger(p.Build) %}
 			{% if p.Section != nil %}
-				{%= p.Section.Section() %}
+				{%= p.Section.Body() %}
 			{% else %}
 				<div class="panel">
 					{% if p.Build.Output.Valid %}
@@ -224,74 +169,6 @@ type Job struct {
 				</div>
 			{% endif %}
 		</div>
-	</div>
-{% endfunc %}
-
-{% func (p *Manifest) Section() %}
-	<div class="panel">
-		<div class="panel-header">
-			<ul class="panel-actions">
-				<li>
-					<a class="btn btn-primary" href="{%s p.Build.Endpoint("manifest", "raw") %}">
-						{% cat "../../static/svg/document.svg" %}<span>Raw</span>
-					</a>
-				</li>
-			</ul>
-		</div>
-		{%= template.RenderCode(p.Build.Manifest.String()) %}
-	</div>
-{% endfunc %}
-
-{% func (p *Objects) Section() %}
-	<div class="panel">
-		{% if len(p.Objects) == 0 %}
-			<div class="panel-message muted">No objects have been placed for this build.</div>
-		{% else %}
-			{%= RenderObjectTable(p.Objects) %}
-		{% endif %}
-	</div>
-{% endfunc %}
-
-{% func (p *Artifacts) Section() %}
-	<div class="panel">{%= RenderArtifactTable(p.Artifacts, p.URL.Path, p.Search) %}</div>
-{% endfunc %}
-
-{% func (p *Variables) Section() %}
-	<div class="panel">
-		{% if len(p.Variables) == 0 %}
-			<div class="panel-message muted">No variables have been set for this build.</div>
-		{% else %}
-			{%= RenderVariableTable(p.Variables) %}
-		{% endif %}
-	</div>
-{% endfunc %}
-
-{% func (p *Keys) Section() %}
-	<div class="panel">
-		{% if len(p.Keys) == 0 %}
-			<div class="panel-message muted">No keys have been added to this build.</div>
-		{% else %}
-			{%= RenderKeyTable(p.Keys) %}
-		{% endif %}
-	</div>
-{% endfunc %}
-
-{% func (p *Tags) Section() %}
-	<div class="panel">
-		<div class="panel-header panel-body">
-			<form method="POST" action="{%s p.Build.Endpoint("tags") %}">
-				{%s= p.CSRF %}
-				<div class="form-field form-field-inline">
-					<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
-					<button type="submit" class="btn btn-primary">Tag</button>
-				</div>
-			</form>
-		</div>
-		{% if len(p.Tags) == 0 %}
-			<div class="panel-message muted">No tags have been set for this build.</div>
-		{% else %}
-			{%= RenderTagTable(p.Tags, p.CSRF) %}
-		{% endif %}
 	</div>
 {% endfunc %}
 

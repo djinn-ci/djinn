@@ -44,11 +44,29 @@ type Router struct {
 
 var _ server.Router = (*Router)(nil)
 
+// Gate returns a web.Gate that checks if the current authenticated User has
+// the access permissions to the current Build. If the current user can access
+// the current build then it is set in the request's context.
 func Gate(db *sqlx.DB) web.Gate {
 	namespaces := namespace.NewStore(db)
 	users := user.NewStore(db)
 
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
+		var ok bool
+
+		switch r.Method {
+		case "GET":
+			_, ok = u.Permissions["build:read"]
+		case "POST", "PATCH":
+			_, ok = u.Permissions["build:write"]
+		case "DELETE":
+			_, ok = u.Permissions["build:delete"]
+		}
+
+		if !ok {
+			return r, false, nil
+		}
+
 		vars := mux.Vars(r)
 
 		owner, err := users.Get(query.Where("username", "=", vars["username"]))
@@ -95,17 +113,22 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
+// Init intialises the primary handler.Build for handling the primary logic
+// of Build submission and management. This will setup the model.Loader for
+// relationship loading, and the related model stores. The exported properties
+// on the Router itself are passed through to the underlying handler.Build.
 func (r *Router) Init(h web.Handler) {
-	users := user.NewStore(h.DB)
 	namespaces := namespace.NewStore(h.DB)
 	tags := build.NewTagStore(h.DB)
 	triggers := build.NewTriggerStore(h.DB)
+	stages := build.NewStageStore(h.DB)
 
 	loaders := model.NewLoaders()
-	loaders.Put("user", users)
+	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespaces)
 	loaders.Put("build_tag", tags)
 	loaders.Put("build_trigger", triggers)
+	loaders.Put("build_stage", stages)
 
 	r.build = handler.Build{
 		Handler:         h,
@@ -113,7 +136,8 @@ func (r *Router) Init(h web.Handler) {
 		Builds:          build.NewStore(h.DB),
 		Tags:            tags,
 		Triggers:        triggers,
-		Stages:          build.NewStageStore(h.DB),
+		Stages:          stages,
+		Jobs:            build.NewJobStore(h.DB),
 		Artifacts:       build.NewArtifactStore(h.DB),
 		Keys:            key.NewStore(h.DB),
 		Namespaces:      namespaces,
@@ -128,6 +152,23 @@ func (r *Router) Init(h web.Handler) {
 	}
 }
 
+// RegisterUI registers the UI routes for Build submission, and management.
+// There are three types of route groups, webhooks, simple auth routes, and
+// individual build routes. These routes, aside for webhook routes, respond
+// with a text/html Content-Type.
+//
+// webhooks - The webhook routes are registered directly on the given
+// mux.Router. No CSRF protection is applied, any security checks are done at
+// the discretion of the provider sending the hook.
+//
+// simple auth routes - These routes (/, /builds, and /builds/create), have the
+// auth middleware applied to them to check if a user is logged in to access
+// the route. The given http.Handler is applied to these routes for CSRF
+// protection.
+//
+// individual build routes - These routes (prefixed with
+// /b/{username}/{build:[0-9]+}), use the given http.Handler for CSRF
+// protection, and the given gates for auth checks, and permission checks.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
 	build := handler.UI{Build: r.build}
 	hook := handler.Hook{Build: r.build}
@@ -160,4 +201,20 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.Use(r.Middleware.Gate(gates...), csrf)
 }
 
-func (r *Router) RegisterAPI(mux *mux.Router, gates ...web.Gate) {}
+// RegisterAPI registers the API routes for build submission, and management.
+// There are three types of route groups, webhooks, simple auth routes, and
+// individual build routes. These routes, aside for webhook routes, respond
+// with a application/json Content-Type.
+//
+// webhooks - The webhook routes are registered directly on the given
+// mux.Router.
+//
+// simple auth routes - These routes (/, /builds, and /builds/create), have the
+// auth middleware applied to them to check if a user is logged in to access
+// the route.
+//
+// individual build routes - These routes (prefixed with
+// /b/{username}/{build:[0-9]+}), the given gates are applied for auth checks,
+// and permission checks.
+func (r *Router) RegisterAPI(mux *mux.Router, gates ...web.Gate) {
+}

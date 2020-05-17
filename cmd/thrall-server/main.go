@@ -201,6 +201,15 @@ func mainCommand(cmd cli.Command) {
 	middleware := web.Middleware{Handler: handler}
 
 	r := mux.NewRouter()
+
+	r.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			web.JSONError(w, "Not found", http.StatusNotFound)
+			return
+		}
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+	})
+
 	r.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 			web.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)

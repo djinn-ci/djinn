@@ -1,15 +1,9 @@
-{%
-import (
-	"github.com/andrewpillar/thrall/template"
-)
-%}
+{% import "github.com/andrewpillar/thrall/template" %}
 
 {% code
 type Create struct {
 	template.BasePage
 	template.Form
-
-	FileForm template.Section
 }
 %}
 
@@ -20,7 +14,7 @@ type Create struct {
 
 {% func (p *Create) Body() %}
 	<div class="panel">
-		<form class="panel-body slim" method="POST">
+		<form class="panel-body slim" method="POST" action="/images" enctype="multipart/form-data">
 			{%s= string(p.CSRF) %}
 			<div class="form-field">
 				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
@@ -29,9 +23,10 @@ type Create struct {
 			<div class="form-field">
 				<label class="label" for="name">Name</label>
 				<input class="form-text" type="text" id="name" name="name" value="{%s p.Fields["name"] %}" autocomplete="off"/>
+				{%= p.Error("name") %}
 			</div>
-			{%= p.FileForm.Section() %}
-			<dif class="form-field">
+			{%= template.FileInput(p.Form) %}
+			<div class="form-field">
 				<button type="submit" class="btn btn-primary">Create</button>
 			</div>
 		</form>

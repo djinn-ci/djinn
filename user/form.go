@@ -12,7 +12,7 @@ import (
 )
 
 type RegisterForm struct {
-	Users Store
+	Users *Store
 
 	Email          string `schema:"email"`
 	Username       string `schema:"username"`
@@ -26,16 +26,16 @@ type LoginForm struct {
 }
 
 type EmailForm struct {
-	User  *User `schema:"-"`
-	Users Store `schema:"-"`
+	User  *User  `schema:"-"`
+	Users *Store `schema:"-"`
 
 	Email          string `schema:"email"`
 	VerifyPassword string `schema:"verify_password"`
 }
 
 type PasswordForm struct {
-	User  *User `schema:"-"`
-	Users Store `schema:"-"`
+	User  *User  `schema:"-"`
+	Users *Store `schema:"-"`
 
 	OldPassword    string `schema:"old_password"`
 	NewPassword    string `schema:"new_password"`
@@ -52,6 +52,7 @@ var (
 	reAlphaNumDotDash = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
 )
 
+// Fields returns a map of the Email and Username fields.
 func (f RegisterForm) Fields() map[string]string {
 	return map[string]string{
 		"email":    f.Email,
@@ -59,6 +60,12 @@ func (f RegisterForm) Fields() map[string]string {
 	}
 }
 
+// Validate checks to see if the Email field is present and valid. An email is
+// considered valid if it is less than 254 characters in length, and contains
+// an @ character. The Username field is checked for presence, uniqueness, and
+// validitity. A username must be between 3 and 64 characters, and only contain
+// letters, numbers, dashes, and dots. The Password field is checked for
+// presence, and length. It should be between 6 and 60 characters.
 func (f RegisterForm) Validate() error {
 	errs := form.NewErrors()
 
@@ -124,12 +131,16 @@ func (f RegisterForm) Validate() error {
 	return errs.Err()
 }
 
+// Fields returns a map containing the Handle field of the current
+// LoginForm.
 func (f LoginForm) Fields() map[string]string {
 	return map[string]string{
 		"handle": f.Handle,
 	}
 }
 
+// Validate checks to see if the current LoginForm has a present Handle, and
+// Password field.
 func (f LoginForm) Validate() error {
 	errs := form.NewErrors()
 
@@ -143,12 +154,17 @@ func (f LoginForm) Validate() error {
 	return errs.Err()
 }
 
+// Fields returns a map containing the Email field of the current EmailForm.
 func (f EmailForm) Fields() map[string]string {
 	return map[string]string{
 		"email": f.Email,
 	}
 }
 
+// Validate checks to see if the Email field is present, valid, and unique. The
+// uniqueness checks will be skipped if the email matches the existing one. The
+// Password field is checked for presence, then compared against the one in the
+// database for authentication.
 func (f EmailForm) Validate() error {
 	errs := form.NewErrors()
 
@@ -186,17 +202,25 @@ func (f EmailForm) Validate() error {
 	return errs.Err()
 }
 
-func (f PasswordForm) Fields() map[string]string { return map[string]string{} }
+// Fields will return an empty map of strings.
+func (PasswordForm) Fields() map[string]string { return map[string]string{} }
 
+// Validate the current PasswordForm. This checks for the presence of the
+// old, new, and current password fields, as well as if the current password
+// is valid based on what is in the database.
 func (f PasswordForm) Validate() error {
 	errs := form.NewErrors()
 
 	if f.OldPassword == "" {
-		errs.Put("old_password", form.ErrFieldRequired("Old Password"))
+		errs.Put("old_password", form.ErrFieldRequired("Old password"))
 	}
 
 	if err := bcrypt.CompareHashAndPassword(f.User.Password, []byte(f.OldPassword)); err != nil {
 		errs.Put("old_password", errors.New("Invalid password"))
+	}
+
+	if f.NewPassword == "" {
+		errs.Put("new_password", form.ErrFieldRequired("New password"))
 	}
 
 	if len(f.NewPassword) < 6 || len(f.NewPassword) > 60 {
@@ -204,7 +228,7 @@ func (f PasswordForm) Validate() error {
 	}
 
 	if f.VerifyPassword == "" {
-		errs.Put("verify_password", form.ErrFieldRequired("Verify password"))
+		errs.Put("pass_verify_password", form.ErrFieldRequired("Password"))
 	}
 
 	if f.NewPassword != f.VerifyPassword {

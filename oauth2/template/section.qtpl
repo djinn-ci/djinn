@@ -1,0 +1,108 @@
+{%
+import (
+	"fmt"
+	htmltemplate "html/template"
+
+	"github.com/andrewpillar/thrall/oauth2"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type AppIndex struct {
+	template.BasePage
+
+	Apps []*oauth2.App
+}
+
+type TokenIndex struct {
+	CSRF   htmltemplate.HTML
+	Tokens []*oauth2.Token
+}
+%}
+
+{% collapsespace %}
+{% func (p *AppIndex) Title() %}
+	OAuth Apps - Thrall
+{% endfunc %}
+
+{% func (p *AppIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Apps) == 0 %}
+			<div class="panel-message muted">No OAuth applications created.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, a := range p.Apps %}
+						<tr>
+							<td>
+								<a href="{%s a.Endpoint() %}">{%s a.Name %}</a>
+								{% if a.Description != "" %}
+									<br/><span class="muted">{%s a.Description %}</span>
+								{% endif %}
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *AppIndex) Header() %}
+	Settings - OAuth Apps
+{% endfunc %}
+
+{% func (p *AppIndex) Actions() %}
+	<li><a href="/settings/apps/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *TokenIndex) Title() %}
+	Access Tokens - Thrall
+{% endfunc %}
+
+{% func (p *TokenIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Tokens) == 0 %}
+			<div class="panel-message muted">No access tokens created.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, t := range p.Tokens %}
+						<tr>
+							<td>
+								<strong><a href="{%s t.Endpoint() %}">{%s t.Name %}</a></strong>
+								{% if t.Token != nil %}
+									- <span class="muted">{%s fmt.Sprintf("%x", t.Token) %}</span>
+								{% endif %}
+							</td>
+							<td class="align-right">
+								<form method="POST" action="{%s t.Endpoint() %}">
+									{%v= p.CSRF %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Delete</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *TokenIndex) Header() %}
+	Settings - Access Tokens
+{% endfunc %}
+
+{% func (p *TokenIndex) Actions() %}
+	<li>
+		<form method="POST" action="/settings/tokens/revoke">
+			{%v= p.CSRF %}
+			<input type="hidden" name="_method" value="DELETE"/>
+			<button type="submit" class="btn btn-danger">Revoke All</button>
+		</form>
+	</li>
+	<li><a href="/settings/tokens/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+{% endcollapsespace %}

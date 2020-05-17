@@ -74,12 +74,14 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 	k, err := h.StoreModel(r, sess)
 
 	if err != nil {
-		if _, ok := err.(form.Errors); ok {
+		cause := errors.Cause(err)
+
+		if _, ok := cause.(form.Errors); ok {
 			h.RedirectBack(w, r)
 			return
 		}
 
-		if errors.Cause(err) == namespace.ErrPermission {
+		if cause == namespace.ErrPermission {
 			sess.AddFlash(template.Danger("Failed to create key: could not add to namespace"), "alert")
 		} else {
 			sess.AddFlash(template.Danger("Failed to create key"), "alert")

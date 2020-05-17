@@ -1,3 +1,4 @@
+// Package image provides the model.Model implementation for the Image entity.
 package image
 
 import (
@@ -50,8 +51,8 @@ var (
 	}
 )
 
-func NewStore(db *sqlx.DB, mm ...model.Model) Store {
-	s := Store{
+func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+	s := &Store{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
@@ -70,10 +71,6 @@ func Model(ii []*Image) func(int) model.Model {
 }
 
 func (i *Image) Bind(mm ...model.Model) {
-	if i == nil {
-		return
-	}
-
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -84,19 +81,11 @@ func (i *Image) Bind(mm ...model.Model) {
 	}
 }
 
-func (i *Image) Kind() string { return "image "}
-
 func (i *Image) SetPrimary(id int64) {
-	if i == nil {
-		return
-	}
 	i.ID = id
 }
 
 func (i *Image) Primary() (string, int64) {
-	if i == nil {
-		return "id", 0
-	}
 	return "id", i.ID
 }
 
@@ -111,10 +100,6 @@ func (i *Image) IsZero() bool {
 }
 
 func (i *Image) Endpoint(uri ...string) string {
-	if i == nil {
-		return ""
-	}
-
 	endpoint := fmt.Sprintf("/images/%v", i.ID)
 
 	if len(uri) > 0 {
@@ -124,10 +109,6 @@ func (i *Image) Endpoint(uri ...string) string {
 }
 
 func (i *Image) Values() map[string]interface{} {
-	if i == nil {
-		return map[string]interface{}{}
-	}
-
 	return map[string]interface{}{
 		"user_id":      i.UserID,
 		"namespace_id": i.NamespaceID,
@@ -149,17 +130,17 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-func (s Store) Create(ii ...*Image) error {
+func (s *Store) Create(ii ...*Image) error {
 	models := model.Slice(len(ii), Model(ii))
 	return errors.Err(s.Store.Create(table, models...))
 }
 
-func (s Store) Delete(ii ...*Image) error {
+func (s *Store) Delete(ii ...*Image) error {
 	models := model.Slice(len(ii), Model(ii))
 	return errors.Err(s.Store.Delete(table, models...))
 }
 
-func (s Store) All(opts ...query.Option) ([]*Image, error) {
+func (s *Store) All(opts ...query.Option) ([]*Image, error) {
 	ii := make([]*Image, 0)
 
 	opts = append([]query.Option{
@@ -180,7 +161,7 @@ func (s Store) All(opts ...query.Option) ([]*Image, error) {
 	return ii, errors.Err(err)
 }
 
-func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Image, model.Paginator, error) {
+func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, model.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
@@ -206,7 +187,7 @@ func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Image, model.Pag
 	return ii, paginator, errors.Err(err)
 }
 
-func (s Store) Load(key string, vals []interface{}, fn model.LoaderFunc) error {
+func (s *Store) Load(key string, vals []interface{}, fn model.LoaderFunc) error {
 	ii, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
@@ -221,7 +202,7 @@ func (s Store) Load(key string, vals []interface{}, fn model.LoaderFunc) error {
 	return nil
 }
 
-func (s Store) Get(opts ...query.Option) (*Image, error) {
+func (s *Store) Get(opts ...query.Option) (*Image, error) {
 	i := &Image{
 		User:      s.User,
 		Namespace: s.Namespace,
@@ -240,7 +221,7 @@ func (s Store) Get(opts ...query.Option) (*Image, error) {
 	return i, errors.Err(err)
 }
 
-func (s Store) New() *Image {
+func (s *Store) New() *Image {
 	i := &Image{
 		User:      s.User,
 		Namespace: s.Namespace,
@@ -261,7 +242,7 @@ func (s Store) New() *Image {
 	return i
 }
 
-func (s Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
+func (s *Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
 	paginator, err := s.Store.Paginate(table, page, opts...)
 	return paginator, errors.Err(err)
 }

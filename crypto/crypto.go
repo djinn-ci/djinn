@@ -1,3 +1,10 @@
+// Package crypto implements functions for hashing, encrypting, and decrypting
+// data.
+//
+// Encryption, and decyption uses the underlying crypto/aes, crypto/cipher,and
+// crypto/rand packages from the stdlib.
+//
+// Hashing is supported via use of the speps/go-hashids library.
 package crypto
 
 import (
@@ -15,10 +22,14 @@ import (
 var (
 	hd *hashids.HashID
 
-	Key      []byte
+	// Key specifies the key to use for encryption.
+	Key []byte
+
+	// Alphabet specifies the characters to use for hashing.
 	Alphabet string = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 )
 
+// InitHashing initializes hashing with the given salt and minimum hash length.
 func InitHashing(salt string, l int) error {
 	var err error
 
@@ -27,10 +38,10 @@ func InitHashing(salt string, l int) error {
 		MinLength: l,
 		Salt:      salt,
 	})
-
 	return errors.Err(err)
 }
 
+// Decrypt decrypts the given bytes using the key specified via Key.
 func Decrypt(b []byte) ([]byte, error) {
 	ciph, err := aes.NewCipher(Key)
 
@@ -54,10 +65,10 @@ func Decrypt(b []byte) ([]byte, error) {
 	text := b[size:]
 
 	d, err := gcm.Open(nil, nonce, text, nil)
-
 	return d, errors.Err(err)
 }
 
+// Encrypt encrypts the given bytes using the key specified via Key.
 func Encrypt(b []byte) ([]byte, error) {
 	ciph, err := aes.NewCipher(Key)
 
@@ -76,21 +87,20 @@ func Encrypt(b []byte) ([]byte, error) {
 	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
 		return nil, errors.Err(err)
 	}
-
 	return gcm.Seal(nonce, nonce, b, nil), nil
 }
 
+// Hash returns a hash of the given integers.
 func Hash(i []int) (string, error) {
 	if hd == nil {
 		return "", errors.New("hashing not initialized")
 	}
 
 	id, err := hd.Encode(i)
-
 	return id, errors.Err(err)
 }
 
-// Create a hash of the current UNIX nano timestamp.
+// HashNow returns a hash of the current UNIX nano timestamp.
 func HashNow() (string, error) {
 	i := make([]int, 0)
 
@@ -102,6 +112,5 @@ func HashNow() (string, error) {
 	}
 
 	h, err := Hash(i)
-
 	return h, errors.Err(err)
 }

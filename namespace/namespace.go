@@ -1,3 +1,15 @@
+// Package namespace provides model implementations for the Namespace entity
+// and its related entities.
+// 
+// Each entity implemented, has a corresponding Store which is used for
+// creating, updating, and deleting models, as well as querying them from the
+// database. These methods wrap the onces provided by the model package via
+// model.Store.
+//
+// Entities:
+// - Collaborator
+// - Invite
+// - Namespace
 package namespace
 
 import (
@@ -36,10 +48,15 @@ type Namespace struct {
 	Collaborators map[int64]struct{} `db:"-"`
 }
 
+// Resource represents a model that can exist within a Namespace, such as an
+// object, image, variable, or key.
 type Resource struct {
-	User       *user.User `schema:"-"`
-	Namespaces Store      `schema:"-"`
-	Namespace  string     `schema:"namespace"`
+	// User is the authenticated User modifying/creating the resource in the
+	// Namespace.
+	User *user.User `schema:"-"`
+
+	Namespaces *Store `schema:"-"`
+	Namespace  string `schema:"namespace"`
 }
 
 type Store struct {
@@ -63,20 +80,26 @@ var (
 	ErrPermission  = errors.New("permission denied")
 )
 
-func NewStore(db *sqlx.DB, mm ...model.Model) Store {
-	s := Store{
+// NewStore returns a new Store for querying the namespaces table. Each model
+// passed to this function will be bound to the returned Store.
+func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+	s := &Store{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// Model is called along with model.Slice to convert the given slice of
+// Namespace models to a slice of model.Model interfaces.
 func Model(nn []*Namespace) func(int) model.Model {
 	return func(i int) model.Model {
 		return nn[i]
 	}
 }
 
+// SelectRootId returns query.Query that will return the root_id of the
+// Namespace by the given id.
 func SelectRootID(id int64) query.Query {
 	return query.Select(
 		query.Columns("root_id"),
@@ -85,8 +108,16 @@ func SelectRootID(id int64) query.Query {
 	)
 }
 
+// SharedWith expects the given model.Model to be of *user.User. This will
+// apply two WHERE clauses to the query, that will check if the given User
+// model either owns the Namespace, or is a collaborator for the Namespace. If
+// the given model.Model is not of *user.User, then the WHERE clauses are not
+// applied.
 func SharedWith(m model.Model) query.Option {
 	return func(q query.Query) query.Query {
+		if _, ok := m.(*user.User); !ok {
+			return q
+		}
 		if m == nil || m.IsZero() {
 			return q
 		}
@@ -104,6 +135,13 @@ func SharedWith(m model.Model) query.Option {
 	}
 }
 
+// BindNamespace will get the Namespace by the path specified in the Namespace
+// field of the Resource struct. It will then check to see if the Resource User
+// specified via the User field can access the returned Namespace. If the User
+// has access, then the Namespace is bound to the given model.Binder. If the
+// User does not have access to the Namespace then ErrPermission is returned.
+// If the Namespace field is empty, then this method does nothing, and returns
+// nil.
 func (r Resource) BindNamespace(b model.Binder) error {
 	if r.Namespace == "" {
 		return nil
@@ -123,7 +161,20 @@ func (r Resource) BindNamespace(b model.Binder) error {
 	return nil
 }
 
-func (n Namespace) AccessibleBy(m model.Model) bool {
+// AccessibleBy assumes that the given model.Model is of type *user.User, and
+// checks that the given model.Model has access to the current Namespace,
+// depending on the Namespace's visibility. If the Namespace visibility is
+// Public, then this method will return true. If the Namespace visibility is
+// Private, then it will return true if the given model.Model is not zero. If
+// the visibility is Private, then it will check to see if the primary key of
+// the model.Model exists in the Namespace collaborators (this assumes the
+// collaborators have been previously loaded into the Namespace). If the given
+// model.Model is not of type *user.User then this method returns false.
+func (n *Namespace) AccessibleBy(m model.Model) bool {
+	if _, ok := m.(*user.User); !ok {
+		return false
+	}
+
 	_, id := m.Primary()
 
 	switch n.Visibility {
@@ -143,7 +194,11 @@ func (n Namespace) AccessibleBy(m model.Model) bool {
 	}
 }
 
-func (n Namespace) CanAdd(m model.Model) bool {
+// CanAdd assumes that the given model.Model is of type *user.User, and checks
+// to see if that User either owns the Namespace, or is a Collaborator in that
+// Namespace. This assumes that the collaborators have been previously loaded
+// into the Namespace.
+func (n *Namespace) CanAdd(m model.Model) bool {
 	if _, ok := m.(*user.User); !ok {
 		return false
 	}
@@ -194,6 +249,9 @@ func (n *Namespace) IsZero() bool {
 		n.CreatedAt == time.Time{}
 }
 
+// LoadCollaborators takes the given slice of Collaborator models and adds them
+// to the Collaborators map on the current Namespace, if the Namespace ID for
+// the Collaborator matches the current Namespace ID.
 func (n *Namespace) LoadCollaborators(cc []*Collaborator) {
 	if n.Collaborators == nil {
 		n.Collaborators = make(map[int64]struct{})
@@ -203,10 +261,18 @@ func (n *Namespace) LoadCollaborators(cc []*Collaborator) {
 		if c.NamespaceID != n.ID {
 			continue
 		}
-		n.Collaborators[c.NamespaceID] = struct{}{}
+		n.Collaborators[c.UserID] = struct{}{}
 	}
 }
 
+// Bind the given models to the current Namespace. This will only bind the
+// model if they are one of the following,
+//
+// - *user.User
+// - *namespace.Namespace
+//
+// The bound Namespace will be treated as the parent of the current Namespace,
+// and set on the Parent field.
 func (n *Namespace) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -218,17 +284,17 @@ func (n *Namespace) Bind(mm ...model.Model) {
 	}
 }
 
-func (n Namespace) Kind() string { return "namespace" }
-
 func (n *Namespace) SetPrimary(id int64) {
 	n.ID = id
 }
 
-func (n Namespace) Primary() (string, int64) {
-	return "id", n.ID
-}
+func (n *Namespace) Primary() (string, int64) { return "id", n.ID }
 
-func (n Namespace) Endpoint(uri ...string) string {
+// Endpoint returns the endpoint for the current Namespace, appending the given
+// variadic URIs. The Namespace endpoint will contain the username of the bound
+// User model. If there is no bound User model, or the model IsZero, then an
+// empty string is returned.
+func (n *Namespace) Endpoint(uri ...string) string {
 	if n.User == nil || n.User.IsZero() {
 		return ""
 	}
@@ -242,7 +308,7 @@ func (n Namespace) Endpoint(uri ...string) string {
 	return endpoint
 }
 
-func (n Namespace) Values() map[string]interface{} {
+func (n *Namespace) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":     n.UserID,
 		"root_id":     n.RootID,
@@ -255,6 +321,13 @@ func (n Namespace) Values() map[string]interface{} {
 	}
 }
 
+// Bind the given models to the current Namespace. This will only bind the
+// model if they are one of the following,
+//
+// - *user.User
+// - *namespace.Namespace
+//
+// The bound Namespace model will be treated as the parent Namespace.
 func (s *Store) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -266,17 +339,21 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-func (s Store) Create(nn ...*Namespace) error {
+// Create inserts the given Namespace models into the namespaces table.
+func (s *Store) Create(nn ...*Namespace) error {
 	models := model.Slice(len(nn), Model(nn))
 	return errors.Err(s.Store.Create(table, models...))
 }
 
-func (s Store) Update(nn ...*Namespace) error {
+// Update updates the given Namespace models in the namespaces table.
+func (s *Store) Update(nn ...*Namespace) error {
 	models := model.Slice(len(nn), Model(nn))
 	return errors.Err(s.Store.Update(table, models...))
 }
 
-func (s Store) Delete(nn ...*Namespace) error {
+// Delete deletes the given Namespace models, and their children from the
+// namespaces table.
+func (s *Store) Delete(nn ...*Namespace) error {
 	models := model.Slice(len(nn), Model(nn))
 
 	ids := model.MapKey("id", models)
@@ -295,33 +372,40 @@ func (s Store) Delete(nn ...*Namespace) error {
 	return errors.Err(err)
 }
 
+
+// Paginate returns the model.Paginator for the namespaces table for the given
+// page. This applies the SharedWith option on the bound User model, and the
+// model.Where option to the bound Namespace model on the "parent_id".
 func (s Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
 	paginator, err := s.Store.Paginate(table, page, opts...)
 	return paginator, errors.Err(err)
 }
 
-func (s Store) New() *Namespace {
+// New returns a new Namespace binding any non-nil models to it from the current
+// Store.
+func (s *Store) New() *Namespace {
 	n := &Namespace{
 		User:   s.User,
 		Parent: s.Namespace,
 	}
 
 	if s.User != nil {
-		_, id := s.User.Primary()
-		n.UserID = id
+		n.UserID = s.User.ID
 	}
 
 	if s.Namespace != nil {
-		_, id := s.Namespace.Primary()
 		n.ParentID = sql.NullInt64{
-			Int64: id,
+			Int64: s.Namespace.ID,
 			Valid: true,
 		}
 	}
 	return n
 }
 
-func (s Store) All(opts ...query.Option) ([]*Namespace, error) {
+// All returns a slice of Namespace models, applying each query.Option that is
+// given. The SharedWith option is applied to the bound User model, and the
+// model.Where option to the bound Namespace model on the "parent_id".
+func (s *Store) All(opts ...query.Option) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
 	opts = append([]query.Option{
@@ -341,7 +425,12 @@ func (s Store) All(opts ...query.Option) ([]*Namespace, error) {
 	return nn, errors.Err(err)
 }
 
-func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, model.Paginator, error) {
+// Index returns the paginated results from the namespaces table depending on
+// the values that are present in url.Values. Detailed below are the values
+// that are used from the given url.Values,
+//
+// path - This applies the model.Search query.Option using the value os path
+func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, model.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
@@ -367,7 +456,10 @@ func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, model
 	return nn, paginator, errors.Err(err)
 }
 
-func (s Store) Get(opts ...query.Option) (*Namespace, error) {
+// Get returns a single Namespace model, applying each query.Option that is
+// given. The SharedWith option is applied to the bound User model, and the
+// model.Where option to the bound Namespace model on the "parent_id".
+func (s *Store) Get(opts ...query.Option) (*Namespace, error) {
 	n := &Namespace{
 		User:   s.User,
 		Parent: s.Namespace,
@@ -386,11 +478,15 @@ func (s Store) Get(opts ...query.Option) (*Namespace, error) {
 	return n, errors.Err(err)
 }
 
-// GetByPath returns the namespace by the given path. If it does not exist
-// then it will be created, including all grandparents, and then returned.
-// The namespace for a given user will be returned if the path contains
-// an '@'.
-func (s Store) GetByPath(path string) (*Namespace, error) {
+// GetByPath returns a Namespace by the given path. If it does not exist then
+// it will be created, including all grandparents up to the maximum possible
+// depth for a Namespace. If any invalid names for a Namespace appear in the
+// path, then the child Namespaces will not be created beyong that point. If
+// a '@' is present in the given path, then the Namespace for that given user
+// will be returned if it exists, if not then nothing will be returned and a
+// Namespace will not be created.
+func (s *Store) GetByPath(path string) (*Namespace, error) {
+	create := true
 	users := user.NewStore(s.DB)
 
 	if strings.Contains(path, "@") {
@@ -407,6 +503,7 @@ func (s Store) GetByPath(path string) (*Namespace, error) {
 
 		if !u.IsZero() {
 			s.User = u
+			create = false
 		}
 	}
 
@@ -423,6 +520,10 @@ func (s Store) GetByPath(path string) (*Namespace, error) {
 			return n, errors.Err(err)
 		}
 		n.LoadCollaborators(cc)
+		return n, nil
+	}
+
+	if !create {
 		return n, nil
 	}
 
@@ -477,7 +578,11 @@ func (s Store) GetByPath(path string) (*Namespace, error) {
 	return n, nil
 }
 
-func (s Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+// Load loads in a slice of Namespace models where the given key is in the list
+// of given vals. Each model is loaded individually via a call to the given
+// load callback. This method calls Store.All under the hood, so any
+// bound models will impact the models being loaded.
+func (s *Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	nn, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {

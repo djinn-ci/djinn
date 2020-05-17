@@ -13,7 +13,7 @@ import (
 type Form struct {
 	namespace.Resource
 
-	Variables Store `schema:"-"`
+	Variables *Store `schema:"-"`
 	Key       string `schema:"key"`
 	Value     string `schema:"value"`
 }
@@ -26,15 +26,16 @@ var (
 
 func (f Form) Fields() map[string]string {
 	return map[string]string{
-		"key":   f.Key,
-		"value": f.Value,
+		"namespace": f.Namespace,
+		"key":       f.Key,
+		"value":     f.Value,
 	}
 }
 
 func (f Form) Validate() error {
 	errs := form.NewErrors()
 
-	if err := f.Resource.BindNamespace(&f.Variables); err != nil {
+	if err := f.Resource.BindNamespace(f.Variables); err != nil {
 		return errors.Err(err)
 	}
 

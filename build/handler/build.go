@@ -41,17 +41,18 @@ type Build struct {
 	web.Handler
 
 	Loaders    model.Loaders
-	Builds     build.Store
-	Tags       build.TagStore
-	Triggers   build.TriggerStore
-	Stages     build.StageStore
-	Artifacts  build.ArtifactStore
-	Keys       key.Store
-	Namespaces namespace.Store
-	Objects    object.Store
-	Providers  provider.Store
-	Images     image.Store
-	Variables  variable.Store
+	Builds     *build.Store
+	Tags       *build.TagStore
+	Triggers   *build.TriggerStore
+	Stages     *build.StageStore
+	Jobs       *build.JobStore
+	Artifacts  *build.ArtifactStore
+	Keys       *key.Store
+	Namespaces *namespace.Store
+	Objects    *object.Store
+	Providers  *provider.Store
+	Images     *image.Store
+	Variables  *variable.Store
 	FileStore  filestore.FileStore
 
 	Client          *redis.Client
@@ -59,7 +60,7 @@ type Build struct {
 	Oauth2Providers map[string]oauth2.Provider
 }
 
-func copyKeys(s build.KeyStore, kk []*key.Key) error {
+func copyKeys(s *build.KeyStore, kk []*key.Key) error {
 	bkk := make([]*build.Key, 0, len(kk))
 
 	for _, k := range kk {
@@ -68,6 +69,7 @@ func copyKeys(s build.KeyStore, kk []*key.Key) error {
 			Int64: k.ID,
 			Valid: true,
 		}
+		bk.Name = k.Name
 		bk.Key = k.Key
 		bk.Config = k.Config
 		bk.Location = "/root/.ssh/"+bk.Name
@@ -76,7 +78,7 @@ func copyKeys(s build.KeyStore, kk []*key.Key) error {
 	return errors.Err(s.Create(bkk...))
 }
 
-func copyVariables(s build.VariableStore, vv []*variable.Variable) error {
+func copyVariables(s *build.VariableStore, vv []*variable.Variable) error {
 	bvv := make([]*build.Variable, 0, len(vv))
 
 	for _, v := range vv {
@@ -92,13 +94,16 @@ func copyVariables(s build.VariableStore, vv []*variable.Variable) error {
 	return errors.Err(s.Create(bvv...))
 }
 
+// Model returns the *build.Build from the current request context.
 func (h Build) Model(r *http.Request) *build.Build {
 	val := r.Context().Value("build")
 	b, _ := val.(*build.Build)
 	return b
 }
 
-func (h Build) IndexWithRelations(s build.Store, vals url.Values) ([]*build.Build, model.Paginator, error) {
+// IndexWithRelations returns a slice of paginated Build models with the
+// relationships loaded.
+func (h Build) IndexWithRelations(s *build.Store, vals url.Values) ([]*build.Build, model.Paginator, error) {
 	bb, paginator, err := s.Index(vals)
 
 	if err != nil {
@@ -121,19 +126,36 @@ func (h Build) IndexWithRelations(s build.Store, vals url.Values) ([]*build.Buil
 	return bb, paginator, errors.Err(err)
 }
 
-func (h Build) Get(r *http.Request) (*build.Build, error) {
+// ShowWithRelations returns a single Build model with the relationships
+// loaded.
+func (h Build) ShowWithRelations(r *http.Request) (*build.Build, error) {
 	b := h.Model(r)
 
 	if err := build.LoadRelations(h.Loaders, b); err != nil {
 		return b, errors.Err(err)
 	}
 
-	err := h.Users.Load(
-		"id",
-		[]interface{}{b.Namespace.Values()["user_id"]},
-		model.Bind("user_id", "id", b.Namespace),
-	)
-	return b, errors.Err(err)
+	ss := make([]model.Model, 0, len(b.Stages))
+
+	for _, s := range b.Stages {
+		ss = append(ss, s)
+	}
+
+	err := h.Jobs.Load("stage_id", model.MapKey("id", ss), model.Bind("id", "stage_id", ss...))
+
+	if err != nil {
+		return b, errors.Err(err)
+	}
+
+	if b.Namespace != nil {
+		err = h.Users.Load(
+			"id",
+			[]interface{}{b.Namespace.Values()["user_id"]},
+			model.Bind("user_id", "id", b.Namespace),
+		)
+		return b, errors.Err(err)
+	}
+	return b, nil
 }
 
 func (h Build) realStore(m config.Manifest, u *user.User, t *build.Trigger, tags ...string) (*build.Build, error) {
@@ -199,6 +221,8 @@ func (h Build) realStore(m config.Manifest, u *user.User, t *build.Trigger, tags
 	return b, errors.Err(err)
 }
 
+// StoreModel stores a new Build model in the database. It takes the current
+// request session to flash any data to if the given session is not nil.
 func (h Build) StoreModel(r *http.Request, sess *sessions.Session) (*build.Build, error) {
 	u := h.User(r)
 	f := &build.Form{}
@@ -230,17 +254,8 @@ func (h Build) StoreModel(r *http.Request, sess *sessions.Session) (*build.Build
 	return b, errors.Err(err)
 }
 
+// Submit puts the given Build model onto the given queue server for running.
 func (h Build) Submit(b *build.Build, srv *machinery.Server) error {
-	i, err := h.Images.Get(query.Where("name", "=", b.Manifest.Driver["image"]))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if !i.IsZero() {
-		b.Manifest.Driver["image"] = i.Name+"::"+i.Hash
-	}
-
 	buf := &bytes.Buffer{}
 
 	enc := json.NewEncoder(buf)
@@ -257,8 +272,9 @@ func (h Build) Submit(b *build.Build, srv *machinery.Server) error {
 	}
 
 	vv, err := h.Variables.All(
+		query.Where("user_id", "=", b.UserID),
 		query.WhereRaw("namespace_id", "IS", "NULL"),
-		model.Where(b.Namespace, "namespace_id"),
+		model.OrWhere(b.Namespace, "namespace_id"),
 	)
 
 	if err != nil {
@@ -284,6 +300,7 @@ func (h Build) Submit(b *build.Build, srv *machinery.Server) error {
 	}
 
 	kk, err := h.Keys.All(
+		query.Where("user_id", "=", b.UserID),
 		query.WhereRaw("namespace_id", "IS", "NULL"),
 		model.OrWhere(b.Namespace, "namespace_id"),
 	)
@@ -304,10 +321,10 @@ func (h Build) Submit(b *build.Build, srv *machinery.Server) error {
 
 	if len(names) > 0 {
 		oo, err := h.Objects.All(
-			model.Where(b.User, "user_id"),
+			query.Where("name", "IN", names...),
+			query.Where("user_id", "=", b.UserID),
 			query.WhereRaw("namespace_id", "IS", "NULL"),
 			model.OrWhere(b.Namespace, "namespace_id"),
-			query.Where("name", "IN", names...),
 		)
 
 		if err != nil {
@@ -403,9 +420,9 @@ func (h Build) Submit(b *build.Build, srv *machinery.Server) error {
 		if s.Name != stage {
 			stage = s.Name
 			jobId = 1
+		} else {
+			jobId++
 		}
-
-		jobId++
 
 		jobs := build.NewJobStore(h.DB, b, s)
 
@@ -424,7 +441,7 @@ func (h Build) Submit(b *build.Build, srv *machinery.Server) error {
 		for src, dst := range job.Artifacts.Values {
 			hash, _ := crypto.HashNow()
 
-			artifacts := build.NewArtifactStore(h.DB, j)
+			artifacts := build.NewArtifactStore(h.DB, j, b)
 
 			a := artifacts.New()
 			a.Hash = hash

@@ -1,12 +1,14 @@
 package object
 
 import (
+	"database/sql/driver"
 	"image"
 	"image/color"
 	"image/png"
 	"io"
 	"math/rand"
 	"mime/multipart"
+	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"testing"
@@ -25,27 +27,9 @@ import (
 var (
 	width  = 200
 	height = 100
-
-	namespaceCols = []string{
-		"id",
-		"user_id",
-		"root_id",
-		"parent_id",
-		"name",
-		"path",
-		"description",
-		"level",
-		"visibility",
-		"created_at",
-	}
-
-	collabCols = []string{
-		"namespace_id",
-		"user_id",
-	}
 )
 
-func createImage(t *testing.T) image.Image {
+func spoofFile(t *testing.T) (*http.Request, http.ResponseWriter) {
 	img := image.NewRGBA(image.Rectangle{
 		image.Point{0, 0},
 		image.Point{width, height},
@@ -62,7 +46,29 @@ func createImage(t *testing.T) image.Image {
 			img.Set(i, j, color.RGBA{r, g, b, 0xFF})
 		}
 	}
-	return img
+
+	pr, pw := io.Pipe()
+
+	mw := multipart.NewWriter(pw)
+
+	go func() {
+		defer mw.Close()
+
+		w, err := mw.CreateFormFile("file", "rand.png")
+
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if err := png.Encode(w, img); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	r := httptest.NewRequest("POST", "/", pr)
+	r.Header.Add("Content-Type", mw.FormDataContentType())
+
+	return r, httptest.NewRecorder()
 }
 
 func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() error) {
@@ -88,36 +94,38 @@ func Test_FormValidate(t *testing.T) {
 	}{
 		{
 			Form{
-				ResourceForm: namespace.ResourceForm{
+				Resource: namespace.Resource{
+					User:       &user.User{ID: 10},
 					Namespaces: namespaceStore,
+					Namespace:  "aperture",
 				},
-				Objects:      objectStore,
-				Name:         "rand.png",
+				Objects: objectStore,
+				Name:    "image.png",
 			},
 			[]string{},
 			false,
 		},
 		{
 			Form{
-				ResourceForm: namespace.ResourceForm{
-					Namespaces: namespaceStore,
-					Namespace:  "blackmesa",
-					User:       &user.User{ID: 10},
-				},
-				Objects:      objectStore,
-				Name:         "rand.png",
+				Objects: objectStore,
+				Name:    "image.png",
 			},
 			[]string{},
 			false,
 		},
 		{
+			Form{Objects: objectStore},
+			[]string{},
+			true,
+		},
+		{
 			Form{
-				ResourceForm: namespace.ResourceForm{
-					Namespaces: namespaceStore,
-					Namespace:  "blackmesa",
+				Resource: namespace.Resource{
 					User:       &user.User{ID: 10},
+					Namespaces: namespaceStore,
+					Namespace:  "aperture",
 				},
-				Objects:      objectStore,
+				Objects: objectStore,
 			},
 			[]string{"name"},
 			true,
@@ -125,46 +133,37 @@ func Test_FormValidate(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		uniqueQuery := "SELECT * FROM objects WHERE (name = $1)"
+		uniqueArgs := []driver.Value{test.form.Name}
+
 		if test.form.Namespace != "" {
+			var (
+				collabId    int64 = 13
+				namespaceId int64 = 1
+				userId      int64 = 10
+			)
+
+			uniqueQuery = "SELECT * FROM objects WHERE (namespace_id = $1 AND name = $2)"
+			uniqueArgs = []driver.Value{namespaceId, test.form.Name}
+
 			namespaceMock.ExpectQuery(
 				regexp.QuoteMeta("SELECT * FROM namespaces WHERE (path = $1)"),
 			).WithArgs(test.form.Namespace).WillReturnRows(
-				sqlmock.NewRows(namespaceCols).AddRow(1, 10, 1, 0, "blackmesa", "blackmesa", "", 1, namespace.Internal, time.Now()),
+				sqlmock.NewRows([]string{"id", "root_id"}).AddRow(namespaceId, namespaceId),
 			)
 
 			namespaceMock.ExpectQuery(
 				regexp.QuoteMeta("SELECT * FROM namespace_collaborators WHERE (namespace_id = $1)"),
-			).WithArgs(1).WillReturnRows(
-				sqlmock.NewRows(collabCols).AddRow(1, test.form.User.ID),
+			).WithArgs(namespaceId).WillReturnRows(
+				sqlmock.NewRows([]string{"id", "user_id", "namespace_id"}).AddRow(collabId, userId, namespaceId),
 			)
 		}
 
 		objectMock.ExpectQuery(
-			regexp.QuoteMeta("SELECT * FROM objects WHERE (name = $1)"),
-		).WithArgs(test.form.Name).WillReturnRows(sqlmock.NewRows(objectCols))
+			regexp.QuoteMeta(uniqueQuery),
+		).WithArgs(uniqueArgs...).WillReturnRows(sqlmock.NewRows(objectCols))
 
-		pr, pw := io.Pipe()
-
-		mw := multipart.NewWriter(pw)
-
-		go func() {
-			defer mw.Close()
-
-			w, err := mw.CreateFormFile("file", "rand.png")
-
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if err := png.Encode(w, createImage(t)); err != nil {
-				t.Fatal(err)
-			}
-		}()
-
-		r := httptest.NewRequest("POST", "/", pr)
-		r.Header.Add("Content-Type", mw.FormDataContentType())
-
-		w := httptest.NewRecorder()
+		r, w := spoofFile(t)
 
 		test.form.File = form.File{
 			Writer:  w,
@@ -173,19 +172,17 @@ func Test_FormValidate(t *testing.T) {
 
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {
-				if len(test.errs) == 0 {
-					continue
-				}
+				cause := errors.Cause(err)
 
-				ferrs, ok := err.(form.Errors)
+				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, it was not\n%s\n", errors.Cause(err))
+					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Fatalf("expected field '%s' to be in form.Errors\n", err)
 					}
 				}
 				continue

@@ -21,8 +21,8 @@ type Namespace struct {
 	web.Handler
 
 	Loaders    model.Loaders
-	Builds     build.Store
-	Namespaces namespace.Store
+	Builds     *build.Store
+	Namespaces *namespace.Store
 }
 
 func (h Namespace) Model(r *http.Request) *namespace.Namespace {
@@ -37,7 +37,7 @@ func (h Namespace) Delete(r *http.Request) error {
 	return errors.Err(err)
 }
 
-func (h Namespace) IndexWithRelations(s namespace.Store, vals url.Values) ([]*namespace.Namespace, model.Paginator, error) {
+func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*namespace.Namespace, model.Paginator, error) {
 	nn, paginator, err := s.Index(vals)
 
 	if err != nil {

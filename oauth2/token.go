@@ -2,6 +2,8 @@ package oauth2
 
 import (
 	"database/sql"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -41,20 +43,29 @@ var (
 	tokenTable = "oauth_tokens"
 )
 
-func NewTokenStore(db *sqlx.DB, mm ...model.Model) TokenStore {
-	s := TokenStore{
+// NewTokenStore returns a new TokenStore for querying the oauth_tokens table.
+// Each model passed to this function will be bound to the returned TokenStore.
+func NewTokenStore(db *sqlx.DB, mm ...model.Model) *TokenStore {
+	s := &TokenStore{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// TokenModel is called along with model.Slice to convert the given slice of
+// Token models to a slice of model.Model interfaces.
 func TokenModel(tt []*Token) func(int) model.Model {
 	return func(i int) model.Model {
 		return tt[i]
 	}
 }
 
+// Bind the given models to the current Token. This will only bind the model if
+// they are one of the following,
+//
+// - *app.App
+// - *user.User
 func (t *Token) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -66,17 +77,13 @@ func (t *Token) Bind(mm ...model.Model) {
 	}
 }
 
-func (t Token) Kind() string { return "oauth_token" }
-
 func (t *Token) SetPrimary(id int64) {
 	t.ID = id
 }
 
-func (t Token) Primary() (string, int64) {
-	return "id", t.ID
-}
+func (t *Token) Primary() (string, int64) { return "id", t.ID }
 
-func (t Token) IsZero() bool {
+func (t *Token) IsZero() bool {
 	return t.ID == 0 &&
 		t.UserID == 0 &&
 		!t.AppID.Valid &&
@@ -87,7 +94,7 @@ func (t Token) IsZero() bool {
 		t.UpdatedAt == time.Time{}
 }
 
-func (t Token) Values() map[string]interface{} {
+func (t *Token) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":    t.UserID,
 		"app_id":     t.AppID,
@@ -98,9 +105,32 @@ func (t Token) Values() map[string]interface{} {
 	}
 }
 
-func (t Token) Endpoint(_ ...string) string { return "" }
+// Endpoint returns the endpoint for the current Token with the appended URI
+// parts.
+func (t *Token) Endpoint(uri ...string) string {
+	endpoint := fmt.Sprintf("/settings/tokens/%v", t.ID)
 
-func (t Token) Permissions() map[string]struct{} {
+	if len(uri) > 0 {
+		return fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+	}
+	return endpoint
+}
+
+// Permissions turns the current Token's permission into a map. This will
+// spread out the Token's scope into a space delimited string of
+// resource:permission values. Each part of the space delimited string will
+// be a key in the returned map, for example,
+//
+//   build:read,write namespace:read
+//
+// would become the map,
+//
+//   map[string]struct{}{
+//       "build:read":     {},
+//       "build:write":    {},
+//       "namespace:read": {},
+//   }
+func (t *Token) Permissions() map[string]struct{} {
 	m := make(map[string]struct{})
 
 	spread := t.Scope.Spread()
@@ -111,7 +141,9 @@ func (t Token) Permissions() map[string]struct{} {
 	return m
 }
 
-func (s TokenStore) New() *Token {
+// New returns a new Token binding any non-nil models to it from the current
+// TokenStore.
+func (s *TokenStore) New() *Token {
 	t := &Token{
 		User: s.User,
 		App:  s.App,
@@ -130,6 +162,11 @@ func (s TokenStore) New() *Token {
 	return t
 }
 
+// Bind the given models to the current Token. This will only bind the model if
+// they are one of the following,
+//
+// - *app.App
+// - *user.User
 func (s *TokenStore) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -141,7 +178,10 @@ func (s *TokenStore) Bind(mm ...model.Model) {
 	}
 }
 
-func (s TokenStore) All(opts ...query.Option) ([]*Token, error) {
+// All returns a slice Token models, applying each query.Option that is given.
+// The model.Where option is applied to the bound User model and bound App
+// model.
+func (s *TokenStore) All(opts ...query.Option) ([]*Token, error) {
 	tt := make([]*Token, 0)
 
 	opts = append([]query.Option{
@@ -162,7 +202,10 @@ func (s TokenStore) All(opts ...query.Option) ([]*Token, error) {
 	return tt, errors.Err(err)
 }
 
-func (s TokenStore) Get(opts ...query.Option) (*Token, error) {
+// Get returns a single Token model, applying each query.Option that is given.
+// The model.Where option is applied to the bound User model and bound App
+// model.
+func (s *TokenStore) Get(opts ...query.Option) (*Token, error) {
 	t := &Token{
 		User: s.User,
 		App:  s.App,
@@ -181,17 +224,20 @@ func (s TokenStore) Get(opts ...query.Option) (*Token, error) {
 	return t, errors.Err(err)
 }
 
-func (s TokenStore) Create(tt ...*Token) error {
+// Create inserts the given Token models into the oauth_tokens table.
+func (s *TokenStore) Create(tt ...*Token) error {
 	mm := model.Slice(len(tt), TokenModel(tt))
 	return errors.Err(s.Store.Create(tokenTable, mm...))
 }
 
-func (s TokenStore) Update(tt ...*Token) error {
+// Update updates the given Token models in the oauth_tokens table.
+func (s *TokenStore) Update(tt ...*Token) error {
 	mm := model.Slice(len(tt), TokenModel(tt))
 	return errors.Err(s.Store.Update(tokenTable, mm...))
 }
 
-func (s TokenStore) Delete(tt ...*Token) error {
+// Delete deletes the given Token models from the oauth_tokens table.
+func (s *TokenStore) Delete(tt ...*Token) error {
 	mm := model.Slice(len(tt), TokenModel(tt))
 	return errors.Err(s.Store.Delete(tokenTable, mm...))
 }

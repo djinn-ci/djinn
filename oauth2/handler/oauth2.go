@@ -30,7 +30,7 @@ import (
 type Oauth2 struct {
 	web.Handler
 
-	Apps      oauth2.AppStore
+	Apps      *oauth2.AppStore
 	Providers map[string]oauth2.Provider
 }
 
@@ -433,7 +433,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	if q.Get("state") != string(prv.Secret()) {
-		web.Text(w, "Not found", http.StatusNotFound)
+		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
 
@@ -482,11 +482,49 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 		h.RedirectBack(w, r)
 		return
 	}
-
 	sess.AddFlash(template.Success("Successfully connected to "+name), "alert")
-	h.RedirectBack(w, r)
+	h.Redirect(w, r, "/settings")
 }
 
 func (h Oauth2) RevokeClient(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
 
+	name := mux.Vars(r)["provider"]
+
+	if _, ok := h.Providers[name]; !ok {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	u := h.User(r)
+
+	providers := provider.NewStore(h.DB, u)
+
+	p, err := providers.Get(query.Where("name", "=", name))
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if p.IsZero() {
+		h.RedirectBack(w, r)
+		return
+	}
+
+	p.ProviderUserID = sql.NullInt64{Valid: false}
+	p.Connected = false
+	p.AccessToken = nil
+	p.RefreshToken = nil
+
+	if err := providers.Update(p); err != nil {
+		log.Error.Println(errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+	sess.AddFlash(template.Success("Successfully disconnected from provider"), "alert")
+	h.RedirectBack(w, r)
 }

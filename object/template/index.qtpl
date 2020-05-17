@@ -76,7 +76,7 @@ type Index struct {
 			{% endif %}
 		{% endif %}
 	</div>
-	{%= template.RenderPaginator(p.URL.Path, p.Paginator) %}
+	{%= template.RenderPaginator(p.URL, p.Paginator) %}
 {% endfunc %}
 
 {% func (p *Index) Section() %}
@@ -88,7 +88,9 @@ type Index struct {
 {% endfunc %}
 
 {% func (p *Index) Actions() %}
-	<li><a href="/objects/create" class="btn btn-primary">Create</a></li>
+	{% if _, ok := p.User.Permissions["object:write"]; ok %}
+		<li><a href="/objects/create" class="btn btn-primary">Create</a></li>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *Index) Navigation() %}{% endfunc %}

@@ -1,0 +1,265 @@
+{%
+import (
+	"fmt"
+	"net/url"
+
+	"github.com/andrewpillar/thrall/build"
+	"github.com/andrewpillar/thrall/template"
+)
+%}
+
+{% code
+type section struct {}
+
+type Manifest struct {
+	section
+
+	Build *build.Build
+}
+
+type Objects struct {
+	section
+
+	Build   *build.Build
+	Objects []*build.Object
+}
+
+type Artifacts struct {
+	section
+
+	URL       *url.URL
+	Search    string
+	Build     *build.Build
+	Artifacts []*build.Artifact
+}
+
+type Variables struct {
+	section
+
+	Build     *build.Build
+	Variables []*build.Variable
+}
+
+type Keys struct {
+	section
+
+	Build *build.Build
+	Keys  []*build.Key
+}
+
+type Tags struct {
+	section
+
+	CSRF  string
+	Build *build.Build
+	Tags  []*build.Tag
+}
+%}
+
+{% collapsespace %}
+{% func (p *section) Actions() %}{% endfunc %}
+{% func (p *section) Header() %}{% endfunc %}
+
+{% func (p *Manifest) Title() %}
+	Build #{%v p.Build.ID %} - Manifest
+{% endfunc %}
+
+{% func (p *Manifest) Body() %}
+	<div class="panel">
+		<div class="panel-header">
+			<ul class="panel-actions">
+				<li>
+					<a class="btn btn-primary" href="{%s p.Build.Endpoint("manifest", "raw") %}">
+						{% cat "../../static/svg/document.svg" %}<span>Raw</span>
+					</a>
+				</li>
+			</ul>
+		</div>
+		{%= template.RenderCode(p.Build.Manifest.String()) %}
+	</div>
+{% endfunc %}
+
+{% func (p *Objects) Title() %}
+	Build #{%v p.Build.ID %} - Objects
+{% endfunc %}
+
+{% func (p *Objects) Body() %}
+	<div class="panel">
+		{% if len(p.Objects) == 0 %}
+			<div class="panel-message muted">No objects have been placed for this build.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>SOURCE</th>
+						<th>NAME</th>
+						<th>TYPE</th>
+						<th>HASHES</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, o := range p.Objects %}
+						<tr>
+							<td>
+								{% if o != nil && !o.Object.DeletedAt.Valid %}
+									<a href="{%s o.Object.Endpoint() %}">{%s o.Source %}</a>
+								{% else %}
+									<a title="Object not found"><strike>{%s o.Source %}</strike></a>
+								{% endif %}
+							</td>
+							<td><span class="code">{%s o.Name %}</span></td>
+							<td>
+								{% if o.Object != nil %}
+									<span class="code">{%s o.Object.Type %}</span>
+								{% else %}
+									<span class="code">--</span>
+								{% endif %}
+							</td>
+							<td>
+								<div>
+									<strong>MD5</strong>
+									{% if o != nil %}
+										<span class="code">{%s fmt.Sprintf("%x", o.Object.MD5) %}</span>
+									{% else %}
+										<span class="code">--</span>
+									{% endif %}
+								</div>
+								<div>
+									<strong>SHA256</strong>
+									{% if o != nil %}
+										<span class="code">{%s fmt.Sprintf("%x", o.Object.SHA256) %}</span>
+									{% else %}
+										<span class="code">--</span>
+									{% endif %}
+								</div>
+							</td>
+							<td class="align-right">
+								{% if o.Placed %}
+									<span class="pill pill-green">{% cat "../../static/svg/check.svg"  %}</span>
+								{% else %}
+									<span class="pill pill-red">{% cat "../../static/svg/close.svg" %}</span>
+								{% endif %}
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *Artifacts) Title() %}
+	Build #{%v p.Build.ID %} - Artifacts
+{% endfunc %}
+
+{% func (p *Artifacts) Body() %}
+	<div class="panel">{%= RenderArtifactTable(p.Artifacts, p.URL.Path, p.Search) %}</div>
+{% endfunc %}
+
+{% func (p *Variables) Title() %}
+	Build #{%v p.Build.ID %} - Variables
+{% endfunc %}
+
+{% func (p *Variables) Body() %}
+	<div class="panel">
+		{% if len(p.Variables) == 0 %}
+			<div class="panel-message muted">No variables have been set for this build.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>KEY</th>
+						<th>VALUE</th>
+						<th>FROM MANIFEST</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, v := range p.Variables %}
+						<tr>
+							<td><span class="code">{%s v.Key %}</span></td>
+							<td><span class="code">{%s v.Value %}</span></td>
+							<td>{% if v.VariableID.Valid %}False{% else %}True{% endif %}</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *Keys) Title() %}
+	Build #{%v p.Build.ID %} - Keys
+{% endfunc %}
+
+{% func (p *Keys) Body() %}
+	<div class="panel">
+		{% if len(p.Keys) == 0 %}
+			<div class="panel-message muted">No keys have been added to this build.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>KEY</th>
+						<th>LOCATION</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, k := range p.Keys %}
+						<tr>
+							<td><span class="code">{%s k.Name %}</span></td>
+							<td><span class="code">{%s k.Location %}</span></td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *Tags) Title() %}
+	Build #{%v p.Build.ID %} - Tags
+{% endfunc %}
+
+{% func (p *Tags) Body() %}
+	<div class="panel">
+		<div class="panel-header panel-body">
+			<form method="POST" action="{%s p.Build.Endpoint("tags") %}">
+				{%s= p.CSRF %}
+				<div class="form-field form-field-inline">
+					<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
+					<button type="submit" class="btn btn-primary">Tag</button>
+				</div>
+			</form>
+		</div>
+		{% if len(p.Tags) == 0 %}
+			<div class="panel-message muted">No tags have been set for this build.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>TAG</th>
+						<th>TAGGED BY</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, t := range p.Tags %}
+						<tr>
+							<td><a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a></td>
+							<td>{%s t.User.Username %} &lt;{%s t.User.Email %}&gt;</td>
+							<td class="align-right">
+								<form method="POST" action="{%s t.Endpoint() %}">
+									{%s= p.CSRF %}
+									<input type="hidden" name="_method" value="DELETE">
+									<button type="submit" class="btn btn-danger">Delete</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

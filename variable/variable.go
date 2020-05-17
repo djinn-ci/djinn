@@ -48,25 +48,36 @@ var (
 	}
 )
 
-func Model(vv []*Variable) func(int) model.Model {
-	return func(i int) model.Model {
-		return vv[i]
-	}
-}
-
-func NewStore(db *sqlx.DB, mm ...model.Model) Store {
-	s := Store{
+// NewStore returns a new Store for querying the variables table. Each of the
+// given models is bound to the returned Store.
+func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+	s := &Store{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// Model is called along with model.Slice to convert the given slice of
+// Variable  models to a slice of model.Model interfaces.
+func Model(vv []*Variable) func(int) model.Model {
+	return func(i int) model.Model {
+		return vv[i]
+	}
+}
+
+// LoadRelations loads all of the available relations for the given Variable 
+// models using the given loaders available.
 func LoadRelations(loaders model.Loaders, vv ...*Variable) error {
 	mm := model.Slice(len(vv), Model(vv))
 	return errors.Err(model.LoadRelations(relations, loaders, mm...))
 }
 
+// Bind the given models to the current Variable. This will only bind the model
+// if they are one of the following,
+//
+// - *user.User
+// - *namespace.Namespace
 func (v *Variable) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -78,8 +89,6 @@ func (v *Variable) Bind(mm ...model.Model) {
 	}
 }
 
-func (v *Variable) Kind() string { return "variable" }
-
 func (v *Variable) SetPrimary(i int64) {
 	v.ID = i
 }
@@ -88,11 +97,9 @@ func (v *Variable) Primary() (string, int64) {
 	return "id", v.ID
 }
 
+// Endpoint returns the endpoint to the current Variable model, with the given
+// URI parts appended to it.
 func (v *Variable) Endpoint(uri ...string) string {
-	if v == nil {
-		return ""
-	}
-
 	endpoint := fmt.Sprintf("/variables/%v", v.ID)
 
 	if len(uri) > 0 {
@@ -111,9 +118,6 @@ func (v *Variable) IsZero() bool {
 }
 
 func (v *Variable) Values() map[string]interface{} {
-	if v == nil {
-		return map[string]interface{}{}
-	}
 	return map[string]interface{}{
 		"user_id":      v.UserID,
 		"namespace_id": v.NamespaceID,
@@ -122,6 +126,11 @@ func (v *Variable) Values() map[string]interface{} {
 	}
 }
 
+// Bind the given models to the current Store. This will only bind the model if
+// they are one of the following,
+//
+// - *user.User
+// - *namespace.Namespace
 func (s *Store) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -133,22 +142,30 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-func (s Store) Create(vv ...*Variable) error {
+// Create inserts the given Variable models into the variables table.
+func (s *Store) Create(vv ...*Variable) error {
 	models := model.Slice(len(vv), Model(vv))
 	return s.Store.Create(table, models...)
 }
 
-func (s Store) Delete(vv ...*Variable) error {
+// Delete delets the given Variable models from the variables table.
+func (s *Store) Delete(vv ...*Variable) error {
 	models := model.Slice(len(vv), Model(vv))
 	return s.Store.Delete(table, models...)
 }
 
-func (s Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
+// Paginate returns the model.Paginator for the variables table for the given
+// page. This applies the namespace.WhereCollaborator option to the *user.User
+// bound model, and the model.Where option to the *namespace.Namespace bound
+// model.
+func (s *Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
 	paginator, err := s.Store.Paginate(table, page, opts...)
 	return paginator, errors.Err(err)
 }
 
-func (s Store) New() *Variable {
+// New returns a new Variable binding any non-nil models to it from the current
+// Store.
+func (s *Store) New() *Variable {
 	v := &Variable{
 		User:      s.User,
 		Namespace: s.Namespace,
@@ -167,7 +184,11 @@ func (s Store) New() *Variable {
 	return v
 }
 
-func (s Store) All(opts ...query.Option) ([]*Variable, error) {
+// All returns a slice of Variable models, applying each query.Option that is
+// given. The namespace.WhereCollaborator option is applied to the *user.User
+// bound model, and the model.Where option is applied to the
+// *namespace.Namespace bound model.
+func (s *Store) All(opts ...query.Option) ([]*Variable, error) {
 	vv := make([]*Variable, 0)
 
 	opts = append([]query.Option{
@@ -188,7 +209,12 @@ func (s Store) All(opts ...query.Option) ([]*Variable, error) {
 	return vv, errors.Err(err)
 }
 
-func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Variable, model.Paginator, error) {
+// Index returns the paginated results from the variables table depending on the
+// values that are present in url.Values. Detailed below are the values that
+// are used from the given url.Values,
+//
+// key - This applies the model.Search query.Option using the value of key
+func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Variable, model.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
@@ -214,7 +240,11 @@ func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Variable, model.
 	return vv, paginator, errors.Err(err)
 }
 
-func (s Store) Get(opts ...query.Option) (*Variable, error) {
+// All returns a single Variable model, applying each query.Option that is
+// given. The namespace.WhereCollaborator option is applied to the *user.User
+// bound model, and the model.Where option is applied to the
+// *namespace.Namespace bound model.
+func (s *Store) Get(opts ...query.Option) (*Variable, error) {
 	v := &Variable{
 		User:      s.User,
 		Namespace: s.Namespace,
@@ -233,7 +263,11 @@ func (s Store) Get(opts ...query.Option) (*Variable, error) {
 	return v, errors.Err(err)
 }
 
-func (s Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+// Load loads in a slice of Variable models where the given key is in the list
+// of given vals. Each model is loaded individually via a call to the given
+// load callback. This method calls Store.All under the hood, so any
+// bound models will impact the models being loaded.
+func (s *Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	vv, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {

@@ -23,7 +23,6 @@ var appCols = []string{
 	"client_secret",
 	"name",
 	"description",
-	"domain",
 	"home_uri",
 	"redirect_uri",
 }

@@ -1,9 +1,26 @@
+// Package build provides model implementations for the Build entity and its
+// related entities.
+//
+// Each entity implemented, has a corresponding Store which is used for
+// creating, updating, and deleting models, as well as querying them from the
+// database. These methods wrap the onces provided by the model package via
+// model.Store.
+//
+// Entities:
+//   - Artifact
+//   - Build
+//   - Driver
+//   - Job
+//   - Key
+//   - Object
+//   - Stage
+//   - Tag
+//   - Trigger
+//   - Variable
 package build
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/json"
 	"net/url"
 	"fmt"
 	"strconv"
@@ -64,36 +81,41 @@ var (
 		"user":          model.Relation("user_id", "id"),
 		"build_tag":     model.Relation("id", "build_id"),
 		"build_trigger": model.Relation("id", "build_id"),
+		"build_stage":   model.Relation("id", "build_id"),
 	}
 
+	// ErrDriver denotes when an unknown driver was used for a build.
 	ErrDriver = errors.New("unknown driver")
 )
 
-func NewStore(db *sqlx.DB, mm ...model.Model) Store {
-	s := Store{
+// NewStore returns a new Store for querying the builds table. Each model
+// passed to this function will be bound to the returned Store.
+func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+	s := &Store{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-// LoadRelations loads all of the available relations for the given builds
-// using the given loaders available.
+// LoadRelations loads all of the available relations for the given Build
+// models using the given loaders available.
 func LoadRelations(loaders model.Loaders, bb ...*Build) error {
 	mm := model.Slice(len(bb), Model(bb))
 	return model.LoadRelations(relations, loaders, mm...)
 }
 
-// Model is called along with model.Slice to convert the given slice of builds
-// to a slice of models.
+// Model is called along with model.Slice to convert the given slice of Build
+// models to a slice of model.Model interfaces.
 func Model(bb []*Build) func(int) model.Model {
 	return func(i int) model.Model {
 		return bb[i]
 	}
 }
 
-// WhereSearch returns a query option to restrain the builds returned from a
-// query by the tag names that match the given search string.
+// WhereSearch returns a query option that applies a WHERE IN clause to a
+// query. The returned WHERE IN clause operates on the values returned from a
+// SELECT query that uses the given search string.
 func WhereSearch(search string) query.Option {
 	return func(q query.Query) query.Query {
 		if search == "" {
@@ -109,8 +131,9 @@ func WhereSearch(search string) query.Option {
 	}
 }
 
-// WhereStatus returns a query option to restrain the builds returned from a
-// query by the status matching the given string.
+// WhereStatus returns a query option that applies a WHERE IN clause to a query
+// using the given status. If the given status is "passed", then it will be
+// expanded to include "passed_with_failures".
 func WhereStatus(status string) query.Option {
 	return func(q query.Query) query.Query {
 		if status == "" {
@@ -126,8 +149,9 @@ func WhereStatus(status string) query.Option {
 	}
 }
 
-// WhereTag returns a query option to restrain the builds returned from a
-// query by the name of the given tag string.
+// WhereTag returns a query option that applies a WHERE IN clause to a
+// query. The returned WHERE IN claue operates on the values returnd from a
+// SELECT query that uses the given tag string.
 func WhereTag(tag string) query.Option {
 	return func(q query.Query) query.Query {
 		if tag == "" {
@@ -143,12 +167,16 @@ func WhereTag(tag string) query.Option {
 	}
 }
 
-// Bind the given models to the current Build model.
+// Bind the given models to the current Build. This will only bind the model if
+// they are one of the following,
+//
+// - *user.User
+// - *namespace.Namespace
+// - *Trigger
+// - *Tag
+// - *Stage
+// - *Driver
 func (b *Build) Bind(mm ...model.Model) {
-	if b == nil {
-		return
-	}
-
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -160,22 +188,21 @@ func (b *Build) Bind(mm ...model.Model) {
 		case *Tag:
 			b.Tags = append(b.Tags, m.(*Tag))
 		case *Stage:
-			b.Stages = append(b.Stages, m.(*Stage))
+			s := m.(*Stage)
+			s.Build = b
+			b.Stages = append(b.Stages, s)
 		case *Driver:
 			b.Driver = m.(*Driver)
 		}
 	}
 }
 
-func (*Build) Kind() string { return "build" }
-
-// Endpoint returns the endpoint for the current build. If nil, or if missing a
-// bound User model, then an empty string is returned.
+// Endpoint returns the endpoint for the current Build. If missing a bound User
+// model, then an empty string is returned. The returned endpoint will be look
+// like,
+//
+//   /b/john.brannox/3
 func (b *Build) Endpoint(uri ...string) string {
-	if b == nil {
-		return ""
-	}
-
 	if b.User == nil || b.User.IsZero() {
 		return ""
 	}
@@ -191,16 +218,10 @@ func (b *Build) Endpoint(uri ...string) string {
 }
 
 func (b *Build) Primary() (string, int64) {
-	if b == nil {
-		return "id", 0
-	}
 	return "id", b.ID
 }
 
 func (b *Build) SetPrimary(id int64) {
-	if b == nil {
-		return
-	}
 	b.ID = id
 }
 
@@ -216,10 +237,6 @@ func (b *Build) IsZero() bool {
 }
 
 func (b *Build) Values() map[string]interface{} {
-	if b == nil {
-		return map[string]interface{}{}
-	}
-
 	return map[string]interface{}{
 		"user_id":      b.UserID,
 		"namespace_id": b.NamespaceID,
@@ -232,27 +249,32 @@ func (b *Build) Values() map[string]interface{} {
 	}
 }
 
-// Signature returns the signature of the task that will be submitted to the
-// queue.
-func (b Build) Signature() *tasks.Signature {
-	buf := &bytes.Buffer{}
-
-	enc := json.NewEncoder(buf)
-	enc.Encode(b)
-
+// Signature returns the underlying tasks.Signature that is used when
+// submitting the build to the queue server. This signature will simply
+// contain the ID of the current Build. Each signature is configured to
+// retry 3 times before finally failing.
+func (b *Build) Signature() *tasks.Signature {
 	return &tasks.Signature{
 		Name:       "run_build",
 		RetryCount: 3,
 		Args:       []tasks.Arg{
 			tasks.Arg{
-				Type: "string",
-				Value: buf.String(),
+				Type: "int64",
+				Value: b.ID,
 			},
 		},
 	}
 }
 
-// Bind the given models to the current Store.
+// Bind the given models to the current Store. This will only bind the
+// model if they are one of the following,
+//
+// - *user.User
+// - *namespace.Namespace
+// - *Trigger
+// - *Tag
+// - *Stage
+// - *Driver
 func (s *Store) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -264,19 +286,25 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-func (s Store) Create(bb ...*Build) error {
+// Create inserts the given Build models into the builds table.
+func (s *Store) Create(bb ...*Build) error {
 	models := model.Slice(len(bb), Model(bb))
 	return errors.Err(s.Store.Create(table, models...))
 }
 
-func (s Store) Update(bb ...*Build) error {
+// Update updates the given Build models in the builds table.
+func (s *Store) Update(bb ...*Build) error {
 	models := model.Slice(len(bb), Model(bb))
 	return errors.Err(s.Store.Update(table, models...))
 }
 
-func (s Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
+// Paginate returns the model.Paginator for the builds table for the given
+// page. This applies the namespace.WhereCollaborator option to the *user.User
+// bound model, and the model.Where option to the *namespace.Namespace bound
+// model.
+func (s *Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
 	opts = append([]query.Option{
-		model.Where(s.User, "user_id"),
+		namespace.WhereCollaborator(s.User),
 		model.Where(s.Namespace, "namespace_id"),
 	}, opts...)
 
@@ -284,28 +312,32 @@ func (s Store) Paginate(page int64, opts ...query.Option) (model.Paginator, erro
 	return paginator, errors.Err(err)
 }
 
-func (s Store) New() *Build {
+// New returns a new Build binding any non-nil models to it from the current
+// Store.
+func (s *Store) New() *Build {
 	b := &Build{
 		User:      s.User,
 		Namespace: s.Namespace,
 	}
 
 	if s.User != nil {
-		_, id := s.User.Primary()
-		b.UserID = id
+		b.UserID = s.User.ID
 	}
 
 	if s.Namespace != nil {
-		_, id := s.Namespace.Primary()
 		b.NamespaceID = sql.NullInt64{
-			Int64: id,
+			Int64: s.Namespace.ID,
 			Valid: true,
 		}
 	}
 	return b
 }
 
-func (s Store) All(opts ...query.Option) ([]*Build, error) {
+// All returns a slice of Build models, applying each query.Option that is
+// given. The namespace.WhereCollaborator option is applied to the *user.User
+// bound model, and the model.Where option is applied to the
+// *namespace.Namespace bound model.
+func (s *Store) All(opts ...query.Option) ([]*Build, error) {
 	bb := make([]*Build, 0)
 
 	opts = append([]query.Option{
@@ -326,7 +358,14 @@ func (s Store) All(opts ...query.Option) ([]*Build, error) {
 	return bb, errors.Err(err)
 }
 
-func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Build, model.Paginator, error) {
+// Index returns the paginated results from the builds table depending on the
+// values that are present in url.Values. Detailed below are the values that
+// are used from the given url.Values,
+//
+// tag    - This applies the WhereTag query.Option using the value of tag
+// search - This applies the WhereSearch query.Option using the value of search
+// status - This applies the WhereStatus query.Option using the value of status
+func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Build, model.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
@@ -354,7 +393,11 @@ func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Build, model.Pag
 	return bb, paginator, errors.Err(err)
 }
 
-func (s Store) Get(opts ...query.Option) (*Build, error) {
+// Get returns a single Build model, appling each query.Option that is given
+// The namespace.WhereCollaborator option is applied to the *user.User bound
+// model, and the model.Where option is applied to the *namespace.Namespace
+// bound model.
+func (s *Store) Get(opts ...query.Option) (*Build, error) {
 	b := &Build{
 		User:      s.User,
 		Namespace: s.Namespace,
@@ -373,7 +416,11 @@ func (s Store) Get(opts ...query.Option) (*Build, error) {
 	return b, errors.Err(err)
 }
 
-func (s Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+// Load loads in a slice of Build models where the given key is in the list
+// of given vals. Each model is loaded individually via a call to the given
+// load callback. This method calls Store.All under the hood, so any
+// bound models will impact the models being loaded.
+func (s *Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	bb, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {

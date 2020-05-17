@@ -43,48 +43,47 @@ var (
 	stageTable = "build_stages"
 )
 
-func NewStageStore(db *sqlx.DB, mm ...model.Model) StageStore {
-	s := StageStore{
+// NewStageStore returns a new StageStore for querying the build_stages table.
+// Each model passed to this function will be bound to the returned StageStore.
+func NewStageStore(db *sqlx.DB, mm ...model.Model) *StageStore {
+	s := &StageStore{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// StageModel is called along with model.Slice to convert the given slice of
+// Stage models to a slice of model.Model interfaces.
 func StageModel(ss []*Stage) func(int) model.Model {
 	return func(i int) model.Model {
 		return ss[i]
 	}
 }
 
+// Bind the given models to the current Stage. This will only bind the model if
+// they are one of the following,
+//
+// - *Build
+// - *Job
 func (s *Stage) Bind(mm ...model.Model) {
-	if s == nil {
-		return
-	}
-
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
 			s.Build = m.(*Build)
 		case *Job:
-			s.Jobs = append(s.Jobs, m.(*Job))
+			j := m.(*Job)
+			j.Build = s.Build
+			s.Jobs = append(s.Jobs, j)
 		}
 	}
 }
 
-func (*Stage) Kind() string { return "build_stage" }
-
 func (s *Stage) SetPrimary(id int64) {
-	if s == nil {
-		return
-	}
 	s.ID = id
 }
 
-func (s *Stage) Primary() (string, int64) {
-	if s == nil {
-		return "id", 0
-	}
+func (s Stage) Primary() (string, int64) {
 	return "id", s.ID
 }
 
@@ -98,13 +97,14 @@ func (s *Stage) IsZero() bool {
 		!s.FinishedAt.Valid
 }
 
-func (*Stage) Endpoint(_ ...string) string { return "" }
+// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
+// string.
+func (Stage) Endpoint(_ ...string) string { return "" }
 
 func (s *Stage) Values() map[string]interface{} {
 	if s == nil {
 		return map[string]interface{}{}
 	}
-
 	return map[string]interface{}{
 		"build_id":    s.BuildID,
 		"name":        s.Name,
@@ -115,6 +115,7 @@ func (s *Stage) Values() map[string]interface{} {
 	}
 }
 
+// Stage returns the underlying runner.Stage of the current Stage.
 func (s Stage) Stage() *runner.Stage {
 	return &runner.Stage{
 		Name:    s.Name,
@@ -122,6 +123,8 @@ func (s Stage) Stage() *runner.Stage {
 	}
 }
 
+// New returns a new Stage binding any non-nil models to it from the current
+// StageStore.
 func (s StageStore) New() *Stage {
 	st := &Stage{
 		Build: s.Build,
@@ -133,6 +136,10 @@ func (s StageStore) New() *Stage {
 	return st
 }
 
+// Bind the given models to the current StageStore. This will only bind the
+// model if they are one of the following,
+//
+// - *Build
 func (s *StageStore) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -142,11 +149,15 @@ func (s *StageStore) Bind(mm ...model.Model) {
 	}
 }
 
+// Create inserts the given Stage models into the build_stages table.
 func (s StageStore) Create(ss ...*Stage) error {
 	models := model.Slice(len(ss), StageModel(ss))
 	return errors.Err(s.Store.Create(stageTable, models...))
 }
 
+// All returns a slice of Stage models, applying each query.Option that is
+// given. The model.Where option is used on the Build bound model to limit the
+// query to those relations.
 func (s StageStore) All(opts ...query.Option) ([]*Stage, error) {
 	ss := make([]*Stage, 0)
 
@@ -166,6 +177,10 @@ func (s StageStore) All(opts ...query.Option) ([]*Stage, error) {
 	return ss, errors.Err(err)
 }
 
+// Load loads in a slice of Stage models where the given key is in the list of
+// given vals. Each model is loaded individually via a call to the given load
+// callback. This method calls StageStore.All under the hood, so any bound
+// models will impact the models being loaded.
 func (s StageStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	ss, err := s.All(query.Where(key, "IN", vals...))
 

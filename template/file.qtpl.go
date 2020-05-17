@@ -53,39 +53,101 @@ func (p *FileForm) Title() string {
 //line template/file.qtpl:10
 }
 
-//line template/file.qtpl:12
-func (p *FileForm) StreamSection(qw422016 *qt422016.Writer) {
-//line template/file.qtpl:12
-	qw422016.N().S(` <div class="form-field"> <label class="label" for="file">File</label> <input type="file" id="file" name="file"/> `)
-//line template/file.qtpl:16
-	p.StreamError(qw422016, "file")
-//line template/file.qtpl:16
-	qw422016.N().S(` </div> `)
-//line template/file.qtpl:18
+//line template/file.qtpl:11
+func (p *FileForm) StreamHeader(qw422016 *qt422016.Writer) {
+//line template/file.qtpl:11
 }
 
-//line template/file.qtpl:18
-func (p *FileForm) WriteSection(qq422016 qtio422016.Writer) {
-//line template/file.qtpl:18
+//line template/file.qtpl:11
+func (p *FileForm) WriteHeader(qq422016 qtio422016.Writer) {
+//line template/file.qtpl:11
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/file.qtpl:18
-	p.StreamSection(qw422016)
-//line template/file.qtpl:18
+//line template/file.qtpl:11
+	p.StreamHeader(qw422016)
+//line template/file.qtpl:11
 	qt422016.ReleaseWriter(qw422016)
-//line template/file.qtpl:18
+//line template/file.qtpl:11
 }
 
-//line template/file.qtpl:18
-func (p *FileForm) Section() string {
-//line template/file.qtpl:18
+//line template/file.qtpl:11
+func (p *FileForm) Header() string {
+//line template/file.qtpl:11
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/file.qtpl:18
-	p.WriteSection(qb422016)
-//line template/file.qtpl:18
+//line template/file.qtpl:11
+	p.WriteHeader(qb422016)
+//line template/file.qtpl:11
 	qs422016 := string(qb422016.B)
-//line template/file.qtpl:18
+//line template/file.qtpl:11
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/file.qtpl:18
+//line template/file.qtpl:11
 	return qs422016
+//line template/file.qtpl:11
+}
+
+//line template/file.qtpl:12
+func (p *FileForm) StreamActions(qw422016 *qt422016.Writer) {
+//line template/file.qtpl:12
+}
+
+//line template/file.qtpl:12
+func (p *FileForm) WriteActions(qq422016 qtio422016.Writer) {
+//line template/file.qtpl:12
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line template/file.qtpl:12
+	p.StreamActions(qw422016)
+//line template/file.qtpl:12
+	qt422016.ReleaseWriter(qw422016)
+//line template/file.qtpl:12
+}
+
+//line template/file.qtpl:12
+func (p *FileForm) Actions() string {
+//line template/file.qtpl:12
+	qb422016 := qt422016.AcquireByteBuffer()
+//line template/file.qtpl:12
+	p.WriteActions(qb422016)
+//line template/file.qtpl:12
+	qs422016 := string(qb422016.B)
+//line template/file.qtpl:12
+	qt422016.ReleaseByteBuffer(qb422016)
+//line template/file.qtpl:12
+	return qs422016
+//line template/file.qtpl:12
+}
+
+//line template/file.qtpl:14
+func (p *FileForm) StreamBody(qw422016 *qt422016.Writer) {
+//line template/file.qtpl:14
+	qw422016.N().S(` <div class="form-field"> <label class="label" for="file">File</label> <input type="file" id="file" name="file"/> `)
 //line template/file.qtpl:18
+	p.StreamError(qw422016, "file")
+//line template/file.qtpl:18
+	qw422016.N().S(` </div> `)
+//line template/file.qtpl:20
+}
+
+//line template/file.qtpl:20
+func (p *FileForm) WriteBody(qq422016 qtio422016.Writer) {
+//line template/file.qtpl:20
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line template/file.qtpl:20
+	p.StreamBody(qw422016)
+//line template/file.qtpl:20
+	qt422016.ReleaseWriter(qw422016)
+//line template/file.qtpl:20
+}
+
+//line template/file.qtpl:20
+func (p *FileForm) Body() string {
+//line template/file.qtpl:20
+	qb422016 := qt422016.AcquireByteBuffer()
+//line template/file.qtpl:20
+	p.WriteBody(qb422016)
+//line template/file.qtpl:20
+	qs422016 := string(qb422016.B)
+//line template/file.qtpl:20
+	qt422016.ReleaseByteBuffer(qb422016)
+//line template/file.qtpl:20
+	return qs422016
+//line template/file.qtpl:20
 }

@@ -45,7 +45,7 @@ type Create struct {
 {% endfunc %}
 
 {% func (p *Create) Header() %}
-	<a class="back" href="/keys">{% cat "../../static/svg/back.svg" %}</a> Create Variable
+	<a class="back" href="/variables">{% cat "../../static/svg/back.svg" %}</a> Create Variable
 {% endfunc %}
 
 {% func (p *Create) Actions() %}{% endfunc %}

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -93,4 +94,27 @@ func (h Invite) StoreModel(r *http.Request, sess *sessions.Session) (*namespace.
 
 	err = invites.Create(i)
 	return i, errors.Err(err)
+}
+
+func (h Invite) Delete(r *http.Request) error {
+	id, err := strconv.ParseInt(mux.Vars(r)["invite"], 10, 64)
+
+	if err != nil {
+		return model.ErrNotFound
+	}
+
+	invites := namespace.NewInviteStore(h.DB)
+
+	i, err := invites.Get(query.Where("id", "=", id))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	u := h.User(r)
+
+	if i.IsZero() || u.ID != i.InviteeID {
+		return model.ErrNotFound
+	}
+	return errors.Err(invites.Delete(i))
 }

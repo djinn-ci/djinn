@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/thrall/oauth2"
 )
 
+// GitLab provides an oauth2.Provider implementation for the GitLab REST API.
 type GitLab struct {
 	client
 }
@@ -21,6 +22,10 @@ var (
 	gitlabScopes = []string{"api"}
 )
 
+// ToggleRepo will either add or remove the webhook to the repository of the
+// given ID depending on whether it was previously enabled as determined by
+// the given callback. The new webhook will trigger on push_events and
+// merge_requests_events.
 func (g GitLab) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, bool, error)) (int64, error) {
 	hookId, ok, err := enabled(id)
 
@@ -76,42 +81,65 @@ func (g GitLab) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 	if resp.StatusCode != http.StatusCreated {
 		return 0, errors.New("unexpected http status "+resp.Status)
 	}
-	return hookId, nil
+	return 0, nil
 }
 
-func (g GitLab) Repos(tok []byte) ([]oauth2.Repo, error) {
-	url := fmt.Sprintf("%s/projects?simple=true&order_by=updated_at", g.Endpoint)
+// Repos returns the projects from GitLab ordered by when they were last
+// updated. This will first make a callout to the /user endpoint to get the
+// user ID that can then be given to the /users/:id/projects endpoint.
+func (g GitLab) Repos(tok []byte, page int64) (oauth2.Repos, error) {
+	userResp, err := g.Get(string(tok), g.Endpoint+"/user")
+
+	if err != nil {
+		return oauth2.Repos{}, errors.Err(err)
+	}
+
+	defer userResp.Body.Close()
+
+	if userResp.StatusCode != http.StatusOK {
+		return oauth2.Repos{}, errors.New("unexpected http status "+userResp.Status)
+	}
+
+	u := struct{
+		ID int64
+	}{}
+
+	json.NewDecoder(userResp.Body).Decode(&u)
+
+	url := fmt.Sprintf("%s/users/%v/projects?simple=true&order_by=updated_at&page=%v", g.Endpoint, u.ID, page)
 	resp, err := g.Get(string(tok), url)
 
 	if err != nil {
-		return []oauth2.Repo{}, errors.Err(err)
+		return oauth2.Repos{}, errors.Err(err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return []oauth2.Repo{}, errors.New("unexpected http status "+resp.Status)
+		return oauth2.Repos{}, errors.New("unexpected http status "+resp.Status)
 	}
 
-	projects := make([]struct{
+	next, prev := getNextAndPrev(resp.Header.Get("Link"))
+
+	repos := oauth2.Repos{
+		Next:  next,
+		Prev:  prev,
+	}
+
+	items := make([]struct{
 		ID     int64
 		Name   string `json:"path_with_namespace"`
 		WebURL string `json:"web_url"`
 	}, 0)
 
-	dec := json.NewDecoder(resp.Body)
-	dec.Decode(&projects)
+	json.NewDecoder(resp.Body).Decode(&items)
 
-	rr := make([]oauth2.Repo, 0, len(projects))
-
-	for _, proj := range projects {
-		rr = append(rr, oauth2.Repo{
-			ID:   proj.ID,
-			Name: proj.Name,
-			Href: proj.WebURL,
+	for _, item := range items {
+		repos.Items = append(repos.Items, oauth2.Repo{
+			ID:   item.ID,
+			Name: item.Name,
+			Href: item.WebURL,
 		})
 	}
-	return rr, nil
+	return repos, nil
 }
-
-func (g GitLab) Revoke(_ []byte) error { return nil }

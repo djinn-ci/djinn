@@ -1,3 +1,6 @@
+// Package docker providers an implementation of a Docker driver for job
+// execution. Each job executed will be done in a separate container, a volume
+// is used to persist state across these containers.
 package docker
 
 import (
@@ -30,10 +33,23 @@ type Docker struct {
 	env        []string
 	containers []string
 
-	Image      string
-	Workspace  string
+	// Image specifies the Docker image of the container to use.
+	Image string
+
+	// Workspace specifies location on the Docker container to mount a volume
+	// to so state can be persisted.
+	Workspace string
 }
 
+// Init initializes a new Docker driver using the given io.Writer, and
+// configuration map. Detailed below are the values, types, and default values
+// that are used in the configuration map.
+//
+// Image - The image to use for the container, this is expected to be a string,
+// there is no default value.
+//
+// Workspace - The location to mount the volume to, this is expected to be a string,
+// there is no default value.
 func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	image, _ := cfg["image"].(string)
 	workspace, _ := cfg["workspace"].(string)
@@ -44,6 +60,10 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	}
 }
 
+// Create will create a volume, and pull down the configured image. The client
+// to the Docker daemon is derived from the environment. Once the client has
+// been established, the image volume is created, and the image is pulled down
+// from the repository.
 func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
 	var err error
 
@@ -104,6 +124,11 @@ func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough
 	return d.placeObjects(objs, p)
 }
 
+// Execute performs the given runner.Job in a Docker container. Each job is
+// turned into a shell script and placed onto an initial container. A
+// subsequent container is then created, and the previously placed script is
+// used as that new container's entrypoint. The logs for the container are
+// forwarded to the underlying io.Writer.
 func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	hostCfg := &container.HostConfig{
 		Mounts: []mount.Mount{
@@ -271,6 +296,8 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 	}
 }
 
+// Destroy will remove all containers created during job execution, and the
+// volume. All of these operations are forced.
 func (d *Docker) Destroy() {
 	if d.client == nil {
 		return

@@ -33,7 +33,6 @@ type Job struct {
 	Build        *Build      `db:"-"`
 	Stage        *Stage      `db:"-"`
 	Artifacts    []*Artifact `db:"-"`
-	Dependencies []*Job      `db:"-"`
 }
 
 type JobStore struct {
@@ -51,25 +50,31 @@ var (
 	jobTable = "build_jobs"
 )
 
-func NewJobStore(db *sqlx.DB, mm ...model.Model) JobStore {
-	s := JobStore{
+// NewJobStore returns a new JobStore for querying the build_jobs table. Each
+// model passed to this function will be bound to the returned JobStore.
+func NewJobStore(db *sqlx.DB, mm ...model.Model) *JobStore {
+	s := &JobStore{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// JobModel is called along with model.Slice to convert the given slice of
+// Job models to a slice of model.Model interfaces.
 func JobModel(jj []*Job) func(int) model.Model {
 	return func(i int) model.Model {
 		return jj[i]
 	}
 }
 
+// Bind the given models to the current Job. This will only bind the model if
+// they are one of the following,
+//
+// - *Build
+// - *Stage
+// - *Artifact
 func (j *Job) Bind(mm ...model.Model) {
-	if j == nil {
-		return
-	}
-
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
@@ -78,25 +83,15 @@ func (j *Job) Bind(mm ...model.Model) {
 			j.Stage = m.(*Stage)
 		case *Artifact:
 			j.Artifacts = append(j.Artifacts, m.(*Artifact))
-		case *Job:
-			j.Dependencies = append(j.Dependencies, m.(*Job))
 		}
 	}
 }
 
-func (*Job) Kind() string { return "build_job" }
-
 func (j *Job) SetPrimary(id int64) {
-	if j == nil {
-		return
-	}
 	j.ID = id
 }
 
 func (j *Job) Primary() (string, int64) {
-	if j == nil {
-		return "id", 0
-	}
 	return "id", j.ID
 }
 
@@ -112,7 +107,9 @@ func (j *Job) IsZero() bool {
 		!j.FinishedAt.Valid
 }
 
-func (j Job) Endpoint(uri ...string) string {
+// Endpoint returns the endpoint for the current Job. If nil, or if missing
+// a bound Build model, then an empty string is returned.
+func (j *Job) Endpoint(uri ...string) string {
 	if j.Build == nil || j.Build.IsZero() {
 		return ""
 	}
@@ -121,7 +118,7 @@ func (j Job) Endpoint(uri ...string) string {
 	return j.Build.Endpoint(uri...)
 }
 
-func (j Job) Values() map[string]interface{} {
+func (j *Job) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id":    j.BuildID,
 		"stage_id":    j.StageID,
@@ -134,11 +131,14 @@ func (j Job) Values() map[string]interface{} {
 	}
 }
 
-func (j Job) Job(w io.Writer) *runner.Job {
+// Job returns the underlying runner.Job of the current Job. This can then be
+// passed to a runner.Driver for execution. It is expected for the Job's
+// Artifact slice to be already loaded onto the current model.
+func (j *Job) Job(w io.Writer) *runner.Job {
 	artifacts := runner.Passthrough{}
 
 	for _, a := range j.Artifacts {
-		artifacts.Set(a.Source, a.Hash)
+		artifacts.Set(a.Source, a.Name)
 	}
 
 	return &runner.Job{
@@ -149,7 +149,9 @@ func (j Job) Job(w io.Writer) *runner.Job {
 	}
 }
 
-func (s JobStore) New() *Job {
+// New returns a new Job binding any non-nil models to it from the current
+// JobStore.
+func (s *JobStore) New() *Job {
 	j := &Job{
 		Build: s.Build,
 		Stage: s.Stage,
@@ -165,6 +167,11 @@ func (s JobStore) New() *Job {
 	return j
 }
 
+// Bind the given models to the current JobStore. This will only bind the model
+// if they are one of the following,
+//
+// - *Build
+// - *Stage
 func (s *JobStore) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -176,17 +183,22 @@ func (s *JobStore) Bind(mm ...model.Model) {
 	}
 }
 
-func (s JobStore) Create(jj ...*Job) error {
+// Create inserts the given Job models into the build_jobs table.
+func (s *JobStore) Create(jj ...*Job) error {
 	models := model.Slice(len(jj), JobModel(jj))
 	return errors.Err(s.Store.Create(jobTable, models...))
 }
 
-func (s JobStore) Update(jj ...*Job) error {
+// Update updates the given Job models in the build_jobs table.
+func (s *JobStore) Update(jj ...*Job) error {
 	models := model.Slice(len(jj), JobModel(jj))
 	return errors.Err(s.Store.Update(jobTable, models...))
 }
 
-func (s JobStore) Get(opts ...query.Option) (*Job, error) {
+// Get returns a single Job model, applying each query.Option that is given.
+// The model.Where option is used on the Build and Stage bound models to limit
+// the query to those relations.
+func (s *JobStore) Get(opts ...query.Option) (*Job, error) {
 	j := &Job{
 		Build: s.Build,
 		Stage: s.Stage,
@@ -205,7 +217,10 @@ func (s JobStore) Get(opts ...query.Option) (*Job, error) {
 	return j, errors.Err(err)
 }
 
-func (s JobStore) All(opts ...query.Option) ([]*Job, error) {
+// All returns a slice of Job models, applying each query.Option that is given.
+// The model.Where option is used on the Build and Stage bound models to limit
+// the query to those relations.
+func (s *JobStore) All(opts ...query.Option) ([]*Job, error) {
 	jj := make([]*Job, 0)
 
 	opts = append([]query.Option{
@@ -226,8 +241,12 @@ func (s JobStore) All(opts ...query.Option) ([]*Job, error) {
 	return jj, errors.Err(err)
 }
 
-func (s JobStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
-	jj, err := s.All(query.Where(key, "IN", vals...))
+// Load loads in a slice of Job models where the given key is in the list of
+// given vals. Each model is loaded individually via a call to the given load
+// callback. This method calls JobStore.All under the hood, so any bound models
+// will impact the models being loaded.
+func (s *JobStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+	jj, err := s.All(query.Where(key, "IN", vals...), query.OrderAsc("created_at"))
 
 	if err != nil {
 		return errors.Err(err)

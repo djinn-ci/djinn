@@ -129,7 +129,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 	u := h.User(r)
 
-	b, err := h.Get(r)
+	b, err := h.ShowWithRelations(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))

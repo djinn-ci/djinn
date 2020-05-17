@@ -89,8 +89,9 @@ CREATE TABLE images (
 	user_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	namespace_id INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
 	driver       driver_type NOT NULL,
-	hash         VARCHAR NOT NULL,
+	hash         VARCHAR NOT NULL UNIQUE,
 	name         VARCHAR NOT NULL
+	created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
 );
 
 CREATE TABLE objects (
@@ -154,6 +155,7 @@ CREATE TABLE build_stages (
 	name        VARCHAR NOT NULL,
 	can_fail    BOOLEAN NOT NULL,
 	status      status DEFAULT 'queued',
+	created_at  TIMESTAMP DEFAULT NOW(),
 	started_at  TIMESTAMP NULL,
 	finished_at TIMESTAMP NULL
 );
@@ -166,6 +168,7 @@ CREATE TABLE build_jobs (
 	commands    VARCHAR NOT NULL,
 	output      TEXT NULL,
 	status      status DEFAULT 'queued',
+	created_at  TIMESTAMP DEFAULT NOW(),
 	started_at  TIMESTAMP NULL,
 	finished_at TIMESTAMP NULL
 );
@@ -245,11 +248,9 @@ CREATE TABLE oauth_apps (
 	client_secret BYTEA NOT NULL,
 	name          VARCHAR NOT NULL,
 	description   VARCHAR NULL,
-	domain        VARCHAR NULL,
 	home_uri      VARCHAR NOT NULL,
 	redirect_uri  VARCHAR NOT NULL,
-	created_at    TIMESTAMP NOT NULL DEFAULT NOW(),
-	updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
+	created_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE oauth_codes (

@@ -50,36 +50,42 @@ var (
 	artifactTable = "build_artifacts"
 )
 
-func NewArtifactStore(db *sqlx.DB, mm ...model.Model) ArtifactStore {
-	s := ArtifactStore{
+// NewArtifactStore returns a new ArtifactStore for querying the build_artifacts
+// table. Each model passed to this function will be bound to the returned
+// ArtifactStore.
+func NewArtifactStore(db *sqlx.DB, mm ...model.Model) *ArtifactStore {
+	s := &ArtifactStore{
 		Store: model.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-func NewArtifactStoreWithCollector(db *sqlx.DB, c runner.Collector, mm ...model.Model) ArtifactStore {
-	s := ArtifactStore{
-		Store:     model.Store{DB: db},
-		collector: c,
-	}
-	s.Bind(mm...)
+// NewArtifactStoreWithCollector returns a new ArtifactStore with the given
+// runner.Collector. This allows for the ArtifactStore to be used as a
+// runner.Collector during job execution. Each collected artifact will be
+// updated in the database, with the actual collection being deferred to the
+// given runner.Collector.
+func NewArtifactStoreWithCollector(db *sqlx.DB, c runner.Collector, mm ...model.Model) *ArtifactStore {
+	s := NewArtifactStore(db, mm...)
+	s.collector = c
 	return s
 }
 
+// ArtifactModel is called along with model.Slice to convert the given slice of
+// Artifact models to a slice of model.Model interfaces.
 func ArtifactModel(aa []*Artifact) func(int) model.Model {
 	return func(i int) model.Model {
 		return aa[i]
 	}
 }
 
-func (a *Artifact) Kind() string { return "build_artifact" }
-
+// Bind the given models to the current Artifact. This will only bind the model if
+// they are one of the following,
+//
+// - *Build
+// - *Job
 func (a *Artifact) Bind(mm ...model.Model) {
-	if a == nil {
-		return
-	}
-
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
@@ -91,16 +97,10 @@ func (a *Artifact) Bind(mm ...model.Model) {
 }
 
 func (a *Artifact) SetPrimary(id int64) {
-	if a == nil {
-		return
-	}
 	a.ID = id
 }
 
 func (a *Artifact) Primary() (string, int64) {
-	if a == nil {
-		return "id", 0
-	}
 	return "id", a.ID
 }
 
@@ -116,10 +116,12 @@ func (a *Artifact) IsZero() bool {
 		len(a.SHA256) == 0
 }
 
+// Endpoint returns the endpoint for the current Artifact. If the bound Build
+// model is nil, then an empty string is returned, otherwise the endpoint is
+// prefixed with the Build's endpoint, for example,
+//
+//   /b/lenny.belardo/13/artifacts/1
 func (a *Artifact) Endpoint(uri ...string) string {
-	if a == nil {
-		return ""
-	}
 	if a.Build == nil || a.Build.IsZero() {
 		return ""
 	}
@@ -129,10 +131,6 @@ func (a *Artifact) Endpoint(uri ...string) string {
 }
 
 func (a *Artifact) Values() map[string]interface{} {
-	if a == nil {
-		return map[string]interface{}{}
-	}
-
 	return map[string]interface{}{
 		"build_id": a.BuildID,
 		"job_id":   a.JobID,
@@ -145,6 +143,11 @@ func (a *Artifact) Values() map[string]interface{} {
 	}
 }
 
+// Bind the given models to the current ArtifactStore. This will only bind the
+// model if they are one of the following,
+//
+// - *Build
+// - *Job
 func (s *ArtifactStore) Bind(mm ...model.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -156,7 +159,15 @@ func (s *ArtifactStore) Bind(mm ...model.Model) {
 	}
 }
 
-func (s ArtifactStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+// Load gets a slice of Artifact models. The given key, and vals are applied to
+// the underlying query as a WHERE IN clause, like so,
+//
+//   WHERE key IN (vals,...)
+//
+// each model in the slice is then loaded via the given callback. Any models
+// that are bound to the ArtifactStore will be applied via model.Where during
+// querying.
+func (s *ArtifactStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
 	ss, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
@@ -171,17 +182,21 @@ func (s ArtifactStore) Load(key string, vals []interface{}, load model.LoaderFun
 	return nil
 }
 
-func (s ArtifactStore) Create(aa ...*Artifact) error {
+// Create inserts the given Artifact models into the build_artifacts table.
+func (s *ArtifactStore) Create(aa ...*Artifact) error {
 	models := model.Slice(len(aa), ArtifactModel(aa))
 	return errors.Err(s.Store.Create(artifactTable, models...))
 }
 
-func (s ArtifactStore) Update(aa ...*Artifact) error {
+// Update updates the given Artifact models in the build_artifacts table.
+func (s *ArtifactStore) Update(aa ...*Artifact) error {
 	models := model.Slice(len(aa), ArtifactModel(aa))
 	return errors.Err(s.Store.Update(artifactTable, models...))
 }
 
-func (s ArtifactStore) New() *Artifact {
+// New returns a new Artifact binding any non-nil models to it from the current
+// ArtifactStore.
+func (s *ArtifactStore) New() *Artifact {
 	a := &Artifact{
 		Build: s.Build,
 		Job:   s.Job,
@@ -197,7 +212,13 @@ func (s ArtifactStore) New() *Artifact {
 	return a
 }
 
-func (s ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
+// All returns a slice of Artifact models, applying each query.Option that is
+// given. Each model that is bound to the store will be applied to the list of
+// query options via model.Where. For example, if a Build model is bound to a
+// store then the following WHERE clause would be applied to the query,
+//
+//   WHERE build_id = s.Build.ID
+func (s *ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
 	aa := make([]*Artifact, 0)
 
 	opts = append([]query.Option{
@@ -218,7 +239,13 @@ func (s ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
 	return aa, errors.Err(err)
 }
 
-func (s ArtifactStore) Get(opts ...query.Option) (*Artifact, error) {
+// Get returns a single Artifact model, applying each query.Option that is
+// given. The model.Where option is used on the Build and Job bound models to
+// limit the query to those relations. For example, if a Build model is bound
+// to a store then the following WHERE clause would be applied to the query,
+//
+//   WHERE build_id = s.Build.ID
+func (s *ArtifactStore) Get(opts ...query.Option) (*Artifact, error) {
 	a := &Artifact{
 		Build: s.Build,
 		Job:   s.Job,
@@ -237,7 +264,11 @@ func (s ArtifactStore) Get(opts ...query.Option) (*Artifact, error) {
 	return a, errors.Err(err)
 }
 
-func (s ArtifactStore) Collect(name string, r io.Reader) (int64, error) {
+// Collect looks up the Artifact by the given name, and updates it with the
+// size, md5, and sha256 once the underlying runner.Collector has been
+// successfully invoked. If no underlying collector has been set for the
+// ArtifactStore then it immediately errors.
+func (s *ArtifactStore) Collect(name string, r io.Reader) (int64, error) {
 	if s.collector == nil {
 		return 0, errors.New("cannot collect artifact: nil collector")
 	}

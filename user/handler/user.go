@@ -248,6 +248,7 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u.Email = f.Email
+	u.UpdatedAt = time.Now()
 
 	if err := h.Users.Update(u); err != nil {
 		log.Error.Println(errors.Err(err))
@@ -289,6 +290,7 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 	}
 
 	u.Password = password
+	u.UpdatedAt = time.Now()
 
 	if err := h.Users.Update(u); err != nil {
 		log.Error.Println(errors.Err(err))

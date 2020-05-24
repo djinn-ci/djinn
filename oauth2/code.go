@@ -88,6 +88,8 @@ func (c *Code) IsZero() bool {
 		c.ExpiresAt == time.Time{}
 }
 
+func (*Code) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
+
 // Endpoint is a stub to fulfill the model.Model interface. It returns an empty
 // string.
 func (*Code) Endpoint(_ ...string) string { return "" }

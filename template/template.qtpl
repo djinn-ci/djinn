@@ -50,7 +50,7 @@ func Match(uri, pattern string) bool {
 	return matched
 }
 
-func pageURL(url url.URL, page int64) string {
+func pageURL(url *url.URL, page int64) string {
 	q := url.Query()
 	q.Set("page", strconv.FormatInt(page, 10))
 
@@ -73,7 +73,7 @@ func pageURL(url url.URL, page int64) string {
 	<html lang="en">
 		<head>
 			<meta charset="utf-8">
-			<meta content="width=device-width, initial-scal=1" name="viewport">
+			<meta content="width=device-width, initial-scale=1" name="viewport">
 			<title>{%= p.Title() %}</title>
 		</head>
 		<body>{%= p.Body() %}</body>
@@ -88,12 +88,12 @@ func pageURL(url url.URL, page int64) string {
 			{% if p.Page == p.Prev %}
 				<li><a class="disabled">Previous</a></li>
 			{% else %}
-				<li><a href="{%s pageURL(*url, p.Prev) %}" class="prev">Previous</a></li>
+				<li><a href="{%s pageURL(url, p.Prev) %}" class="prev">Previous</a></li>
 			{% endif %}
 			{% if p.Page == p.Next %}
 				<li><a class="disabled">Next</a></li>
 			{% else %}
-				<li><a href="{%s pageURL(*url, p.Next) %}" class="next">Next</a></li>
+				<li><a href="{%s pageURL(url, p.Next) %}" class="next">Next</a></li>
 			{% endif %}
 		</ul>
 	{% endif %}

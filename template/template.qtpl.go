@@ -81,7 +81,7 @@ func Match(uri, pattern string) bool {
 	return matched
 }
 
-func pageURL(url url.URL, page int64) string {
+func pageURL(url *url.URL, page int64) string {
 	q := url.Query()
 	q.Set("page", strconv.FormatInt(page, 10))
 
@@ -129,7 +129,7 @@ func FileInput(f Form) string {
 //line template/template.qtpl:71
 func StreamRender(qw422016 *qt422016.Writer, p Page) {
 //line template/template.qtpl:71
-	qw422016.N().S(` <!DOCTYPE HTML> <html lang="en"> <head> <meta charset="utf-8"> <meta content="width=device-width, initial-scal=1" name="viewport"> <title>`)
+	qw422016.N().S(` <!DOCTYPE HTML> <html lang="en"> <head> <meta charset="utf-8"> <meta content="width=device-width, initial-scale=1" name="viewport"> <title>`)
 //line template/template.qtpl:77
 	p.StreamTitle(qw422016)
 //line template/template.qtpl:77
@@ -186,7 +186,7 @@ func StreamRenderPaginator(qw422016 *qt422016.Writer, url *url.URL, p model.Pagi
 //line template/template.qtpl:90
 			qw422016.N().S(`<li><a href="`)
 //line template/template.qtpl:91
-			qw422016.E().S(pageURL(*url, p.Prev))
+			qw422016.E().S(pageURL(url, p.Prev))
 //line template/template.qtpl:91
 			qw422016.N().S(`" class="prev">Previous</a></li>`)
 //line template/template.qtpl:92
@@ -200,7 +200,7 @@ func StreamRenderPaginator(qw422016 *qt422016.Writer, url *url.URL, p model.Pagi
 //line template/template.qtpl:95
 			qw422016.N().S(`<li><a href="`)
 //line template/template.qtpl:96
-			qw422016.E().S(pageURL(*url, p.Next))
+			qw422016.E().S(pageURL(url, p.Next))
 //line template/template.qtpl:96
 			qw422016.N().S(`" class="next">Next</a></li>`)
 //line template/template.qtpl:97

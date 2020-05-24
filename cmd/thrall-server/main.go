@@ -215,7 +215,7 @@ func mainCommand(cmd cli.Command) {
 			web.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
-		web.Text(w, "Method not allowed", http.StatusMethodNotAllowed)
+		web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
 
 	srv := server.Server{
@@ -321,7 +321,7 @@ func mainCommand(cmd cli.Command) {
 		}
 
 		api.Init()
-//		api.Register("build", buildweb.Gate(db))
+		api.Register("build", buildweb.Gate(db))
 //		api.Register("namespace", namespaceweb.Gate(db))
 //		api.Register("image", imageweb.Gate(db))
 //		api.Register("object", objectweb.Gate(db))

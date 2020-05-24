@@ -108,9 +108,24 @@ func (k *Key) IsZero() bool {
 		k.Location == ""
 }
 
+func (k *Key) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":       k.ID,
+		"build_id": k.BuildID,
+		"config":   k.Config,
+		"location": k.Location,
+	}
 
-// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
-// string.
+	if k.KeyID.Valid {
+		json["key_id"] = k.KeyID.Int64
+	}
+
+	if !k.Build.IsZero() {
+		json["build"] = k.Build.JSON(addr)
+	}
+	return json
+}
+
 func (*Key) Endpoint(_ ...string) string { return "" }
 
 func (k *Key) Values() map[string]interface{} {

@@ -94,6 +94,8 @@ func (a *App) IsZero() bool {
 		a.RedirectURI == ""
 }
 
+func (*App) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
+
 // Endpoint returns the endpoint for the current App, and appends any of the
 // given uri parts to the returned endpoint.
 func (a *App) Endpoint(uri ...string) string {

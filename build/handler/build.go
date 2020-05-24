@@ -95,10 +95,36 @@ func copyVariables(s *build.VariableStore, vv []*variable.Variable) error {
 }
 
 // Model returns the *build.Build from the current request context.
-func (h Build) Model(r *http.Request) *build.Build {
+func Model(r *http.Request) *build.Build {
 	val := r.Context().Value("build")
 	b, _ := val.(*build.Build)
 	return b
+}
+
+func (h Build) objectsWithRelations(b *build.Build) ([]*build.Object, error) {
+	oo, err := build.NewObjectStore(h.DB, b).All()
+
+	if err != nil {
+		return oo, errors.Err(err)
+	}
+
+	mm := model.Slice(len(oo), build.ObjectModel(oo))
+
+	err = h.Objects.Load("id", model.MapKey("object_id", mm), model.Bind("object_id", "id", mm...))
+	return oo, errors.Err(err)
+}
+
+func (h Build) variablesWithRelations(b *build.Build) ([]*build.Variable, error) {
+	vv, err := build.NewVariableStore(h.DB, b).All()
+
+	if err != nil {
+		return vv, errors.Err(err)
+	}
+
+	mm := model.Slice(len(vv), build.VariableModel(vv))
+
+	err = h.Variables.Load("id", model.MapKey("variable_id", mm), model.Bind("variable_id", "id", mm...))
+	return vv, errors.Err(err)
 }
 
 // IndexWithRelations returns a slice of paginated Build models with the
@@ -129,7 +155,7 @@ func (h Build) IndexWithRelations(s *build.Store, vals url.Values) ([]*build.Bui
 // ShowWithRelations returns a single Build model with the relationships
 // loaded.
 func (h Build) ShowWithRelations(r *http.Request) (*build.Build, error) {
-	b := h.Model(r)
+	b := Model(r)
 
 	if err := build.LoadRelations(h.Loaders, b); err != nil {
 		return b, errors.Err(err)
@@ -224,6 +250,8 @@ func (h Build) realStore(m config.Manifest, u *user.User, t *build.Trigger, tags
 // StoreModel stores a new Build model in the database. It takes the current
 // request session to flash any data to if the given session is not nil.
 func (h Build) StoreModel(r *http.Request, sess *sessions.Session) (*build.Build, error) {
+	defer r.Body.Close()
+
 	u := h.User(r)
 	f := &build.Form{}
 
@@ -458,73 +486,8 @@ func (h Build) Submit(b *build.Build, srv *machinery.Server) error {
 	return errors.Err(err)
 }
 
-func (h Build) TagStoreModel(r *http.Request) ([]*build.Tag, error) {
-	u := h.User(r)
-
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := build.NewStore(h.DB, u).Get(query.Where("id", "=", id))
-
-	if err != nil {
-		return []*build.Tag{}, errors.Err(err)
-	}
-
-	f := &build.TagForm{}
-
-	if err := form.Unmarshal(f, r); err != nil {
-		return []*build.Tag{}, errors.Err(err)
-	}
-
-	if len(f.Tags) == 0 {
-		return []*build.Tag{}, nil
-	}
-
-	tags := build.NewTagStore(h.DB, b)
-	tt := make([]*build.Tag, 0, len(f.Tags))
-
-	for _, name := range f.Tags {
-		t := tags.New()
-		t.UserID = u.ID
-		t.Name = name
-
-		tt = append(tt, t)
-	}
-
-	err = tags.Create(tt...)
-	return tt, errors.Err(err)
-}
-
-func (h Build) TagDelete(r *http.Request) error {
-	u := h.User(r)
-
-	vars := mux.Vars(r)
-
-	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
-
-	b, err := build.NewStore(h.DB, u).Get(query.Where("id", "=", buildId))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	tagId, _ := strconv.ParseInt(vars["tag"], 10, 64)
-
-	tags := build.NewTagStore(h.DB, b)
-
-	t, err := tags.Get(query.Where("id", "=", tagId))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	err = tags.Delete(t)
-	return errors.Err(err)
-}
-
 func (h Build) JobGet(r *http.Request) (*build.Job, error) {
-	b := h.Model(r)
+	b := Model(r)
 
 	if err := build.LoadRelations(h.Loaders, b); err != nil {
 		return &build.Job{}, errors.Err(err)

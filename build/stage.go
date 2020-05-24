@@ -2,6 +2,7 @@ package build
 
 import (
 	"database/sql"
+	"strconv"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -97,9 +98,29 @@ func (s *Stage) IsZero() bool {
 		!s.FinishedAt.Valid
 }
 
-// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
-// string.
-func (Stage) Endpoint(_ ...string) string { return "" }
+func (s *Stage) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":          s.ID,
+		"build_id":    s.BuildID,
+		"name":        s.Name,
+		"can_fail":    s.CanFail,
+		"status":      s.Status.String(),
+		"created_at":  s.CreatedAt.Format(time.RFC3339),
+		"url":         addr + s.Endpoint(),
+	}
+
+	if !s.Build.IsZero() {
+		json["build"] = s.Build.JSON(addr)
+	}
+	return json
+}
+
+func (s *Stage) Endpoint(_ ...string) string {
+	if s.Build == nil || s.Build.IsZero() {
+		return ""
+	}
+	return s.Build.Endpoint("stages", strconv.FormatInt(s.ID, 10))
+}
 
 func (s *Stage) Values() map[string]interface{} {
 	if s == nil {

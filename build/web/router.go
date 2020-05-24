@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"path/filepath"
 	"strconv"
 
 	"github.com/andrewpillar/thrall/build"
@@ -34,6 +35,8 @@ import (
 
 type Router struct {
 	build handler.Build
+	job   handler.Job
+	tag   handler.Tag
 
 	Middleware web.Middleware
 	Artifacts  filestore.FileStore
@@ -65,6 +68,12 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		if !ok {
 			return r, false, nil
+		}
+
+		base := filepath.Base(r.URL.Path)
+
+		if base == "/" || base == "create" || base == "builds" {
+			return r, ok, nil
 		}
 
 		vars := mux.Vars(r)
@@ -122,6 +131,7 @@ func (r *Router) Init(h web.Handler) {
 	tags := build.NewTagStore(h.DB)
 	triggers := build.NewTriggerStore(h.DB)
 	stages := build.NewStageStore(h.DB)
+	artifacts := build.NewArtifactStore(h.DB)
 
 	loaders := model.NewLoaders()
 	loaders.Put("user", h.Users)
@@ -129,6 +139,7 @@ func (r *Router) Init(h web.Handler) {
 	loaders.Put("build_tag", tags)
 	loaders.Put("build_trigger", triggers)
 	loaders.Put("build_stage", stages)
+	loaders.Put("build_artifact", artifacts)
 
 	r.build = handler.Build{
 		Handler:         h,
@@ -138,7 +149,7 @@ func (r *Router) Init(h web.Handler) {
 		Triggers:        triggers,
 		Stages:          stages,
 		Jobs:            build.NewJobStore(h.DB),
-		Artifacts:       build.NewArtifactStore(h.DB),
+		Artifacts:       artifacts,
 		Keys:            key.NewStore(h.DB),
 		Namespaces:      namespaces,
 		Objects:         object.NewStore(h.DB),
@@ -150,6 +161,11 @@ func (r *Router) Init(h web.Handler) {
 		Queues:          r.Queues,
 		Oauth2Providers: r.Providers,
 	}
+	r.job = handler.Job{
+		Handler:   h,
+		Loaders:   loaders,
+	}
+	r.tag = handler.Tag{Handler: h}
 }
 
 // RegisterUI registers the UI routes for Build submission, and management.
@@ -171,6 +187,8 @@ func (r *Router) Init(h web.Handler) {
 // protection, and the given gates for auth checks, and permission checks.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
 	build := handler.UI{Build: r.build}
+	tag := handler.TagUI{Tag: r.tag}
+	job := handler.JobUI{Job: r.job}
 	hook := handler.Hook{Build: r.build}
 
 	mux.HandleFunc("/hook/github", hook.Github).Methods("POST")
@@ -180,7 +198,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/", build.Index).Methods("GET")
 	auth.HandleFunc("/builds/create", build.Create).Methods("GET")
 	auth.HandleFunc("/builds", build.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, csrf)
+	auth.Use(r.Middleware.AuthPerms("build:read", "build:write"), csrf)
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")
@@ -191,30 +209,55 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/objects", build.Show).Methods("GET")
 	sr.HandleFunc("/variables", build.Show).Methods("GET")
 	sr.HandleFunc("/keys", build.Show).Methods("GET")
-	sr.HandleFunc("/jobs/{job:[0-9]+}", build.JobShow).Methods("GET")
-	sr.HandleFunc("/jobs/{job:[0-9]+}/output/raw", build.JobShow).Methods("GET")
+	sr.HandleFunc("/jobs/{job:[0-9]+}", job.Show).Methods("GET")
+	sr.HandleFunc("/jobs/{job:[0-9]+}/output/raw", job.Show).Methods("GET")
 	sr.HandleFunc("/artifacts", build.Show).Methods("GET")
-	sr.HandleFunc("/artifacts/{artifact:[0-9]+}/download/{name}", build.ArtifactShow).Methods("GET")
+	sr.HandleFunc("/artifacts/{artifact:[0-9]+}/download/{name}", build.Download).Methods("GET")
 	sr.HandleFunc("/tags", build.Show).Methods("GET")
-	sr.HandleFunc("/tags", build.TagStore).Methods("POST")
-	sr.HandleFunc("/tags/{tag:[0-9]+}", build.TagDestroy).Methods("DELETE")
+	sr.HandleFunc("/tags", tag.Store).Methods("POST")
+	sr.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
 	sr.Use(r.Middleware.Gate(gates...), csrf)
 }
 
-// RegisterAPI registers the API routes for build submission, and management.
-// There are three types of route groups, webhooks, simple auth routes, and
-// individual build routes. These routes, aside for webhook routes, respond
-// with a application/json Content-Type.
-//
-// webhooks - The webhook routes are registered directly on the given
-// mux.Router.
-//
-// simple auth routes - These routes (/, /builds, and /builds/create), have the
-// auth middleware applied to them to check if a user is logged in to access
-// the route.
-//
-// individual build routes - These routes (prefixed with
-// /b/{username}/{build:[0-9]+}), the given gates are applied for auth checks,
-// and permission checks.
-func (r *Router) RegisterAPI(mux *mux.Router, gates ...web.Gate) {
+// RegisterAPI registers the routes for working with builds over the API.
+func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
+	build := handler.API{
+		Prefix: prefix,
+		Build:  r.build,
+	}
+
+	job := handler.JobAPI{
+		Prefix: prefix,
+		Job:    r.job,
+	}
+
+	tag := handler.TagAPI{
+		Prefix: prefix,
+		Tag:    r.tag,
+	}
+
+	artifact := handler.ArtifactAPI{
+		Prefix: prefix,
+	}
+
+	auth := mux.PathPrefix("/builds").Subrouter()
+	auth.HandleFunc("", build.Index).Methods("GET", "HEAD")
+	auth.HandleFunc("", build.Store).Methods("POST")
+	auth.Use(r.Middleware.Gate(gates...))
+
+	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
+	sr.HandleFunc("", build.Show).Methods("GET")
+	sr.HandleFunc("", build.Kill).Methods("DELETE")
+	sr.HandleFunc("/objects", build.Show).Methods("GET")
+	sr.HandleFunc("/variables", build.Show).Methods("GET")
+	sr.HandleFunc("/keys", build.Show).Methods("GET")
+	sr.HandleFunc("/jobs", job.Index).Methods("GET")
+	sr.HandleFunc("/jobs/{job:[0-9]+}", job.Show).Methods("GET")
+	sr.HandleFunc("/artifacts", artifact.Index).Methods("GET")
+	sr.HandleFunc("/artifacts/{artifact:[0-9]+}", artifact.Show).Methods("GET")
+	sr.HandleFunc("/tags", tag.Index).Methods("GET")
+	sr.HandleFunc("/tags", tag.Store).Methods("POST")
+	sr.HandleFunc("/tags/{tag:[0-9]+}", tag.Show).Methods("GET")
+	sr.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
+	sr.Use(r.Middleware.Gate(gates...))
 }

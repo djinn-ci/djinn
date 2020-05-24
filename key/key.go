@@ -109,6 +109,33 @@ func (k *Key) IsZero() bool {
 		k.CreatedAt == time.Time{}
 }
 
+func (k *Key) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":           k.ID,
+		"user_id":      k.UserID,
+		"namespace_id": nil,
+		"name":         k.Name,
+		"config":       k.Config,
+		"created_at":   k.CreatedAt.Format(time.RFC3339),
+		"updated_at":   k.UpdatedAt.Format(time.RFC3339),
+		"url":          addr + k.Endpoint(),
+	}
+
+	if k.NamespaceID.Valid {
+		json["namespace_id"] = k.NamespaceID.Int64
+	}
+
+	for name, m := range map[string]model.Model{
+		"user":      k.User,
+		"namespace": k.Namespace,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
+}
+
 func (k *Key) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      k.UserID,

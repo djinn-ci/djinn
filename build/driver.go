@@ -79,6 +79,8 @@ func (d *Driver) IsZero() bool {
 	return d == nil ||  d.ID == 0 && d.BuildID == 0 && d.Type == driver.Type(0) && d.Config == ""
 }
 
+func (*Driver) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
+
 // Endpoint is a stub to fulfill the model.Model interface. It returns an empty
 // string.
 func (*Driver) Endpoint(_ ...string) string { return "" }

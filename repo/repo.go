@@ -97,6 +97,8 @@ func (r *Repo) IsZero() bool {
 		!r.Enabled
 }
 
+func (*Repo) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
+
 // Endpoint returns the endpoint to the current Repo, and appends any of the
 // given URI parts.
 func (r *Repo) Endpoint(uri ...string) string {

@@ -249,6 +249,45 @@ func (n *Namespace) IsZero() bool {
 		n.CreatedAt == time.Time{}
 }
 
+func (n *Namespace) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":                n.ID,
+		"user_id":           n.UserID,
+		"root_id":           nil,
+		"parent_id":         nil,
+		"name":              n.Name,
+		"path":              n.Path,
+		"description":       n.Description,
+		"visibility":        n.Visibility.String(),
+		"created_at":        n.CreatedAt.Format(time.RFC3339),
+		"url":               addr + n.Endpoint(),
+		"builds_url":        addr + n.Endpoint("builds"),
+		"namespaces_url":    addr + n.Endpoint("namespaces"),
+		"images_url":        addr + n.Endpoint("images"),
+		"objects_url":       addr + n.Endpoint("objects"),
+		"variables_url":     addr + n.Endpoint("variables"),
+		"keys_url":          addr + n.Endpoint("keys"),
+		"collaborators_url": addr + n.Endpoint("collaborators"),
+	}
+
+	if n.RootID.Valid {
+		json["root_id"] = n.RootID.Int64
+	}
+	if n.ParentID.Valid {
+		json["parent_id"] = n.ParentID.Int64
+	}
+
+	for name, m := range map[string]model.Model{
+		"user":   n.User,
+		"parent": n.Parent,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
+}
+
 // LoadCollaborators takes the given slice of Collaborator models and adds them
 // to the Collaborators map on the current Namespace, if the Namespace ID for
 // the Collaborator matches the current Namespace ID.
@@ -299,8 +338,7 @@ func (n *Namespace) Endpoint(uri ...string) string {
 		return ""
 	}
 
-	username, _ := n.User.Values()["username"]
-	endpoint := fmt.Sprintf("/n/%s/%s", username, n.Path)
+	endpoint := fmt.Sprintf("/n/%s/%s", n.User.Username, n.Path)
 
 	if len(uri) > 0 {
 		return fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))

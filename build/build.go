@@ -197,19 +197,15 @@ func (b *Build) Bind(mm ...model.Model) {
 	}
 }
 
-// Endpoint returns the endpoint for the current Build. If missing a bound User
-// model, then an empty string is returned. The returned endpoint will be look
-// like,
-//
-//   /b/john.brannox/3
+// Endpoint returns the endpoint for the current Build. If no User model is
+// bound to the current model, then an empty string is returned. If no host is
+// given then just the endpoint is returned with no host.
 func (b *Build) Endpoint(uri ...string) string {
 	if b.User == nil || b.User.IsZero() {
 		return ""
 	}
 
-	username, _ := b.User.Values()["username"].(string)
-
-	endpoint := fmt.Sprintf("/b/%s/%v", username, b.ID)
+	endpoint := fmt.Sprintf("/b/%s/%v", b.User.Username, b.ID)
 
 	if len(uri) > 0 {
 		return fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
@@ -234,6 +230,61 @@ func (b *Build) IsZero() bool {
 		b.CreatedAt == time.Time{} &&
 		!b.StartedAt.Valid &&
 		!b.FinishedAt.Valid
+}
+
+func (b *Build) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":            b.ID,
+		"user_id":       b.UserID,
+		"namespace_id":  nil,
+		"manifest":      b.Manifest.String(),
+		"status":        b.Status.String(),
+		"output":        nil,
+		"created_at":    b.CreatedAt.Format(time.RFC3339),
+		"started_at":    nil,
+		"finished_at":   nil,
+		"url":           addr + b.Endpoint(),
+		"manifest_url":  addr + b.Endpoint("manifest"),
+		"output_url":    addr + b.Endpoint("output"),
+		"objects_url":   addr + b.Endpoint("objects"),
+		"variables_url": addr + b.Endpoint("variables"),
+		"jobs_url":      addr + b.Endpoint("jobs"),
+		"artifacts_url": addr + b.Endpoint("artifacts"),
+		"tags_url":      addr + b.Endpoint("tags"),
+	}
+
+	if b.NamespaceID.Valid {
+		json["namespace_id"] = b.NamespaceID.Int64
+	}
+	if b.Output.Valid {
+		json["output"] = b.Output.String
+	}
+	if b.StartedAt.Valid {
+		json["started_at"] = b.StartedAt.Time.Format(time.RFC3339)
+	}
+	if b.FinishedAt.Valid {
+		json["finished_at"] = b.FinishedAt.Time.Format(time.RFC3339)
+	}
+
+	for name, m := range map[string]model.Model{
+		"user":      b.User,
+		"namespace": b.Namespace,
+		"trigger":   b.Trigger,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+
+	if len(b.Tags) > 0 {
+		tags := make([]string, 0, len(b.Tags))
+
+		for _, t := range b.Tags {
+			tags = append(tags, t.Name)
+		}
+		json["tags"] = tags
+	}
+	return json
 }
 
 func (b *Build) Values() map[string]interface{} {

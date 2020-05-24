@@ -2,6 +2,7 @@ package web
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"strings"
@@ -31,6 +32,12 @@ type Handler struct {
 	Users        *user.Store
 	Tokens       *oauth2.TokenStore
 }
+
+type ErrInvalidJSON struct {
+	Err error
+}
+
+func (e ErrInvalidJSON) Error() string { return e.Err.Error() }
 
 // Alert returns the first alert that was flashed to the session. If no alert
 // exists, then an empty alert is returned instead.
@@ -94,12 +101,7 @@ func (h *Handler) Session(r *http.Request) (*sessions.Session, func(*http.Reques
 // User returns the current user from the given requests context.
 func (h Handler) User(r *http.Request) *user.User {
 	val := r.Context().Value("user")
-
 	u, _ := val.(*user.User)
-
-	if u == nil {
-		u, _ = h.UserCookie(r)
-	}
 	return u
 }
 
@@ -173,12 +175,18 @@ func (h Handler) UserToken(r *http.Request) (*user.User, *oauth2.Token, error) {
 // validates it. If any errors occur, then the form errors, and fields are
 // flashed to the form_errors, and form_fields keys respectively.
 func (h *Handler) ValidateForm(f form.Form, r *http.Request, sess *sessions.Session) error {
-	if err := form.Unmarshal(f, r); err != nil {
-		if sess != nil {
-			cause := errors.Cause(err)
-			sess.AddFlash(template.Danger("Failed to unmarshal form: " + cause.Error()), "alert")
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		if err := json.NewDecoder(r.Body).Decode(f); err != nil {
+			return ErrInvalidJSON{Err: err}
 		}
-		return errors.Err(err)
+	} else {
+		if err := form.Unmarshal(f, r); err != nil {
+			if sess != nil {
+				cause := errors.Cause(err)
+				sess.AddFlash(template.Danger("Failed to unmarshal form: " + cause.Error()), "alert")
+			}
+			return errors.Err(err)
+		}
 	}
 
 	if err := f.Validate(); err != nil {

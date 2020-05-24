@@ -2,7 +2,7 @@ package build
 
 import (
 	"database/sql"
-	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -88,9 +88,7 @@ func (t Tag) Endpoint(uri ...string) string {
 	if t.Build == nil || t.Build.IsZero() {
 		return ""
 	}
-
-	uri = append([]string{"tags", fmt.Sprintf("%v", t.ID)}, uri...)
-	return t.Build.Endpoint(uri...)
+	return t.Build.Endpoint("tags", strconv.FormatInt(t.ID, 10))
 }
 
 func (t *Tag) IsZero() bool {
@@ -99,6 +97,27 @@ func (t *Tag) IsZero() bool {
 		t.BuildID == 0 &&
 		t.Name == "" &&
 		t.CreatedAt == time.Time{}
+}
+
+func (t *Tag) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":         t.ID,
+		"user_id":    t.UserID,
+		"build_id":   t.BuildID,
+		"name":       t.Name,
+		"created_at": t.CreatedAt.Format(time.RFC3339),
+		"url":        addr + t.Endpoint(),
+	}
+
+	for name, m := range map[string]model.Model{
+		"user":  t.User,
+		"build": t.Build,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
 }
 
 func (t *Tag) Values() map[string]interface{} {

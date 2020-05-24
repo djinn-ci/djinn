@@ -117,6 +117,32 @@ func (v *Variable) IsZero() bool {
 		v.CreatedAt == time.Time{}
 }
 
+func (v *Variable) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":           v.ID,
+		"user_id":      v.UserID,
+		"namespace_id": nil,
+		"key":          v.Key,
+		"value":        v.Value,
+		"created_at":   v.CreatedAt.Format(time.RFC3339),
+		"url":          addr + v.Endpoint(),
+	}
+
+	if v.NamespaceID.Valid {
+		json["namespace_id"] = v.NamespaceID.Int64
+	}
+
+	for name, m := range map[string]model.Model{
+		"user":      v.User,
+		"namespace": v.Namespace,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
+}
+
 func (v *Variable) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      v.UserID,

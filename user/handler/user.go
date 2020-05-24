@@ -26,6 +26,7 @@ import (
 type User struct {
 	web.Handler
 
+	Prefix    string
 	Providers map[string]oauth2.Provider
 }
 

@@ -104,6 +104,8 @@ func (p *Provider) IsZero() bool {
 		p.ExpiresAt == time.Time{}
 }
 
+func (*Provider) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
+
 func (p *Provider) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":          p.UserID,

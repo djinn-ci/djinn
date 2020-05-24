@@ -101,4 +101,4 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.Use(csrf)
 }
 
-func (r *Router) RegisterAPI(mux *mux.Router, gates ...web.Gate) {}
+func (r *Router) RegisterAPI(_ string, _ *mux.Router, _ ...web.Gate) {}

@@ -214,5 +214,5 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 // individual namespace routes - These routes (prefixed with
 // /n/{username}/{namespace:[a-zA-Z0-9\\/?]+}), use the given gates for auth
 // checks, and permission checks.
-func (r *Router) RegisterAPI(mux *mux.Router, gates ...web.Gate) {
+func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
 }

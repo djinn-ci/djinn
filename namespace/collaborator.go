@@ -2,7 +2,6 @@ package namespace
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -128,6 +127,26 @@ func (c *Collaborator) IsZero() bool {
 	return c == nil || (c.ID == 0 && c.NamespaceID == 0 && c.UserID == 0)
 }
 
+func (c *Collaborator) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":            c.ID,
+		"namespace_id":  c.NamespaceID,
+		"user_id":       c.UserID,
+		"created_at":    c.CreatedAt.Format(time.RFC3339),
+		"url":           addr + c.Endpoint(),
+	}
+
+	for name, m := range map[string]model.Model{
+		"user":      c.User,
+		"namespace": c.Namespace,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
+}
+
 func (c *Collaborator) Endpoint(uri ...string) string {
 	if c.Namespace == nil || c.Namespace.IsZero() {
 		return ""
@@ -135,11 +154,7 @@ func (c *Collaborator) Endpoint(uri ...string) string {
 	if c.User == nil || c.User.IsZero() {
 		return ""
 	}
-
-	username, _ := c.User.Values()["username"].(string)
-
-	uri = append(uri, "-", "collaborators", fmt.Sprintf("%s", username))
-	return c.Namespace.Endpoint(uri...)
+	return c.Namespace.Endpoint(append(uri, "-", "collaborators", c.User.Username)...)
 }
 
 func (c *Collaborator) Values() map[string]interface{} {

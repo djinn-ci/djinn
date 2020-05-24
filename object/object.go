@@ -128,6 +128,35 @@ func (o *Object) IsZero() bool {
 		!o.DeletedAt.Valid
 }
 
+func (o *Object) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":           o.ID,
+		"user_id":      o.UserID,
+		"namespace_id": nil,
+		"name":         o.Name,
+		"type":         o.Type,
+		"size":         o.Size,
+		"md5":          fmt.Sprintf("%x", o.MD5),
+		"sha256":       fmt.Sprintf("%x", o.SHA256),
+		"created_at":   o.CreatedAt.Format(time.RFC3339),
+		"url":          addr + o.Endpoint(),
+	}
+
+	if o.NamespaceID.Valid {
+		json["namespace_id"] = o.NamespaceID.Int64
+	}
+
+	for name, m := range map[string]model.Model{
+		"user":      o.User,
+		"namespace": o.Namespace,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
+}
+
 func (o *Object) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      o.UserID,

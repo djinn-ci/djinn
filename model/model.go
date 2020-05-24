@@ -1,5 +1,4 @@
-// Package model providers basic interfaces for modelling data from the
-// database.
+// Package model provides basic interfaces for modelling data from the database.
 package model
 
 import (
@@ -68,12 +67,17 @@ type Model interface {
 	Primary() (string, int64)
 
 	// IsZero will determine if the model is a zero value. This should return
-	// true on unerlying nil types.
+	// true on underlying nil types.
 	IsZero() bool
 
-	// Endpoint will return the endpoint used to access the model. This also
-	// accepts a variable length of strings to append to the endpoint, each
-	// string being separate with /.
+	// JSON will return a map of the fields from the Model that should be used
+	// for JSON representation. The given string will be used as the address of
+	// the server from which the Model can be accessed. This will be used to
+	// set any URL fields that may be set in the returned map.
+	JSON(string) map[string]interface{}
+
+	// Endpoint will return the endpoint used to access the model. This will
+	// append the given variadic list of strings to the returned endpoint.
 	Endpoint(...string) string
 
 	// Values will return a map of the model's values. This will be called
@@ -254,11 +258,9 @@ func Search(col, pattern string) query.Option {
 }
 
 // Slice converts a slice of models of length l, into a slice of Model.
-// The given callback takes  the current index of the new Model slice as
-// its only argument.
-//
-// It is expected for this index to be used to return the original type that
-// implements the Model interface from a source slice.
+// The given callback takes the current index of the new Model slice as
+// its only argument. It is expected for this index to be used to return the
+// original type that implements the Model interface from a source slice.
 func Slice(l int, get func(int) Model) []Model {
 	mm := make([]Model, l, l)
 
@@ -311,6 +313,7 @@ func OrWhere(m Model, args ...string) query.Option {
 		return query.OrWhere(col, "=", val)(q)
 	}
 }
+
 
 // Connect opens up and tests the given database connection.
 func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {

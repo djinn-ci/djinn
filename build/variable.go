@@ -89,9 +89,27 @@ func (v *Variable) IsZero() bool {
 		v.Value == ""
 }
 
+func (v *Variable) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":       v.ID,
+		"build_id": v.BuildID,
+		"key":      v.Key,
+		"value":    v.Value,
+	}
+
+	if !v.Build.IsZero() {
+		json["build"] = v.Build.JSON(addr)
+	}
+
+	if !v.Variable.IsZero() {
+		json["variable_url"] = addr + v.Variable.Endpoint()
+	}
+	return json
+}
+
 // Endpoint is a stub to fulfill the model.Model interface. It returns an empty
 // string.
-func (*Variable) Endpoint(_ ...string) string { return "" }
+func (v *Variable) Endpoint(_ ...string) string { return "" }
 
 func (v Variable) Values() map[string]interface{} {
 	return map[string]interface{}{

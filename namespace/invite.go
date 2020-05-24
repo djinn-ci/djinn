@@ -104,6 +104,26 @@ func (i *Invite) IsZero() bool {
 		i.CreatedAt == time.Time{}
 }
 
+func (i *Invite) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":           i.ID,
+		"namespace_id": i.NamespaceID,
+		"invitee_id":   i.InviteeID,
+		"inviter_id":   i.InviterID,
+		"url":          addr + i.Endpoint(),
+	}
+
+	for name, m := range map[string]model.Model{
+		"inviter":   i.Inviter,
+		"namespace": i.Namespace,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
+}
+
 func (i *Invite) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"namespace_id": i.NamespaceID,

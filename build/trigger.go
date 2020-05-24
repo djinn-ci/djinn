@@ -180,6 +180,14 @@ func (t *Trigger) IsZero() bool {
 		t.CreatedAt == time.Time{}
 }
 
+func (t *Trigger) JSON(_ string) map[string]interface{} {
+	return map[string]interface{}{
+		"type":    t.Type.String(),
+		"comment": t.Comment,
+		"data":    t.Data,
+	}
+}
+
 // Endpoint is a stub to fulfill the model.Model interface. It returns an empty
 // string.
 func (*Trigger) Endpoint(_ ...string) string { return "" }

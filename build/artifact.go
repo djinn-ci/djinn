@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -116,18 +117,45 @@ func (a *Artifact) IsZero() bool {
 		len(a.SHA256) == 0
 }
 
+func (a *Artifact) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":         a.ID,
+		"build_id":   a.BuildID,
+		"job_id":     a.JobID,
+		"source":     a.Source,
+		"name":       a.Name,
+		"size":       nil,
+		"md5":        fmt.Sprintf("%x", a.MD5),
+		"sha256":     fmt.Sprintf("%x", a.SHA256),
+		"created_at": a.CreatedAt.Format(time.RFC3339),
+		"url":        addr + a.Endpoint(),
+	}
+
+	if a.Size.Valid {
+		json["size"] = a.Size.Int64
+	}
+
+	for name, m := range map[string]model.Model{
+		"build": a.Build,
+		"job":   a.Job,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
+}
+
 // Endpoint returns the endpoint for the current Artifact. If the bound Build
 // model is nil, then an empty string is returned, otherwise the endpoint is
 // prefixed with the Build's endpoint, for example,
 //
 //   /b/lenny.belardo/13/artifacts/1
-func (a *Artifact) Endpoint(uri ...string) string {
+func (a *Artifact) Endpoint(_ ...string) string {
 	if a.Build == nil || a.Build.IsZero() {
 		return ""
 	}
-
-	uri = append([]string{"artifacts", fmt.Sprintf("%v", a.ID)}, uri...)
-	return a.Build.Endpoint(uri...)
+	return a.Build.Endpoint("artifacts", strconv.FormatInt(a.ID, 10))
 }
 
 func (a *Artifact) Values() map[string]interface{} {

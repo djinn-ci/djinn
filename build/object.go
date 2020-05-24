@@ -2,6 +2,7 @@ package build
 
 import (
 	"database/sql"
+	"fmt"
 	"io"
 	"os"
 	"time"
@@ -106,9 +107,7 @@ func (o *Object) Primary() (string, int64) {
 	return "id", o.ID
 }
 
-// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
-// string.
-func (*Object) Endpoint(_ ...string) string { return "" }
+func (o *Object) Endpoint(_ ...string) string { return "" }
 
 func (o *Object) IsZero() bool {
 	return o == nil || o.ID == 0 &&
@@ -118,6 +117,31 @@ func (o *Object) IsZero() bool {
 		o.Name == "" &&
 		!o.Placed &&
 		o.CreatedAt == time.Time{}
+}
+
+func (o *Object) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":       o.ID,
+		"build_id": o.BuildID,
+		"source":   o.Source,
+		"name":     o.Name,
+		"type":     nil,
+		"md5":      nil,
+		"sha256":   nil,
+		"placed":   o.Placed,
+	}
+
+	if !o.Build.IsZero() {
+		json["build"] = o.Build.JSON(addr)
+	}
+
+	if !o.Object.IsZero() {
+		json["type"] = o.Object.Type
+		json["md5"] = fmt.Sprintf("%x", o.Object.MD5)
+		json["sha256"] = fmt.Sprintf("%x", o.Object.SHA256)
+		json["object_url"] = addr + o.Object.Endpoint()
+	}
+	return json
 }
 
 func (o *Object) Values() map[string]interface{} {

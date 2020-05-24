@@ -99,6 +99,31 @@ func (i *Image) IsZero() bool {
 		i.CreatedAt == time.Time{}
 }
 
+func (i *Image) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":           i.ID,
+		"user_id":      i.UserID,
+		"namespace_id": nil,
+		"name":         i.Name,
+		"created_at":   i.CreatedAt.Format(time.RFC3339),
+		"url":          addr + i.Endpoint(),
+	}
+
+	if i.NamespaceID.Valid {
+		json["namespace_id"] = i.NamespaceID.Int64
+	}
+
+	for name, m := range map[string]model.Model{
+		"user":      i.User,
+		"namespace": i.Namespace,
+	}{
+		if !m.IsZero() {
+			json[name] = m.JSON(addr)
+		}
+	}
+	return json
+}
+
 func (i *Image) Endpoint(uri ...string) string {
 	endpoint := fmt.Sprintf("/images/%v", i.ID)
 

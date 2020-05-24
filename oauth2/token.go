@@ -94,6 +94,8 @@ func (t *Token) IsZero() bool {
 		t.UpdatedAt == time.Time{}
 }
 
+func (*Token) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
+
 func (t *Token) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":    t.UserID,

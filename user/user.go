@@ -104,6 +104,17 @@ func (u *User) IsZero() bool {
 		!u.DeletedAt.Valid
 }
 
+func (u *User) JSON(addr string) map[string]interface{} {
+	return map[string]interface{}{
+		"id":         u.ID,
+		"email":      u.Email,
+		"username":   u.Username,
+		"created_at": u.CreatedAt.Format(time.RFC3339),
+		"updated_at": u.UpdatedAt.Format(time.RFC3339),
+		"url":        addr + "/user",
+	}
+}
+
 func (u *User) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"email":      u.Email,

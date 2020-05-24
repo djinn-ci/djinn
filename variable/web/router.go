@@ -37,7 +37,7 @@ func Gate(db *sqlx.DB) web.Gate {
 			err error
 		)
 
-		ok, err := web.Resource(db, "variable", r, func(id int64) (model.Model, error) {
+		ok, err := web.CanAccessResource(db, "variable", r, func(id int64) (model.Model, error) {
 			v, err = variables.Get(query.Where("id", "=", id))
 			return v, errors.Err(err)
 		})
@@ -77,6 +77,6 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.Use(r.Middleware.Gate(gates...), csrf)
 }
 
-func (r *Router) RegisterAPI(mux *mux.Router, gates ...web.Gate) {
+func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
 
 }

@@ -5,6 +5,7 @@ import (
 
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/server"
+	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/user/handler"
 	"github.com/andrewpillar/thrall/web"
 
@@ -47,5 +48,11 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.Use(r.Middleware.Auth, csrf)
 }
 
-// RegisterAPI is a stub method to statisfy the server.Router interface.
-func (r *Router) RegisterAPI(_ *mux.Router, _ ...web.Gate) {}
+func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
+	auth := mux.PathPrefix("/").Subrouter()
+	auth.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
+		u, _ := r.Context().Value("user").(*user.User)
+		web.JSON(w, u.JSON(web.BaseAddress(r) + "/" + prefix), http.StatusOK)
+	})
+	auth.Use(r.Middleware.Auth)
+}

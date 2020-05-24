@@ -10,9 +10,9 @@ import (
 type tags []string
 
 type Form struct {
-	Manifest config.Manifest `schema:"manifest"`
-	Comment  string          `schema:"comment"`
-	Tags     tags            `schema:"tags"`
+	Manifest config.Manifest `schema:"manifest" json:"manifest"`
+	Comment  string          `schema:"comment"  json:"comment"`
+	Tags     tags            `schema:"tags"     json:"tags"`
 }
 
 type TagForm struct {

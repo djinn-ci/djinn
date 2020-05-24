@@ -27,6 +27,17 @@ import (
 
 type UI struct {
 	Build
+
+	Job JobUI
+	Tag TagUI
+}
+
+type JobUI struct {
+	Job
+}
+
+type TagUI struct {
+	Tag
 }
 
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
@@ -165,19 +176,9 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	case "objects":
-		objects := build.NewObjectStore(h.DB, b)
-
-		oo, err := objects.All()
+		oo, err := h.objectsWithRelations(b)
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		mm := model.Slice(len(oo), build.ObjectModel(oo))
-
-		if err := h.Objects.Load("id", model.MapKey("object_id", mm), model.Bind("object_id", "id", mm...)); err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -205,7 +206,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 			Artifacts: aa,
 		}
 	case "variables":
-		vv, err := build.NewVariableStore(h.DB, b).All()
+		vv, err := h.variablesWithRelations(b)
 
 		if err != nil {
 			log.Error.Println(errors.Err(err))
@@ -241,7 +242,9 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 		mm := model.Slice(len(tt), build.TagModel(tt))
 
-		if err := h.Users.Load("id", model.MapKey("user_id", mm), model.Bind("user_id", "id", mm...)); err != nil {
+		err = h.Users.Load("id", model.MapKey("user_id", mm), model.Bind("user_id", "id", mm...))
+
+		if err != nil {
 			log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -259,10 +262,46 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Download will serve the contents of an artifact.
+func (h UI) Download(w http.ResponseWriter, r *http.Request) {
+	b := Model(r)
+
+	id, _ := strconv.ParseInt(mux.Vars(r)["artifact"], 10, 64)
+
+	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", id))
+
+	if err != nil {
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if a.IsZero() || a.Name != mux.Vars(r)["name"] {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	f, err := h.FileStore.Open(a.Hash)
+
+	if err != nil {
+		if os.IsNotExist(errors.Cause(err)) {
+			web.HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
+		log.Error.Println(errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	defer f.Close()
+	http.ServeContent(w, r, a.Name, a.CreatedAt, f)
+}
+
 func (h UI) Kill(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	b := h.Model(r)
+	b := Model(r)
 
 	if b.Status != runner.Running {
 		sess.AddFlash(template.Danger("Build not running"), "alert")
@@ -280,10 +319,10 @@ func (h UI) Kill(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
-func (h UI) TagStore(w http.ResponseWriter, r *http.Request) {
+func (h TagUI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if _, err := h.TagStoreModel(r); err != nil {
+	if _, err := h.StoreModel(r); err != nil {
 		log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to tag build"), "alert")
 		h.RedirectBack(w, r)
@@ -292,10 +331,10 @@ func (h UI) TagStore(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
-func (h UI) TagDestroy(w http.ResponseWriter, r *http.Request) {
+func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if err := h.TagDelete(r); err != nil {
+	if err := h.Delete(r); err != nil {
 		log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to tag build"), "alert")
 		h.RedirectBack(w, r)
@@ -306,10 +345,10 @@ func (h UI) TagDestroy(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
-func (h UI) JobShow(w http.ResponseWriter, r *http.Request) {
+func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	j, err := h.JobGet(r)
+	j, err := h.ShowWithRelations(r)
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
@@ -330,51 +369,4 @@ func (h UI) JobShow(w http.ResponseWriter, r *http.Request) {
 	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) ArtifactShow(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
-
-	vars := mux.Vars(r)
-
-	buildId, _ := strconv.ParseInt(vars["build"], 10, 64)
-	artifactId, _ := strconv.ParseInt(vars["artifact"], 10, 64)
-
-	b, err := build.NewStore(h.DB, u).Get(query.Where("id", "=", buildId))
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", artifactId))
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if a.IsZero() || a.Name != vars["name"] {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	f, err := h.FileStore.Open(a.Hash)
-
-	if err != nil {
-		if os.IsNotExist(errors.Cause(err)) {
-			web.HTMLError(w, "Not found", http.StatusNotFound)
-			return
-		}
-
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	defer f.Close()
-
-	http.ServeContent(w, r, a.Name, a.CreatedAt, f)
 }

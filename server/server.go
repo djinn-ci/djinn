@@ -33,7 +33,7 @@ type Router interface {
 	// RegisterAPI will register the router's API routes with the given
 	// mux.Router. Unlike RegisterUI, this does not take a CSRF middleware
 	// function, and only the variadic list of gates.
-	RegisterAPI(*mux.Router, ...web.Gate)
+	RegisterAPI(string, *mux.Router, ...web.Gate)
 }
 
 // Server is a wrapper around the stdlib http.Server. It provides a simple
@@ -155,7 +155,7 @@ func (s *API) Init() {
 // gates.
 func (s *API) Register(name string, gates ...web.Gate) {
 	if r, ok := s.Routers[name]; ok {
-		r.RegisterAPI(s.apiRouter, gates...)
+		r.RegisterAPI(s.Prefix, s.apiRouter, gates...)
 	}
 }
 

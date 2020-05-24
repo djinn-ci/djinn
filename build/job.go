@@ -2,8 +2,9 @@ package build
 
 import (
 	"database/sql"
-	"fmt"
 	"io"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,7 +48,11 @@ var (
 	_ model.Binder = (*JobStore)(nil)
 	_ model.Loader = (*JobStore)(nil)
 
-	jobTable = "build_jobs"
+	jobTable     = "build_jobs"
+	jobRelations = map[string]model.RelationFunc{
+		"build_stage":    model.Relation("stage_id", "id"),
+		"build_artifact": model.Relation("job_id", "id"),
+	}
 )
 
 // NewJobStore returns a new JobStore for querying the build_jobs table. Each
@@ -66,6 +71,13 @@ func JobModel(jj []*Job) func(int) model.Model {
 	return func(i int) model.Model {
 		return jj[i]
 	}
+}
+
+// LoadRelations loads all of the available relations for the given Job models
+// using the given loaders available.
+func LoadJobRelations(loaders model.Loaders, jj ...*Job) error {
+	mm := model.Slice(len(jj), JobModel(jj))
+	return model.LoadRelations(jobRelations, loaders, mm...)
 }
 
 // Bind the given models to the current Job. This will only bind the model if
@@ -107,15 +119,46 @@ func (j *Job) IsZero() bool {
 		!j.FinishedAt.Valid
 }
 
+func (j *Job) JSON(addr string) map[string]interface{} {
+	json := map[string]interface{}{
+		"id":          j.ID,
+		"build_id":    j.BuildID,
+		"name":        j.Name,
+		"commands":    j.Commands,
+		"status":      j.Status.String(),
+		"output":      nil,
+		"created_at":  j.CreatedAt.Format(time.RFC3339),
+		"started_at":  nil,
+		"finished_at": nil,
+		"url":         addr + j.Endpoint(),
+	}
+
+	if j.Output.Valid {
+		json["output"] = j.Output.String
+	}
+	if j.StartedAt.Valid {
+		json["started_at"] = j.StartedAt.Time.Format(time.RFC3339)
+	}
+	if j.FinishedAt.Valid {
+		json["finished_at"] = j.FinishedAt.Time.Format(time.RFC3339)
+	}
+
+	if !j.Build.IsZero() {
+		json["build"] = j.Build.JSON(addr)
+	}
+	if !j.Stage.IsZero() {
+		json["stage"] = j.Stage.Name
+	}
+	return json
+}
+
 // Endpoint returns the endpoint for the current Job. If nil, or if missing
 // a bound Build model, then an empty string is returned.
 func (j *Job) Endpoint(uri ...string) string {
 	if j.Build == nil || j.Build.IsZero() {
 		return ""
 	}
-
-	uri = append([]string{"jobs", fmt.Sprintf("%v", j.ID)}, uri...)
-	return j.Build.Endpoint(uri...)
+	return j.Build.Endpoint("jobs", strconv.FormatInt(j.ID, 10))
 }
 
 func (j *Job) Values() map[string]interface{} {
@@ -238,6 +281,25 @@ func (s *JobStore) All(opts ...query.Option) ([]*Job, error) {
 		j.Build = s.Build
 		j.Stage = s.Stage
 	}
+	return jj, errors.Err(err)
+}
+
+// Index returns the results from the jobs table depending on the values that
+// are present in url.Values. Detailed below are the values that are used from
+// the given url.Values,
+//
+// name   - This applies the model.Search query.Option using the value of name
+// status - This applied the WhereStatus query.Option using the value of status
+func (s *JobStore) Index(vals url.Values, opts ...query.Option) ([]*Job, error) {
+	opts = append([]query.Option{
+		model.Search("name", vals.Get("name")),
+		WhereStatus(vals.Get("status")),
+	}, opts...)
+
+	jj, err := s.All(append(
+		opts,
+		query.OrderAsc("created_at"),
+	)...)
 	return jj, errors.Err(err)
 }
 

@@ -36,12 +36,12 @@ type errHandler func(http.ResponseWriter, string, int)
 // the other end of the current endpoint, hence the bool return value.
 type Gate func(u *user.User, r *http.Request) (*http.Request, bool, error)
 
-// Resource returns whether the current user has access to the given resource.
-// The resource's ID will be taken from the request based on the name, this is
-// passed back to the modelFunc which will return the underlying model for that
-// resource. The name of the resource is also used to check against the
-// permissions of that user.
-func Resource(db *sqlx.DB, name string, r *http.Request, get modelFunc) (bool, error) {
+// CanAccessResource returns whether the current user has access to the given
+// resource. The resource's ID will be taken from the request based on the
+// name, this is passed back to the modelFunc which will return the underlying
+// model for that resource. The name of the resource is also used to check
+// against the permissions of that user.
+func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get modelFunc) (bool, error) {
 	u := r.Context().Value("user").(*user.User)
 
 	var ok bool
@@ -174,9 +174,35 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), "user", u))
-
 		next.ServeHTTP(w, r)
 	})
+}
+
+// AuthPerms redirects the user back to /login if they're not authenticated, or
+// if they do not have any of the given permissions. If the user is
+// authenticated then they continue on to the next request, and the User is set
+// in the request context.
+func (h Middleware) AuthPerms(perms ...string) mux.MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			u, ok := h.auth(w, r)
+
+			if !ok {
+				h.Redirect(w, r, "/login")
+				return
+			}
+
+			for _, perm := range perms {
+				if _, ok := u.Permissions[perm]; !ok {
+					h.Redirect(w, r, "/login")
+					return
+				}
+			}
+
+			r = r.WithContext(context.WithValue(r.Context(), "user", u))
+			next.ServeHTTP(w, r)
+		})
+	}
 }
 
 // Gate returns a mux.MiddlewareFunc that when called will iterate over the

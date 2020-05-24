@@ -43,6 +43,8 @@ import (
 
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
+
+	_ "github.com/lib/pq"
 )
 
 var (

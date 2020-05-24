@@ -11,8 +11,6 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/jmoiron/sqlx"
-
-	_ "github.com/lib/pq"
 )
 
 type Binder interface {

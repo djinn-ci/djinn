@@ -4,12 +4,9 @@ package model
 import (
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
-	"net"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/log"
 
 	"github.com/andrewpillar/query"
 
@@ -105,8 +102,6 @@ type Paginator struct {
 }
 
 var (
-	dsnfmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=disable"
-
 	PageLimit int64 = 25
 	ErrNotFound     = errors.New("not found")
 )
@@ -312,29 +307,6 @@ func OrWhere(m Model, args ...string) query.Option {
 		}
 		return query.OrWhere(col, "=", val)(q)
 	}
-}
-
-
-// Connect opens up and tests the given database connection.
-func Connect(addr, dbname, username, password string) (*sqlx.DB, error) {
-	host, port, err := net.SplitHostPort(addr)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	dsn := fmt.Sprintf(dsnfmt, host, port, dbname, username, password)
-
-	log.Debug.Println("opening postgresql conntection with:", dsn)
-
-	db, err := sqlx.Open("postgres", dsn)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	log.Debug.Println("testing connection to database")
-	return db, errors.Err(db.Ping())
 }
 
 // Put adds a Loader of the given name to the underlying map.

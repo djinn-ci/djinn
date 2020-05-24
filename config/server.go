@@ -32,12 +32,7 @@ type Server struct {
 		Auth  string
 	}
 
-	Database struct {
-		Addr     string
-		Name     string
-		Username string
-		Password string
-	}
+	Database Database
 
 	Redis struct {
 		Addr     string
@@ -61,6 +56,13 @@ type Server struct {
 		ClientID     string `toml:"client_id"`
 		ClientSecret string `toml:"client_secret"`
 	}
+}
+
+type Database struct {
+	Addr     string
+	Name     string
+	Username string
+	Password string
 }
 
 type Storage struct {

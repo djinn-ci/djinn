@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -19,7 +20,6 @@ import (
 	imageweb "github.com/andrewpillar/thrall/image/web"
 	keyweb "github.com/andrewpillar/thrall/key/web"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
 	namespaceweb "github.com/andrewpillar/thrall/namespace/web"
 	"github.com/andrewpillar/thrall/oauth2"
 	oauth2web "github.com/andrewpillar/thrall/oauth2/web"
@@ -39,6 +39,8 @@ import (
 
 	goredis "github.com/go-redis/redis"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
@@ -47,6 +49,38 @@ var (
 	Version string
 	Build   string
 )
+
+func connectDB(cfg config.Database) *sqlx.DB {
+	host, port, err := net.SplitHostPort(cfg.Addr)
+
+	if err != nil {
+		log.Error.Fatal(err)
+	}
+
+	dsn := fmt.Sprintf(
+		"host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+		host,
+		port,
+		cfg.Name,
+		cfg.Username,
+		cfg.Password,
+	)
+
+	log.Debug.Println("opening postgresql connection with:", dsn)
+
+	db, err := sqlx.Open("postgres", dsn)
+
+	if err != nil {
+		log.Error.Fatal(err)
+	}
+
+	log.Debug.Println("testing connection to database")
+
+	if err := db.Ping(); err != nil {
+		log.Error.Fatal(err)
+	}
+	return db
+}
 
 func mainCommand(cmd cli.Command) {
 	f, err := os.Open(cmd.Flags.GetString("config"))
@@ -85,16 +119,7 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("failed to initialize hashing mechanism: %s\n", err)
 	}
 
-	db, err := model.Connect(
-		cfg.Database.Addr,
-		cfg.Database.Name,
-		cfg.Database.Username,
-		cfg.Database.Password,
-	)
-
-	if err != nil {
-		log.Error.Fatalf("failed to establish postgresql connection: %s\n", err)
-	}
+	db := connectDB(cfg.Database)
 
 	log.Info.Println("connected to postgresql database")
 

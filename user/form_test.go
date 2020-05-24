@@ -98,7 +98,7 @@ func Test_RegisterForm(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		rows := mock.NewRows([]string{"email", "username"}).AddRow(test.user.Email, test.user.Username)
 
 		mock.ExpectQuery(
@@ -114,17 +114,17 @@ func Test_RegisterForm(t *testing.T) {
 				ferrs, ok := err.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, it was not\n%s\n", errors.Cause(err))
+					t.Fatalf("test[%d] - expected error to be form.Errors, it was '%s'\n", i, errors.Cause(err))
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Errorf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }
@@ -157,7 +157,7 @@ func Test_LoginForm(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {
 				if len(test.errs) == 0 {
@@ -167,17 +167,17 @@ func Test_LoginForm(t *testing.T) {
 				ferrs, ok := err.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, it was not\n%s\n", errors.Cause(err))
+					t.Fatalf("test[%d] - expected error to be form.Errors it was '%s'\n", i, errors.Cause(err))
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Errorf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

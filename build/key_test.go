@@ -24,7 +24,7 @@ var keyCols = []string{
 	"location",
 }
 
-func keyStore(t *testing.T) (KeyStore, sqlmock.Sqlmock, func() error) {
+func keyStore(t *testing.T) (*KeyStore, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -54,13 +54,13 @@ func Test_KeyStoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.Build = nil

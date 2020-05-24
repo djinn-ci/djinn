@@ -38,7 +38,7 @@ type worker struct {
 	worker     *machinery.Worker
 	placer     runner.Placer
 	collector  runner.Collector
-	builds     build.Store
+	builds     *build.Store
 }
 
 func (w *worker) init(name string, concurrency int) {

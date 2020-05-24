@@ -34,12 +34,12 @@ func Test_CompareKeys(t *testing.T) {
 		{sql.NullInt64{Int64: 10}, sql.NullInt64{Int64: 5}, false},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		if !CompareKeys(test.a, test.b) {
 			if !test.shouldMatch {
 				continue
 			}
-			t.Errorf("expected %v to equal %v\n", test.a, test.b)
+			t.Errorf("test[%d] - expected %v to equal %v\n", i, test.a, test.b)
 		}
 	}
 }

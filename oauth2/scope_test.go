@@ -28,7 +28,7 @@ func Test_UnmarshalScope(t *testing.T) {
 		{"variable:read variable:write variable:delete", variableAll},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		sc, err := UnmarshalScope(test.scope)
 
 		if err != nil {
@@ -36,7 +36,7 @@ func Test_UnmarshalScope(t *testing.T) {
 		}
 
 		if diff := ScopeDiff(sc, test.expected); len(diff) > 0 {
-			t.Errorf("scope mismatch\n\texpected = '%s'\n\tactual   = '%s'\n", test.expected, sc)
+			t.Errorf("test[%d] - expected = '%s' actual = '%s'\n", i, test.expected, sc)
 		}
 	}
 }
@@ -50,7 +50,7 @@ func Test_ScopeScan(t *testing.T) {
 		{[]byte{2, 7, 6, 1}, buildAllNamespaceRead},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		sc := Scope(make([]scopeItem, 0))
 
 		if err := sc.Scan(test.b); err != nil {
@@ -58,7 +58,7 @@ func Test_ScopeScan(t *testing.T) {
 		}
 
 		if diff := ScopeDiff(sc, test.expected); len(diff) > 0 {
-			t.Errorf("scope mismatch\n\texpected = '%s'\n\tactual   = '%s'\n", test.expected, sc)
+			t.Errorf("test[%d] - expected = '%s' actual = '%s'\n", i, test.expected, sc)
 		}
 	}
 }

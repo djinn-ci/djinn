@@ -19,18 +19,18 @@ func Test_InitHashingHash(t *testing.T) {
 		{"", 16, []int{1, 2, 3}, true, false},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		err := InitHashing(test.salt, test.length)
 
 		if err != nil {
 			if test.shouldInit {
-				t.Fatal(errors.Cause(err))
+				t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 			}
 		}
 
 		if _, err := Hash(test.i); err != nil {
 			if test.shouldHash {
-				t.Fatal(errors.Cause(err))
+				t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 			}
 		}
 	}
@@ -46,7 +46,7 @@ func Test_EncryptDecrypt(t *testing.T) {
 		{[]byte("secretkey16chars"), []byte("password"), false},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		Key = test.key
 
 		encrypted, err := Encrypt(test.b)
@@ -61,11 +61,11 @@ func Test_EncryptDecrypt(t *testing.T) {
 		decrypted, err := Decrypt(encrypted)
 
 		if err != nil {
-			t.Fatal(err)
+			t.Fatalf("test[%d] - %s\n", i, err)
 		}
 
 		if !bytes.Equal(test.b, decrypted) {
-			t.Fatalf("decryption mismatch\n\texpected = '%s'\n\t   actual = '%s'\n", string(test.b), string(decrypted))
+			t.Fatalf("test[%d] - expected = '%s actual = '%s'\n", i, string(test.b), string(decrypted))
 		}
 	}
 }

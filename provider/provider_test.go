@@ -8,7 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func store(t *testing.T) (Store, sqlmock.Sqlmock, func() error) {
+func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {

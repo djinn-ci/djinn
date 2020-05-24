@@ -14,7 +14,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func userStore(t *testing.T) (user.Store, sqlmock.Sqlmock, func() error) {
+func userStore(t *testing.T) (*user.Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -95,7 +95,7 @@ func Test_FormValidate(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		if test.query != "" {
 			mock.ExpectQuery(
 				regexp.QuoteMeta(test.query),
@@ -111,17 +111,17 @@ func Test_FormValidate(t *testing.T) {
 				ferrs, ok := err.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, it was not\n%s\n", errors.Cause(err))
+					t.Fatalf("test[%d] - expected error to be form.Errors, it was %s\n", i, errors.Cause(err))
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Fatalf("test[%d] - expected '%s' in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i ,errors.Cause(err))
 		}
 	}
 }
@@ -180,7 +180,7 @@ func Test_InviteFormValidate(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		userMock.ExpectQuery(
 			regexp.QuoteMeta(test.userq),
 		).WithArgs(test.args...).WillReturnRows(sqlmock.NewRows(test.userRows))
@@ -197,7 +197,7 @@ func Test_InviteFormValidate(t *testing.T) {
 			if test.shouldError {
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

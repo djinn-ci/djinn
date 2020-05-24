@@ -58,7 +58,7 @@ var (
 	}
 )
 
-func store(t *testing.T) (Store, sqlmock.Sqlmock, func() error) {
+func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -95,13 +95,13 @@ func Test_StoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -115,7 +115,7 @@ func Test_StoreIndex(t *testing.T) {
 
 	tests := []testQuery{
 		{
-			"SELECT * FROM objects WHERE (name LIKE $1)",
+			"SELECT * FROM objects WHERE (LOWER(name) LIKE $1)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{"%aperture%"},
@@ -137,7 +137,7 @@ func Test_StoreIndex(t *testing.T) {
 		store.Bind(test.models...)
 
 		if _, _, err := store.Index(vals[i], test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i ,errors.Cause(err))
 		}
 
 		store.User = nil
@@ -173,13 +173,13 @@ func Test_StoreGet(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil

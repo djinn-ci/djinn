@@ -71,7 +71,7 @@ func spoofFile(t *testing.T) (*http.Request, http.ResponseWriter) {
 	return r, httptest.NewRecorder()
 }
 
-func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() error) {
+func namespaceStore(t *testing.T) (*namespace.Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -94,19 +94,6 @@ func Test_FormValidate(t *testing.T) {
 	}{
 		{
 			Form{
-				Resource: namespace.Resource{
-					User:       &user.User{ID: 10},
-					Namespaces: namespaceStore,
-					Namespace:  "aperture",
-				},
-				Objects: objectStore,
-				Name:    "image.png",
-			},
-			[]string{},
-			false,
-		},
-		{
-			Form{
 				Objects: objectStore,
 				Name:    "image.png",
 			},
@@ -126,13 +113,26 @@ func Test_FormValidate(t *testing.T) {
 					Namespace:  "aperture",
 				},
 				Objects: objectStore,
+				Name:    "image.png",
+			},
+			[]string{},
+			false,
+		},
+		{
+			Form{
+				Resource: namespace.Resource{
+					User:       &user.User{ID: 10},
+					Namespaces: namespaceStore,
+					Namespace:  "aperture",
+				},
+				Objects: objectStore,
 			},
 			[]string{"name"},
 			true,
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		uniqueQuery := "SELECT * FROM objects WHERE (name = $1)"
 		uniqueArgs := []driver.Value{test.form.Name}
 
@@ -177,17 +177,17 @@ func Test_FormValidate(t *testing.T) {
 				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
+					t.Fatalf("test[%d] - expected error to be form.Errors, is was '%s'\n", i, cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors\n", err)
+						t.Errorf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i ,errors.Cause(err))
 		}
 	}
 }

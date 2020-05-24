@@ -20,7 +20,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() error) {
+func namespaceStore(t *testing.T) (*namespace.Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -71,6 +71,12 @@ func Test_FormValidate(t *testing.T) {
 		errs        []string
 		shouldError bool
 	}{
+		{
+			Form{Images: imageStore},
+			false,
+			[]string{"name", "file"},
+			true,
+		},
 		{
 			Form{
 				Resource: namespace.Resource{
@@ -125,15 +131,9 @@ func Test_FormValidate(t *testing.T) {
 			[]string{"name", "file"},
 			true,
 		},
-		{
-			Form{Images: imageStore},
-			false,
-			[]string{"name", "file"},
-			true,
-		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		uniqueQuery := "SELECT * FROM images WHERE (name = $1)"
 		uniqueArgs := []driver.Value{test.form.Name}
 
@@ -178,17 +178,17 @@ func Test_FormValidate(t *testing.T) {
 				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
+					t.Fatalf("test[%d] - %v\n", i, cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Errorf("expected '%s' to be in form.Errors\n", err)
+						t.Errorf("test[%d] - expected '%s' to be in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

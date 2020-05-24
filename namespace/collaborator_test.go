@@ -23,7 +23,7 @@ var collaboratorCols = []string{
 	"user_id",
 }
 
-func collaboratorStore(t *testing.T) (CollaboratorStore, sqlmock.Sqlmock, func() error) {
+func collaboratorStore(t *testing.T) (*CollaboratorStore, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -60,13 +60,13 @@ func Test_CollaboratorStoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -102,13 +102,13 @@ func Test_CollaboratorStoreGet(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -134,7 +134,7 @@ func Test_CollaboratorStoreCreate(t *testing.T) {
 	}
 
 	if c.ID != id {
-		t.Fatalf("collaborator id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, c.ID)
+		t.Fatalf("expected = '%d' actual = '%d'\n", id, c.ID)
 	}
 }
 

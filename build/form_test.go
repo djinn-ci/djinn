@@ -47,12 +47,12 @@ func Test_BuildForm(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }
@@ -76,12 +76,12 @@ func Test_TagForm(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

@@ -55,7 +55,7 @@ var (
 	}
 )
 
-func store(t *testing.T) (Store, sqlmock.Sqlmock, func() error) {
+func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -112,7 +112,7 @@ func Test_StoreIndex(t *testing.T) {
 
 	tests := []testQuery{
 		{
-			"SELECT * FROM variables WHERE (key LIKE $1)",
+			"SELECT * FROM variables WHERE (LOWER(key) LIKE $1)",
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{"%gman%"},
@@ -134,7 +134,7 @@ func Test_StoreIndex(t *testing.T) {
 		store.Bind(test.models...)
 
 		if _, _, err := store.Index(vals[i], test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil

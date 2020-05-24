@@ -87,7 +87,7 @@ func Test_FileValidate(t *testing.T) {
 		}
 
 		if test.shouldError {
-			t.Errorf("expected test %d to fail, it did not\n", i)
+			t.Errorf("test[%d] - should have failed\n", i)
 		}
 	}
 }

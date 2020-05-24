@@ -30,7 +30,7 @@ var (
 	bcryptPassword = []byte{36,50,97,36,49,48,36,54,82,100,70,83,47,83,102,67,87,99,50,106,102,121,72,66,51,97,100,47,117,101,98,84,119,115,82,47,65,97,103,50,88,85,86,121,76,84,69,76,82,48,69,47,53,90,99,111,113,109,65,101}
 )
 
-func store(t *testing.T) (Store, sqlmock.Sqlmock, func() error) {
+func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -67,11 +67,11 @@ func Test_StoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }
@@ -104,11 +104,11 @@ func Test_StoreGet(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }
@@ -142,7 +142,7 @@ func Test_StoreAuth(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		rows := mock.NewRows(
 			[]string{"email", "username", "password"},
 		).AddRow(test.user.Email, test.user.Username, test.user.Password)
@@ -155,7 +155,7 @@ func Test_StoreAuth(t *testing.T) {
 			if !test.shouldAuth {
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

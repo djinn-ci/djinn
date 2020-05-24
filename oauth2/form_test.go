@@ -72,7 +72,7 @@ func Test_AppForm(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(
 			regexp.QuoteMeta("SELECT * FROM oauth_apps WHERE (name = $1)"),
 		).WithArgs(test.form.Name).WillReturnRows(sqlmock.NewRows(appCols))
@@ -84,17 +84,17 @@ func Test_AppForm(t *testing.T) {
 				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
+					t.Fatalf("test[%d] - expected error to be form.Errors, it was %s\n", i, cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Errorf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }
@@ -122,7 +122,7 @@ func Test_AuthorizeForm(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {
 				cause := errors.Cause(err)
@@ -130,17 +130,17 @@ func Test_AuthorizeForm(t *testing.T) {
 				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
+					t.Fatalf("test[%d] - expected error to be form.Errors, it was %s\n", i, cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Errorf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }
@@ -166,7 +166,7 @@ func Test_TokenForm(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(
 			regexp.QuoteMeta("SELECT * FROM oauth_tokens WHERE (name = $1)"),
 		).WithArgs(test.form.Name).WillReturnRows(sqlmock.NewRows(tokenCols))
@@ -178,17 +178,17 @@ func Test_TokenForm(t *testing.T) {
 				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
+					t.Fatalf("test[%d] - expected error to be form.Errors, is was '%s'\n", i, cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+						t.Fatalf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

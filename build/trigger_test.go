@@ -23,7 +23,7 @@ var triggerCols = []string{
 	"data",
 }
 
-func triggerStore(t *testing.T) (TriggerStore, sqlmock.Sqlmock, func() error) {
+func triggerStore(t *testing.T) (*TriggerStore, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -57,18 +57,18 @@ func Test_TriggerType(t *testing.T) {
 		{[]byte("foo"), triggerType(0), true},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		var typ triggerType
 
 		if err := typ.Scan(test.val); err != nil {
 			if test.shouldError {
 				continue
 			}
-			t.Fatal(err)
+			t.Fatalf("test[%d] - %s\n", i, err)
 		}
 
 		if typ != test.expected {
-			t.Errorf("mismatch triggerType\n\texpected = '%s'\n\t  actual = '%s'\n", test.expected, typ)
+			t.Errorf("test[%d] - expected type = '%s' actual type = '%s'\n", i, test.expected, typ)
 		}
 	}
 }
@@ -93,7 +93,7 @@ func Test_TriggerData(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		var data triggerData
 
 		if err := data.Scan(test.val); err != nil {
@@ -104,7 +104,7 @@ func Test_TriggerData(t *testing.T) {
 		}
 
 		if !triggerDataEquals(data, test.expected) {
-			t.Errorf("mismatch triggerData\n\texpected = '%s'\n\t  actual = '%s'\n", test.expected, data)
+			t.Errorf("test[%d] - expected data '%s' actual data = '%s'\n", i, test.expected, data)
 		}
 	}
 }
@@ -138,13 +138,13 @@ The body`},
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		if title := test.trig.CommentTitle(); title != test.expectedTitle {
-			t.Errorf("mismatch trigger title\n\texpected = '%s'\n\t  actual = '%s'\n", test.expectedTitle, title)
+			t.Errorf("test[%d] - expected title = '%s' actual title = '%s'\n", i, test.expectedTitle, title)
 		}
 
 		if body := test.trig.CommentBody(); body != test.expectedBody {
-			t.Errorf("mismatch trigger body\n\texpected = '%s'\n\t  actual = '%s'\n", test.expectedBody, body)
+			t.Errorf("test[%d] - expected body = '%s' actual body = '%s'\n", i, test.expectedBody, body)
 		}
 	}
 }
@@ -170,13 +170,13 @@ func Test_TriggerStoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.Build = nil

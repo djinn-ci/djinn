@@ -41,7 +41,7 @@ var (
 	}
 )
 
-func store(t *testing.T) (Store, sqlmock.Sqlmock, func() error) {
+func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -56,7 +56,7 @@ func Test_StoreIndex(t *testing.T) {
 
 	tests := []testQuery{
 		{
-			"SELECT * FROM namespaces WHERE (path LIKE $1)",
+			"SELECT * FROM namespaces WHERE (LOWER(path) LIKE $1)",
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{"%blackmesa%"},
@@ -78,7 +78,7 @@ func Test_StoreIndex(t *testing.T) {
 		store.Bind(test.models...)
 
 		if _, _, err := store.Index(vals[i], test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -106,14 +106,14 @@ func Test_StoreAll(t *testing.T) {
 			[]model.Model{&Namespace{ID: 1}},
 		},
 		{
-			"SELECT * FROM namespaces WHERE (path LIKE $1)",
+			"SELECT * FROM namespaces WHERE (LOWER(path) LIKE $1)",
 			[]query.Option{model.Search("path", "example_path")},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{"%example_path%"},
 			[]model.Model{},
 		},
 		{
-			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (path LIKE $3)",
+			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (LOWER(path) LIKE $3)",
 			[]query.Option{model.Search("path", "example_path")},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1, 1, "%example_path%"},
@@ -128,13 +128,13 @@ func Test_StoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -169,14 +169,14 @@ func Test_StoreGet(t *testing.T) {
 			[]model.Model{&Namespace{ID: 1}},
 		},
 		{
-			"SELECT * FROM namespaces WHERE (path LIKE $1)",
+			"SELECT * FROM namespaces WHERE (LOWER(path) LIKE $1)",
 			[]query.Option{model.Search("path", "blackmesa")},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{"%blackmesa%"},
 			[]model.Model{},
 		},
 		{
-			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (path LIKE $3)",
+			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (LOWER(path) LIKE $3)",
 			[]query.Option{model.Search("path", "blackmesa")},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1, 1, "%blackmesa%"},
@@ -201,13 +201,13 @@ func Test_StoreGet(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil

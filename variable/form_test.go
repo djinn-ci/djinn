@@ -15,7 +15,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func namespaceStore(t *testing.T) (namespace.Store, sqlmock.Sqlmock, func() error) {
+func namespaceStore(t *testing.T) (*namespace.Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -36,20 +36,6 @@ func Test_FormValidate(t *testing.T) {
 		errs        []string
 		shouldError bool
 	}{
-		{
-			Form{
-				Resource: namespace.Resource{
-					User:       &user.User{ID: 10},
-					Namespaces: namespaceStore,
-					Namespace:  "aperture",
-				},
-				Variables: variableStore,
-				Key:       "PGADDR",
-				Value:     "postgres://thrall:secret@localhost:5432/thrall",
-			},
-			[]string{},
-			false,
-		},
 		{
 			Form{
 				Variables: variableStore,
@@ -84,9 +70,23 @@ func Test_FormValidate(t *testing.T) {
 			[]string{"key", "value"},
 			true,
 		},
+		{
+			Form{
+				Resource: namespace.Resource{
+					User:       &user.User{ID: 10},
+					Namespaces: namespaceStore,
+					Namespace:  "aperture",
+				},
+				Variables: variableStore,
+				Key:       "PGADDR",
+				Value:     "postgres://thrall:secret@localhost:5432/thrall",
+			},
+			[]string{},
+			false,
+		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		uniqueQuery := "SELECT * FROM variables WHERE (key = $1)"
 		uniqueArgs := []driver.Value{test.form.Key}
 
@@ -124,17 +124,17 @@ func Test_FormValidate(t *testing.T) {
 				ferrs, ok := cause.(form.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, is was '%s'\n", cause)
+					t.Fatalf("test[%d] - expected error to be form.Errors, is was '%s'\n", i, cause)
 				}
 
 				for _, err := range test.errs {
 					if _, ok := ferrs[err]; !ok {
-						t.Errorf("expected '%s' to be in form.Errors\n", err)
+						t.Errorf("test[%d] - expected '%s' to be in form.Errors\n", i, err)
 					}
 				}
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i ,errors.Cause(err))
 		}
 	}
 }

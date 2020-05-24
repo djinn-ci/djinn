@@ -18,14 +18,14 @@ func Test_Visibility(t *testing.T) {
 		{[]byte("foo"), Visibility(0), true},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		var vis Visibility
 
 		if err := vis.Scan(test.val); err != nil {
 			if test.shouldError {
 				continue
 			}
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

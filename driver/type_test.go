@@ -14,7 +14,7 @@ func Test_Type(t *testing.T) {
 		{[]byte("foo"), Type(0), true},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		var typ Type
 
 		if err := typ.Scan(test.val); err != nil {
@@ -25,7 +25,7 @@ func Test_Type(t *testing.T) {
 		}
 
 		if typ != test.expected {
-			t.Errorf("mismatch driverType\n\texpected = '%s'\n\t  actual = '%s'\n", test.expected, typ)
+			t.Errorf("test[%d] - expected = '%s' actual = '%s'\n", i, test.expected, typ)
 		}
 	}
 }

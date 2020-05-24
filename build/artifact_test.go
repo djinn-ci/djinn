@@ -27,7 +27,7 @@ var artifactCols = []string{
 	"sha256",
 }
 
-func artifactStore(t *testing.T) (ArtifactStore, sqlmock.Sqlmock, func() error) {
+func artifactStore(t *testing.T) (*ArtifactStore, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -49,7 +49,7 @@ func Test_ArtifactStoreAll(t *testing.T) {
 			[]model.Model{},
 		},
 		{
-			"SELECT * FROM build_artifacts WHERE (name LIKE $1)",
+			"SELECT * FROM build_artifacts WHERE (LOWER(name) LIKE $1)",
 			[]query.Option{model.Search("name", "example_artifact")},
 			sqlmock.NewRows(artifactCols),
 			[]driver.Value{"%example_artifact%"},
@@ -71,13 +71,13 @@ func Test_ArtifactStoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.Build = nil
@@ -113,13 +113,13 @@ func Test_ArtifactStoreGet(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.Build = nil

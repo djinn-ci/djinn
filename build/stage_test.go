@@ -25,7 +25,7 @@ var stageCols = []string{
 	"finished_at",
 }
 
-func stageStore(t *testing.T) (StageStore, sqlmock.Sqlmock, func() error) {
+func stageStore(t *testing.T) (*StageStore, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -55,13 +55,13 @@ func Test_StageStoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.Build = nil

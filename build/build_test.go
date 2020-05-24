@@ -33,7 +33,7 @@ var buildCols = []string{
 	"finished_at",
 }
 
-func store(t *testing.T) (Store, sqlmock.Sqlmock, func() error) {
+func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
 	db, mock, err := sqlmock.New()
 
 	if err != nil {
@@ -98,13 +98,13 @@ func Test_StoreAll(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -192,13 +192,13 @@ func Test_StoreGet(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -256,7 +256,7 @@ func Test_StorePaginate(t *testing.T) {
 			[]model.Model{},
 		},
 		{
-			"SELECT COUNT(*) FROM builds WHERE (user_id = $1)",
+			"SELECT COUNT(*) FROM builds WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows([]string{"*"}).AddRow(1),
 			[]driver.Value{},
@@ -271,13 +271,13 @@ func Test_StorePaginate(t *testing.T) {
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectPrepare(regexp.QuoteMeta(test.query)).ExpectQuery().WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.Paginate(1); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil

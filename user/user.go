@@ -110,8 +110,6 @@ func (u *User) JSON(addr string) map[string]interface{} {
 		"email":      u.Email,
 		"username":   u.Username,
 		"created_at": u.CreatedAt.Format(time.RFC3339),
-		"updated_at": u.UpdatedAt.Format(time.RFC3339),
-		"url":        addr + "/user",
 	}
 }
 

@@ -244,8 +244,6 @@ func (b *Build) JSON(addr string) map[string]interface{} {
 		"started_at":    nil,
 		"finished_at":   nil,
 		"url":           addr + b.Endpoint(),
-		"manifest_url":  addr + b.Endpoint("manifest"),
-		"output_url":    addr + b.Endpoint("output"),
 		"objects_url":   addr + b.Endpoint("objects"),
 		"variables_url": addr + b.Endpoint("variables"),
 		"jobs_url":      addr + b.Endpoint("jobs"),

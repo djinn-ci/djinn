@@ -49,7 +49,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 	%}
 	<div class="panel">
 		<div class="panel-body">
-			<div class="comment-header mb-10">
+			<div class="comment-header">
 				<div class="comment-title">
 					{%= template.RenderShortStatus(b.Status) %}
 					{% if b.Trigger.Comment != "" %}
@@ -58,18 +58,20 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 						<em class="muted">No build comment.</em>
 					{% endif %}
 				</div>
-				<strong>{%s b.Trigger.Data["username"] %}</strong>
-				{% switch b.Trigger.Type %}
-				{% case build.Manual %}
-					submitted
-				{% case build.Push %}
-					committed <a target="_blank" href="{%s b.Trigger.Data["url"] %}">{%s b.Trigger.Data["id"][:7] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
-				{% case build.Pull %}
-					{%s b.Trigger.Data["action"] %} pull request <a target="_blank" href="{%s b.Trigger.Data["url"] %}">#{%s b.Trigger.Data["id"] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
-				{% endswitch %}
-				{%= renderTimestamp(b.CreatedAt) %}
 			</div>
 			{% if b.Trigger.Comment != "" %}<pre>{%s comment %}</pre>{% endif %}
+		</div>
+		<div class="panel-footer">
+			<strong>{%s b.Trigger.Data["username"] %}</strong>
+			{% switch b.Trigger.Type %}
+			{% case build.Manual %}
+				submitted
+			{% case build.Push %}
+				committed <a target="_blank" href="{%s b.Trigger.Data["url"] %}">{%s b.Trigger.Data["id"][:7] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
+			{% case build.Pull %}
+				{%s b.Trigger.Data["action"] %} pull request <a target="_blank" href="{%s b.Trigger.Data["url"] %}">#{%s b.Trigger.Data["id"] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
+			{% endswitch %}
+			{%= renderTimestamp(b.CreatedAt) %}
 		</div>
 		{% if len(b.Tags) > 0 %}
 			<div class="panel-footer">
@@ -91,7 +93,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 
 {% func (p *Show) Body() %}
 	<div class="overflow">
-		<div class="col-25 pr-5 left">
+		<div class="col-25 col-left">
 			<div class="panel">
 				<table class="table">
 					<tr>
@@ -120,7 +122,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 							{% if !p.Build.FinishedAt.Valid || !p.Build.StartedAt.Valid %}
 								<span class="muted">--</span>
 							{% else %}
-								{%v durafmt.Parse(p.Build.FinishedAt.Time.Sub(p.Build.StartedAt.Time)).LimitFirstN(2) %}
+								{%v durafmt.Parse(p.Build.FinishedAt.Time.Sub(p.Build.StartedAt.Time)).LimitFirstN(1) %}
 							{% endif %}
 						</td>
 					</tr>
@@ -146,7 +148,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 				</div>
 			{% endfor %}
 		</div>
-		<div class="col-75 pl-5 right">
+		<div class="col-75 col-right">
 			{%= RenderTrigger(p.Build) %}
 			{% if p.Section != nil %}
 				{%= p.Section.Body() %}
@@ -238,7 +240,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 
 {% func (p *Job) Body() %}
 	<div class="overflow">
-		<div class="col-25 pr-5 left">
+		<div class="col-25 col-left">
 			<div class="panel">
 				<table class="table">
 					<tr>
@@ -278,7 +280,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 				</table>
 			</div>
 		</div>
-		<div class="col-75 pl-5 right">
+		<div class="col-75 col-right">
 			{%= RenderTrigger(p.Job.Build) %}
 			<div class="panel">
 				{% if p.Job.Output.Valid %}

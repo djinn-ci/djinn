@@ -45,7 +45,7 @@ type Index struct {
 							<th>STATUS</th>
 							<th>BUILD</th>
 							<th>NAMESPACE</th>
-							<th></th>
+							<th class="hide-mobile"></th>
 							<th></th>
 							<th></th>
 						</tr>
@@ -62,10 +62,17 @@ type Index struct {
 									<span class="muted">--</span>
 								{% endif %}
 							</td>
-							<td class="align-right">
-								{% for _, t := range b.Tags %}
-									<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
-								{% endfor %}
+							<td class="align-right hide-mobile">
+								{% if len(b.Tags) > 3 %}
+									{% for _, t := range b.Tags[:3] %}
+										<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
+									{% endfor %}
+									<a title="Build tags" class="pill pill-light" href="{%s b.Endpoint("tags") %}">...</a>
+								{% else %}
+									{% for _, t := range b.Tags %}
+										<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
+									{% endfor %}
+								{% endif %}
 							</td>
 							<td class="align-right">
 								{% if !b.FinishedAt.Valid || !b.StartedAt.Valid %}

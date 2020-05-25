@@ -53,19 +53,19 @@ func RenderSize(n int64) string {
 {% func RenderStatus(s runner.Status) %}
 	{% switch s %}
 		{% case runner.Queued %}
-			<span class="pill w-90 pill-dark">{% cat "../static/svg/hourglass.svg" %} Queued</span>
+			<span class="pill w-90 pill-dark">{% cat "../static/svg/hourglass.svg" %} <span>Queued</span></span>
 		{% case runner.Running %}
-			<span class="pill w-90 pill-blue">{% cat "../static/svg/timer.svg" %} Running</span>
+			<span class="pill w-90 pill-blue">{% cat "../static/svg/timer.svg" %} <span>Running</span></span>
 		{% case runner.Passed %}
-			<span class="pill w-90 pill-green">{% cat "../static/svg/check.svg" %} Passed</span>
+			<span class="pill w-90 pill-green">{% cat "../static/svg/check.svg" %} <span>Passed</span></span>
 		{% case runner.PassedWithFailures %}
-			<span class="pill w-90 pill-orange">{% cat "../static/svg/warning.svg" %} Passed</span>
+			<span class="pill w-90 pill-orange">{% cat "../static/svg/warning.svg" %} <span>Passed</span></span>
 		{% case runner.Failed %}
-			<span class="pill w-90 pill-red">{% cat "../static/svg/close.svg" %} Failed</span>
+			<span class="pill w-90 pill-red">{% cat "../static/svg/close.svg" %} <span>Failed</span></span>
 		{% case runner.Killed %}
-			<span class="pill w-90 pill-red">{% cat "../static/svg/stop.svg" %} Killed</span>
+			<span class="pill w-90 pill-red">{% cat "../static/svg/stop.svg" %} <span>Killed</span></span>
 		{% case runner.TimedOut %}
-			<span class="pill w-90 pill-gray">{% cat "../static/svg/stopwatch.svg" %} Timed Out</span>
+			<span class="pill w-90 pill-gray">{% cat "../static/svg/stopwatch.svg" %} <span>Timed Out</span></span>
 	{% endswitch %}
 {% endfunc %}
 

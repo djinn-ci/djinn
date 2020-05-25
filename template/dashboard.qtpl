@@ -136,50 +136,50 @@ func (l level) String() string {
 			<ul class="sidebar-nav">
 				<li class="sidebar-nav-header">MANAGE</li>
 				{% if Match(p.URL.Path, BuildsURI) %}
-					<li><a href="/" class="active">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
+					<li><a title="Builds" href="/" class="active">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
 				{% else %}
-					<li><a href="/">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
+					<li><a title="Builds" href="/">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
 				{% endif %}
 				{% if Match(p.URL.Path, NamespacesURI) %}
-					<li><a href="/namespaces" class="active">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
+					<li><a title="Namespaces" href="/namespaces" class="active">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
 				{% else %}
-					<li><a href="/namespaces">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
+					<li><a title="Namespaces" href="/namespaces">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
 				{% endif %}
 				{% if Match(p.URL.Path, RepositoriesURI) %}
-					<li><a href="/repos" class="active">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>
+					<li><a title="Repositories" href="/repos" class="active">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>
 				{% else %}
-					<li><a href="/repos">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>
+					<li><a title="Repositories" href="/repos">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>
 				{% endif %}
 				{% if Match(p.URL.Path, pattern("images")) %}
-					<li><a href="/images" class="active">{% cat "../static/svg/image.svg" %}<span>Images</span></a></li>
+					<li><a title="Images" href="/images" class="active">{% cat "../static/svg/image.svg" %}<span>Images</span></a></li>
 				{% else %}
-					<li><a href="/images">{% cat "../static/svg/image.svg" %}<span>Images</span></a></li>
+					<li><a title="Images" href="/images">{% cat "../static/svg/image.svg" %}<span>Images</span></a></li>
 				{% endif %}
 				{% if Match(p.URL.Path, pattern("objects")) %}
-					<li><a href="/objects" class="active">{% cat "../static/svg/upload.svg" %}<span>Objects</span></a></li>
+					<li><a title="Objects" href="/objects" class="active">{% cat "../static/svg/upload.svg" %}<span>Objects</span></a></li>
 				{% else %}
-					<li><a href="/objects">{% cat "../static/svg/upload.svg" %}<span>Objects</span></a></li>
+					<li><a title="Objects" href="/objects">{% cat "../static/svg/upload.svg" %}<span>Objects</span></a></li>
 				{% endif %}
 				{% if Match(p.URL.Path, pattern("variables")) %}
-					<li><a href="/variables" class="active">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
+					<li><a title="Variables" href="/variables" class="active">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
 				{% else %}
-					<li><a href="/variables">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
+					<li><a title="Variables" href="/variables">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
 				{% endif %}
 				{% if Match(p.URL.Path, pattern("keys")) %}
-					<li><a href="/keys" class="active">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
+					<li><a title="Keys" href="/keys" class="active">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
 				{% else %}
-					<li><a href="/keys">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
+					<li><a title="Keys" href="/keys">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
 				{% endif %}
 				<li class="sidebar-nav-header">ACCOUNT</li>
 				{% if Match(p.URL.Path, SettingsURI) %}
-					<li><a href="/settings" class="active">{% cat "../static/svg/settings.svg" %}<span>Settings</span></a></li>
+					<li><a title="Settings" href="/settings" class="active">{% cat "../static/svg/settings.svg" %}<span>Settings</span></a></li>
 				{% else %}
-					<li><a href="/settings">{% cat "../static/svg/settings.svg" %}<span>Settings</span></a></li>
+					<li><a title="Settings" href="/settings">{% cat "../static/svg/settings.svg" %}<span>Settings</span></a></li>
 				{% endif %}
 				<li>
 					<form method="POST" action="/logout">
 						{%s= string(p.CSRF) %}
-						<button type="submit">{% cat "../static/svg/logout.svg" %}<span>Logout</span></button>
+						<button title="Logout" type="submit">{% cat "../static/svg/logout.svg" %}<span>Logout</span></button>
 					</form>
 				</li>
 			</ul>

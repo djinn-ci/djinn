@@ -233,6 +233,65 @@
 	}
 
 	.dashboard-wrap {
+		margin: 0 auto;
+		max-width: 1300px;
 		padding: 20px;
+	}
+}
+@media (max-width: 1500px) {
+	.dashboard {
+		.sidebar {
+			width: 70px;
+
+			.sidebar-header {
+				padding: 15px;
+
+				.logo {
+					margin-top: 0px;
+					margin-right: 0px;
+				}
+
+				h2 {
+					display: none;
+				}
+			}
+
+			.sidebar-nav {
+				.sidebar-nav-header {
+					display: none;
+				}
+
+				li {
+					a, button {
+						text-align: center;
+
+						span {
+							display: none;
+						}
+					}
+				}
+			}
+		}
+
+		.dashboard-content {
+			margin-left: 70px;
+		}
+	}
+}
+@media (max-width: 1000px) {
+	.dashboard {
+		.dashboard-content {
+			.dashboard-header {
+				.dashboard-nav {
+					li {
+						a {
+							span {
+								display: none;
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }

@@ -63,9 +63,8 @@ import (
 					<tr>
 						<th>SOURCE</th>
 						<th>NAME</th>
-						<tH>SIZE</th>
-						<th>MD5</th>
-						<th>SHA256</th>
+						<th>SIZE</th>
+						<th>HASHES</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -75,22 +74,26 @@ import (
 							<td><a href="{%s a.Endpoint("download", a.Name) %}">{%s a.Name %}</a></td>
 							<td>{%s template.RenderSize(a.Size.Int64) %}</td>
 							<td>
-								<span class="code">
-									{% if len(a.MD5) == 0 %}
-										--
-									{% else %}
-										{%s fmt.Sprintf("%x", a.MD5) %}
-									{% endif %}
-								</span>
-							</td>
-							<td>
-								<span class="code">
-									{% if len(a.SHA256) == 0 %}
-										--
-									{% else %}
-										{%s fmt.Sprintf("%x", a.SHA256) %}
-									{% endif %}
-								</span>
+								<div>
+									<strong>MD5</strong>
+									<span class="code">
+										{% if len(a.MD5) == 0 %}
+											--
+										{% else %}
+											{%s fmt.Sprintf("%x", a.MD5) %}
+										{% endif %}
+									</span>
+								</div>
+								<div>
+									<strong>SHA256</strong>
+									<span class="code">
+										{% if len(a.SHA256) == 0 %}
+											--
+										{% else %}
+											{%s fmt.Sprintf("%x", a.SHA256) %}
+										{% endif %}
+									</span>
+								</div>
 							</td>
 						</tr>
 					{% endfor %}

@@ -175,7 +175,7 @@ func StreamRenderStatus(qw422016 *qt422016.Writer, s runner.Status) {
 </svg>
 `)
 //line template/render.qtpl:56
-		qw422016.N().S(` Queued</span> `)
+		qw422016.N().S(` <span>Queued</span></span> `)
 //line template/render.qtpl:57
 	case runner.Running:
 //line template/render.qtpl:57
@@ -187,7 +187,7 @@ func StreamRenderStatus(qw422016 *qt422016.Writer, s runner.Status) {
 </svg>
 `)
 //line template/render.qtpl:58
-		qw422016.N().S(` Running</span> `)
+		qw422016.N().S(` <span>Running</span></span> `)
 //line template/render.qtpl:59
 	case runner.Passed:
 //line template/render.qtpl:59
@@ -199,7 +199,7 @@ func StreamRenderStatus(qw422016 *qt422016.Writer, s runner.Status) {
 </svg>
 `)
 //line template/render.qtpl:60
-		qw422016.N().S(` Passed</span> `)
+		qw422016.N().S(` <span>Passed</span></span> `)
 //line template/render.qtpl:61
 	case runner.PassedWithFailures:
 //line template/render.qtpl:61
@@ -211,7 +211,7 @@ func StreamRenderStatus(qw422016 *qt422016.Writer, s runner.Status) {
 </svg>
 `)
 //line template/render.qtpl:62
-		qw422016.N().S(` Passed</span> `)
+		qw422016.N().S(` <span>Passed</span></span> `)
 //line template/render.qtpl:63
 	case runner.Failed:
 //line template/render.qtpl:63
@@ -223,7 +223,7 @@ func StreamRenderStatus(qw422016 *qt422016.Writer, s runner.Status) {
 </svg>
 `)
 //line template/render.qtpl:64
-		qw422016.N().S(` Failed</span> `)
+		qw422016.N().S(` <span>Failed</span></span> `)
 //line template/render.qtpl:65
 	case runner.Killed:
 //line template/render.qtpl:65
@@ -235,7 +235,7 @@ func StreamRenderStatus(qw422016 *qt422016.Writer, s runner.Status) {
 </svg>
 `)
 //line template/render.qtpl:66
-		qw422016.N().S(` Killed</span> `)
+		qw422016.N().S(` <span>Killed</span></span> `)
 //line template/render.qtpl:67
 	case runner.TimedOut:
 //line template/render.qtpl:67
@@ -247,7 +247,7 @@ func StreamRenderStatus(qw422016 *qt422016.Writer, s runner.Status) {
 </svg>
 `)
 //line template/render.qtpl:68
-		qw422016.N().S(` Timed Out</span> `)
+		qw422016.N().S(` <span>Timed Out</span></span> `)
 //line template/render.qtpl:69
 	}
 //line template/render.qtpl:69

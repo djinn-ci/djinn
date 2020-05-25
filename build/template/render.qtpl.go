@@ -201,96 +201,96 @@ func StreamRenderArtifactTable(qw422016 *qt422016.Writer, aa []*build.Artifact, 
 //line build/template/render.qtpl:60
 		} else {
 //line build/template/render.qtpl:60
-			qw422016.N().S(` <table class="table"> <thead> <tr> <th>SOURCE</th> <th>NAME</th> <tH>SIZE</th> <th>MD5</th> <th>SHA256</th> </tr> </thead> <tbody> `)
-//line build/template/render.qtpl:72
+			qw422016.N().S(` <table class="table"> <thead> <tr> <th>SOURCE</th> <th>NAME</th> <th>SIZE</th> <th>HASHES</th> </tr> </thead> <tbody> `)
+//line build/template/render.qtpl:71
 			for _, a := range aa {
-//line build/template/render.qtpl:72
+//line build/template/render.qtpl:71
 				qw422016.N().S(` <tr> <td><span class="code">`)
-//line build/template/render.qtpl:74
+//line build/template/render.qtpl:73
 				qw422016.E().S(a.Source)
-//line build/template/render.qtpl:74
+//line build/template/render.qtpl:73
 				qw422016.N().S(`</span></td> <td><a href="`)
-//line build/template/render.qtpl:75
+//line build/template/render.qtpl:74
 				qw422016.E().S(a.Endpoint("download", a.Name))
-//line build/template/render.qtpl:75
+//line build/template/render.qtpl:74
 				qw422016.N().S(`">`)
-//line build/template/render.qtpl:75
+//line build/template/render.qtpl:74
 				qw422016.E().S(a.Name)
-//line build/template/render.qtpl:75
+//line build/template/render.qtpl:74
 				qw422016.N().S(`</a></td> <td>`)
-//line build/template/render.qtpl:76
+//line build/template/render.qtpl:75
 				qw422016.E().S(template.RenderSize(a.Size.Int64))
-//line build/template/render.qtpl:76
-				qw422016.N().S(`</td> <td> <span class="code"> `)
-//line build/template/render.qtpl:79
+//line build/template/render.qtpl:75
+				qw422016.N().S(`</td> <td> <div> <strong>MD5</strong> <span class="code"> `)
+//line build/template/render.qtpl:80
 				if len(a.MD5) == 0 {
-//line build/template/render.qtpl:79
+//line build/template/render.qtpl:80
 					qw422016.N().S(` -- `)
-//line build/template/render.qtpl:81
-				} else {
-//line build/template/render.qtpl:81
-					qw422016.N().S(` `)
 //line build/template/render.qtpl:82
+				} else {
+//line build/template/render.qtpl:82
+					qw422016.N().S(` `)
+//line build/template/render.qtpl:83
 					qw422016.E().S(fmt.Sprintf("%x", a.MD5))
-//line build/template/render.qtpl:82
+//line build/template/render.qtpl:83
 					qw422016.N().S(` `)
-//line build/template/render.qtpl:83
+//line build/template/render.qtpl:84
 				}
-//line build/template/render.qtpl:83
-				qw422016.N().S(` </span> </td> <td> <span class="code"> `)
-//line build/template/render.qtpl:88
+//line build/template/render.qtpl:84
+				qw422016.N().S(` </span> </div> <div> <strong>SHA256</strong> <span class="code"> `)
+//line build/template/render.qtpl:90
 				if len(a.SHA256) == 0 {
-//line build/template/render.qtpl:88
+//line build/template/render.qtpl:90
 					qw422016.N().S(` -- `)
-//line build/template/render.qtpl:90
+//line build/template/render.qtpl:92
 				} else {
-//line build/template/render.qtpl:90
+//line build/template/render.qtpl:92
 					qw422016.N().S(` `)
-//line build/template/render.qtpl:91
+//line build/template/render.qtpl:93
 					qw422016.E().S(fmt.Sprintf("%x", a.SHA256))
-//line build/template/render.qtpl:91
+//line build/template/render.qtpl:93
 					qw422016.N().S(` `)
-//line build/template/render.qtpl:92
+//line build/template/render.qtpl:94
 				}
-//line build/template/render.qtpl:92
-				qw422016.N().S(` </span> </td> </tr> `)
-//line build/template/render.qtpl:96
+//line build/template/render.qtpl:94
+				qw422016.N().S(` </span> </div> </td> </tr> `)
+//line build/template/render.qtpl:99
 			}
-//line build/template/render.qtpl:96
+//line build/template/render.qtpl:99
 			qw422016.N().S(` </tbody> </table> `)
-//line build/template/render.qtpl:99
+//line build/template/render.qtpl:102
 		}
-//line build/template/render.qtpl:99
+//line build/template/render.qtpl:102
 		qw422016.N().S(` `)
-//line build/template/render.qtpl:100
+//line build/template/render.qtpl:103
 	}
-//line build/template/render.qtpl:100
+//line build/template/render.qtpl:103
 	qw422016.N().S(` `)
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 }
 
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 func WriteRenderArtifactTable(qq422016 qtio422016.Writer, aa []*build.Artifact, uri, search string) {
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 	StreamRenderArtifactTable(qw422016, aa, uri, search)
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 }
 
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 func RenderArtifactTable(aa []*build.Artifact, uri, search string) string {
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 	WriteRenderArtifactTable(qb422016, aa, uri, search)
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 	qs422016 := string(qb422016.B)
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 	return qs422016
-//line build/template/render.qtpl:101
+//line build/template/render.qtpl:104
 }

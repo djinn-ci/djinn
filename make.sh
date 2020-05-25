@@ -33,6 +33,7 @@ yarn_() {
 }
 
 ui() {
+	yarn_
 	if [ -z "$1" ]; then
 		find . -name template -type d -exec qtc -dir {} \;
 	else
@@ -48,7 +49,6 @@ ui() {
 		fi
 		qtc -dir "$dir"
 	fi
-	yarn_
 }
 
 build() {

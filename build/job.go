@@ -94,7 +94,9 @@ func (j *Job) Bind(mm ...model.Model) {
 		case *Stage:
 			j.Stage = m.(*Stage)
 		case *Artifact:
-			j.Artifacts = append(j.Artifacts, m.(*Artifact))
+			a := m.(*Artifact)
+			a.Build = j.Build
+			j.Artifacts = append(j.Artifacts, a)
 		}
 	}
 }

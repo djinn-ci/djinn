@@ -149,11 +149,12 @@ func (a *Artifact) JSON(addr string) map[string]interface{} {
 // Endpoint returns the endpoint for the current Artifact. If the bound Build
 // model is nil, then an empty string is returned, otherwise the endpoint is
 // prefixed with the Build's endpoint.
-func (a *Artifact) Endpoint(_ ...string) string {
+func (a *Artifact) Endpoint(uris ...string) string {
 	if a.Build == nil || a.Build.IsZero() {
 		return ""
 	}
-	return a.Build.Endpoint("artifacts", strconv.FormatInt(a.ID, 10))
+	base := []string{"artifacts", strconv.FormatInt(a.ID, 10)}
+	return a.Build.Endpoint(append(base, uris...)...)
 }
 
 func (a *Artifact) Values() map[string]interface{} {

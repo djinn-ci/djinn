@@ -162,8 +162,8 @@ func (r *Router) Init(h web.Handler) {
 		Oauth2Providers: r.Providers,
 	}
 	r.job = handler.Job{
-		Handler:   h,
-		Loaders:   loaders,
+		Handler: h,
+		Loaders: loaders,
 	}
 	r.tag = handler.Tag{Handler: h}
 }

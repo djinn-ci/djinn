@@ -148,9 +148,7 @@ func (a *Artifact) JSON(addr string) map[string]interface{} {
 
 // Endpoint returns the endpoint for the current Artifact. If the bound Build
 // model is nil, then an empty string is returned, otherwise the endpoint is
-// prefixed with the Build's endpoint, for example,
-//
-//   /b/lenny.belardo/13/artifacts/1
+// prefixed with the Build's endpoint.
 func (a *Artifact) Endpoint(_ ...string) string {
 	if a.Build == nil || a.Build.IsZero() {
 		return ""
@@ -196,15 +194,15 @@ func (s *ArtifactStore) Bind(mm ...model.Model) {
 // that are bound to the ArtifactStore will be applied via model.Where during
 // querying.
 func (s *ArtifactStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
-	ss, err := s.All(query.Where(key, "IN", vals...))
+	aa, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
 	for i := range vals {
-		for _, s := range ss {
-			load(i, s)
+		for _, a := range aa {
+			load(i, a)
 		}
 	}
 	return nil

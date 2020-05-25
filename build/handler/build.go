@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/build"
@@ -29,7 +28,6 @@ import (
 
 	"github.com/andrewpillar/query"
 
-	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 
 	"github.com/go-redis/redis"
@@ -484,29 +482,4 @@ func (h Build) Submit(b *build.Build, srv *machinery.Server) error {
 
 	_, err = srv.SendTask(b.Signature())
 	return errors.Err(err)
-}
-
-func (h Build) JobGet(r *http.Request) (*build.Job, error) {
-	b := Model(r)
-
-	if err := build.LoadRelations(h.Loaders, b); err != nil {
-		return &build.Job{}, errors.Err(err)
-	}
-
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["job"], 10, 64)
-
-	j, err := build.NewJobStore(h.DB, b).Get(query.Where("id", "=", id))
-
-	if err != nil {
-		return j, errors.Err(err)
-	}
-
-	if err := h.Stages.Load("id", []interface{}{j.StageID}, model.Bind("stage_id", "id", j)); err != nil {
-		return j, errors.Err(err)
-	}
-
-	err = h.Artifacts.Load("job_id", []interface{}{j.ID}, model.Bind("id", "job_id", j))
-	return j, errors.Err(err)
 }

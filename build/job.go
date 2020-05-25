@@ -51,7 +51,7 @@ var (
 	jobTable     = "build_jobs"
 	jobRelations = map[string]model.RelationFunc{
 		"build_stage":    model.Relation("stage_id", "id"),
-		"build_artifact": model.Relation("job_id", "id"),
+		"build_artifact": model.Relation("id", "job_id"),
 	}
 )
 

@@ -8,20 +8,19 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[Artifact-1]
-	_ = x[Build-2]
-	_ = x[Collaborator-3]
-	_ = x[Invite-4]
-	_ = x[Image-5]
-	_ = x[Namespace-6]
-	_ = x[Object-7]
-	_ = x[Variable-8]
-	_ = x[Key-9]
+	_ = x[Build-1]
+	_ = x[Collaborator-2]
+	_ = x[Invite-3]
+	_ = x[Image-4]
+	_ = x[Namespace-5]
+	_ = x[Object-6]
+	_ = x[Variable-7]
+	_ = x[Key-8]
 }
 
-const _Resource_name = "artifactbuildcollaboratorinviteimagenamespaceobjectvariablekey"
+const _Resource_name = "buildcollaboratorinviteimagenamespaceobjectvariablekey"
 
-var _Resource_index = [...]uint8{0, 8, 13, 25, 31, 36, 45, 51, 59, 62}
+var _Resource_index = [...]uint8{0, 5, 17, 23, 28, 37, 43, 51, 54}
 
 func (i Resource) String() string {
 	i -= 1

@@ -45,15 +45,14 @@ const (
 )
 
 const (
-	Artifact Resource = 1 + iota // artifact
-	Build                        // build
-	Collaborator                 // collaborator
-	Invite                       // invite
-	Image                        // image
-	Namespace                    // namespace
-	Object                       // object
-	Variable                     // variable
-	Key                          // key
+	Build        Resource = 1 + iota // build
+	Collaborator                     // collaborator
+	Invite                           // invite
+	Image                            // image
+	Namespace                        // namespace
+	Object                           // object
+	Variable                         // variable
+	Key                              // key
 )
 
 var (
@@ -64,7 +63,6 @@ var (
 	}
 
 	Resources = []Resource{
-		Artifact,
 		Build,
 		Collaborator,
 		Invite,
@@ -82,7 +80,6 @@ var (
 	}
 
 	resources map[string]Resource = map[string]Resource{
-		"artifact":     Artifact,
 		"build":        Build,
 		"collaborator": Collaborator,
 		"invite":       Invite,

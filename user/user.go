@@ -41,6 +41,7 @@ var (
 	table             = "users"
 	collaboratorTable = "collaborators"
 
+    MaxAge  = 5*365*86400
 	ErrAuth = errors.New("invalid credentials")
 )
 

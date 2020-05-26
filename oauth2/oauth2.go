@@ -11,7 +11,7 @@ type Provider interface {
 	// Auth should perform the authentication flow, and token exchange of an
 	// OAuth2 client. This should return the access token, refresh token, and
 	// user ID of the user from the provider itself.
-	Auth(context.Context, string) ([]byte, []byte, int64, error)
+	Auth(context.Context, string) ([]byte, []byte, User, error)
 
 	// AuthURL should return the URL that we should take the user to in order
 	// to begin the web authentication flow.
@@ -31,6 +31,15 @@ type Provider interface {
 	// Secret should return the secret used to verify the webhooks that are
 	// received from the provider.
 	Secret() []byte
+}
+
+// User represents the bare minimum information about the user from the
+// provider. This is used for creating a user account on the fly if one does
+// not currently exist.
+type User struct {
+	ID       int64
+	Email    string
+	Username string
 }
 
 // Repos is a simple struct that represents a paginated response from a

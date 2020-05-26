@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -417,6 +418,13 @@ resp:
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// AuthClient will authenticate the current OAuth2 provider as a client for the
+// current user. If there is no current user then they will either be looked up
+// in the database via the name of the provider, and the ID of the user for that
+// provider. If this lookup fails, then a user is created using the information
+// from that provider. The password generated for the user will be a random 16
+// byte slice, this will never be disclosed to the user, and is there simply
+// for security measures.
 func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -437,13 +445,74 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	access, refresh, userId, err := prv.Auth(r.Context(), q.Get("code"))
+	access, refresh, providerUser, err := prv.Auth(r.Context(), q.Get("code"))
 
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-		h.RedirectBack(w, r)
+		h.Redirect(w, r, "/settings")
 		return
+	}
+
+	// If the user is not logged in, then try and find them in the database,
+	// otherwise create the user using the information about them from the
+	// provider they just authenticated against.
+	if u.IsZero() {
+		u, err = h.Users.Get(
+			query.WhereQuery("id", "=", provider.Select(
+					"user_id",
+					query.Where("provider_user_id", "=", providerUser.ID),
+					query.Where("name", "=", name),
+			)),
+			query.OrWhere("email", "=", providerUser.Email),
+		)
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
+			h.RedirectBack(w, r)
+			return
+		}
+
+		if u.IsZero() {
+			u = &user.User{
+				Email:    providerUser.Email,
+				Username: providerUser.Username,
+				Password: make([]byte, 16),
+			}
+
+			if _, err := rand.Read(u.Password); err != nil {
+				log.Error.Println(errors.Err(err))
+				sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
+				h.Redirect(w, r, "/settings")
+				return
+			}
+
+			if err := h.Users.Create(u); err != nil {
+				log.Error.Println(errors.Err(err))
+				sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
+				h.Redirect(w, r, "/settings")
+				return
+			}
+		}
+
+		encoded, err := h.SecureCookie.Encode("user", strconv.FormatInt(u.ID, 10))
+
+		if err != nil {
+			log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
+			h.Redirect(w, r, "/settings")
+			return
+		}
+
+		http.SetCookie(w, &http.Cookie{
+			Name:     "user",
+			HttpOnly: true,
+			MaxAge:   user.MaxAge,
+			Expires:  time.Now().Add(time.Duration(user.MaxAge)*time.Second),
+			Value:    encoded,
+			Path:     "/",
+		})
 	}
 
 	providers := provider.NewStore(h.DB, u)
@@ -453,7 +522,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-		h.RedirectBack(w, r)
+		h.Redirect(w, r, "/settings")
 		return
 	}
 
@@ -462,7 +531,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p.ProviderUserID = sql.NullInt64{
-		Int64: userId,
+		Int64: providerUser.ID,
 		Valid: true,
 	}
 	p.Name = name
@@ -479,7 +548,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	if err := fn(p); err != nil {
 		log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-		h.RedirectBack(w, r)
+		h.Redirect(w, r, "/settings")
 		return
 	}
 	sess.AddFlash(template.Success("Successfully connected to "+name), "alert")

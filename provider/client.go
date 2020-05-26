@@ -11,6 +11,7 @@ import (
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/oauth2"
 
 	xoauth2 "golang.org/x/oauth2"
 )
@@ -79,6 +80,7 @@ func parseLink(link string) map[string][]string {
 		for i := 0; i < len(part) - 1; i++ {
 			b := part[i]
 
+			// We hit the raw URL, so set the dst to point to the raw slice.
 			if b == '<' {
 				scan = true
 				dst = &raw
@@ -89,9 +91,14 @@ func parseLink(link string) map[string][]string {
 				continue
 			}
 			if b == ';' {
+				// Make sure we're in bounds of what we're scanning when getting
+				// the rel attribute of the value.
 				if i + 6 > len(part) - 1 {
 					continue
 				}
+
+				// Check to see if the next part is the rel attribute, if so
+				// then we skip ahead to the actual value of the attribute.
 				if part[i+2:i+5] == "rel" {
 					scan = true
 					dst = &rel
@@ -99,6 +106,8 @@ func parseLink(link string) map[string][]string {
 					continue
 				}
 			}
+			// Put whatever we have into the destination byte slice pointed to
+			// via dst. This will either be the raw URL or the value of rel.
 			if scan {
 				(*dst) = append((*dst), b)
 			}
@@ -109,15 +118,16 @@ func parseLink(link string) map[string][]string {
 }
 
 // Auth performs the final stage of web flow authentication for an OAuth2
-// client. This will return the access, and refresh token. The returned user ID
-// is retrieved via a callout to the APIs /user endpoint, this of course
-// assumes that the API provides said endpoint, and returns a JSON response
-// contains an integer for the user's ID.
-func (c client) Auth(ctx context.Context, code string) ([]byte, []byte, int64, error) {
+// client. This will return the access, and refresh token, and a struct of the
+// user details from the provider we authenticated against. This user
+// information is retrieved by calling out to the API's /user endpoint.
+func (c client) Auth(ctx context.Context, code string) ([]byte, []byte, oauth2.User, error) {
+	u := oauth2.User{}
+
 	tok, err := c.Config.Exchange(ctx, code)
 
 	if err != nil {
-		return nil, nil, 0, errors.Err(err)
+		return nil, nil, u, errors.Err(err)
 	}
 
 	access, _ := crypto.Encrypt([]byte(tok.AccessToken))
@@ -126,22 +136,17 @@ func (c client) Auth(ctx context.Context, code string) ([]byte, []byte, int64, e
 	resp, err := c.Get(tok.AccessToken, c.Endpoint+"/user")
 
 	if err != nil {
-		return nil, nil, 0, errors.Err(err)
+		return nil, nil, u, errors.Err(err)
 	}
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, nil, 0, errors.New("unexpected http status: "+resp.Status)
+		return nil, nil, u, errors.New("unexpected http status: "+resp.Status)
 	}
 
-	u := struct{
-		ID int64
-	}{}
-
-	dec := json.NewDecoder(resp.Body)
-	dec.Decode(&u)
-	return access, refresh, u.ID, nil
+	json.NewDecoder(resp.Body).Decode(&u)
+	return access, refresh, u, nil
 }
 
 // AuthURL returns the full redirect URL to begin the web flow auth.

@@ -30,8 +30,6 @@ type User struct {
 	Providers map[string]oauth2.Provider
 }
 
-var maxAge = 5*365*86400
-
 func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -98,12 +96,30 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
 	if r.Method == "GET" {
+		order := make([]string, 0, len(h.Providers))
+
+		for name := range h.Providers {
+			order = append(order, name)
+		}
+
+		sort.Strings(order)
+
+		pp := make([]*provider.Provider, 0, len(h.Providers))
+
+		for _, name := range order {
+			pp = append(pp, &provider.Provider{
+				Name:    name,
+				AuthURL: h.Providers[name].AuthURL(),
+			})
+		}
+
 		p := &usertemplate.Login{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
 				Errors: h.FormErrors(sess),
 				Fields: h.FormFields(sess),
 			},
+			Providers: pp,
 		}
 		save(r, w)
 		web.HTML(w, template.Render(p), http.StatusOK)
@@ -155,8 +171,8 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "user",
 		HttpOnly: true,
-		MaxAge:   maxAge,
-		Expires:  time.Now().Add(time.Duration(maxAge)*time.Second),
+		MaxAge:   user.MaxAge,
+		Expires:  time.Now().Add(time.Duration(user.MaxAge)*time.Second),
 		Value:    encoded,
 	})
 	h.Redirect(w, r, "/")

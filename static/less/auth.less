@@ -21,6 +21,7 @@ button {
 h1 {
 	font-weight: normal;
 }
+@import "variables.less";
 @import "button.less";
 @import "logo.less";
 .auth-page {
@@ -83,6 +84,42 @@ h1 {
 			.text:focus {
 				border: solid 1px rgba(255, 255, 255, 0.5);
 			}
+
+			.btn {
+				color: #fff;
+				width: 100%;
+				display: block;
+				text-align: center;
+				box-sizing: border-box;
+			}
 		}
 	}
+}
+.provider-btn {
+	svg {
+		margin-right: 5px;
+		fill: #fff;
+		vertical-align: middle;
+	}
+
+	span {
+		display: inline-block;
+		vertical-align: middle;
+	}
+
+}
+.provider-btn:hover {
+	text-decoration: none;
+}
+.provider-github {
+	background: #24292e;
+}
+.provider-github:hover {
+	background: #353a3f;
+}
+.provider-gitlab {
+	background: #fa7035;
+}
+.provider-gitlab:hover {
+	background: #e65328;
 }

@@ -1,11 +1,21 @@
 {%
-import "github.com/andrewpillar/thrall/template"
+import (
+	"github.com/andrewpillar/thrall/provider"
+	"github.com/andrewpillar/thrall/template"
+)
 %}
 
 {% code
 type Login struct {
 	template.BasePage
 	template.Form
+
+	Providers []*provider.Provider
+}
+
+var providerNames = map[string]string{
+	"github": "GitHub",
+	"gitlab": "GitLab",
 }
 %}
 
@@ -46,6 +56,19 @@ type Login struct {
 				<div class="input-field">
 					<button type="submit" class="btn btn-primary">Login</button>
 				</div>
+				{% for _, prv := range p.Providers %}
+					<div class="input-field">
+						<a href="{%s prv.AuthURL %}" class="btn provider-btn provider-{%s prv.Name %}">
+							{% switch prv.Name %}
+							{% case "github" %}
+								{% cat "../../static/svg/github.svg" %}
+							{% case "gitlab" %}
+								{% cat "../../static/svg/gitlab.svg" %}
+							{% endswitch %}
+							<span>Login with {%s providerNames[prv.Name] %}</span>
+						</a>
+					</div>
+				{% endfor %}
 				<div class="input-field">Don't have an account? <a href="/register">Register</a></div>
 			</form>
 		</div>

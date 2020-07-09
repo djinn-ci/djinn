@@ -1,17 +1,18 @@
 package object
 
 import (
+	"bytes"
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -21,6 +22,14 @@ import (
 
 	"github.com/jmoiron/sqlx"
 )
+
+type testQuery struct {
+	query  string
+	opts   []query.Option
+	rows   *sqlmock.Rows
+	args   []driver.Value
+	models []database.Model
+}
 
 var (
 	objectCols = []string{
@@ -77,21 +86,21 @@ func Test_StoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM objects WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{1, 1, 1},
-			[]model.Model{userModel},
+			[]database.Model{userModel},
 		},
 		{
 			"SELECT * FROM objects WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{1},
-			[]model.Model{namespaceModel},
+			[]database.Model{namespaceModel},
 		},
 	}
 
@@ -119,7 +128,7 @@ func Test_StoreIndex(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{"%aperture%"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 	}
 
@@ -131,13 +140,13 @@ func Test_StoreIndex(t *testing.T) {
 		paginate := strings.Replace(test.query, "*", "COUNT(*)", 1)
 		paginateRows := sqlmock.NewRows([]string{"*"}).AddRow(1)
 
-		mock.ExpectPrepare(regexp.QuoteMeta(paginate)).ExpectQuery().WillReturnRows(paginateRows)
+		mock.ExpectQuery(regexp.QuoteMeta(paginate)).WillReturnRows(paginateRows)
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, _, err := store.Index(vals[i], test.opts...); err != nil {
-			t.Fatalf("test[%d] - %s\n", i ,errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -155,21 +164,21 @@ func Test_StoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM objects WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{1, 1, 1},
-			[]model.Model{userModel},
+			[]database.Model{userModel},
 		},
 		{
 			"SELECT * FROM objects WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{1},
-			[]model.Model{namespaceModel},
+			[]database.Model{namespaceModel},
 		},
 	}
 
@@ -191,36 +200,14 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	o := &Object{}
+	store.blockStore = block.NewNull()
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, table)
+	mock.ExpectQuery(
+		"^INSERT INTO objects \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(o); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if o.ID != id {
-		t.Fatalf("object id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, o.ID)
-	}
-}
-
-func Test_StoreUpdate(t *testing.T) {
-	store, mock, close_ := store(t)
-	defer close_()
-
-	o := &Object{ID: 10}
-
-	expected := fmt.Sprintf(updateFmt, table)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(o.ID, 1))
-
-	if err := store.Update(o); err != nil {
-		t.Fatal(errors.Cause(err))
+	if _, err := store.Create("some-script", "1a2b3c4d", "text/plain", bytes.NewBufferString("#!/bin/sh")); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -228,17 +215,13 @@ func Test_StoreDelete(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	oo := []*Object{
-		&Object{ID: 1},
-		&Object{ID: 2},
-		&Object{ID: 3},
-	}
+	store.blockStore = block.NewNull()
 
-	expected := fmt.Sprintf(deleteFmt, table)
+	mock.ExpectExec(
+		"^DELETE FROM objects WHERE \\(id IN \\((.+)\\)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(oo...); err != nil {
-		t.Fatal(errors.Cause(err))
+	if err := store.Delete(1, "1a2b3c4d"); err != nil {
+		t.Errorf("unexpected Delete error: %s\n", errors.Cause(err))
 	}
 }

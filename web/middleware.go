@@ -3,14 +3,15 @@ package web
 import (
 	"context"
 	"database/sql"
+	"encoding/hex"
 	"net/http"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/user"
@@ -24,9 +25,12 @@ import (
 
 type Middleware struct {
 	Handler
+
+	Users  *user.Store
+	Tokens *oauth2.TokenStore
 }
 
-type modelFunc func(int64) (model.Model, error)
+type databaseFunc func(int64) (database.Model, error)
 
 type errHandler func(http.ResponseWriter, string, int)
 
@@ -38,10 +42,10 @@ type Gate func(u *user.User, r *http.Request) (*http.Request, bool, error)
 
 // CanAccessResource returns whether the current user has access to the given
 // resource. The resource's ID will be taken from the request based on the
-// name, this is passed back to the modelFunc which will return the underlying
-// model for that resource. The name of the resource is also used to check
+// name, this is passed back to the databaseFunc which will return the underlying
+// database for that resource. The name of the resource is also used to check
 // against the permissions of that user.
-func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get modelFunc) (bool, error) {
+func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFunc) (bool, error) {
 	u := r.Context().Value("user").(*user.User)
 
 	var ok bool
@@ -57,6 +61,12 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get modelFunc)
 
 	if !ok {
 		return false, nil
+	}
+
+	base := filepath.Base(r.URL.Path)
+
+	if base == "/" || base == "create" || base == name + "s" {
+		return ok, nil
 	}
 
 	vars := mux.Vars(r)
@@ -103,14 +113,76 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get modelFunc)
 	return root.AccessibleBy(u), nil
 }
 
+func (h Middleware) userFromCookie(r *http.Request) (*user.User, error) {
+	c, err := r.Cookie("user")
+
+	if err != nil {
+		if err == http.ErrNoCookie {
+			return &user.User{}, nil
+		}
+		return &user.User{}, errors.Err(err)
+	}
+
+	var s string
+
+	if err := h.SecureCookie.Decode("user", c.Value, &s); err != nil {
+		return &user.User{}, errors.Err(err)
+	}
+
+	id, err := strconv.ParseInt(s, 10, 64)
+
+	if err != nil {
+		return &user.User{}, nil
+	}
+
+	u, err := h.Users.Get(query.Where("id", "=", id))
+
+	if u.DeletedAt.Valid {
+		return &user.User{}, nil
+	}
+	return u, errors.Err(err)
+}
+
+func (h Middleware) userFromToken(r *http.Request) (*user.User, *oauth2.Token, error) {
+	prefix := "Bearer "
+	tok := r.Header.Get("Authorization")
+
+	if !strings.HasPrefix(tok, prefix) {
+		return &user.User{}, &oauth2.Token{}, nil
+	}
+
+	b, err := hex.DecodeString(tok[len(prefix):])
+
+	if err != nil {
+		return &user.User{}, &oauth2.Token{}, errors.Err(err)
+	}
+
+	t, err := h.Tokens.Get(query.Where("token", "=", b))
+
+	if err != nil {
+		return &user.User{}, t, errors.Err(err)
+	}
+
+	if t.IsZero() {
+		return &user.User{}, t, nil
+	}
+
+	u, err := h.Users.Get(query.Where("id", "=", t.UserID))
+
+	if u.DeletedAt.Valid {
+		return &user.User{}, t, nil
+	}
+	return u, t, errors.Err(err)
+}
+
 // Get the currently authenticated user from the request. Check for token
 // auth first, then fallback to cookie.
 func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bool) {
 	if _, ok := r.Header["Authorization"]; ok {
-		u, t, err := h.UserToken(r)
+		u, t, err := h.userFromToken(r)
 
 		if err != nil {
-			log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 			return u, false
 		}
 
@@ -120,7 +192,7 @@ func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bo
 		return u, !u.IsZero()
 	}
 
-	u, err := h.UserCookie(r)
+	u, err := h.userFromCookie(r)
 
 	if err != nil {
 		cause := errors.Cause(err)
@@ -134,7 +206,7 @@ func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bo
 			}
 			http.SetCookie(w, c)
 		} else {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 		}
 		return u, false
 	}
@@ -228,7 +300,7 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				r, ok, err = g(u, r)
 
 				if err != nil {
-					log.Error.Println(errors.Err(err))
+					h.Log.Error.Println(errors.Err(err))
 					errh(w, "Something went wrong", http.StatusInternalServerError)
 					return
 				}

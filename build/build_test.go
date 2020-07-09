@@ -2,15 +2,16 @@ package build
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -52,49 +53,49 @@ func Test_StoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM builds WHERE (id IN (SELECT build_id FROM build_tags WHERE (name LIKE $1)))",
 			[]query.Option{WhereSearch("borealis")},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{"%borealis%"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM builds WHERE (status IN ($1, $2))",
 			[]query.Option{WhereStatus("passed")},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{"passed", "passed_with_failures"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM builds WHERE (status IN ($1))",
 			[]query.Option{WhereStatus("queued")},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{"queued"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM builds WHERE (id IN (SELECT build_id FROM build_tags WHERE (name = $1)))",
 			[]query.Option{WhereTag("borealis")},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{"borealis"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM builds WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{1},
-			[]model.Model{&namespace.Namespace{ID: 1}},
+			[]database.Model{&namespace.Namespace{ID: 1}},
 		},
 		{
 			"SELECT * FROM builds WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3",
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{1, 1, 1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 	}
 
@@ -104,7 +105,7 @@ func Test_StoreAll(t *testing.T) {
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -122,21 +123,21 @@ func Test_StoreIndex(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{"running"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM builds WHERE (id IN (SELECT build_id FROM build_tags WHERE (name LIKE $1))",
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{"%ravenholm%"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM builds WHERE (id IN (SELECT build_id FROM build_tags WHERE (name = $1))",
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{"ravenholm"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 	}
 
@@ -150,13 +151,13 @@ func Test_StoreIndex(t *testing.T) {
 		paginate := strings.Replace(test.query, "*", "COUNT(*)", 1)
 		paginateRows := sqlmock.NewRows([]string{"*"}).AddRow(1)
 
-		mock.ExpectPrepare(regexp.QuoteMeta(paginate)).ExpectQuery().WillReturnRows(paginateRows)
+		mock.ExpectQuery(regexp.QuoteMeta(paginate)).WillReturnRows(paginateRows)
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, _, err := store.Index(vals[i], test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -174,21 +175,21 @@ func Test_StoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM builds WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{1, 1, 1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM builds WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(buildCols),
 			[]driver.Value{1},
-			[]model.Model{&namespace.Namespace{ID: 1}},
+			[]database.Model{&namespace.Namespace{ID: 1}},
 		},
 	}
 
@@ -198,7 +199,7 @@ func Test_StoreGet(t *testing.T) {
 		store.Bind(test.models...)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -210,37 +211,98 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	b := &Build{}
-
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, table)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(b); err != nil {
-		t.Fatal(errors.Cause(err))
+	tests := []struct{
+		models   []database.Model
+		manifest config.Manifest
+		trigger  *Trigger
+		tags     []string
+		queries  []string
+		rows     []*sqlmock.Rows
+	}{
+		{
+			[]database.Model{},
+			config.Manifest{Driver: map[string]string{"type": "qemu", "image": "centos/7"}},
+			&Trigger{
+				Type: Manual,
+				Data: map[string]string{
+					"email":    "me@example.com",
+					"username": "me",
+				},
+			},
+			[]string{"centos/7"},
+			[]string{
+				"^INSERT INTO builds (.+) VALUES (.+)$",
+				"^INSERT INTO build_triggers (.+) VALUES (.+)$",
+				"^INSERT INTO build_tags (.+) VALUES (.+)$",
+			},
+			[]*sqlmock.Rows{
+				sqlmock.NewRows([]string{"id"}).AddRow(10),
+				sqlmock.NewRows([]string{"id"}).AddRow(10),
+				sqlmock.NewRows([]string{"id"}).AddRow(10),
+			},
+		},
+		{
+			[]database.Model{
+				&user.User{ID: 27},
+			},
+			config.Manifest{
+				Namespace: "example",
+				Driver:    map[string]string{"type": "qemu", "image": "centos/7"},
+			},
+			&Trigger{
+				Type: Manual,
+				Data: map[string]string{
+					"email":    "me@example.com",
+					"username": "me",
+				},
+			},
+			[]string{"centos/7"},
+			[]string{
+				"^SELECT \\* FROM namespaces WHERE \\(user_id = \\$1 OR root_id IN \\(SELECT namespace_id FROM namespace_collaborators WHERE \\(user_id = \\$2\\)\\)\\) AND \\(path = \\$3\\)$",
+				"^SELECT \\* FROM namespace_collaborators WHERE \\(namespace_id = \\$1\\)$",
+				"^INSERT INTO builds (.+) VALUES (.+)$",
+				"^INSERT INTO build_triggers (.+) VALUES (.+)$",
+				"^INSERT INTO build_tags (.+) VALUES (.+)$",
+			},
+			[]*sqlmock.Rows{
+				sqlmock.NewRows([]string{"id", "user_id"}).AddRow(13, 27),
+				sqlmock.NewRows([]string{"id"}).AddRow(13),
+				sqlmock.NewRows([]string{"id"}).AddRow(10),
+				sqlmock.NewRows([]string{"id"}).AddRow(10),
+				sqlmock.NewRows([]string{"id"}).AddRow(10),
+			},
+		},
 	}
 
-	if b.ID != id {
-		t.Fatalf("build id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, b.ID)
+	for i, test := range tests {
+		store.Bind(test.models...)
+
+		for j, q := range test.queries {
+			mock.ExpectQuery(q).WillReturnRows(test.rows[j])
+		}
+
+		if _, err := store.Create(test.manifest, test.trigger, test.tags...); err != nil {
+			t.Errorf("tests[%d] - unexpected Create error: %s\n", i, errors.Cause(err))
+		}
 	}
 }
 
-func Test_StoreUpdate(t *testing.T) {
+func Test_StoreStarted(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	b := &Build{ID: 10}
+	mock.ExpectExec("^UPDATE builds SET status = \\$1, started_at = \\$2 WHERE (id = \\$3)$")
 
-	expected := fmt.Sprintf(updateFmt, table)
+	store.Started(1)
+}
 
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(b.ID, 1))
+func Test_StoreFinished(t *testing.T) {
+	store, mock, close_ := store(t)
+	defer close_()
 
-	if err := store.Update(b); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
+	mock.ExpectExec("^UPDATE builds SET status = \\$1, output = \\$2, finished_at = \\$3 WHERE (id = \\$4)$")
+
+	store.Finished(1, "done", runner.Passed)
 }
 
 func Test_StorePaginate(t *testing.T) {
@@ -253,31 +315,31 @@ func Test_StorePaginate(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows([]string{"*"}).AddRow(1),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT COUNT(*) FROM builds WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows([]string{"*"}).AddRow(1),
 			[]driver.Value{},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT COUNT(*) FROM builds WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows([]string{"*"}).AddRow(1),
 			[]driver.Value{},
-			[]model.Model{&namespace.Namespace{ID: 1}},
+			[]database.Model{&namespace.Namespace{ID: 1}},
 		},
 	}
 
 	for i, test := range tests {
-		mock.ExpectPrepare(regexp.QuoteMeta(test.query)).ExpectQuery().WillReturnRows(test.rows)
+		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.Paginate(1); err != nil {
-			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil

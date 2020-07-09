@@ -1,17 +1,16 @@
 package handler
 
 import (
-	"crypto/rand"
 	"net/http"
 	"path/filepath"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/oauth2"
 	oauth2template "github.com/andrewpillar/thrall/oauth2/template"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
 	usertemplate "github.com/andrewpillar/thrall/user/template"
 	"github.com/andrewpillar/thrall/web"
 
@@ -22,23 +21,23 @@ import (
 
 type Token struct {
 	web.Handler
-}
 
-func (h Token) Model(r *http.Request) *oauth2.Token {
-	val := r.Context().Value("token")
-	t, _ := val.(*oauth2.Token)
-	return t
+	Tokens *oauth2.TokenStore
 }
 
 func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	tt, err := oauth2.NewTokenStore(h.DB, u).All(query.OrderDesc("created_at"))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -68,7 +67,7 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 			Tokens:   tt,
 		},
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrfField))
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrfField))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -77,12 +76,12 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
 	csrfField := string(csrf.TemplateField(r))
-	f := h.FormFields(sess)
+	f := web.FormFields(sess)
 
 	section := &oauth2template.TokenForm{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: h.FormErrors(sess),
+			Errors: web.FormErrors(sess),
 			Fields: f,
 		},
 		Scopes: make(map[string]struct{}),
@@ -101,7 +100,7 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 		Section:  section,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -109,7 +108,11 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	tokens := oauth2.NewTokenStore(h.DB, u)
 
@@ -117,11 +120,17 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 		Tokens: tokens,
 	}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		if _, ok := err.(form.Errors); !ok {
-			log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create token"), "alert")
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
 		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to create token"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -134,20 +143,12 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	t := tokens.New()
-	t.Name = f.Name
-	t.Token = make([]byte, 16)
-	t.Scope, _ = oauth2.UnmarshalScope(strings.Join(f.Scope, " "))
+	sc, _ := oauth2.UnmarshalScope(strings.Join(f.Scope, " "))
 
-	if _, err := rand.Read(t.Token); err != nil {
-		log.Error.Println(errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create token"), "alert")
-		h.RedirectBack(w, r)
-		return
-	}
+	t, err := tokens.Create(f.Name, sc)
 
-	if err := tokens.Create(t); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create token"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -160,45 +161,50 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	t := h.Model(r)
-	f := h.FormFields(sess)
+	t, ok := oauth2.TokenFromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get token from request context")
+	}
+
+	f := web.FormFields(sess)
 
 	csrfField := string(csrf.TemplateField(r))
 
 	p := &oauth2template.TokenForm{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: h.FormErrors(sess),
+			Errors: web.FormErrors(sess),
 			Fields: f,
 		},
 		Token:  t,
 		Scopes: t.Permissions(),
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Token) Update(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	sess, _ := h.Session(r)
 
-	u := h.User(r)
-	t := h.Model(r)
+	u, ok := user.FromContext(ctx)
 
-	tokens := oauth2.NewTokenStore(h.DB, u)
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
+	t, ok := oauth2.TokenFromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get token from request context")
+	}
 
 	if filepath.Base(r.URL.Path) == "regenerate" {
-		t.Token = make([]byte, 16)
-
-		if _, err := rand.Read(t.Token); err != nil {
-			log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to update token"), "alert")
-			h.RedirectBack(w, r)
-			return
-		}
-
-		if err := tokens.Update(t); err != nil {
-			log.Error.Println(errors.Err(err))
+		if err := h.Tokens.Reset(t.ID); err != nil {
+			h.Log.Error.Println(errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to update token"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -210,25 +216,32 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tokens := oauth2.NewTokenStore(h.DB, u)
+
 	f := &oauth2.TokenForm{
 		Tokens: tokens,
 		Token:  t,
 	}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		if _, ok := err.(form.Errors); !ok {
-			log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to update token"), "alert")
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
 		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to update token"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	t.Name = f.Name
-	t.Scope, _ = oauth2.UnmarshalScope(strings.Join(f.Scope, " "))
+	sc, _ := oauth2.UnmarshalScope(strings.Join(f.Scope, " "))
 
-	if err := tokens.Update(t); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := h.Tokens.Update(t.ID, f.Name, sc); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update token"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -240,25 +253,36 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	sess, _ := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(ctx)
 
-	tokens := oauth2.NewTokenStore(h.DB, u)
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	if filepath.Base(r.URL.Path) == "revoke" {
+		tokens := oauth2.NewTokenStore(h.DB, u)
 
 		tt, err := tokens.All()
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to revoke tokens"), "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 
-		if err := tokens.Delete(tt...); err != nil {
-			log.Error.Println(errors.Err(err))
+		ids := make([]int64, 0, len(tt))
+
+		for _, t := range tt {
+			ids = append(ids, t.ID)
+		}
+
+		if err := tokens.Delete(ids...); err != nil {
+			h.Log.Error.Println(errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to revoke tokens"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -267,13 +291,17 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if t := h.Model(r); !t.IsZero() {
-		if err := tokens.Delete(t); err != nil {
-			log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to revoke token"), "alert")
-			h.RedirectBack(w, r)
-			return
-		}
+	t, ok := oauth2.TokenFromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get token from request context")
+	}
+
+	if err := h.Tokens.Delete(t.ID); err != nil {
+		h.Log.Error.Println(errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to revoke token"), "alert")
+		h.RedirectBack(w, r)
+		return
 	}
 	h.RedirectBack(w, r)
 }

@@ -2,12 +2,11 @@ package build
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -41,14 +40,14 @@ func Test_DriverStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(driverCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_drivers WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(driverCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 	}
 
@@ -75,14 +74,14 @@ func Test_DriverStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(driverCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_drivers WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(driverCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 	}
 
@@ -103,20 +102,15 @@ func Test_DriverStoreCreate(t *testing.T) {
 	store, mock, close_ := driverStore(t)
 	defer close_()
 
-	d := &Driver{}
+	mock.ExpectQuery(
+		"^INSERT INTO build_drivers \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, driverTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(d); err != nil {
-		t.Fatal(errors.Cause(err))
+	if _, err := store.Create(map[string]string{}); err == nil {
+		t.Errorf("expected Create to error, it did not\n")
 	}
 
-	if d.ID != id {
-		t.Fatalf("driver id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, d.ID)
+	if _, err := store.Create(map[string]string{"type": "qemu"}); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }

@@ -1,5 +1,5 @@
-// Package model provides basic interfaces for modelling data from the database.
-package model
+// Package database provides basic interfaces for modelling data from the database.
+package database
 
 import (
 	"database/sql"
@@ -16,7 +16,8 @@ import (
 type Binder interface {
 	// Bind the given models to the implementation. This would typically be
 	// used for binding related models to a model, or to a Store if you want
-	// to constrain the queries performed via a Store.
+	// to constrain the queries performed via a Store. It is expected for the
+	// given Model to be type asserted to the concrete type.
 	Bind(...Model)
 }
 
@@ -39,14 +40,18 @@ type RelationFunc func(Loader, ...Model) error
 
 type Loader interface {
 	// Load will load models under the given key for the given slice of values.
-	// The LoaderFunc will be invoked for each model that has been retrieved
-	// from the database.
+	// This will be the equivalent of a WHERE key IN (vals,...). The LoaderFunc
+	// will be invoked for each model that has been retrieved from the database.
 	Load(string, []interface{}, LoaderFunc) error
 }
 
-// Loaders is a type for storing a Loader by their respective name, for loading
-// model relationships.
-type Loaders map[string]Loader
+// Loaders stores a Loader by their respective name. This is typically passed
+// to the LoadRelations function when loading a model's relationships. Each
+// Loader is called in the order by which they were put added.
+type Loaders struct {
+	order   []string
+	loaders map[string]Loader
+}
 
 // Model interface wraps the basic methods that a model will have. This assumes
 // that models implementing this interface use 64 bit integers for their
@@ -61,8 +66,9 @@ type Model interface {
 	// column's value.
 	Primary() (string, int64)
 
-	// IsZero will determine if the model is a zero value. This should return
-	// true on underlying nil types.
+	// IsZero will return whether all of the model's underlying values are a
+	// zero value of their type. This should return true on underlying nil
+	// values for the implementation.
 	IsZero() bool
 
 	// JSON will return a map of the fields from the Model that should be used
@@ -76,7 +82,9 @@ type Model interface {
 	Endpoint(...string) string
 
 	// Values will return a map of the model's values. This will be called
-	// during calls to Store.Create, and Store.Update.
+	// during calls to Store.Create, and Store.Update. Each key in the returned
+	// map should be snake-case, and have the respective models value for that
+	// key.
 	Values() map[string]interface{}
 }
 
@@ -101,8 +109,25 @@ type Paginator struct {
 
 var (
 	PageLimit int64 = 25
-	ErrNotFound     = errors.New("not found")
+
+	ErrNotFound = errors.New("not found")
 )
+
+// Connect returns an sqlx database connection to a PostgreSQL database using
+// the given dsn. Once the connection is open a subsequent Ping is made to the
+// database to check the connectivity.
+func Connect(dsn string) (*sqlx.DB, error) {
+	db, err := sqlx.Open("postgres", dsn)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if err := db.Ping(); err != nil {
+		return nil, errors.Err(err)
+	}
+	return db, nil
+}
 
 // getInt64 returns the underlying int64 value from the given interface, and if
 // the value was of int64. This assumes the given interface value is either
@@ -130,7 +155,12 @@ func getKey(key string, m Model) interface{} {
 }
 
 // NewLoaders creates a new empty Loaders store.
-func NewLoaders() Loaders { return Loaders(make(map[string]Loader)) }
+func NewLoaders() *Loaders {
+	return &Loaders{
+		order:   make([]string, 0),
+		loaders: make(map[string]Loader),
+	}
+}
 
 // Bind returns a LoaderFunc that checks to see if the key on the target model,
 // specified via a, at index i matches the key on the model being loaded,
@@ -192,15 +222,15 @@ func MapKey(key string, mm []Model) []interface{} {
 // LoadRelation loads all of the given relations from the given map, for all
 // of the given models, using the respective Loader from the given Loaders
 // type.
-func LoadRelations(rr map[string]RelationFunc, loaders Loaders, mm ...Model) error {
-	for relation, fn := range rr {
-		l, ok := loaders.Get(relation)
+func LoadRelations(relations map[string]RelationFunc, loaders *Loaders, mm ...Model) error {
+	for _, name := range loaders.order {
+		fn, ok := relations[name]
 
 		if !ok {
 			continue
 		}
 
-		if err := fn(l, mm...); err != nil {
+		if err := fn(loaders.loaders[name], mm...); err != nil {
 			return errors.Err(err)
 		}
 	}
@@ -250,11 +280,11 @@ func Search(col, pattern string) query.Option {
 	}
 }
 
-// Slice converts a slice of models of length l, into a slice of Model.
+// ModelSlice converts a slice of models of length l, into a slice of Model.
 // The given callback takes the current index of the new Model slice as
 // its only argument. It is expected for this index to be used to return the
 // original type that implements the Model interface from a source slice.
-func Slice(l int, get func(int) Model) []Model {
+func ModelSlice(l int, get func(int) Model) []Model {
 	mm := make([]Model, l, l)
 
 	for i := range mm {
@@ -308,20 +338,48 @@ func OrWhere(m Model, args ...string) query.Option {
 }
 
 // Put adds a Loader of the given name to the underlying map.
-func (m *Loaders) Put(name string, l Loader) {
-	if (*m) == nil {
-		(*m) = make(map[string]Loader)
+func (ls *Loaders) Put(name string, l Loader) {
+	if _, ok := ls.loaders[name]; ok {
+		return
 	}
-	(*m)[name] = l
+	ls.order = append(ls.order, name)
+	ls.loaders[name] = l
+}
+
+// Delete removes the loader of the given name from the Loaders store. If the
+// loader cannot be found then nothing happens.
+func (ls *Loaders) Delete(name string) {
+	if _, ok := ls.loaders[name]; !ok {
+		return
+	}
+
+	delete(ls.loaders, name)
+
+	i := 0
+
+	for j, removed := range ls.order {
+		if removed == name {
+			i = j
+			break
+		}
+	}
+	ls.order = append(ls.order[i:], ls.order[i+1:]...)
 }
 
 // Get returns a Loader of the given name.
-func (m *Loaders) Get(name string) (Loader, bool) {
-	if m == nil {
-		return nil, false
-	}
-	l, ok := (*m)[name]
+func (ls *Loaders) Get(name string) (Loader, bool) {
+	l, ok := ls.loaders[name]
 	return l, ok
+}
+
+// Copy returns a copy of the given Loader.
+func (ls *Loaders) Copy() *Loaders {
+	cp := NewLoaders()
+
+	for _, name := range ls.order {
+		cp.Put(name, ls.loaders[name])
+	}
+	return cp
 }
 
 func (s Store) doSelect(fn selectFunc, i interface{}, table string, opts ...query.Option) error {
@@ -378,19 +436,9 @@ func (s Store) Create(table string, mm ...Model) error {
 			query.Returning("id"),
 		)
 
-		stmt, err := s.Prepare(q.Build())
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		defer stmt.Close()
-
-		row := stmt.QueryRow(q.Args()...)
-
 		var id int64
 
-		if err := row.Scan(&id); err != nil {
+		if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
 			return errors.Err(err)
 		}
 		m.SetPrimary(id)
@@ -418,15 +466,7 @@ func (s Store) Update(table string, mm ...Model) error {
 
 		q := query.Update(opts...)
 
-		stmt, err := s.Prepare(q.Build())
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		defer stmt.Close()
-
-		if _, err := stmt.Exec(q.Args()...); err != nil {
+		if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
 			return errors.Err(err)
 		}
 	}
@@ -452,15 +492,7 @@ func (s Store) Delete(table string, mm ...Model) error {
 
 	q := query.Delete(query.From(table), query.Where(col, "IN", ids...))
 
-	stmt, err := s.Prepare(q.Build())
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	defer stmt.Close()
-
-	_, err = stmt.Exec(q.Args()...)
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
 }
 
@@ -482,21 +514,13 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 
 	q := query.Select(opts...)
 
-	stmt, err := s.Prepare(q.Build())
-
-	if err != nil {
-		return p, errors.Err(err)
-	}
-
-	defer stmt.Close()
-
 	var count int64
 
-	if err := stmt.QueryRow(q.Args()...).Scan(&count); err != nil {
+	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
 		return p, errors.Err(err)
 	}
 
-	pages := int64(count) / int64(PageLimit)
+	pages := count / PageLimit
 
 	if count % PageLimit != 0 {
 		pages++

@@ -2,12 +2,12 @@ package key
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -17,6 +17,14 @@ import (
 
 	"github.com/jmoiron/sqlx"
 )
+
+type testQuery struct {
+	query  string
+	opts   []query.Option
+	rows   *sqlmock.Rows
+	args   []driver.Value
+	models []database.Model
+}
 
 var keyCols = []string{
 	"user_id",
@@ -45,21 +53,21 @@ func Test_StoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(keyCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM keys WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(keyCols),
 			[]driver.Value{1, 1, 1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM keys WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(keyCols),
 			[]driver.Value{1},
-			[]model.Model{&namespace.Namespace{ID: 1}},
+			[]database.Model{&namespace.Namespace{ID: 1}},
 		},
 	}
 
@@ -87,21 +95,21 @@ func Test_StoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(keyCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM keys WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(keyCols),
 			[]driver.Value{1, 1, 1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM keys WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(keyCols),
 			[]driver.Value{1},
-			[]model.Model{&namespace.Namespace{ID: 1}},
+			[]database.Model{&namespace.Namespace{ID: 1}},
 		},
 	}
 
@@ -123,21 +131,20 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	k := &Key{}
+	block, err := crypto.NewBlock([]byte("some-supersecret"))
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, table)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(k); err != nil {
+	if err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 
-	if k.ID != id {
-		t.Fatalf("key id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, k.ID)
+	store.block = block
+
+	mock.ExpectQuery(
+		"^INSERT INTO keys \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id$",
+	).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(10))
+
+	if _, err := store.Create("id_rsa", "=AAAAAA", ""); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -145,14 +152,12 @@ func Test_StoreUpdate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	k := &Key{ID: 10}
+	mock.ExpectExec(
+		"^UPDATE keys SET namespace_id = \\$1, config = \\$2 WHERE \\(id = \\$3\\)$",
+	).WithArgs(1, "", 10).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	expected := fmt.Sprintf(updateFmt, table)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(k.ID, 1))
-
-	if err := store.Update(k); err != nil {
-		t.Fatal(errors.Cause(err))
+	if err := store.Update(10, 1, ""); err != nil {
+		t.Errorf("unexpected Update error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -160,17 +165,11 @@ func Test_StoreDelete(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	kk := []*Key{
-		&Key{ID: 1},
-		&Key{ID: 2},
-		&Key{ID: 3},
-	}
+	mock.ExpectExec(
+		"^DELETE FROM keys WHERE \\(id IN \\(\\$1\\)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	expected := fmt.Sprintf(deleteFmt, table)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(kk...); err != nil {
+	if err := store.Delete(10); err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 }

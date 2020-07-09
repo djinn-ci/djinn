@@ -2,12 +2,11 @@ package build
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -41,14 +40,14 @@ func Test_TagStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(tagCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_tags WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(tagCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 	}
 
@@ -75,14 +74,14 @@ func Test_TagStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(tagCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_tags WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(tagCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 	}
 
@@ -103,21 +102,38 @@ func Test_TagStoreCreate(t *testing.T) {
 	store, mock, close_ := tagStore(t)
 	defer close_()
 
-	tag := &Tag{}
-
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, tagTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(tag); err != nil {
-		t.Fatal(errors.Cause(err))
+	tests := []struct{
+		buildId int64
+		userId  int64
+		names   []string
+		queries []string
+		rows    []*sqlmock.Rows
+	}{
+		{
+			1,
+			2,
+			[]string{"tag1", "tag2", "tag3"},
+			[]string{
+				"^INSERT INTO build_tags (.+) VALUES (.+)$",
+				"^INSERT INTO build_tags (.+) VALUES (.+)$",
+				"^INSERT INTO build_tags (.+) VALUES (.+)$",
+			},
+			[]*sqlmock.Rows{
+				sqlmock.NewRows([]string{"*"}).AddRow(10),
+				sqlmock.NewRows([]string{"*"}).AddRow(11),
+				sqlmock.NewRows([]string{"*"}).AddRow(12),
+			},
+		},
 	}
 
-	if tag.ID != id {
-		t.Fatalf("stage id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, tag.ID)
+	for i, test := range tests {
+		for j, q := range test.queries {
+			mock.ExpectQuery(q).WillReturnRows(test.rows[j])
+		}
+
+		if _, err := store.Create(test.userId, test.names...); err != nil {
+			t.Errorf("tests[%d] - unexpected Create error: %s\n", i, errors.Cause(err))
+		}
 	}
 }
 
@@ -125,17 +141,11 @@ func Test_TagStoreDelete(t *testing.T) {
 	store, mock, close_ := tagStore(t)
 	defer close_()
 
-	tt := []*Tag{
-		&Tag{ID: 1},
-		&Tag{ID: 2},
-		&Tag{ID: 3},
-	}
+	mock.ExpectExec(
+		"^DELETE FROM build_tags WHERE \\(id IN \\(\\$1, \\$2, \\$3\\)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 3))
 
-	expected := fmt.Sprintf(deleteFmt, tagTable)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(tt...); err != nil {
-		t.Fatal(errors.Cause(err))
+	if err := store.Delete(1, 2, 3); err != nil {
+		t.Errorf("unexpected Delete error: %s\n", errors.Cause(err))
 	}
 }

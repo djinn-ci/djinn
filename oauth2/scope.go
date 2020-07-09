@@ -5,11 +5,14 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 )
 
+// Resource is the resource that the OAuth server makes available.
 type Resource int
 
+// Permission represents what a scope can do to a resource, this will be
+// either Read, Write, or Delete.
 type Permission int
 
 // In the database token scopes are stored as a byte array of pairs, where the
@@ -189,7 +192,7 @@ func (p Permission) Expand() []Permission {
 }
 
 // Determine if the given permission mask exists in the permission.
-func (p Permission) Has(mask Permission) bool { return p & mask == mask }
+func (p Permission) Has(mask Permission) bool { return (p & mask) == mask }
 
 // Scan scans the underlying byte slice value of the given interface into the
 // curent Scope if it is valid.
@@ -198,7 +201,7 @@ func (sc *Scope) Scan(val interface{}) error {
 		(*sc) = Scope(make([]scopeItem, 0))
 	}
 
-	b, err := model.Scan(val)
+	b, err := database.Scan(val)
 
 	if err != nil {
 		return errors.Err(err)

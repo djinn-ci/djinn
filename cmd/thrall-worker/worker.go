@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bytes"
 	"context"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,10 +11,12 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/build"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/image"
+	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
@@ -23,16 +25,16 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/lib/pq"
-
 	"github.com/RichardKnop/machinery/v1"
 )
 
 type worker struct {
 	db         *sqlx.DB
 	redis      *redis.Client
+	block      *crypto.Block
+	log        *log.Logger
 	driverconf map[string]map[string]interface{}
-	drivers    *driver.Store
+	drivers    *driver.Registry
 	timeout    time.Duration
 	server     *machinery.Server
 	worker     *machinery.Worker
@@ -73,20 +75,20 @@ func (w *worker) run(id int64) error {
 		return errors.Err(err)
 	}
 
-	r := newBuildRunner(w.db, b, w.collector, w.placer)
+	r := buildRunner{
+		db:        w.db,
+		build:     b,
+		log:       w.log,
+		block:     w.block,
+		collector: w.collector,
+		placer:    w.placer,
+		buf:       &bytes.Buffer{},
+		bufs:      make(map[int64]*bytes.Buffer),
+		jobs:      make(map[string]*build.Job),
+	}
 
 	if b.Status == runner.Killed {
-		b.Status = runner.Killed
-		b.Output = sql.NullString{
-			String: "build killed",
-			Valid:  true,
-		}
-		b.FinishedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
-
-		if err := w.builds.Update(b); err != nil {
+		if err := w.builds.Finished(b.ID, "build killed", b.Status); err != nil {
 			return errors.Err(err)
 		}
 		return errors.Err(r.updateJobs())
@@ -107,17 +109,7 @@ func (w *worker) run(id int64) error {
 		fmt.Fprintf(r.buf, "driver %s has not been configured for the worker\n", cfg["type"])
 		fmt.Fprintf(r.buf, "killing build...\n")
 
-		b.Status = runner.Killed
-		b.Output = sql.NullString{
-			String: r.buf.String(),
-			Valid:  true,
-		}
-		b.FinishedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
-
-		if err := w.builds.Update(b); err != nil {
+		if err := w.builds.Finished(b.ID, r.buf.String(), runner.Killed); err != nil {
 			return errors.Err(err)
 		}
 		return errors.Err(r.updateJobs())

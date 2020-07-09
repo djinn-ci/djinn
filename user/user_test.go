@@ -2,12 +2,11 @@ package user
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -15,6 +14,14 @@ import (
 
 	"github.com/jmoiron/sqlx"
 )
+
+type testQuery struct {
+	query  string
+	opts   []query.Option
+	rows   *sqlmock.Rows
+	args   []driver.Value
+	models []database.Model
+}
 
 var (
 	userCols = []string{
@@ -49,21 +56,21 @@ func Test_StoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(userCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM users WHERE (username = $1)",
 			[]query.Option{query.Where("username", "=", "freemang")},
 			sqlmock.NewRows(userCols),
 			[]driver.Value{"freemang"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM users WHERE (email = $1 OR username = $2)",
 			[]query.Option{WhereHandle("freemang@black-mesa.com")},
 			sqlmock.NewRows(userCols),
 			[]driver.Value{"freemang@black-mesa.com", "freemang@black-mesa.com"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 	}
 
@@ -86,21 +93,21 @@ func Test_StoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(userCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM users WHERE (username = $1)",
 			[]query.Option{query.Where("username", "=", "freemang")},
 			sqlmock.NewRows(userCols),
 			[]driver.Value{"freemang"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM users WHERE (email = $1 OR username = $2)",
 			[]query.Option{WhereHandle("freemang@black-mesa.com")},
 			sqlmock.NewRows(userCols),
 			[]driver.Value{"freemang@black-mesa.com", "freemang@black-mesa.com"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 	}
 
@@ -164,21 +171,12 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	u := &User{}
+	mock.ExpectQuery(
+		"^INSERT INTO users \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(13))
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, table)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(u); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if u.ID != id {
-		t.Fatalf("user id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, u.ID)
+	if _, err := store.Create("me@example.com", "me", []byte("secret")); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -186,13 +184,11 @@ func Test_StoreUpdate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	u := &User{ID: 10}
+	mock.ExpectExec(
+		"^UPDATE users SET email = \\$1, password = \\$2, updated_at = \\$3 WHERE \\(id = \\$4\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	expected := fmt.Sprintf(updateFmt, table)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(u.ID, 1))
-
-	if err := store.Update(u); err != nil {
-		t.Fatal(errors.Cause(err))
+	if err := store.Update(13, "me@elpmaxe.com", []byte("secret")); err != nil {
+		t.Errorf("unexpected Update error: %s\n", errors.Cause(err))
 	}
 }

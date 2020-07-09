@@ -7,7 +7,7 @@ import (
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
@@ -18,9 +18,11 @@ import (
 type Job struct {
 	web.Handler
 
-	Loaders model.Loaders
+	Loaders *database.Loaders
 }
 
+// IndexWithRelations returns all of the jobs with their relationships loaded
+// into each return job.
 func (h Job) IndexWithRelations(s *build.JobStore, vals url.Values) ([]*build.Job, error) {
 	jj, err := s.Index(vals)
 
@@ -32,11 +34,16 @@ func (h Job) IndexWithRelations(s *build.JobStore, vals url.Values) ([]*build.Jo
 	return jj, errors.Err(err)
 }
 
+// ShowWithRelations
 func (h Job) ShowWithRelations(r *http.Request) (*build.Job, error) {
-	b := Model(r)
+	b, ok := build.FromContext(r.Context())
+
+	if !ok {
+		return nil, errors.New("failed to get build from request context")
+	}
 
 	if err := build.LoadRelations(h.Loaders, b); err != nil {
-		return &build.Job{}, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["job"], 10, 64)

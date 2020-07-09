@@ -1,4 +1,4 @@
-// Package errors implements some utility functions for giving
+// Package errors implements some utility functions for giving detailed errors.
 package errors
 
 import (

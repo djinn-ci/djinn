@@ -1,20 +1,26 @@
 package build
 
 import (
+	"encoding/json"
 	"strings"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 )
 
 type tags []string
 
+// Form is the type that represents the input data for creating/submitting a
+// build.
 type Form struct {
 	Manifest config.Manifest `schema:"manifest" json:"manifest"`
 	Comment  string          `schema:"comment"  json:"comment"`
 	Tags     tags            `schema:"tags"     json:"tags"`
 }
 
+// TagForm is the type that represents the input data for creating tags on a
+// build.
 type TagForm struct {
 	Tags tags `schema:"tags"`
 }
@@ -23,6 +29,18 @@ var (
 	_ form.Form = (*Form)(nil)
 	_ form.Form = (*TagForm)(nil)
 )
+
+// UnmarshalJSON parses the byte slice into a slice of strings.
+func (t *tags) UnmarshalJSON(data []byte) error {
+	ss := make([]string, 0)
+
+	if err := json.Unmarshal(data, &ss); err != nil {
+		return errors.Err(err)
+	}
+
+	(*t) = ss
+	return nil
+}
 
 // UnmarshalText parses the slice of bytes as a comma separated string. Each
 // delineation will be treated as a separate tag, and appended to the
@@ -79,8 +97,21 @@ func (f Form) Validate() error {
 
 // Fields is a stub method to statisfy the form.Form interface. It returns an
 // empty map.
-func (f TagForm) Fields() map[string]string { return map[string]string{} }
+func (f *TagForm) Fields() map[string]string { return map[string]string{} }
 
 // Validate is a stub method to satisfy the form.Form interface. It returns
 // nil.
-func (f TagForm) Validate() error { return nil }
+func (f *TagForm) Validate() error { return nil }
+
+// UnmarshalJSON will attempt to unmarshal the given byte slice into a slice of
+// strings.
+func (f *TagForm) UnmarshalJSON(data []byte) error {
+	tags := make([]string, 0)
+
+	if err := json.Unmarshal(data, &tags); err != nil {
+		return errors.Err(err)
+	}
+
+	f.Tags = tags
+	return nil
+}

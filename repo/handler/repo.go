@@ -12,13 +12,13 @@ import (
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/repo"
 	repotemplate "github.com/andrewpillar/thrall/repo/template"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
@@ -33,11 +33,12 @@ type Repo struct {
 
 	Redis     *redis.Client
 	Repos     *repo.Store
+	Block     *crypto.Block
 	Providers map[string]oauth2.Provider
 }
 
 type repos struct {
-	Paginator model.Paginator
+	Paginator database.Paginator
 	Items     []*repo.Repo
 }
 
@@ -70,7 +71,7 @@ func (h Repo) cacheGet(name string, id, page int64) (repos, error) {
 
 func (h Repo) loadRepos(p *provider.Provider, page int64) (repos, error) {
 	repos := repos{
-		Paginator: model.Paginator{
+		Paginator: database.Paginator{
 			Page: page,
 		},
 		Items:     make([]*repo.Repo, 0),
@@ -86,7 +87,11 @@ func (h Repo) loadRepos(p *provider.Provider, page int64) (repos, error) {
 		return repos, nil
 	}
 
-	tok, _ := crypto.Decrypt(p.AccessToken)
+	tok, err := h.Block.Decrypt(p.AccessToken)
+
+	if err != nil {
+		return repos, errors.Err(err)
+	}
 
 	tmp, err := prv.Repos(tok, page)
 
@@ -111,16 +116,14 @@ func (h Repo) loadRepos(p *provider.Provider, page int64) (repos, error) {
 	return repos, nil
 }
 
-func (h Repo) Model(r *http.Request) *repo.Repo {
-	val := r.Context().Value("repo")
-	rp, _ := val.(*repo.Repo)
-	return rp
-}
-
 func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	opt := query.OrderAsc("name")
 
@@ -133,7 +136,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	prv, err := providers.Get(opt)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -147,7 +150,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	repos, err := h.cacheGet(prv.Name, u.ID, page)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -156,13 +159,13 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		repos, err = h.loadRepos(prv, page)
 
 		if err != nil {
-			log.Error.Println(r.Method, r.URL, errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 
 		if err := h.cachePut(prv.Name, u.ID, page, repos); err != nil {
-			log.Error.Println(r.Method, r.URL, errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -171,7 +174,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	enabled, err := repo.NewStore(h.DB, u, prv).All(query.Where("enabled", "=", true))
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -192,7 +195,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	pp, err := providers.All(query.OrderAsc("name"))
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -210,7 +213,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		Provider:  prv,
 		Providers: pp,
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -218,12 +221,16 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", r.URL.Query().Get("provider")))
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to refresh repository cache"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -238,14 +245,14 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 	repos, err := h.loadRepos(p, page)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to refresh repository cache"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := h.cachePut(p.Name, u.ID, page, repos); err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to refresh repository cache"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -258,11 +265,16 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
 	f := &repo.Form{}
 
 	if err := form.Unmarshal(f, r); err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -271,7 +283,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", f.Provider))
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -294,31 +306,26 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return rp.HookID, rp.Enabled, nil
 	}
 
-	tok, _ := crypto.Decrypt(p.AccessToken)
-
-	hookId, err := h.Providers[f.Provider].ToggleRepo(tok, f.RepoID, enabled)
+	tok, err := h.Block.Decrypt(p.AccessToken)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	rp.UserID = u.ID
-	rp.ProviderID = p.ID
-	rp.HookID = hookId
-	rp.RepoID = f.RepoID
-	rp.Enabled = hookId != 0
+	hookId, err := h.Providers[f.Provider].ToggleRepo(tok, f.RepoID, enabled)
 
-	fn := h.Repos.Update
-
-	if rp.ID == 0 {
-		fn = h.Repos.Create
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
+		h.RedirectBack(w, r)
+		return
 	}
 
-	if err := fn(rp); err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+	if _, err := repo.NewStore(h.DB, u, p).Create(f.RepoID, hookId); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -331,7 +338,11 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	rp := h.Model(r)
+	rp, ok := repo.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get repo from request context")
+	}
 
 	if !rp.Enabled {
 		sess.AddFlash(template.Success("Repository hooks disabled"), "alert")
@@ -342,7 +353,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 	p, err := provider.NewStore(h.DB).Get(query.Where("id", "=", rp.ProviderID))
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -352,10 +363,17 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		return rp.HookID, rp.Enabled, nil
 	}
 
-	tok, _ := crypto.Decrypt(p.AccessToken)
+	tok, err := h.Block.Decrypt(p.AccessToken)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
 
 	if _, err := h.Providers[p.Name].ToggleRepo(tok, rp.RepoID, enabled); err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -364,7 +382,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 	rp.Enabled = false
 
 	if err := h.Repos.Update(rp); err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return

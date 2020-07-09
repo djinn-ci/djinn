@@ -46,8 +46,8 @@ func Test_ScopeScan(t *testing.T) {
 		b        []byte
 		expected Scope
 	}{
-		{[]byte{2, 3}, buildReadWrite},
-		{[]byte{2, 7, 6, 1}, buildAllNamespaceRead},
+		{[]byte{1, 3}, buildReadWrite},
+		{[]byte{1, 7, 5, 1}, buildAllNamespaceRead},
 	}
 
 	for i, test := range tests {

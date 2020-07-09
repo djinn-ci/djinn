@@ -1,17 +1,20 @@
-// Package image provides the model.Model implementation for the Image entity.
+// Package image provides the database.Model implementation for the Image entity.
 package image
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
+	"io"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -20,6 +23,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Image is the type that represents an image that has been uploaded by a user.
 type Image struct {
 	ID          int64         `db:"id"`
 	UserID      int64         `db:"user_id"`
@@ -33,44 +37,81 @@ type Image struct {
 	Namespace *namespace.Namespace `db:"-"`
 }
 
+// Store is the type for creating and modifying Image models in the
+// database. The Store type can have an underlying block.Store implementation
+// that is used for storing the contents of an image.
 type Store struct {
-	model.Store
+	database.Store
 
-	User      *user.User
-	Namespace *namespace.Namespace
+	blockStore block.Store
+
+	// User is the bound user.User model. If not nil this will bind the
+	// user.User model to any Image models that are created. If not nil this
+	// will append a WHERE clause on the user_id column for all SELECT queries
+	// performed.
+	User *user.User
+
+	// Namespace is the bound namespace.Namespace model. If not nil this will
+	// bind the namespace.Namespace model to any Image models that are created.
+	// If not nil this will append a WHERE clause on the namespace_id column for
+	// all SELECT queries performed.
+	Namespace  *namespace.Namespace
 }
 
 var (
-	_ model.Model  = (*Image)(nil)
-	_ model.Loader = (*Store)(nil)
-	_ model.Binder = (*Store)(nil)
+	_ database.Model  = (*Image)(nil)
+	_ database.Loader = (*Store)(nil)
+	_ database.Binder = (*Store)(nil)
 
 	table     = "images"
-	relations = map[string]model.RelationFunc{
-		"namespace": model.Relation("namespace_id", "id"),
+	relations = map[string]database.RelationFunc{
+		"namespace": database.Relation("namespace_id", "id"),
 	}
 )
 
-func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+// NewStore returns a new Store for querying the images table. Each model passed
+// to this function will be bound to the returned Store.
+func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 	s := &Store{
-		Store: model.Store{DB: db},
+		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-func LoadRelations(loaders model.Loaders, ii ...*Image) error {
-	mm := model.Slice(len(ii), Model(ii))
-	return model.LoadRelations(relations, loaders, mm...)
+// NewStoreWithBlockStore is functionally the same as NewStore, however it sets
+// the block.Store to use on the returned Store. This will allow for an image
+// file to be stored.
+func NewStoreWithBlockStore(db *sqlx.DB, blockStore block.Store, mm ...database.Model) *Store {
+	s := NewStore(db, mm...)
+	s.blockStore = blockStore
+	return s
 }
 
-func Model(ii []*Image) func(int) model.Model {
-	return func(i int) model.Model {
+// FromContext returns the Image model from the given context, if any.
+func FromContext(ctx context.Context) (*Image, bool) {
+	i, ok := ctx.Value("image").(*Image)
+	return i, ok
+}
+
+// LoadRelations loads all of the available relations for the given Image models
+// using the given loaders available.
+func LoadRelations(loaders *database.Loaders, ii ...*Image) error {
+	mm := database.ModelSlice(len(ii), Model(ii))
+	return database.LoadRelations(relations, loaders, mm...)
+}
+
+// Model is called along with database.ModelSlice to convert the given slice of
+// Image models to a slice of database.Model interfaces.
+func Model(ii []*Image) func(int) database.Model {
+	return func(i int) database.Model {
 		return ii[i]
 	}
 }
 
-func (i *Image) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if they are pointers to either user.User or namespace.Namespace.
+func (i *Image) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -81,14 +122,13 @@ func (i *Image) Bind(mm ...model.Model) {
 	}
 }
 
-func (i *Image) SetPrimary(id int64) {
-	i.ID = id
-}
+// SetPrimary implements the database.Model interface.
+func (i *Image) SetPrimary(id int64) { i.ID = id }
 
-func (i *Image) Primary() (string, int64) {
-	return "id", i.ID
-}
+// Primary implements the database.Model interface.
+func (i *Image) Primary() (string, int64) { return "id", i.ID }
 
+// IsZero implements the database.Model interface.
 func (i *Image) IsZero() bool {
 	return i == nil || i.ID == 0 &&
 		i.UserID == 0 &&
@@ -99,6 +139,10 @@ func (i *Image) IsZero() bool {
 		i.CreatedAt == time.Time{}
 }
 
+// JSON implements the database.Model interface. This will return a map with the
+// current Image values under each key. If any of the User, or Namespace bound
+// models exist on the Image, then the JSON representation of these models
+// will be in the returned map, under the user, and namespace keys respectively.
 func (i *Image) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":           i.ID,
@@ -113,7 +157,7 @@ func (i *Image) JSON(addr string) map[string]interface{} {
 		json["namespace_id"] = i.NamespaceID.Int64
 	}
 
-	for name, m := range map[string]model.Model{
+	for name, m := range map[string]database.Model{
 		"user":      i.User,
 		"namespace": i.Namespace,
 	}{
@@ -124,15 +168,18 @@ func (i *Image) JSON(addr string) map[string]interface{} {
 	return json
 }
 
+// Endpoint implements the database.Model interface. This will return the
+// endpoint to the current Image model.
 func (i *Image) Endpoint(uri ...string) string {
-	endpoint := fmt.Sprintf("/images/%v", i.ID)
-
 	if len(uri) > 0 {
-		return fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+		return "/images/" + strconv.FormatInt(i.ID, 10) + "/" + strings.Join(uri, "/")
 	}
-	return endpoint
+	return "/images/" + strconv.FormatInt(i.ID, 10)
 }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, user_id, namespace_id, driver, hash, name, and
+// created_at.
 func (i *Image) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      i.UserID,
@@ -144,7 +191,9 @@ func (i *Image) Values() map[string]interface{} {
 	}
 }
 
-func (s *Store) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if they are pointers to either user.User or namespace.Namespace.
+func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -155,22 +204,58 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-func (s *Store) Create(ii ...*Image) error {
-	models := model.Slice(len(ii), Model(ii))
-	return errors.Err(s.Store.Create(table, models...))
+// Create creates a new image with the given name for the given driver.Type.
+// The given io.Reader is used to copy the contents of the image to the
+// underlying block.Store. It is expected for the Store to have a block.Store
+// set on it, otherwise it will error.
+func (s *Store) Create(hash, name string, t driver.Type, r io.Reader) (*Image, error) {
+	if s.blockStore == nil {
+		return nil, errors.New("nil block store")
+	}
+
+	dst, err := s.blockStore.Create(filepath.Join(t.String(), hash))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, r); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	i := s.New()
+	i.Driver = t
+	i.Hash = hash
+	i.Name = name
+
+	err = s.Store.Create(table, i)
+	return i, errors.Err(err)
 }
 
-func (s *Store) Delete(ii ...*Image) error {
-	models := model.Slice(len(ii), Model(ii))
-	return errors.Err(s.Store.Delete(table, models...))
+// Delete deletes the given Image from the database, and removes the underlying
+// image file. It is expected for the Store to have a block.Store set on it,
+// otherwise it will error.
+func (s *Store) Delete(id int64, t driver.Type, hash string) error {
+	if s.blockStore == nil {
+		return errors.New("nil block store")
+	}
+
+	if err := s.Store.Delete(table, &Image{ID: id}); err != nil {
+		return errors.Err(err)
+	}
+	return errors.Err(s.blockStore.Remove(filepath.Join(t.String(), hash)))
 }
 
+// All returns a slice of Image models, applying each query.Option that is
+// given.
 func (s *Store) All(opts ...query.Option) ([]*Image, error) {
 	ii := make([]*Image, 0)
 
 	opts = append([]query.Option{
 		namespace.WhereCollaborator(s.User),
-		model.Where(s.Namespace, "namespace_id"),
+		database.Where(s.Namespace, "namespace_id"),
 	}, opts...)
 
 	err := s.Store.All(&ii, table, opts...)
@@ -186,7 +271,13 @@ func (s *Store) All(opts ...query.Option) ([]*Image, error) {
 	return ii, errors.Err(err)
 }
 
-func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, model.Paginator, error) {
+// Index returns the paginated results from the images table depending on the
+// values that are present in url.Values. Detailed below are the values that
+// are used from the given url.Values,
+//
+// search - This applies the database.Search query.Option using the value of
+// name
+func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, database.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
@@ -194,7 +285,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, model.Pa
 	}
 
 	opts = append([]query.Option{
-		model.Search("name", vals.Get("search")),
+		database.Search("name", vals.Get("search")),
 	}, opts...)
 
 	paginator, err := s.Paginate(page, opts...)
@@ -206,13 +297,17 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, model.Pa
 	ii, err := s.All(append(
 		opts,
 		query.OrderAsc("name"),
-		query.Limit(model.PageLimit),
+		query.Limit(database.PageLimit),
 		query.Offset(paginator.Offset),
 	)...)
 	return ii, paginator, errors.Err(err)
 }
 
-func (s *Store) Load(key string, vals []interface{}, fn model.LoaderFunc) error {
+// Load loads in a slice of Image models where the given key is in the list
+// of given vals. Each database is loaded individually via a call to the given
+// load callback. This method calls Store.All under the hood, so any
+// bound models will impact the models being loaded.
+func (s *Store) Load(key string, vals []interface{}, fn database.LoaderFunc) error {
 	ii, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
@@ -227,6 +322,7 @@ func (s *Store) Load(key string, vals []interface{}, fn model.LoaderFunc) error 
 	return nil
 }
 
+// Get returns a single Image model, applying each query.Option that is given.
 func (s *Store) Get(opts ...query.Option) (*Image, error) {
 	i := &Image{
 		User:      s.User,
@@ -235,7 +331,7 @@ func (s *Store) Get(opts ...query.Option) (*Image, error) {
 
 	opts = append([]query.Option{
 		namespace.WhereCollaborator(s.User),
-		model.Where(s.Namespace, "namespace_id"),
+		database.Where(s.Namespace, "namespace_id"),
 	}, opts...)
 
 	err := s.Store.Get(i, table, opts...)
@@ -246,6 +342,8 @@ func (s *Store) Get(opts ...query.Option) (*Image, error) {
 	return i, errors.Err(err)
 }
 
+// New returns a new Image binding any non-nil models to it from the current
+// Store.
 func (s *Store) New() *Image {
 	i := &Image{
 		User:      s.User,
@@ -267,7 +365,9 @@ func (s *Store) New() *Image {
 	return i
 }
 
-func (s *Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
+// Paginate returns the database.Paginator for the images table for the given
+// page.
+func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
 	paginator, err := s.Store.Paginate(table, page, opts...)
 	return paginator, errors.Err(err)
 }

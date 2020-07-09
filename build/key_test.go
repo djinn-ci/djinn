@@ -2,12 +2,11 @@ package build
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -43,14 +42,14 @@ func Test_KeyStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(keyCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_keys WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(keyCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 	}
 
@@ -64,27 +63,5 @@ func Test_KeyStoreAll(t *testing.T) {
 		}
 
 		store.Build = nil
-	}
-}
-
-func Test_KeyStoreCreate(t *testing.T) {
-	store, mock, close_ := keyStore(t)
-	defer close_()
-
-	k := &Key{}
-
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, keyTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(k); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if k.ID != id {
-		t.Fatalf("key id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, k.ID)
 	}
 }

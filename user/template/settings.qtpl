@@ -136,9 +136,9 @@ type Settings struct {
 	</li>
 	<li>
 		{% if p.URL.Path == "/settings/invites" %}
-			<a href="/settings/invites" class="active">{% cat "../../static/svg/folder.svg" %}<span>Invites</span></a>
+			<a href="/settings/invites" class="active">{% cat "../../static/svg/mail.svg" %}<span>Invites</span></a>
 		{% else %}
-			<a href="/settings/invites">{% cat "../../static/svg/folder.svg" %}<span>Invites</span></a>
+			<a href="/settings/invites">{% cat "../../static/svg/mail.svg" %}<span>Invites</span></a>
 		{% endif %}
 	</li>
 	<li>

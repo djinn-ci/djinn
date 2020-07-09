@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 )
 
 // Type represents the type of driver being used.
@@ -13,9 +13,9 @@ type Type uint8
 
 //go:generate stringer -type Type -linecomment
 const (
-	TypeSSH Type = iota // ssh
-	TypeQEMU            // qemu
-	TypeDocker          // docker
+	SSH Type = iota // ssh
+	QEMU            // qemu
+	Docker          // docker
 )
 
 var (
@@ -23,16 +23,16 @@ var (
 	_ driver.Valuer = (*Type)(nil)
 
 	driversMap = map[string]Type{
-		"ssh":    TypeSSH,
-		"qemu":   TypeQEMU,
-		"docker": TypeDocker,
+		"ssh":    SSH,
+		"qemu":   QEMU,
+		"docker": Docker,
 	}
 )
 
 // Scan assumes the given interface value is either a byte slice or a string,
 // and turns the underlying value into the corresponding Type.
 func (t *Type) Scan(val interface{}) error {
-	b, err := model.Scan(val)
+	b, err := database.Scan(val)
 
 	if err != nil {
 		return errors.Err(err)

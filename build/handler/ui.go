@@ -1,22 +1,20 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/build"
 	buildtemplate "github.com/andrewpillar/thrall/build/template"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
@@ -28,8 +26,9 @@ import (
 type UI struct {
 	Build
 
-	Job JobUI
-	Tag TagUI
+	Job       JobUI
+	Tag       TagUI
+	Artifacts block.Store
 }
 
 type JobUI struct {
@@ -43,21 +42,21 @@ type TagUI struct {
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
 
-	bb, paginator, err := h.IndexWithRelations(build.NewStore(h.DB, u), r.URL.Query())
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request context")
+	}
+
+	bb, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	q := r.URL.Query()
-
-	tag := q.Get("tag")
-	search := q.Get("search")
-	status := q.Get("status")
 
 	p := &buildtemplate.Index{
 		BasePage:  template.BasePage{
@@ -66,11 +65,11 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		},
 		Paginator: paginator,
 		Builds:    bb,
-		Search:    search,
-		Status:    status,
-		Tag:       tag,
+		Search:    q.Get("search"),
+		Status:    q.Get("status"),
+		Tag:       q.Get("tag"),
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r,w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -81,12 +80,12 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	p := &buildtemplate.Create{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.FormErrors(sess),
-			Fields: h.FormFields(sess),
+			Errors: web.FormErrors(sess),
+			Fields: web.FormFields(sess),
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -94,12 +93,13 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	b, err := h.StoreModel(r, sess)
+	b, f, err := h.StoreModel(r)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if _, ok := cause.(form.Errors); ok {
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -112,20 +112,27 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			sess.AddFlash(errs, "form_errors")
 			h.RedirectBack(w, r)
 			return
+		case namespace.ErrName:
+			errs := form.NewErrors()
+			errs.Put("manifest", errors.New("Namespace name can only contain letters and numbers"))
+
+			sess.AddFlash(errs, "form_errors")
+			h.RedirectBack(w, r)
+			return
 		case namespace.ErrPermission:
 			sess.AddFlash(template.Danger("Failed to create build: could not add to namespace"), "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to create build"), "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	if err := h.Submit(b, h.Queues[b.Manifest.Driver["type"]]); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(h.Queues[b.Manifest.Driver["type"]], b); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create build"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -138,17 +145,21 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	b, err := h.ShowWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	base := filepath.Base(r.URL.Path)
+	base := web.BasePath(r.URL.Path)
 	csrfField := csrf.TemplateField(r)
 
 	p := &buildtemplate.Show{
@@ -179,7 +190,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		oo, err := h.objectsWithRelations(b)
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -191,10 +202,10 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	case "artifacts":
 		search := r.URL.Query().Get("search")
 
-		aa, err := build.NewArtifactStore(h.DB, b).All(model.Search("name", search))
+		aa, err := build.NewArtifactStore(h.DB, b).All(database.Search("name", search))
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -209,7 +220,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		vv, err := h.variablesWithRelations(b)
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -222,7 +233,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		kk, err := build.NewKeyStore(h.DB, b).All()
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -235,17 +246,17 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		tt, err := build.NewTagStore(h.DB, b).All()
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 
-		mm := model.Slice(len(tt), build.TagModel(tt))
+		mm := database.ModelSlice(len(tt), build.TagModel(tt))
 
-		err = h.Users.Load("id", model.MapKey("user_id", mm), model.Bind("user_id", "id", mm...))
+		err = h.Users.Load("id", database.MapKey("user_id", mm), database.Bind("user_id", "id", mm...))
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -257,21 +268,25 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrfField))
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrfField))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Download will serve the contents of an artifact.
 func (h UI) Download(w http.ResponseWriter, r *http.Request) {
-	b := Model(r)
+	b, ok := build.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println("Failed to get build from request context")
+	}
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["artifact"], 10, 64)
 
 	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", id))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -281,7 +296,7 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := h.FileStore.Open(a.Hash)
+	rec, err := h.Artifacts.Open(a.Hash)
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {
@@ -289,28 +304,20 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	defer f.Close()
-	http.ServeContent(w, r, a.Name, a.CreatedAt, f)
+	defer rec.Close()
+	http.ServeContent(w, r, a.Name, a.CreatedAt, rec)
 }
 
-func (h UI) Kill(w http.ResponseWriter, r *http.Request) {
+func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	b := Model(r)
-
-	if b.Status != runner.Running {
-		sess.AddFlash(template.Danger("Build not running"), "alert")
-		h.RedirectBack(w, r)
-		return
-	}
-
-	if _, err := h.Client.Publish(fmt.Sprintf("kill-%v", b.ID), b.Secret.String).Result(); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := h.Kill(r); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to kill build"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -323,7 +330,7 @@ func (h TagUI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if _, err := h.StoreModel(r); err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to tag build"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -334,13 +341,12 @@ func (h TagUI) Store(w http.ResponseWriter, r *http.Request) {
 func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if err := h.Delete(r); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := h.DeleteModel(r); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to tag build"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-
 	sess.AddFlash(template.Success("Tag has been deleted"), "alert")
 	h.RedirectBack(w, r)
 }
@@ -351,12 +357,17 @@ func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 	j, err := h.ShowWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	if filepath.Base(r.URL.Path) == "raw" {
+	if j.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if web.BasePath(r.URL.Path) == "raw" {
 		web.Text(w, j.Output.String, http.StatusOK)
 		return
 	}
@@ -366,7 +377,7 @@ func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 		Job:      j,
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

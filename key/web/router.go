@@ -4,10 +4,11 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/key"
 	"github.com/andrewpillar/thrall/key/handler"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/user"
@@ -23,6 +24,7 @@ import (
 type Router struct {
 	key handler.Key
 
+	Block      *crypto.Block
 	Middleware web.Middleware
 }
 
@@ -37,7 +39,7 @@ func Gate(db *sqlx.DB) web.Gate {
 			err error
 		)
 
-		ok, err := web.CanAccessResource(db, "key", r, func(id int64) (model.Model, error) {
+		ok, err := web.CanAccessResource(db, "key", r, func(id int64) (database.Model, error) {
 			k, err = keys.Get(query.Where("id", "=", id))
 			return k, errors.Err(err)
 		})
@@ -48,16 +50,14 @@ func Gate(db *sqlx.DB) web.Gate {
 }
 
 func (r *Router) Init(h web.Handler) {
-	namespaces := namespace.NewStore(h.DB)
-
-	loaders := model.NewLoaders()
-	loaders.Put("namespace", namespaces)
+	loaders := database.NewLoaders()
+	loaders.Put("namespace", namespace.NewStore(h.DB))
 
 	r.key = handler.Key{
-		Handler:    h,
-		Loaders:    loaders,
-		Namespaces: namespaces,
-		Keys:       key.NewStore(h.DB),
+		Handler: h,
+		Loaders: loaders,
+		Block:   r.Block,
+		Keys:    key.NewStore(h.DB),
 	}
 }
 
@@ -70,7 +70,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/keys", key.Index).Methods("GET")
 	auth.HandleFunc("/keys/create", key.Create).Methods("GET")
 	auth.HandleFunc("/keys", key.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, csrf)
+	auth.Use(r.Middleware.AuthPerms("key:read", "key:write"), csrf)
 
 	sr := mux.PathPrefix("/keys").Subrouter()
 	sr.HandleFunc("/{key:[0-9]+}/edit", key.Edit).Methods("GET")
@@ -80,5 +80,15 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 }
 
 func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
+	key := handler.API{
+		Key:    r.key,
+		Prefix: prefix,
+	}
 
+	sr := mux.PathPrefix("/keys").Subrouter()
+	sr.HandleFunc("", key.Index).Methods("GET", "HEAD")
+	sr.HandleFunc("", key.Store).Methods("POST")
+	sr.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
+	sr.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
+	sr.Use(r.Middleware.Gate(gates...))
 }

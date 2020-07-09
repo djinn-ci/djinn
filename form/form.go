@@ -1,9 +1,11 @@
 // Package form provides an interface and functions for working with the
-// unmarshalling and validating of HTTP data.
+// unmarshalling and validating of HTTP form data.
 package form
 
 import (
+	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
 
@@ -46,8 +48,14 @@ func ErrFieldInvalid(field string, req ...string) error {
 // ErrFieldRequired returns an error for a form field that is required.
 func ErrFieldRequired(field string) error { return errors.New(field + " can't be blank") }
 
-// Unmarshal parses the HTTP request body and stores it in the given form.
+// Unmarshal decodes the given http.Request into the given Form interface, this
+// supports decoding "application/json" requests too provided the Content-Type
+// header is set accordingly.
 func Unmarshal(f Form, r *http.Request) error {
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		return errors.Err(json.NewDecoder(r.Body).Decode(f))
+	}
+
 	if err := r.ParseForm(); err != nil {
 		return errors.Err(err)
 	}
@@ -55,4 +63,13 @@ func Unmarshal(f Form, r *http.Request) error {
 	dec := schema.NewDecoder()
 	dec.IgnoreUnknownKeys(true)
 	return errors.Err(dec.Decode(f, r.Form))
+}
+
+// UnmarshalAndValidate parses the HTTP reques body and stores it in the given
+// form, then validates it.
+func UnmarshalAndValidate(f Form, r *http.Request) error {
+	if err := Unmarshal(f, r); err != nil {
+		return errors.Err(err)
+	}
+	return errors.Err(f.Validate())
 }

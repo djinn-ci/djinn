@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 	"path/filepath"
 	"strconv"
@@ -10,10 +8,8 @@ import (
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
@@ -24,14 +20,13 @@ import (
 type API struct {
 	Build
 
-	Prefix   string
-	Tag      TagAPI
+	Prefix string
 }
 
 type ArtifactAPI struct {
 	web.Handler
 
-	Prefix   string
+	Prefix string
 }
 
 type JobAPI struct {
@@ -47,12 +42,10 @@ type TagAPI struct {
 }
 
 func (h API) Index(w http.ResponseWriter, r *http.Request) {
-	u := h.User(r)
-
-	bb, paginator, err := h.IndexWithRelations(build.NewStore(h.DB, u), r.URL.Query())
+	bb, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -69,9 +62,7 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h API) Store(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-
-	b, err := h.StoreModel(r, nil)
+	b, _, err := h.StoreModel(r)
 
 	if err != nil {
 		cause := errors.Cause(err)
@@ -83,20 +74,29 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 
 		switch cause {
 		case build.ErrDriver:
-			web.JSON(w, map[string][]string{"manifest":[]string{cause.Error()}}, http.StatusBadRequest)
+			errs := form.NewErrors()
+			errs.Put("manifest", cause)
+
+			web.JSON(w, errs, http.StatusBadRequest)
+			return
+		case namespace.ErrName:
+			errs := form.NewErrors()
+			errs.Put("manifest", errors.New("Namespace name can only contain letters and numbers"))
+
+			web.JSON(w, errs, http.StatusBadRequest)
 			return
 		case namespace.ErrPermission:
-			web.JSONError(w, "Could not add to namespace", http.StatusBadRequest)
+			web.JSONError(w, "Unprocessable entity", http.StatusUnprocessableEntity)
 			return
 		default:
-			log.Error.Println(r.Method, r.URL, errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	if err := h.Submit(b, h.Queues[b.Manifest.Driver["type"]]); err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+	if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(h.Queues[b.Manifest.Driver["type"]], b); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -107,7 +107,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	b, err := h.ShowWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -120,7 +120,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		oo, err := h.objectsWithRelations(b)
 
 		if err != nil {
-			log.Error.Println(r.Method, r.URL, errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -139,7 +139,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		vv, err := h.variablesWithRelations(b)
 
 		if err != nil {
-			log.Error.Println(r.Method, r.URL, errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -158,7 +158,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		kk, err := build.NewKeyStore(h.DB, b).All()
 
 		if err != nil {
-			log.Error.Println(r.Method, r.URL, errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -174,20 +174,12 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		web.JSON(w, data, http.StatusOK)
 		return
 	}
-
 	web.JSON(w, b.JSON(addr), http.StatusOK)
 }
 
-func (h API) Kill(w http.ResponseWriter, r *http.Request) {
-	b := Model(r)
-
-	if b.Status != runner.Running {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	if _, err := h.Client.Publish(fmt.Sprintf("kill-%v", b.ID), b.Secret.String).Result(); err != nil {
-		log.Error.Println(errors.Err(err))
+func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
+	if err := h.Kill(r); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -195,12 +187,16 @@ func (h API) Kill(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h JobAPI) Index(w http.ResponseWriter, r *http.Request) {
-	b := Model(r)
+	b, ok := build.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
+	}
 
 	jj, err := h.IndexWithRelations(build.NewJobStore(h.DB, b), nil)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -221,20 +217,29 @@ func (h JobAPI) Show(w http.ResponseWriter, r *http.Request) {
 	j, err := h.ShowWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if j.IsZero() {
+		web.JSONError(w, "Not found", http.StatusNotFound)
 		return
 	}
 	web.JSON(w, j.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
 }
 
 func (h ArtifactAPI) Index(w http.ResponseWriter, r *http.Request) {
-	b := Model(r)
+	b, ok := build.FromContext(r.Context())
 
-	aa, err := build.NewArtifactStore(h.DB, b).All(model.Search("name", r.URL.Query().Get("search")))
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
+	}
+
+	aa, err := build.NewArtifactStore(h.DB, b).All(database.Search("name", r.URL.Query().Get("search")))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -252,12 +257,16 @@ func (h ArtifactAPI) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
-	b := Model(r)
+	b, ok := build.FromContext(r.Context())
 
-	err := build.NewTriggerStore(h.DB).Load("build_id", []interface{}{b.ID}, model.Bind("build_id", "id", b))
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
+	}
+
+	err := build.NewTriggerStore(h.DB).Load("build_id", []interface{}{b.ID}, database.Bind("build_id", "id", b))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -267,30 +276,39 @@ func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
 	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", id))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if a.IsZero() {
+		web.JSONError(w, "Not found", http.StatusNotFound)
 		return
 	}
 	web.JSON(w, a.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
 }
 
 func (h TagAPI) Index(w http.ResponseWriter, r *http.Request) {
-	b := Model(r)
+	b, ok := build.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
+	}
 
 	tt, err := build.NewTagStore(h.DB, b).All()
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	mm := model.Slice(len(tt), build.TagModel(tt))
+	mm := database.ModelSlice(len(tt), build.TagModel(tt))
 
-	err = h.Users.Load("id", model.MapKey("user_id", mm), model.Bind("user_id", "id", mm...))
+	err = h.Users.Load("id", database.MapKey("user_id", mm), database.Bind("user_id", "id", mm...))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -308,32 +326,10 @@ func (h TagAPI) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h TagAPI) Store(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+	tt, err := h.StoreModel(r)
 
-	u := h.User(r)
-	b := Model(r)
-
-	tags := []string{}
-
-	if err := json.NewDecoder(r.Body).Decode(&tags); err != nil {
-		web.JSONError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	store := build.NewTagStore(h.DB, b)
-
-	tt := make([]*build.Tag, 0, len(tags))
-
-	for _, name := range tags {
-		t := store.New()
-		t.UserID = u.ID
-		t.Name = name
-
-		tt = append(tt, t)
-	}
-
-	if err := store.Create(tt...); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -351,14 +347,18 @@ func (h TagAPI) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
-	b := Model(r)
+	b, ok := build.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
+	}
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["tag"], 10, 64)
 
 	t, err := build.NewTagStore(h.DB, b).Get(query.Where("id", "=", id))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -370,8 +370,8 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h TagAPI) Destroy(w http.ResponseWriter, r *http.Request) {
-	if err := h.Delete(r); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := h.DeleteModel(r); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}

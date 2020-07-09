@@ -8,9 +8,9 @@ func Test_Type(t *testing.T) {
 		expected    Type
 		shouldError bool
 	}{
-		{[]byte("ssh"), TypeSSH, false},
-		{[]byte("qemu"), TypeQEMU, false},
-		{[]byte("docker"), TypeDocker, false},
+		{[]byte("ssh"), SSH, false},
+		{[]byte("qemu"), QEMU, false},
+		{[]byte("docker"), Docker, false},
 		{[]byte("foo"), Type(0), true},
 	}
 

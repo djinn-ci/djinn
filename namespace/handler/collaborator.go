@@ -2,11 +2,10 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
@@ -18,46 +17,9 @@ import (
 
 type Collaborator struct {
 	web.Handler
-
-	Invites    *namespace.InviteStore
-	Namespaces *namespace.Store
 }
 
-func (h Collaborator) StoreModel(r *http.Request) (*namespace.Namespace, error) {
-	vars := mux.Vars(r)
-
-	id, _ := strconv.ParseInt(vars["invite"], 10, 64)
-
-	i, err := h.Invites.Get(query.Where("id", "=", id))
-
-	if err != nil {
-		return &namespace.Namespace{}, errors.Err(err)
-	}
-
-	err = h.Namespaces.Load(
-		"id",
-		[]interface{}{i.NamespaceID},
-		model.Bind("namespace_id", "id", i),
-	)
-
-	if err != nil {
-		return &namespace.Namespace{}, errors.Err(err)
-	}
-
-	collaborators := namespace.NewCollaboratorStore(h.DB, i.Namespace)
-
-	c := collaborators.New()
-	c.UserID = i.InviteeID
-
-	if err := collaborators.Create(c); err != nil {
-		return &namespace.Namespace{}, errors.Err(err)
-	}
-
-	err = h.Invites.Delete(i)
-	return i.Namespace, errors.Err(err)
-}
-
-func (h Collaborator) Delete(r *http.Request) error {
+func (h Collaborator) DeleteModel(r *http.Request) error {
 	vars := mux.Vars(r)
 
 	owner, err := h.Users.Get(query.Where("username", "=", vars["username"]))
@@ -67,7 +29,7 @@ func (h Collaborator) Delete(r *http.Request) error {
 	}
 
 	if owner.IsZero() {
-		return model.ErrNotFound
+		return database.ErrNotFound
 	}
 
 	path := strings.TrimSuffix(vars["namespace"], "/")
@@ -79,7 +41,7 @@ func (h Collaborator) Delete(r *http.Request) error {
 	}
 
 	if n.IsZero() {
-		return model.ErrNotFound
+		return database.ErrNotFound
 	}
 
 	collaborators := namespace.NewCollaboratorStore(h.DB, n)

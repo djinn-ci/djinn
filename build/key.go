@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/key"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
@@ -16,6 +17,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Key is the type that represents an SSH key that has been placed into the
+// build environment.
 type Key struct {
 	ID       int64         `db:"id"`
 	BuildID  int64         `db:"build_id"`
@@ -36,36 +39,49 @@ type keyInfo struct {
 	modTime time.Time
 }
 
+// KeyStore is the type for creating and modifying Key models in the database.
+// The KeyStore type uses an underlying crypto.Block for encrypting the SSH key
+// itself when being stored in the database.
 type KeyStore struct {
-	model.Store
+	database.Store
 
+	block *crypto.Block
 	Build *Build
+	Key   *key.Key
 }
 
 var (
-	_ os.FileInfo   = (*keyInfo)(nil)
-	_ model.Model   = (*Key)(nil)
-	_ model.Binder  = (*KeyStore)(nil)
-	_ model.Loader  = (*KeyStore)(nil)
-	_ runner.Placer = (*KeyStore)(nil)
+	_ os.FileInfo     = (*keyInfo)(nil)
+	_ database.Model  = (*Key)(nil)
+	_ database.Binder = (*KeyStore)(nil)
+	_ database.Loader = (*KeyStore)(nil)
+	_ runner.Placer   = (*KeyStore)(nil)
 
 	keyTable = "build_keys"
 )
 
 // NewKeyStore returns a new KeyStore for querying the build_jobs table. Each
-// model passed to this function will be bound to the returned JobStore.
-func NewKeyStore(db *sqlx.DB, mm ...model.Model) *KeyStore {
+// database passed to this function will be bound to the returned JobStore.
+func NewKeyStore(db *sqlx.DB, mm ...database.Model) *KeyStore {
 	s := &KeyStore{
-		Store: model.Store{DB: db},
+		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-// KeyModel is called along with model.Slice to convert the given slice of
-// Key models to a slice of model.Model interfaces.
-func KeyModel(kk []*Key) func(int) model.Model {
-	return func(i int) model.Model {
+// NewKeyStoreWithblock is functionally the same as NewStore, however it sets
+// the given crypto.Block on the newly returned KeyStore.
+func NewKeyStoreWithBlock(db *sqlx.DB, block *crypto.Block, mm ...database.Model) *KeyStore {
+	s := NewKeyStore(db, mm...)
+	s.block = block
+	return s
+}
+
+// KeyModel is called along with database.ModelSlice to convert the given slice of
+// Key models to a slice of database.Model interfaces.
+func KeyModel(kk []*Key) func(int) database.Model {
+	return func(i int) database.Model {
 		return kk[i]
 	}
 }
@@ -78,11 +94,9 @@ func (i *keyInfo) ModTime() time.Time { return i.modTime }
 func (i *keyInfo) IsDir() bool { return false }
 func (i *keyInfo) Sys() interface{} { return nil }
 
-// Bind the given models to the current Key. This will only bind the model if
-// they are one of the following,
-//
-// - *Build
-func (k *Key) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the
+// models if they are pointers to a Build model.
+func (k *Key) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
@@ -91,14 +105,13 @@ func (k *Key) Bind(mm ...model.Model) {
 	}
 }
 
-func (k *Key) SetPrimary(id int64) {
-	k.ID = id
-}
+// SetPrimary implements the database.Model interface.
+func (k *Key) SetPrimary(id int64) { k.ID = id }
 
-func (k *Key) Primary() (string, int64) {
-	return "id", k.ID
-}
+// Primary implements the database.Model interface.
+func (k *Key) Primary() (string, int64) { return "id", k.ID }
 
+// IsZero implements the database.Model interface.
 func (k *Key) IsZero() bool {
 	return k == nil || k.ID == 0 &&
 		k.BuildID == 0 &&
@@ -108,6 +121,8 @@ func (k *Key) IsZero() bool {
 		k.Location == ""
 }
 
+// JSON implements the database.Model interface. This will return a map with the
+// current Key's values under each key.
 func (k *Key) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":       k.ID,
@@ -126,8 +141,12 @@ func (k *Key) JSON(addr string) map[string]interface{} {
 	return json
 }
 
+// Endpoint implements the database.Model interface. This returns an empty
+// string.
 func (*Key) Endpoint(_ ...string) string { return "" }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, build_id, key_id, name, key, config, and location.
 func (k *Key) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id": k.BuildID,
@@ -149,14 +168,19 @@ func (s *KeyStore) New() *Key {
 	if s.Build != nil {
 		k.BuildID = s.Build.ID
 	}
+
+	if s.Key != nil {
+		k.KeyID = sql.NullInt64{
+			Int64: s.Key.ID,
+			Valid: true,
+		}
+	}
 	return k
 }
 
-// Bind the given models to the current KeyStore. This will only bind the model
-// if they are one of the following,
-//
-// - *Build
-func (s *KeyStore) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the
+// models if they are pointers to a Build model.
+func (s *KeyStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
@@ -165,20 +189,36 @@ func (s *KeyStore) Bind(mm ...model.Model) {
 	}
 }
 
-// Create inserts the given Key models into the build_keys table.
-func (s *KeyStore) Create(kk ...*Key) error {
-	models := model.Slice(len(kk), KeyModel(kk))
-	return errors.Err(s.Store.Create(keyTable, models...))
+// Copy copies each given key.Key into a build Key, and returns the slice of
+// newly created Key models.
+func (s *KeyStore) Copy(kk ...*key.Key) ([]*Key, error) {
+	bkk := make([]*Key, 0, len(kk))
+
+	for _, k := range kk {
+		bk := s.New()
+		bk.KeyID = sql.NullInt64{
+			Int64: k.ID,
+			Valid: true,
+		}
+		bk.Key = k.Key
+		bk.Config = k.Config
+		bk.Location = "/root/.ssh/" + k.Name
+
+		bkk = append(bkk, bk)
+	}
+
+	err := s.Store.Create(keyTable, database.ModelSlice(len(bkk), KeyModel(bkk))...)
+	return bkk, errors.Err(err)
 }
 
 // All returns a slice of Key models, applying each query.Option that is given.
-// Each model that is bound to the store will be applied to the list of query
-// options via model.Where.
+// Each database that is bound to the store will be applied to the list of query
+// options via database.Where.
 func (s *KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	kk := make([]*Key, 0)
 
 	opts = append([]query.Option{
-		model.Where(s.Build, "build_id"),
+		database.Where(s.Build, "build_id"),
 	}, opts...)
 
 	err := s.Store.All(&kk, keyTable, opts...)
@@ -193,16 +233,16 @@ func (s *KeyStore) All(opts ...query.Option) ([]*Key, error) {
 	return kk, errors.Err(err)
 }
 
-// Get returns a single Key model, applying each query.Option that is given.
-// Each model that is bound to the store will be applied to the list of query
-// options via model.Where.
+// Get returns a single Key database, applying each query.Option that is given.
+// Each database that is bound to the store will be applied to the list of query
+// options via database.Where.
 func (s *KeyStore) Get(opts ...query.Option) (*Key, error) {
 	k := &Key{
 		Build: s.Build,
 	}
 
 	opts = append([]query.Option{
-		model.Where(s.Build, "build_id"),
+		database.Where(s.Build, "build_id"),
 	}, opts...)
 
 	err := s.Store.Get(k, keyTable, opts...)
@@ -214,10 +254,10 @@ func (s *KeyStore) Get(opts ...query.Option) (*Key, error) {
 }
 
 // Load loads in a slice of Key models where the given key is in the list of
-// given vals. Each model is loaded individually via a call to the given load
+// given vals. Each database is loaded individually via a call to the given load
 // callback. This method calls KeyStore.All under the hood, so any bound models
 // will impact the models being loaded.
-func (s *KeyStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+func (s *KeyStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
 	kk, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
@@ -248,13 +288,17 @@ func (s *KeyStore) getKeyToPlace(name string) (*Key, error) {
 // Place looks up the Key by the given name, and decrypts its content so it can
 // be written to the given io.Writer.
 func (s *KeyStore) Place(name string, w io.Writer) (int64, error) {
+	if s.block == nil {
+		return 0, errors.New("nil block cipher")
+	}
+
 	k, err := s.getKeyToPlace(name)
 
 	if err != nil {
 		return 0, errors.Err(err)
 	}
 
-	b, err := crypto.Decrypt(k.Key)
+	b, err := s.block.Decrypt(k.Key)
 
 	if err != nil {
 		return 0, errors.Err(err)
@@ -268,13 +312,17 @@ func (s *KeyStore) Place(name string, w io.Writer) (int64, error) {
 // ModTime is always going to be when this method was invoked, and the length
 // will be the length of the decrypted SSH key itself.
 func (s *KeyStore) Stat(name string) (os.FileInfo, error) {
+	if s.block == nil {
+		return nil, errors.New("nil block cipher")
+	}
+
 	k, err := s.getKeyToPlace(name)
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	b, err := crypto.Decrypt(k.Key)
+	b, err := s.block.Decrypt(k.Key)
 
 	return &keyInfo{
 		name:    k.Name,

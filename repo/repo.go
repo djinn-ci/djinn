@@ -1,13 +1,14 @@
-// Package repo providers the model.Model implementation of the Repo entity.
+// Package repo providers the database.Model implementation of the Repo entity.
 package repo
 
 import (
+	"context"
 	"database/sql"
-	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/user"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Repo is the type that represents a Repo from a remote Git hosting provider.
 type Repo struct {
 	ID         int64  `db:"id"`
 	UserID     int64  `db:"user_id"`
@@ -30,48 +32,61 @@ type Repo struct {
 	Provider *provider.Provider `db:"-"`
 }
 
+// Store is the type for creating and modifying Repo models in the database.
 type Store struct {
-	model.Store
+	database.Store
 
-	User     *user.User
+	// User is the bound user.User model. If not nil this will bind the
+	// user.User model to any Repo models that are created. If not nil this
+	// will append a WHERE clause on the user_id column for all SELECT queries
+	// performed.
+	User *user.User
+
+	// Provider is the bound provider.Provider model. If not nil this will bind
+	// the provider.Provider model to any Repo models that are created. If not
+	// nil this will append a WHERE clause on the provider_id column for all
+	// SELECT queries performed.
 	Provider *provider.Provider
 }
 
 var (
-	_ model.Model  = (*Repo)(nil)
-	_ model.Binder = (*Store)(nil)
+	_ database.Model  = (*Repo)(nil)
+	_ database.Binder = (*Store)(nil)
 
 	table     = "provider_repos"
-	relations = map[string]model.RelationFunc{
-		"user":     model.Relation("user_id", "id"),
-		"provider": model.Relation("provider_id", "id"),
+	relations = map[string]database.RelationFunc{
+		"user":     database.Relation("user_id", "id"),
+		"provider": database.Relation("provider_id", "id"),
 	}
 )
 
 // NewStore returns a new Store for querying the provider_repos table. Each
-// model passed to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+// database passed to this function will be bound to the returned Store.
+func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 	s := &Store{
-		Store: model.Store{DB: db},
+		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-// Model is called along with model.Slice to convert the given slice of Repo
-// models to a slice of model.Model interfaces.
-func Model(rr []*Repo) func(int) model.Model {
-	return func(i int) model.Model {
+// FromContext returns the Repo model from the given context, if any.
+func FromContext(ctx context.Context) (*Repo, bool) {
+	r, ok := ctx.Value("repo").(*Repo)
+	return r, ok
+}
+
+// Model is called along with database.ModelSlice to convert the given slice of Repo
+// models to a slice of database.Model interfaces.
+func Model(rr []*Repo) func(int) database.Model {
+	return func(i int) database.Model {
 		return rr[i]
 	}
 }
 
-// Bind the given models to the current Repo. This will only bind the model if
-// they are one of the following,
-//
-// - *user.User
-// - *provider.Provider
-func (r *Repo) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if it is a pointer to either a user.User model or provider.Provider model.
+func (r *Repo) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -82,12 +97,13 @@ func (r *Repo) Bind(mm ...model.Model) {
 	}
 }
 
-func (r *Repo) SetPrimary(id int64) {
-	r.ID = id
-}
+// SetPrimary implements the database.Model interface.
+func (r *Repo) SetPrimary(id int64) { r.ID = id }
 
+// Primary implements the database.Model interface.
 func (r *Repo) Primary() (string, int64) { return "id", r.ID }
 
+// IsZero implements the database.Model interface.
 func (r *Repo) IsZero() bool {
 	return r == nil || r.ID == 0 &&
 		r.UserID == 0 &&
@@ -97,19 +113,21 @@ func (r *Repo) IsZero() bool {
 		!r.Enabled
 }
 
+// JSON implements the database.Model interface. This is a stub method and
+// returns an empty map.
 func (*Repo) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
 
 // Endpoint returns the endpoint to the current Repo, and appends any of the
 // given URI parts.
 func (r *Repo) Endpoint(uri ...string) string {
-	endpoint := fmt.Sprintf("/repos/%v", r.ID)
-
 	if len(uri) > 0 {
-		return fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
+		return "/repos/" + strconv.FormatInt(r.ID, 10) + "/" + strings.Join(uri, "/")
 	}
-	return endpoint
+	return "/repos/" + strconv.FormatInt(r.ID, 10)
 }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, user_id, provider_id, hook_id, repo_id, and enabled.
 func (r *Repo) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":     r.UserID,
@@ -138,30 +156,41 @@ func (s *Store) New() *Repo {
 	return r
 }
 
-// Create inserts the given Repo models into the providers table.
-func (s *Store) Create(rr ...*Repo) error {
-	mm := model.Slice(len(rr), Model(rr))
-	return errors.Err(s.Store.Create(table, mm...))
+// Create creates a new repository with the given repoId of the repository from
+// the provider, and hookId of the webhook that was created for the repository.
+func (s *Store) Create(repoId, hookId int64) (*Repo, error) {
+	r := s.New()
+	r.RepoID = repoId
+	r.HookID = hookId
+	r.Enabled = hookId != 0
+
+	err := s.Store.Create(table, r)
+	return r, errors.Err(err)
 }
 
 // Update updates the given Repo models in the providers table.
 func (s *Store) Update(rr ...*Repo) error {
-	mm := model.Slice(len(rr), Model(rr))
+	mm := database.ModelSlice(len(rr), Model(rr))
 	return errors.Err(s.Store.Update(table, mm...))
 }
 
-// Delete deletes the given Repo models from the providers table.
-func (s *Store) Delete(rr ...*Repo) error {
-	mm := model.Slice(len(rr), Model(rr))
-	return errors.Err(s.Store.Delete(table, mm...))
+// Delete deletes the repos from the database with the given ids.
+func (s *Store) Delete(ids ...int64) error {
+	vals := make([]interface{}, 0, len(ids))
+
+	for _, id := range ids {
+		vals = append(vals, id)
+	}
+
+	q := query.Delete(query.From(table), query.Where("id", "IN", vals...))
+
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	return errors.Err(err)
 }
 
-// Bind the given models to the current Repo. This will only bind the model if
-// they are one of the following,
-//
-// - *user.User
-// - *provider.Provider
-func (s *Store) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if it is a pointer to either a user.User model or provider.Provider model.
+func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -172,8 +201,8 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-// Get returns a single Repo model, applying each query.Option that is given.
-// The model.Where option is applied to the *user.User and *provider.Provider
+// Get returns a single Repo database, applying each query.Option that is given.
+// The database.Where option is applied to the *user.User and *provider.Provider
 // bound models.
 func (s *Store) Get(opts ...query.Option) (*Repo, error) {
 	r := &Repo{
@@ -182,8 +211,8 @@ func (s *Store) Get(opts ...query.Option) (*Repo, error) {
 	}
 
 	opts = append([]query.Option{
-		model.Where(s.User, "user_id"),
-		model.Where(s.Provider, "provider_id"),
+		database.Where(s.User, "user_id"),
+		database.Where(s.Provider, "provider_id"),
 	}, opts...)
 
 	err := s.Store.Get(r, table, opts...)
@@ -195,14 +224,14 @@ func (s *Store) Get(opts ...query.Option) (*Repo, error) {
 }
 
 // All returns a slice Repo models, applying each query.Option that is given.
-// The model.Where option is applied to the *user.User and *provider.Provider
+// The database.Where option is applied to the *user.User and *provider.Provider
 // bound models.
 func (s *Store) All(opts ...query.Option) ([]*Repo, error) {
 	rr := make([]*Repo, 0)
 
 	opts = append([]query.Option{
-		model.Where(s.User, "user_id"),
-		model.Where(s.Provider, "provider_id"),
+		database.Where(s.User, "user_id"),
+		database.Where(s.Provider, "provider_id"),
 	}, opts...)
 
 	err := s.Store.All(&rr, table, opts...)

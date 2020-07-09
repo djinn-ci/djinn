@@ -19,6 +19,7 @@ import (
 type client struct {
 	hookEndpoint string
 	secret       string
+	block        *crypto.Block
 	Endpoint     string
 	Config       *xoauth2.Config
 }
@@ -130,8 +131,17 @@ func (c client) Auth(ctx context.Context, code string) ([]byte, []byte, oauth2.U
 		return nil, nil, u, errors.Err(err)
 	}
 
-	access, _ := crypto.Encrypt([]byte(tok.AccessToken))
-	refresh, _ := crypto.Encrypt([]byte(tok.RefreshToken))
+	access, err := c.block.Encrypt([]byte(tok.AccessToken))
+
+	if err != nil {
+		return nil, nil, u, errors.Err(err)
+	}
+
+	refresh, err := c.block.Encrypt([]byte(tok.RefreshToken))
+
+	if err != nil {
+		return nil, nil, u, errors.Err(err)
+	}
 
 	resp, err := c.Get(tok.AccessToken, c.Endpoint+"/user")
 

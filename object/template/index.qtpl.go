@@ -6,7 +6,7 @@ package template
 
 //line object/template/index.qtpl:2
 import (
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/object"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -29,7 +29,7 @@ type Index struct {
 	template.BasePage
 
 	CSRF      string
-	Paginator model.Paginator
+	Paginator database.Paginator
 	Objects   []*object.Object
 	Search    string
 }

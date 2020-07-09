@@ -1,11 +1,12 @@
 package oauth2
 
 import (
+	"crypto/rand"
 	"database/sql"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -27,44 +28,51 @@ type Code struct {
 	App  *App       `db:"-"`
 }
 
+// CodeStore is the type for creating and modifying Code models in the
+// database.
 type CodeStore struct {
-	model.Store
+	database.Store
 
+	// User is the bound user.User model. If not nil this will bind the
+	// user.User model to any Code models that are created. If not nil this
+	// will append a WHERE clause on the user_id column for all SELECT queries
+	// performed.
 	User *user.User
-	App  *App
+
+	// App is the bound App model. If not nil this will bind the App model to
+	// any Code models that are created. If not nil this will append a WHERE
+	// clause on the app_id column for all SELECT queries performed.
+	App *App
 }
 
 var (
-	_ model.Model  = (*Code)(nil)
-	_ model.Binder = (*CodeStore)(nil)
+	_ database.Model  = (*Code)(nil)
+	_ database.Binder = (*CodeStore)(nil)
 
 	codeTable = "oauth_codes"
 )
 
 // NewCodeStore returns a new CodeStore for querying the oauth_codes table. Each
-// model passed to this function will be bound to the returned CodeStore.
-func NewCodeStore(db *sqlx.DB, mm ...model.Model) *CodeStore {
+// database passed to this function will be bound to the returned CodeStore.
+func NewCodeStore(db *sqlx.DB, mm ...database.Model) *CodeStore {
 	s := &CodeStore{
-		Store: model.Store{DB: db},
+		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-// CodeModel is called along with model.Slice to convert the given slice of
-// Code models to a slice of model.Model interfaces.
-func CodeModel(cc []*Code) func(int) model.Model {
-	return func(i int) model.Model {
+// CodeModel is called along with database.ModelSlice to convert the given slice of
+// Code models to a slice of database.Model interfaces.
+func CodeModel(cc []*Code) func(int) database.Model {
+	return func(i int) database.Model {
 		return cc[i]
 	}
 }
 
-// Bind the given models to the current Code. This will only bind the model if
-// they are one of the following,
-//
-// - *app.App
-// - *user.User
-func (c *Code) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if it is a pointer to either a user.User model or an App model.
+func (c *Code) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *App:
@@ -75,12 +83,13 @@ func (c *Code) Bind(mm ...model.Model) {
 	}
 }
 
-func (c *Code) SetPrimary(id int64) {
-	c.ID = id
-}
+// SetPrimary implements the database.Model interface.
+func (c *Code) SetPrimary(id int64) { c.ID = id }
 
+// Primary implements the database.Model interface.
 func (c *Code) Primary() (string, int64) { return "id", c.ID }
 
+// IsZero implements the database.Model interface.
 func (c *Code) IsZero() bool {
 	return c == nil || c.ID == 0 &&
 		len(c.Code) == 0 &&
@@ -88,12 +97,16 @@ func (c *Code) IsZero() bool {
 		c.ExpiresAt == time.Time{}
 }
 
+// JSON implements the database.Model interface. This is a stub method and
+// returns an empty map.
 func (*Code) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
 
-// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
-// string.
+// Endpoint implements the database.Model interface. This is a stub method and
+// returns an empty string.
 func (*Code) Endpoint(_ ...string) string { return "" }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, code, scope, and expires_at.
 func (c *Code) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"code":       c.Code,
@@ -115,12 +128,9 @@ func (s *CodeStore) New() *Code {
 	return c
 }
 
-// Bind the given models to the current Code. This will only bind the model if
-// they are one of the following,
-//
-// - *app.App
-// - *user.User
-func (s *CodeStore) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if it is a pointer to either a user.User model or an App model.
+func (s *CodeStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *App:
@@ -131,21 +141,35 @@ func (s *CodeStore) Bind(mm ...model.Model) {
 	}
 }
 
-// Create inserts the given Code models into the oauth_codes table.
-func (s *CodeStore) Create(cc ...*Code) error {
-	mm := model.Slice(len(cc), CodeModel(cc))
-	return errors.Err(s.Store.Create(codeTable, mm...))
+// Create creates a new code with the given scope. This will set the code's
+// expiration to 10 minutes from when this is called.
+func (s *CodeStore) Create(scope Scope) (*Code, error) {
+	c := s.New()
+	c.Code = make([]byte, 16)
+	c.Scope = scope
+	c.ExpiresAt = time.Now().Add(time.Minute * 10)
+
+	if _, err := rand.Read(c.Code); err != nil {
+		return c, errors.Err(err)
+	}
+
+	err := s.Store.Create(codeTable, c)
+	return c, errors.Err(err)
 }
 
-// Delete deletes the given Code models from the oauth_codes table.
-func (s *CodeStore) Delete(cc ...*Code) error {
-	mm := model.Slice(len(cc), CodeModel(cc))
+// Delete deletes the codes of the given ids from the database.
+func (s *CodeStore) Delete(ids ...int64) error {
+	mm := make([]database.Model, 0, len(ids))
+
+	for _, id := range ids {
+		mm = append(mm, &Code{ID: id})
+	}
 	return errors.Err(s.Store.Delete(codeTable, mm...))
 }
 
-// Get returns a single Code model, applying each query.Option that is given.
-// The model.Where option is applied to the bound User model and bound App
-// model.
+// Get returns a single Code database, applying each query.Option that is given.
+// The database.Where option is applied to the bound User database and bound App
+// database.
 func (s *CodeStore) Get(opts ...query.Option) (*Code, error) {
 	c := &Code{
 		User: s.User,
@@ -153,8 +177,8 @@ func (s *CodeStore) Get(opts ...query.Option) (*Code, error) {
 	}
 
 	opts = append([]query.Option{
-		model.Where(s.User, "user_id"),
-		model.Where(s.App, "app_id"),
+		database.Where(s.User, "user_id"),
+		database.Where(s.App, "app_id"),
 	}, opts...)
 
 	err := s.Store.Get(c, codeTable, opts...)

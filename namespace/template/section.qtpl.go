@@ -28,128 +28,129 @@ var (
 //line namespace/template/section.qtpl:11
 type section struct{}
 
-type InviteIndex struct {
+type Invites struct {
 	section
 	template.BasePage
+	template.Form
 
-	CSRF    htmltemplate.HTML
-	Invites []*namespace.Invite
+	CSRF      htmltemplate.HTML
+	Namespace *namespace.Namespace
+	Invites   []*namespace.Invite
 }
 
 type CollaboratorIndex struct {
 	section
 	template.BasePage
-	template.Form
 
 	CSRF          htmltemplate.HTML
 	Namespace     *namespace.Namespace
 	Collaborators []*namespace.Collaborator
 }
 
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 func (p *section) StreamHeader(qw422016 *qt422016.Writer) {
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 }
 
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 func (p *section) WriteHeader(qq422016 qtio422016.Writer) {
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 	p.StreamHeader(qw422016)
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 }
 
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 func (p *section) Header() string {
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 	p.WriteHeader(qb422016)
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 	qs422016 := string(qb422016.B)
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 	return qs422016
-//line namespace/template/section.qtpl:33
+//line namespace/template/section.qtpl:34
 }
 
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 func (p *section) StreamActions(qw422016 *qt422016.Writer) {
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 }
 
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 func (p *section) WriteActions(qq422016 qtio422016.Writer) {
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 	p.StreamActions(qw422016)
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 }
 
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 func (p *section) Actions() string {
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 	p.WriteActions(qb422016)
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 	qs422016 := string(qb422016.B)
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 	return qs422016
-//line namespace/template/section.qtpl:34
+//line namespace/template/section.qtpl:35
 }
 
-//line namespace/template/section.qtpl:36
-func (p *InviteIndex) StreamTitle(qw422016 *qt422016.Writer) {
-//line namespace/template/section.qtpl:36
-	qw422016.N().S(` Settings - Namespace Invites `)
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:37
+func (p *Invites) StreamTitle(qw422016 *qt422016.Writer) {
+//line namespace/template/section.qtpl:37
+	qw422016.N().S(` Namespace Invites `)
+//line namespace/template/section.qtpl:39
 }
 
-//line namespace/template/section.qtpl:38
-func (p *InviteIndex) WriteTitle(qq422016 qtio422016.Writer) {
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
+func (p *Invites) WriteTitle(qq422016 qtio422016.Writer) {
+//line namespace/template/section.qtpl:39
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
 	p.StreamTitle(qw422016)
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
 }
 
-//line namespace/template/section.qtpl:38
-func (p *InviteIndex) Title() string {
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
+func (p *Invites) Title() string {
+//line namespace/template/section.qtpl:39
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
 	p.WriteTitle(qb422016)
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
 	qs422016 := string(qb422016.B)
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
 	return qs422016
-//line namespace/template/section.qtpl:38
+//line namespace/template/section.qtpl:39
 }
 
 //line namespace/template/section.qtpl:41
-func (p *InviteIndex) StreamHeader(qw422016 *qt422016.Writer) {
+func (p *Invites) StreamHeader(qw422016 *qt422016.Writer) {
 //line namespace/template/section.qtpl:41
-	qw422016.N().S(` Settings - Namespace Invites `)
+	qw422016.N().S(` Namespace Invites `)
 //line namespace/template/section.qtpl:43
 }
 
 //line namespace/template/section.qtpl:43
-func (p *InviteIndex) WriteHeader(qq422016 qtio422016.Writer) {
+func (p *Invites) WriteHeader(qq422016 qtio422016.Writer) {
 //line namespace/template/section.qtpl:43
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line namespace/template/section.qtpl:43
@@ -160,7 +161,7 @@ func (p *InviteIndex) WriteHeader(qq422016 qtio422016.Writer) {
 }
 
 //line namespace/template/section.qtpl:43
-func (p *InviteIndex) Header() string {
+func (p *Invites) Header() string {
 //line namespace/template/section.qtpl:43
 	qb422016 := qt422016.AcquireByteBuffer()
 //line namespace/template/section.qtpl:43
@@ -175,200 +176,240 @@ func (p *InviteIndex) Header() string {
 }
 
 //line namespace/template/section.qtpl:45
-func (p *InviteIndex) StreamBody(qw422016 *qt422016.Writer) {
+func (p *Invites) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/section.qtpl:45
 	qw422016.N().S(` <div class="panel"> `)
 //line namespace/template/section.qtpl:47
-	if len(p.Invites) == 0 {
+	if p.Namespace != nil {
 //line namespace/template/section.qtpl:47
+		qw422016.N().S(` <div class="panel-header panel-body"> <form method="POST" action="`)
+//line namespace/template/section.qtpl:49
+		qw422016.E().S(p.Namespace.Endpoint("invites"))
+//line namespace/template/section.qtpl:49
+		qw422016.N().S(`"> `)
+//line namespace/template/section.qtpl:50
+		qw422016.N().V(p.CSRF)
+//line namespace/template/section.qtpl:50
+		qw422016.N().S(` <div class="form-field form-field-inline"> <input type="text" class="form-text" name="handle" placeholder="Invite user..." autocomplete="off"/> <button type="submit" class="btn btn-primary">Invite</button> `)
+//line namespace/template/section.qtpl:54
+		p.StreamError(qw422016, "handle")
+//line namespace/template/section.qtpl:54
+		qw422016.N().S(` </div> </form> </div> `)
+//line namespace/template/section.qtpl:58
+	}
+//line namespace/template/section.qtpl:58
+	qw422016.N().S(` `)
+//line namespace/template/section.qtpl:59
+	if len(p.Invites) == 0 {
+//line namespace/template/section.qtpl:59
 		qw422016.N().S(` <div class="panel-message muted">No new namespace invites.</div> `)
-//line namespace/template/section.qtpl:49
-	} else {
-//line namespace/template/section.qtpl:49
-		qw422016.N().S(` <table class="table"> <thead> <tr> <th>NAMESPACE</th> <th>INVITED BY</th> <th></th> </tr> </thead> <tbody> `)
-//line namespace/template/section.qtpl:59
-		for _, i := range p.Invites {
-//line namespace/template/section.qtpl:59
-			qw422016.N().S(` <tr> <td>`)
 //line namespace/template/section.qtpl:61
-			qw422016.E().S(i.Namespace.Path)
-//line namespace/template/section.qtpl:61
-			qw422016.N().S(`</td> <td>`)
-//line namespace/template/section.qtpl:62
-			qw422016.E().S(i.Inviter.Username)
-//line namespace/template/section.qtpl:62
-			qw422016.N().S(`</td> <td class="align-right"> <form method="POST" action="`)
-//line namespace/template/section.qtpl:64
-			qw422016.E().S(i.Endpoint())
-//line namespace/template/section.qtpl:64
-			qw422016.N().S(`"> `)
-//line namespace/template/section.qtpl:65
-			qw422016.N().V(p.CSRF)
-//line namespace/template/section.qtpl:65
-			qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <button type="submit" class="btn btn-primary">Accept</button> </form> <form method="POST" action="`)
-//line namespace/template/section.qtpl:69
-			qw422016.E().S(i.Endpoint())
-//line namespace/template/section.qtpl:69
-			qw422016.N().S(`"> `)
-//line namespace/template/section.qtpl:70
-			qw422016.N().V(p.CSRF)
-//line namespace/template/section.qtpl:70
-			qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Reject</button> </form> </td> </tr> `)
-//line namespace/template/section.qtpl:76
-		}
-//line namespace/template/section.qtpl:76
-		qw422016.N().S(` </tbody> </table> `)
-//line namespace/template/section.qtpl:79
-	}
-//line namespace/template/section.qtpl:79
-	qw422016.N().S(` </div> `)
-//line namespace/template/section.qtpl:81
-}
-
-//line namespace/template/section.qtpl:81
-func (p *InviteIndex) WriteBody(qq422016 qtio422016.Writer) {
-//line namespace/template/section.qtpl:81
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/section.qtpl:81
-	p.StreamBody(qw422016)
-//line namespace/template/section.qtpl:81
-	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/section.qtpl:81
-}
-
-//line namespace/template/section.qtpl:81
-func (p *InviteIndex) Body() string {
-//line namespace/template/section.qtpl:81
-	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/section.qtpl:81
-	p.WriteBody(qb422016)
-//line namespace/template/section.qtpl:81
-	qs422016 := string(qb422016.B)
-//line namespace/template/section.qtpl:81
-	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/section.qtpl:81
-	return qs422016
-//line namespace/template/section.qtpl:81
-}
-
-//line namespace/template/section.qtpl:83
-func (p *CollaboratorIndex) StreamTitle(qw422016 *qt422016.Writer) {
-//line namespace/template/section.qtpl:83
-	qw422016.N().S(` Namespace Collaborators `)
-//line namespace/template/section.qtpl:85
-}
-
-//line namespace/template/section.qtpl:85
-func (p *CollaboratorIndex) WriteTitle(qq422016 qtio422016.Writer) {
-//line namespace/template/section.qtpl:85
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/section.qtpl:85
-	p.StreamTitle(qw422016)
-//line namespace/template/section.qtpl:85
-	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/section.qtpl:85
-}
-
-//line namespace/template/section.qtpl:85
-func (p *CollaboratorIndex) Title() string {
-//line namespace/template/section.qtpl:85
-	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/section.qtpl:85
-	p.WriteTitle(qb422016)
-//line namespace/template/section.qtpl:85
-	qs422016 := string(qb422016.B)
-//line namespace/template/section.qtpl:85
-	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/section.qtpl:85
-	return qs422016
-//line namespace/template/section.qtpl:85
-}
-
-//line namespace/template/section.qtpl:87
-func (p *CollaboratorIndex) StreamBody(qw422016 *qt422016.Writer) {
-//line namespace/template/section.qtpl:87
-	qw422016.N().S(` <div class="panel"> <div class="panel-header panel-body"> <form method="POST" action="`)
-//line namespace/template/section.qtpl:90
-	qw422016.E().S(p.Namespace.Endpoint("-", "collaborators"))
-//line namespace/template/section.qtpl:90
-	qw422016.N().S(`"> `)
-//line namespace/template/section.qtpl:91
-	qw422016.N().V(p.CSRF)
-//line namespace/template/section.qtpl:91
-	qw422016.N().S(` <div class="form-field form-field-inline"> <input type="text" class="form-text" name="handle" placeholder="Add a collaborator..." autocomplete="off"/> <button type="submit" class="btn btn-primary">Add</button> `)
-//line namespace/template/section.qtpl:95
-	p.StreamError(qw422016, "handle")
-//line namespace/template/section.qtpl:95
-	qw422016.N().S(` </div> </form> </div> `)
-//line namespace/template/section.qtpl:99
-	if len(p.Collaborators) == 0 {
-//line namespace/template/section.qtpl:99
-		qw422016.N().S(` <div class="panel-message muted">Invite users to this namespace to collaborate with them.</div> `)
-//line namespace/template/section.qtpl:101
 	} else {
-//line namespace/template/section.qtpl:101
-		qw422016.N().S(` <table class="table"> <thead> <tr> <th>USER</th> <th></th> </tr> </thead> <tbody> `)
-//line namespace/template/section.qtpl:110
-		for _, c := range p.Collaborators {
-//line namespace/template/section.qtpl:110
-			qw422016.N().S(` <tr> <td>`)
-//line namespace/template/section.qtpl:112
-			qw422016.E().S(c.User.Username)
-//line namespace/template/section.qtpl:112
-			qw422016.N().S(` &lt;`)
-//line namespace/template/section.qtpl:112
-			qw422016.E().S(c.User.Email)
-//line namespace/template/section.qtpl:112
-			qw422016.N().S(`&gt;</td> `)
-//line namespace/template/section.qtpl:113
-			if p.User.ID == p.Namespace.UserID {
-//line namespace/template/section.qtpl:113
-				qw422016.N().S(` <td class="align-right"> <form method="POST" action="`)
-//line namespace/template/section.qtpl:115
-				qw422016.E().S(c.Endpoint())
-//line namespace/template/section.qtpl:115
+//line namespace/template/section.qtpl:61
+		qw422016.N().S(` `)
+//line namespace/template/section.qtpl:62
+		if p.Namespace == nil {
+//line namespace/template/section.qtpl:62
+			qw422016.N().S(` <table class="table"> <thead> <tr> <th>NAMESPACE</th> <th>INVITED BY</th> <th></th> </tr> </thead> <tbody> `)
+//line namespace/template/section.qtpl:72
+			for _, i := range p.Invites {
+//line namespace/template/section.qtpl:72
+				qw422016.N().S(` <tr> <td>`)
+//line namespace/template/section.qtpl:74
+				qw422016.E().S(i.Namespace.Path)
+//line namespace/template/section.qtpl:74
+				qw422016.N().S(`</td> <td>`)
+//line namespace/template/section.qtpl:75
+				qw422016.E().S(i.Inviter.Username)
+//line namespace/template/section.qtpl:75
+				qw422016.N().S(`</td> <td class="align-right"> <form method="POST" action="`)
+//line namespace/template/section.qtpl:77
+				qw422016.E().S(i.Endpoint())
+//line namespace/template/section.qtpl:77
 				qw422016.N().S(`"> `)
-//line namespace/template/section.qtpl:116
+//line namespace/template/section.qtpl:78
 				qw422016.N().V(p.CSRF)
-//line namespace/template/section.qtpl:116
-				qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> </td> `)
-//line namespace/template/section.qtpl:121
+//line namespace/template/section.qtpl:78
+				qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <button type="submit" class="btn btn-primary">Accept</button> </form> <form method="POST" action="`)
+//line namespace/template/section.qtpl:82
+				qw422016.E().S(i.Endpoint())
+//line namespace/template/section.qtpl:82
+				qw422016.N().S(`"> `)
+//line namespace/template/section.qtpl:83
+				qw422016.N().V(p.CSRF)
+//line namespace/template/section.qtpl:83
+				qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Reject</button> </form> </td> </tr> `)
+//line namespace/template/section.qtpl:89
 			}
-//line namespace/template/section.qtpl:121
-			qw422016.N().S(` </tr> `)
-//line namespace/template/section.qtpl:123
+//line namespace/template/section.qtpl:89
+			qw422016.N().S(` </tbody> </table> `)
+//line namespace/template/section.qtpl:92
+		} else {
+//line namespace/template/section.qtpl:92
+			qw422016.N().S(` <table class="table"> <thead> <tr> <th>USER</th> <th></th> </tr> </thead> <tbody> `)
+//line namespace/template/section.qtpl:101
+			for _, i := range p.Invites {
+//line namespace/template/section.qtpl:101
+				qw422016.N().S(` <td>`)
+//line namespace/template/section.qtpl:102
+				qw422016.E().S(i.Invitee.Username)
+//line namespace/template/section.qtpl:102
+				qw422016.N().S(`</td> <td class="align-right"> <form method="POST" action="`)
+//line namespace/template/section.qtpl:104
+				qw422016.E().S(i.Endpoint())
+//line namespace/template/section.qtpl:104
+				qw422016.N().S(`"> `)
+//line namespace/template/section.qtpl:105
+				qw422016.N().V(p.CSRF)
+//line namespace/template/section.qtpl:105
+				qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Revoke</button> </form> </td> `)
+//line namespace/template/section.qtpl:110
+			}
+//line namespace/template/section.qtpl:110
+			qw422016.N().S(` </tbody> </table> `)
+//line namespace/template/section.qtpl:113
 		}
-//line namespace/template/section.qtpl:123
-		qw422016.N().S(` </tbody> </table> `)
-//line namespace/template/section.qtpl:126
+//line namespace/template/section.qtpl:113
+		qw422016.N().S(` `)
+//line namespace/template/section.qtpl:114
 	}
-//line namespace/template/section.qtpl:126
+//line namespace/template/section.qtpl:114
 	qw422016.N().S(` </div> `)
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
 }
 
-//line namespace/template/section.qtpl:128
-func (p *CollaboratorIndex) WriteBody(qq422016 qtio422016.Writer) {
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
+func (p *Invites) WriteBody(qq422016 qtio422016.Writer) {
+//line namespace/template/section.qtpl:116
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
 	p.StreamBody(qw422016)
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
 }
 
-//line namespace/template/section.qtpl:128
-func (p *CollaboratorIndex) Body() string {
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
+func (p *Invites) Body() string {
+//line namespace/template/section.qtpl:116
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
 	p.WriteBody(qb422016)
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
 	qs422016 := string(qb422016.B)
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
 	return qs422016
-//line namespace/template/section.qtpl:128
+//line namespace/template/section.qtpl:116
+}
+
+//line namespace/template/section.qtpl:118
+func (p *CollaboratorIndex) StreamTitle(qw422016 *qt422016.Writer) {
+//line namespace/template/section.qtpl:118
+	qw422016.N().S(` Namespace Collaborators `)
+//line namespace/template/section.qtpl:120
+}
+
+//line namespace/template/section.qtpl:120
+func (p *CollaboratorIndex) WriteTitle(qq422016 qtio422016.Writer) {
+//line namespace/template/section.qtpl:120
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line namespace/template/section.qtpl:120
+	p.StreamTitle(qw422016)
+//line namespace/template/section.qtpl:120
+	qt422016.ReleaseWriter(qw422016)
+//line namespace/template/section.qtpl:120
+}
+
+//line namespace/template/section.qtpl:120
+func (p *CollaboratorIndex) Title() string {
+//line namespace/template/section.qtpl:120
+	qb422016 := qt422016.AcquireByteBuffer()
+//line namespace/template/section.qtpl:120
+	p.WriteTitle(qb422016)
+//line namespace/template/section.qtpl:120
+	qs422016 := string(qb422016.B)
+//line namespace/template/section.qtpl:120
+	qt422016.ReleaseByteBuffer(qb422016)
+//line namespace/template/section.qtpl:120
+	return qs422016
+//line namespace/template/section.qtpl:120
+}
+
+//line namespace/template/section.qtpl:122
+func (p *CollaboratorIndex) StreamBody(qw422016 *qt422016.Writer) {
+//line namespace/template/section.qtpl:122
+	qw422016.N().S(` <div class="panel"> `)
+//line namespace/template/section.qtpl:124
+	if len(p.Collaborators) == 0 {
+//line namespace/template/section.qtpl:124
+		qw422016.N().S(` <div class="panel-message muted">Invite users to this namespace to collaborate with them.</div> `)
+//line namespace/template/section.qtpl:126
+	} else {
+//line namespace/template/section.qtpl:126
+		qw422016.N().S(` <table class="table"> <thead> <tr> <th>USER</th> <th></th> </tr> </thead> <tbody> `)
+//line namespace/template/section.qtpl:135
+		for _, c := range p.Collaborators {
+//line namespace/template/section.qtpl:135
+			qw422016.N().S(` <tr> <td>`)
+//line namespace/template/section.qtpl:137
+			qw422016.E().S(c.User.Username)
+//line namespace/template/section.qtpl:137
+			qw422016.N().S(` &lt;`)
+//line namespace/template/section.qtpl:137
+			qw422016.E().S(c.User.Email)
+//line namespace/template/section.qtpl:137
+			qw422016.N().S(`&gt;</td> `)
+//line namespace/template/section.qtpl:138
+			if p.User.ID == p.Namespace.UserID {
+//line namespace/template/section.qtpl:138
+				qw422016.N().S(` <td class="align-right"> <form method="POST" action="`)
+//line namespace/template/section.qtpl:140
+				qw422016.E().S(c.Endpoint())
+//line namespace/template/section.qtpl:140
+				qw422016.N().S(`"> `)
+//line namespace/template/section.qtpl:141
+				qw422016.N().V(p.CSRF)
+//line namespace/template/section.qtpl:141
+				qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> </td> `)
+//line namespace/template/section.qtpl:146
+			}
+//line namespace/template/section.qtpl:146
+			qw422016.N().S(` </tr> `)
+//line namespace/template/section.qtpl:148
+		}
+//line namespace/template/section.qtpl:148
+		qw422016.N().S(` </tbody> </table> `)
+//line namespace/template/section.qtpl:151
+	}
+//line namespace/template/section.qtpl:151
+	qw422016.N().S(` </div> `)
+//line namespace/template/section.qtpl:153
+}
+
+//line namespace/template/section.qtpl:153
+func (p *CollaboratorIndex) WriteBody(qq422016 qtio422016.Writer) {
+//line namespace/template/section.qtpl:153
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line namespace/template/section.qtpl:153
+	p.StreamBody(qw422016)
+//line namespace/template/section.qtpl:153
+	qt422016.ReleaseWriter(qw422016)
+//line namespace/template/section.qtpl:153
+}
+
+//line namespace/template/section.qtpl:153
+func (p *CollaboratorIndex) Body() string {
+//line namespace/template/section.qtpl:153
+	qb422016 := qt422016.AcquireByteBuffer()
+//line namespace/template/section.qtpl:153
+	p.WriteBody(qb422016)
+//line namespace/template/section.qtpl:153
+	qs422016 := string(qb422016.B)
+//line namespace/template/section.qtpl:153
+	qt422016.ReleaseByteBuffer(qb422016)
+//line namespace/template/section.qtpl:153
+	return qs422016
+//line namespace/template/section.qtpl:153
 }

@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/template"
 )
 
@@ -30,7 +30,7 @@ var (
 type Index struct {
 	template.BasePage
 
-	Paginator model.Paginator
+	Paginator database.Paginator
 	Builds    []*build.Build
 	Search    string
 	Status    string

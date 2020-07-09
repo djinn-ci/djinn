@@ -3,7 +3,7 @@ package build
 import (
 	"database/sql/driver"
 
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -15,11 +15,5 @@ type testQuery struct {
 	opts   []query.Option
 	rows   *sqlmock.Rows
 	args   []driver.Value
-	models []model.Model
+	models []database.Model
 }
-
-var (
-	insertFmt = "INSERT INTO %s \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id"
-	updateFmt = "UPDATE %s SET [a-z_ \\= \\$\\d+,]+ WHERE \\([a-z_]+ \\= \\$\\d\\)"
-	deleteFmt = "DELETE FROM %s WHERE \\(id IN \\([\\$\\d+ , ]+\\)\\)"
-)

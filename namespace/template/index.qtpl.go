@@ -7,7 +7,7 @@ package template
 //line namespace/template/index.qtpl:2
 import (
 	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/template"
 )
@@ -29,7 +29,7 @@ var (
 type Index struct {
 	template.BasePage
 
-	Paginator  model.Paginator
+	Paginator  database.Paginator
 	Namespace  *namespace.Namespace
 	Namespaces []*namespace.Namespace
 	Search     string

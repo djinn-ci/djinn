@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/oauth2/handler"
@@ -25,6 +26,7 @@ type Router struct {
 	app    handler.App
 	token  handler.Token
 
+	Block      *crypto.Block
 	Middleware web.Middleware
 	Providers  map[string]oauth2.Provider
 }
@@ -64,13 +66,19 @@ func (r *Router) Init(h web.Handler) {
 	}
 	r.app = handler.App{
 		Handler: h,
+		Block:   r.Block,
 	}
 	r.token = handler.Token{
 		Handler: h,
+		Tokens:  oauth2.NewTokenStore(h.DB),
 	}
 }
 
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
+	mux.HandleFunc("/oauth/authorize", r.oauth2.Auth).Methods("GET", "POST")
+	mux.HandleFunc("/oauth/token", r.oauth2.Token).Methods("POST")
+	mux.HandleFunc("/oauth/revoke", r.oauth2.Revoke).Methods("POST")
+
 	auth := mux.PathPrefix("/settings").Subrouter()
 	auth.HandleFunc("/apps", r.app.Index).Methods("GET")
 	auth.HandleFunc("/apps/create", r.app.Create).Methods("GET")
@@ -93,9 +101,6 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	tok.Use(r.Middleware.Gate(tokenGate(r.token.DB)), csrf)
 
 	sr := mux.PathPrefix("/oauth").Subrouter()
-	sr.HandleFunc("/authorize", r.oauth2.Auth).Methods("GET", "POST")
-	sr.HandleFunc("/token", r.oauth2.Token).Methods("POST")
-	sr.HandleFunc("/revoke", r.oauth2.Revoke).Methods("POST")
 	sr.HandleFunc("/{provider}", r.oauth2.AuthClient).Methods("GET")
 	sr.HandleFunc("/{provider}", r.oauth2.RevokeClient).Methods("DELETE")
 	sr.Use(csrf)

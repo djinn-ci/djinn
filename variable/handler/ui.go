@@ -5,11 +5,10 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/variable"
-	variabletemplate "github.com/andrewpillar/thrall/variable/template"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
+	variabletemplate "github.com/andrewpillar/thrall/variable/template"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/csrf"
@@ -22,12 +21,16 @@ type UI struct {
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
 
-	vv, paginator, err := h.IndexWithRelations(variable.NewStore(h.DB, u), r)
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
+	vv, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -44,7 +47,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Paginator: paginator,
 		Variables: vv,
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -57,11 +60,11 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	p := &variabletemplate.Create{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: h.FormErrors(sess),
-			Fields: h.FormFields(sess),
+			Errors: web.FormErrors(sess),
+			Fields: web.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -69,22 +72,25 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	v, err := h.StoreModel(r, sess)
+	v, f, err := h.StoreModel(r)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if _, ok := cause.(form.Errors); ok {
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
 
 		if cause == namespace.ErrPermission {
-			sess.AddFlash(template.Danger("Failed to create variable: could not add to namespace"), "alert")
-		} else {
-			sess.AddFlash(template.Danger("Failed to create variable"), "alert")
-			log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Could not add to namespace"), "alert")
+			h.RedirectBack(w, r)
+			return
 		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to create variable"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -96,14 +102,12 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	v := h.Model(r)
-
-	if err := h.Variables.Delete(v); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := h.DeleteModel(r); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to delete variable"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Variable has been deleted: "+v.Key), "alert")
+	sess.AddFlash(template.Success("Variable has been deleted"), "alert")
 	h.RedirectBack(w, r)
 }

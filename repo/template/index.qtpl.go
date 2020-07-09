@@ -6,7 +6,7 @@ package template
 
 //line repo/template/index.qtpl:2
 import (
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/repo"
 	"github.com/andrewpillar/thrall/template"
@@ -30,7 +30,7 @@ type Index struct {
 	template.BasePage
 
 	CSRF      string
-	Paginator model.Paginator
+	Paginator database.Paginator
 	Repos     []*repo.Repo
 	Provider  *provider.Provider
 	Providers []*provider.Provider

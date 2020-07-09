@@ -10,18 +10,20 @@ import (
 	"github.com/andrewpillar/query"
 )
 
+// Form is the type that represents input data for creating a new Namespace.
 type Form struct {
 	Namespaces *Store     `schema:"-"`
 	Namespace  *Namespace `schema:"-"`
 
-	UserID      int64      `schema:"-"`
-	Parent      string     `schema:"parent"`
-	Name        string     `schema:"name"`
-	Description string     `schema:"description"`
-	Visibility  Visibility `schema:"visibility"`
+	Parent      string     `schema:"parent"      json:"parent"`
+	Name        string     `schema:"name"        json:"name"`
+	Description string     `schema:"description" json:"description"`
+	Visibility  Visibility `schema:"visibility"  json:"visibility"`
 }
 
+// InviteForm is the type that represents input data for sending an Invite.
 type InviteForm struct {
+	Namespaces    *Store             `schema:"-"`
 	Collaborators *CollaboratorStore `schema:"-"`
 	Invites       *InviteStore       `schema:"-"`
 	Users         *user.Store        `schema:"-"`
@@ -32,7 +34,9 @@ type InviteForm struct {
 	// Invitee is the User who received the invite.
 	Invitee *user.User `schema:"-"`
 
-	Handle string `schema:"handle"`
+	Namespace string `schema:"-"`
+	Owner     string `schema:"-"`
+	Handle    string `schema:"handle" json:"handle"`
 }
 
 var (
@@ -120,25 +124,34 @@ func (f *InviteForm) Validate() error {
 		errs.Put("handle", form.ErrFieldRequired("Username"))
 	}
 
-	if f.Handle == f.Inviter.Email || f.Handle == f.Inviter.Username {
-		errs.Put("handle", errors.New("You cannot add yourself as a collaborator"))
-	}
-
-	u, err := f.Users.Get(user.WhereHandle(f.Handle))
+	invitee, err := f.Users.Get(user.WhereHandle(f.Handle))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if u.IsZero() {
-		errs.Put("handle", errors.New("Could not find user"))
+	if invitee.IsZero() {
+		errs.Put("handle", errors.New("No such user"))
 	}
 
-	f.Invitee = u
+	inviter, err := f.Users.Get(query.Where("username", "=", f.Owner))
 
-	selectq := user.Select("id", user.WhereHandle(f.Handle))
+	if err != nil {
+		return errors.Err(err)
+	}
 
-	i, err := f.Invites.Get(query.WhereQuery("invitee_id", "=", selectq))
+	if inviter.IsZero() {
+		return ErrPermission
+	}
+
+	if invitee.ID == inviter.ID {
+		errs.Put("handle", errors.New("Cannot invite yourself"))
+	}
+
+	f.Inviter = inviter
+	f.Invitee = invitee
+
+	i, err := f.Invites.Get(query.Where("invitee_id", "=", invitee.ID))
 
 	if err != nil {
 		return errors.Err(err)
@@ -148,7 +161,7 @@ func (f *InviteForm) Validate() error {
 		errs.Put("handle", errors.New("User already invited"))
 	}
 
-	c, err := f.Collaborators.Get(query.WhereQuery("user_id", "=", selectq))
+	c, err := f.Collaborators.Get(query.Where("user_id", "=", invitee.ID))
 
 	if err != nil {
 		return errors.Err(err)
@@ -157,7 +170,5 @@ func (f *InviteForm) Validate() error {
 	if !c.IsZero() {
 		errs.Put("handle", errors.New("User is already a collaborator"))
 	}
-
-	f.Invitee = u
 	return errs.Err()
 }

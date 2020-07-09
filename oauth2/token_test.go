@@ -2,12 +2,11 @@ package oauth2
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -44,28 +43,28 @@ func Test_TokenStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(tokenCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM oauth_tokens WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(tokenCols),
 			[]driver.Value{1,},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM oauth_tokens WHERE (app_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(tokenCols),
 			[]driver.Value{1},
-			[]model.Model{&App{ID: 1}},
+			[]database.Model{&App{ID: 1}},
 		},
 		{
 			"SELECT * FROM oauth_tokens WHERE (user_id = $1 AND app_id = $2)",
 			[]query.Option{},
 			sqlmock.NewRows(tokenCols),
 			[]driver.Value{1, 1},
-			[]model.Model{&App{ID: 1}, &user.User{ID: 1}},
+			[]database.Model{&App{ID: 1}, &user.User{ID: 1}},
 		},
 	}
 
@@ -87,21 +86,14 @@ func Test_TokenStoreCreate(t *testing.T) {
 	store, mock, close_ := tokenStore(t)
 	defer close_()
 
-	tok := &Token{}
+	mock.ExpectQuery(
+		"^INSERT INTO oauth_tokens \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 
-	id := int64(0)
-	expected := fmt.Sprintf(insertFmt, tokenTable)
+	sc, _ := UnmarshalScope("build:read,write,delete")
 
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(tok); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if tok.ID != id {
-		t.Fatalf("token id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, tok.ID)
+	if _, err := store.Create("build token", sc); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -109,14 +101,14 @@ func Test_TokenStoreUpdate(t *testing.T) {
 	store, mock, close_ := tokenStore(t)
 	defer close_()
 
-	tok := &Token{ID: 10}
+	mock.ExpectExec(
+		"UPDATE oauth_tokens SET name = \\$1, scope = \\$2 WHERE \\(id = \\$3\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	expected := fmt.Sprintf(updateFmt, tokenTable)
+	sc, _ := UnmarshalScope("build:read,write,delete")
 
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(tok.ID, 1))
-
-	if err := store.Update(tok); err != nil {
-		t.Fatal(errors.Cause(err))
+	if err := store.Update(10, "dev token", sc); err != nil {
+		t.Errorf("unexpected Update error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -124,17 +116,11 @@ func Test_TokenStoreDelete(t *testing.T) {
 	store, mock, close_ := tokenStore(t)
 	defer close_()
 
-	tt := []*Token{
-		&Token{ID: 1},
-		&Token{ID: 2},
-		&Token{ID: 3},
-	}
+	mock.ExpectExec(
+		"^DELETE FROM oauth_tokens WHERE \\(id IN \\(\\$1, \\$2, \\$3\\)\\)",
+	).WillReturnResult(sqlmock.NewResult(0, 3))
 
-	expected := fmt.Sprintf(deleteFmt, tokenTable)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(tt...); err != nil {
+	if err := store.Delete(1, 2, 3); err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 }

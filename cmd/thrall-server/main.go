@@ -12,11 +12,12 @@ import (
 
 	"github.com/andrewpillar/cli"
 
+	"github.com/andrewpillar/thrall/block"
 	buildweb "github.com/andrewpillar/thrall/build/web"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/filestore"
 	imageweb "github.com/andrewpillar/thrall/image/web"
 	keyweb "github.com/andrewpillar/thrall/key/web"
 	"github.com/andrewpillar/thrall/log"
@@ -37,9 +38,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 
-	goredis "github.com/go-redis/redis"
-
-	"github.com/jmoiron/sqlx"
+	"github.com/go-redis/redis"
 
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
@@ -50,41 +49,17 @@ import (
 var (
 	Version string
 	Build   string
+
+	blockstores = map[string]func(string, int64) block.Store {
+		"file": func(dsn string, limit int64) block.Store {
+			return block.NewFilesystemWithLimit(dsn, limit)
+		},
+	}
 )
 
-func connectDB(cfg config.Database) *sqlx.DB {
-	host, port, err := net.SplitHostPort(cfg.Addr)
-
-	if err != nil {
-		log.Error.Fatal(err)
-	}
-
-	dsn := fmt.Sprintf(
-		"host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
-		host,
-		port,
-		cfg.Name,
-		cfg.Username,
-		cfg.Password,
-	)
-
-	log.Debug.Println("opening postgresql connection with:", dsn)
-
-	db, err := sqlx.Open("postgres", dsn)
-
-	if err != nil {
-		log.Error.Fatal(err)
-	}
-
-	log.Debug.Println("testing connection to database")
-
-	if err := db.Ping(); err != nil {
-		log.Error.Fatal(err)
-	}
-	return db
-}
-
 func mainCommand(cmd cli.Command) {
+	log := log.New(os.Stdout)
+
 	f, err := os.Open(cmd.Flags.GetString("config"))
 
 	if err != nil {
@@ -113,22 +88,54 @@ func mainCommand(cmd cli.Command) {
 
 	defer logf.Close()
 
-	log.SetLogger(log.NewStdLog(logf))
+	log.SetWriter(logf)
 
-	crypto.Key = []byte(cfg.Crypto.Block)
+	blockCipher, err := crypto.NewBlock([]byte(cfg.Crypto.Block))
 
-	if err := crypto.InitHashing(cfg.Crypto.Salt, 8); err != nil {
+	if err != nil {
+		log.Error.Fatalf("failed to setup block cipher: %s\n", errors.Cause(err))
+	}
+
+	hasher := &crypto.Hasher{
+		Salt:   cfg.Crypto.Salt,
+		Length: 8,
+	}
+
+	if err := hasher.Init(); err != nil {
 		log.Error.Fatalf("failed to initialize hashing mechanism: %s\n", err)
 	}
 
-	db := connectDB(cfg.Database)
+	host, port, err := net.SplitHostPort(cfg.Database.Addr)
+
+	if err != nil {
+		log.Error.Fatal(err)
+	}
+
+	dsn := fmt.Sprintf(
+		"host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+		host,
+		port,
+		cfg.Database.Name,
+		cfg.Database.Username,
+		cfg.Database.Password,
+	)
+
+	log.Debug.Println("connecting to postgresql database with:", dsn)
+
+	db, err := database.Connect(dsn)
+
+	if err != nil {
+		log.Error.Fatalf("failed to connect to database: %s\n", errors.Cause(err))
+	}
 
 	log.Info.Println("connected to postgresql database")
 
-	redis := goredis.NewClient(&goredis.Options{
+	redis := redis.NewClient(&redis.Options{
 		Addr:     cfg.Redis.Addr,
 		Password: cfg.Redis.Password,
 	})
+
+	log.Debug.Println("connecting to redis database with:", cfg.Redis.Addr, cfg.Redis.Password)
 
 	if _, err := redis.Ping().Result(); err != nil {
 		log.Error.Fatalf("failed to ping redis: %s\n", err)
@@ -172,26 +179,26 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("block key must be either 16, 24, or 32 bytes in size\n")
 	}
 
-	var imageStore filestore.FileStore
+	var (
+		imageStore    block.Store
+		objectStore   block.Store = blockstores[cfg.Objects.Type](cfg.Objects.Path, cfg.Objects.Limit)
+		artifactStore block.Store = blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
+	)
 
 	if cfg.Images.Path != "" {
-		imageStore, err = filestore.New(cfg.Images)
+		imageStore = blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit)
 
-		if err != nil {
-			log.Error.Fatalf("failed to create image store: %s\n", errors.Cause(err))
+		if err := imageStore.Init(); err != nil {
+			log.Error.Fatalf("failed to initialize image store: %s\n", errors.Cause(err))
 		}
 	}
 
-	objectStore, err := filestore.New(cfg.Objects)
-
-	if err != nil {
-		log.Error.Fatalf("failed to create object store: %s\n", errors.Cause(err))
+	if err := objectStore.Init(); err != nil {
+		log.Error.Fatalf("failed to initialize object store: %s\n", errors.Cause(err))
 	}
 
-	artifacts, err := filestore.New(cfg.Artifacts)
-
-	if err != nil {
-		log.Error.Fatalf("failed to create artifact store: %s\n", errors.Cause(err))
+	if err := artifactStore.Init(); err != nil {
+		log.Error.Fatalf("failed to initialize artifact store: %s\n", errors.Cause(err))
 	}
 
 	authKey := []byte(cfg.Crypto.Auth)
@@ -203,7 +210,7 @@ func mainCommand(cmd cli.Command) {
 	providers := make(map[string]oauth2.Provider)
 
 	for _, p := range cfg.Providers {
-		provider, err := provider.New(p.Name, provider.Opts{
+		provider, err := provider.New(p.Name, blockCipher, provider.Opts{
 			Host:         cfg.Host,
 			Endpoint:     p.Endpoint,
 			Secret:       p.Secret,
@@ -219,13 +226,17 @@ func mainCommand(cmd cli.Command) {
 
 	handler := web.Handler{
 		DB:           db,
+		Log:          log,
 		Store:        session.New(redis, blockKey),
 		SecureCookie: securecookie.New(hashKey, blockKey),
 		Users:        user.NewStore(db),
-		Tokens:       oauth2.NewTokenStore(db),
 	}
 
-	middleware := web.Middleware{Handler: handler}
+	middleware := web.Middleware{
+		Handler: handler,
+		Users:   user.NewStore(db),
+		Tokens:  oauth2.NewTokenStore(db),
+	}
 
 	r := mux.NewRouter()
 
@@ -249,6 +260,7 @@ func mainCommand(cmd cli.Command) {
 		Server: &http.Server{
 			Addr: cfg.Net.Listen,
 		},
+		Log:    log,
 		Router: r,
 		Cert:   cfg.Net.SSL.Cert,
 		Key:    cfg.Net.SSL.Key,
@@ -269,9 +281,11 @@ func mainCommand(cmd cli.Command) {
 	})
 
 	srv.AddRouter("build", &buildweb.Router{
+		Block:      blockCipher,
 		Middleware: middleware,
-		Artifacts:  artifacts,
+		Artifacts:  artifactStore,
 		Redis:      redis,
+		Hasher:     hasher,
 		Queues:     queues,
 		Providers:  providers,
 	})
@@ -282,19 +296,22 @@ func mainCommand(cmd cli.Command) {
 
 	srv.AddRouter("repo", &repoweb.Router{
 		Redis:      redis,
+		Block:      blockCipher,
 		Providers:  providers,
 		Middleware: middleware,
 	})
 
 	srv.AddRouter("image", &imageweb.Router{
 		Middleware: middleware,
-		FileStore:  imageStore,
+		Hasher:     hasher,
+		BlockStore: imageStore,
 		Limit:      cfg.Images.Limit,
 	})
 
 	srv.AddRouter("object", &objectweb.Router{
 		Middleware: middleware,
-		FileStore:  objectStore,
+		Hasher:     hasher,
+		BlockStore: objectStore,
 		Limit:      cfg.Objects.Limit,
 	})
 
@@ -303,10 +320,12 @@ func mainCommand(cmd cli.Command) {
 	})
 
 	srv.AddRouter("key", &keyweb.Router{
+		Block:      blockCipher,
 		Middleware: middleware,
 	})
 
 	srv.AddRouter("oauth2", &oauth2web.Router{
+		Block:      blockCipher,
 		Middleware: middleware,
 		Providers:  providers,
 	})
@@ -349,11 +368,11 @@ func mainCommand(cmd cli.Command) {
 
 		api.Init()
 		api.Register("build", buildweb.Gate(db))
-//		api.Register("namespace", namespaceweb.Gate(db))
-//		api.Register("image", imageweb.Gate(db))
-//		api.Register("object", objectweb.Gate(db))
-//		api.Register("variable", variableweb.Gate(db))
-//		api.Register("key", keyweb.Gate(db))
+		api.Register("namespace", namespaceweb.Gate(db))
+		api.Register("image", imageweb.Gate(db))
+		api.Register("object", objectweb.Gate(db))
+		api.Register("variable", variableweb.Gate(db))
+		api.Register("key", keyweb.Gate(db))
 	}
 
 	go func() {

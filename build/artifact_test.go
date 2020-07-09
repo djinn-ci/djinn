@@ -1,13 +1,16 @@
 package build
 
 import (
+	"bytes"
+	"crypto/md5"
+	"crypto/sha256"
 	"database/sql/driver"
-	"fmt"
-	"regexp"
+	"io"
+	"io/ioutil"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -17,6 +20,7 @@ import (
 )
 
 var artifactCols = []string{
+	"id",
 	"build_id",
 	"job_id",
 	"hash",
@@ -25,6 +29,20 @@ var artifactCols = []string{
 	"size",
 	"md5",
 	"sha256",
+}
+
+type discardCollector struct {
+	w io.Writer
+}
+
+func newDiscardCollector() *discardCollector {
+	return &discardCollector{
+		w: ioutil.Discard,
+	}
+}
+
+func (c *discardCollector) Collect(_ string, r io.Reader) (int64, error) {
+	return io.Copy(c.w, r)
 }
 
 func artifactStore(t *testing.T) (*ArtifactStore, sqlmock.Sqlmock, func() error) {
@@ -42,37 +60,37 @@ func Test_ArtifactStoreAll(t *testing.T) {
 
 	tests := []testQuery{
 		{
-			"SELECT * FROM build_artifacts",
+			"^SELECT \\* FROM build_artifacts$",
 			[]query.Option{},
 			sqlmock.NewRows(artifactCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
-			"SELECT * FROM build_artifacts WHERE (LOWER(name) LIKE $1)",
-			[]query.Option{model.Search("name", "example_artifact")},
+			"SELECT \\* FROM build_artifacts WHERE \\(LOWER\\(name\\) LIKE \\$1\\)$",
+			[]query.Option{database.Search("name", "example_artifact")},
 			sqlmock.NewRows(artifactCols),
 			[]driver.Value{"%example_artifact%"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
-			"SELECT * FROM build_artifacts WHERE (build_id = $1)",
+			"SELECT \\* FROM build_artifacts WHERE \\(build_id = \\$1\\)$",
 			[]query.Option{},
 			sqlmock.NewRows(artifactCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 		{
-			"SELECT * FROM build_artifacts WHERE (job_id = $1)",
+			"SELECT \\* FROM build_artifacts WHERE \\(job_id = \\$1\\)$",
 			[]query.Option{},
 			sqlmock.NewRows(artifactCols),
 			[]driver.Value{10},
-			[]model.Model{&Job{ID: 10}},
+			[]database.Model{&Job{ID: 10}},
 		},
 	}
 
 	for i, test := range tests {
-		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
+		mock.ExpectQuery(test.query).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
@@ -91,30 +109,30 @@ func Test_ArtifactStoreGet(t *testing.T) {
 
 	tests := []testQuery{
 		{
-			"SELECT * FROM build_artifacts",
+			"^SELECT \\* FROM build_artifacts$",
 			[]query.Option{},
 			sqlmock.NewRows(artifactCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
-			"SELECT * FROM build_artifacts WHERE (build_id = $1)",
+			"^SELECT \\* FROM build_artifacts WHERE \\(build_id = \\$1\\)$",
 			[]query.Option{},
 			sqlmock.NewRows(artifactCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 		{
-			"SELECT * FROM build_artifacts WHERE (job_id = $1)",
+			"^SELECT \\* FROM build_artifacts WHERE \\(job_id = \\$1\\)$",
 			[]query.Option{},
 			sqlmock.NewRows(artifactCols),
 			[]driver.Value{10},
-			[]model.Model{&Job{ID: 10}},
+			[]database.Model{&Job{ID: 10}},
 		},
 	}
 
 	for i, test := range tests {
-		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
+		mock.ExpectQuery(test.query).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
@@ -131,35 +149,43 @@ func Test_ArtifactStoreCreate(t *testing.T) {
 	store, mock, close_ := artifactStore(t)
 	defer close_()
 
-	a := &Artifact{}
+	mock.ExpectQuery(
+		"^INSERT INTO build_artifacts \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id$",
+	).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(10))
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, artifactTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(a); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if a.ID != id {
-		t.Fatalf("artifact id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, a.ID)
+	if _, err := store.Create("1a2b3c4d", "build.out", "build.out"); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
-func Test_ArtifactStoreUpdate(t *testing.T) {
+func Test_ArtifactStoreCollect(t *testing.T) {
 	store, mock, close_ := artifactStore(t)
 	defer close_()
 
-	a := &Artifact{}
+	store.Bind(&Build{ID: 1})
+	store.collector = newDiscardCollector()
 
-	expected := fmt.Sprintf(updateFmt, artifactTable)
+	tmp := bytes.NewBufferString("some artifact")
+	buf := &bytes.Buffer{}
 
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(a.ID, 1))
+	mock.ExpectQuery(
+		"^SELECT \\* FROM build_artifacts WHERE \\(build_id = \\$1 AND name = \\$2\\)$",
+	).WillReturnRows(sqlmock.NewRows(artifactCols).AddRow(1, 1, 1, "1a2b3c4d", "build.out", "build.out", nil, nil, nil))
 
-	if err := store.Update(a); err != nil {
-		t.Fatal(errors.Cause(err))
+	md5 := md5.New()
+	sha256 := sha256.New()
+
+	if _, err := io.Copy(io.MultiWriter(md5, sha256, buf), tmp); err != nil {
+		t.Fatalf("unexpected io.Copy error: %s\n", err)
+	}
+
+	mock.ExpectExec(
+		"^UPDATE build_artifacts SET size = \\$1, md5 = \\$2, sha256 = \\$3 WHERE \\(id = \\$4\\)$",
+	).WithArgs(buf.Len(), md5.Sum(nil), sha256.Sum(nil), 1).WillReturnResult(
+		sqlmock.NewResult(0, 1),
+	)
+
+	if _, err := store.Collect("build.out", buf); err != nil {
+		t.Errorf("unexpected Collect error: %s\n", errors.Cause(err))
 	}
 }

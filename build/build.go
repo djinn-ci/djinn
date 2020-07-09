@@ -1,26 +1,12 @@
-// Package build provides model implementations for the Build entity and its
+// Package build provides database implementations for the Build entity and its
 // related entities.
-//
-// Each entity implemented, has a corresponding Store which is used for
-// creating, updating, and deleting models, as well as querying them from the
-// database. These methods wrap the onces provided by the model package via
-// model.Store.
-//
-// Entities:
-//   - Artifact
-//   - Build
-//   - Driver
-//   - Job
-//   - Key
-//   - Object
-//   - Stage
-//   - Tag
-//   - Trigger
-//   - Variable
 package build
 
 import (
+	"context"
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"net/url"
 	"fmt"
 	"strconv"
@@ -28,21 +14,30 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/key"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/object"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/thrall/variable"
 
 	"github.com/andrewpillar/query"
+
+	"github.com/go-redis/redis"
 
 	"github.com/jmoiron/sqlx"
 
 	"github.com/lib/pq"
 
+	"github.com/RichardKnop/machinery/v1"
 	"github.com/RichardKnop/machinery/v1/tasks"
 )
 
+// Build is the type that represents a build that has either run, or will be
+// run.
 type Build struct {
 	ID          int64           `db:"id"`
 	UserID      int64           `db:"user_id"`
@@ -63,52 +58,78 @@ type Build struct {
 	Stages    []*Stage             `db:"-" json:"-"`
 }
 
+// Store is the type for creating and modifying Build models in the database.
+// The Store type can have an underlying hasher.Hasher that is used for
+// generating artifact hashes.
 type Store struct {
-	model.Store
+	database.Store
 
-	User      *user.User
+	hasher *crypto.Hasher
+
+	// User is the bound User model. If not nil this will bind the User model to
+	// any Build models that are created. If not nil this will be passed to the
+	// namespace.WhereCollaborator query option on each SELECT query performed.
+	User *user.User
+
+	// Namespace is the bound Namespace model. If not nil this will bind the
+	// Namespace model to any Build models that are created. If not nil this
+	// will append a WHERE clause on the namespace_id column for all SELECT
+	// queries performed.
 	Namespace *namespace.Namespace
 }
 
 var (
-	_ model.Model  = (*Build)(nil)
-	_ model.Binder = (*Store)(nil)
-	_ model.Loader = (*Store)(nil)
+	_ database.Model  = (*Build)(nil)
+	_ database.Binder = (*Store)(nil)
+	_ database.Loader = (*Store)(nil)
 
 	table     = "builds"
-	relations = map[string]model.RelationFunc{
-		"namespace":     model.Relation("namespace_id", "id"),
-		"user":          model.Relation("user_id", "id"),
-		"build_tag":     model.Relation("id", "build_id"),
-		"build_trigger": model.Relation("id", "build_id"),
-		"build_stage":   model.Relation("id", "build_id"),
+	relations = map[string]database.RelationFunc{
+		"namespace":     database.Relation("namespace_id", "id"),
+		"user":          database.Relation("user_id", "id"),
+		"build_tag":     database.Relation("id", "build_id"),
+		"build_trigger": database.Relation("id", "build_id"),
+		"build_stage":   database.Relation("id", "build_id"),
 	}
 
-	// ErrDriver denotes when an unknown driver was used for a build.
 	ErrDriver = errors.New("unknown driver")
 )
 
 // NewStore returns a new Store for querying the builds table. Each model
 // passed to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 	s := &Store{
-		Store: model.Store{DB: db},
+		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-// LoadRelations loads all of the available relations for the given Build
-// models using the given loaders available.
-func LoadRelations(loaders model.Loaders, bb ...*Build) error {
-	mm := model.Slice(len(bb), Model(bb))
-	return model.LoadRelations(relations, loaders, mm...)
+// NewStoreWithHasher functionally does the same as NewStore, however it sets
+// the given hasher on the newly returned store for hashing of Artifact names.
+func NewStoreWithHasher(db *sqlx.DB, hasher *crypto.Hasher, mm ...database.Model) *Store {
+	s := NewStore(db, mm...)
+	s.hasher = hasher
+	return s
 }
 
-// Model is called along with model.Slice to convert the given slice of Build
-// models to a slice of model.Model interfaces.
-func Model(bb []*Build) func(int) model.Model {
-	return func(i int) model.Model {
+// FromContext returns the Build model from the given context, if any.
+func FromContext(ctx context.Context) (*Build, bool) {
+	b, ok := ctx.Value("build").(*Build)
+	return b, ok
+}
+
+// LoadRelations loads all of the available relations for the given Build
+// models using the given loaders available.
+func LoadRelations(loaders *database.Loaders, bb ...*Build) error {
+	mm := database.ModelSlice(len(bb), Model(bb))
+	return database.LoadRelations(relations, loaders, mm...)
+}
+
+// Model is called along with database.ModelSlice to convert the given slice of
+// Build models to a slice of database.Model interfaces.
+func Model(bb []*Build) func(int) database.Model {
+	return func(i int) database.Model {
 		return bb[i]
 	}
 }
@@ -167,16 +188,27 @@ func WhereTag(tag string) query.Option {
 	}
 }
 
-// Bind the given models to the current Build. This will only bind the model if
-// they are one of the following,
-//
-// - *user.User
-// - *namespace.Namespace
-// - *Trigger
-// - *Tag
-// - *Stage
-// - *Driver
-func (b *Build) Bind(mm ...model.Model) {
+// Kill kills the given build by publishing the build's secret to the given
+// redis.Client.
+func (b *Build) Kill(client *redis.Client) error {
+	if b.Status != runner.Running {
+		return nil
+	}
+
+	key := "kill-" + strconv.FormatInt(b.ID, 10)
+
+	if _, err := client.Publish(key, b.Secret.String).Result(); err != nil {
+		return errors.Err(err)
+	}
+
+	b.Status = runner.Killed
+	return nil
+}
+
+// Bind implements the database.Binder interface. This will only bind the model
+// if they are pointers to either user.User, namespace.Namespace, Trigger, Tag,
+// Stage, or Driver.
+func (b *Build) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -197,9 +229,11 @@ func (b *Build) Bind(mm ...model.Model) {
 	}
 }
 
-// Endpoint returns the endpoint for the current Build. If no User model is
-// bound to the current model, then an empty string is returned. If no host is
-// given then just the endpoint is returned with no host.
+// Endpoint implements the database.Model interface. If the current Build has
+// a nil or zero value User bound model then an empty string is returned,
+// otherwise the full Build endpoint is returned, for example,
+//
+//   /b/l.belardo/10
 func (b *Build) Endpoint(uri ...string) string {
 	if b.User == nil || b.User.IsZero() {
 		return ""
@@ -213,14 +247,13 @@ func (b *Build) Endpoint(uri ...string) string {
 	return endpoint
 }
 
-func (b *Build) Primary() (string, int64) {
-	return "id", b.ID
-}
+// Primary implements the database.Model interface.
+func (b *Build) Primary() (string, int64) { return "id", b.ID }
 
-func (b *Build) SetPrimary(id int64) {
-	b.ID = id
-}
+// SetPrimary implements the database.Model interface.
+func (b *Build) SetPrimary(id int64) { b.ID = id }
 
+// IsZero implements the database.Model interface.
 func (b *Build) IsZero() bool {
 	return b == nil || b.ID == 0 &&
 		!b.NamespaceID.Valid &&
@@ -232,6 +265,12 @@ func (b *Build) IsZero() bool {
 		!b.FinishedAt.Valid
 }
 
+// JSON implements the database.Model interface. This will return a map with the
+// current Build values under each key. This will also include urls to the
+// Build's objects, variables, jobs, artifacts, and tags. If any of the User,
+// Namespace, or Trigger bound models exist on the Build, then the JSON
+// representation of these models will be in the returned map, under the user,
+// namespace, and trigger keys respectively.
 func (b *Build) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":            b.ID,
@@ -264,12 +303,12 @@ func (b *Build) JSON(addr string) map[string]interface{} {
 		json["finished_at"] = b.FinishedAt.Time.Format(time.RFC3339)
 	}
 
-	for name, m := range map[string]model.Model{
+	for name, m := range map[string]database.Model{
 		"user":      b.User,
 		"namespace": b.Namespace,
 		"trigger":   b.Trigger,
 	}{
-		if !m.IsZero() {
+		if m != nil && !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}
 	}
@@ -285,6 +324,9 @@ func (b *Build) JSON(addr string) map[string]interface{} {
 	return json
 }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, user_id, namespace_id, manifest, status, output,
+// secret, started_at, and finished_at.
 func (b *Build) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      b.UserID,
@@ -315,16 +357,10 @@ func (b *Build) Signature() *tasks.Signature {
 	}
 }
 
-// Bind the given models to the current Store. This will only bind the
-// model if they are one of the following,
-//
-// - *user.User
-// - *namespace.Namespace
-// - *Trigger
-// - *Tag
-// - *Stage
-// - *Driver
-func (s *Store) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if they are pointers to either user.User, namespace.Namespace, Trigger, Tag,
+// Stage, or Driver.
+func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -335,26 +371,91 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-// Create inserts the given Build models into the builds table.
-func (s *Store) Create(bb ...*Build) error {
-	models := model.Slice(len(bb), Model(bb))
-	return errors.Err(s.Store.Create(table, models...))
+// Create takes the given config.Manifest, Trigger, and tags, and creates a new
+// Build model in the database. This will also create a Trigger, and tags once
+// the Build has been created in the database.
+func (s *Store) Create(m config.Manifest, t *Trigger, tags ...string) (*Build, error) {
+	secret := make([]byte, 16)
+
+	if _, err := rand.Read(secret); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	b := s.New()
+	b.Secret = sql.NullString{
+		String: hex.EncodeToString(secret),
+		Valid:  true,
+	}
+	b.Manifest = m
+
+	if m.Namespace != "" {
+		n, err := namespace.NewStore(s.DB, b.User).GetByPath(m.Namespace)
+
+		if err != nil {
+			return b, errors.Err(err)
+		}
+
+		if !n.CanAdd(b.User) {
+			return b, namespace.ErrPermission
+		}
+
+		b.Namespace = n
+		b.NamespaceID = sql.NullInt64{
+			Int64: n.ID,
+			Valid: true,
+		}
+	}
+
+	if err := s.Store.Create(table, b); err != nil {
+		return b, errors.Err(err)
+	}
+
+	t.BuildID = b.ID
+
+	if err := NewTriggerStore(s.DB).Create(t); err != nil {
+		return b, errors.Err(err)
+	}
+
+	tt, err := NewTagStore(s.DB, b).Create(b.UserID, tags...)
+
+	b.Tags = tt
+	return b, errors.Err(err)
 }
 
-// Update updates the given Build models in the builds table.
-func (s *Store) Update(bb ...*Build) error {
-	models := model.Slice(len(bb), Model(bb))
-	return errors.Err(s.Store.Update(table, models...))
+// Started marks the build of the given id as started.
+func (s *Store) Started(id int64) error {
+	q := query.Update(
+		query.Table(table),
+		query.Set("status", runner.Running),
+		query.Set("started_at", time.Now()),
+		query.Where("id", "=", id),
+	)
+
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	return errors.Err(err)
 }
 
-// Paginate returns the model.Paginator for the builds table for the given
-// page. This applies the namespace.WhereCollaborator option to the *user.User
-// bound model, and the model.Where option to the *namespace.Namespace bound
-// model.
-func (s *Store) Paginate(page int64, opts ...query.Option) (model.Paginator, error) {
+// Finished marks the build of the given id as finished, setting the output of
+// the build and status to the given values.
+func (s *Store) Finished(id int64, output string, status runner.Status) error {
+	q := query.Update(
+		query.Table(table),
+		query.Set("status", status),
+		query.Set("output", output),
+		query.Set("finished_at", time.Now()),
+		query.Where("id", "=", id),
+	)
+
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	return errors.Err(err)
+}
+
+// Paginate returns the database.Paginator for the builds table for the given
+// page.
+func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
 	opts = append([]query.Option{
 		namespace.WhereCollaborator(s.User),
-		model.Where(s.Namespace, "namespace_id"),
+		database.Where(s.Namespace, "namespace_id"),
 	}, opts...)
 
 	paginator, err := s.Store.Paginate(table, page, opts...)
@@ -383,15 +484,13 @@ func (s *Store) New() *Build {
 }
 
 // All returns a slice of Build models, applying each query.Option that is
-// given. The namespace.WhereCollaborator option is applied to the *user.User
-// bound model, and the model.Where option is applied to the
-// *namespace.Namespace bound model.
+// given.
 func (s *Store) All(opts ...query.Option) ([]*Build, error) {
 	bb := make([]*Build, 0)
 
 	opts = append([]query.Option{
 		namespace.WhereCollaborator(s.User),
-		model.Where(s.Namespace, "namespace_id"),
+		database.Where(s.Namespace, "namespace_id"),
 	}, opts...)
 
 	err := s.Store.All(&bb, table, opts...)
@@ -414,7 +513,7 @@ func (s *Store) All(opts ...query.Option) ([]*Build, error) {
 // tag    - This applies the WhereTag query.Option using the value of tag
 // search - This applies the WhereSearch query.Option using the value of search
 // status - This applies the WhereStatus query.Option using the value of status
-func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Build, model.Paginator, error) {
+func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Build, database.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
@@ -436,16 +535,13 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Build, model.Pa
 	bb, err := s.All(append(
 		opts,
 		query.OrderDesc("created_at"),
-		query.Limit(model.PageLimit),
+		query.Limit(database.PageLimit),
 		query.Offset(paginator.Offset),
 	)...)
 	return bb, paginator, errors.Err(err)
 }
 
-// Get returns a single Build model, appling each query.Option that is given
-// The namespace.WhereCollaborator option is applied to the *user.User bound
-// model, and the model.Where option is applied to the *namespace.Namespace
-// bound model.
+// Get returns a single Build model, applying each query.Option that is given.
 func (s *Store) Get(opts ...query.Option) (*Build, error) {
 	b := &Build{
 		User:      s.User,
@@ -454,7 +550,7 @@ func (s *Store) Get(opts ...query.Option) (*Build, error) {
 
 	opts = append([]query.Option{
 		namespace.WhereCollaborator(s.User),
-		model.Where(s.Namespace, "namespace_id"),
+		database.Where(s.Namespace, "namespace_id"),
 	}, opts...)
 
 	err := s.Store.Get(b, table, opts...)
@@ -466,10 +562,10 @@ func (s *Store) Get(opts ...query.Option) (*Build, error) {
 }
 
 // Load loads in a slice of Build models where the given key is in the list
-// of given vals. Each model is loaded individually via a call to the given
+// of given vals. Each database is loaded individually via a call to the given
 // load callback. This method calls Store.All under the hood, so any
 // bound models will impact the models being loaded.
-func (s *Store) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
 	bb, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
@@ -482,4 +578,178 @@ func (s *Store) Load(key string, vals []interface{}, load model.LoaderFunc) erro
 		}
 	}
 	return nil
+}
+
+// Submit the given build to the givern queue server. This will also create all
+// of the related entities that belong to the newly submitted build, such as
+// keys, objects, variables, stages, jobs, and artifacts.
+func (s *Store) Submit(srv *machinery.Server, b *Build) error {
+	if _, err := NewDriverStore(s.DB, b).Create(b.Manifest.Driver); err != nil {
+		return errors.Err(err)
+	}
+
+	vv, err := variable.NewStore(s.DB).All(
+		query.Where("user_id", "=", b.UserID),
+		query.WhereRaw("namespace_id", "IS", "NULL"),
+		database.OrWhere(b.Namespace, "namespace_id"),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	variables := NewVariableStore(s.DB, b)
+
+	if _, err := variables.Copy(vv...); err != nil {
+		return errors.Err(err)
+	}
+
+	for _, env := range b.Manifest.Env {
+		parts := strings.SplitN(env, "=", 2)
+
+		if _, err := variables.Create(parts[0], parts[1]); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	kk, err := key.NewStore(s.DB).All(
+		query.Where("user_id", "=", b.UserID),
+		query.WhereRaw("namespace_id", "IS", "NULL"),
+		database.OrWhere(b.Namespace, "namespace_id"),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if _, err := NewKeyStore(s.DB, b).Copy(kk...); err != nil {
+		return errors.Err(err)
+	}
+
+	names := make([]interface{}, 0, len(b.Manifest.Objects.Values))
+
+	for src := range b.Manifest.Objects.Values {
+		names = append(names, src)
+	}
+
+	if len(names) > 0 {
+		oo, err := object.NewStore(s.DB).All(
+			query.Where("name", "IN", names...),
+			query.Where("user_id", "=", b.UserID),
+			query.WhereRaw("namespace_id", "IS", "NULL"),
+			database.OrWhere(b.Namespace, "namespace_id"),
+		)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		objects := NewObjectStore(s.DB, b)
+
+		for _, o := range oo {
+			if _, err := objects.Create(o.ID, o.Name, b.Manifest.Objects.Values[o.Name]); err != nil {
+				return errors.Err(err)
+			}
+		}
+	}
+
+	stages := NewStageStore(s.DB, b)
+
+	setup, err := stages.Create("setup - #" + strconv.FormatInt(b.ID, 10), false)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	canFail := make(map[string]struct{})
+
+	for _, stage := range b.Manifest.AllowFailures {
+		canFail[stage] = struct{}{}
+	}
+
+	set := make(map[string]*Stage)
+
+	for _, name := range b.Manifest.Stages {
+		_, ok := canFail[name]
+
+		st, err := stages.Create(name, ok)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+		set[st.Name] = st
+	}
+
+	jobs := NewJobStore(s.DB, b, setup)
+
+	if _, err := jobs.Create("create driver", ""); err != nil {
+		return errors.Err(err)
+	}
+
+	for i, src := range b.Manifest.Sources {
+		commands := []string{
+			"git clone " + src.URL + " " + src.Dir,
+			"cd " + src.Dir,
+			"git checkout -q " + src.Ref,
+		}
+
+		if src.Dir != "" {
+			commands = append([]string{"mkdir -p " + src.Dir} , commands...)
+		}
+
+		_, err := jobs.Create(
+			"clone." + strconv.FormatInt(int64(i + 1), 10),
+			strings.Join(commands, "\n"),
+		)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	currStage := ""
+	jobNumber := int64(1)
+
+	for _, job := range b.Manifest.Jobs {
+		stage, ok := set[job.Stage]
+
+		if !ok {
+			continue
+		}
+
+		if stage.Name != currStage {
+			currStage = stage.Name
+			jobNumber = 1
+		} else {
+			jobNumber++
+		}
+
+		jobs := NewJobStore(s.DB, b, stage)
+		name := job.Name
+
+		if name == "" {
+			name = stage.Name + "." + strconv.FormatInt(jobNumber, 10)
+		}
+
+		j, err := jobs.Create(name, strings.Join(job.Commands, "\n"))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		for src, dst := range job.Artifacts.Values {
+			hash, err := s.hasher.HashNow()
+
+			if err != nil {
+				return errors.Err(err)
+			}
+
+			if _, err := NewArtifactStore(s.DB, j, b).Create(hash, src, dst); err != nil {
+				return errors.Err(err)
+			}
+		}
+	}
+
+	_, err = srv.SendTask(b.Signature())
+	return errors.Err(err)
 }

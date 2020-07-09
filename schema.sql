@@ -33,7 +33,15 @@ DROP TYPE IF EXISTS driver_type;
 DROP TYPE IF EXISTS trigger_type;
 
 CREATE TYPE visibility AS ENUM ('private', 'internal', 'public');
-CREATE TYPE status AS ENUM ('queued', 'running', 'passed', 'failed', 'passed_with_failures', 'killed', 'timed_out');
+CREATE TYPE status AS ENUM (
+	'queued',
+	'running',
+	'passed',
+	'passed_with_failures',
+	'failed',
+	'killed',
+	'timed_out',
+);
 CREATE TYPE driver_type AS ENUM ('ssh', 'qemu', 'docker');
 CREATE TYPE trigger_type AS ENUM ('manual', 'push', 'pull');
 
@@ -45,6 +53,17 @@ CREATE TABLE users (
 	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	deleted_at TIMESTAMP NULL
+);
+
+CREATE TABLE providers (
+	id               SERIAL PRIMARY KEY,
+	user_id          INT NOT NULL REFERENCES users(id),
+	provider_user_id INT NULL,
+	name             VARCHAR NOT NULL,
+	access_token     BYTEA NULL,
+	refresh_token    BYTEA NULL,
+	connected        BOOLEAN NOT NULL DEFAULT FALSE,
+	expires_at       TIMESTAMP NULL
 );
 
 CREATE TABLE namespaces (
@@ -212,12 +231,13 @@ CREATE TABLE build_drivers (
 );
 
 CREATE TABLE build_triggers (
-	id         SERIAL PRIMARY KEY,
-	build_id   INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
-	type       trigger_type NOT NULL,
-	comment    TEXT NOT NULL,
-	data       JSON NOT NULL,
-	created_at TIMESTAMP NOT NULL DEFAULT NOW()
+	id          SERIAL PRIMARY KEY,
+	build_id    INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
+	provider_id INT NULL REFERENCES providers(id) ON DELETE SET NULL,
+	type        trigger_type NOT NULL,
+	comment     TEXT NOT NULL,
+	data        JSON NOT NULL,
+	created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE build_keys (
@@ -228,17 +248,6 @@ CREATE TABLE build_keys (
 	key        BYTEA NOT NULL,
 	config     TEXT NOT NULL,
 	location   VARCHAR NOT NULL
-);
-
-CREATE TABLE providers (
-	id               SERIAL PRIMARY KEY,
-	user_id          INT NOT NULL REFERENCES users(id),
-	provider_user_id INT NULL,
-	name             VARCHAR NOT NULL,
-	access_token     BYTEA NULL,
-	refresh_token    BYTEA NULL,
-	connected        BOOLEAN NOT NULL DEFAULT FALSE,
-	expires_at       TIMESTAMP NULL
 );
 
 CREATE TABLE oauth_apps (
@@ -264,7 +273,7 @@ CREATE TABLE oauth_codes (
 CREATE TABLE oauth_tokens (
 	id         SERIAL PRIMARY KEY,
 	user_id    INT NOT NULL REFERENCES users(id),
-	app_id     INT NULL REFERENCES oauth_apps(id),
+	app_id     INT NULL REFERENCES oauth_apps(id) ON DELETE CASCADE,
 	name       VARCHAR NULL,
 	token      BYTEA NOT NULL,
 	scope      BYTEA NOT NULL,

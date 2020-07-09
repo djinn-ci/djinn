@@ -1,37 +1,55 @@
 package handler
 
 import (
-	"database/sql"
 	"net/http"
-	"net/url"
-	"strings"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/key"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
-
-	"github.com/gorilla/sessions"
 )
 
 type Key struct {
 	web.Handler
 
-	Loaders    model.Loaders
-	Namespaces *namespace.Store
-	Keys       *key.Store
+	Loaders *database.Loaders
+	Block   *crypto.Block
+	Keys    *key.Store
 }
 
-func (h Key) Model(r *http.Request) *key.Key {
-	val := r.Context().Value("key")
-	k, _ := val.(*key.Key)
-	return k
+func (h Key) ShowWithRelations(r *http.Request) (*key.Key, error) {
+	var err error
+
+	k, ok := key.FromContext(r.Context())
+
+	if !ok {
+		return nil, errors.New("failed to get key from context")
+	}
+
+	if err := key.LoadRelations(h.Loaders, k); err != nil {
+		return k, errors.Err(err)
+	}
+
+	if k.Namespace != nil {
+		err = h.Users.Load(
+			"id", []interface{}{k.Namespace.Values()["user_id"]}, database.Bind("user_id", "id", k.Namespace),
+		)
+	}
+	return k, errors.Err(err)
 }
 
-func (h Key) IndexWithRelations(s *key.Store, vals url.Values) ([]*key.Key, model.Paginator, error) {
-	kk, paginator, err := s.Index(vals)
+func (h Key) IndexWithRelations(r *http.Request) ([]*key.Key, database.Paginator, error) {
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		return nil, database.Paginator{}, errors.New("user not in request context")
+	}
+
+	kk, paginator, err := key.NewStore(h.DB, u).Index(r.URL.Query())
 
 	if err != nil {
 		return kk, paginator, errors.Err(err)
@@ -41,7 +59,7 @@ func (h Key) IndexWithRelations(s *key.Store, vals url.Values) ([]*key.Key, mode
 		return kk, paginator, errors.Err(err)
 	}
 
-	nn := make([]model.Model, 0, len(kk))
+	nn := make([]database.Model, 0, len(kk))
 
 	for _, k := range kk {
 		if k.Namespace != nil {
@@ -49,108 +67,83 @@ func (h Key) IndexWithRelations(s *key.Store, vals url.Values) ([]*key.Key, mode
 		}
 	}
 
-	err = h.Users.Load("id", model.MapKey("user_id", nn), model.Bind("user_id", "id", nn...))
+	err = h.Users.Load("id", database.MapKey("user_id", nn), database.Bind("user_id", "id", nn...))
 	return kk, paginator, errors.Err(err)
 }
 
-func (h Key) ShowWithRelations(r *http.Request) (*key.Key, error) {
-	k := h.Model(r)
+func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
+	f := key.Form{}
 
-	if err := key.LoadRelations(h.Loaders, k); err != nil {
-		return k, errors.Err(err)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		return nil, f, errors.New("no user in request context")
 	}
 
-	if k.Namespace != nil {
-		err := h.Users.Load(
-			"id",
-			[]interface{}{k.Namespace.Values()["user_id"]},
-			model.Bind("user_id", "id", k.Namespace),
-		)
-		return k, errors.Err(err)
+	keys := key.NewStoreWithBlock(h.DB, h.Block, u)
+
+	f.Resource = namespace.Resource{
+		User:       u,
+		Namespaces: namespace.NewStore(h.DB, u),
 	}
-	return k, nil
+	f.Keys = keys
+
+	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	k, err := keys.Create(f.Name, f.PrivateKey, f.Config)
+	return k, f, errors.Err(err)
 }
 
-func (h Key) StoreModel(r *http.Request, sess *sessions.Session) (*key.Key, error) {
-	u := h.User(r)
+func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
+	f := key.Form{}
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		return nil, f, errors.New("no user in request context")
+	}
+
+	k, ok := key.FromContext(r.Context())
+
+	if !ok {
+		return k, f, errors.New("no key in request context")
+	}
 
 	keys := key.NewStore(h.DB, u)
 
-	f := &key.Form{
-		Resource: namespace.Resource{
-			User:       u,
-			Namespaces: namespace.NewStore(h.DB, u),
-		},
-		Keys:     keys,
+	f.Resource = namespace.Resource{
+		User:       u,
+		Namespaces: namespace.NewStore(h.DB, u),
+	}
+	f.Key = k
+	f.Keys = keys
+
+	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+		return k, f, errors.Err(err)
 	}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		return &key.Key{}, errors.Err(err)
-	}
+	namespaceId := k.NamespaceID.Int64
 
 	if f.Namespace != "" {
-		n, err := h.Namespaces.GetByPath(f.Namespace)
+		n, err := namespace.NewStore(h.DB).GetByPath(f.Namespace)
 
 		if err != nil {
-			return &key.Key{}, errors.Err(err)
+			return k, f, errors.Err(err)
 		}
-		keys.Bind(n)
+		namespaceId = n.ID
 	}
 
-	enc, err := crypto.Encrypt([]byte(f.PrivateKey))
-
-	if err != nil {
-		return &key.Key{}, errors.Err(err)
-	}
-
-	k := keys.New()
-	k.Name = strings.Replace(f.Name, " ", "_", - 1)
-	k.Key = enc
-	k.Config = f.Config
-
-	err = keys.Create(k)
-	return k, errors.Err(err)
+	err := keys.Update(k.ID, namespaceId, f.Config)
+	return k, f, errors.Err(err)
 }
 
-func (h Key) UpdateModel(r *http.Request, sess *sessions.Session) (*key.Key, error) {
-	u := h.User(r)
-	k := h.Model(r)
+func (h Key) DeleteModel(r *http.Request) error {
+	k, ok := key.FromContext(r.Context())
 
-	keys := key.NewStore(h.DB, u)
-
-	f := &key.Form{
-		Resource: namespace.Resource{
-			User:       u,
-			Namespaces: namespace.NewStore(h.DB, u),
-		},
-		Keys:     keys,
+	if !ok {
+		return errors.New("no key in request context")
 	}
-
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		return &key.Key{}, errors.Err(err)
-	}
-
-	if f.Namespace != "" {
-		n, err := h.Namespaces.GetByPath(f.Namespace)
-
-		if err != nil {
-			return &key.Key{}, errors.Err(err)
-		}
-
-		if !n.CanAdd(u) {
-			return &key.Key{}, namespace.ErrPermission
-		}
-
-		if n.ID != k.NamespaceID.Int64 {
-			k.NamespaceID = sql.NullInt64{
-				Int64: n.ID,
-				Valid: true,
-			}
-		}
-	}
-
-	k.Config = f.Config
-
-	err := h.Keys.Update(k)
-	return k, errors.Err(err)
+	return errors.Err(h.Keys.Delete(k.ID))
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/query"
 )
 
+// AppForm if the type that represents input data for creating a new App.
 type AppForm struct {
 	Apps        *AppStore `schema:"-"`
 	App         *App      `schema:"-"`
@@ -19,6 +20,9 @@ type AppForm struct {
 	RedirectURI string    `schema:"redirect_uri"`
 }
 
+// AuthorizeForm is the type that represents input data of the OAuth
+// authorization page, for when a user authorizes an App's access to their
+// account.
 type AuthorizeForm struct {
 	Authenticate bool   `schema:"authenticate"`
 	ClientID     string `schema:"client_id"`
@@ -29,6 +33,8 @@ type AuthorizeForm struct {
 	RedirectURI  string `schema:"redirect_uri"`
 }
 
+// TokenForm is the type that represents the input data for creating a new
+// Token.
 type TokenForm struct {
 	Tokens *TokenStore `schema:"-"`
 	Token  *Token      `schema:"-"`

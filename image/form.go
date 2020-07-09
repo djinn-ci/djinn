@@ -11,6 +11,7 @@ import (
 	"github.com/andrewpillar/query"
 )
 
+// Form is the type that represents input data for uploading a new driver image.
 type Form struct {
 	namespace.Resource
 	form.File `schema:"-"`
@@ -26,6 +27,8 @@ var (
 	magic  = []byte{0x51, 0x46, 0x49, 0xFB}
 )
 
+// Fields returns a map containing the namespace, and name fields from the
+// original Form.
 func (f *Form) Fields() map[string]string {
 	return map[string]string{
 		"namespace": f.Namespace,
@@ -33,6 +36,10 @@ func (f *Form) Fields() map[string]string {
 	}
 }
 
+// Validate checks to see if there is a name for the image, and if that name
+// is valid. This will also check the contents of the uploaded file to make
+// sure it is a valid QCOW2 image file. It does this by checking the first
+// four bytes of the file match the ASCII magic number for QCOW2.
 func (f *Form) Validate() error {
 	errs := form.NewErrors()
 

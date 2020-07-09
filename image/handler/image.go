@@ -2,51 +2,38 @@ package handler
 
 import (
 	"net/http"
-	"net/url"
-	"io"
-	"os"
-	"path/filepath"
+	"strings"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/image"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
-
-	"github.com/gorilla/sessions"
 )
 
 type Image struct {
 	web.Handler
 
-	Loaders    model.Loaders
+	Loaders    *database.Loaders
 	Images     *image.Store
-	FileStore  filestore.FileStore
+	Hasher     *crypto.Hasher
+	BlockStore block.Store
 	Limit      int64
 }
 
-func (h Image) Model(r *http.Request) *image.Image {
-	val := r.Context().Value("image")
-	i, _ := val.(*image.Image)
-	return i
-}
+func (h Image) IndexWithRelations(r *http.Request) ([]*image.Image, database.Paginator, error) {
+	u, ok := user.FromContext(r.Context())
 
-func (h Image) Delete(r *http.Request) error {
-	i := h.Model(r)
-
-	if err := h.Images.Delete(i); err != nil {
-		return errors.Err(err)
+	if !ok {
+		return nil, database.Paginator{}, errors.New("user not in request context")
 	}
-	err := h.FileStore.Remove(filepath.Join(i.Driver.String(), i.Hash))
-	return errors.Err(err)
-}
 
-func (h Image) IndexWithRelations(s *image.Store, vals url.Values) ([]*image.Image, model.Paginator, error) {
-	ii, paginator, err := s.Index(vals)
+	ii, paginator, err := image.NewStore(h.DB, u).Index(r.URL.Query())
 
 	if err != nil {
 		return ii, paginator, errors.Err(err)
@@ -56,7 +43,7 @@ func (h Image) IndexWithRelations(s *image.Store, vals url.Values) ([]*image.Ima
 		return ii, paginator, errors.Err(err)
 	}
 
-	nn := make([]model.Model, 0, len(ii))
+	nn := make([]database.Model, 0, len(ii))
 
 	for _, i := range ii {
 		if i.Namespace != nil {
@@ -64,12 +51,16 @@ func (h Image) IndexWithRelations(s *image.Store, vals url.Values) ([]*image.Ima
 		}
 	}
 
-	err = h.Users.Load("id", model.MapKey("user_id", nn), model.Bind("user_id", "id", nn...))
+	err = h.Users.Load("id", database.MapKey("user_id", nn), database.Bind("user_id", "id", nn...))
 	return ii, paginator, errors.Err(err)
 }
 
-func (h Image) Get(r *http.Request) (*image.Image, error) {
-	i := h.Model(r)
+func (h Image) ShowWithRelations(r *http.Request) (*image.Image, error) {
+	i, ok := image.FromContext(r.Context())
+
+	if !ok {
+		return nil, errors.New("image not in request context")
+	}
 
 	if err := image.LoadRelations(h.Loaders, i); err != nil {
 		return i, errors.Err(err)
@@ -78,71 +69,63 @@ func (h Image) Get(r *http.Request) (*image.Image, error) {
 	err := h.Users.Load(
 		"id",
 		[]interface{}{i.Namespace.Values()["user_id"]},
-		model.Bind("user_id", "id", i.Namespace),
+		database.Bind("user_id", "id", i.Namespace),
 	)
 	return i, errors.Err(err)
 }
 
-func (h Image) realStore(s *image.Store, res namespace.Resource, name string, r io.Reader) (*image.Image, error) {
-	if err := res.BindNamespace(s); err != nil {
-		return &image.Image{}, errors.Err(err)
+func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image, image.Form, error) {
+	f := image.Form{}
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		return nil, f, errors.New("no user in request context")
 	}
 
-	hash, err := crypto.HashNow()
+	images := image.NewStoreWithBlockStore(h.DB, h.BlockStore, u)
+
+	f.File = form.File{
+		Writer:  w,
+		Request: r,
+		Limit:   h.Limit,
+	}
+	f.Resource = namespace.Resource{
+		User:       u,
+		Namespaces: namespace.NewStore(h.DB, u),
+	}
+	f.Images = images
+
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		q := r.URL.Query()
+
+		f.Resource.Namespace = q.Get("namespace")
+		f.Name = q.Get("name")
+	} else {
+		if err := form.Unmarshal(&f, r); err != nil {
+			return nil, f, errors.Err(err)
+		}
+	}
+
+	if err := f.Validate(); err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	hash, err := h.Hasher.HashNow()
 
 	if err != nil {
-		return &image.Image{}, errors.Err(err)
+		return nil, f, errors.Err(err)
 	}
 
-	dst, err := h.FileStore.OpenFile(
-		filepath.Join("qemu", hash),
-		os.O_CREATE|os.O_WRONLY,
-		os.FileMode(0755),
-	)
-
-	if err != nil {
-		return &image.Image{}, errors.Err(err)
-	}
-
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, r); err != nil {
-		return &image.Image{}, errors.Err(err)
-	}
-
-	i := s.New()
-	i.Driver = driver.TypeQEMU
-	i.Hash = hash
-	i.Name = name
-
-	err = s.Create(i)
-	return i, errors.Err(err)
+	i, err := images.Create(hash, f.Name, driver.QEMU, f.File)
+	return i, f, errors.Err(err)
 }
 
-func (h Image) StoreModel(w http.ResponseWriter, r *http.Request, sess *sessions.Session) (*image.Image, error) {
-	u := h.User(r)
+func (h Image) DeleteModel(r *http.Request) error {
+	i, ok := image.FromContext(r.Context())
 
-	images := image.NewStore(h.DB, u)
-
-	f := &image.Form{
-		File: form.File{
-			Writer:  w,
-			Request: r,
-			Limit:   h.Limit,
-		},
-		Resource: namespace.Resource{
-			User:       u,
-			Namespaces: namespace.NewStore(h.DB, u),
-		},
-		Images:   images,
+	if !ok {
+		return errors.New("failed to get image from context")
 	}
-
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		return &image.Image{}, errors.Err(err)
-	}
-
-	defer f.File.Close()
-
-	i, err := h.realStore(images, f.Resource, f.Name, f.File)
-	return i, errors.Err(err)
+	return errors.Err(h.Images.Delete(i.ID, i.Driver, i.Hash))
 }

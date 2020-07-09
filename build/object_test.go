@@ -2,13 +2,12 @@ package build
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/object"
 
 	"github.com/andrewpillar/query"
@@ -58,21 +57,21 @@ func Test_ObjectStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_objects WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 		{
 			"SELECT * FROM build_objects WHERE (object_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{1},
-			[]model.Model{objectModel},
+			[]database.Model{objectModel},
 		},
 	}
 
@@ -100,21 +99,21 @@ func Test_ObjectStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_objects WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 		{
 			"SELECT * FROM build_objects WHERE (object_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(objectCols),
 			[]driver.Value{1},
-			[]model.Model{objectModel},
+			[]database.Model{objectModel},
 		},
 	}
 
@@ -136,35 +135,11 @@ func Test_ObjectStoreCreate(t *testing.T) {
 	store, mock, close_ := objectStore(t)
 	defer close_()
 
-	o := &Object{}
+	mock.ExpectQuery(
+		"^INSERT INTO build_objects \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id$",
+	).WithArgs().WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(14))
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, objectTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(o); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if o.ID != id {
-		t.Fatalf("object id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, o.ID)
-	}
-}
-
-func Test_ObjectStoreUpdate(t *testing.T) {
-	store, mock, close_ := objectStore(t)
-	defer close_()
-
-	o := &Object{}
-
-	expected := fmt.Sprintf(updateFmt, objectTable)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(o.ID, 1))
-
-	if err := store.Update(o); err != nil {
-		t.Fatal(errors.Cause(err))
+	if _, err := store.Create(10, "random-number", "rand"); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }

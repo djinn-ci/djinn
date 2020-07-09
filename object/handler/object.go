@@ -1,53 +1,40 @@
 package handler
 
 import (
-	"crypto/md5"
-	"crypto/sha256"
-	"io"
-	"os"
 	"net/http"
-	"net/url"
+	"strings"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/object"
+	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
-
-	"github.com/gorilla/sessions"
 )
 
 type Object struct {
 	web.Handler
 
-	Loaders    model.Loaders
+	Loaders    *database.Loaders
 	Objects    *object.Store
 	Builds     *build.Store
-	FileStore  filestore.FileStore
+	Hasher     *crypto.Hasher
+	BlockStore block.Store
 	Limit      int64
 }
 
-func (h Object) Model(r *http.Request) *object.Object {
-	val := r.Context().Value("object")
-	o, _ := val.(*object.Object)
-	return o
-}
+func (h Object) IndexWithRelations(r *http.Request) ([]*object.Object, database.Paginator, error) {
+	u, ok := user.FromContext(r.Context())
 
-func (h Object) Delete(r *http.Request) error {
-	o := h.Model(r)
-
-	if err := h.Objects.Delete(o); err != nil {
-		return errors.Err(err)
+	if !ok {
+		return nil, database.Paginator{}, errors.New("no user in request context")
 	}
-	return errors.Err(h.FileStore.Remove(o.Hash))
-}
 
-func (h Object) IndexWithRelations(s *object.Store, vals url.Values) ([]*object.Object, model.Paginator, error) {
-	oo, paginator, err := s.Index(vals)
+	oo, paginator, err := object.NewStore(h.DB, u).Index(r.URL.Query())
 
 	if err != nil {
 		return oo, paginator, errors.Err(err)
@@ -57,7 +44,7 @@ func (h Object) IndexWithRelations(s *object.Store, vals url.Values) ([]*object.
 		return oo, paginator, errors.Err(err)
 	}
 
-	nn := make([]model.Model, 0, len(oo))
+	nn := make([]database.Model, 0, len(oo))
 
 	for _, o := range oo {
 		if o.Namespace != nil {
@@ -65,94 +52,83 @@ func (h Object) IndexWithRelations(s *object.Store, vals url.Values) ([]*object.
 		}
 	}
 
-	err = h.Users.Load("id", model.MapKey("user_id", nn), model.Bind("user_id", "id", nn...))
+	err = h.Users.Load("id", database.MapKey("user_id", nn), database.Bind("user_id", "id", nn...))
 	return oo, paginator, errors.Err(err)
 }
 
 func (h Object) ShowWithRelations(r *http.Request) (*object.Object, error) {
-	o := h.Model(r)
+	var err error
+
+	o, ok := object.FromContext(r.Context())
+
+	if !ok {
+		return o, errors.New("no object in request context")
+	}
 
 	if err := object.LoadRelations(h.Loaders, o); err != nil {
 		return o, errors.Err(err)
 	}
 
 	if o.Namespace != nil {
-		err := h.Users.Load(
-			"id",
-			[]interface{}{o.Namespace.Values()["user_id"]},
-			model.Bind("user_id", "id", o.Namespace),
+		err = h.Users.Load(
+			"id", []interface{}{o.Namespace.Values()["user_id"]}, database.Bind("user_id", "id", o.Namespace),
 		)
-		return o, errors.Err(err)
 	}
-	return o, nil
-}
-
-func (h Object) realStore(s *object.Store, res namespace.Resource, name, typ string, r io.Reader) (*object.Object, error) {
-	if err := res.BindNamespace(s); err != nil {
-		return &object.Object{}, errors.Err(err)
-	}
-
-	hash, err := crypto.HashNow()
-
-	if err != nil {
-		return &object.Object{}, errors.Err(err)
-	}
-
-	md5 := md5.New()
-	sha256 := sha256.New()
-
-	tee := io.TeeReader(r, io.MultiWriter(md5, sha256))
-
-	dst, err := h.FileStore.OpenFile(hash, os.O_CREATE|os.O_WRONLY, os.FileMode(0755))
-
-	if err != nil {
-		return &object.Object{}, errors.Err(err)
-	}
-
-	defer dst.Close()
-
-	size, err := io.Copy(dst, tee)
-
-	if err != nil {
-		return &object.Object{}, errors.Err(err)
-	}
-
-	o := s.New()
-	o.Name = name
-	o.Hash = hash
-	o.Type = typ
-	o.Size = size
-	o.MD5 = md5.Sum(nil)
-	o.SHA256 = sha256.Sum(nil)
-
-	err = s.Create(o)
 	return o, errors.Err(err)
 }
 
-func (h Object) StoreModel(w http.ResponseWriter, r *http.Request, sess *sessions.Session) (*object.Object, error) {
-	u := h.User(r)
+func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Object, object.Form, error) {
+	f := object.Form{}
 
-	objects := object.NewStore(h.DB, u)
+	u, ok := user.FromContext(r.Context())
 
-	f := &object.Form{
-		File: form.File{
-			Writer:  w,
-			Request: r,
-			Limit:   h.Limit,
-		},
-		Resource: namespace.Resource{
-			User:       u,
-			Namespaces: namespace.NewStore(h.DB, u),
-		},
-		Objects:  objects,
+	if !ok {
+		return nil, f, errors.New("no user in request context")
 	}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		return &object.Object{}, errors.Err(err)
+	objects := object.NewStoreWithBlockStore(h.DB, h.BlockStore, u)
+
+	f.File = form.File{
+		Writer:  w,
+		Request: r,
+		Limit:   h.Limit,
+	}
+	f.Resource = namespace.Resource{
+		User:       u,
+		Namespaces: namespace.NewStore(h.DB, u),
+	}
+	f.Objects = objects
+
+	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		q := r.URL.Query()
+
+		f.Resource.Namespace = q.Get("namespace")
+		f.Name = q.Get("name")
+	} else {
+		if err := form.Unmarshal(&f, r); err != nil {
+			return nil, f, errors.Err(err)
+		}
 	}
 
-	defer f.File.Close()
+	if err := f.Validate(); err != nil {
+		return nil, f, errors.Err(err)
+	}
 
-	o, err := h.realStore(objects, f.Resource, f.Name, f.Info.Header.Get("Content-Type"), f.File)
-	return o, errors.Err(err)
+	hash, err := h.Hasher.HashNow()
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	o, err := objects.Create(f.Name, hash, f.MIMEType, f.File)
+	return o, f, errors.Err(err)
+}
+
+func (h Object) DeleteModel(r *http.Request) error {
+	o, ok := object.FromContext(r.Context())
+
+	if !ok {
+		return errors.New("failed to get object from context")
+	}
+	return errors.Err(h.Objects.Delete(o.ID, o.Hash))
 }

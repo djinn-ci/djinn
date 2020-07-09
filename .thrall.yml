@@ -7,3 +7,32 @@ jobs:
 - stage: os
   commands:
   - cat /etc/os-release
+
+#namespace: djinn
+#driver:
+#  type: qemu
+#  image: djinn-dev
+#env:
+#- PGADDR=host=localhost port=5432 dbname=thrall user=thrall password=secret sslmode=disable
+#- RDADDR=localhost:6379
+#- LDFLAGS=-s -w
+#stages:
+#- test
+#- make
+#jobs:
+#- stage: test
+#  commands:
+#  - cd thrall
+#  - go test -cover ./...
+#  - go test -tags "integration" ./integration
+#- stage: make
+#  commands:
+#  - cd thrall
+#  - ./make.sh runner
+#  - ./make.sh server
+#  - ./make.sh worker
+#  artifacts:
+#  - debug.log
+#  - djinn.out
+#  - djinn-server.out
+#  - djinn-worker.out

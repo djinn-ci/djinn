@@ -15,6 +15,11 @@ type GitHub struct {
 	client
 }
 
+type githubError struct {
+	Message string
+	Errors  []map[string]string
+}
+
 var (
 	_ oauth2.Provider = (*GitHub)(nil)
 
@@ -24,6 +29,13 @@ var (
 		"admin:repo_hook",
 	}
 )
+
+func (e githubError) String() string {
+	buf := bytes.Buffer{}
+	buf.WriteString(e.Message + ": ")
+	buf.WriteString(e.Errors[0]["message"])
+	return buf.String()
+}
 
 // ToggleRepo will either add or remove the webhook to the repository of the
 // given ID depending on whether it was previously enabled as determined by
@@ -82,15 +94,17 @@ func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 		defer respPost.Body.Close()
 
 		if respPost.StatusCode != http.StatusCreated {
-			return 0, errors.New("unexpected http status "+respPost.Status)
+			ghErr := githubError{}
+
+			json.NewDecoder(respPost.Body).Decode(&ghErr)
+			return 0, errors.New(ghErr.String())
 		}
 
 		hook := struct{
 			ID int64
 		}{}
 
-		dec := json.NewDecoder(respPost.Body)
-		dec.Decode(&hook)
+		json.NewDecoder(respPost.Body).Decode(&hook)
 		return hook.ID, nil
 	}
 
@@ -104,11 +118,15 @@ func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 	defer respDelete.Body.Close()
 
 	if respDelete.StatusCode != http.StatusNoContent {
-		return 0, errors.New("unexpected http status "+respDelete.Status)
+		ghErr := githubError{}
+
+		json.NewDecoder(respDelete.Body).Decode(&ghErr)
+		return 0, errors.New(ghErr.String())
 	}
 	return 0, nil
 }
 
+// Repos returns the repos from GitHub ordered by when they were last updated.
 func (g GitHub) Repos(tok []byte, page int64) (oauth2.Repos, error) {
 	resp, err := g.Get(string(tok), fmt.Sprintf("%s/user/repos?sort=updated&page=%v", g.Endpoint, page))
 

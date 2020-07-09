@@ -2,12 +2,11 @@ package oauth2
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -44,21 +43,21 @@ func Test_CodeStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(codeCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM oauth_codes WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(codeCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM oauth_codes WHERE (user_id = $1 AND app_id = $2)",
 			[]query.Option{},
 			sqlmock.NewRows(codeCols),
 			[]driver.Value{1, 1},
-			[]model.Model{&user.User{ID: 1}, &App{ID: 1}},
+			[]database.Model{&user.User{ID: 1}, &App{ID: 1}},
 		},
 	}
 
@@ -80,21 +79,14 @@ func Test_CodeStoreCreate(t *testing.T) {
 	store, mock, close_ := codeStore(t)
 	defer close_()
 
-	c := &Code{}
+	mock.ExpectQuery(
+		"^INSERT INTO oauth_codes \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 
-	id := int64(0)
-	expected := fmt.Sprintf(insertFmt, codeTable)
+	sc, _ := UnmarshalScope("build:read")
 
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(c); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if c.ID != id {
-		t.Fatalf("code id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, c.ID)
+	if _, err := store.Create(sc); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -102,17 +94,11 @@ func Test_CodeStoreDelete(t *testing.T) {
 	store, mock, close_ := codeStore(t)
 	defer close_()
 
-	cc := []*Code{
-		&Code{ID: 1},
-		&Code{ID: 2},
-		&Code{ID: 3},
-	}
+	mock.ExpectExec(
+		"^DELETE FROM oauth_codes WHERE \\(id IN \\(\\$1, \\$2, \\$3\\)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 3))
 
-	expected := fmt.Sprintf(deleteFmt, codeTable)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(cc...); err != nil {
+	if err := store.Delete(1, 2, 3); err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 }

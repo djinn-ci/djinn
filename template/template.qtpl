@@ -5,7 +5,7 @@ import (
 	"strconv"
 
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 )
 %}
@@ -75,6 +75,7 @@ func pageURL(url *url.URL, page int64) string {
 			<meta charset="utf-8">
 			<meta content="width=device-width, initial-scale=1" name="viewport">
 			<title>{%= p.Title() %}</title>
+			<style type="text/css">{% cat "../static/main.css" %}</style>
 		</head>
 		<body>{%= p.Body() %}</body>
 		<footer>{%= p.Footer() %}</footer>
@@ -82,7 +83,7 @@ func pageURL(url *url.URL, page int64) string {
 {% endfunc %}
 
 {% stripspace %}
-{% func RenderPaginator(url *url.URL, p model.Paginator) %}
+{% func RenderPaginator(url *url.URL, p database.Paginator) %}
 	{% if len(p.Pages) > 1 %}
 		<ul class="paginator panel">
 			{% if p.Page == p.Prev %}
@@ -104,5 +105,5 @@ func pageURL(url *url.URL, page int64) string {
 
 {% func (p *BasePage) Title() %} Thrall {% endfunc %}
 {% func (p *BasePage) Body() %}{% endfunc %}
-{% func (p *BasePage) Footer() %} <style type="text/css">{% cat "../static/main.css" %}</style> {% endfunc %}
+{% func (p *BasePage) Footer() %}  {% endfunc %}
 {% endcollapsespace %}

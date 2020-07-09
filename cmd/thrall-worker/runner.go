@@ -3,44 +3,31 @@ package main
 import (
 	"bytes"
 	"context"
-	"database/sql"
 	"io"
-	"time"
 
 	"github.com/andrewpillar/thrall/build"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/lib/pq"
 )
 
 type buildRunner struct {
 	db        *sqlx.DB
 	build     *build.Build
+	log       *log.Logger
+	block     *crypto.Block
 	runner    runner.Runner
 	collector runner.Collector
 	placer    runner.Placer
 	buf       *bytes.Buffer
 	bufs      map[int64]*bytes.Buffer
 	jobs      map[string]*build.Job
-}
-
-func newBuildRunner(db *sqlx.DB, b *build.Build, c runner.Collector, p runner.Placer) *buildRunner {
-	return &buildRunner{
-		db:        db,
-		build:     b,
-		collector: c,
-		placer:    p,
-		buf:       &bytes.Buffer{},
-		bufs:      make(map[int64]*bytes.Buffer),
-		jobs:      make(map[string]*build.Job),
-	}
 }
 
 func (r *buildRunner) driverJob() *build.Job {
@@ -112,14 +99,14 @@ func (r *buildRunner) load() error {
 		return errors.Err(err)
 	}
 
-	mm := make([]model.Model, 0, len(jj))
+	mm := make([]database.Model, 0, len(jj))
 
 	for _, j := range jj {
 		mm = append(mm, j)
 	}
 
 	err = build.NewArtifactStore(r.db, r.build).Load(
-		"job_id", model.MapKey("id", mm), model.Bind("id", "job_id", mm...),
+		"job_id", database.MapKey("id", mm), database.Bind("id", "job_id", mm...),
 	)
 
 	if err != nil {
@@ -144,6 +131,7 @@ func (r *buildRunner) load() error {
 	r.runner.Writer = r.buf
 	r.runner.Placer = &placer{
 		db:      r.db,
+		block:   r.block,
 		build:   r.build,
 		objects: r.placer,
 	}
@@ -153,17 +141,13 @@ func (r *buildRunner) load() error {
 
 func (r *buildRunner) run(c context.Context, d runner.Driver) error {
 	builds := build.NewStore(r.db)
+	jobs := build.NewJobStore(r.db)
 
 	r.runner.HandleDriverCreate(func() {
 		j := r.driverJob()
-		j.Status = runner.Running
-		j.StartedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
 
-		if err := build.NewJobStore(r.db).Update(j); err != nil {
-			log.Error.Println(errors.Err(err))
+		if err := jobs.Started(j.ID); err != nil {
+			r.log.Error.Println("failed to handle driver creation", j.ID, errors.Err(err))
 		}
 	})
 
@@ -173,57 +157,27 @@ func (r *buildRunner) run(c context.Context, d runner.Driver) error {
 		}
 
 		j := r.jobs[job.Stage+job.Name]
-		j.Status = runner.Running
-		j.StartedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
 
-		if err := build.NewJobStore(r.db).Update(j); err != nil {
-			log.Error.Println(errors.Err(err))
+		if err := jobs.Started(j.ID); err != nil {
+			r.log.Error.Println("failed to handle job start", j.ID, errors.Err(err))
 		}
 	})
 
 	r.runner.HandleJobComplete(func(job runner.Job) {
 		j := r.jobs[job.Stage+job.Name]
-		j.Status = job.Status
-		j.Output = sql.NullString{
-			String: r.bufs[j.ID].String(),
-			Valid:  true,
-		}
-		j.FinishedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
-		}
 
-		if err := build.NewJobStore(r.db).Update(j); err != nil {
-			log.Error.Println(errors.Err(err))
+		if err := jobs.Finished(j.ID, r.bufs[j.ID].String(), job.Status); err != nil {
+			r.log.Error.Println("failed to handle job finish", j.ID, errors.Err(err))
 		}
 	})
 
-	r.build.Status = runner.Running
-	r.build.StartedAt = pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
-
-	if err := builds.Update(r.build); err != nil {
+	if err := builds.Started(r.build.ID); err != nil {
 		return errors.Err(err)
 	}
 
 	r.runner.Run(c, d)
 
-	r.build.Status = r.runner.Status
-	r.build.Output = sql.NullString{
-		String: r.buf.String(),
-		Valid:  true,
-	}
-	r.build.FinishedAt = pq.NullTime{
-		Time:  time.Now(),
-		Valid: true,
-	}
-
-	if err := builds.Update(r.build); err != nil {
+	if err := builds.Finished(r.build.ID, r.buf.String(), r.runner.Status); err != nil {
 		return errors.Err(err)
 	}
 	return errors.Err(r.updateJobs())
@@ -239,19 +193,15 @@ func (r *buildRunner) updateJobs() error {
 	}
 
 	for _, j := range jj {
-		j.Status = r.build.Status
+		output := ""
 
 		if buf, ok := r.bufs[j.ID]; ok {
-			j.Output = sql.NullString{
-				String: buf.String(),
-				Valid:  true,
-			}
+			output = buf.String()
 		}
 
-		j.FinishedAt = pq.NullTime{
-			Time:  time.Now(),
-			Valid: true,
+		if err := jobs.Finished(j.ID, output, r.build.Status); err != nil {
+			return errors.Err(err)
 		}
 	}
-	return errors.Err(jobs.Update(jj...))
+	return nil
 }

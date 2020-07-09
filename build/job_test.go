@@ -2,12 +2,11 @@ package build
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -46,21 +45,21 @@ func Test_JobStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(jobCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_jobs WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(jobCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 		{
 			"SELECT * FROM build_jobs WHERE (stage_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(jobCols),
 			[]driver.Value{10},
-			[]model.Model{&Stage{ID: 10}},
+			[]database.Model{&Stage{ID: 10}},
 		},
 	}
 
@@ -88,21 +87,21 @@ func Test_JobStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(jobCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_jobs WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(jobCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 		{
 			"SELECT * FROM build_jobs WHERE (stage_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(jobCols),
 			[]driver.Value{10},
-			[]model.Model{&Stage{ID: 10}},
+			[]database.Model{&Stage{ID: 10}},
 		},
 	}
 
@@ -117,42 +116,5 @@ func Test_JobStoreGet(t *testing.T) {
 
 		store.Build = nil
 		store.Stage = nil
-	}
-}
-
-func Test_JobStoreCreate(t *testing.T) {
-	store, mock, close_ := jobStore(t)
-	defer close_()
-
-	j := &Job{}
-
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, jobTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(j); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if j.ID != id {
-		t.Fatalf("job id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, j.ID)
-	}
-}
-
-func Test_JobStoreUpdate(t *testing.T) {
-	store, mock, close_ := jobStore(t)
-	defer close_()
-
-	j := &Job{}
-
-	expected := fmt.Sprintf(updateFmt, jobTable)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(j.ID, 1))
-
-	if err := store.Update(j); err != nil {
-		t.Fatal(errors.Cause(err))
 	}
 }

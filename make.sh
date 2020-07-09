@@ -2,13 +2,19 @@
 
 set -e
 
-TAGS="netgo osusergo"
+LIBS="netgo osusergo"
 BUILD="-X=main.Build=$(git rev-parse HEAD)"
 
 if [ -z "$LDFLAGS" ]; then
 	LDFLAGS="$BUILD"
 else
 	LDFLAGS="$LDFLAGS $BUILD"
+fi
+
+if [ -z "$TAGS" ]; then
+	TAGS="$LIBS"
+else
+	TAGS="$TAGS $LIBS"
 fi
 
 for bin in $(grep -vE "^#" make.dep | awk '{ print $1 }'); do
@@ -136,7 +142,7 @@ case "$1" in
 		;;
 	*)
 		if [ "$1" = "" ]; then
-			go test -cover ./...
+			go test -tags "$TAGS" -cover ./...
 			ui
 			build
 		else

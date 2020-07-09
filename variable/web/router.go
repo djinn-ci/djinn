@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/user"
@@ -37,7 +37,7 @@ func Gate(db *sqlx.DB) web.Gate {
 			err error
 		)
 
-		ok, err := web.CanAccessResource(db, "variable", r, func(id int64) (model.Model, error) {
+		ok, err := web.CanAccessResource(db, "variable", r, func(id int64) (database.Model, error) {
 			v, err = variables.Get(query.Where("id", "=", id))
 			return v, errors.Err(err)
 		})
@@ -48,15 +48,12 @@ func Gate(db *sqlx.DB) web.Gate {
 }
 
 func (r *Router) Init(h web.Handler) {
-	namespaces := namespace.NewStore(h.DB)
-
-	loaders := model.NewLoaders()
-	loaders.Put("namespace", namespaces)
+	loaders := database.NewLoaders()
+	loaders.Put("namespace", namespace.NewStore(h.DB))
 
 	r.variable = handler.Variable{
 		Handler:    h,
 		Loaders:    loaders,
-		Namespaces: namespaces,
 		Variables:  variable.NewStore(h.DB),
 	}
 }
@@ -70,7 +67,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/variables", variable.Index).Methods("GET")
 	auth.HandleFunc("/variables/create", variable.Create).Methods("GET")
 	auth.HandleFunc("/variables", variable.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, csrf)
+	auth.Use(r.Middleware.AuthPerms("variable:read", "variable:write"), csrf)
 
 	sr := mux.PathPrefix("/variables").Subrouter()
 	sr.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
@@ -78,5 +75,14 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 }
 
 func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
+	variable := handler.API{
+		Variable: r.variable,
+		Prefix:   prefix,
+	}
 
+	sr := mux.PathPrefix("/variables").Subrouter()
+	sr.HandleFunc("", variable.Index).Methods("GET", "HEAD")
+	sr.HandleFunc("", variable.Store).Methods("POST")
+	sr.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
+	sr.Use(r.Middleware.Gate(gates...))
 }

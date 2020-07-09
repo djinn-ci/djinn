@@ -1,7 +1,6 @@
 package namespace
 
 import (
-	"database/sql"
 	"database/sql/driver"
 	"fmt"
 	"net/url"
@@ -10,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -60,7 +59,7 @@ func Test_StoreIndex(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{"%blackmesa%"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 	}
 
@@ -72,13 +71,13 @@ func Test_StoreIndex(t *testing.T) {
 		paginate := strings.Replace(test.query, "*", "COUNT(*)", 1)
 		paginateRows := sqlmock.NewRows([]string{"*"}).AddRow(1)
 
-		mock.ExpectPrepare(regexp.QuoteMeta(paginate)).ExpectQuery().WillReturnRows(paginateRows)
+		mock.ExpectQuery(regexp.QuoteMeta(paginate)).WillReturnRows(paginateRows)
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, _, err := store.Index(vals[i], test.opts...); err != nil {
-			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -96,35 +95,35 @@ func Test_StoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (parent_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1},
-			[]model.Model{&Namespace{ID: 1}},
+			[]database.Model{&Namespace{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (LOWER(path) LIKE $1)",
-			[]query.Option{model.Search("path", "example_path")},
+			[]query.Option{database.Search("path", "example_path")},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{"%example_path%"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (LOWER(path) LIKE $3)",
-			[]query.Option{model.Search("path", "example_path")},
+			[]query.Option{database.Search("path", "example_path")},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1, 1, "%example_path%"},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2)))",
 			[]query.Option{SharedWith(&user.User{ID: 1})},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1, 1},
-			[]model.Model{},
+			[]database.Model{},
 		},
 	}
 
@@ -134,7 +133,7 @@ func Test_StoreAll(t *testing.T) {
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -152,42 +151,42 @@ func Test_StoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2)))",
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1, 1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (parent_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1},
-			[]model.Model{&Namespace{ID: 1}},
+			[]database.Model{&Namespace{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (LOWER(path) LIKE $1)",
-			[]query.Option{model.Search("path", "blackmesa")},
+			[]query.Option{database.Search("path", "blackmesa")},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{"%blackmesa%"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (LOWER(path) LIKE $3)",
-			[]query.Option{model.Search("path", "blackmesa")},
+			[]query.Option{database.Search("path", "blackmesa")},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1, 1, "%blackmesa%"},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (root_id = (SELECT root_id FROM namespaces WHERE (id = $1)))",
 			[]query.Option{query.WhereQuery("root_id", "=", SelectRootID(1))},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespaces WHERE (root_id = (SELECT root_id FROM namespaces WHERE (id = $1)) AND id = (SELECT root_id FROM namespaces WHERE (id = $2)))",
@@ -197,7 +196,7 @@ func Test_StoreGet(t *testing.T) {
 			},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1, 1},
-			[]model.Model{},
+			[]database.Model{},
 		},
 	}
 
@@ -227,13 +226,8 @@ func Test_StoreGetByPath(t *testing.T) {
 		sqlmock.NewRows(namespaceCols),
 	)
 
-	mock.ExpectPrepare(
-		fmt.Sprintf(insertFmt, table),
-	).ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow(int64(1)))
-
-	mock.ExpectPrepare(
-		fmt.Sprintf(updateFmt, table),
-	).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(fmt.Sprintf(insertFmt, table)).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(int64(1)))
+	mock.ExpectExec(fmt.Sprintf(updateFmt, table)).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	if _, err := store.GetByPath("blackmesa"); err != nil {
 		t.Fatal(errors.Cause(err))
@@ -251,13 +245,11 @@ func Test_StoreGetByPath(t *testing.T) {
 		[]driver.Value{"blackmesa"}...,
 	).WillReturnRows(sqlmock.NewRows(namespaceCols))
 
-	mock.ExpectPrepare(
+	mock.ExpectQuery(
 		fmt.Sprintf(insertFmt, table),
-	).ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow(int64(1)))
+	).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(int64(1)))
 
-	mock.ExpectPrepare(
-		fmt.Sprintf(updateFmt, table),
-	).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectExec(fmt.Sprintf(updateFmt, table)).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	if _, err := store.GetByPath("blackmesa@freemang"); err != nil {
 		t.Fatal(errors.Cause(err))
@@ -269,21 +261,11 @@ func Test_StoreGetByPath(t *testing.T) {
 		[]driver.Value{"blackmesa/blueshift"}...,
 	).WillReturnRows(sqlmock.NewRows(namespaceCols))
 
-	mock.ExpectPrepare(
-		fmt.Sprintf(insertFmt, table),
-	).ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow(int64(1)))
+	mock.ExpectQuery(fmt.Sprintf(insertFmt, table)).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(int64(1)))
+	mock.ExpectExec(fmt.Sprintf(updateFmt, table)).WillReturnResult(sqlmock.NewResult(1, 1))
 
-	mock.ExpectPrepare(
-		fmt.Sprintf(updateFmt, table),
-	).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
-
-	mock.ExpectPrepare(
-		fmt.Sprintf(insertFmt, table),
-	).ExpectQuery().WillReturnRows(mock.NewRows([]string{"id"}).AddRow(int64(1)))
-
-	mock.ExpectPrepare(
-		fmt.Sprintf(updateFmt, table),
-	).ExpectExec().WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(fmt.Sprintf(insertFmt, table)).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(int64(1)))
+	mock.ExpectExec(fmt.Sprintf(updateFmt, table)).WillReturnResult(sqlmock.NewResult(1, 1))
 
 	if _, err := store.GetByPath("blackmesa/blueshift"); err != nil {
 		t.Fatal(errors.Cause(err))
@@ -294,21 +276,20 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	n := &Namespace{}
+	mock.ExpectQuery(
+		"^SELECT \\* FROM namespaces WHERE \\(path = \\$1\\)$",
+	).WillReturnRows(sqlmock.NewRows(namespaceCols))
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, table)
+	mock.ExpectQuery(
+		"^INSERT INTO namespaces \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(1))
 
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
+	mock.ExpectExec(
+		"^UPDATE namespaces SET root_id = \\$1 WHERE \\(id = \\$2\\)$",
+	).WithArgs(1, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(n); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if n.ID != id {
-		t.Fatalf("namespace id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, n.ID)
+	if _, err := store.Create("", "project", "", Internal); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -316,13 +297,19 @@ func Test_StoreUpdate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	n := &Namespace{ID: 10}
+	mock.ExpectQuery(
+		"^SELECT \\* FROM namespaces WHERE \\(id = \\(SELECT parent_id FROM namespaces WHERE \\(id = \\$1\\)\\)\\)$",
+	).WithArgs(1).WillReturnRows(sqlmock.NewRows(namespaceCols))
 
-	expected := fmt.Sprintf(updateFmt, table)
+	mock.ExpectExec(
+		"^UPDATE namespaces SET visibility = \\$1 WHERE \\(root_id = \\$2\\)$",
+	).WithArgs(Public, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(n.ID, 1))
+	mock.ExpectExec(
+		"^UPDATE namespaces SET name = \\$1, description = \\$2, visibility = \\$3 WHERE \\(id = \\$4\\)$",
+	).WithArgs("project", "", Public, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	if err := store.Update(n); err != nil {
+	if err := store.Update(1, "project", "", Public); err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 }
@@ -331,39 +318,11 @@ func Test_StoreDelete(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	nn := []*Namespace{
-		&Namespace{ID: 1},
-		&Namespace{ID: 2},
-		&Namespace{ID: 3},
-	}
-
-	mock.ExpectPrepare(
+	mock.ExpectExec(
 		regexp.QuoteMeta("DELETE FROM namespaces WHERE (root_id IN ($1, $2, $3))"),
-	).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
+	).WillReturnResult(sqlmock.NewResult(0, 3))
 
-	if err := store.Delete(nn...); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-}
-
-func Test_NamespaceCascadeVisiblity(t *testing.T) {
-	n := &Namespace{
-		ID:         1,
-		RootID:     sql.NullInt64{Int64: 1, Valid: true},
-		Visibility: Private,
-	}
-
-	db, mock, err := sqlmock.New()
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	mock.ExpectPrepare(
-		regexp.QuoteMeta("UPDATE namespaces SET visibility = $1 WHERE (root_id = $2)"),
-	).ExpectExec().WillReturnResult(sqlmock.NewResult(n.ID, 1))
-
-	if err := n.CascadeVisibility(sqlx.NewDb(db, "sqlmock")); err != nil {
+	if err := store.Delete(1, 2, 3); err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 }

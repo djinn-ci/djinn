@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/build"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -14,6 +15,7 @@ import (
 
 type placer struct {
 	db      *sqlx.DB
+	block   *crypto.Block
 	build   *build.Build
 	objects runner.Placer
 }
@@ -30,7 +32,7 @@ func (p *placer) Place(name string, w io.Writer) (int64, error) {
 
 	if strings.HasPrefix(name, "key:") {
 		name = strings.SplitN(name, ":", 2)[1]
-		pl = build.NewKeyStore(p.db, p.build)
+		pl = build.NewKeyStoreWithBlock(p.db, p.block, p.build)
 	}
 
 	n, err := pl.Place(name, w)
@@ -45,7 +47,7 @@ func (p *placer) Stat(name string) (os.FileInfo, error) {
 
 	if strings.HasPrefix("key:", name) {
 		name = strings.SplitN(name, ":", 2)[1]
-		pl = build.NewKeyStore(p.db, p.build)
+		pl = build.NewKeyStoreWithBlock(p.db, p.block, p.build)
 	}
 
 	info, err := pl.Stat(name)

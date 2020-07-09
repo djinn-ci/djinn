@@ -1,13 +1,15 @@
 package image
 
 import (
-	"database/sql/driver"
-	"fmt"
+	"bytes"
+	sqldriver "database/sql/driver"
 	"regexp"
 	"testing"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -17,6 +19,14 @@ import (
 
 	"github.com/jmoiron/sqlx"
 )
+
+type testQuery struct {
+	query  string
+	opts   []query.Option
+	rows   *sqlmock.Rows
+	args   []sqldriver.Value
+	models []database.Model
+}
 
 var imageCols = []string{
 	"user_id",
@@ -45,22 +55,22 @@ func Test_StoreAll(t *testing.T) {
 			"SELECT * FROM images",
 			[]query.Option{},
 			sqlmock.NewRows(imageCols),
-			[]driver.Value{},
-			[]model.Model{},
+			[]sqldriver.Value{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM images WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(imageCols),
-			[]driver.Value{1, 1, 1},
-			[]model.Model{&user.User{ID: 1}},
+			[]sqldriver.Value{1, 1, 1},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM images WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(imageCols),
-			[]driver.Value{1},
-			[]model.Model{&namespace.Namespace{ID: 1}},
+			[]sqldriver.Value{1},
+			[]database.Model{&namespace.Namespace{ID: 1}},
 		},
 	}
 
@@ -87,22 +97,22 @@ func Test_StoreGet(t *testing.T) {
 			"SELECT * FROM images",
 			[]query.Option{},
 			sqlmock.NewRows(imageCols),
-			[]driver.Value{},
-			[]model.Model{},
+			[]sqldriver.Value{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM images WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(imageCols),
-			[]driver.Value{1, 1, 1},
-			[]model.Model{&user.User{ID: 1}},
+			[]sqldriver.Value{1, 1, 1},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM images WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(imageCols),
-			[]driver.Value{1},
-			[]model.Model{&namespace.Namespace{ID: 1}},
+			[]sqldriver.Value{1},
+			[]database.Model{&namespace.Namespace{ID: 1}},
 		},
 	}
 
@@ -124,21 +134,14 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	i := &Image{}
+	store.blockStore = block.NewNull()
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, table)
+	mock.ExpectQuery(
+		"^INSERT INTO images \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id$",
+	).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(10))
 
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(i); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if i.ID != id {
-		t.Fatalf("image id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, i.ID)
+	if _, err := store.Create("1a2b3c4d", "dev", driver.QEMU, bytes.NewBufferString("some image")); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -146,17 +149,13 @@ func Test_StoreDelete(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	ii := []*Image{
-		&Image{ID: 1},
-		&Image{ID: 2},
-		&Image{ID: 3},
-	}
+	store.blockStore = block.NewNull()
 
-	expected := fmt.Sprintf(deleteFmt, table)
+	mock.ExpectExec(
+		"^DELETE FROM images WHERE \\(id IN \\(\\$1\\)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 3))
 
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(ii...); err != nil {
+	if err := store.Delete(1, driver.QEMU, "1a2b3c4d"); err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 }

@@ -4,11 +4,12 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/andrewpillar/thrall/block"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/filestore"
 	"github.com/andrewpillar/thrall/image"
 	"github.com/andrewpillar/thrall/image/handler"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/user"
@@ -25,8 +26,9 @@ type Router struct {
 	image handler.Image
 
 	Middleware web.Middleware
-	Store      model.Store
-	FileStore  filestore.FileStore
+	Store      database.Store
+	Hasher     *crypto.Hasher
+	BlockStore block.Store
 	Limit      int64
 }
 
@@ -41,7 +43,7 @@ func Gate(db *sqlx.DB) web.Gate {
 			err error
 		)
 
-		ok, err := web.CanAccessResource(db, "image", r, func(id int64) (model.Model, error) {
+		ok, err := web.CanAccessResource(db, "image", r, func(id int64) (database.Model, error) {
 			i, err = images.Get(query.Where("id", "=", id))
 			return i, errors.Err(err)
 		})
@@ -56,14 +58,15 @@ func Gate(db *sqlx.DB) web.Gate {
 }
 
 func (r *Router) Init(h web.Handler) {
-	loaders := model.NewLoaders()
+	loaders := database.NewLoaders()
 	loaders.Put("namespace", namespace.NewStore(h.DB))
 
 	r.image = handler.Image{
 		Handler:    h,
 		Loaders:    loaders,
-		Images:     image.NewStore(h.DB),
-		FileStore:  r.FileStore,
+		Images:     image.NewStoreWithBlockStore(h.DB, r.BlockStore),
+		Hasher:     r.Hasher,
+		BlockStore: r.BlockStore,
 		Limit:      r.Limit,
 	}
 }
@@ -73,11 +76,11 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 		Image: r.image,
 	}
 
-	auth := mux.PathPrefix("/").Subrouter()
-	auth.HandleFunc("/images", image.Index).Methods("GET")
-	auth.HandleFunc("/images/create", image.Create).Methods("GET")
-	auth.HandleFunc("/images", image.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, csrf)
+	auth := mux.PathPrefix("/images").Subrouter()
+	auth.HandleFunc("", image.Index).Methods("GET")
+	auth.HandleFunc("/create", image.Create).Methods("GET")
+	auth.HandleFunc("", image.Store).Methods("POST")
+	auth.Use(r.Middleware.AuthPerms("image:read", "image:write"), csrf)
 
 	sr := mux.PathPrefix("/images").Subrouter()
 	sr.HandleFunc("/{image:[0-9]+}/download/{name}", image.Show).Methods("GET")
@@ -86,4 +89,15 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 }
 
 func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
+	image := handler.API{
+		Image:  r.image,
+		Prefix: prefix,
+	}
+
+	sr := mux.PathPrefix("/images").Subrouter()
+	sr.HandleFunc("", image.Index).Methods("GET", "HEAD")
+	sr.HandleFunc("", image.Store).Methods("POST")
+	sr.HandleFunc("/{image:[0-9]+}", image.Show).Methods("GET")
+	sr.HandleFunc("/{image:[0-9]+}", image.Destroy).Methods("DELETE")
+	sr.Use(r.Middleware.Gate(gates...))
 }

@@ -1,4 +1,4 @@
-// Package provider providers the model.Model implementation for the Provider
+// Package provider providers the database.Model implementation for the Provider
 // entity, and implementations for the oauth2.Provider interface for the
 // different Git providers that can be used to authenticate against.
 package provider
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -16,6 +16,8 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Provider is the type that represents an external Git hosting provider that
+// has been connected to a user's account.
 type Provider struct {
 	ID             int64         `db:"id"`
 	UserID         int64         `db:"user_id"`
@@ -30,33 +32,38 @@ type Provider struct {
 	User    *user.User `db:"-"`
 }
 
+// Store is the type for creating and modifying Provider models in the database.
 type Store struct {
-	model.Store
+	database.Store
 
+	// User is the bound user.User model. If not nil this will bind the
+	// user.User model to any Provider models that are created. If not nil this
+	// will append a WHERE clause on the user_id column for all SELECT queries
+	// performed.
 	User *user.User
 }
 
 var (
-	_ model.Model  = (*Provider)(nil)
-	_ model.Binder = (*Provider)(nil)
+	_ database.Model  = (*Provider)(nil)
+	_ database.Binder = (*Provider)(nil)
 
 	table = "providers"
 )
 
-// NewStore returns a new Store for querying the providers table. Each model
+// NewStore returns a new Store for querying the providers table. Each database
 // passed to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...model.Model) *Store {
+func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 	s := &Store{
-		Store: model.Store{DB: db},
+		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-// Model is called along with model.Slice to convert the given slice of
-// Provider models to a slice of model.Model interfaces.
-func Model(pp []*Provider) func(int) model.Model {
-	return func(i int) model.Model {
+// Model is called along with database.ModelSlice to convert the given slice of
+// Provider models to a slice of database.Model interfaces.
+func Model(pp []*Provider) func(int) database.Model {
+	return func(i int) database.Model {
 		return pp[i]
 	}
 }
@@ -70,11 +77,9 @@ func Select(col string, opts ...query.Option) query.Query {
 	}, opts...)...)
 }
 
-// Bind the given models to the current Provider. This will only bind the model
-// if they are one of the following,
-//
-// - *user.User
-func (p *Provider) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if it is a pointer to a user.User model.
+func (p *Provider) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -83,16 +88,17 @@ func (p *Provider) Bind(mm ...model.Model) {
 	}
 }
 
-func (p *Provider) SetPrimary(id int64) {
-	p.ID = id
-}
+// SetPrimary implements the database.Model interface.
+func (p *Provider) SetPrimary(id int64) { p.ID = id }
 
+// Primary implements the database.Model interface.
 func (p *Provider) Primary() (string, int64) { return "id", p.ID }
 
-// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
-// string.
+// Endpoint implements the database.Model interface. This is a stub method and
+// returns an empty string.
 func (*Provider) Endpoint(_ ...string) string { return "" }
 
+// IsZero implements the database.Model interface.
 func (p *Provider) IsZero() bool {
 	return p == nil || p.ID == 0 &&
 		p.UserID == 0 &&
@@ -104,8 +110,13 @@ func (p *Provider) IsZero() bool {
 		p.ExpiresAt == time.Time{}
 }
 
+// JSON implements the database.Model interface. This is a stub method and
+// returns an empty map.
 func (*Provider) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, user_id, provider_user_id, name, access_token,
+// refresh_token, connected, and expires_at.
 func (p *Provider) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":          p.UserID,
@@ -131,11 +142,9 @@ func (s *Store) New() *Provider {
 	return p
 }
 
-// Bind the given models to the current Provider. This will only bind the model
-// if they are one of the following,
-//
-// - *user.User
-func (s *Store) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the model
+// if it is a pointer to a user.User model.
+func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
@@ -144,33 +153,59 @@ func (s *Store) Bind(mm ...model.Model) {
 	}
 }
 
-// Create inserts the given Provider models into the providers table.
-func (s *Store) Create(pp ...*Provider) error {
-	mm := model.Slice(len(pp), Model(pp))
-	return errors.Err(s.Store.Create(table, mm...))
+// Create creates a new provider of the given name, and with the given access
+// and refresh tokens. The given userId parameter should be the ID of the user's
+// account from the provider we're connecting to.
+func (s *Store) Create(userId int64, name string, access, refresh []byte, connected bool) (*Provider, error) {
+	p := s.New()
+	p.ProviderUserID = sql.NullInt64{
+		Int64: userId,
+		Valid: userId > 0,
+	}
+	p.Name = name
+	p.AccessToken = access
+	p.RefreshToken = refresh
+	p.Connected = connected
+
+	err := s.Store.Create(table, p)
+	return p, errors.Err(err)
 }
 
-// Update updates the given Provider models in the providers table.
-func (s *Store) Update(pp ...*Provider) error {
-	mm := model.Slice(len(pp), Model(pp))
-	return errors.Err(s.Store.Update(table, mm...))
+// Update updates the provider in the database for the given id. This will set
+// the userId, name, tokens, and connected status to the given values.
+func (s *Store) Update(id, userId int64, name string, access, refresh []byte, connected bool) error {
+	q := query.Update(
+		query.Table(table),
+		query.Set("provider_user_id", sql.NullInt64{
+			Int64: userId,
+			Valid: userId > 0,
+		}),
+		query.Set("name", name),
+		query.Set("access_token", access),
+		query.Set("refresh_token", refresh),
+		query.Set("connected", connected),
+		query.Where("id", "=", id),
+	)
+
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	return errors.Err(err)
 }
 
 // Delete deletes the given Provider models from the providers table.
 func (s *Store) Delete(pp ...*Provider) error {
-	mm := model.Slice(len(pp), Model(pp))
+	mm := database.ModelSlice(len(pp), Model(pp))
 	return errors.Err(s.Store.Delete(table, mm...))
 }
 
-// Get returns a single Provider model, applying each query.Option that is
-// given. The model.Where option is applied to the *user.User bound model.
+// Get returns a single Provider database, applying each query.Option that is
+// given. The database.Where option is applied to the *user.User bound database.
 func (s *Store) Get(opts ...query.Option) (*Provider, error) {
 	p := &Provider{
 		User: s.User,
 	}
 
 	opts = append([]query.Option{
-		model.Where(s.User, "user_id"),
+		database.Where(s.User, "user_id"),
 	}, opts...)
 
 	err := s.Store.Get(p, table, opts...)
@@ -182,12 +217,12 @@ func (s *Store) Get(opts ...query.Option) (*Provider, error) {
 }
 
 // All returns a slice of Provider models, applying each query.Option that is
-// given. The model.Where option is applied to the *user.User bound model.
+// given. The database.Where option is applied to the *user.User bound database.
 func (s *Store) All(opts ...query.Option) ([]*Provider, error) {
 	pp := make([]*Provider, 0)
 
 	opts = append([]query.Option{
-		model.Where(s.User, "user_id"),
+		database.Where(s.User, "user_id"),
 	}, opts...)
 
 	err := s.Store.All(&pp, table, opts...)

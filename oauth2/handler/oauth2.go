@@ -3,7 +3,6 @@ package handler
 import (
 	"bytes"
 	"crypto/rand"
-	"database/sql"
 	"encoding/hex"
 	"io"
 	"net/http"
@@ -14,7 +13,6 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/oauth2"
 	oauth2template "github.com/andrewpillar/thrall/oauth2/template"
 	"github.com/andrewpillar/thrall/provider"
@@ -32,13 +30,19 @@ type Oauth2 struct {
 	web.Handler
 
 	Apps      *oauth2.AppStore
+	Tokens    *oauth2.TokenStore
 	Providers map[string]oauth2.Provider
 }
 
 func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
 	q := r.URL.Query()
 
 	clientId := q.Get("client_id")
@@ -67,7 +71,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 	a, err := h.Apps.Get(query.Where("client_id", "=", b))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -78,7 +82,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		t, err := oauth2.NewTokenStore(h.DB, u, a).Get()
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -86,31 +90,21 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		if !t.IsZero() {
 			diff := oauth2.ScopeDiff(scope, t.Scope)
 
-			// New scope has been requested, so authorize that new scope.
+			// New scope has been requested, so goto auth login response.
 			if len(diff) > 0 {
-				goto render
+				goto resp
 			}
 
 			scope = append(scope, diff...)
-			codes := oauth2.NewCodeStore(h.DB, u)
 
-			c := codes.New()
-			c.Code = make([]byte, 16)
-			c.Scope = scope
-			c.ExpiresAt = time.Now().Add(time.Minute*10)
-
-			if len(c.Scope) == 0 {
-				c.Scope = t.Scope
+			if len(scope) == 0 {
+				scope = t.Scope
 			}
 
-			if _, err := rand.Read(c.Code); err != nil {
-				log.Error.Println(errors.Err(err))
-				web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-				return
-			}
+			c, err := oauth2.NewCodeStore(h.DB, u).Create(scope)
 
-			if err := codes.Create(c); err != nil {
-				log.Error.Println(errors.Err(err))
+			if err != nil {
+				h.Log.Error.Println(errors.Err(err))
 				web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 				return
 			}
@@ -131,12 +125,12 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-render:
+resp:
 	p := &oauth2template.Auth{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.FormErrors(sess),
-			Fields: h.FormFields(sess),
+			Errors: web.FormErrors(sess),
+			Fields: web.FormFields(sess),
 		},
 		User:        u,
 		Name:        a.Name,
@@ -159,20 +153,28 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 
 	f := &oauth2.AuthorizeForm{}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		if _, ok := err.(form.Errors); ok {
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
-		log.Error.Println(errors.Err(err))
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
 		return
 	}
 
-	var (
-		u   *user.User = h.User(r)
-		err error
-	)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
+	var err error
 
 	clientId, err := hex.DecodeString(f.ClientID)
 
@@ -189,7 +191,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 	a, err := h.Apps.Get(query.Where("client_id", "=", clientId))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -199,7 +201,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			if errors.Cause(err) != user.ErrAuth {
-				log.Error.Println(errors.Err(err))
+				h.Log.Error.Println(errors.Err(err))
 				web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 				return
 			}
@@ -227,21 +229,10 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	codes := oauth2.NewCodeStore(h.DB, u, a)
+	c, err := oauth2.NewCodeStore(h.DB, u, a).Create(scope)
 
-	c := codes.New()
-	c.Code = make([]byte, 16)
-	c.Scope = scope
-	c.ExpiresAt = time.Now().Add(time.Minute*10)
-
-	if _, err := rand.Read(c.Code); err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if err := codes.Create(c); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -266,17 +257,15 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientId, err := hex.DecodeString(q.Get("client_id"))
+	a, err := h.Apps.Auth(q.Get("client_id"), q.Get("client_secret"))
 
 	if err != nil {
-		web.JSONError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	clientSecret, err := hex.DecodeString(q.Get("client_secret"))
-
-	if err != nil {
-		web.JSONError(w, err.Error(), http.StatusBadRequest)
+		if errors.Cause(err) == oauth2.ErrAuth {
+			web.JSONError(w, "invalid client id and secret", http.StatusBadRequest)
+			return
+		}
+		h.Log.Error.Println(errors.Err(err))
+		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -287,23 +276,11 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := h.Apps.Auth(clientId, clientSecret)
-
-	if err != nil {
-		if errors.Cause(err) == oauth2.ErrAuth {
-			web.JSONError(w, "invalid client id and secret", http.StatusBadRequest)
-			return
-		}
-		log.Error.Println(errors.Err(err))
-		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-		return
-	}
-
 	codes := oauth2.NewCodeStore(h.DB, a)
 	c, err := codes.Get(query.Where("code", "=", code))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
@@ -321,7 +298,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	u, err := h.Users.Get(query.Where("id", "=", c.UserID))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
@@ -331,38 +308,29 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	t, err := tokens.Get()
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if t.IsZero() {
-		t = tokens.New()
+		_, err := tokens.Create("client." + strconv.FormatInt(u.ID, 10), c.Scope)
+
+		if err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+	} else {
+		if err := tokens.Update(t.ID, t.Name, c.Scope); err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
 	}
 
-	t.Token = make([]byte, 16)
-	t.Scope = c.Scope
-
-	if _, err := rand.Read(t.Token); err != nil {
-		log.Error.Println(errors.Err(err))
-		web.JSONError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	fn := tokens.Update
-
-	if t.ID == 0 {
-		fn = tokens.Create
-	}
-
-	if err := fn(t); err != nil {
-		log.Error.Println(errors.Err(err))
-		web.JSONError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := codes.Delete(c); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := codes.Delete(c.ID); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -400,7 +368,7 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 	t, err := h.Tokens.Get(query.Where("token", "=", b))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -409,8 +377,8 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 		goto resp
 	}
 
-	if err := h.Tokens.Delete(t); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := h.Tokens.Delete(t.ID); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -437,7 +405,8 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := h.User(r)
+	u, _ := user.FromContext(r.Context())
+
 	q := r.URL.Query()
 
 	if q.Get("state") != string(prv.Secret()) {
@@ -448,7 +417,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	access, refresh, providerUser, err := prv.Auth(r.Context(), q.Get("code"))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 		h.Redirect(w, r, "/settings")
 		return
@@ -468,28 +437,32 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 		)
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 
 		if u.IsZero() {
-			u = &user.User{
-				Email:    providerUser.Email,
-				Username: providerUser.Username,
-				Password: make([]byte, 16),
-			}
+			password := make([]byte, 16)
 
-			if _, err := rand.Read(u.Password); err != nil {
-				log.Error.Println(errors.Err(err))
+			if _, err := rand.Read(password); err != nil {
+				h.Log.Error.Println(errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 				h.Redirect(w, r, "/settings")
 				return
 			}
 
-			if err := h.Users.Create(u); err != nil {
-				log.Error.Println(errors.Err(err))
+			username := providerUser.Username
+
+			if username == "" {
+				username = providerUser.Login
+			}
+
+			u, err = h.Users.Create(providerUser.Email, username, password)
+
+			if err != nil {
+				h.Log.Error.Println(errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 				h.Redirect(w, r, "/settings")
 				return
@@ -499,7 +472,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 		encoded, err := h.SecureCookie.Encode("user", strconv.FormatInt(u.ID, 10))
 
 		if err != nil {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 			h.Redirect(w, r, "/settings")
 			return
@@ -520,37 +493,30 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	p, err := providers.Get(query.Where("name", "=", name))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 		h.Redirect(w, r, "/settings")
 		return
 	}
 
 	if p.IsZero() {
-		p = providers.New()
+		p, err = providers.Create(providerUser.ID, name, access, refresh, true)
+
+		if err != nil{
+			h.Log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to connect to " + name), "alert")
+			h.Redirect(w, r, "/settings")
+			return
+		}
+	} else {
+		if err := providers.Update(p.ID, providerUser.ID, name, access, refresh, true); err != nil {
+			h.Log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to connect to " + name), "alert")
+			h.Redirect(w, r, "/settings")
+			return
+		}
 	}
 
-	p.ProviderUserID = sql.NullInt64{
-		Int64: providerUser.ID,
-		Valid: true,
-	}
-	p.Name = name
-	p.AccessToken = access
-	p.RefreshToken = refresh
-	p.Connected = true
-
-	fn := providers.Update
-
-	if p.ID == 0 {
-		fn = providers.Create
-	}
-
-	if err := fn(p); err != nil {
-		log.Error.Println(errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-		h.Redirect(w, r, "/settings")
-		return
-	}
 	sess.AddFlash(template.Success("Successfully connected to "+name), "alert")
 	h.Redirect(w, r, "/settings")
 }
@@ -565,14 +531,18 @@ func (h Oauth2) RevokeClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	providers := provider.NewStore(h.DB, u)
 
 	p, err := providers.Get(query.Where("name", "=", name))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -583,13 +553,8 @@ func (h Oauth2) RevokeClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p.ProviderUserID = sql.NullInt64{Valid: false}
-	p.Connected = false
-	p.AccessToken = nil
-	p.RefreshToken = nil
-
-	if err := providers.Update(p); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := providers.Update(p.ID, 0, p.Name, nil, nil, false); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
 		h.RedirectBack(w, r)
 		return

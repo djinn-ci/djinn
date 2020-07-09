@@ -16,9 +16,9 @@ import (
 // io.Writer, and configuration passed in via the map.
 type Init func(io.Writer, map[string]interface{}) runner.Driver
 
-// Store is a struct that holds the different Init functions for initializing
+// Registry is a struct that holds the different Init functions for initializing
 // a driver.
-type Store struct {
+type Registry struct {
 	driversMU sync.RWMutex
 	drivers   map[string]Init
 }
@@ -41,32 +41,32 @@ func CreateScript(j *runner.Job) *bytes.Buffer {
 	return buf
 }
 
-// NewStore returns a new Store for the driver Init functions.
-func NewStore() *Store {
-	return &Store{
+// NewRegistry returns a new Registry for the driver Init functions.
+func NewRegistry() *Registry {
+	return &Registry{
 		driversMU: sync.RWMutex{},
 		drivers:   make(map[string]Init),
 	}
 }
 
 // Register registers a driver Init function for the driver of the given name.
-func (s *Store) Register(name string, fn Init) {
-	s.driversMU.Lock()
-	defer s.driversMU.Unlock()
+func (r *Registry) Register(name string, fn Init) {
+	r.driversMU.Lock()
+	defer r.driversMU.Unlock()
 
-	if _, ok := s.drivers[name]; ok {
+	if _, ok := r.drivers[name]; ok {
 		panic("driver " + name + " already registered")
 	}
-	s.drivers[name] = fn
+	r.drivers[name] = fn
 }
 
 // Get returns the driver Init function for the driver of the given name.
-func (s *Store) Get(name string) (Init, error) {
-	s.driversMU.Lock()
-	defer s.driversMU.Unlock()
+func (r *Registry) Get(name string) (Init, error) {
+	r.driversMU.Lock()
+	defer r.driversMU.Unlock()
 
-	if _, ok := s.drivers[name]; !ok {
+	if _, ok := r.drivers[name]; !ok {
 		return nil, errors.New("unknown driver " +name)
 	}
-	return s.drivers[name], nil
+	return r.drivers[name], nil
 }

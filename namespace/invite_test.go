@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -41,21 +41,21 @@ func Test_InviteStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(inviteCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespace_invites WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(inviteCols),
 			[]driver.Value{1},
-			[]model.Model{&Namespace{ID: 1}},
+			[]database.Model{&Namespace{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespace_invites WHERE (invitee_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(inviteCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 	}
 
@@ -82,21 +82,21 @@ func Test_InviteStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(inviteCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespace_invites WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(inviteCols),
 			[]driver.Value{1},
-			[]model.Model{&Namespace{ID: 1}},
+			[]database.Model{&Namespace{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespace_invites WHERE (invitee_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(inviteCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 	}
 

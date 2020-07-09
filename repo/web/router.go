@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/repo"
@@ -27,6 +28,7 @@ type Router struct {
 	repo handler.Repo
 
 	Redis      *redis.Client
+	Block      *crypto.Block
 	Providers  map[string]oauth2.Provider
 	Middleware web.Middleware
 }
@@ -70,6 +72,7 @@ func (r *Router) Init(h web.Handler) {
 	r.repo = handler.Repo{
 		Handler:   h,
 		Redis:     r.Redis,
+		Block:     r.Block,
 		Providers: r.Providers,
 		Repos:     repo.NewStore(h.DB),
 	}

@@ -1,104 +1,106 @@
-// Package log provides a simple interface for logging.
+// Package log providers a simple logging implementation.
 package log
 
 import (
 	"io"
 	"log"
-	"os"
+	"strings"
 )
 
-// Logger wraps the Printf, Println, Fatalf, and Fatal methods for logging.
-type Logger interface {
-	// Printf writes a formatted string to the Logger.
-	Printf(format string, v ...interface{})
+type level uint8
 
-	// Println writes a line to the Logger.
-	Println(v ...interface{})
-
-	// Fatalf writes a formatted string to the Logger. It is expected for a
-	// call to Fatalf to exit the program.
-	Fatalf(format string, v ...interface{})
-
-	// Fatal writes the given arguments to the Logger. It is expected for a
-	// call to Fatalf to exit the program.
-	Fatal(v ...interface{})
+// Logger is the type for logging information at different levels of severity.
+// The Logger has three states representing each level that can be logged at,
+// Debug, Info, and Error.
+type Logger struct {
+	Debug state
+	Info  state
+	Error state
 }
 
-// Level defines the level a Logger can use.
-type Level uint8
-
-type logState struct {
-	level  Level
-	logger Logger
+type state struct {
+	logger *log.Logger
+	level  level
+	actual level
 }
 
-type logger struct {
-	level Level
-}
-
-//go:generate stringer -type Level -linecomment
+//go:generate stringer -type level -linecomment
 const (
-	debug Level = iota // DEBUG
+	debug level = iota // DEBUG
 	info               // INFO
 	err                // ERROR
 )
 
-var (
-	// state is the global state of the Logger being used. This controls the
-	// level being logged at, and the underlying Logger being used.
-	state = logState{
-		level:  info,
-		logger: NewStdLog(os.Stdout),
-	}
+var levels = map[string]level{
+	"debug": debug,
+	"info":  info,
+	"error": err,
+}
 
-	levelsMap = map[string]Level{
-		"debug": debug,
-		"info":  info,
-		"error": err,
-	}
+// New returns a new Logger that will write to the given io.Writer. This will
+// use the stdlib's logger with the log.Ldate, log.Ltime, and log.LUTC flags
+// set. The default level of the returned Logger is info.
+func New(w io.Writer) *Logger {
+	defaultLevel := info
+	logger := log.New(w, "", log.Ldate|log.Ltime|log.LUTC)
 
-	Debug = &logger{debug}
-	Info  = &logger{info}
-	Error = &logger{err}
-)
-
-// NewStdLog returns a new log.Logger from the standard library using the given
-// io.Writer for logging to.
-func NewStdLog(w io.Writer) *log.Logger { return log.New(w, "", log.Ldate|log.Ltime|log.LUTC) }
-
-// SetLevel sets the level for the Logger to use. If the given string is not a
-// valid log level then the level is not changed.
-func SetLevel(s string) {
-	if l, ok := levelsMap[s]; ok {
-		state.level = l
+	return &Logger{
+		Debug: state{
+			logger: logger,
+			level:  defaultLevel,
+			actual: debug,
+		},
+		Info:  state{
+			logger: logger,
+			level:  defaultLevel,
+			actual: info,
+		},
+		Error: state{
+			logger: logger,
+			level:  defaultLevel,
+			actual: err,
+		},
 	}
 }
 
-// SetLogger sets the Logger implementation to use
-func SetLogger(l Logger) { state.logger = l }
+// SetLevel sets the level of the logger. The level should be either "debug",
+// "info", or "error". If the given string is none of these values then the
+// logger's level will be unchanged.
+func (l *Logger) SetLevel(s string) {
+	if lvl, ok := levels[strings.ToLower(s)]; ok {
+		l.Debug.level = lvl
+		l.Info.level = lvl
+		l.Error.level = lvl
+	}
+}
 
-func (l *logger) Printf(format string, v ...interface{}) {
-	if l.level < state.level {
+// SetWriter set's the io.Writer for the underlying logger.
+func (l *Logger) SetWriter(w io.Writer) {
+	logger := log.New(w, "", log.Ldate|log.Ltime|log.LUTC)
+
+	l.Debug.logger = logger
+	l.Info.logger = logger
+	l.Error.logger = logger
+}
+
+func (s *state) Printf(format string, v ...interface{}) {
+	if s.actual < s.level {
 		return
 	}
-	format = l.level.String() + " " + format
-	state.logger.Printf(format, v...)
+	s.logger.Printf(s.actual.String() + " " + format, v...)
 }
 
-func (l *logger) Println(v ...interface{}) {
-	if l.level < state.level {
+func (s *state) Println(v ...interface{}) {
+	if s.actual < s.level {
 		return
 	}
-	v = append([]interface{}{ l.level }, v...)
-	state.logger.Println(v...)
+	s.logger.Println(append([]interface{}{s.actual}, v...)...)
 }
 
-func (l *logger) Fatalf(format string, v ...interface{}) {
-	format = l.level.String() + " " + format
-	state.logger.Fatalf(format, v...)
+func (s *state) Fatalf(format string, v ...interface{}) {
+	s.logger.Fatalf(s.actual.String() + " " + format, v...)
 }
 
-func (l *logger) Fatal(v ...interface{}) {
-	v = append([]interface{}{ l.level, " " }, v...)
-	state.logger.Fatal(v...)
+func (s *state) Fatal(v ...interface{}) {
+	s.logger.Fatal(append([]interface{}{s.actual, " "}, v...)...)
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/query"
 )
 
+// Form is the type that represents input data for uploading a new object.
 type Form struct {
 	namespace.Resource
 	form.File `schema:"-"`

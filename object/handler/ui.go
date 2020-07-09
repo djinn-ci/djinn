@@ -10,10 +10,10 @@ import (
 	buildtemplate "github.com/andrewpillar/thrall/build/template"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/object"
 	objecttemplate "github.com/andrewpillar/thrall/object/template"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
@@ -29,12 +29,16 @@ type UI struct {
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
 
-	oo, paginator, err := h.IndexWithRelations(object.NewStore(h.DB, u), r.URL.Query())
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
+	oo, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -51,7 +55,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Objects:   oo,
 		Search:    r.URL.Query().Get("search"),
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -64,11 +68,11 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	p := &objecttemplate.Create{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: h.FormErrors(sess),
-			Fields: h.FormFields(sess),
+			Errors: web.FormErrors(sess),
+			Fields: web.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -76,15 +80,19 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	o, err := h.StoreModel(w, r, sess)
+	o, f, err := h.StoreModel(w, r)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if _, ok := cause.(form.Errors); !ok {
-			log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create object"), "alert")
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, &f, ferrs)
+			h.RedirectBack(w, r)
+			return
 		}
+
+		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to create object"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -94,58 +102,71 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h UI) Show(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	parts := strings.Split(r.URL.Path, "/")
 
 	if parts[len(parts)-2] == "download" {
-		o := h.Model(r)
+		o, ok := object.FromContext(ctx)
+
+		if !ok {
+			h.Log.Error.Println(r.Method, r.URL, "failed to get object from request context")
+		}
 
 		if o.Name != mux.Vars(r)["name"] {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}
 
-		f, err := h.FileStore.Open(o.Hash)
+		rec, err := h.BlockStore.Open(o.Hash)
 
 		if err != nil {
 			if os.IsNotExist(errors.Cause(err)) {
 				web.HTMLError(w, "Not found", http.StatusNotFound)
 				return
 			}
-			log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 
-		defer f.Close()
+		defer rec.Close()
 
-		http.ServeContent(w, r, o.Name, o.CreatedAt, f)
+		http.ServeContent(w, r, o.Name, o.CreatedAt, rec)
 		return
 	}
 
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	o, err := h.ShowWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	selectq := build.SelectObject("build_id", query.Where("object_id", "=", o.ID))
-
-	bb, paginator, err := h.Builds.Index(r.URL.Query(), query.WhereQuery("id", "IN", selectq))
+	bb, paginator, err := h.Builds.Index(
+		r.URL.Query(),
+		query.WhereQuery(
+			"id", "IN", build.SelectObject("build_id", query.Where("object_id", "=", o.ID)),
+		),
+	)
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if err := build.LoadRelations(h.Loaders, bb...); err != nil {
-		log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -171,7 +192,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 			Tag:       q.Get("tag"),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -179,20 +200,20 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	alert := template.Success("Object has been deleted")
-
-	if err := h.Delete(r); err != nil {
-		if !os.IsNotExist(errors.Cause(err)) {
-			log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
-			alert = template.Danger("Failed to delete object")
+	if err := h.DeleteModel(r); err != nil {
+		if os.IsNotExist(errors.Cause(err)) {
+			goto resp
 		}
+		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to delete object"), "alert")
+		h.RedirectBack(w, r)
+		return
 	}
 
-	sess.AddFlash(alert, "alert")
+resp:
+	sess.AddFlash(template.Success("Object has been deleted"), "alert")
 
-	ref := r.Header.Get("Referer")
-
-	if matched, _ := regexp.Match("/objects/[0-9]+", []byte(ref)); matched {
+	if matched, _ := regexp.Match("/objects/[0-9]+", []byte(r.Header.Get("Referer"))); matched {
 		h.Redirect(w, r, "/objects")
 		return
 	}

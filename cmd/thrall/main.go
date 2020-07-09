@@ -8,12 +8,13 @@ import (
 
 	"github.com/andrewpillar/cli"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/driver/docker"
 	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/driver/qemu"
-	"github.com/andrewpillar/thrall/filestore"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/pelletier/go-toml"
@@ -75,29 +76,23 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	drivers := driver.NewStore()
+	drivers := driver.NewRegistry()
 
 	for _, name := range tree.Keys() {
 		drivers.Register(name, driverInits[name])
 	}
 
-	placer, err := filestore.NewFileSystem(config.Storage{
-		Kind: "file",
-		Path: c.Flags.GetString("objects"),
-	})
+	placer := block.NewFilesystem(c.Flags.GetString("objects"))
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+	if err := placer.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
 		os.Exit(1)
 	}
 
-	collector, err := filestore.NewFileSystem(config.Storage{
-		Kind: "file",
-		Path: c.Flags.GetString("artifacts"),
-	})
+	collector := block.NewFilesystem(c.Flags.GetString("artifacts"))
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+	if err := collector.Init(); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
 		os.Exit(1)
 	}
 

@@ -2,12 +2,12 @@ package oauth2
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -46,14 +46,14 @@ func Test_AppStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(appCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM oauth_apps WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(appCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 	}
 
@@ -80,14 +80,14 @@ func Test_AppStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(appCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM oauth_apps WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(appCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 	}
 
@@ -108,21 +108,20 @@ func Test_AppStoreCreate(t *testing.T) {
 	store, mock, close_ := appStore(t)
 	defer close_()
 
-	a := &App{}
+	block, err := crypto.NewBlock([]byte("some-supersecret"))
 
-	id := int64(0)
-	expected := fmt.Sprintf(insertFmt, appTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(a); err != nil {
+	if err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 
-	if a.ID != id {
-		t.Fatalf("app id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, a.ID)
+	store.block = block
+
+	mock.ExpectQuery(
+		"^INSERT INTO oauth_apps \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
+
+	if _, err := store.Create("my app", "", "example.com", "example.com/oauth"); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -130,14 +129,12 @@ func Test_AppStoreUpdate(t *testing.T) {
 	store, mock, close_ := appStore(t)
 	defer close_()
 
-	a := &App{ID: 10}
+	mock.ExpectExec(
+		"^UPDATE oauth_apps SET name = \\$1, description = \\$2, homepage_uri = \\$3, redirect_uri = \\$4 WHERE \\(id = \\$5\\)$",
+	).WithArgs("my app", "", "example.com", "example.com/oauth", 10).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	expected := fmt.Sprintf(updateFmt, appTable)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(a.ID, 1))
-
-	if err := store.Update(a); err != nil {
-		t.Fatal(errors.Cause(err))
+	if err := store.Update(10, "my app", "", "example.com", "example.com/oauth"); err != nil {
+		t.Errorf("unexpected Update error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -145,17 +142,11 @@ func Test_AppStoreDelete(t *testing.T) {
 	store, mock, close_ := appStore(t)
 	defer close_()
 
-	aa := []*App{
-		&App{ID: 1},
-		&App{ID: 2},
-		&App{ID: 3},
-	}
+	mock.ExpectExec(
+		"^DELETE FROM oauth_apps WHERE \\(id IN \\(\\$1, \\$2, \\$3\\)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 3))
 
-	expected := fmt.Sprintf(deleteFmt, appTable)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(aa...); err != nil {
+	if err := store.Delete(1, 2, 3); err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 }

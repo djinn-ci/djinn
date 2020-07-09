@@ -2,12 +2,11 @@ package repo
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/user"
 
@@ -18,9 +17,20 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type testQuery struct {
+	query  string
+	opts   []query.Option
+	rows   *sqlmock.Rows
+	args   []driver.Value
+	models []database.Model
+}
+
 var repoCols = []string{
 	"user_id",
-
+	"provider_id",
+	"hook_id",
+	"repo_id",
+	"enabled",
 }
 
 func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
@@ -42,21 +52,21 @@ func Test_StoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(repoCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM provider_repos WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(repoCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM provider_repos WHERE (user_id = $1 AND provider_id = $2)",
 			[]query.Option{},
 			sqlmock.NewRows(repoCols),
 			[]driver.Value{1, 1},
-			[]model.Model{&user.User{ID: 1}, &provider.Provider{ID: 1}},
+			[]database.Model{&user.User{ID: 1}, &provider.Provider{ID: 1}},
 		},
 	}
 
@@ -84,21 +94,21 @@ func Test_StoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(repoCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM provider_repos WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(repoCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM provider_repos WHERE (user_id = $1 AND provider_id = $2)",
 			[]query.Option{},
 			sqlmock.NewRows(repoCols),
 			[]driver.Value{1, 1},
-			[]model.Model{&user.User{ID: 1}, &provider.Provider{ID: 1}},
+			[]database.Model{&user.User{ID: 1}, &provider.Provider{ID: 1}},
 		},
 	}
 
@@ -120,40 +130,24 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	r := &Repo{}
+	mock.ExpectQuery(
+		"^INSERT INTO provider_repos \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, table)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(r); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if r.ID != id {
-		t.Fatalf("repo id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, r.ID)
+	if _, err := store.Create(143, 1897); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
-
 
 func Test_StoreDelete(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	rr := []*Repo{
-		&Repo{ID: 1},
-		&Repo{ID: 2},
-		&Repo{ID: 3},
-	}
+	mock.ExpectExec(
+		"^DELETE FROM provider_repos WHERE \\(id IN \\(\\$1, \\$2, \\$3\\)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 3))
 
-	expected := fmt.Sprintf(deleteFmt, table)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(rr...); err != nil {
-		t.Fatal(errors.Cause(err))
+	if err := store.Delete(1, 2, 3); err != nil {
+		t.Errorf("unexpected Delete error: %s\n", errors.Cause(err))
 	}
 }

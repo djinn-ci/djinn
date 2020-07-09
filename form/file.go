@@ -1,6 +1,8 @@
 package form
 
 import (
+	"bytes"
+	"io"
 	"mime/multipart"
 	"net/http"
 	"strings"
@@ -8,9 +10,15 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 )
 
+type sectionReadCloser struct {
+	*io.SectionReader
+}
+
 // File provides an implementation of the Form interface to validate file
 // uploads via HTTP. It embeds the underlying multipart.File type from the
-// stdlib.
+// stdlib. If the given HTTP request is of multipart/form-data then the request
+// body will be parsed for the form, otherwise the entire request body is
+// treated as the file's content.
 type File struct {
 	multipart.File
 
@@ -24,8 +32,8 @@ type File struct {
 	// Limit specifies the maximum size of the file to be uploaded.
 	Limit int64
 
-	// Info is the header of the uploaded file.
-	Info *multipart.FileHeader
+	// MIMEType is the media type of the file being uploaded.
+	MIMEType string
 
 	// Disallowed is a list of MIME types that are not considered to be valid.
 	Disallowed []string
@@ -33,7 +41,7 @@ type File struct {
 
 // Fields is a stub method to statisfy the Form interface, and returns only
 // an empty map.
-func (f File) Fields() map[string]string { return map[string]string{} }
+func (f *File) Fields() map[string]string { return map[string]string{} }
 
 // Validate checks to see if a file was uploaded, is within the given limit,
 // and if the MIME type of the file is valid.
@@ -44,16 +52,33 @@ func (f *File) Validate() error {
 		f.Request.Body = http.MaxBytesReader(f.Writer, f.Request.Body, f.Limit)
 	}
 
-	if err := f.Request.ParseMultipartForm(f.Limit); err != nil {
-		if strings.Contains(err.Error(), "request body too large") {
-			errs.Put("file", ErrFieldInvalid("File", "too big"))
-		}
-		return errors.Err(err)
-	}
-
 	var err error
 
-	f.File, f.Info, err = f.Request.FormFile("file")
+	if strings.HasPrefix(f.Request.Header.Get("Content-Type"), "multipart/form-data") {
+		if err := f.Request.ParseMultipartForm(f.Limit); err != nil {
+			if strings.Contains(err.Error(), "request body too large") {
+				errs.Put("file", ErrFieldInvalid("File", "too big"))
+			}
+			return errors.Err(err)
+		}
+
+		f.File, _, err = f.Request.FormFile("file")
+	} else {
+		buf := &bytes.Buffer{}
+
+		if _, err := io.Copy(buf, f.Request.Body); err != nil {
+			if strings.Contains(err.Error(), "request body too large") {
+				errs.Put("file", ErrFieldInvalid("File", "too big"))
+			}
+			return errors.Err(err)
+		}
+
+		b := buf.Bytes()
+
+		f.File = sectionReadCloser{
+			SectionReader: io.NewSectionReader(bytes.NewReader(b), 0, int64(len(b))),
+		}
+	}
 
 	if err != nil {
 		if strings.Contains(err.Error(), "no such file") {
@@ -73,14 +98,18 @@ func (f *File) Validate() error {
 		return errors.Err(err)
 	}
 
-	if len(f.Disallowed) > 0 && f.Info != nil {
+	f.MIMEType = http.DetectContentType(header)
+
+	if len(f.Disallowed) > 0 {
 		disallowed := strings.Join(f.Disallowed, ", ")
 
 		for _, mime := range f.Disallowed {
-			if http.DetectContentType(header) == mime {
+			if f.MIMEType == mime {
 				errs.Put("file", ErrFieldInvalid("File", "cannot be one of " + disallowed))
 			}
 		}
 	}
 	return errs.Err()
 }
+
+func (rc sectionReadCloser) Close() error { return nil }

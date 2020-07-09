@@ -2,13 +2,12 @@ package build
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/variable"
 
 	"github.com/andrewpillar/query"
@@ -54,21 +53,21 @@ func Test_VariableStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_variables WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 		{
 			"SELECT * FROM build_variables WHERE (variable_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{1},
-			[]model.Model{variableModel},
+			[]database.Model{variableModel},
 		},
 	}
 
@@ -83,27 +82,5 @@ func Test_VariableStoreAll(t *testing.T) {
 
 		store.Build = nil
 		store.Variable = nil
-	}
-}
-
-func Test_VariableStoreCreate(t *testing.T) {
-	store, mock, close_ := variableStore(t)
-	defer close_()
-
-	v := &Variable{}
-
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, variableTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(v); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if v.ID != id {
-		t.Fatalf("variable id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, v.ID)
 	}
 }

@@ -10,18 +10,19 @@ import (
 {% code
 type section struct {}
 
-type InviteIndex struct {
+type Invites struct {
 	section
 	template.BasePage
+	template.Form
 
-	CSRF    htmltemplate.HTML
-	Invites []*namespace.Invite
+	CSRF      htmltemplate.HTML
+	Namespace *namespace.Namespace
+	Invites   []*namespace.Invite
 }
 
 type CollaboratorIndex struct {
 	section
 	template.BasePage
-	template.Form
 
 	CSRF          htmltemplate.HTML
 	Namespace     *namespace.Namespace
@@ -33,49 +34,83 @@ type CollaboratorIndex struct {
 {% func (p *section) Header() %}{% endfunc %}
 {% func (p *section) Actions() %}{% endfunc %}
 
-{% func (p *InviteIndex) Title() %}
-	Settings - Namespace Invites
+{% func (p *Invites) Title() %}
+	Namespace Invites
 {% endfunc %}
 
-
-{% func (p *InviteIndex) Header() %}
-	Settings - Namespace Invites
+{% func (p *Invites) Header() %}
+	Namespace Invites
 {% endfunc %}
 
-{% func (p *InviteIndex) Body() %}
+{% func (p *Invites) Body() %}
 	<div class="panel">
+		{% if p.Namespace != nil %}
+			<div class="panel-header panel-body">
+				<form method="POST" action="{%s p.Namespace.Endpoint("invites") %}">
+					{%v= p.CSRF %}
+					<div class="form-field form-field-inline">
+						<input type="text" class="form-text" name="handle" placeholder="Invite user..." autocomplete="off"/>
+						<button type="submit" class="btn btn-primary">Invite</button>
+						{%= p.Error("handle") %}
+					</div>
+				</form>
+			</div>
+		{% endif %}
 		{% if len(p.Invites) == 0 %}
 			<div class="panel-message muted">No new namespace invites.</div>
 		{% else %}
-			<table class="table">
-				<thead>
-					<tr>
-						<th>NAMESPACE</th>
-						<th>INVITED BY</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					{% for _, i := range p.Invites %}
+			{% if p.Namespace == nil %}
+				<table class="table">
+					<thead>
 						<tr>
-							<td>{%s i.Namespace.Path %}</td>
-							<td>{%s i.Inviter.Username %}</td>
+							<th>NAMESPACE</th>
+							<th>INVITED BY</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, i := range p.Invites %}
+							<tr>
+								<td>{%s i.Namespace.Path %}</td>
+								<td>{%s i.Inviter.Username %}</td>
+								<td class="align-right">
+									<form method="POST" action="{%s i.Endpoint() %}">
+										{%v= p.CSRF %}
+										<input type="hidden" name="_method" value="PATCH"/>
+										<button type="submit" class="btn btn-primary">Accept</button>
+									</form>
+									<form method="POST" action="{%s i.Endpoint() %}">
+										{%v= p.CSRF %}
+										<input type="hidden" name="_method" value="DELETE"/>
+										<button type="submit" class="btn btn-danger">Reject</button>
+									</form>
+								</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
+			{% else %}
+				<table class="table">
+					<thead>
+						<tr>
+							<th>USER</th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, i := range p.Invites %}
+							<td>{%s i.Invitee.Username %}</td>
 							<td class="align-right">
 								<form method="POST" action="{%s i.Endpoint() %}">
 									{%v= p.CSRF %}
-									<input type="hidden" name="_method" value="PATCH"/>
-									<button type="submit" class="btn btn-primary">Accept</button>
-								</form>
-								<form method="POST" action="{%s i.Endpoint() %}">
-									{%v= p.CSRF %}
 									<input type="hidden" name="_method" value="DELETE"/>
-									<button type="submit" class="btn btn-danger">Reject</button>
+									<button type="submit" class="btn btn-danger">Revoke</button>
 								</form>
 							</td>
-						</tr>
-					{% endfor %}
-				</tbody>
-			</table>
+						{% endfor %}
+					</tbody>
+				</table>
+			{% endif %}
 		{% endif %}
 	</div>
 {% endfunc %}
@@ -86,16 +121,6 @@ type CollaboratorIndex struct {
 
 {% func (p *CollaboratorIndex) Body() %}
 	<div class="panel">
-		<div class="panel-header panel-body">
-			<form method="POST" action="{%s p.Namespace.Endpoint("-", "collaborators") %}">
-				{%v= p.CSRF %}
-				<div class="form-field form-field-inline">
-					<input type="text" class="form-text" name="handle" placeholder="Add a collaborator..." autocomplete="off"/>
-					<button type="submit" class="btn btn-primary">Add</button>
-					{%= p.Error("handle") %}
-				</div>
-			</form>
-		</div>
 		{% if len(p.Collaborators) == 0 %}
 			<div class="panel-message muted">Invite users to this namespace to collaborate with them.</div>
 		{% else %}

@@ -8,7 +8,6 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/web"
@@ -19,8 +18,6 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
-
-	"golang.org/x/crypto/bcrypt"
 )
 
 type User struct {
@@ -37,8 +34,8 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 		p := &usertemplate.Register{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
-				Errors: h.FormErrors(sess),
-				Fields: h.FormFields(sess),
+				Errors: web.FormErrors(sess),
+				Fields: web.FormFields(sess),
 			},
 		}
 		save(r, w)
@@ -48,43 +45,34 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 
 	f := &user.RegisterForm{Users: h.Users}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		if _, ok := err.(form.Errors); !ok {
-			log.Error.Println(errors.Err(err))
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
 		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		h.RedirectBack(w, r)
 		return
 	}
 
-	password, err := bcrypt.GenerateFromPassword([]byte(f.Password), bcrypt.DefaultCost)
+	u, err := h.Users.Create(f.Email, f.Username, []byte(f.Password))
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	u := h.Users.New()
-	u.Email = f.Email
-	u.Username = f.Username
-	u.Password = password
-
-	if err := h.Users.Create(u); err != nil {
-		log.Error.Println(errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	providers := provider.NewStore(h.DB)
+	providers := provider.NewStore(h.DB, u)
 
 	for name := range h.Providers {
-		p := providers.New()
-		p.Name = name
-		p.UserID = u.ID
-		p.Connected = false
-
-		if err := providers.Create(p); err != nil {
-			log.Error.Println(errors.Err(err))
+		if _, err := providers.Create(0, name, nil, nil, false); err != nil {
+			h.Log.Error.Println(errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -116,8 +104,8 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		p := &usertemplate.Login{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
-				Errors: h.FormErrors(sess),
-				Fields: h.FormFields(sess),
+				Errors: web.FormErrors(sess),
+				Fields: web.FormFields(sess),
 			},
 			Providers: pp,
 		}
@@ -128,10 +116,17 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 
 	f := &user.LoginForm{}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		if _, ok := err.(form.Errors); !ok {
-			log.Error.Println(errors.Err(err))
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
 		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		h.RedirectBack(w, r)
 		return
 	}
@@ -142,7 +137,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		cause := errors.Cause(err)
 
 		if cause != user.ErrAuth {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to login:"+cause.Error()), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -163,7 +158,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 	encoded, err := h.SecureCookie.Encode("user", id)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -191,13 +186,18 @@ func (h User) Logout(w http.ResponseWriter, r *http.Request) {
 func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
 	m := make(map[string]*provider.Provider)
 
 	pp, err := provider.NewStore(h.DB, u).All(query.OrderAsc("name"))
 
 	if err != nil {
-		log.Error.Println(r.Method, r.URL, errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -230,8 +230,8 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		},
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: h.FormErrors(sess),
-			Fields: h.FormFields(sess),
+			Errors: web.FormErrors(sess),
+			Fields: web.FormFields(sess),
 		},
 		Providers: make([]*provider.Provider, 0, len(h.Providers)),
 	}
@@ -240,7 +240,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		p.Providers = append(p.Providers, m[name])
 	}
 
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -248,18 +248,28 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	f := &user.EmailForm{
 		User:      u,
 		Users:     h.Users,
 	}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		if _, ok := err.(form.Errors); !ok {
-			log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to update password"), "alert")
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
 		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to update email"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -267,8 +277,8 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	u.Email = f.Email
 	u.UpdatedAt = time.Now()
 
-	if err := h.Users.Update(u); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := h.Users.Update(u.ID, f.Email, []byte(f.VerifyPassword)); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update account"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -281,36 +291,34 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 func (h User) Password(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	f := &user.PasswordForm{
 		User:  u,
 		Users: h.Users,
 	}
 
-	if err := h.ValidateForm(f, r, sess); err != nil {
-		if _, ok := err.(form.Errors); !ok {
-			log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to update password"), "alert")
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
 		}
-		h.RedirectBack(w, r)
-		return
-	}
 
-	password, err := bcrypt.GenerateFromPassword([]byte(f.NewPassword), bcrypt.DefaultCost)
-
-	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update password"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	u.Password = password
-	u.UpdatedAt = time.Now()
-
-	if err := h.Users.Update(u); err != nil {
-		log.Error.Println(errors.Err(err))
+	if err := h.Users.Update(u.ID, u.Email, []byte(f.NewPassword)); err != nil {
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update password"), "alert")
 		h.RedirectBack(w, r)
 		return

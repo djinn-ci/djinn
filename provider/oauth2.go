@@ -3,6 +3,7 @@ package provider
 import (
 	"strings"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/oauth2"
 
@@ -30,10 +31,11 @@ type Opts struct {
 
 // New returns a new oauth2.Provider for the given provider name, configuring
 // the underlying client with the given Opts struct.
-func New(name string, opts Opts) (oauth2.Provider, error) {
+func New(name string, block *crypto.Block, opts Opts) (oauth2.Provider, error) {
 	cli := client{
 		hookEndpoint: opts.Host+"/hook/"+name,
 		secret:       opts.Secret,
+		block:        block,
 		Endpoint:     opts.Endpoint,
 		Config:       &xoauth2.Config{
 			ClientID:     opts.ClientID,

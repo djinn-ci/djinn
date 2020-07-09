@@ -6,8 +6,8 @@ package template
 
 //line image/template/index.qtpl:2
 import (
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/image"
-	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/template"
 )
 
@@ -29,7 +29,7 @@ type Index struct {
 	template.BasePage
 
 	CSRF      string
-	Paginator model.Paginator
+	Paginator database.Paginator
 	Images    []*image.Image
 	Search    string
 }

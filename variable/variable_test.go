@@ -3,7 +3,6 @@ package variable
 import (
 	"database/sql"
 	"database/sql/driver"
-	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
@@ -11,7 +10,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -21,6 +20,14 @@ import (
 
 	"github.com/jmoiron/sqlx"
 )
+
+type testQuery struct {
+	query  string
+	opts   []query.Option
+	rows   *sqlmock.Rows
+	args   []driver.Value
+	models []database.Model
+}
 
 var (
 	variableCols = []string{
@@ -74,31 +81,31 @@ func Test_StoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM variables WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{1, 1, 1},
-			[]model.Model{userModel},
+			[]database.Model{userModel},
 		},
 		{
 			"SELECT * FROM variables WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{1},
-			[]model.Model{namespaceModel},
+			[]database.Model{namespaceModel},
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.All(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -116,7 +123,7 @@ func Test_StoreIndex(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{"%gman%"},
-			[]model.Model{},
+			[]database.Model{},
 		},
 	}
 
@@ -128,13 +135,13 @@ func Test_StoreIndex(t *testing.T) {
 		paginate := strings.Replace(test.query, "*", "COUNT(*)", 1)
 		paginateRows := sqlmock.NewRows([]string{"*"}).AddRow(1)
 
-		mock.ExpectPrepare(regexp.QuoteMeta(paginate)).ExpectQuery().WillReturnRows(paginateRows)
+		mock.ExpectQuery(regexp.QuoteMeta(paginate)).WillReturnRows(paginateRows)
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, _, err := store.Index(vals[i], test.opts...); err != nil {
-			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil
@@ -152,31 +159,31 @@ func Test_StoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM variables WHERE (namespace_id IN (SELECT id FROM namespaces WHERE (root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $1) UNION SELECT id FROM namespaces WHERE (user_id = $2)))) OR user_id = $3)",
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{1, 1, 1},
-			[]model.Model{userModel},
+			[]database.Model{userModel},
 		},
 		{
 			"SELECT * FROM variables WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(variableCols),
 			[]driver.Value{1},
-			[]model.Model{namespaceModel},
+			[]database.Model{namespaceModel},
 		},
 	}
 
-	for _, test := range tests {
+	for i, test := range tests {
 		mock.ExpectQuery(regexp.QuoteMeta(test.query)).WithArgs(test.args...).WillReturnRows(test.rows)
 
 		store.Bind(test.models...)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Fatal(errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i ,errors.Cause(err))
 		}
 
 		store.User = nil
@@ -188,21 +195,12 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	v := &Variable{}
+	mock.ExpectQuery(
+		"^INSERT INTO variables \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
+	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 
-	id := int64(0)
-	expected := fmt.Sprintf(insertFmt, table)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(v); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-
-	if v.ID != id {
-		t.Fatalf("variable id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, v.ID)
+	if _, err := store.Create("PGADDR", "host=localhost port=5432"); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }
 
@@ -210,17 +208,11 @@ func Test_StoreDelete(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	vv := []*Variable{
-		&Variable{ID: 1},
-		&Variable{ID: 2},
-		&Variable{ID: 3},
-	}
+	mock.ExpectExec(
+		"^DELETE FROM variables WHERE \\(id IN \\(\\$1, \\$2, \\$3\\)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 3))
 
-	expected := fmt.Sprintf(deleteFmt, table)
-
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(vv...); err != nil {
-		t.Fatal(errors.Cause(err))
+	if err := store.Delete(1, 2, 3); err != nil {
+		t.Error(errors.Cause(err))
 	}
 }

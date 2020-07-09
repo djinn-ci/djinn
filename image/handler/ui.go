@@ -10,9 +10,9 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/image"
 	imagetemplate "github.com/andrewpillar/thrall/image/template"
-	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/csrf"
@@ -26,12 +26,16 @@ type UI struct {
 func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u := h.User(r)
+	u, ok := user.FromContext(r.Context())
 
-	ii, paginator, err := h.IndexWithRelations(image.NewStore(h.DB, u), r.URL.Query())
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
+	ii, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -48,7 +52,7 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 		Images:    ii,
 		Search:    r.URL.Query().Get("search"),
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -61,11 +65,11 @@ func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 	p := &imagetemplate.Create{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: h.FormErrors(sess),
-			Fields: h.FormFields(sess),
+			Errors: web.FormErrors(sess),
+			Fields: web.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, h.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -73,12 +77,13 @@ func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	i, err := h.StoreModel(w, r, sess)
+	i, f, err := h.StoreModel(w, r)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if _, ok := cause.(form.Errors); ok {
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, &f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -89,7 +94,7 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create image"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -100,7 +105,12 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Image) Show(w http.ResponseWriter, r *http.Request) {
-	i := h.Model(r)
+	i, ok := image.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get image from request context")
+	}
+
 	vars := mux.Vars(r)
 
 	if i.Name != vars["name"] {
@@ -108,36 +118,35 @@ func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f, err := h.FileStore.Open(filepath.Join(i.Driver.String(), i.Hash))
+	rec, err := h.BlockStore.Open(filepath.Join(i.Driver.String(), i.Hash))
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}
-		log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
-	defer f.Close()
-	http.ServeContent(w, r, i.Name, i.CreatedAt, f)
+	defer rec.Close()
+	http.ServeContent(w, r, i.Name, i.CreatedAt, rec)
 }
 
 func (h Image) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
-	i := h.Model(r)
 
-	if err := h.Delete(r); err != nil {
+	if err := h.DeleteModel(r); err != nil {
 		if !os.IsNotExist(errors.Cause(err)) {
-			log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(errors.Err(err))
 		}
 		sess.AddFlash(template.Danger("Failed to delete image"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Success("Image has been deleted: "+i.Name), "alert")
+	sess.AddFlash(template.Success("Image has been deleted"), "alert")
 
 	if matched, _ := regexp.Match("/images/[0-9]+", []byte(r.Header.Get("Referer"))); matched {
 		h.Redirect(w, r, "/images")

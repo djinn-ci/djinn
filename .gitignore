@@ -3,6 +3,8 @@
 *.tar
 *.crt
 *.key
+*.record
+*.log
 node_modules/
 .vimrc
 thrall-driver.toml

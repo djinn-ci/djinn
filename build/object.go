@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/object"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -17,8 +17,11 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Object is the type that represents a file that has been placed into a build
+// environment for a given build. This contains metadata about the file that
+// was placed.
 type Object struct {
-	ID        int64
+	ID        int64         `db:"id"`
 	BuildID   int64         `db:"build_id"`
 	ObjectID  sql.NullInt64 `db:"object_id"`
 	Source    string        `db:"source"`
@@ -30,19 +33,33 @@ type Object struct {
 	Object *object.Object `db:"-"`
 }
 
+// ObjectStore is the type for creating and modifying Object models in the
+// database. The ObjectStore type can have an underlying runner.Placer
+// implementation that can allow for it to be used for placing objects
+// into a build environment.
 type ObjectStore struct {
-	model.Store
+	database.Store
 
 	placer runner.Placer
+
+	// Build is the bound Build model. If not nil this will bind the Build
+	// model to any Object models that are created. If not nil this will
+	// append a WHERE clause on the build_id column for all SELECT queries
+	// performed.
 	Build  *Build
+
+	// Object is the bound object.Object model. If not nil this will bind the
+	// object.Object model to any Object models that are created. If not nil
+	// this will append a WHERE clause on the object_id column for all SELECT
+	// queries performed.
 	Object *object.Object
 }
 
 var (
-	_ model.Model   = (*Object)(nil)
-	_ model.Binder  = (*ObjectStore)(nil)
-	_ model.Loader  = (*ObjectStore)(nil)
-	_ runner.Placer = (*ObjectStore)(nil)
+	_ database.Model  = (*Object)(nil)
+	_ database.Binder = (*ObjectStore)(nil)
+	_ database.Loader = (*ObjectStore)(nil)
+	_ runner.Placer   = (*ObjectStore)(nil)
 
 	objectTable = "build_objects"
 )
@@ -50,9 +67,9 @@ var (
 // NewObjectStore returns a new ObjectStore for querying the build_objects
 // table. Each model passed to this function will be bound to the returned
 // ObjectStore.
-func NewObjectStore(db *sqlx.DB, mm ...model.Model) *ObjectStore {
+func NewObjectStore(db *sqlx.DB, mm ...database.Model) *ObjectStore {
 	s := &ObjectStore{
-		Store: model.Store{DB: db},
+		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
@@ -60,16 +77,16 @@ func NewObjectStore(db *sqlx.DB, mm ...model.Model) *ObjectStore {
 
 // NewObjectStoreWithCollector returns a new ObjectStore with the given
 // runner.Placer to use for object placement.
-func NewObjectStoreWithPlacer(db *sqlx.DB, p runner.Placer, mm ...model.Model) *ObjectStore {
+func NewObjectStoreWithPlacer(db *sqlx.DB, p runner.Placer, mm ...database.Model) *ObjectStore {
 	s := NewObjectStore(db, mm...)
 	s.placer = p
 	return s
 }
 
-// ObjectModel is called along with model.Slice to convert the given slice of
-// Object models to a slice of model.Model interfaces.
-func ObjectModel(oo []*Object) func(int) model.Model {
-	return func(i int) model.Model {
+// ObjectModel is called along with database.ModelSlice to convert the given slice of
+// Object models to a slice of database.Model interfaces.
+func ObjectModel(oo []*Object) func(int) database.Model {
+	return func(i int) database.Model {
 		return oo[i]
 	}
 }
@@ -83,12 +100,9 @@ func SelectObject(col string, opts ...query.Option) query.Query {
 	}, opts...)...)
 }
 
-// Bind the given models to the current Object. This will only bind the model
-// if they are one of the following,
-//
-// - *Build
-// - *object.Object
-func (o *Object) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the models
+// if they are pointers to either Build or object.Object.
+func (o *Object) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
@@ -99,16 +113,17 @@ func (o *Object) Bind(mm ...model.Model) {
 	}
 }
 
-func (o *Object) SetPrimary(id int64) {
-	o.ID = id
-}
+// SetPrimary implements the database.Model interface.
+func (o *Object) SetPrimary(id int64) { o.ID = id }
 
-func (o *Object) Primary() (string, int64) {
-	return "id", o.ID
-}
+// Primary implements the database.Model interface.
+func (o *Object) Primary() (string, int64) { return "id", o.ID }
 
+// Endpoint implements the database.Model interface. This returns an empty
+// string.
 func (o *Object) Endpoint(_ ...string) string { return "" }
 
+// IsZero implements the database.Model interface.
 func (o *Object) IsZero() bool {
 	return o == nil || o.ID == 0 &&
 		o.BuildID == 0 &&
@@ -119,6 +134,10 @@ func (o *Object) IsZero() bool {
 		o.CreatedAt == time.Time{}
 }
 
+// JSON implements the database.Model interface. This will return a map with the
+// current Object's values under each key. If any of the Build, or Object bound
+// models exist on the Object, then the JSON representation of these models will
+// be in the returned map, under the build, and object keys respectively.
 func (o *Object) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":       o.ID,
@@ -144,6 +163,8 @@ func (o *Object) JSON(addr string) map[string]interface{} {
 	return json
 }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, build_id, object_id, source, name, and placed.
 func (o *Object) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id":   o.BuildID,
@@ -177,27 +198,27 @@ func (s *ObjectStore) New() *Object {
 	return o
 }
 
-// Create inserts the given Object models into the build_objects table.
-func (s *ObjectStore) Create(oo ...*Object) error {
-	models := model.Slice(len(oo), ObjectModel(oo))
-	return errors.Err(s.Store.Create(objectTable, models...))
-}
+func (s *ObjectStore) Create(objectId int64, name, dst string) (*Object, error) {
+	o := s.New()
+	o.ObjectID = sql.NullInt64{
+		Int64: objectId,
+		Valid: objectId > 0,
+	}
+	o.Source = name
+	o.Name = dst
 
-// Update updates the given Object models in the build_objects table.
-func (s *ObjectStore) Update(oo ...*Object) error {
-	models := model.Slice(len(oo), ObjectModel(oo))
-	return errors.Err(s.Store.Update(objectTable, models...))
+	err := s.Store.Create(objectTable, o)
+	return o, errors.Err(err)
 }
 
 // All returns a slice of Object models, applying each query.Option that is
-// given. Each model that is bound to the store will be applied to the list of
-// query options via model.Where.
+// given.
 func (s *ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 	oo := make([]*Object, 0)
 
 	opts = append([]query.Option{
-		model.Where(s.Build, "build_id"),
-		model.Where(s.Object, "object_id"),
+		database.Where(s.Build, "build_id"),
+		database.Where(s.Object, "object_id"),
 	}, opts...)
 
 	err := s.Store.All(&oo, objectTable, opts...)
@@ -214,8 +235,6 @@ func (s *ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 }
 
 // Get returns a single Object model, applying each query.Option that is given.
-// Each model that is bound to the store will be applied to the list of query
-// options via model.Where.
 func (s *ObjectStore) Get(opts ...query.Option) (*Object, error) {
 	o := &Object{
 		Build: s.Build,
@@ -223,8 +242,8 @@ func (s *ObjectStore) Get(opts ...query.Option) (*Object, error) {
 	}
 
 	opts = append([]query.Option{
-		model.Where(s.Build, "build_id"),
-		model.Where(s.Object, "object_id"),
+		database.Where(s.Build, "build_id"),
+		database.Where(s.Object, "object_id"),
 	}, opts...)
 
 	err := s.Store.Get(o, objectTable, opts...)
@@ -235,12 +254,9 @@ func (s *ObjectStore) Get(opts ...query.Option) (*Object, error) {
 	return o, errors.Err(err)
 }
 
-// Bind the given models to the current ObjectStore. This will only bind the
-// model if they are one of the following,
-//
-// - *Build
-// - *object.Object
-func (s *ObjectStore) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the models
+// if they are pointers to either Build or object.Object.
+func (s *ObjectStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
@@ -252,10 +268,10 @@ func (s *ObjectStore) Bind(mm ...model.Model) {
 }
 
 // Load loads in a slice of Object models where the given key is in the list of
-// given vals. Each model is loaded individually via a call to the given load
+// given vals. Each database is loaded individually via a call to the given load
 // callback. This method calls ObjectStore.All under the hood, so any bound
 // models will impact the models being loaded.
-func (s *ObjectStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+func (s *ObjectStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
 	oo, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {
@@ -314,10 +330,14 @@ func (s *ObjectStore) Place(name string, w io.Writer) (int64, error) {
 
 	o.Placed = errPlace == nil
 
-	if err := s.Update(o); err != nil {
-		return n, errors.Err(err)
-	}
-	return n, errors.Err(errPlace)
+	q := query.Update(
+		query.Table(objectTable),
+		query.Set("placed", o.Placed),
+		query.Where("id", "=", o.ID),
+	)
+
+	_, err = s.DB.Exec(q.Build(), q.Args()...)
+	return n, errors.Err(err)
 }
 
 // Stat returns the os.FileInfo of the Object by the given name. This uses the

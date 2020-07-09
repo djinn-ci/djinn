@@ -2,18 +2,19 @@ package main
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"time"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/driver/docker"
 	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/driver/qemu"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/filestore"
-	"github.com/andrewpillar/thrall/model"
 	"github.com/andrewpillar/thrall/log"
 
 	"github.com/andrewpillar/cli"
@@ -35,9 +36,17 @@ var (
 		"ssh":    ssh.Init,
 		"qemu":   qemu.Init,
 	}
+
+	blockstores = map[string]func(string, int64) block.Store {
+		"file": func(dsn string, limit int64) block.Store {
+			return block.NewFilesystemWithLimit(dsn, limit)
+		},
+	}
 )
 
 func mainCommand(c cli.Command) {
+	log := log.New(os.Stdout)
+
 	cf, err := os.Open(c.Flags.GetString("config"))
 
 	if err != nil {
@@ -70,7 +79,7 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("driver config validation failed: %s\n", err)
 	}
 
-	drivers := driver.NewStore()
+	drivers := driver.NewRegistry()
 
 	for _, name := range tree.Keys() {
 		drivers.Register(name, driverInits[name])
@@ -90,17 +99,35 @@ func mainCommand(c cli.Command) {
 
 	defer logf.Close()
 
-	crypto.Key = []byte(cfg.Crypto.Block)
+	log.SetWriter(logf)
 
-	db, err := model.Connect(
-		cfg.Database.Addr,
+	blockCipher, err := crypto.NewBlock([]byte(cfg.Crypto.Block))
+
+	if err != nil {
+		log.Error.Fatalf("failed to setup block cipher: %s\n", errors.Cause(err))
+	}
+
+	host, port, err := net.SplitHostPort(cfg.Database.Addr)
+
+	if err != nil {
+		log.Error.Fatal(err)
+	}
+
+	dsn := fmt.Sprintf(
+		"host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+		host,
+		port,
 		cfg.Database.Name,
 		cfg.Database.Username,
 		cfg.Database.Password,
 	)
 
+	log.Debug.Println("connecting to postgresql database with:", dsn)
+
+	db, err := database.Connect(dsn)
+
 	if err != nil {
-		log.Error.Fatalf("failed to establish postgresql connection: %s\n", err)
+		log.Error.Fatalf("failed to connect to database: %s\n", errors.Cause(err))
 	}
 
 	log.Info.Println("connected to postgresql database")
@@ -135,20 +162,26 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to setup queue %s: %s\n", cfg.Queue, err)
 	}
 
-	objects, err := filestore.New(cfg.Objects)
+	var (
+		images    block.Store
+		objects   block.Store = blockstores[cfg.Objects.Type](cfg.Objects.Path, cfg.Objects.Limit)
+		artifacts block.Store = blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
+	)
 
-	if err != nil {
-		log.Error.Fatalf("failed to create object store: %s\n", errors.Cause(err))
+	if cfg.Images.Path != "" {
+		images = blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit)
+
+		if err := images.Init(); err != nil {
+			log.Error.Fatalf("failed to initialize image store: %s\n", errors.Cause(err))
+		}
 	}
 
-	artifacts, err := filestore.New(cfg.Artifacts)
-
-	if err != nil {
-		log.Error.Fatalf("failed to create artifact store: %s\n", errors.Cause(err))
+	if err := objects.Init(); err != nil {
+		log.Error.Fatalf("failed to initialize object store: %s\n", errors.Cause(err))
 	}
 
-	if _, err := filestore.New(cfg.Images); err != nil {
-		log.Error.Fatalf("failed to create image store: %s\n", errors.Cause(err))
+	if err := artifacts.Init(); err != nil {
+		log.Error.Fatalf("failed to initialize artifact store: %s\n", errors.Cause(err))
 	}
 
 	timeout, err := time.ParseDuration(cfg.Timeout)
@@ -168,6 +201,8 @@ func mainCommand(c cli.Command) {
 	w := worker{
 		db:         db,
 		redis:      redis,
+		block:      blockCipher,
+		log:        log,
 		driverconf: driverconf,
 		drivers:    drivers,
 		timeout:    timeout,

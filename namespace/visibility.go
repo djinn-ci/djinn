@@ -5,7 +5,7 @@ import (
 	"database/sql/driver"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 )
 
 // Visibility represents the visibility level of a Namespace, there are three
@@ -40,7 +40,7 @@ var (
 // turn it into the correct Visibility value. If it succeeds then it set's it
 // on the current Visibility, otherwise an error is returned.
 func (v *Visibility) Scan(val interface{}) error {
-	b, err := model.Scan(val)
+	b, err := database.Scan(val)
 
 	if err != nil {
 		return errors.Err(err)

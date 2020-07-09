@@ -6,13 +6,12 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/build/handler"
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/filestore"
-	"github.com/andrewpillar/thrall/image"
-	"github.com/andrewpillar/thrall/key"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/object"
@@ -33,14 +32,20 @@ import (
 	"github.com/RichardKnop/machinery/v1"
 )
 
+// Router is the type that registers the UI and API routes for the build
+// entity, and all of its related entities.
 type Router struct {
-	build handler.Build
-	job   handler.Job
-	tag   handler.Tag
+	build    handler.Build
+	job      handler.Job
+	tag      handler.Tag
+	hook     handler.Hook
+	artifact handler.ArtifactAPI
 
-	Middleware web.Middleware
-	Artifacts  filestore.FileStore
 	Redis      *redis.Client
+	Block      *crypto.Block
+	Middleware web.Middleware
+	Artifacts  block.Store
+	Hasher     *crypto.Hasher
 	Queues     map[string]*machinery.Server
 	Providers  map[string]oauth2.Provider
 }
@@ -123,8 +128,8 @@ func Gate(db *sqlx.DB) web.Gate {
 }
 
 // Init intialises the primary handler.Build for handling the primary logic
-// of Build submission and management. This will setup the model.Loader for
-// relationship loading, and the related model stores. The exported properties
+// of Build submission and management. This will setup the database.Loader for
+// relationship loading, and the related database stores. The exported properties
 // on the Router itself are passed through to the underlying handler.Build.
 func (r *Router) Init(h web.Handler) {
 	namespaces := namespace.NewStore(h.DB)
@@ -133,7 +138,7 @@ func (r *Router) Init(h web.Handler) {
 	stages := build.NewStageStore(h.DB)
 	artifacts := build.NewArtifactStore(h.DB)
 
-	loaders := model.NewLoaders()
+	loaders := database.NewLoaders()
 	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespaces)
 	loaders.Put("build_tag", tags)
@@ -142,30 +147,26 @@ func (r *Router) Init(h web.Handler) {
 	loaders.Put("build_artifact", artifacts)
 
 	r.build = handler.Build{
-		Handler:         h,
-		Loaders:         loaders,
-		Builds:          build.NewStore(h.DB),
-		Tags:            tags,
-		Triggers:        triggers,
-		Stages:          stages,
-		Jobs:            build.NewJobStore(h.DB),
-		Artifacts:       artifacts,
-		Keys:            key.NewStore(h.DB),
-		Namespaces:      namespaces,
-		Objects:         object.NewStore(h.DB),
-		Providers:       provider.NewStore(h.DB),
-		Images:          image.NewStore(h.DB),
-		Variables:       variable.NewStore(h.DB),
-		FileStore:       r.Artifacts,
-		Client:          r.Redis,
-		Queues:          r.Queues,
-		Oauth2Providers: r.Providers,
+		Handler:   h,
+		Loaders:   loaders,
+		Objects:   object.NewStore(h.DB),
+		Variables: variable.NewStore(h.DB),
+		Block:     r.Block,
+		Client:    r.Redis,
+		Hasher:    r.Hasher,
+		Queues:    r.Queues,
 	}
 	r.job = handler.Job{
 		Handler: h,
 		Loaders: loaders,
 	}
 	r.tag = handler.Tag{Handler: h}
+	r.hook = handler.Hook{
+		Build:           r.build,
+		Providers:       provider.NewStore(h.DB),
+		Oauth2Providers: r.Providers,
+	}
+	r.artifact = handler.ArtifactAPI{Handler: h}
 }
 
 // RegisterUI registers the UI routes for Build submission, and management.
@@ -178,21 +179,25 @@ func (r *Router) Init(h web.Handler) {
 // the discretion of the provider sending the hook.
 //
 // simple auth routes - These routes (/, /builds, and /builds/create), have the
-// auth middleware applied to them to check if a user is logged in to access
-// the route. The given http.Handler is applied to these routes for CSRF
+// AuthPerms middleware applied to them to check if a user is logged in to
+// access the route. The given http.Handler is applied to these routes for CSRF
 // protection.
 //
 // individual build routes - These routes (prefixed with
 // /b/{username}/{build:[0-9]+}), use the given http.Handler for CSRF
 // protection, and the given gates for auth checks, and permission checks.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
-	build := handler.UI{Build: r.build}
+	build := handler.UI{
+		Build:     r.build,
+		Artifacts: r.Artifacts,
+	}
+
 	tag := handler.TagUI{Tag: r.tag}
 	job := handler.JobUI{Job: r.job}
-	hook := handler.Hook{Build: r.build}
 
-	mux.HandleFunc("/hook/github", hook.Github).Methods("POST")
-	mux.HandleFunc("/hook/gitlab", hook.Gitlab).Methods("POST")
+	hookRouter := mux.PathPrefix("/hook").Subrouter()
+	hookRouter.HandleFunc("/github", r.hook.Github).Methods("POST")
+	hookRouter.HandleFunc("/gitlab", r.hook.Gitlab).Methods("POST")
 
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/", build.Index).Methods("GET")
@@ -202,7 +207,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")
-	sr.HandleFunc("", build.Kill).Methods("DELETE")
+	sr.HandleFunc("", build.Destroy).Methods("DELETE")
 	sr.HandleFunc("/manifest", build.Show).Methods("GET")
 	sr.HandleFunc("/manifest/raw", build.Show).Methods("GET")
 	sr.HandleFunc("/output/raw", build.Show).Methods("GET")
@@ -236,9 +241,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 		Tag:    r.tag,
 	}
 
-	artifact := handler.ArtifactAPI{
-		Prefix: prefix,
-	}
+	r.artifact.Prefix = prefix
 
 	auth := mux.PathPrefix("/builds").Subrouter()
 	auth.HandleFunc("", build.Index).Methods("GET", "HEAD")
@@ -247,14 +250,14 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")
-	sr.HandleFunc("", build.Kill).Methods("DELETE")
+	sr.HandleFunc("", build.Destroy).Methods("DELETE")
 	sr.HandleFunc("/objects", build.Show).Methods("GET")
 	sr.HandleFunc("/variables", build.Show).Methods("GET")
 	sr.HandleFunc("/keys", build.Show).Methods("GET")
 	sr.HandleFunc("/jobs", job.Index).Methods("GET")
 	sr.HandleFunc("/jobs/{job:[0-9]+}", job.Show).Methods("GET")
-	sr.HandleFunc("/artifacts", artifact.Index).Methods("GET")
-	sr.HandleFunc("/artifacts/{artifact:[0-9]+}", artifact.Show).Methods("GET")
+	sr.HandleFunc("/artifacts", r.artifact.Index).Methods("GET")
+	sr.HandleFunc("/artifacts/{artifact:[0-9]+}", r.artifact.Show).Methods("GET")
 	sr.HandleFunc("/tags", tag.Index).Methods("GET")
 	sr.HandleFunc("/tags", tag.Store).Methods("POST")
 	sr.HandleFunc("/tags/{tag:[0-9]+}", tag.Show).Methods("GET")

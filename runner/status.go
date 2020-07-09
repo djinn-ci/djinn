@@ -4,7 +4,7 @@ import (
 	"database/sql/driver"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 )
 
 type Status uint8
@@ -34,7 +34,7 @@ var statusMap = map[string]Status{
 // scans into an empty byte slice, then the Status is set to Queued, otherwise
 // UnmarshalText is used to attempt to try and get the Status.
 func (s *Status) Scan(val interface{}) error {
-	b, err := model.Scan(val)
+	b, err := database.Scan(val)
 
 	if err != nil {
 		return errors.Err(err)

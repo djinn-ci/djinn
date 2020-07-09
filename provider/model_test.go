@@ -3,7 +3,7 @@ package provider
 import (
 	"database/sql/driver"
 
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -15,7 +15,7 @@ type testQuery struct {
 	opts   []query.Option
 	rows   *sqlmock.Rows
 	args   []driver.Value
-	models []model.Model
+	models []database.Model
 }
 
 var (

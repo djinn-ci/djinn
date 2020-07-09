@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -20,6 +20,7 @@ type triggerType uint8
 
 type triggerData map[string]string
 
+// Trigger is the type that represents what triggered a build.
 type Trigger struct {
 	ID         int64         `db:"id"`
 	BuildID    int64         `db:"build_id"`
@@ -32,23 +33,30 @@ type Trigger struct {
 	Build *Build `db:"-"`
 }
 
+// TriggerStore is the type for creating and modifying Trigger models in the
+// database.
 type TriggerStore struct {
-	model.Store
+	database.Store
 
 	Build *Build
 }
 
 //go:generate stringer -type triggerType -linecomment
 const (
+	// There are three different trigger types for a build trigger,
+	// Manual - for when a build was manually submitted for either via the API
+	// or UI.
+	// Push - for when a build was triggered via a commit hook.
+	// Pull - for when a build was triggered via a pull-request hook.
 	Manual triggerType = iota // manual
 	Push                      // push
 	Pull                      // pull
 )
 
 var (
-	_ model.Model  = (*Trigger)(nil)
-	_ model.Binder = (*TriggerStore)(nil)
-	_ model.Loader = (*TriggerStore)(nil)
+	_ database.Model  = (*Trigger)(nil)
+	_ database.Binder = (*TriggerStore)(nil)
+	_ database.Loader = (*TriggerStore)(nil)
 
 	_ sql.Scanner   = (*triggerData)(nil)
 	_ driver.Valuer = (*triggerData)(nil)
@@ -65,28 +73,29 @@ var (
 )
 
 // NewTriggerStore returns a new TriggerStore for querying the build_triggers
-// table. Each model passed to this function will be bound to the returned
+// table. Each database passed to this function will be bound to the returned
 // TriggerStore.
-func NewTriggerStore(db *sqlx.DB, mm ...model.Model) *TriggerStore {
+func NewTriggerStore(db *sqlx.DB, mm ...database.Model) *TriggerStore {
 	s := &TriggerStore{
-		Store: model.Store{DB: db},
+		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
+// NewTriggerData returns an empty set of data for a build trigger.
 func NewTriggerData() triggerData { return triggerData(make(map[string]string)) }
 
-// TriggerModel is called along with model.Slice to convert the given slice of
-// Trigger models to a slice of model.Model interfaces.
-func TriggerModel(tt []*Trigger) func(int) model.Model {
-	return func(i int) model.Model {
+// TriggerModel is called along with database.ModelSlice to convert the given slice of
+// Trigger models to a slice of database.Model interfaces.
+func TriggerModel(tt []*Trigger) func(int) database.Model {
+	return func(i int) database.Model {
 		return tt[i]
 	}
 }
 
 func (t *triggerType) Scan(val interface{}) error {
-	b, err := model.Scan(val)
+	b, err := database.Scan(val)
 
 	if err != nil {
 		return errors.Err(err)
@@ -111,12 +120,10 @@ func (t *triggerType) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (t triggerType) Value() (driver.Value, error) {
-	return driver.Value(t.String()), nil
-}
+func (t triggerType) Value() (driver.Value, error) { return driver.Value(t.String()), nil }
 
 func (d *triggerData) Scan(val interface{}) error {
-	b, err := model.Scan(val)
+	b, err := database.Scan(val)
 
 	if err != nil {
 		return errors.Err(err)
@@ -140,37 +147,28 @@ func (d *triggerData) Set(key, val string) {
 
 func (d *triggerData) String() string {
 	buf := &bytes.Buffer{}
-	enc := json.NewEncoder(buf)
-	enc.Encode(d)
+	json.NewEncoder(buf).Encode(d)
 	return buf.String()
 }
 
-func (d triggerData) Value() (driver.Value, error) {
-	return driver.Value(d.String()), nil
-}
+func (d triggerData) Value() (driver.Value, error) { return driver.Value(d.String()), nil }
 
-// Bind the given models to the current Trigger. This will only bind the model
-// if they are one of the following,
-//
-// - *Build
-func (t *Trigger) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the models
+// if they are pointers to a Build model.
+func (t *Trigger) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
 			t.Build = m.(*Build)
-			break
 		}
 	}
 }
 
-func (t *Trigger) SetPrimary(i int64) {
-	t.ID = i
-}
+func (t *Trigger) SetPrimary(i int64) { t.ID = i }
 
-func (t Trigger) Primary() (string, int64) {
-	return "id", t.ID
-}
+func (t Trigger) Primary() (string, int64) { return "id", t.ID }
 
+// IsZero implements the database.Model interface.
 func (t *Trigger) IsZero() bool {
 	return t == nil || t.ID == 0 &&
 		t.BuildID == 0 &&
@@ -180,6 +178,8 @@ func (t *Trigger) IsZero() bool {
 		t.CreatedAt == time.Time{}
 }
 
+// JSON implements the database.Model interface. This will return a map with
+// the current Trigger's values under each key.
 func (t *Trigger) JSON(_ string) map[string]interface{} {
 	return map[string]interface{}{
 		"type":    t.Type.String(),
@@ -188,10 +188,12 @@ func (t *Trigger) JSON(_ string) map[string]interface{} {
 	}
 }
 
-// Endpoint is a stub to fulfill the model.Model interface. It returns an empty
+// Endpoint is a stub to fulfill the database.Model interface. It returns an empty
 // string.
 func (*Trigger) Endpoint(_ ...string) string { return "" }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, build_id, provider_id, type, comment, and data.
 func (t Trigger) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id":    t.BuildID,
@@ -249,34 +251,30 @@ func (t Trigger) CommentTitle() string {
 	return title
 }
 
-// Bind the given models to the current Trigger. This will only bind the model
-// if they are one of the following,
-//
-// - *Build
-func (s *TriggerStore) Bind(mm ...model.Model) {
+// Bind implements the database.Binder interface. This will only bind the models
+// if they are pointers to a Build model.
+func (s *TriggerStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *Build:
 			s.Build = m.(*Build)
-			break
 		}
 	}
 }
 
-// Create inserts the given Stage models into the build_stages table.
-func (s TriggerStore) Create(tt ...*Trigger) error {
-	models := model.Slice(len(tt), TriggerModel(tt))
-	return errors.Err(s.Store.Create(triggerTable, models...))
+func (s *TriggerStore) Create(tt ...*Trigger) error {
+	mm := database.ModelSlice(len(tt), TriggerModel(tt))
+	return errors.Err(s.Store.Create(triggerTable, mm...))
 }
 
 // All returns a slice of Trigger models, applying each query.Option that is
-// given. The model.Where option is used on the Build bound model to limit the
+// given. The database.Where option is used on the Build bound database to limit the
 // query to those relations.
 func (s TriggerStore) All(opts ...query.Option) ([]*Trigger, error) {
 	tt := make([]*Trigger, 0)
 
 	opts = append([]query.Option{
-		model.Where(s.Build, "build_id"),
+		database.Where(s.Build, "build_id"),
 	}, opts...)
 
 	err := s.Store.All(&tt, triggerTable, opts...)
@@ -292,10 +290,10 @@ func (s TriggerStore) All(opts ...query.Option) ([]*Trigger, error) {
 }
 
 // Load loads in a slice of Trigger models where the given key is in the list of
-// given vals. Each model is loaded individually via a call to the given load
+// given vals. Each database is loaded individually via a call to the given load
 // callback. This method calls StageStore.All under the hood, so any bound
 // models will impact the models being loaded.
-func (s TriggerStore) Load(key string, vals []interface{}, load model.LoaderFunc) error {
+func (s TriggerStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
 	tt, err := s.All(query.Where(key, "IN", vals...))
 
 	if err != nil {

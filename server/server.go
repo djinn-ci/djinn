@@ -41,6 +41,8 @@ type Router interface {
 type Server struct {
 	*http.Server
 
+	Log *log.Logger
+
 	// Router is the mux.Router to use for registering routes.
 	Router *mux.Router
 
@@ -71,24 +73,6 @@ type UI struct {
 	// CSRF defines the middleware function to use for protecting form submissions
 	// from CSRF attacks.
 	CSRF func(http.Handler) http.Handler
-}
-
-func recoverHandler(h http.Handler) http.HandlerFunc {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer func() {
-			if err := recover(); err != nil {
-				errh := web.HTMLError
-
-				if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-					errh = web.JSONError
-				}
-
-				log.Error.Println(r.Method, r.URL, err, string(debug.Stack()))
-				errh(w, "Something went wrong", http.StatusInternalServerError)
-			}
-		}()
-		h.ServeHTTP(w, r)
-	})
 }
 
 func spoofHandler(h http.Handler) http.HandlerFunc {
@@ -166,7 +150,7 @@ func (s *Server) Init(h web.Handler) {
 		panic("initializing server with nil router")
 	}
 
-	s.Server.Handler = recoverHandler(spoofHandler(s.Router))
+	s.Server.Handler = s.recoverHandler(spoofHandler(s.Router))
 
 	for _, r := range s.Routers {
 		r.Init(h)
@@ -189,4 +173,21 @@ func (s *Server) Serve() error {
 		return errors.Err(s.ListenAndServeTLS(s.Cert, s.Key))
 	}
 	return errors.Err(s.ListenAndServe())
+}
+
+func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				errh := web.HTMLError
+
+				if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+					errh = web.JSONError
+				}
+				s.Log.Error.Println(r.Method, r.URL, string(debug.Stack()))
+				errh(w, "Something went wrong", http.StatusInternalServerError)
+			}
+		}()
+		h.ServeHTTP(w, r)
+	})
 }

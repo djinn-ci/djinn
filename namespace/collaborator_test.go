@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -42,21 +42,21 @@ func Test_CollaboratorStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(collaboratorCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespace_collaborators WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(collaboratorCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespace_collaborators WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(collaboratorCols),
 			[]driver.Value{1},
-			[]model.Model{&Namespace{ID: 1, RootID: sql.NullInt64{Int64: 1, Valid: true}}},
+			[]database.Model{&Namespace{ID: 1, RootID: sql.NullInt64{Int64: 1, Valid: true}}},
 		},
 	}
 
@@ -84,21 +84,21 @@ func Test_CollaboratorStoreGet(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(collaboratorCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM namespace_collaborators WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(collaboratorCols),
 			[]driver.Value{1},
-			[]model.Model{&user.User{ID: 1}},
+			[]database.Model{&user.User{ID: 1}},
 		},
 		{
 			"SELECT * FROM namespace_collaborators WHERE (namespace_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(collaboratorCols),
 			[]driver.Value{1},
-			[]model.Model{&Namespace{ID: 1, RootID: sql.NullInt64{Int64: 1, Valid: true}}},
+			[]database.Model{&Namespace{ID: 1, RootID: sql.NullInt64{Int64: 1, Valid: true}}},
 		},
 	}
 
@@ -127,7 +127,7 @@ func Test_CollaboratorStoreCreate(t *testing.T) {
 
 	rows := mock.NewRows([]string{"id"}).AddRow(id)
 
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
+	mock.ExpectQuery(expected).WillReturnRows(rows)
 
 	if err := store.Create(c); err != nil {
 		t.Fatal(errors.Cause(err))
@@ -150,7 +150,7 @@ func Test_CollaboratorStoreUpdate(t *testing.T) {
 
 	expected := fmt.Sprintf(deleteFmt, collaboratorTable)
 
-	mock.ExpectPrepare(expected).ExpectExec().WillReturnResult(sqlmock.NewResult(0, 3))
+	mock.ExpectExec(expected).WillReturnResult(sqlmock.NewResult(0, 3))
 
 	if err := store.Delete(cc...); err != nil {
 		t.Fatal(errors.Cause(err))

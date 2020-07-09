@@ -39,6 +39,7 @@ type Provider interface {
 type User struct {
 	ID       int64
 	Email    string
+	Login    string
 	Username string
 }
 

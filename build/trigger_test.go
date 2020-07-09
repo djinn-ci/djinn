@@ -2,12 +2,11 @@ package build
 
 import (
 	"database/sql/driver"
-	"fmt"
 	"regexp"
 	"testing"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/model"
+	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -159,14 +158,14 @@ func Test_TriggerStoreAll(t *testing.T) {
 			[]query.Option{},
 			sqlmock.NewRows(triggerCols),
 			[]driver.Value{},
-			[]model.Model{},
+			[]database.Model{},
 		},
 		{
 			"SELECT * FROM build_triggers WHERE (build_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(triggerCols),
 			[]driver.Value{10},
-			[]model.Model{&Build{ID: 10}},
+			[]database.Model{&Build{ID: 10}},
 		},
 	}
 
@@ -187,20 +186,21 @@ func Test_TriggerStoreCreate(t *testing.T) {
 	store, mock, close_ := triggerStore(t)
 	defer close_()
 
-	tr := &Trigger{}
-
-	id := int64(10)
-	expected := fmt.Sprintf(insertFmt, triggerTable)
-
-	rows := mock.NewRows([]string{"id"}).AddRow(id)
-
-	mock.ExpectPrepare(expected).ExpectQuery().WillReturnRows(rows)
-
-	if err := store.Create(tr); err != nil {
-		t.Fatal(errors.Cause(err))
+	tr := &Trigger{
+		BuildID: 1,
+		Type:    Push,
+		Comment: "some commit message",
+		Data:    map[string]string{
+			"email":    "me@example.com",
+			"username": "me",
+		},
 	}
 
-	if tr.ID != id {
-		t.Fatalf("trigger id mismatch\n\texpected = '%d'\n\tactual   = '%d'\n", id, tr.ID)
+	mock.ExpectQuery(
+		"^INSERT INTO build_triggers \\((.+)\\) VALUES \\(\\$1, \\$2, \\$3, \\$4, \\$5\\) RETURNING id$",
+	).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(10))
+
+	if err := store.Create(tr); err != nil {
+		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }

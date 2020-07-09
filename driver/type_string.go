@@ -8,9 +8,9 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[TypeSSH-0]
-	_ = x[TypeQEMU-1]
-	_ = x[TypeDocker-2]
+	_ = x[SSH-0]
+	_ = x[QEMU-1]
+	_ = x[Docker-2]
 }
 
 const _Type_name = "sshqemudocker"

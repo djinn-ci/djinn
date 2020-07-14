@@ -80,7 +80,7 @@ var (
 	MaxDepth int64 = 20
 	ErrDepth       = errors.New("namespace cannot exceed depth of 20")
 	ErrName        = errors.New("namespace name can only contain letters and numbers")
-	ErrPermission  = errors.New("permission denied")
+	ErrPermission  = errors.New("namespace permissions invalid")
 )
 
 // NewStore returns a new Store for querying the namespaces table. Each database
@@ -381,6 +381,7 @@ func (s *Store) Create(parent, name, description string, visibility Visibility) 
 		n.Path = strings.Join([]string{p.Path, name}, "/")
 		n.Level = p.Level + 1
 		n.Visibility = p.Visibility
+		n.Parent = p
 	}
 
 	if n.Level >= MaxDepth {
@@ -460,7 +461,9 @@ func (s *Store) Delete(ids ...int64) error {
 
 	q := query.Delete(
 		query.From(table),
-		query.Where("root_id", "IN", vals...),
+		query.Where("id", "IN", vals...),
+		query.OrWhere("root_id", "IN", vals...),
+		query.OrWhere("parent_id", "IN", vals...),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)

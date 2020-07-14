@@ -46,14 +46,21 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if cause == namespace.ErrPermission {
+		switch cause {
+		case namespace.ErrName:
+			errs := form.NewErrors()
+			errs.Put("namespace", cause)
+
+			web.JSON(w, errs, http.StatusBadRequest)
+			return
+		case namespace.ErrPermission:
 			web.JSONError(w, "Unprocessable entity", http.StatusUnprocessableEntity)
 			return
+		default:
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
 		}
-
-		h.Log.Error.Println(r.Method, r.URL, errors.Cause(err))
-		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
-		return
 	}
 	web.JSON(w, k.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
 }

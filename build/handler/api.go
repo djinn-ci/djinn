@@ -81,7 +81,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		case namespace.ErrName:
 			errs := form.NewErrors()
-			errs.Put("manifest", errors.New("Namespace name can only contain letters and numbers"))
+			errs.Put("manifest", cause)
 
 			web.JSON(w, errs, http.StatusBadRequest)
 			return

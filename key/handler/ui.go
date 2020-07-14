@@ -86,16 +86,24 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if cause == namespace.ErrPermission {
-			sess.AddFlash(template.Danger("Failed to create key: could not add to namespace"), "alert")
+		switch cause {
+		case namespace.ErrName:
+			errs := form.NewErrors()
+			errs.Put("namespace", cause)
+
+			sess.AddFlash(errs, "form_errors")
+			h.RedirectBack(w, r)
+			return
+		case namespace.ErrPermission:
+			sess.AddFlash(template.Danget("Failed to create key: could not add to namespace"), "alert")
+			h.RedirectBack(w, r)
+			return
+		default:
+			h.Log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to create key"), "alert")
 			h.RedirectBack(w, r)
 			return
 		}
-
-		sess.AddFlash(template.Danger("Failed to create key"), "alert")
-		h.Log.Error.Println(errors.Err(err))
-		h.RedirectBack(w, r)
-		return
 	}
 
 	sess.AddFlash(template.Success("Key has been added: "+k.Name), "alert")

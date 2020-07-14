@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
@@ -50,9 +51,21 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
-		return
+		switch cause {
+		case namespace.ErrName:
+			errs := form.NewErrors()
+			errs.Put("namespace", cause)
+
+			web.JSON(w, errs, http.StatusBadRequest)
+			return
+		case namespace.ErrPermission:
+			web.JSONError(w, "Unprocessable entity", http.StatusUnprocessableEntity)
+			return
+		default:
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
 	}
 	web.JSON(w, o.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
 }

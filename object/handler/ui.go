@@ -91,10 +91,24 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create object"), "alert")
-		h.RedirectBack(w, r)
-		return
+		switch cause {
+		case namespace.ErrName:
+			errs := form.NewErrors()
+			errs.Put("namespace", cause)
+
+			sess.AddFlash(errs, "form_errors")
+			h.RedirectBack(w, r)
+			return
+		case namespace.ErrPermission:
+			sess.AddFlash(template.Danget("Failed to create object: could not add to namespace"), "alert")
+			h.RedirectBack(w, r)
+			return
+		default:
+			h.Log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to create object"), "alert")
+			h.RedirectBack(w, r)
+			return
+		}
 	}
 
 	sess.AddFlash(template.Success("Object has been added: "+o.Name), "alert")

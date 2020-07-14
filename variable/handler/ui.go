@@ -83,16 +83,24 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if cause == namespace.ErrPermission {
-			sess.AddFlash(template.Danger("Could not add to namespace"), "alert")
+		switch cause {
+		case namespace.ErrName:
+			errs := form.NewErrors()
+			errs.Put("namespace", cause)
+
+			sess.AddFlash(errs, "form_errors")
+			h.RedirectBack(w, r)
+			return
+		case namespace.ErrPermission:
+			sess.AddFlash(template.Danget("Failed to create variable: could not add to namespace"), "alert")
+			h.RedirectBack(w, r)
+			return
+		default:
+			h.Log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to create variable"), "alert")
 			h.RedirectBack(w, r)
 			return
 		}
-
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create variable"), "alert")
-		h.RedirectBack(w, r)
-		return
 	}
 
 	sess.AddFlash(template.Success("Variable has been added: "+v.Key), "alert")

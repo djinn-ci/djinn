@@ -13,7 +13,7 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/RichardKnop/machinery v1.7.3
 	github.com/andrewpillar/cli v1.1.1
-	github.com/andrewpillar/query v0.0.0-20191019135750-af6f8cc7b7a7
+	github.com/andrewpillar/query v0.0.0-20200711133537-db9d816b1ead
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect

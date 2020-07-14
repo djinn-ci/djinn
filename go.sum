@@ -48,6 +48,8 @@ github.com/andrewpillar/cli v1.1.1 h1:tT4dOPQOC8V+awmcBeZ2nq8u5FYeKc2flwNXkl4Zu4
 github.com/andrewpillar/cli v1.1.1/go.mod h1:aXI/VxS2sFrL1D73MjxUBzmT+MFjAa8aMP0i4UCGb50=
 github.com/andrewpillar/query v0.0.0-20191019135750-af6f8cc7b7a7 h1:Z/hdiSZSGnp403dka2l0AE3TT4uMa5r69JdoBkKEhkI=
 github.com/andrewpillar/query v0.0.0-20191019135750-af6f8cc7b7a7/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
+github.com/andrewpillar/query v0.0.0-20200711133537-db9d816b1ead h1:Pg6XMuZW8IrlySqgj3o1N2AJ4OKgDuKlH6VAN0vhkcc=
+github.com/andrewpillar/query v0.0.0-20200711133537-db9d816b1ead/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
 github.com/aws/aws-sdk-go v1.25.8 h1:n7I+HUUXjun2CsX7JK+1hpRIkZrlKhd3nayeb+Xmavs=
 github.com/aws/aws-sdk-go v1.25.8/go.mod h1:KmX6BPdI08NWTb3/sm4ZGu5ShLoqVDhKgpiN924inxo=
 github.com/bradfitz/gomemcache v0.0.0-20190913173617-a41fca850d0b h1:L/QXpzIa3pOvUGt1D1lA5KjYhPBAN/3iWdP7xeFS9F0=

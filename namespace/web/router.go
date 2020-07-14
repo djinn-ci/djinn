@@ -3,7 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
-	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/thrall/build"
@@ -40,47 +40,27 @@ func Gate(db *sqlx.DB) web.Gate {
 	users := user.NewStore(db)
 	namespaces := namespace.NewStore(db)
 
-	ownerPaths := map[string]struct{}{
-		"edit":          {},
-		"collaborators": {},
-	}
-
-	ownerMethods := map[string]struct{}{
-		"POST":   {},
-		"PATCH":  {},
-		"DELETE": {},
-	}
-
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
 		var ok bool
 
 		switch r.Method {
-		case "GET":
-			_, ok = u.Permissions["namespace:read"]
-		case "POST", "PATCH":
-			_, ok = u.Permissions["namespace:write"]
-		case "DELETE":
-			_, ok = u.Permissions["namespace:delete"]
+			case "GET":
+				_, ok = u.Permissions["namespace:read"]
+			case "POST", "PATCH":
+				_, ok = u.Permissions["namespace:write"]
+			case "DELETE":
+				_, ok = u.Permissions["namespace:delete"]
 		}
 
-		if !ok {
-			return r, false, nil
-		}
+		base := web.BasePath(r.URL.Path)
 
-		base := filepath.Base(r.URL.Path)
-
+		// Are we creating or editing a namespace.
 		if base == "create" {
 			return r, ok, nil
 		}
 
-		// Check if the base of the path is for a namespace, as denoted by a
-		// preceding -, for example,
-		//
-		//     /n/ford/cradle/-/namespaces
-		//     /n/ford/cradle/-/invites
-		//
-		// If not, then return early with the information we have about the
-		// user's perms.
+		// Check if the base of the path is for a namespace's children or
+		// invites. This is denoted by a - preceding the base of the path.
 		if base == "namespaces" || base == "invites" {
 			parts := strings.Split(r.URL.Path, "/")
 
@@ -90,6 +70,25 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		vars := mux.Vars(r)
+
+		// Invites are a subresource of the namespace entity. So we want to do
+		// the gate checks here if the user is creating or modifying an invite.
+		if invite, ok := vars["invite"]; ok {
+			id, _ := strconv.ParseInt(invite, 10, 64)
+
+			i, err := namespace.NewInviteStore(db, u).Get(query.Where("id", "=", id))
+
+			if err != nil {
+				return r, ok, errors.Err(err)
+			}
+
+			if i.IsZero() {
+				return r, false, nil
+			}
+
+			r = r.WithContext(context.WithValue(r.Context(), "invite", i))
+			return r, ok, errors.Err(err)
+		}
 
 		owner, err := users.Get(query.Where("username", "=", vars["username"]))
 
@@ -110,13 +109,15 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		// Can the current user modify/delete the current namespace.
-		if _, ok := ownerMethods[r.Method]; ok {
+		if r.Method == "POST" || r.Method == "PATCH" || r.Method == "DELETE" {
 			if owner.ID != u.ID {
 				return r, false, nil
 			}
 		}
 
-		if _, ok := ownerPaths[filepath.Base(r.URL.Path)]; ok {
+		// Can the current user view the namespace invites/collaborators, or
+		// edit the namespace.
+		if base == "invites" || base == "collaborators" || base == "edit" {
 			if owner.ID != u.ID {
 				return r, false, nil
 			}
@@ -203,14 +204,6 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 		Collaborator: r.collaborator,
 	}
 
-	perms := []string{
-		"namespace:read",
-		"namespace:write",
-		"invite:read",
-		"invite:write",
-		"invite:delete",
-	}
-
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/namespaces", namespace.Index).Methods("GET")
 	auth.HandleFunc("/namespaces/create", namespace.Create).Methods("GET")
@@ -218,7 +211,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/settings/invites", invite.Index).Methods("GET")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Update).Methods("PATCH")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Destroy).Methods("DELETE")
-	auth.Use(r.Middleware.AuthPerms(perms...), csrf)
+	auth.Use(r.Middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
 	sr.HandleFunc("", namespace.Show).Methods("GET")

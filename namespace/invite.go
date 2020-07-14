@@ -1,6 +1,7 @@
 package namespace
 
 import (
+	"context"
 	"database/sql"
 	"strconv"
 	"time"
@@ -67,6 +68,12 @@ func NewInviteStore(db *sqlx.DB, mm ...database.Model) *InviteStore {
 	return s
 }
 
+// InviteFromContext returns the Invite model from the given context, if any.
+func InviteFromContext(ctx context.Context) (*Invite, bool) {
+	i, ok := ctx.Value("invite").(*Invite)
+	return i, ok
+}
+
 // LoadInviteRelations loads all of the available relations for the given
 // Invite models using the given loaders available.
 func LoadInviteRelations(loaders *database.Loaders, ii ...*Invite) error {
@@ -114,7 +121,7 @@ func (i *Invite) Primary() (string, int64) { return "id", i.ID }
 
 // Endpoint returns the endpoint for the current Invite. This does not append
 // any of the given URIs.
-func (i *Invite) Endpoint(_ ...string) string { return "/invites/%v" + strconv.FormatInt(i.ID, 10) }
+func (i *Invite) Endpoint(_ ...string) string { return "/invites/" + strconv.FormatInt(i.ID, 10) }
 
 // IsZero implements the database.Model interface.
 func (i *Invite) IsZero() bool {

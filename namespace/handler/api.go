@@ -275,40 +275,6 @@ func (h InviteAPI) Index(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h InviteAPI) Store(w http.ResponseWriter, r *http.Request) {
-//	ctx := r.Context()
-//
-//	u, ok := user.FromContext(ctx)
-//
-//	if !ok {
-//		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
-//	}
-//
-//	n, ok := namespace.FromContext(ctx)
-//
-//	if !ok {
-//		h.Log.Error.Println(r.Method, r.URL, "failed to get namespace from request context")
-//	}
-//
-//	vars := mux.Vars(r)
-//
-//	invites := namespace.NewInviteStore(h.DB, n)
-//
-//	f := &namespace.InviteForm{
-//		Namespaces:    namespace.NewStore(h.DB, u),
-//		Collaborators: namespace.NewCollaboratorStore(h.DB, n),
-//		Invites:       invites,
-//		Users:         h.Users,
-//		Namespace:     vars["namespace"],
-//		Owner:         vars["user"],
-//	}
-//
-//	if err := json.NewDecoder(r.Body).Decode(f); err != nil {
-//		web.JSONError(w, "Failed to decode JSON body", http.StatusBadRequest)
-//		return
-//	}
-//
-//	i, err := h.StoreModel(invites, u, f)
-
 	i, _, err := h.StoreModel(r)
 
 	if err != nil {

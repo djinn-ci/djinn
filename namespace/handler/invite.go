@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
@@ -10,8 +9,6 @@ import (
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
-
-	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/mux"
 )
@@ -71,9 +68,13 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 }
 
 func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user.User, error) {
-	id, _ := strconv.ParseInt(mux.Vars(r)["invite"], 10, 64)
+	i, ok := namespace.InviteFromContext(r.Context())
 
-	n, inviter, invitee, err := namespace.NewInviteStore(h.DB).Accept(id)
+	if !ok {
+		return nil, nil, nil, errors.New("no invite in request context")
+	}
+
+	n, inviter, invitee, err := namespace.NewInviteStore(h.DB).Accept(i.ID)
 	return n, inviter, invitee, errors.Err(err)
 }
 
@@ -92,12 +93,10 @@ func (h Invite) DeleteModel(r *http.Request) error {
 		return errors.New("no namespace in request context")
 	}
 
-	id, _ := strconv.ParseInt(mux.Vars(r)["invite"], 10, 64)
+	i, ok := namespace.InviteFromContext(ctx)
 
-	i, err := h.Invites.Get(query.Where("id", "=", id))
-
-	if err != nil {
-		return errors.Err(err)
+	if !ok {
+		return errors.New("no invite in request context")
 	}
 
 	if i.IsZero() || (u.ID != i.InviteeID && u.ID != n.UserID) {

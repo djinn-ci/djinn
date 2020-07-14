@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"net/http"
-	"path/filepath"
 	"strconv"
 
 	"github.com/andrewpillar/thrall/block"
@@ -56,8 +55,8 @@ var _ server.Router = (*Router)(nil)
 // the access permissions to the current Build. If the current user can access
 // the current build then it is set in the request's context.
 func Gate(db *sqlx.DB) web.Gate {
-	namespaces := namespace.NewStore(db)
 	users := user.NewStore(db)
+	namespaces := namespace.NewStore(db)
 
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
 		var ok bool
@@ -71,11 +70,7 @@ func Gate(db *sqlx.DB) web.Gate {
 			_, ok = u.Permissions["build:delete"]
 		}
 
-		if !ok {
-			return r, false, nil
-		}
-
-		base := filepath.Base(r.URL.Path)
+		base := web.BasePath(r.URL.Path)
 
 		if base == "/" || base == "create" || base == "builds" {
 			return r, ok, nil
@@ -104,7 +99,7 @@ func Gate(db *sqlx.DB) web.Gate {
 		r = r.WithContext(context.WithValue(r.Context(), "build", b))
 
 		if !b.NamespaceID.Valid {
-			return r, u.ID == b.UserID, nil
+			return r, ok && u.ID == b.UserID, nil
 		}
 
 		root, err := namespaces.Get(
@@ -203,7 +198,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/", build.Index).Methods("GET")
 	auth.HandleFunc("/builds/create", build.Create).Methods("GET")
 	auth.HandleFunc("/builds", build.Store).Methods("POST")
-	auth.Use(r.Middleware.AuthPerms("build:read", "build:write"), csrf)
+	auth.Use(r.Middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")

@@ -95,7 +95,7 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danget("Failed to create key: could not add to namespace"), "alert")
+			sess.AddFlash(template.Danger("Failed to create key: could not add to namespace"), "alert")
 			h.RedirectBack(w, r)
 			return
 		default:

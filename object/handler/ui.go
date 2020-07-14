@@ -10,6 +10,7 @@ import (
 	buildtemplate "github.com/andrewpillar/thrall/build/template"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/object"
 	objecttemplate "github.com/andrewpillar/thrall/object/template"
 	"github.com/andrewpillar/thrall/template"
@@ -100,7 +101,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danget("Failed to create object: could not add to namespace"), "alert")
+			sess.AddFlash(template.Danger("Failed to create object: could not add to namespace"), "alert")
 			h.RedirectBack(w, r)
 			return
 		default:

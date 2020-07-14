@@ -92,7 +92,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danget("Failed to create variable: could not add to namespace"), "alert")
+			sess.AddFlash(template.Danger("Failed to create variable: could not add to namespace"), "alert")
 			h.RedirectBack(w, r)
 			return
 		default:

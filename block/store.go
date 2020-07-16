@@ -43,7 +43,7 @@ type Record interface {
 	io.Closer
 }
 
-// Store represents an arbitrary stoe of data. Each object within the Store is
+// Store represents an arbitrary store of data. Each object within the Store is
 // represented via the Record interface. Each store should also implement the
 // runner.Collector and runner.Placer interfaces.
 type Store interface {

@@ -34,8 +34,7 @@ type limitedWriter struct {
 // ErrRecordClosed.
 //
 // io.Closer - When a Record is closed this should prevent subsequent reads,
-// writes, and seeks from happening. This should also reset the value that is
-// returned from a call to Len. Any subsequent calls to Close on a closed
+// writes, and seeks from happening. Any subsequent calls to Close on a closed
 // Record should return ErrRecordClosed.
 type Record interface {
 	io.Reader

@@ -91,7 +91,11 @@ func (f *File) Validate() error {
 	header := make([]byte, 512)
 
 	if _, err := f.Read(header); err != nil {
-		return errors.Err(err)
+		if err == io.EOF {
+			errs.Put("file", ErrFieldRequired("File"))
+		} else {
+			return errors.Err(err)
+		}
 	}
 
 	if _, err := f.Seek(0, 0); err != nil {

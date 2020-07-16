@@ -3,6 +3,7 @@
 DROP TABLE IF EXISTS oauth_tokens;
 DROP TABLE IF EXISTS oauth_codes;
 DROP TABLE IF EXISTS oauth_apps;
+DROP TABLE IF EXISTS build_triggers;
 DROP TABLE IF EXISTS provider_repos;
 DROP TABLE IF EXISTS providers;
 DROP TABLE IF EXISTS images;
@@ -10,7 +11,6 @@ DROP TABLE IF EXISTS build_keys;
 DROP TABLE IF EXISTS namespace_collaborators;
 DROP TABLE IF EXISTS namespace_invites;
 DROP TABLE IF EXISTS keys;
-DROP TABLE IF EXISTS build_triggers;
 DROP TYPE IF EXISTS trigger_type;
 DROP TABLE IF EXISTS build_drivers;
 DROP TYPE IF EXISTS driver_type;
@@ -33,15 +33,7 @@ DROP TYPE IF EXISTS driver_type;
 DROP TYPE IF EXISTS trigger_type;
 
 CREATE TYPE visibility AS ENUM ('private', 'internal', 'public');
-CREATE TYPE status AS ENUM (
-	'queued',
-	'running',
-	'passed',
-	'passed_with_failures',
-	'failed',
-	'killed',
-	'timed_out',
-);
+CREATE TYPE status AS ENUM ('queued', 'running', 'passed', 'passed_with_failures', 'failed', 'killed', 'timed_out');
 CREATE TYPE driver_type AS ENUM ('ssh', 'qemu', 'docker');
 CREATE TYPE trigger_type AS ENUM ('manual', 'push', 'pull');
 
@@ -109,8 +101,8 @@ CREATE TABLE images (
 	namespace_id INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
 	driver       driver_type NOT NULL,
 	hash         VARCHAR NOT NULL UNIQUE,
-	name         VARCHAR NOT NULL
-	created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+	name         VARCHAR NOT NULL,
+	created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE objects (

@@ -9,7 +9,7 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 )
 
-// Null providers an implementation of the Store interface for working with
+// Null provides an implementation of the Store interface for working with
 // zero value Records of data. This is typically used for testing if you don't
 // particularly care about what happens to the data being stored. This is the
 // only implementation that won't return an error for the Place, Stat, Init,

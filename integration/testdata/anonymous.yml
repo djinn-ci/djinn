@@ -1,0 +1,11 @@
+driver:
+  type: docker
+  image: golang
+env:
+- GOPATH=/go
+stages:
+- env
+jobs:
+- stage: env
+  commands:
+  - go env

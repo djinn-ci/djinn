@@ -135,6 +135,7 @@ case "$1" in
 	clean)
 		rm -f *.out
 		rm -f *.tar
+		find . -name "*.log" -exec rm -f {} \;
 		go clean -x -testcache
 		;;
 	css)

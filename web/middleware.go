@@ -259,13 +259,25 @@ func (h Middleware) AuthPerms(perms ...string) mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			u, ok := h.auth(w, r)
 
+			json := strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
+
 			if !ok {
+				if json {
+					JSONError(w, "Not Found", http.StatusNotFound)
+					return
+				}
+
 				h.Redirect(w, r, "/login")
 				return
 			}
 
 			for _, perm := range perms {
 				if _, ok := u.Permissions[perm]; !ok {
+					if json {
+						JSONError(w, "Not Found", http.StatusNotFound)
+						return
+					}
+
 					h.Redirect(w, r, "/login")
 					return
 				}

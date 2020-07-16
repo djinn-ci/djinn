@@ -94,6 +94,11 @@ var (
 	}
 )
 
+// NewScope returns a new Scope for resource permissions to be added to.
+func NewScope() Scope {
+	return Scope(make([]scopeItem, 0))
+}
+
 // Diff returns the a new Scope that is the difference between Scopes a and b.
 // You would typically check the length of the returned Scope to see if there
 // was a difference like so,
@@ -194,6 +199,25 @@ func (p Permission) Expand() []Permission {
 // Determine if the given permission mask exists in the permission.
 func (p Permission) Has(mask Permission) bool { return (p & mask) == mask }
 
+// Add adds the given resource and permissions to the current scope. If the
+// resource already exists in the current scope then the permissions are
+// updated with the new permission.
+func (sc *Scope) Add(res Resource, perm Permission) {
+	for i, it := range (*sc) {
+		if it.Resource == res {
+			if it.Permission != perm {
+				(*sc)[i].Permission |= perm
+				return
+			}
+		}
+	}
+
+	(*sc) = append((*sc), scopeItem{
+		Resource:   res,
+		Permission: perm,
+	})
+}
+
 // Scan scans the underlying byte slice value of the given interface into the
 // curent Scope if it is valid.
 func (sc *Scope) Scan(val interface{}) error {
@@ -224,10 +248,10 @@ func (sc *Scope) Scan(val interface{}) error {
 }
 
 // Spread returns a slice of resource:permission strings.
-func (sc Scope) Spread() []string {
+func (sc *Scope) Spread() []string {
 	s := make([]string, 0)
 
-	for _, item := range sc {
+	for _, item := range (*sc) {
 		for _, p := range Permissions {
 			if item.Permission.Has(p) {
 				s = append(s, item.Resource.String()+":"+p.String())
@@ -241,10 +265,10 @@ func (sc Scope) Spread() []string {
 // respective permissions as a single string, for example,
 //
 //   build:read,write namespace:read variable:read,write,delete
-func (sc Scope) String() string {
-	items := make([]string, 0, len(sc))
+func (sc *Scope) String() string {
+	items := make([]string, 0, len((*sc)))
 
-	for _, item := range sc {
+	for _, item := range (*sc) {
 		items = append(items, item.String())
 	}
 	return strings.Join(items, " ")

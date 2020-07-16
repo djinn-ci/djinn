@@ -40,12 +40,6 @@ import (
 	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
-type teeCloser struct {
-	buf *bytes.Buffer
-	rc  io.ReadCloser
-	r   io.Reader
-}
-
 type Flow struct {
 	requests []*http.Request
 	codes    []int
@@ -58,16 +52,6 @@ var (
 
 	server *httptest.Server
 )
-
-func newTeeCloser(rc io.ReadCloser) *teeCloser {
-	buf := &bytes.Buffer{}
-
-	return &teeCloser{
-		buf: buf,
-		rc:  rc,
-		r:   io.TeeReader(rc, buf),
-	}
-}
 
 func fatalf(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, a...)
@@ -236,10 +220,6 @@ func ReadAll(t *testing.T, r io.Reader) []byte {
 	}
 	return b
 }
-
-func (tc *teeCloser) Read(p []byte) (int, error) { return tc.rc.Read(p) }
-
-func (tc *teeCloser) Close() error { return tc.rc.Close() }
 
 func (f *Flow) Add(r *http.Request, code int, handler func(*testing.T, *http.Request, []byte)) {
 	f.requests = append(f.requests, r)

@@ -371,6 +371,7 @@ func (s *Store) Create(parent, name, description string, visibility Visibility) 
 	n.Path = name
 	n.Description = description
 	n.Visibility = visibility
+	n.CreatedAt = time.Now()
 
 	if !p.IsZero() {
 		n.RootID = p.RootID

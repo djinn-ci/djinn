@@ -44,6 +44,7 @@ type Flow struct {
 	requests []*http.Request
 	codes    []int
 	handlers []func(*testing.T, *http.Request, []byte)
+	done     map[int]struct{}
 }
 
 var (
@@ -72,6 +73,7 @@ func NewFlow() *Flow {
 		requests: make([]*http.Request, 0),
 		codes:    make([]int, 0),
 		handlers: make([]func(*testing.T, *http.Request, []byte), 0),
+		done:     make(map[int]struct{}),
 	}
 }
 
@@ -205,6 +207,10 @@ func (f *Flow) fatal(t *testing.T, i int, req []byte, resp []byte, err error) {
 
 func (f *Flow) Do(t *testing.T, cli *http.Client) {
 	for i, r := range f.requests {
+		if _, ok := f.done[i]; ok {
+			continue
+		}
+
 		func(i int, r *http.Request) {
 			reqBytes, err := httputil.DumpRequest(r, true)
 
@@ -244,6 +250,8 @@ func (f *Flow) Do(t *testing.T, cli *http.Client) {
 			if handler := f.handlers[i]; handler != nil {
 				handler(t, r, b)
 			}
+
+			f.done[i] = struct{}{}
 		}(i, r)
 	}
 }

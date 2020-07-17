@@ -45,7 +45,7 @@ func (f Form) Validate() error {
 		return errors.Err(err)
 	}
 
-	if f.Name == "" {
+	if f.Name == "" && f.Key == nil {
 		errs.Put("name", form.ErrFieldRequired("Name"))
 	}
 
@@ -69,12 +69,14 @@ func (f Form) Validate() error {
 		}
 	}
 
-	if f.PrivateKey == "" {
+	if f.PrivateKey == "" && f.Key == nil {
 		errs.Put("key", form.ErrFieldRequired("Key"))
 	}
 
-	if _, err := ssh.ParsePrivateKey([]byte(f.PrivateKey)); err != nil {
-		errs.Put("key", form.ErrFieldInvalid("Key", err.Error()))
+	if f.Key == nil {
+		if _, err := ssh.ParsePrivateKey([]byte(f.PrivateKey)); err != nil {
+			errs.Put("key", form.ErrFieldInvalid("Key", err.Error()))
+		}
 	}
 	return errs.Err()
 }

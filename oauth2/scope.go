@@ -4,8 +4,8 @@ import (
 	"database/sql/driver"
 	"strings"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 )
 
 // Resource is the resource that the OAuth server makes available.
@@ -42,20 +42,19 @@ type scopeItem struct {
 //go:generate stringer -type Resource -linecomment
 
 const (
-	Read Permission = 1 << iota // read
-	Write                       // write
-	Delete                      // delete
+	Read   Permission = 1 << iota // read
+	Write                         // write
+	Delete                        // delete
 )
 
 const (
-	Build        Resource = 1 + iota // build
-	Collaborator                     // collaborator
-	Invite                           // invite
-	Image                            // image
-	Namespace                        // namespace
-	Object                           // object
-	Variable                         // variable
-	Key                              // key
+	Build     Resource = 1 + iota // build
+	Invite                        // invite
+	Image                         // image
+	Namespace                     // namespace
+	Object                        // object
+	Variable                      // variable
+	Key                           // key
 )
 
 var (
@@ -67,7 +66,6 @@ var (
 
 	Resources = []Resource{
 		Build,
-		Collaborator,
 		Invite,
 		Image,
 		Namespace,
@@ -83,14 +81,13 @@ var (
 	}
 
 	resources map[string]Resource = map[string]Resource{
-		"build":        Build,
-		"collaborator": Collaborator,
-		"invite":       Invite,
-		"image":        Image,
-		"namespace":    Namespace,
-		"object":       Object,
-		"variable":     Variable,
-		"key":          Key,
+		"build":     Build,
+		"invite":    Invite,
+		"image":     Image,
+		"namespace": Namespace,
+		"object":    Object,
+		"variable":  Variable,
+		"key":       Key,
 	}
 )
 
@@ -174,7 +171,7 @@ func UnmarshalScope(s string) (Scope, error) {
 func (i scopeItem) bytes() []byte { return []byte{byte(i.Resource), byte(i.Permission)} }
 
 func (i scopeItem) String() string {
-	s := i.Resource.String()+":"
+	s := i.Resource.String() + ":"
 	perms := make([]string, 0, 3)
 
 	for _, mask := range Permissions {
@@ -203,7 +200,7 @@ func (p Permission) Has(mask Permission) bool { return (p & mask) == mask }
 // resource already exists in the current scope then the permissions are
 // updated with the new permission.
 func (sc *Scope) Add(res Resource, perm Permission) {
-	for i, it := range (*sc) {
+	for i, it := range *sc {
 		if it.Resource == res {
 			if it.Permission != perm {
 				(*sc)[i].Permission |= perm
@@ -231,7 +228,7 @@ func (sc *Scope) Scan(val interface{}) error {
 		return errors.Err(err)
 	}
 
-	if len(b) % 2 != 0 {
+	if len(b)%2 != 0 {
 		return errors.New("invalid scope bytes")
 	}
 
@@ -251,7 +248,7 @@ func (sc *Scope) Scan(val interface{}) error {
 func (sc *Scope) Spread() []string {
 	s := make([]string, 0)
 
-	for _, item := range (*sc) {
+	for _, item := range *sc {
 		for _, p := range Permissions {
 			if item.Permission.Has(p) {
 				s = append(s, item.Resource.String()+":"+p.String())
@@ -268,7 +265,7 @@ func (sc *Scope) Spread() []string {
 func (sc *Scope) String() string {
 	items := make([]string, 0, len((*sc)))
 
-	for _, item := range (*sc) {
+	for _, item := range *sc {
 		items = append(items, item.String())
 	}
 	return strings.Join(items, " ")

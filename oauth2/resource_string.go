@@ -9,18 +9,17 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[Build-1]
-	_ = x[Collaborator-2]
-	_ = x[Invite-3]
-	_ = x[Image-4]
-	_ = x[Namespace-5]
-	_ = x[Object-6]
-	_ = x[Variable-7]
-	_ = x[Key-8]
+	_ = x[Invite-2]
+	_ = x[Image-3]
+	_ = x[Namespace-4]
+	_ = x[Object-5]
+	_ = x[Variable-6]
+	_ = x[Key-7]
 }
 
-const _Resource_name = "buildcollaboratorinviteimagenamespaceobjectvariablekey"
+const _Resource_name = "buildinviteimagenamespaceobjectvariablekey"
 
-var _Resource_index = [...]uint8{0, 5, 17, 23, 28, 37, 43, 51, 54}
+var _Resource_index = [...]uint8{0, 5, 11, 16, 25, 31, 39, 42}
 
 func (i Resource) String() string {
 	i -= 1

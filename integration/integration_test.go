@@ -103,40 +103,6 @@ func checkJSONResponseSizeApprox(l int) func(*testing.T, *http.Request, []byte) 
 	}
 }
 
-func dumpHeaders(buf *bytes.Buffer, prefix string, header http.Header) {
-	for name, vals := range header {
-		buf.WriteString(prefix + " " + name + ": ")
-
-		end := len(vals) - 1
-
-		for i, v := range vals {
-			buf.WriteString(v)
-
-			if i != end {
-				buf.WriteString(", ")
-			}
-		}
-
-		if len(vals) >= 1 {
-			buf.WriteString("\n")
-		}
-	}
-}
-
-func dumpRequest(buf *bytes.Buffer, r *http.Request, body *bytes.Buffer) {
-	buf.WriteString("> " + r.Method + " " + r.URL.Path + "\n")
-
-	dumpHeaders(buf, ">", r.Header)
-	io.Copy(buf, body)
-}
-
-func dumpResponse(buf *bytes.Buffer, r *http.Response) {
-	buf.WriteString("< " + r.Status + "\n")
-
-	dumpHeaders(buf, "<", r.Header)
-	io.Copy(buf, r.Body)
-}
-
 func ReadFile(t *testing.T, name string) []byte {
 	b, err := ioutil.ReadFile(filepath.Join("testdata", name))
 
@@ -438,7 +404,7 @@ func TestMain(m *testing.M) {
 		Middleware: middleware,
 	}
 	keyRouter.Init(webHandler)
-	keyRouter.RegisterAPI("/api", subrouter, imageweb.Gate(db))
+	keyRouter.RegisterAPI("/api", subrouter, keyweb.Gate(db))
 
 	server = httptest.NewServer(router)
 

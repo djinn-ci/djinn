@@ -6,8 +6,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 
 	"github.com/andrewpillar/query"
 
@@ -45,7 +45,7 @@ var (
 	table             = "users"
 	collaboratorTable = "collaborators"
 
-    MaxAge  = 5*365*86400
+	MaxAge  = 5 * 365 * 86400
 	ErrAuth = errors.New("invalid credentials")
 )
 

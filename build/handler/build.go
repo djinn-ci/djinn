@@ -5,9 +5,9 @@ import (
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/object"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/variable"
@@ -24,13 +24,13 @@ import (
 type Build struct {
 	web.Handler
 
-	Block      *crypto.Block
-	Loaders    *database.Loaders
-	Objects    *object.Store
-	Variables  *variable.Store
-	Client     *redis.Client
-	Hasher     *crypto.Hasher
-	Queues     map[string]*machinery.Server
+	Block     *crypto.Block
+	Loaders   *database.Loaders
+	Objects   *object.Store
+	Variables *variable.Store
+	Client    *redis.Client
+	Hasher    *crypto.Hasher
+	Queues    map[string]*machinery.Server
 }
 
 func (h Build) objectsWithRelations(b *build.Build) ([]*build.Object, error) {
@@ -161,7 +161,7 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 	t := &build.Trigger{
 		Type:    build.Manual,
 		Comment: f.Comment,
-		Data:    map[string]string{
+		Data: map[string]string{
 			"email":    u.Email,
 			"username": u.Username,
 		},

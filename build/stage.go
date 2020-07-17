@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
@@ -107,13 +107,13 @@ func (s *Stage) IsZero() bool {
 // under the build key.
 func (s *Stage) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
-		"id":          s.ID,
-		"build_id":    s.BuildID,
-		"name":        s.Name,
-		"can_fail":    s.CanFail,
-		"status":      s.Status.String(),
-		"created_at":  s.CreatedAt.Format(time.RFC3339),
-		"url":         addr + s.Endpoint(),
+		"id":         s.ID,
+		"build_id":   s.BuildID,
+		"name":       s.Name,
+		"can_fail":   s.CanFail,
+		"status":     s.Status.String(),
+		"created_at": s.CreatedAt.Format(time.RFC3339),
+		"url":        addr + s.Endpoint(),
 	}
 
 	if !s.Build.IsZero() {

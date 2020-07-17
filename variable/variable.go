@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -85,7 +85,7 @@ func Model(vv []*Variable) func(int) database.Model {
 	}
 }
 
-// LoadRelations loads all of the available relations for the given Variable 
+// LoadRelations loads all of the available relations for the given Variable
 // models using the given loaders available.
 func LoadRelations(loaders *database.Loaders, vv ...*Variable) error {
 	mm := database.ModelSlice(len(vv), Model(vv))
@@ -153,7 +153,7 @@ func (v *Variable) JSON(addr string) map[string]interface{} {
 	for name, m := range map[string]database.Model{
 		"user":      v.User,
 		"namespace": v.Namespace,
-	}{
+	} {
 		if !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}

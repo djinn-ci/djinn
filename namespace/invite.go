@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -150,7 +150,7 @@ func (i *Invite) JSON(addr string) map[string]interface{} {
 		"invitee":   i.Invitee,
 		"inviter":   i.Inviter,
 		"namespace": i.Namespace,
-	}{
+	} {
 		if !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}

@@ -38,7 +38,7 @@ func (p Passthrough) MarshalYAML() (interface{}, error) {
 	ss := make([]string, 0, len(p.Values))
 
 	for k, v := range p.Values {
-		ss = append(ss, k + " => " + v)
+		ss = append(ss, k+" => "+v)
 	}
 	return ss, nil
 }

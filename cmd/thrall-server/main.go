@@ -30,8 +30,8 @@ import (
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
 	"github.com/andrewpillar/thrall/user"
-	variableweb "github.com/andrewpillar/thrall/variable/web"
 	userweb "github.com/andrewpillar/thrall/user/web"
+	variableweb "github.com/andrewpillar/thrall/variable/web"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/gorilla/csrf"
@@ -50,7 +50,7 @@ var (
 	Version string
 	Build   string
 
-	blockstores = map[string]func(string, int64) block.Store {
+	blockstores = map[string]func(string, int64) block.Store{
 		"file": func(dsn string, limit int64) block.Store {
 			return block.NewFilesystemWithLimit(dsn, limit)
 		},
@@ -335,7 +335,7 @@ func mainCommand(cmd cli.Command) {
 	if serveUI {
 		ui := server.UI{
 			Server: srv,
-			CSRF:   csrf.Protect(
+			CSRF: csrf.Protect(
 				authKey,
 				csrf.RequestHeader("X-CSRF-Token"),
 				csrf.FieldName("csrf_token"),
@@ -383,7 +383,7 @@ func mainCommand(cmd cli.Command) {
 		}
 	}()
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second * 15))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))
 	defer cancel()
 
 	log.Info.Println("thrall-server started on", cfg.Net.Listen)
@@ -412,7 +412,7 @@ func main() {
 		Name:      "version",
 		Long:      "--version",
 		Exclusive: true,
-		Handler:   func(f cli.Flag, c cli.Command) {
+		Handler: func(f cli.Flag, c cli.Command) {
 			fmt.Println("thrall-server", Version, Build)
 		},
 	})

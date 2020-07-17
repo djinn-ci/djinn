@@ -6,8 +6,8 @@ import (
 	"strconv"
 
 	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"

@@ -65,7 +65,7 @@ func Test_FormValidate(t *testing.T) {
 	namespaceStore, namespaceMock, namespaceClose := namespaceStore(t)
 	defer namespaceClose()
 
-	tests := []struct{
+	tests := []struct {
 		form        Form
 		magic       bool
 		errs        []string

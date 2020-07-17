@@ -10,7 +10,6 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-
 // Form is the type that represents input data for adding a new SSH key.
 type Form struct {
 	namespace.Resource

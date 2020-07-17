@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 
 	"github.com/andrewpillar/query"
 
@@ -45,7 +45,7 @@ func triggerDataEquals(a, b map[string]string) bool {
 }
 
 func Test_TriggerType(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		val         []byte
 		expected    triggerType
 		shouldError bool
@@ -73,7 +73,7 @@ func Test_TriggerType(t *testing.T) {
 }
 
 func Test_TriggerData(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		val         []byte
 		expected    triggerData
 		shouldError bool
@@ -109,7 +109,7 @@ func Test_TriggerData(t *testing.T) {
 }
 
 func Test_TriggerCommentTitleBody(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		trig          Trigger
 		expectedTitle string
 		expectedBody  string
@@ -190,7 +190,7 @@ func Test_TriggerStoreCreate(t *testing.T) {
 		BuildID: 1,
 		Type:    Push,
 		Comment: "some commit message",
-		Data:    map[string]string{
+		Data: map[string]string{
 			"email":    "me@example.com",
 			"username": "me",
 		},

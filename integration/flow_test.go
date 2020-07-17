@@ -3,10 +3,10 @@
 package integration
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"bytes"
 	"encoding/json"
 	"encoding/pem"
 	"net/http"
@@ -26,7 +26,7 @@ func Test_ManifestNamespaceValidation(t *testing.T) {
 
 	flow.Add(ApiPost(t, "/api/namespaces", yourTok, JSON(t, namespace)), 201, nil)
 
-	tests := []struct{
+	tests := []struct {
 		name         string
 		expectedCode int
 	}{
@@ -63,7 +63,7 @@ func Test_AnonymousBuildCreateFlow(t *testing.T) {
 	}
 
 	flow.Add(ApiPost(t, "/api/builds", myTok, JSON(t, build)), 201, func(t *testing.T, r *http.Request, b []byte) {
-		resp := struct{
+		resp := struct {
 			ObjectsURL   string `json:"objects_url"`
 			VariablesURL string `json:"variables_url"`
 			JobsURL      string `json:"jobs_url"`
@@ -133,7 +133,7 @@ func Test_NamespaceBuildCreateFlow(t *testing.T) {
 	flow.Add(ApiGet(t, "/api/builds?search=centos/7", myTok), 200, checkJSONResponseSize(0))
 
 	flow.Add(ApiPost(t, "/api/builds", myTok, JSON(t, build)), 201, func(t *testing.T, r *http.Request, b []byte) {
-		resp := struct{
+		resp := struct {
 			ObjectsURL   string `json:"objects_url"`
 			VariablesURL string `json:"variables_url"`
 			JobsURL      string `json:"jobs_url"`
@@ -202,7 +202,7 @@ func Test_NamespaceFlow(t *testing.T) {
 
 	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, map[string]interface{}{})), 400, nil)
 	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, parent)), 201, func(t *testing.T, r *http.Request, b []byte) {
-		n := struct{
+		n := struct {
 			URL string
 		}{}
 
@@ -214,10 +214,10 @@ func Test_NamespaceFlow(t *testing.T) {
 		parentUrl = url.Path
 	})
 	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, child)), 201, func(t *testing.T, r *http.Request, b []byte) {
-		n := struct{
+		n := struct {
 			Visibility namespace.Visibility
 			URL        string
-			Parent     struct{
+			Parent     struct {
 				Name string
 			}
 		}{}
@@ -243,7 +243,7 @@ func Test_NamespaceFlow(t *testing.T) {
 	}
 
 	f1.Add(ApiPatch(t, parentUrl, myTok, JSON(t, updatedParent)), 200, func(t *testing.T, r *http.Request, b []byte) {
-		n := struct{
+		n := struct {
 			NamespacesURL string `json:"namespaces_url"`
 		}{}
 
@@ -256,7 +256,7 @@ func Test_NamespaceFlow(t *testing.T) {
 		url, _ := url.Parse(n.NamespacesURL)
 
 		f2.Add(ApiGet(t, url.Path, myTok), 200, func(t *testing.T, r *http.Request, b []byte) {
-			nn := []struct{
+			nn := []struct {
 				URL string
 			}{}
 
@@ -267,7 +267,7 @@ func Test_NamespaceFlow(t *testing.T) {
 			f3 := NewFlow()
 
 			checkVisibility := func(t *testing.T, r *http.Request, b []byte) {
-				n := struct{
+				n := struct {
 					Visibility namespace.Visibility
 				}{}
 
@@ -320,7 +320,7 @@ func Test_CollaboratorFlow(t *testing.T) {
 	f1.Add(ApiGet(t, "/api/n/me/conclave", yourTok), 404, nil)
 	f1.Add(ApiPost(t, "/api/n/me/conclave/-/invites", myTok, JSON(t, map[string]interface{}{"handle": "me"})), 400, nil)
 	f1.Add(ApiPost(t, "/api/n/me/conclave/-/invites", myTok, JSON(t, invite)), 201, func(t *testing.T, r *http.Request, b []byte) {
-		i := struct{
+		i := struct {
 			URL string
 		}{}
 
@@ -334,10 +334,10 @@ func Test_CollaboratorFlow(t *testing.T) {
 
 		f2.Add(ApiGet(t, "/api/invites", yourTok), 200, checkJSONResponseSize(1))
 		f2.Add(ApiPatch(t, url.Path, myTok, nil), 404, nil)
-		f2.Add(ApiPatch(t, url.Path, yourTok, nil), 200 , nil)
+		f2.Add(ApiPatch(t, url.Path, yourTok, nil), 200, nil)
 		f2.Add(ApiGet(t, "/api/n/me/conclave", yourTok), 200, nil)
 		f2.Add(ApiPost(t, "/api/variables", yourTok, JSON(t, variable)), 201, func(t *testing.T, r *http.Request, b []byte) {
-			v := struct{
+			v := struct {
 				URL string
 			}{}
 
@@ -425,7 +425,7 @@ func Test_KeyFlow(t *testing.T) {
 	key["key"] = string(b)
 
 	f1.Add(ApiPost(t, "/api/keys", myTok, JSON(t, key)), 201, func(t *testing.T, r *http.Request, b []byte) {
-		k := struct{
+		k := struct {
 			URL string
 		}{}
 
@@ -457,7 +457,7 @@ func Test_ObjectFlow(t *testing.T) {
 
 	f1.Add(ApiPost(t, "/api/objects", myTok, nil), 400, nil)
 	f1.Add(ApiPost(t, "/api/objects?name=file", myTok, f), 201, func(t *testing.T, r *http.Request, b []byte) {
-		o := struct{
+		o := struct {
 			URL string
 		}{}
 

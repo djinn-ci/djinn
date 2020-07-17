@@ -60,7 +60,7 @@ func NewBlock(key []byte) (*Block, error) {
 	}
 
 	return &Block{
-		gcm:gcm,
+		gcm: gcm,
 	}, nil
 }
 
@@ -129,7 +129,7 @@ func (h *Hasher) HashNow() (string, error) {
 	now := time.Now().UnixNano()
 
 	for now != 0 {
-		i = append(i, int(now % 10))
+		i = append(i, int(now%10))
 		now /= 10
 	}
 

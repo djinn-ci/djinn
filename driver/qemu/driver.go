@@ -26,10 +26,10 @@ type realpathFunc func(string, string) (string, error)
 type QEMU struct {
 	io.Writer
 
-	ssh      *driverssh.SSH
-	pidfile  *os.File
-	process  *os.Process
-	port     int64
+	ssh     *driverssh.SSH
+	pidfile *os.File
+	process *os.Process
+	port    int64
 
 	// Arch is the architecture of the QEMU machine that will be running the
 	// jobs.
@@ -103,13 +103,13 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	image, _ := cfg["image"].(string)
 
 	return &QEMU{
-		port:     2222,
-		Writer:   w,
-		Arch:     "x86_64",
-		CPUs:     cpus,
-		Memory:   memory,
-		Key:      key,
-		Image:    image,
+		port:   2222,
+		Writer: w,
+		Arch:   "x86_64",
+		CPUs:   cpus,
+		Memory: memory,
+		Key:    key,
+		Image:  image,
 		Realpath: func(arch, image string) (string, error) {
 			path := filepath.Join(dir, arch, filepath.Join(strings.Split(image, "/")...))
 			info, err := os.Stat(path)
@@ -200,7 +200,7 @@ func (q *QEMU) runCmd() error {
 		Addr:    net.JoinHostPort("127.0.0.1", strconv.FormatInt(q.port, 10)),
 		User:    "root",
 		Key:     q.Key,
-		Timeout: time.Duration(time.Second*60),
+		Timeout: time.Duration(time.Second * 60),
 	}
 	return nil
 }

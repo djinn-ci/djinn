@@ -3,9 +3,9 @@ package handler
 import (
 	"net/http"
 
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/variable"

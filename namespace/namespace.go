@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -77,10 +77,10 @@ var (
 	table  = "namespaces"
 	rename = regexp.MustCompile("^[a-zA-Z0-9]+$")
 
-	MaxDepth int64 = 20
-	ErrDepth       = errors.New("namespace cannot exceed depth of 20")
-	ErrName        = errors.New("namespace name can only contain letters and numbers")
-	ErrPermission  = errors.New("namespace permissions invalid")
+	MaxDepth      int64 = 20
+	ErrDepth            = errors.New("namespace cannot exceed depth of 20")
+	ErrName             = errors.New("namespace name can only contain letters and numbers")
+	ErrPermission       = errors.New("namespace permissions invalid")
 )
 
 // NewStore returns a new Store for querying the namespaces table. Each database
@@ -227,7 +227,7 @@ func (n *Namespace) IsZero() bool {
 		n.UserID == 0 &&
 		!n.ParentID.Valid &&
 		n.Name == "" &&
-		n.Path == ""&&
+		n.Path == "" &&
 		n.Description == "" &&
 		n.Level == 0 &&
 		n.Visibility == Visibility(0) &&
@@ -269,7 +269,7 @@ func (n *Namespace) JSON(addr string) map[string]interface{} {
 		"user":   n.User,
 		"parent": n.Parent,
 		"build":  n.Build,
-	}{
+	} {
 		if m != nil && !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}
@@ -630,7 +630,7 @@ func (s *Store) GetByPath(path string) (*Namespace, error) {
 	parts := strings.Split(path, "/")
 
 	for i, name := range parts {
-		if p.Level + 1 > MaxDepth {
+		if p.Level+1 > MaxDepth {
 			break
 		}
 

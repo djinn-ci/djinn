@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 )
 
 // Type represents the type of driver being used.
@@ -13,9 +13,9 @@ type Type uint8
 
 //go:generate stringer -type Type -linecomment
 const (
-	SSH Type = iota // ssh
-	QEMU            // qemu
-	Docker          // docker
+	SSH    Type = iota // ssh
+	QEMU               // qemu
+	Docker             // docker
 )
 
 var (
@@ -55,7 +55,7 @@ func (t *Type) UnmarshalText(b []byte) error {
 	(*t), ok = driversMap[s]
 
 	if !ok {
-		return errors.New("unknown driver "+s)
+		return errors.New("unknown driver " + s)
 	}
 	return nil
 }

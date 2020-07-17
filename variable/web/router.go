@@ -4,8 +4,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/user"
@@ -52,9 +52,9 @@ func (r *Router) Init(h web.Handler) {
 	loaders.Put("namespace", namespace.NewStore(h.DB))
 
 	r.variable = handler.Variable{
-		Handler:    h,
-		Loaders:    loaders,
-		Variables:  variable.NewStore(h.DB),
+		Handler:   h,
+		Loaders:   loaders,
+		Variables: variable.NewStore(h.DB),
 	}
 }
 

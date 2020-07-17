@@ -51,12 +51,12 @@ func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 	defer respGet.Body.Close()
 
 	if respGet.StatusCode != http.StatusOK {
-		return 0, errors.New("failed to get repository "+respGet.Status)
+		return 0, errors.New("failed to get repository " + respGet.Status)
 	}
 
-	repo := struct{
+	repo := struct {
 		Name  string
-		Owner struct{
+		Owner struct {
 			Login string
 		}
 	}{}
@@ -100,7 +100,7 @@ func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 			return 0, errors.New(ghErr.String())
 		}
 
-		hook := struct{
+		hook := struct {
 			ID int64
 		}{}
 
@@ -137,17 +137,17 @@ func (g GitHub) Repos(tok []byte, page int64) (oauth2.Repos, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return oauth2.Repos{}, errors.New("unexpected status code "+resp.Status)
+		return oauth2.Repos{}, errors.New("unexpected status code " + resp.Status)
 	}
 
 	next, prev := getNextAndPrev(resp.Header.Get("Link"))
 
 	repos := oauth2.Repos{
-		Next:  next,
-		Prev:  prev,
+		Next: next,
+		Prev: prev,
 	}
 
-	items := make([]struct{
+	items := make([]struct {
 		ID       int64
 		FullName string `json:"full_name"`
 		HTMLURL  string `json:"html_url"`

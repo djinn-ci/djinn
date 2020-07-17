@@ -21,7 +21,7 @@ func store(t *testing.T) (Store, sqlmock.Sqlmock, func() error) {
 }
 
 func Test_CompareKeys(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		a           interface{}
 		b           interface{}
 		shouldMatch bool

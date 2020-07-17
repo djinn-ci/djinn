@@ -31,7 +31,7 @@ func Test_FormValidate(t *testing.T) {
 	namespaceStore, namespaceMock, namespaceClose := namespaceStore(t)
 	defer namespaceClose()
 
-	tests := []struct{
+	tests := []struct {
 		form        Form
 		errs        []string
 		shouldError bool
@@ -134,7 +134,7 @@ func Test_FormValidate(t *testing.T) {
 				}
 				continue
 			}
-			t.Fatalf("test[%d] - %s\n", i ,errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

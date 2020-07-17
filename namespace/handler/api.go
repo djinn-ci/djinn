@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/andrewpillar/thrall/build"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/image"
 	"github.com/andrewpillar/thrall/key"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/object"
 	"github.com/andrewpillar/thrall/user"
@@ -79,7 +79,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	web.JSON(w, n.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
+	web.JSON(w, n.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
@@ -128,7 +128,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		web.JSON(w, data, http.StatusOK)
 		return
 	case "namespaces":
-		nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, n),  q)
+		nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, n), q)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -237,7 +237,7 @@ func (h API) Update(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	web.JSON(w, n.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
+	web.JSON(w, n.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
@@ -297,7 +297,7 @@ func (h InviteAPI) Store(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	web.JSON(w, i.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
+	web.JSON(w, i.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 func (h InviteAPI) Update(w http.ResponseWriter, r *http.Request) {

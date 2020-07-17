@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/oauth2"
 	oauth2template "github.com/andrewpillar/thrall/oauth2/template"
 	"github.com/andrewpillar/thrall/template"
@@ -82,7 +82,7 @@ func (h App) Index(w http.ResponseWriter, r *http.Request) {
 				URL:  r.URL,
 				User: u,
 			},
-			Apps:     aa,
+			Apps: aa,
 		},
 	}
 	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
@@ -183,7 +183,7 @@ func (h App) Show(w http.ResponseWriter, r *http.Request) {
 			Errors: web.FormErrors(sess),
 			Fields: web.FormFields(sess),
 		},
-		App:    a,
+		App: a,
 	}
 	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
 	save(r, w)
@@ -222,7 +222,7 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if base == "reset" {
-		if  err := oauth2.NewAppStoreWithBlock(h.DB, h.Block).Reset(a.ID); err != nil {
+		if err := oauth2.NewAppStoreWithBlock(h.DB, h.Block).Reset(a.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to reset secret"), "alert")
 			h.RedirectBack(w, r)

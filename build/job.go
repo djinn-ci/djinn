@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
@@ -33,9 +33,9 @@ type Job struct {
 	StartedAt  pq.NullTime    `db:"started_at"`
 	FinishedAt pq.NullTime    `db:"finished_at"`
 
-	Build        *Build      `db:"-"`
-	Stage        *Stage      `db:"-"`
-	Artifacts    []*Artifact `db:"-"`
+	Build     *Build      `db:"-"`
+	Stage     *Stage      `db:"-"`
+	Artifacts []*Artifact `db:"-"`
 }
 
 // JobStore is the type for creating and modifying Job models in the database.

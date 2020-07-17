@@ -156,7 +156,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 	header := &tar.Header{
 		Typeflag: tar.TypeReg,
-		Name:     "/bin/"+script,
+		Name:     "/bin/" + script,
 		Size:     int64(buf.Len()),
 		Mode:     755,
 	}

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 
 	"github.com/andrewpillar/query"
 
@@ -115,7 +115,7 @@ func (t *triggerType) UnmarshalText(b []byte) error {
 	(*t), ok = triggersMap[s]
 
 	if !ok {
-		return errors.New("unknown trigger "+s)
+		return errors.New("unknown trigger " + s)
 	}
 	return nil
 }
@@ -223,7 +223,7 @@ func (t Trigger) CommentBody() string {
 	body := strings.TrimSpace(t.Comment[i:])
 
 	if strings.TrimSpace(t.Comment[:i]) != "" && body != "" {
-		return "..."+body
+		return "..." + body
 	}
 	return body
 }
@@ -246,7 +246,7 @@ func (t Trigger) CommentTitle() string {
 	title := strings.TrimSpace(t.Comment[:i])
 
 	if strings.TrimSpace(t.Comment[i:]) != "" {
-		return title+"..."
+		return title + "..."
 	}
 	return title
 }

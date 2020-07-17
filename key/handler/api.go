@@ -62,7 +62,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, k.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
+	web.JSON(w, k.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 func (h API) Update(w http.ResponseWriter, r *http.Request) {
@@ -85,7 +85,7 @@ func (h API) Update(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	web.JSON(w, k.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
+	web.JSON(w, k.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {

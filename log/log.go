@@ -50,7 +50,7 @@ func New(w io.Writer) *Logger {
 			level:  defaultLevel,
 			actual: debug,
 		},
-		Info:  state{
+		Info: state{
 			logger: logger,
 			level:  defaultLevel,
 			actual: info,
@@ -87,7 +87,7 @@ func (s *state) Printf(format string, v ...interface{}) {
 	if s.actual < s.level {
 		return
 	}
-	s.logger.Printf(s.actual.String() + " " + format, v...)
+	s.logger.Printf(s.actual.String()+" "+format, v...)
 }
 
 func (s *state) Println(v ...interface{}) {
@@ -98,7 +98,7 @@ func (s *state) Println(v ...interface{}) {
 }
 
 func (s *state) Fatalf(format string, v ...interface{}) {
-	s.logger.Fatalf(s.actual.String() + " " + format, v...)
+	s.logger.Fatalf(s.actual.String()+" "+format, v...)
 }
 
 func (s *state) Fatal(v ...interface{}) {

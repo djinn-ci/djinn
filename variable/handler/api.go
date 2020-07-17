@@ -62,7 +62,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, v.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
+	web.JSON(w, v.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {

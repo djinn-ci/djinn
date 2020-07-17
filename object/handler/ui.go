@@ -198,7 +198,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		BasePage: bp,
 		CSRF:     csrfField,
 		Object:   o,
-		Section:  &buildtemplate.Index{
+		Section: &buildtemplate.Index{
 			BasePage:  bp,
 			Paginator: paginator,
 			Builds:    bb,

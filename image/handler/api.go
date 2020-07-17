@@ -65,7 +65,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, i.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
+	web.JSON(w, i.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
@@ -98,7 +98,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 	}
-	web.JSON(w, i.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
+	web.JSON(w, i.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {

@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
@@ -161,7 +161,7 @@ func (a *Artifact) JSON(addr string) map[string]interface{} {
 	for name, m := range map[string]database.Model{
 		"build": a.Build,
 		"job":   a.Job,
-	}{
+	} {
 		if !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}

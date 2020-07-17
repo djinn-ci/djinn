@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/crypto"
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -102,7 +102,7 @@ func LoadRelations(loaders *database.Loaders, kk ...*Key) error {
 
 // Model is called along with database.ModelSlice to convert the given slice of
 // Key models to a slice of database.Model interfaces.
-func Model(kk []*Key) func(int)database.Model {
+func Model(kk []*Key) func(int) database.Model {
 	return func(i int) database.Model {
 		return kk[i]
 	}
@@ -168,7 +168,7 @@ func (k *Key) JSON(addr string) map[string]interface{} {
 	for name, m := range map[string]database.Model{
 		"user":      k.User,
 		"namespace": k.Namespace,
-	}{
+	} {
 		if !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}

@@ -8,7 +8,7 @@ import (
 )
 
 func Test_BuildForm(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		form        Form
 		shouldError bool
 	}{
@@ -58,7 +58,7 @@ func Test_BuildForm(t *testing.T) {
 }
 
 func Test_TagForm(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		form        TagForm
 		shouldError bool
 	}{

@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	"github.com/andrewpillar/thrall/build"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/web"
 
@@ -99,7 +99,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	web.JSON(w, b.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
+	web.JSON(w, b.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
@@ -225,7 +225,7 @@ func (h JobAPI) Show(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Not found", http.StatusNotFound)
 		return
 	}
-	web.JSON(w, j.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
+	web.JSON(w, j.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 func (h ArtifactAPI) Index(w http.ResponseWriter, r *http.Request) {
@@ -284,7 +284,7 @@ func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Not found", http.StatusNotFound)
 		return
 	}
-	web.JSON(w, a.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
+	web.JSON(w, a.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 func (h TagAPI) Index(w http.ResponseWriter, r *http.Request) {
@@ -365,7 +365,7 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 	if t.IsZero() {
 		web.JSONError(w, "Not found", http.StatusNotFound)
 	}
-	web.JSON(w, t.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
+	web.JSON(w, t.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 func (h TagAPI) Destroy(w http.ResponseWriter, r *http.Request) {

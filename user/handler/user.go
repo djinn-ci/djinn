@@ -10,10 +10,10 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/provider"
-	"github.com/andrewpillar/thrall/web"
 	"github.com/andrewpillar/thrall/template"
-	usertemplate "github.com/andrewpillar/thrall/user/template"
 	"github.com/andrewpillar/thrall/user"
+	usertemplate "github.com/andrewpillar/thrall/user/template"
+	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
 
@@ -167,7 +167,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		Name:     "user",
 		HttpOnly: true,
 		MaxAge:   user.MaxAge,
-		Expires:  time.Now().Add(time.Duration(user.MaxAge)*time.Second),
+		Expires:  time.Now().Add(time.Duration(user.MaxAge) * time.Second),
 		Value:    encoded,
 	})
 	h.Redirect(w, r, "/")
@@ -255,8 +255,8 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f := &user.EmailForm{
-		User:      u,
-		Users:     h.Users,
+		User:  u,
+		Users: h.Users,
 	}
 
 	if err := form.UnmarshalAndValidate(f, r); err != nil {

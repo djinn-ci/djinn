@@ -98,7 +98,7 @@ func (w *limitedWriter) Write(p []byte) (int, error) {
 		return 0, ErrWriteLimit
 	}
 
-	if w.n + l == w.l {
+	if w.n+l == w.l {
 		err = ErrWriteLimit
 		goto doWrite
 	}

@@ -14,7 +14,7 @@ func Test_AppForm(t *testing.T) {
 	store, mock, close_ := appStore(t)
 	defer close_()
 
-	tests := []struct{
+	tests := []struct {
 		form        AppForm
 		errs        []string
 		shouldError bool
@@ -100,7 +100,7 @@ func Test_AppForm(t *testing.T) {
 }
 
 func Test_AuthorizeForm(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		form        AuthorizeForm
 		errs        []string
 		shouldError bool
@@ -149,7 +149,7 @@ func Test_TokenForm(t *testing.T) {
 	store, mock, close_ := tokenStore(t)
 	defer close_()
 
-	tests := []struct{
+	tests := []struct {
 		form        TokenForm
 		errs        []string
 		shouldError bool

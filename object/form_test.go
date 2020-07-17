@@ -187,7 +187,7 @@ func Test_FormValidate(t *testing.T) {
 				}
 				continue
 			}
-			t.Fatalf("test[%d] - %s\n", i ,errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }

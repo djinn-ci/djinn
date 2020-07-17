@@ -78,7 +78,7 @@ func parseLink(link string) map[string][]string {
 			scan bool
 		)
 
-		for i := 0; i < len(part) - 1; i++ {
+		for i := 0; i < len(part)-1; i++ {
 			b := part[i]
 
 			// We hit the raw URL, so set the dst to point to the raw slice.
@@ -94,7 +94,7 @@ func parseLink(link string) map[string][]string {
 			if b == ';' {
 				// Make sure we're in bounds of what we're scanning when getting
 				// the rel attribute of the value.
-				if i + 6 > len(part) - 1 {
+				if i+6 > len(part)-1 {
 					continue
 				}
 
@@ -152,7 +152,7 @@ func (c client) Auth(ctx context.Context, code string) ([]byte, []byte, oauth2.U
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, nil, u, errors.New("unexpected http status: "+resp.Status)
+		return nil, nil, u, errors.New("unexpected http status: " + resp.Status)
 	}
 
 	json.NewDecoder(resp.Body).Decode(&u)
@@ -173,7 +173,7 @@ func (c client) do(method, tok, url string, r io.Reader) (*http.Response, error)
 		return nil, errors.Err(err)
 	}
 
-	req.Header.Set("Authorization", "Bearer " + tok)
+	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
 	cli := &http.Client{}

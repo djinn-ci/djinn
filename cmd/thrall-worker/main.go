@@ -12,8 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/driver/docker"
-	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/driver/qemu"
+	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 
@@ -37,7 +37,7 @@ var (
 		"qemu":   qemu.Init,
 	}
 
-	blockstores = map[string]func(string, int64) block.Store {
+	blockstores = map[string]func(string, int64) block.Store{
 		"file": func(dsn string, limit int64) block.Store {
 			return block.NewFilesystemWithLimit(dsn, limit)
 		},
@@ -227,8 +227,8 @@ func main() {
 		Name:      "version",
 		Long:      "--version",
 		Exclusive: true,
-		Handler:   func(f cli.Flag, c cli.Command) {
-				fmt.Println("thrall-worker", Version, Build)
+		Handler: func(f cli.Flag, c cli.Command) {
+			fmt.Println("thrall-worker", Version, Build)
 		},
 	})
 

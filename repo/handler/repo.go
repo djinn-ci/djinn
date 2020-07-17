@@ -10,9 +10,9 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/repo"
@@ -74,7 +74,7 @@ func (h Repo) loadRepos(p *provider.Provider, page int64) (repos, error) {
 		Paginator: database.Paginator{
 			Page: page,
 		},
-		Items:     make([]*repo.Repo, 0),
+		Items: make([]*repo.Repo, 0),
 	}
 
 	if !p.Connected {

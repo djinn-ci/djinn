@@ -66,7 +66,7 @@ func (r *Registry) Get(name string) (Init, error) {
 	defer r.driversMU.Unlock()
 
 	if _, ok := r.drivers[name]; !ok {
-		return nil, errors.New("unknown driver " +name)
+		return nil, errors.New("unknown driver " + name)
 	}
 	return r.drivers[name], nil
 }

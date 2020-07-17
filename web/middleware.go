@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/user"
@@ -64,7 +64,7 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFu
 
 	base := BasePath(r.URL.Path)
 
-	if base == "/" || base == "create" || base == name + "s" {
+	if base == "/" || base == "create" || base == name+"s" {
 		return ok, nil
 	}
 
@@ -212,9 +212,9 @@ func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bo
 
 	if !u.IsZero() {
 		for _, res := range oauth2.Resources {
-			u.SetPermission(res.String()+":read")
-			u.SetPermission(res.String()+":write")
-			u.SetPermission(res.String()+":delete")
+			u.SetPermission(res.String() + ":read")
+			u.SetPermission(res.String() + ":write")
+			u.SetPermission(res.String() + ":delete")
 		}
 	}
 	return u, !u.IsZero()

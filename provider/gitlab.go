@@ -57,10 +57,10 @@ func (g GitLab) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusCreated {
-			return 0, errors.New("unexpected http status "+resp.Status)
+			return 0, errors.New("unexpected http status " + resp.Status)
 		}
 
-		hook := struct{
+		hook := struct {
 			ID int64
 		}{}
 
@@ -79,7 +79,7 @@ func (g GitLab) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		return 0, errors.New("unexpected http status "+resp.Status)
+		return 0, errors.New("unexpected http status " + resp.Status)
 	}
 	return 0, nil
 }
@@ -97,10 +97,10 @@ func (g GitLab) Repos(tok []byte, page int64) (oauth2.Repos, error) {
 	defer userResp.Body.Close()
 
 	if userResp.StatusCode != http.StatusOK {
-		return oauth2.Repos{}, errors.New("unexpected http status "+userResp.Status)
+		return oauth2.Repos{}, errors.New("unexpected http status " + userResp.Status)
 	}
 
-	u := struct{
+	u := struct {
 		ID int64
 	}{}
 
@@ -116,17 +116,17 @@ func (g GitLab) Repos(tok []byte, page int64) (oauth2.Repos, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return oauth2.Repos{}, errors.New("unexpected http status "+resp.Status)
+		return oauth2.Repos{}, errors.New("unexpected http status " + resp.Status)
 	}
 
 	next, prev := getNextAndPrev(resp.Header.Get("Link"))
 
 	repos := oauth2.Repos{
-		Next:  next,
-		Prev:  prev,
+		Next: next,
+		Prev: prev,
 	}
 
-	items := make([]struct{
+	items := make([]struct {
 		ID     int64
 		Name   string `json:"path_with_namespace"`
 		WebURL string `json:"web_url"`

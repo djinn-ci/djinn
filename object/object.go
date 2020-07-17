@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/block"
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -110,7 +110,7 @@ func LoadRelations(loaders *database.Loaders, oo ...*Object) error {
 
 // Model is called along with database.ModelSlice to convert the given slice of Object
 // models to a slice of database.Model interfaces.
-func Model(oo []*Object) func(int)database.Model {
+func Model(oo []*Object) func(int) database.Model {
 	return func(i int) database.Model {
 		return oo[i]
 	}
@@ -185,7 +185,7 @@ func (o *Object) JSON(addr string) map[string]interface{} {
 	for name, m := range map[string]database.Model{
 		"user":      o.User,
 		"namespace": o.Namespace,
-	}{
+	} {
 		if !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}
@@ -340,7 +340,7 @@ func (s *Store) All(opts ...query.Option) ([]*Object, error) {
 // values that are present in url.Values. Detailed below are the values that
 // are used from the given url.Values,
 //
-// name - This applies the database.Search query.Option using the value of name 
+// name - This applies the database.Search query.Option using the value of name
 func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Object, database.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 

@@ -61,9 +61,9 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &usertemplate.Settings{
 		BasePage: bp,
-		Section:  &oauth2template.TokenIndex{
-			CSRF:     csrfField,
-			Tokens:   tt,
+		Section: &oauth2template.TokenIndex{
+			CSRF:   csrfField,
+			Tokens: tt,
 		},
 	}
 	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrfField))
@@ -94,9 +94,9 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 
 	p := &usertemplate.Settings{
 		BasePage: template.BasePage{
-			URL:  r.URL,
+			URL: r.URL,
 		},
-		Section:  section,
+		Section: section,
 	}
 
 	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)

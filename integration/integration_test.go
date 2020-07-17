@@ -26,8 +26,8 @@ import (
 	keyweb "github.com/andrewpillar/thrall/key/web"
 	"github.com/andrewpillar/thrall/log"
 	namespaceweb "github.com/andrewpillar/thrall/namespace/web"
-	objectweb "github.com/andrewpillar/thrall/object/web"
 	"github.com/andrewpillar/thrall/oauth2"
+	objectweb "github.com/andrewpillar/thrall/object/web"
 	"github.com/andrewpillar/thrall/user"
 	variableweb "github.com/andrewpillar/thrall/variable/web"
 	"github.com/andrewpillar/thrall/web"
@@ -160,13 +160,13 @@ func ApiDelete(t *testing.T, path string, tok *oauth2.Token) *http.Request {
 // Content-Type header to application/json. If the creation of the request fails
 // then Fatalf is called on the given testing.T.
 func NewApiRequest(t *testing.T, method, path string, tok *oauth2.Token, r io.Reader) *http.Request {
-	req, err := http.NewRequest(method, server.URL + path, r)
+	req, err := http.NewRequest(method, server.URL+path, r)
 
 	if err != nil {
 		t.Fatalf("unexpected NewRequest error: %s\n", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer " + hex.EncodeToString(tok.Token))
+	req.Header.Set("Authorization", "Bearer "+hex.EncodeToString(tok.Token))
 	req.Header.Set("Content-Type", "application/json")
 
 	return req
@@ -221,21 +221,21 @@ func (f *Flow) Do(t *testing.T, cli *http.Client) {
 			reqBytes, err := httputil.DumpRequest(r, true)
 
 			if err != nil {
-				f.fatal(t, i, reqBytes, nil, errors.New("unexpected DumpRequest error: " + err.Error()))
+				f.fatal(t, i, reqBytes, nil, errors.New("unexpected DumpRequest error: "+err.Error()))
 				return
 			}
 
 			resp, err := cli.Do(r)
 
 			if err != nil {
-				f.fatal(t, i, reqBytes, nil, errors.New("unexpected Do error: " + err.Error()))
+				f.fatal(t, i, reqBytes, nil, errors.New("unexpected Do error: "+err.Error()))
 				return
 			}
 
 			respBytes, err := httputil.DumpResponse(resp, true)
 
 			if err != nil {
-				f.fatal(t, i, reqBytes, respBytes, errors.New("unexpected DumpResponse error: " + err.Error()))
+				f.fatal(t, i, reqBytes, respBytes, errors.New("unexpected DumpResponse error: "+err.Error()))
 				return
 			}
 
@@ -249,7 +249,7 @@ func (f *Flow) Do(t *testing.T, cli *http.Client) {
 			b, err := ioutil.ReadAll(resp.Body)
 
 			if err != nil {
-				f.fatal(t, i, reqBytes, respBytes, errors.New("unexpected ReadAll error: " + err.Error()))
+				f.fatal(t, i, reqBytes, respBytes, errors.New("unexpected ReadAll error: "+err.Error()))
 				return
 			}
 

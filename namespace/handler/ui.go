@@ -6,17 +6,17 @@ import (
 
 	"github.com/andrewpillar/thrall/build"
 	buildtemplate "github.com/andrewpillar/thrall/build/template"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/image"
 	imagetemplate "github.com/andrewpillar/thrall/image/template"
 	"github.com/andrewpillar/thrall/key"
 	keytemplate "github.com/andrewpillar/thrall/key/template"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
+	namespacetemplate "github.com/andrewpillar/thrall/namespace/template"
 	"github.com/andrewpillar/thrall/object"
 	objecttemplate "github.com/andrewpillar/thrall/object/template"
-	namespacetemplate "github.com/andrewpillar/thrall/namespace/template"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/user"
 	usertemplate "github.com/andrewpillar/thrall/user/template"
@@ -53,7 +53,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, u), r.URL.Query())
 
-	if err  != nil {
+	if err != nil {
 		println(err.Error())
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
@@ -92,7 +92,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if parent.Level + 1 > namespace.MaxDepth {
+	if parent.Level+1 > namespace.MaxDepth {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -329,9 +329,9 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-//		// Namespace already bound to build models, so no need to reload.
-//		loaders := h.Loaders.Copy()
-//		loaders.Delete("namespace")
+		//		// Namespace already bound to build models, so no need to reload.
+		//		loaders := h.Loaders.Copy()
+		//		loaders.Delete("namespace")
 
 		if err := build.LoadRelations(h.Loaders, bb...); err != nil {
 			h.Log.Error.Println(errors.Err(err))
@@ -434,7 +434,7 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "no namespace in request context")
 	}
 
-	alert := template.Success("Namespace has been deleted: "+n.Path)
+	alert := template.Success("Namespace has been deleted: " + n.Path)
 
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -481,7 +481,7 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	section := &namespacetemplate.Invites{
-		Form:      template.Form{
+		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
 			Errors: web.FormErrors(sess),
 			Fields: web.FormFields(sess),
@@ -612,7 +612,7 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 	p := &namespacetemplate.Show{
 		BasePage:  bp,
 		Namespace: n,
-		Section:   &namespacetemplate.CollaboratorIndex{
+		Section: &namespacetemplate.CollaboratorIndex{
 			BasePage:      bp,
 			CSRF:          csrf.TemplateField(r),
 			Namespace:     n,
@@ -628,7 +628,7 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 func (h CollaboratorUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	alert := template.Success("Collaborator removed: "+mux.Vars(r)["collaborator"])
+	alert := template.Success("Collaborator removed: " + mux.Vars(r)["collaborator"])
 
 	if err := h.DeleteModel(r); err != nil {
 		if err == database.ErrNotFound {

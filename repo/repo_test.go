@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/user"
 

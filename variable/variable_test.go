@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -183,7 +183,7 @@ func Test_StoreGet(t *testing.T) {
 		store.Bind(test.models...)
 
 		if _, err := store.Get(test.opts...); err != nil {
-			t.Errorf("tests[%d] - %s\n", i ,errors.Cause(err))
+			t.Errorf("tests[%d] - %s\n", i, errors.Cause(err))
 		}
 
 		store.User = nil

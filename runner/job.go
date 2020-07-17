@@ -11,7 +11,7 @@ type Job struct {
 
 	errs    []error // errors that occurred during Job execution.
 	canFail bool    // canFail denotes if the job can fail, this is set when a
-                    // Job is added to a Stage.
+	// Job is added to a Stage.
 
 	// Stage is the name of the Stage to which the Job belongs.
 	Stage string

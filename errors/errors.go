@@ -94,8 +94,8 @@ func (e *errorStr) Error() string { return string(*e) }
 func (e *errorSlice) Error() string {
 	buf := &bytes.Buffer{}
 
-	for _, err := range (*e) {
-		buf.WriteString(err.Error()+"\n")
+	for _, err := range *e {
+		buf.WriteString(err.Error() + "\n")
 	}
 	return buf.String()
 }

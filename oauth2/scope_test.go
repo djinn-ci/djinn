@@ -4,21 +4,21 @@ import "testing"
 
 var (
 	buildReadWrite = Scope([]scopeItem{
-		{Build, Read|Write},
+		{Build, Read | Write},
 	})
 
 	buildAllNamespaceRead = Scope([]scopeItem{
-		{Build, Read|Write|Delete},
+		{Build, Read | Write | Delete},
 		{Namespace, Read},
 	})
 
 	variableAll = Scope([]scopeItem{
-		{Variable, Read|Write|Delete},
+		{Variable, Read | Write | Delete},
 	})
 )
 
 func Test_UnmarshalScope(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		scope    string
 		expected Scope
 	}{
@@ -42,7 +42,7 @@ func Test_UnmarshalScope(t *testing.T) {
 }
 
 func Test_ScopeScan(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		b        []byte
 		expected Scope
 	}{

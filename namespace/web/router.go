@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/namespace/handler"
 	"github.com/andrewpillar/thrall/server"
@@ -44,12 +44,12 @@ func Gate(db *sqlx.DB) web.Gate {
 		var ok bool
 
 		switch r.Method {
-			case "GET":
-				_, ok = u.Permissions["namespace:read"]
-			case "POST", "PATCH":
-				_, ok = u.Permissions["namespace:write"]
-			case "DELETE":
-				_, ok = u.Permissions["namespace:delete"]
+		case "GET":
+			_, ok = u.Permissions["namespace:read"]
+		case "POST", "PATCH":
+			_, ok = u.Permissions["namespace:write"]
+		case "DELETE":
+			_, ok = u.Permissions["namespace:delete"]
 		}
 
 		base := web.BasePath(r.URL.Path)
@@ -64,7 +64,7 @@ func Gate(db *sqlx.DB) web.Gate {
 		if base == "namespaces" || base == "invites" {
 			parts := strings.Split(r.URL.Path, "/")
 
-			if parts[len(parts) - 2] != "-" {
+			if parts[len(parts)-2] != "-" {
 				return r, ok, nil
 			}
 		}
@@ -178,9 +178,9 @@ func (r *Router) Init(h web.Handler) {
 	}
 
 	r.invite = handler.Invite{
-		Handler:    h,
-		Invites:    namespace.NewInviteStore(h.DB),
-		Loaders:    loaders,
+		Handler: h,
+		Invites: namespace.NewInviteStore(h.DB),
+		Loaders: loaders,
 	}
 
 	r.collaborator = handler.Collaborator{

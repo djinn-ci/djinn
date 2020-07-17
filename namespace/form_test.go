@@ -27,7 +27,7 @@ func Test_FormValidate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	tests := []struct{
+	tests := []struct {
 		form        Form
 		errs        []string
 		query       string
@@ -86,7 +86,7 @@ func Test_FormValidate(t *testing.T) {
 				Namespaces: store,
 				Namespace:  &Namespace{Name: "blackmesa"},
 				Name:       "blackmesa",
-				Visibility:  Private,
+				Visibility: Private,
 			},
 			[]string{""},
 			"",
@@ -121,7 +121,7 @@ func Test_FormValidate(t *testing.T) {
 				}
 				continue
 			}
-			t.Fatalf("test[%d] - %s\n", i ,errors.Cause(err))
+			t.Fatalf("test[%d] - %s\n", i, errors.Cause(err))
 		}
 	}
 }
@@ -135,7 +135,7 @@ func Test_InviteFormValidate(t *testing.T) {
 	defer inviteClose()
 	defer collabClose()
 
-	tests := []struct{
+	tests := []struct {
 		form        InviteForm
 		userq       string
 		inviteq     string
@@ -165,10 +165,10 @@ func Test_InviteFormValidate(t *testing.T) {
 				Collaborators: collaboratorStore,
 				Invites:       inviteStore,
 				Users:         userStore,
-				Inviter:       &user.User{
+				Inviter: &user.User{
 					Username: "alyx.vance",
 				},
-				Handle:        "alyx.vance",
+				Handle: "alyx.vance",
 			},
 			"SELECT * FROM users WHERE (email = $1 OR username = $2)",
 			"SELECT * FROM namespace_invites WHERE (invitee_id = (SELECT id FROM users WHERE (email = $1 OR username = $2)))",

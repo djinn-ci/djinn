@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 
 	"github.com/andrewpillar/query"
 
@@ -102,7 +102,7 @@ func Test_TagStoreCreate(t *testing.T) {
 	store, mock, close_ := tagStore(t)
 	defer close_()
 
-	tests := []struct{
+	tests := []struct {
 		buildId int64
 		userId  int64
 		names   []string

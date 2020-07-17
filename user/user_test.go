@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 
 	"github.com/andrewpillar/query"
 
@@ -34,7 +34,7 @@ var (
 		"deleted_at",
 	}
 
-	bcryptPassword = []byte{36,50,97,36,49,48,36,54,82,100,70,83,47,83,102,67,87,99,50,106,102,121,72,66,51,97,100,47,117,101,98,84,119,115,82,47,65,97,103,50,88,85,86,121,76,84,69,76,82,48,69,47,53,90,99,111,113,109,65,101}
+	bcryptPassword = []byte{36, 50, 97, 36, 49, 48, 36, 54, 82, 100, 70, 83, 47, 83, 102, 67, 87, 99, 50, 106, 102, 121, 72, 66, 51, 97, 100, 47, 117, 101, 98, 84, 119, 115, 82, 47, 65, 97, 103, 50, 88, 85, 86, 121, 76, 84, 69, 76, 82, 48, 69, 47, 53, 90, 99, 111, 113, 109, 65, 101}
 )
 
 func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
@@ -124,7 +124,7 @@ func Test_StoreAuth(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	tests := []struct{
+	tests := []struct {
 		user       *User
 		password   string
 		shouldAuth bool

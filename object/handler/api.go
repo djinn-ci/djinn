@@ -66,7 +66,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, o.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
+	web.JSON(w, o.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 func (h API) Show(w http.ResponseWriter, r *http.Request) {

@@ -314,7 +314,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if t.IsZero() {
-		_, err := tokens.Create("client." + strconv.FormatInt(u.ID, 10), c.Scope)
+		_, err := tokens.Create("client."+strconv.FormatInt(u.ID, 10), c.Scope)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -337,8 +337,8 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 
 	body := map[string]string{
 		"access_token": hex.EncodeToString(t.Token),
-		"token_type":  "bearer",
-		"scope":       t.Scope.String(),
+		"token_type":   "bearer",
+		"scope":        t.Scope.String(),
 	}
 
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
@@ -429,9 +429,9 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	if u.IsZero() {
 		u, err = h.Users.Get(
 			query.WhereQuery("id", "=", provider.Select(
-					"user_id",
-					query.Where("provider_user_id", "=", providerUser.ID),
-					query.Where("name", "=", name),
+				"user_id",
+				query.Where("provider_user_id", "=", providerUser.ID),
+				query.Where("name", "=", name),
 			)),
 			query.OrWhere("email", "=", providerUser.Email),
 		)
@@ -482,7 +482,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 			Name:     "user",
 			HttpOnly: true,
 			MaxAge:   user.MaxAge,
-			Expires:  time.Now().Add(time.Duration(user.MaxAge)*time.Second),
+			Expires:  time.Now().Add(time.Duration(user.MaxAge) * time.Second),
 			Value:    encoded,
 			Path:     "/",
 		})
@@ -502,16 +502,16 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	if p.IsZero() {
 		p, err = providers.Create(providerUser.ID, name, access, refresh, true)
 
-		if err != nil{
+		if err != nil {
 			h.Log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to connect to " + name), "alert")
+			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 			h.Redirect(w, r, "/settings")
 			return
 		}
 	} else {
 		if err := providers.Update(p.ID, providerUser.ID, name, access, refresh, true); err != nil {
 			h.Log.Error.Println(errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to connect to " + name), "alert")
+			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 			h.Redirect(w, r, "/settings")
 			return
 		}

@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"

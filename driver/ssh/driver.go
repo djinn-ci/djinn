@@ -23,8 +23,8 @@ import (
 type SSH struct {
 	io.Writer
 
-	client  *ssh.Client
-	env     []string
+	client *ssh.Client
+	env    []string
 
 	// Addr is the address of the machine to connect to.
 	Addr string
@@ -75,7 +75,7 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 		Addr:    addr,
 		User:    "root",
 		Key:     key,
-		Timeout: time.Duration(time.Second*time.Duration(timeout)),
+		Timeout: time.Duration(time.Second * time.Duration(timeout)),
 	}
 }
 
@@ -161,7 +161,7 @@ func (s *SSH) Execute(j *runner.Job, c runner.Collector) {
 
 	defer sess.Close()
 
-	script := strings.Replace(j.Name + ".sh", " ", "-", -1)
+	script := strings.Replace(j.Name+".sh", " ", "-", -1)
 	buf := driver.CreateScript(j)
 
 	cli, err := sftp.NewClient(s.client)

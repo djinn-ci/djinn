@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -49,7 +49,7 @@ func Test_TokenStoreGet(t *testing.T) {
 			"SELECT * FROM oauth_tokens WHERE (user_id = $1)",
 			[]query.Option{},
 			sqlmock.NewRows(tokenCols),
-			[]driver.Value{1,},
+			[]driver.Value{1},
 			[]database.Model{&user.User{ID: 1}},
 		},
 		{

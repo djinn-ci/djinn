@@ -58,7 +58,7 @@ func providerUserId(name string, id int64) query.Query {
 }
 
 func decodeBase64JSONManifest(r io.Reader) (config.Manifest, error) {
-	file := struct{
+	file := struct {
 		Encoding string
 		Content  string
 	}{}
@@ -68,7 +68,7 @@ func decodeBase64JSONManifest(r io.Reader) (config.Manifest, error) {
 	}
 
 	if file.Encoding != "base64" {
-		return config.Manifest{}, errors.New("unexpected file encoding: "+file.Encoding)
+		return config.Manifest{}, errors.New("unexpected file encoding: " + file.Encoding)
 	}
 
 	raw, err := base64.StdEncoding.DecodeString(file.Content)
@@ -100,7 +100,7 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 				Method: "GET",
 				URL:    url,
 				Header: http.Header(map[string][]string{
-					"Authorization": []string{"Bearer "+tok},
+					"Authorization": []string{"Bearer " + tok},
 				}),
 			})
 
@@ -116,7 +116,7 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 			}
 
 			if resp.StatusCode != http.StatusOK {
-				errs <- errors.New("unexpected http status for "+url.String()+": "+resp.Status)
+				errs <- errors.New("unexpected http status for " + url.String() + ": " + resp.Status)
 				return
 			}
 
@@ -126,7 +126,7 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 				parts := strings.Split(strings.Split(raw, "?")[0], "/")
 				path := strings.Join(parts[len(parts)-2:], "/")
 
-				errs <- errors.New("failed to decode manifest "+path+":\n"+errors.Cause(err).Error())
+				errs <- errors.New("failed to decode manifest " + path + ":\n" + errors.Cause(err).Error())
 				return
 			}
 			manifests <- m
@@ -171,9 +171,9 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 // or .yaml file that may exist in the .thrall top-level directory of a
 // repository.
 func (h Hook) getGithubManifestUrls(tok, rawUrl, ref string) ([]string, error) {
-	urls := []string{strings.Replace(rawUrl, "{+path}", ".thrall.yml", 1) + "?ref="+ref}
+	urls := []string{strings.Replace(rawUrl, "{+path}", ".thrall.yml", 1) + "?ref=" + ref}
 
-	url, _ := url.Parse(strings.Replace(rawUrl, "{+path}", ".thrall", 1)+"?ref="+ref)
+	url, _ := url.Parse(strings.Replace(rawUrl, "{+path}", ".thrall", 1) + "?ref=" + ref)
 
 	cli := &http.Client{}
 
@@ -181,7 +181,7 @@ func (h Hook) getGithubManifestUrls(tok, rawUrl, ref string) ([]string, error) {
 		Method: "GET",
 		URL:    url,
 		Header: http.Header(map[string][]string{
-			"Authorization": []string{"Bearer "+tok},
+			"Authorization": []string{"Bearer " + tok},
 		}),
 	})
 
@@ -196,10 +196,10 @@ func (h Hook) getGithubManifestUrls(tok, rawUrl, ref string) ([]string, error) {
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return []string{}, errors.New("unexpected http status for "+url.String()+": "+resp.Status)
+		return []string{}, errors.New("unexpected http status for " + url.String() + ": " + resp.Status)
 	}
 
-	items := make([]struct{
+	items := make([]struct {
 		Type string
 		Name string
 		URL  string
@@ -224,9 +224,9 @@ func (h Hook) getGithubManifestUrls(tok, rawUrl, ref string) ([]string, error) {
 // or .yaml file that may exist in the .thrall top-level directory of a
 // repository.
 func (h Hook) getGitlabManifestUrls(tok, rawUrl, ref string) ([]string, error) {
-	urls := []string{rawUrl+"/repository/files/thrall.yml?ref="+ref}
+	urls := []string{rawUrl + "/repository/files/thrall.yml?ref=" + ref}
 
-	parsed, _ := url.Parse(rawUrl+"/repository/tree?path=.thrall&ref="+ref)
+	parsed, _ := url.Parse(rawUrl + "/repository/tree?path=.thrall&ref=" + ref)
 
 	cli := &http.Client{}
 
@@ -234,7 +234,7 @@ func (h Hook) getGitlabManifestUrls(tok, rawUrl, ref string) ([]string, error) {
 		Method: "GET",
 		URL:    parsed,
 		Header: http.Header(map[string][]string{
-			"Authorization": []string{"Bearer "+tok},
+			"Authorization": []string{"Bearer " + tok},
 		}),
 	})
 
@@ -244,7 +244,7 @@ func (h Hook) getGitlabManifestUrls(tok, rawUrl, ref string) ([]string, error) {
 
 	defer resp.Body.Close()
 
-	items := make([]struct{
+	items := make([]struct {
 		Type string
 		Path string
 	}, 0)
@@ -377,7 +377,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 	type pushData struct {
 		Ref        string
 		Repo       repo `json:"repository"`
-		HeadCommit struct{
+		HeadCommit struct {
 			ID      string
 			URL     string
 			Message string
@@ -388,16 +388,16 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 	type pullData struct {
 		Action      string
 		Number      int64
-		PullRequest struct{
+		PullRequest struct {
 			Title string
 			User  user
 			URL   string `json:"html_url"`
-			Head struct{
+			Head  struct {
 				Sha   string
 				Owner user
 				Repo  repo
 			}
-			Base struct{
+			Base struct {
 				Ref  string
 				Repo repo
 			}
@@ -580,7 +580,7 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 		Ref     string
 		UserID  int64 `json:"user_id"`
 		Project repo
-		Commits []struct{
+		Commits []struct {
 			ID      string
 			Message string
 			URL     string
@@ -589,17 +589,17 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type mergeData struct {
-		User    struct{
+		User struct {
 			Name string
 		}
 		Project repo
-		Attrs   struct{
+		Attrs   struct {
 			ID              int64  `json:"iid"`
 			TargetBranch    string `json:"target_branch"`
 			SourceProjectID int64  `json:"source_project_id"`
 			AuthorID        int64  `json:"author_id"`
 			Title           string
-			LastCommit      struct{
+			LastCommit      struct {
 				ID string
 			} `json:"last_commit"`
 			URL    string

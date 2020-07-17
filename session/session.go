@@ -54,9 +54,9 @@ func serialize(sess *sessions.Session) ([]byte, error) {
 // redis.Client, and the given keyPairs for the secure cookie.
 func New(client *redis.Client, keyPairs ...[]byte) *Store {
 	return &Store{
-		client:    client,
-		Codecs:    securecookie.CodecsFromPairs(keyPairs...),
-		Options:   &sessions.Options{
+		client: client,
+		Codecs: securecookie.CodecsFromPairs(keyPairs...),
+		Options: &sessions.Options{
 			Path:   "/",
 			MaxAge: expire,
 		},
@@ -135,7 +135,7 @@ func (s *Store) Save(r *http.Request, w http.ResponseWriter, sess *sessions.Sess
 
 	duration := time.Duration(time.Second * time.Duration(s.MaxAge))
 
-	_, err = s.client.Set(prefix + sess.ID, b, duration).Result()
+	_, err = s.client.Set(prefix+sess.ID, b, duration).Result()
 
 	if err != nil {
 		return errors.Err(err)

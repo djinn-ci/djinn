@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/object"
 
 	"github.com/andrewpillar/query"

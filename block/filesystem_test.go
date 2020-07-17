@@ -18,7 +18,7 @@ func randBytes(t *testing.T) []byte {
 }
 
 func Test_Filesystem(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		dir   string
 		limit int64
 	}{
@@ -31,7 +31,7 @@ func Test_Filesystem(t *testing.T) {
 		fs := NewFilesystemWithLimit(test.dir, test.limit)
 
 		func(i int) {
-			name := strconv.FormatInt(int64(i + 1), 10) + ".record"
+			name := strconv.FormatInt(int64(i+1), 10) + ".record"
 
 			r, err := fs.Create(name)
 
@@ -100,7 +100,7 @@ func Test_Filesystem(t *testing.T) {
 				}
 			}
 
-			if _, err := r.Seek(0, 0,); err != nil {
+			if _, err := r.Seek(0, 0); err != nil {
 				if err != ErrRecordClosed {
 					t.Errorf("tests[%d] - expected ErrRecordClosedd from Seek, got=%T\n", i, errors.Cause(err))
 				}

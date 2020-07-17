@@ -7,8 +7,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/object"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -46,7 +46,7 @@ type ObjectStore struct {
 	// model to any Object models that are created. If not nil this will
 	// append a WHERE clause on the build_id column for all SELECT queries
 	// performed.
-	Build  *Build
+	Build *Build
 
 	// Object is the bound object.Object model. If not nil this will bind the
 	// object.Object model to any Object models that are created. If not nil
@@ -167,11 +167,11 @@ func (o *Object) JSON(addr string) map[string]interface{} {
 // the following values, build_id, object_id, source, name, and placed.
 func (o *Object) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"build_id":   o.BuildID,
-		"object_id":  o.ObjectID,
-		"source":     o.Source,
-		"name":       o.Name,
-		"placed":     o.Placed,
+		"build_id":  o.BuildID,
+		"object_id": o.ObjectID,
+		"source":    o.Source,
+		"name":      o.Name,
+		"placed":    o.Placed,
 	}
 }
 
@@ -237,7 +237,7 @@ func (s *ObjectStore) All(opts ...query.Option) ([]*Object, error) {
 // Get returns a single Object model, applying each query.Option that is given.
 func (s *ObjectStore) Get(opts ...query.Option) (*Object, error) {
 	o := &Object{
-		Build: s.Build,
+		Build:  s.Build,
 		Object: s.Object,
 	}
 
@@ -298,7 +298,7 @@ func (s *ObjectStore) getObjectToPlace(name string) (*Object, error) {
 	}
 
 	if o.IsZero() {
-		return o, errors.New("cannot find object: "+name)
+		return o, errors.New("cannot find object: " + name)
 	}
 
 	o.Object, err = object.NewStore(s.DB).Get(query.Where("id", "=", o.ObjectID))
@@ -308,7 +308,7 @@ func (s *ObjectStore) getObjectToPlace(name string) (*Object, error) {
 	}
 
 	if o.Object.IsZero() {
-		return o, errors.New("cannot find object: "+name)
+		return o, errors.New("cannot find object: " + name)
 	}
 	return o, nil
 }

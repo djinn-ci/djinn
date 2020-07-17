@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -254,7 +254,7 @@ func (s *CollaboratorStore) Get(opts ...query.Option) (*Collaborator, error) {
 	opts = append([]query.Option{
 		database.Where(s.User, "user_id"),
 		database.Where(s.Namespace, "namespace_id", "root_id"),
-	}, opts ...)
+	}, opts...)
 
 	err := s.Store.Get(c, collaboratorTable, opts...)
 

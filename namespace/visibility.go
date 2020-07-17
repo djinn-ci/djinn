@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 )
 
 // Visibility represents the visibility level of a Namespace, there are three
@@ -20,9 +20,9 @@ type Visibility uint8
 
 //go:generate stringer -type Visibility -linecomment
 const (
-	Private Visibility = iota // private
-	Internal                  // internal
-	Public                    // public
+	Private  Visibility = iota // private
+	Internal                   // internal
+	Public                     // public
 )
 
 var (
@@ -63,7 +63,7 @@ func (v *Visibility) UnmarshalText(b []byte) error {
 	(*v), ok = visMap[s]
 
 	if !ok {
-		return errors.New("unknown Visibility "+s)
+		return errors.New("unknown Visibility " + s)
 	}
 	return nil
 }

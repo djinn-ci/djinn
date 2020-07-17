@@ -7,7 +7,7 @@ import (
 )
 
 func Test_Visibility(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		val         []byte
 		expected    Visibility
 		shouldError bool

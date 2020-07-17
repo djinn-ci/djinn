@@ -7,9 +7,9 @@ import (
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
@@ -124,7 +124,7 @@ func (r *buildRunner) load() error {
 		stage.Add(job)
 	}
 
-	for _, s := range ss{
+	for _, s := range ss {
 		r.runner.Add(stages[s.ID])
 	}
 

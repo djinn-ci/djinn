@@ -53,7 +53,7 @@ type Collector interface {
 type Driver interface {
 	// Each driver should implement the io.Writer interface, so that the driver
 	// can write the output of what it's doing to the underlying io.Writer
-	// implementation, for example os.Stdout. 
+	// implementation, for example os.Stdout.
 	io.Writer
 
 	// Create should create the Driver, and prepare it so it will be ready for
@@ -86,10 +86,10 @@ type Runner struct {
 	handleJobStart     jobHandler
 	handleJobComplete  jobHandler
 
-	order   []string          // the order in which each stage is executed.
+	order   []string // the order in which each stage is executed.
 	stages  map[string]*Stage
-	lastJob Job               // the last job that was successfully executed
-                              // used for reporting.
+	lastJob Job // the last job that was successfully executed
+	// used for reporting.
 
 	// Env is a slice of environment variables to set during job exectuion. The
 	// variables are expected to be formatted as key=value.
@@ -127,7 +127,7 @@ type Stage struct {
 // HandleDriverCreate sets the given callback as the underlying handler for
 // driver creation. This would typically be used for capturing timing
 // information regarding driver creation, for example
-func (r *Runner) HandleDriverCreate(f func()) { r.handleDriverCreate = f}
+func (r *Runner) HandleDriverCreate(f func()) { r.handleDriverCreate = f }
 
 // HandleJobComplete sets the given callback as the underlying handler for Job
 // completion. This will be passed the job that was just completed.
@@ -172,7 +172,7 @@ func (r *Runner) Remove(stages ...string) {
 				break
 			}
 		}
-		r.order = append(r.order[:i], r.order[i + 1:]...)
+		r.order = append(r.order[:i], r.order[i+1:]...)
 	}
 }
 

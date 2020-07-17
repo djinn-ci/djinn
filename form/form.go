@@ -37,10 +37,10 @@ func ErrFieldExists(field string) error { return errors.New(field + " already ex
 // variadic argument has at least one value, then that value is used as the
 // requirement for that field.
 func ErrFieldInvalid(field string, req ...string) error {
-	msg := field+" is invalid"
+	msg := field + " is invalid"
 
 	if len(req) > 0 {
-		msg += ", "+req[0]
+		msg += ", " + req[0]
 	}
 	return errors.New(msg)
 }

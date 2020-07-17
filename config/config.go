@@ -29,8 +29,8 @@ type Server struct {
 		Listen string
 
 		SSL struct {
-			Cert   string
-			Key    string
+			Cert string
+			Key  string
 		}
 	}
 
@@ -49,8 +49,8 @@ type Server struct {
 	}
 
 	Log struct {
-		Level  string
-		File   string
+		Level string
+		File  string
 	}
 
 	Drivers []struct {
@@ -141,7 +141,7 @@ type Job struct {
 	Artifacts runner.Passthrough `yaml:",omitempty"`
 }
 
-var driverValidators = map[string]func(*toml.Tree)error{
+var driverValidators = map[string]func(*toml.Tree) error{
 	"ssh":    validateSSH,
 	"docker": validateDocker,
 	"qemu":   validateQEMU,
@@ -150,7 +150,7 @@ var driverValidators = map[string]func(*toml.Tree)error{
 func validateSSH(tree *toml.Tree) error {
 	for _, key := range []string{"timeout", "key"} {
 		if !tree.Has(key) {
-			return errors.New("ssh config missing property "+key)
+			return errors.New("ssh config missing property " + key)
 		}
 	}
 
@@ -169,7 +169,7 @@ func validateDocker(_ *toml.Tree) error { return nil }
 func validateQEMU(tree *toml.Tree) error {
 	for _, key := range []string{"key", "disks", "cpus", "memory"} {
 		if !tree.Has(key) {
-			return errors.New("qemu config missing property "+key)
+			return errors.New("qemu config missing property " + key)
 		}
 	}
 
@@ -263,13 +263,13 @@ func ValidateDrivers(tree *toml.Tree) error {
 
 	for _, key := range keys {
 		if _, ok := driverValidators[key]; !ok {
-			return errors.New("unknown driver configured: "+key)
+			return errors.New("unknown driver configured: " + key)
 		}
 
 		subtree, ok := tree.Get(key).(*toml.Tree)
 
 		if !ok {
-			return errors.New("expected key-value configuration for driver: "+key)
+			return errors.New("expected key-value configuration for driver: " + key)
 		}
 		if err := driverValidators[key](subtree); err != nil {
 			return err
@@ -330,7 +330,7 @@ func (m Manifest) Value() (driver.Value, error) {
 // that matches Manifest. This is then copied into the underlying Manifest
 // itself.
 func (m *Manifest) UnmarshalText(b []byte) error {
-	tmp := struct{
+	tmp := struct {
 		Namespace     string             `yaml:",omitempty"`
 		Driver        map[string]string  `yaml:",omitempty"`
 		Env           []string           `yaml:",omitempty"`
@@ -390,7 +390,7 @@ func (s Source) MarshalYAML() (interface{}, error) {
 	urlParts := strings.Split(s.URL, "/")
 
 	ref := "master"
-	dir := urlParts[len(urlParts) - 1]
+	dir := urlParts[len(urlParts)-1]
 
 	if s.Ref != "" {
 		ref = s.Ref
@@ -435,6 +435,6 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	urlParts := strings.Split(s.URL, "/")
 
-	s.Dir = urlParts[len(urlParts) - 1]
+	s.Dir = urlParts[len(urlParts)-1]
 	return nil
 }

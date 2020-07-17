@@ -33,14 +33,14 @@ type Opts struct {
 // the underlying client with the given Opts struct.
 func New(name string, block *crypto.Block, opts Opts) (oauth2.Provider, error) {
 	cli := client{
-		hookEndpoint: opts.Host+"/hook/"+name,
+		hookEndpoint: opts.Host + "/hook/" + name,
 		secret:       opts.Secret,
 		block:        block,
 		Endpoint:     opts.Endpoint,
-		Config:       &xoauth2.Config{
+		Config: &xoauth2.Config{
 			ClientID:     opts.ClientID,
 			ClientSecret: opts.ClientSecret,
-			RedirectURL:  opts.Host+"/oauth/"+name,
+			RedirectURL:  opts.Host + "/oauth/" + name,
 		},
 	}
 
@@ -54,8 +54,8 @@ func New(name string, block *crypto.Block, opts Opts) (oauth2.Provider, error) {
 
 		cli.Config.Scopes = githubScopes
 		cli.Config.Endpoint = xoauth2.Endpoint{
-			AuthURL:  authURL+"/login/oauth/authorize",
-			TokenURL: authURL+"/login/oauth/access_token",
+			AuthURL:  authURL + "/login/oauth/authorize",
+			TokenURL: authURL + "/login/oauth/access_token",
 		}
 		return GitHub{client: cli}, nil
 	case "gitlab":
@@ -65,12 +65,12 @@ func New(name string, block *crypto.Block, opts Opts) (oauth2.Provider, error) {
 
 		cli.Config.Scopes = gitlabScopes
 		cli.Config.Endpoint = xoauth2.Endpoint{
-			AuthURL:  cli.Endpoint+"/oauth/authorize",
-			TokenURL: cli.Endpoint+"/oauth/token",
+			AuthURL:  cli.Endpoint + "/oauth/authorize",
+			TokenURL: cli.Endpoint + "/oauth/token",
 		}
 		cli.Endpoint += "/api/v4"
 		return GitLab{client: cli}, nil
 	default:
-		return nil, errors.New("unknown provider "+name)
+		return nil, errors.New("unknown provider " + name)
 	}
 }

@@ -109,7 +109,7 @@ func (f *File) Validate() error {
 
 		for _, mime := range f.Disallowed {
 			if f.MIMEType == mime {
-				errs.Put("file", ErrFieldInvalid("File", "cannot be one of " + disallowed))
+				errs.Put("file", ErrFieldInvalid("File", "cannot be one of "+disallowed))
 			}
 		}
 	}

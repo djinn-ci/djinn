@@ -9,9 +9,9 @@ import (
 	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/build"
 	buildtemplate "github.com/andrewpillar/thrall/build/template"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/user"
@@ -59,7 +59,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	p := &buildtemplate.Index{
-		BasePage:  template.BasePage{
+		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
 		},
@@ -70,7 +70,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Tag:       q.Get("tag"),
 	}
 	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r,w)
+	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -138,7 +138,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.AddFlash(template.Success("Build submitted: #" + strconv.FormatInt(b.ID, 10)), "alert")
+	sess.AddFlash(template.Success("Build submitted: #"+strconv.FormatInt(b.ID, 10)), "alert")
 	h.Redirect(w, r, b.Endpoint())
 }
 

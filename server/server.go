@@ -1,5 +1,5 @@
 // Package server provides an HTTP server implementation that wraps the
-// http.Server from the stdlib, and a Router interface for implementing routing. 
+// http.Server from the stdlib, and a Router interface for implementing routing.
 package server
 
 import (

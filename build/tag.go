@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -118,7 +118,7 @@ func (t *Tag) JSON(addr string) map[string]interface{} {
 	for name, m := range map[string]database.Model{
 		"user":  t.User,
 		"build": t.Build,
-	}{
+	} {
 		if !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}

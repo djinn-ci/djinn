@@ -52,7 +52,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
 		u, _ := r.Context().Value("user").(*user.User)
-		web.JSON(w, u.JSON(web.BaseAddress(r) + "/" + prefix), http.StatusOK)
+		web.JSON(w, u.JSON(web.BaseAddress(r)+"/"+prefix), http.StatusOK)
 	})
 	auth.Use(r.Middleware.Auth)
 }

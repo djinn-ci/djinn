@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/database"
 
 	"github.com/andrewpillar/query"
 
@@ -80,7 +80,7 @@ func (d *Driver) Primary() (string, int64) { return "id", d.ID }
 
 // IsZero implements the database.Model interface.
 func (d *Driver) IsZero() bool {
-	return d == nil ||  d.ID == 0 && d.BuildID == 0 && d.Type == driver.Type(0) && d.Config == ""
+	return d == nil || d.ID == 0 && d.BuildID == 0 && d.Type == driver.Type(0) && d.Config == ""
 }
 
 // JSON implements the database.Model interface. This returns an empty map.

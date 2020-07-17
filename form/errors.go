@@ -29,10 +29,10 @@ func (e Errors) Error() string {
 	buf := &bytes.Buffer{}
 
 	for field, errs := range e {
-		buf.WriteString(field+":\n")
+		buf.WriteString(field + ":\n")
 
 		for _, err := range errs {
-			buf.WriteString("    "+err+"\n")
+			buf.WriteString("    " + err + "\n")
 		}
 	}
 	return buf.String()

@@ -7,8 +7,8 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -29,7 +29,7 @@ type Provider struct {
 	ExpiresAt      time.Time     `db:"expires_at"`
 	AuthURL        string        `db:"-"`
 
-	User    *user.User `db:"-"`
+	User *user.User `db:"-"`
 }
 
 // Store is the type for creating and modifying Provider models in the database.

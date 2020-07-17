@@ -12,7 +12,7 @@ func Test_RegisterForm(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	tests := []struct{
+	tests := []struct {
 		form        RegisterForm
 		user        *User
 		errs        []string
@@ -130,9 +130,9 @@ func Test_RegisterForm(t *testing.T) {
 }
 
 func Test_LoginForm(t *testing.T) {
-	tests := []struct{
-		form       LoginForm
-		errs       []string
+	tests := []struct {
+		form        LoginForm
+		errs        []string
 		shouldError bool
 	}{
 		{
@@ -186,7 +186,7 @@ func Test_EmailForm(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	tests := []struct{
+	tests := []struct {
 		form        EmailForm
 		other       *User
 		errs        []string
@@ -196,7 +196,7 @@ func Test_EmailForm(t *testing.T) {
 		{
 			EmailForm{
 				Users: store,
-				User:  &User{
+				User: &User{
 					Email:    "freemang@black-mesa.com",
 					Password: bcryptPassword,
 				},
@@ -211,7 +211,7 @@ func Test_EmailForm(t *testing.T) {
 		{
 			EmailForm{
 				Users: store,
-				User:  &User{
+				User: &User{
 					Email:    "freemang@black-mesa.com",
 					Password: bcryptPassword,
 				},
@@ -226,7 +226,7 @@ func Test_EmailForm(t *testing.T) {
 		{
 			EmailForm{
 				Users: store,
-				User:  &User{
+				User: &User{
 					Email:    "freemang@black-mesa.com",
 					Password: bcryptPassword,
 				},
@@ -241,7 +241,7 @@ func Test_EmailForm(t *testing.T) {
 		{
 			EmailForm{
 				Users: store,
-				User:  &User{
+				User: &User{
 					Email:    "freemang@black-mesa.com",
 					Password: bcryptPassword,
 				},
@@ -256,7 +256,7 @@ func Test_EmailForm(t *testing.T) {
 		{
 			EmailForm{
 				Users: store,
-				User:  &User{
+				User: &User{
 					Email:    "freemang@black-mesa.com",
 					Password: bcryptPassword,
 				},

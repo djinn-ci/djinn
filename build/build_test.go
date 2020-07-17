@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/user"
@@ -211,7 +211,7 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	tests := []struct{
+	tests := []struct {
 		models   []database.Model
 		manifest config.Manifest
 		trigger  *Trigger

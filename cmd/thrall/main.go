@@ -12,8 +12,8 @@ import (
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/driver/docker"
-	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/driver/qemu"
+	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/runner"
 
@@ -110,7 +110,7 @@ func mainCommand(c cli.Command) {
 	}
 
 	for i, src := range manifest.Sources {
-		name := fmt.Sprintf("clone.%d", i + 1)
+		name := fmt.Sprintf("clone.%d", i+1)
 
 		commands := []string{
 			"git clone " + src.URL + " " + src.Dir,
@@ -246,7 +246,7 @@ func main() {
 		Name:      "help",
 		Long:      "--help",
 		Exclusive: true,
-		Handler:   func(f cli.Flag, c cli.Command) {
+		Handler: func(f cli.Flag, c cli.Command) {
 			fmt.Println(usage)
 		},
 	})
@@ -255,7 +255,7 @@ func main() {
 		Name:      "version",
 		Long:      "--version",
 		Exclusive: true,
-		Handler:   func(f cli.Flag, c cli.Command) {
+		Handler: func(f cli.Flag, c cli.Command) {
 			fmt.Println("thrall", Build, Version)
 		},
 	})

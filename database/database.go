@@ -522,7 +522,7 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 
 	pages := count / PageLimit
 
-	if count % PageLimit != 0 {
+	if count%PageLimit != 0 {
 		pages++
 	}
 
@@ -535,7 +535,7 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 	}
 
 	for i := int64(0); i < pages; i++ {
-		p.Pages = append(p.Pages, i + 1)
+		p.Pages = append(p.Pages, i+1)
 	}
 
 	p.Next = p.Page + 1

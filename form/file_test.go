@@ -38,7 +38,7 @@ func createImage(t *testing.T) image.Image {
 }
 
 func Test_FileValidate(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		limit       int64
 		disallowed  []string
 		shouldError bool

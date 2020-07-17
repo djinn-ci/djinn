@@ -65,12 +65,12 @@ func (nl *Null) Open(_ string) (Record, error) { return &nullRecord{w: ioutil.Di
 // Remove doesn nothing.
 func (nl *Null) Remove(_ string) error { return nil }
 
-func (r *nullRecord) Name() string { return "/dev/null" }
-func (r *nullRecord) Size() int64 { return 0 }
-func (r *nullRecord) Mode() os.FileMode { return os.FileMode(0666) }
+func (r *nullRecord) Name() string       { return "/dev/null" }
+func (r *nullRecord) Size() int64        { return 0 }
+func (r *nullRecord) Mode() os.FileMode  { return os.FileMode(0666) }
 func (r *nullRecord) ModTime() time.Time { return time.Now() }
-func (r *nullRecord) IsDir() bool { return false }
-func (r *nullRecord) Sys() interface{} { return nil }
+func (r *nullRecord) IsDir() bool        { return false }
+func (r *nullRecord) Sys() interface{}   { return nil }
 
 func (r *nullRecord) Write(p []byte) (int, error) {
 	n, err := r.w.Write(p)

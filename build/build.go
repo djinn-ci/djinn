@@ -7,17 +7,17 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"net/url"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/thrall/config"
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/key"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/object"
 	"github.com/andrewpillar/thrall/runner"
@@ -307,7 +307,7 @@ func (b *Build) JSON(addr string) map[string]interface{} {
 		"user":      b.User,
 		"namespace": b.Namespace,
 		"trigger":   b.Trigger,
-	}{
+	} {
 		if m != nil && !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}
@@ -348,9 +348,9 @@ func (b *Build) Signature() *tasks.Signature {
 	return &tasks.Signature{
 		Name:       "run_build",
 		RetryCount: 3,
-		Args:       []tasks.Arg{
+		Args: []tasks.Arg{
 			tasks.Arg{
-				Type: "int64",
+				Type:  "int64",
 				Value: b.ID,
 			},
 		},
@@ -655,7 +655,7 @@ func (s *Store) Submit(srv *machinery.Server, b *Build) error {
 
 	stages := NewStageStore(s.DB, b)
 
-	setup, err := stages.Create("setup - #" + strconv.FormatInt(b.ID, 10), false)
+	setup, err := stages.Create("setup - #"+strconv.FormatInt(b.ID, 10), false)
 
 	if err != nil {
 		return errors.Err(err)
@@ -694,11 +694,11 @@ func (s *Store) Submit(srv *machinery.Server, b *Build) error {
 		}
 
 		if src.Dir != "" {
-			commands = append([]string{"mkdir -p " + src.Dir} , commands...)
+			commands = append([]string{"mkdir -p " + src.Dir}, commands...)
 		}
 
 		_, err := jobs.Create(
-			"clone." + strconv.FormatInt(int64(i + 1), 10),
+			"clone."+strconv.FormatInt(int64(i+1), 10),
 			strings.Join(commands, "\n"),
 		)
 

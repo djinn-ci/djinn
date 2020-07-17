@@ -87,12 +87,12 @@ func KeyModel(kk []*Key) func(int) database.Model {
 }
 
 // keyInfo method stubs for os.FileInfo interface.
-func (i *keyInfo) Name() string { return i.name }
-func (i *keyInfo) Size() int64 { return i.size }
-func (*keyInfo) Mode() os.FileMode { return os.FileMode(0600) }
+func (i *keyInfo) Name() string       { return i.name }
+func (i *keyInfo) Size() int64        { return i.size }
+func (*keyInfo) Mode() os.FileMode    { return os.FileMode(0600) }
 func (i *keyInfo) ModTime() time.Time { return i.modTime }
-func (i *keyInfo) IsDir() bool { return false }
-func (i *keyInfo) Sys() interface{} { return nil }
+func (i *keyInfo) IsDir() bool        { return false }
+func (i *keyInfo) Sys() interface{}   { return nil }
 
 // Bind implements the database.Binder interface. This will only bind the
 // models if they are pointers to a Build model.
@@ -280,7 +280,7 @@ func (s *KeyStore) getKeyToPlace(name string) (*Key, error) {
 	}
 
 	if k.IsZero() {
-		return nil, errors.New("cannot find key: "+name)
+		return nil, errors.New("cannot find key: " + name)
 	}
 	return k, nil
 }

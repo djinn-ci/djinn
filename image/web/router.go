@@ -6,10 +6,10 @@ import (
 
 	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/crypto"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/image"
 	"github.com/andrewpillar/thrall/image/handler"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/user"

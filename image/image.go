@@ -12,9 +12,9 @@ import (
 	"time"
 
 	"github.com/andrewpillar/thrall/block"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/driver"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/namespace"
 	"github.com/andrewpillar/thrall/user"
 
@@ -55,7 +55,7 @@ type Store struct {
 	// bind the namespace.Namespace model to any Image models that are created.
 	// If not nil this will append a WHERE clause on the namespace_id column for
 	// all SELECT queries performed.
-	Namespace  *namespace.Namespace
+	Namespace *namespace.Namespace
 }
 
 var (
@@ -160,7 +160,7 @@ func (i *Image) JSON(addr string) map[string]interface{} {
 	for name, m := range map[string]database.Model{
 		"user":      i.User,
 		"namespace": i.Namespace,
-	}{
+	} {
 		if !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}

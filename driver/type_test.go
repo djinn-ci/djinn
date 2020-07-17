@@ -3,7 +3,7 @@ package driver
 import "testing"
 
 func Test_Type(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		val         []byte
 		expected    Type
 		shouldError bool

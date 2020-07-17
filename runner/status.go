@@ -3,21 +3,21 @@ package runner
 import (
 	"database/sql/driver"
 
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/thrall/errors"
 )
 
 type Status uint8
 
 //go:generate stringer -type Status -linecomment
 const (
-	Queued Status = iota // queued
-	Running              // running
-	Passed               // passed
-	PassedWithFailures   // passed_with_failures
-	Failed               // failed
-	Killed               // killed
-	TimedOut             // timed_out
+	Queued             Status = iota // queued
+	Running                          // running
+	Passed                           // passed
+	PassedWithFailures               // passed_with_failures
+	Failed                           // failed
+	Killed                           // killed
+	TimedOut                         // timed_out
 )
 
 var statusMap = map[string]Status{
@@ -57,7 +57,7 @@ func (s *Status) UnmarshalText(b []byte) error {
 	(*s), ok = statusMap[str]
 
 	if !ok {
-		return errors.New("unknown status "+str)
+		return errors.New("unknown status " + str)
 	}
 	return nil
 }

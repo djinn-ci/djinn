@@ -51,6 +51,12 @@ var (
 	myTok   *oauth2.Token
 	yourTok *oauth2.Token
 
+	buildRWD     *oauth2.Token // build:read,write,delete
+	namespaceRWD *oauth2.Token // namespace:read,write,delete
+	objectRWD    *oauth2.Token // object:read,write,delete
+	variableRWD  *oauth2.Token // variable:read,write,delete
+	keyRWD       *oauth2.Token // key:read,write,delete
+
 	server *httptest.Server
 )
 
@@ -298,7 +304,52 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	buildScope := oauth2.NewScope()
+	buildScope.Add(oauth2.Build, oauth2.Read|oauth2.Write|oauth2.Delete)
+
+	namespaceScope := oauth2.NewScope()
+	namespaceScope.Add(oauth2.Namespace, oauth2.Read|oauth2.Write|oauth2.Delete)
+
+	objectScope := oauth2.NewScope()
+	objectScope.Add(oauth2.Object, oauth2.Read|oauth2.Write|oauth2.Delete)
+
+	variableScope := oauth2.NewScope()
+	variableScope.Add(oauth2.Variable, oauth2.Read|oauth2.Write|oauth2.Delete)
+
+	keyScope := oauth2.NewScope()
+	keyScope.Add(oauth2.Key, oauth2.Read|oauth2.Write|oauth2.Delete)
+
 	myTok, err = oauth2.NewTokenStore(db, me).Create("My Token", scope)
+
+	if err != nil {
+		fatalf("failed to create token: %s\n", err)
+	}
+
+	buildRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", buildScope)
+
+	if err != nil {
+		fatalf("failed to create token: %s\n", err)
+	}
+
+	namespaceRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", namespaceScope)
+
+	if err != nil {
+		fatalf("failed to create token: %s\n", err)
+	}
+
+	objectRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", objectScope)
+
+	if err != nil {
+		fatalf("failed to create token: %s\n", err)
+	}
+
+	variableRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", variableScope)
+
+	if err != nil {
+		fatalf("failed to create token: %s\n", err)
+	}
+
+	keyRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", keyScope)
 
 	if err != nil {
 		fatalf("failed to create token: %s\n", err)

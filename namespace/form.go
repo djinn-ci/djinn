@@ -62,6 +62,20 @@ func (f Form) Fields() map[string]string {
 func (f Form) Validate() error {
 	errs := form.NewErrors()
 
+	if f.Namespace != nil {
+		if f.Name == "" {
+			f.Name = f.Namespace.Name
+		}
+
+		if f.Description == "" {
+			f.Description = f.Namespace.Description
+		}
+
+		if f.Visibility == Visibility(0) {
+			f.Visibility = f.Namespace.Visibility
+		}
+	}
+
 	if f.Name == "" {
 		errs.Put("name", form.ErrFieldRequired("Name"))
 	}

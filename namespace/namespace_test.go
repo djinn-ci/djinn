@@ -319,7 +319,7 @@ func Test_StoreDelete(t *testing.T) {
 	defer close_()
 
 	mock.ExpectExec(
-		regexp.QuoteMeta("DELETE FROM namespaces WHERE (root_id IN ($1, $2, $3))"),
+		regexp.QuoteMeta("DELETE FROM namespaces WHERE (id IN ($1, $2, $3) OR root_id IN ($4, $5, $6) OR parent_id IN ($7, $8, $9))"),
 	).WillReturnResult(sqlmock.NewResult(0, 3))
 
 	if err := store.Delete(1, 2, 3); err != nil {

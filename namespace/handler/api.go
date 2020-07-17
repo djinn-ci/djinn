@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"path/filepath"
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/errors"
@@ -106,7 +105,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	base := filepath.Base(r.URL.Path)
+	base := web.BasePath(r.URL.Path)
 	addr := web.BaseAddress(r) + h.Prefix
 
 	switch base {

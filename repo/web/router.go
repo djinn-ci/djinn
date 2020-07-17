@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"net/http"
-	"path/filepath"
 	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
@@ -45,7 +44,7 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
-		base := filepath.Base(r.URL.Path)
+		base := web.BasePath(r.URL.Path)
 
 		if _, ok := onlyAuth[base]; ok {
 			return r, !u.IsZero(), nil

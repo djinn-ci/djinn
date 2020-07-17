@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/andrewpillar/thrall/errors"
@@ -202,7 +201,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get token from request context")
 	}
 
-	if filepath.Base(r.URL.Path) == "regenerate" {
+	if web.BasePath(r.URL.Path) == "regenerate" {
 		if err := h.Tokens.Reset(t.ID); err != nil {
 			h.Log.Error.Println(errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to update token"), "alert")
@@ -263,7 +262,7 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	if filepath.Base(r.URL.Path) == "revoke" {
+	if web.BasePath(r.URL.Path) == "revoke" {
 		tokens := oauth2.NewTokenStore(h.DB, u)
 
 		tt, err := tokens.All()

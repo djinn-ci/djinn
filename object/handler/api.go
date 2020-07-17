@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 	"os"
-	"path/filepath"
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/errors"
@@ -71,7 +70,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
-	base := filepath.Base(r.URL.Path)
+	base := web.BasePath(r.URL.Path)
 
 	o, err := h.ShowWithRelations(r)
 

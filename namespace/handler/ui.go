@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"path/filepath"
 	"strings"
 
 	"github.com/andrewpillar/thrall/build"
@@ -178,7 +177,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	base := filepath.Base(r.URL.Path)
+	base := web.BasePath(r.URL.Path)
 	csrfField := string(csrf.TemplateField(r))
 
 	bp := template.BasePage{

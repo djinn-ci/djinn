@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"path/filepath"
 	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
@@ -207,7 +206,7 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	base := filepath.Base(r.URL.Path)
+	base := web.BasePath(r.URL.Path)
 
 	if base == "revoke" {
 		if err := oauth2.NewTokenStore(h.DB).Revoke(a.ID); err != nil {

@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"net/http"
-	"path/filepath"
 	"strconv"
 
 	"github.com/andrewpillar/thrall/crypto"
@@ -35,7 +34,7 @@ var _ server.Router = (*Router)(nil)
 
 func tokenGate(db *sqlx.DB) web.Gate {
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
-		base := filepath.Base(r.URL.Path)
+		base := web.BasePath(r.URL.Path)
 
 		if base == "tokens" || base == "create" || base == "revoke" {
 			return r, !u.IsZero(), nil

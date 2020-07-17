@@ -42,7 +42,7 @@ type Key struct {
 type Store struct {
 	database.Store
 
-	block     *crypto.Block
+	block *crypto.Block
 
 	// User is the bound user.User model. If not nil this will bind the
 	// user.User model to any Image models that are created. If not nil this
@@ -247,10 +247,13 @@ func (s *Store) Create(name, key, config string) (*Key, error) {
 
 // Update updates the key with the given id, and set's the new namespace for
 // the key, and the new config to use.
-func (s *Store) Update(id int64, namespaceId int64, config string) error {
+func (s *Store) Update(id, namespaceId int64, config string) error {
 	q := query.Update(
 		query.Table(table),
-		query.Set("namespace_id", namespaceId),
+		query.Set("namespace_id", sql.NullInt64{
+			Int64: namespaceId,
+			Valid: namespaceId > 0,
+		}),
 		query.Set("config", config),
 		query.Where("id", "=", id),
 	)

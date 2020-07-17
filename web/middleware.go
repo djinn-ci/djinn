@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"net/http"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -63,7 +62,7 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFu
 		return false, nil
 	}
 
-	base := filepath.Base(r.URL.Path)
+	base := BasePath(r.URL.Path)
 
 	if base == "/" || base == "create" || base == name + "s" {
 		return ok, nil

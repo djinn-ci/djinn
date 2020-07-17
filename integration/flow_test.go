@@ -3,8 +3,12 @@
 package integration
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	"bytes"
 	"encoding/json"
+	"encoding/pem"
 	"net/http"
 	"net/url"
 	"testing"
@@ -68,7 +72,7 @@ func Test_AnonymousBuildCreateFlow(t *testing.T) {
 		}{}
 
 		if err := json.Unmarshal(b, &resp); err != nil {
-			t.Errorf("%q %q - unexpected Unmarshal error: %s\n", r.Method, r.URL, err)
+			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
 		}
 
 		u, _ := url.Parse(resp.ObjectsURL)
@@ -138,7 +142,7 @@ func Test_NamespaceBuildCreateFlow(t *testing.T) {
 		}{}
 
 		if err := json.Unmarshal(b, &resp); err != nil {
-			t.Errorf("%q %q - unexpected Unmarshal error: %s\n", r.Method, r.URL, err)
+			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
 		}
 
 		u, _ := url.Parse(resp.ObjectsURL)
@@ -176,7 +180,7 @@ func Test_NamespaceBuildCreateFlow(t *testing.T) {
 }
 
 func Test_NamespaceFlow(t *testing.T) {
-	flow := NewFlow()
+	f1 := NewFlow()
 
 	parent := map[string]interface{}{
 		"name":       "fremen",
@@ -194,34 +198,104 @@ func Test_NamespaceFlow(t *testing.T) {
 		"name":   "letoii",
 	}
 
-	flow.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, map[string]interface{}{})), 400, nil)
-	flow.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, parent)), 201, nil)
-	flow.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, child)), 201, func(t *testing.T, r *http.Request, b []byte) {
+	parentUrl := ""
+
+	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, map[string]interface{}{})), 400, nil)
+	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, parent)), 201, func(t *testing.T, r *http.Request, b []byte) {
+		n := struct{
+			URL string
+		}{}
+
+		if err := json.Unmarshal(b, &n); err != nil {
+			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
+		}
+
+		url, _ := url.Parse(n.URL)
+		parentUrl = url.Path
+	})
+	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, child)), 201, func(t *testing.T, r *http.Request, b []byte) {
 		n := struct{
 			Visibility namespace.Visibility
+			URL        string
 			Parent     struct{
 				Name string
 			}
 		}{}
 
 		if err := json.Unmarshal(b, &n); err != nil {
-			t.Fatalf("%q %q unexpected Unmarshal error: %s\n", r.Method, r.URL, err)
+			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
 		}
 
 		if n.Visibility != namespace.Private {
-			t.Errorf("exepected namespace visibility %d. got=%d\n", namespace.Private, n.Visibility)
+			t.Errorf("exepected namespace visibility %q. got=%q\n", namespace.Private.String(), n.Visibility.String())
 		}
 
 		if n.Parent.Name != "fremen" {
 			t.Errorf("expected namespace parent name %q. got=%q\n", "fremen", n.Parent.Name)
 		}
 	})
-	flow.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, grandchild)), 201, nil)
-	flow.Add(ApiDelete(t, "/api/n/me/fremen/chani", myTok), 204, nil)
-	flow.Add(ApiGet(t, "/api/n/me/fremen/chani/leto", myTok), 404, nil)
-	flow.Add(ApiGet(t, "/api/n/me/fremen/chani", myTok), 404, nil)
+	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, grandchild)), 201, nil)
 
-	flow.Do(t, server.Client())
+	f1.Do(t, server.Client())
+
+	updatedParent := map[string]interface{}{
+		"visibility": "internal",
+	}
+
+	f1.Add(ApiPatch(t, parentUrl, myTok, JSON(t, updatedParent)), 200, func(t *testing.T, r *http.Request, b []byte) {
+		n := struct{
+			NamespacesURL string `json:"namespaces_url"`
+		}{}
+
+		if err := json.Unmarshal(b, &n); err != nil {
+			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
+		}
+
+		f2 := NewFlow()
+
+		url, _ := url.Parse(n.NamespacesURL)
+
+		f2.Add(ApiGet(t, url.Path, myTok), 200, func(t *testing.T, r *http.Request, b []byte) {
+			nn := []struct{
+				URL string
+			}{}
+
+			if err := json.Unmarshal(b, &nn); err != nil {
+				t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
+			}
+
+			f3 := NewFlow()
+
+			checkVisibility := func(t *testing.T, r *http.Request, b []byte) {
+				n := struct{
+					Visibility namespace.Visibility
+				}{}
+
+				if err := json.Unmarshal(b, &n); err != nil {
+					t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
+				}
+
+				if n.Visibility != namespace.Internal {
+					t.Errorf("expected namespace visibility %q. got=%q\n", namespace.Internal.String(), n.Visibility.String())
+				}
+			}
+
+			for _, n := range nn {
+				url, _ := url.Parse(n.URL)
+
+				f3.Add(ApiGet(t, url.Path, myTok), 200, checkVisibility)
+			}
+
+			f3.Do(t, server.Client())
+		})
+
+		f2.Do(t, server.Client())
+	})
+
+	f1.Add(ApiDelete(t, "/api/n/me/fremen/chani", myTok), 204, nil)
+	f1.Add(ApiGet(t, "/api/n/me/fremen/chani/leto", myTok), 404, nil)
+	f1.Add(ApiGet(t, "/api/n/me/fremen/chani", myTok), 404, nil)
+	f1.Do(t, server.Client())
 }
 
 func Test_CollaboratorFlow(t *testing.T) {
@@ -251,7 +325,7 @@ func Test_CollaboratorFlow(t *testing.T) {
 		}{}
 
 		if err := json.Unmarshal(b, &i); err != nil {
-			t.Fatalf("%q %q unexpected Unmarshal error: %s\n", r.Method, r.URL, err)
+			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
 		}
 
 		url, _ := url.Parse(i.URL)
@@ -268,7 +342,7 @@ func Test_CollaboratorFlow(t *testing.T) {
 			}{}
 
 			if err := json.Unmarshal(b, &v); err != nil {
-				t.Fatalf("%q %q unexpected Unmarshal error: %s\n", r.Method, r.URL, err)
+				t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
 			}
 
 			url, _ := url.Parse(v.URL)
@@ -310,10 +384,97 @@ func Test_VariableFlow(t *testing.T) {
 	f1 := NewFlow()
 
 	variable := map[string]interface{}{
-
+		"key":   "PGADDR",
+		"value": "host=localhost port=5432 dbname=djinn user=djinn password=secret sslmode=disable",
 	}
 
+	f1.Add(ApiPost(t, "/api/variables", myTok, JSON(t, map[string]interface{}{})), 400, nil)
 	f1.Add(ApiPost(t, "/api/variables", myTok, JSON(t, variable)), 201, nil)
+	f1.Add(ApiPost(t, "/api/variables", myTok, JSON(t, variable)), 400, nil)
+
+	variable["namespace"] = "database"
+
+	f1.Add(ApiPost(t, "/api/variables", myTok, JSON(t, variable)), 201, nil)
+	f1.Add(ApiGet(t, "/api/variables?search=PG", myTok), 200, checkJSONResponseSizeApprox(2))
+
+	f1.Do(t, server.Client())
+}
+
+func Test_KeyFlow(t *testing.T) {
+	rsakey, err := rsa.GenerateKey(rand.Reader, 2048)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(rsakey),
+	})
+
+	key := map[string]interface{}{
+		"name": "id_rsa",
+		"key":  "AAAAABBBBBCCCCC",
+	}
+
+	f1 := NewFlow()
+
+	f1.Add(ApiPost(t, "/api/keys", myTok, JSON(t, map[string]interface{}{})), 400, nil)
+	f1.Add(ApiPost(t, "/api/keys", myTok, JSON(t, key)), 400, nil)
+
+	key["key"] = string(b)
+
+	f1.Add(ApiPost(t, "/api/keys", myTok, JSON(t, key)), 201, func(t *testing.T, r *http.Request, b []byte) {
+		k := struct{
+			URL string
+		}{}
+
+		if err := json.Unmarshal(b, &k); err != nil {
+			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
+		}
+
+		key := map[string]interface{}{
+			"key":    "AAAABBBBCCCC",
+			"config": "UserKnownHostsFile /dev/null",
+		}
+
+		url, _ := url.Parse(k.URL)
+
+		f2 := NewFlow()
+
+		f2.Add(ApiPatch(t, url.Path, myTok, JSON(t, key)), 200, nil)
+		f2.Do(t, server.Client())
+	})
+
+	f1.Do(t, server.Client())
+}
+
+func Test_ObjectFlow(t *testing.T) {
+	f := OpenFile(t, "data")
+	defer f.Close()
+
+	f1 := NewFlow()
+
+	f1.Add(ApiPost(t, "/api/objects", myTok, nil), 400, nil)
+	f1.Add(ApiPost(t, "/api/objects?name=file", myTok, f), 201, func(t *testing.T, r *http.Request, b []byte) {
+		o := struct{
+			URL string
+		}{}
+
+		if err := json.Unmarshal(b, &o); err != nil {
+			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
+		}
+
+		url, _ := url.Parse(o.URL)
+
+		f2 := NewFlow()
+
+		f2.Add(ApiGet(t, "/api/objects?search=fil", myTok), 200, checkJSONResponseSizeApprox(1))
+		f2.Add(ApiGet(t, url.Path, myTok), 200, nil)
+		f2.Add(ApiGet(t, url.Path, yourTok), 404, nil)
+		f2.Add(ApiDelete(t, url.Path, myTok), 204, nil)
+		f2.Add(ApiGet(t, "/api/objects?search=fil", myTok), 200, checkJSONResponseSize(0))
+	})
 
 	f1.Do(t, server.Client())
 }

@@ -76,6 +76,15 @@ func Gate(db *sqlx.DB) web.Gate {
 		if invite, ok := vars["invite"]; ok {
 			id, _ := strconv.ParseInt(invite, 10, 64)
 
+			switch r.Method {
+			case "GET":
+				_, ok = u.Permissions["invite:read"]
+			case "POST", "PATCH":
+				_, ok = u.Permissions["invite:write"]
+			case "DELETE":
+				_, ok = u.Permissions["invite:delete"]
+			}
+
 			i, err := namespace.NewInviteStore(db, u).Get(query.Where("id", "=", id))
 
 			if err != nil {

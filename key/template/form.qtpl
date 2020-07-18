@@ -23,7 +23,11 @@ func (p *Form) Action() string {
 
 {% collapsespace %}
 {% func (p *Form) Title() %}
-	Create Key - Thrall
+	{% if p.Key == nil %}
+		Create Key - Thrall
+	{% else %}
+		Edit Key - Thrall
+	{% endif %}
 {% endfunc %}
 
 {% func (p *Form) Body() %}
@@ -43,16 +47,16 @@ func (p *Form) Action() string {
 					{% endif %}
 				</div>
 				{% if p.Key == nil %}
-				<div class="form-field">
-					<label class="label" for="name">Name</label>
-					<input class="form-text" type="text" id="name" name="name" value="{%s p.Fields["name"] %}" autocomplete="off"/>
-					{%= p.Error("name") %}
-				</div>
-				<div class="form-field">
-					<label class="label" for="key">Key</label>
-					<textarea class="form-text form-code" id="key" name="key">{%s p.Fields["key"] %}</textarea>
-					{%= p.Error("key") %}
-				</div>
+					<div class="form-field">
+						<label class="label" for="name">Name</label>
+						<input class="form-text" type="text" id="name" name="name" value="{%s p.Fields["name"] %}" autocomplete="off"/>
+						{%= p.Error("name") %}
+					</div>
+					<div class="form-field">
+						<label class="label" for="key">Key</label>
+						<textarea class="form-text form-code" id="key" name="key">{%s p.Fields["key"] %}</textarea>
+						{%= p.Error("key") %}
+					</div>
 				{% endif %}
 				<div class="form-field">
 					<label class="label" for="config">Config <small>(optional)</small></label>

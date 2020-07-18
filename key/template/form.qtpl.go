@@ -41,276 +41,288 @@ func (p *Form) Action() string {
 //line key/template/form.qtpl:25
 func (p *Form) StreamTitle(qw422016 *qt422016.Writer) {
 //line key/template/form.qtpl:25
-	qw422016.N().S(` Create Key - Thrall `)
-//line key/template/form.qtpl:27
-}
-
-//line key/template/form.qtpl:27
-func (p *Form) WriteTitle(qq422016 qtio422016.Writer) {
-//line key/template/form.qtpl:27
-	qw422016 := qt422016.AcquireWriter(qq422016)
-//line key/template/form.qtpl:27
-	p.StreamTitle(qw422016)
-//line key/template/form.qtpl:27
-	qt422016.ReleaseWriter(qw422016)
-//line key/template/form.qtpl:27
-}
-
-//line key/template/form.qtpl:27
-func (p *Form) Title() string {
-//line key/template/form.qtpl:27
-	qb422016 := qt422016.AcquireByteBuffer()
-//line key/template/form.qtpl:27
-	p.WriteTitle(qb422016)
-//line key/template/form.qtpl:27
-	qs422016 := string(qb422016.B)
-//line key/template/form.qtpl:27
-	qt422016.ReleaseByteBuffer(qb422016)
-//line key/template/form.qtpl:27
-	return qs422016
-//line key/template/form.qtpl:27
-}
-
-//line key/template/form.qtpl:29
-func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
-//line key/template/form.qtpl:29
-	qw422016.N().S(` <div class="panel"> <div class="panel-body slim"> <form method="POST" action="`)
-//line key/template/form.qtpl:32
-	qw422016.E().S(p.Action())
-//line key/template/form.qtpl:32
-	qw422016.N().S(`"> `)
-//line key/template/form.qtpl:33
-	qw422016.N().S(string(p.CSRF))
-//line key/template/form.qtpl:33
 	qw422016.N().S(` `)
-//line key/template/form.qtpl:34
-	if p.Key != nil {
-//line key/template/form.qtpl:34
-		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> `)
-//line key/template/form.qtpl:36
-	}
-//line key/template/form.qtpl:36
-	qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> `)
-//line key/template/form.qtpl:39
-	if p.Key != nil && p.Key.Namespace != nil {
-//line key/template/form.qtpl:39
-		qw422016.N().S(` <input class="form-text" type="text" id="namespace" name="namespace" value="`)
-//line key/template/form.qtpl:40
-		qw422016.E().S(p.Key.Namespace.Name)
-//line key/template/form.qtpl:40
-		qw422016.N().S(`"/> `)
-//line key/template/form.qtpl:41
-	} else {
-//line key/template/form.qtpl:41
-		qw422016.N().S(` <input class="form-text" type="text" id="namespace" name="namespace" value="`)
-//line key/template/form.qtpl:42
-		qw422016.E().S(p.Fields["namespace"])
-//line key/template/form.qtpl:42
-		qw422016.N().S(`"/> `)
-//line key/template/form.qtpl:43
-	}
-//line key/template/form.qtpl:43
-	qw422016.N().S(` </div> `)
-//line key/template/form.qtpl:45
+//line key/template/form.qtpl:26
 	if p.Key == nil {
-//line key/template/form.qtpl:45
-		qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Name</label> <input class="form-text" type="text" id="name" name="name" value="`)
-//line key/template/form.qtpl:48
-		qw422016.E().S(p.Fields["name"])
-//line key/template/form.qtpl:48
-		qw422016.N().S(`" autocomplete="off"/> `)
-//line key/template/form.qtpl:49
-		p.StreamError(qw422016, "name")
-//line key/template/form.qtpl:49
-		qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="key">Key</label> <textarea class="form-text form-code" id="key" name="key">`)
-//line key/template/form.qtpl:53
-		qw422016.E().S(p.Fields["key"])
-//line key/template/form.qtpl:53
-		qw422016.N().S(`</textarea> `)
-//line key/template/form.qtpl:54
-		p.StreamError(qw422016, "key")
-//line key/template/form.qtpl:54
-		qw422016.N().S(` </div> `)
-//line key/template/form.qtpl:56
-	}
-//line key/template/form.qtpl:56
-	qw422016.N().S(` <div class="form-field"> <label class="label" for="config">Config <small>(optional)</small></label> `)
-//line key/template/form.qtpl:59
-	if p.Key != nil {
-//line key/template/form.qtpl:59
-		qw422016.N().S(` <textarea class="form-text form-code" id="config" name="config">`)
-//line key/template/form.qtpl:60
-		qw422016.E().S(p.Key.Config)
-//line key/template/form.qtpl:60
-		qw422016.N().S(`</textarea> `)
-//line key/template/form.qtpl:61
+//line key/template/form.qtpl:26
+		qw422016.N().S(` Create Key - Thrall `)
+//line key/template/form.qtpl:28
 	} else {
-//line key/template/form.qtpl:61
-		qw422016.N().S(` <textarea class="form-text form-code" id="config" name="config">`)
-//line key/template/form.qtpl:62
-		qw422016.E().S(p.Fields["config"])
-//line key/template/form.qtpl:62
-		qw422016.N().S(`</textarea> `)
-//line key/template/form.qtpl:63
+//line key/template/form.qtpl:28
+		qw422016.N().S(` Edit Key - Thrall `)
+//line key/template/form.qtpl:30
 	}
-//line key/template/form.qtpl:63
-	qw422016.N().S(` </div> <div class="form-field"> `)
-//line key/template/form.qtpl:66
-	if p.Key != nil {
-//line key/template/form.qtpl:66
-		qw422016.N().S(` <button type="submit" class="btn btn-primary">Save</button> `)
-//line key/template/form.qtpl:68
-	} else {
-//line key/template/form.qtpl:68
-		qw422016.N().S(` <button type="submit" class="btn btn-primary">Submit</button> `)
-//line key/template/form.qtpl:70
-	}
-//line key/template/form.qtpl:70
-	qw422016.N().S(` </div> </form> </div> </div> `)
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:30
+	qw422016.N().S(` `)
+//line key/template/form.qtpl:31
 }
 
-//line key/template/form.qtpl:75
-func (p *Form) WriteBody(qq422016 qtio422016.Writer) {
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:31
+func (p *Form) WriteTitle(qq422016 qtio422016.Writer) {
+//line key/template/form.qtpl:31
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line key/template/form.qtpl:75
-	p.StreamBody(qw422016)
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:31
+	p.StreamTitle(qw422016)
+//line key/template/form.qtpl:31
 	qt422016.ReleaseWriter(qw422016)
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:31
 }
 
-//line key/template/form.qtpl:75
-func (p *Form) Body() string {
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:31
+func (p *Form) Title() string {
+//line key/template/form.qtpl:31
 	qb422016 := qt422016.AcquireByteBuffer()
-//line key/template/form.qtpl:75
-	p.WriteBody(qb422016)
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:31
+	p.WriteTitle(qb422016)
+//line key/template/form.qtpl:31
 	qs422016 := string(qb422016.B)
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:31
 	qt422016.ReleaseByteBuffer(qb422016)
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:31
 	return qs422016
-//line key/template/form.qtpl:75
+//line key/template/form.qtpl:31
 }
 
-//line key/template/form.qtpl:77
+//line key/template/form.qtpl:33
+func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
+//line key/template/form.qtpl:33
+	qw422016.N().S(` <div class="panel"> <div class="panel-body slim"> <form method="POST" action="`)
+//line key/template/form.qtpl:36
+	qw422016.E().S(p.Action())
+//line key/template/form.qtpl:36
+	qw422016.N().S(`"> `)
+//line key/template/form.qtpl:37
+	qw422016.N().S(string(p.CSRF))
+//line key/template/form.qtpl:37
+	qw422016.N().S(` `)
+//line key/template/form.qtpl:38
+	if p.Key != nil {
+//line key/template/form.qtpl:38
+		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> `)
+//line key/template/form.qtpl:40
+	}
+//line key/template/form.qtpl:40
+	qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> `)
+//line key/template/form.qtpl:43
+	if p.Key != nil && p.Key.Namespace != nil {
+//line key/template/form.qtpl:43
+		qw422016.N().S(` <input class="form-text" type="text" id="namespace" name="namespace" value="`)
+//line key/template/form.qtpl:44
+		qw422016.E().S(p.Key.Namespace.Name)
+//line key/template/form.qtpl:44
+		qw422016.N().S(`"/> `)
+//line key/template/form.qtpl:45
+	} else {
+//line key/template/form.qtpl:45
+		qw422016.N().S(` <input class="form-text" type="text" id="namespace" name="namespace" value="`)
+//line key/template/form.qtpl:46
+		qw422016.E().S(p.Fields["namespace"])
+//line key/template/form.qtpl:46
+		qw422016.N().S(`"/> `)
+//line key/template/form.qtpl:47
+	}
+//line key/template/form.qtpl:47
+	qw422016.N().S(` </div> `)
+//line key/template/form.qtpl:49
+	if p.Key == nil {
+//line key/template/form.qtpl:49
+		qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Name</label> <input class="form-text" type="text" id="name" name="name" value="`)
+//line key/template/form.qtpl:52
+		qw422016.E().S(p.Fields["name"])
+//line key/template/form.qtpl:52
+		qw422016.N().S(`" autocomplete="off"/> `)
+//line key/template/form.qtpl:53
+		p.StreamError(qw422016, "name")
+//line key/template/form.qtpl:53
+		qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="key">Key</label> <textarea class="form-text form-code" id="key" name="key">`)
+//line key/template/form.qtpl:57
+		qw422016.E().S(p.Fields["key"])
+//line key/template/form.qtpl:57
+		qw422016.N().S(`</textarea> `)
+//line key/template/form.qtpl:58
+		p.StreamError(qw422016, "key")
+//line key/template/form.qtpl:58
+		qw422016.N().S(` </div> `)
+//line key/template/form.qtpl:60
+	}
+//line key/template/form.qtpl:60
+	qw422016.N().S(` <div class="form-field"> <label class="label" for="config">Config <small>(optional)</small></label> `)
+//line key/template/form.qtpl:63
+	if p.Key != nil {
+//line key/template/form.qtpl:63
+		qw422016.N().S(` <textarea class="form-text form-code" id="config" name="config">`)
+//line key/template/form.qtpl:64
+		qw422016.E().S(p.Key.Config)
+//line key/template/form.qtpl:64
+		qw422016.N().S(`</textarea> `)
+//line key/template/form.qtpl:65
+	} else {
+//line key/template/form.qtpl:65
+		qw422016.N().S(` <textarea class="form-text form-code" id="config" name="config">`)
+//line key/template/form.qtpl:66
+		qw422016.E().S(p.Fields["config"])
+//line key/template/form.qtpl:66
+		qw422016.N().S(`</textarea> `)
+//line key/template/form.qtpl:67
+	}
+//line key/template/form.qtpl:67
+	qw422016.N().S(` </div> <div class="form-field"> `)
+//line key/template/form.qtpl:70
+	if p.Key != nil {
+//line key/template/form.qtpl:70
+		qw422016.N().S(` <button type="submit" class="btn btn-primary">Save</button> `)
+//line key/template/form.qtpl:72
+	} else {
+//line key/template/form.qtpl:72
+		qw422016.N().S(` <button type="submit" class="btn btn-primary">Submit</button> `)
+//line key/template/form.qtpl:74
+	}
+//line key/template/form.qtpl:74
+	qw422016.N().S(` </div> </form> </div> </div> `)
+//line key/template/form.qtpl:79
+}
+
+//line key/template/form.qtpl:79
+func (p *Form) WriteBody(qq422016 qtio422016.Writer) {
+//line key/template/form.qtpl:79
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line key/template/form.qtpl:79
+	p.StreamBody(qw422016)
+//line key/template/form.qtpl:79
+	qt422016.ReleaseWriter(qw422016)
+//line key/template/form.qtpl:79
+}
+
+//line key/template/form.qtpl:79
+func (p *Form) Body() string {
+//line key/template/form.qtpl:79
+	qb422016 := qt422016.AcquireByteBuffer()
+//line key/template/form.qtpl:79
+	p.WriteBody(qb422016)
+//line key/template/form.qtpl:79
+	qs422016 := string(qb422016.B)
+//line key/template/form.qtpl:79
+	qt422016.ReleaseByteBuffer(qb422016)
+//line key/template/form.qtpl:79
+	return qs422016
+//line key/template/form.qtpl:79
+}
+
+//line key/template/form.qtpl:81
 func (p *Form) StreamHeader(qw422016 *qt422016.Writer) {
-//line key/template/form.qtpl:77
+//line key/template/form.qtpl:81
 	qw422016.N().S(` <a class="back" href="/keys">`)
-//line key/template/form.qtpl:78
+//line key/template/form.qtpl:82
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-//line key/template/form.qtpl:78
+//line key/template/form.qtpl:82
 	qw422016.N().S(`</a> `)
-//line key/template/form.qtpl:79
+//line key/template/form.qtpl:83
 	if p.Key != nil {
-//line key/template/form.qtpl:79
+//line key/template/form.qtpl:83
 		qw422016.N().S(` `)
-//line key/template/form.qtpl:80
+//line key/template/form.qtpl:84
 		qw422016.E().S(p.Key.Name)
-//line key/template/form.qtpl:80
+//line key/template/form.qtpl:84
 		qw422016.N().S(` - Edit `)
-//line key/template/form.qtpl:81
+//line key/template/form.qtpl:85
 	} else {
-//line key/template/form.qtpl:81
+//line key/template/form.qtpl:85
 		qw422016.N().S(` Create SSH Key `)
-//line key/template/form.qtpl:83
+//line key/template/form.qtpl:87
 	}
-//line key/template/form.qtpl:83
+//line key/template/form.qtpl:87
 	qw422016.N().S(` `)
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 }
 
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 func (p *Form) WriteHeader(qq422016 qtio422016.Writer) {
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 	p.StreamHeader(qw422016)
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 	qt422016.ReleaseWriter(qw422016)
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 }
 
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 func (p *Form) Header() string {
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 	qb422016 := qt422016.AcquireByteBuffer()
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 	p.WriteHeader(qb422016)
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 	qs422016 := string(qb422016.B)
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 	qt422016.ReleaseByteBuffer(qb422016)
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 	return qs422016
-//line key/template/form.qtpl:84
+//line key/template/form.qtpl:88
 }
 
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 func (p *Form) StreamActions(qw422016 *qt422016.Writer) {
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 }
 
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 func (p *Form) WriteActions(qq422016 qtio422016.Writer) {
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 	p.StreamActions(qw422016)
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 	qt422016.ReleaseWriter(qw422016)
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 }
 
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 func (p *Form) Actions() string {
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 	qb422016 := qt422016.AcquireByteBuffer()
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 	p.WriteActions(qb422016)
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 	qs422016 := string(qb422016.B)
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 	qt422016.ReleaseByteBuffer(qb422016)
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 	return qs422016
-//line key/template/form.qtpl:86
+//line key/template/form.qtpl:90
 }
 
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 func (p *Form) StreamNavigation(qw422016 *qt422016.Writer) {
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 }
 
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 func (p *Form) WriteNavigation(qq422016 qtio422016.Writer) {
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 	p.StreamNavigation(qw422016)
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 	qt422016.ReleaseWriter(qw422016)
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 }
 
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 func (p *Form) Navigation() string {
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 	qb422016 := qt422016.AcquireByteBuffer()
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 	p.WriteNavigation(qb422016)
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 	qs422016 := string(qb422016.B)
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 	qt422016.ReleaseByteBuffer(qb422016)
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 	return qs422016
-//line key/template/form.qtpl:87
+//line key/template/form.qtpl:91
 }

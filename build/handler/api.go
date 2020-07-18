@@ -365,6 +365,14 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 	if t.IsZero() {
 		web.JSONError(w, "Not found", http.StatusNotFound)
 	}
+
+	err = h.Users.Load("id", []interface{}{t.UserID}, database.Bind("user_id", "id", t))
+
+	if err != nil {
+		h.Log.Error.Println(errors.Err(err))
+		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
 	web.JSON(w, t.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 

@@ -155,13 +155,19 @@ func (r *Router) Init(h web.Handler) {
 		Handler: h,
 		Loaders: loaders,
 	}
-	r.tag = handler.Tag{Handler: h}
+	r.tag = handler.Tag{
+		Handler: h,
+		Loaders: loaders,
+	}
 	r.hook = handler.Hook{
 		Build:           r.build,
 		Providers:       provider.NewStore(h.DB),
 		Oauth2Providers: r.Providers,
 	}
-	r.artifact = handler.ArtifactAPI{Handler: h}
+	r.artifact = handler.ArtifactAPI{
+		Handler: h,
+		Loaders: loaders,
+	}
 }
 
 // RegisterUI registers the UI routes for Build submission, and management.

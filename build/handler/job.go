@@ -34,7 +34,8 @@ func (h Job) IndexWithRelations(s *build.JobStore, vals url.Values) ([]*build.Jo
 	return jj, errors.Err(err)
 }
 
-// ShowWithRelations
+// ShowWithRelations returns a job with all of the relations loaded for that
+// job.
 func (h Job) ShowWithRelations(r *http.Request) (*build.Job, error) {
 	b, ok := build.FromContext(r.Context())
 

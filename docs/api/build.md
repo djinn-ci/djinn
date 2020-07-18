@@ -591,7 +591,7 @@ explicit `build:read` permission.
         "md5": null,
         "sha256": null,
         "created_at": "2006-01-02T15:04:05Z",
-        "url": "https://api.djinn-ci.com/b/me/3/artifacts/1"
+        "url": "https://api.djinn-ci.com/b/me/3/artifacts/1",
         "build": {
             "id": 3,
             "user_id": 1,
@@ -613,7 +613,44 @@ explicit `build:read` permission.
                 "email": "me@example.com",
                 "username": "me",
                 "created_at": "2006-01-02T15:04:05Z"
-            }
+            },
+            "namespace": {
+                "id": 3,
+                "user_id": 1,
+                "root_id": 3,
+                "parent_id": null,
+                "name": "djinn",
+                "path": "djinn",
+                "description": "",
+                "visibility": "private",
+                "created_at": "2006-01-02T15:04:05Z",
+                "url": "https://api.djinn-ci.com/n/me/djinn",
+                "builds_url": "https://api.djinn-ci.com/n/me/djinn/-/builds",
+                "namespaces_url": "https://api.djinn-ci.com/n/me/djinn/-/namespaces",
+                "images_url": "https://api.djinn-ci.com/n/me/djinn/-/images",
+                "objects_url": "https://api.djinn-ci.com/n/me/djinn/-/objects",
+                "variables_url": "https://api.djinn-ci.com/n/me/djinn/-/variables",
+                "keys_url": "https://api.djinn-ci.com/n/me/djinn/-/keys",
+                "collaborators_url": "https://api.djinn-ci.com/n/me/djinn/-/collaborators",
+                "user": {
+                    "id": 1,
+                    "email": "me@example.com",
+                    "username": "me",
+                    "created_at": "2006-01-02T15:04:05Z"
+                }
+            },
+            "trigger": {
+                "type": "manual",
+                "comment": "",
+                "data": {
+                    "email": "me@example.com",
+                    "username": "me"
+                }
+            },
+            "tags": [
+                "anon",
+                "golang"
+            ]
         }
     }
 
@@ -716,13 +753,44 @@ This will get the given tag from the given build. This requires the explicit
                 "email": "me@example.com",
                 "username": "me",
                 "created_at": "2006-01-02T15:04:05Z"
-            }
-        },
-        "user": {
-            "id": 1,
-            "email": "me@example.com",
-            "username": "me",
-            "created_at": "2006-01-02T15:04:05Z"
+            },
+            "namespace": {
+                "id": 3,
+                "user_id": 1,
+                "root_id": 3,
+                "parent_id": null,
+                "name": "djinn",
+                "path": "djinn",
+                "description": "",
+                "visibility": "private",
+                "created_at": "2006-01-02T15:04:05Z",
+                "url": "https://api.djinn-ci.com/n/me/djinn",
+                "builds_url": "https://api.djinn-ci.com/n/me/djinn/-/builds",
+                "namespaces_url": "https://api.djinn-ci.com/n/me/djinn/-/namespaces",
+                "images_url": "https://api.djinn-ci.com/n/me/djinn/-/images",
+                "objects_url": "https://api.djinn-ci.com/n/me/djinn/-/objects",
+                "variables_url": "https://api.djinn-ci.com/n/me/djinn/-/variables",
+                "keys_url": "https://api.djinn-ci.com/n/me/djinn/-/keys",
+                "collaborators_url": "https://api.djinn-ci.com/n/me/djinn/-/collaborators",
+                "user": {
+                    "id": 1,
+                    "email": "me@example.com",
+                    "username": "me",
+                    "created_at": "2006-01-02T15:04:05Z"
+                }
+            },
+            "trigger": {
+                "type": "manual",
+                "comment": "",
+                "data": {
+                    "email": "me@example.com",
+                    "username": "me"
+                }
+            },
+            "tags": [
+                "anon",
+                "golang"
+            ]
         }
     }
 

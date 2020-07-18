@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/andrewpillar/thrall/build"
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/user"
@@ -15,6 +16,8 @@ import (
 
 type Tag struct {
 	web.Handler
+
+	Loaders *database.Loaders
 }
 
 func (h Tag) StoreModel(r *http.Request) ([]*build.Tag, error) {

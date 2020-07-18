@@ -25,7 +25,8 @@ type API struct {
 type ArtifactAPI struct {
 	web.Handler
 
-	Prefix string
+	Prefix  string
+	Loaders *database.Loaders
 }
 
 type JobAPI struct {
@@ -262,9 +263,7 @@ func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
 	}
 
-	err := build.NewTriggerStore(h.DB).Load("build_id", []interface{}{b.ID}, database.Bind("build_id", "id", b))
-
-	if err != nil {
+	if err := build.LoadRelations(h.Loaders, b); err != nil {
 		h.Log.Error.Println(errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -352,6 +351,12 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
 	}
 
+	if err := build.LoadRelations(h.Loaders, b); err != nil {
+		h.Log.Error.Println(errors.Err(err))
+		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	id, _ := strconv.ParseInt(mux.Vars(r)["tag"], 10, 64)
 
 	t, err := build.NewTagStore(h.DB, b).Get(query.Where("id", "=", id))
@@ -364,6 +369,7 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 
 	if t.IsZero() {
 		web.JSONError(w, "Not found", http.StatusNotFound)
+		return
 	}
 
 	err = h.Users.Load("id", []interface{}{t.UserID}, database.Bind("user_id", "id", t))

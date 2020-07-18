@@ -17,8 +17,8 @@
 
 ## List builds for the authenticated user
 
-This will list all of the builds for the currently authenticated user. This
-requires the explicit `build:read` permission for the user.
+This will list all of the builds that the currently authenticated user has
+access to. This requires the explicit `build:read` permission for the user.
 
 ### Request
 
@@ -110,7 +110,7 @@ Nullable fields:
 ## Submit a build for the authenticated user
 
 This will submit a new build to the server for the currently authenticated user.
-This requires the explicity `build:write` permission.
+This requires the explicit `build:write` permission.
 
 ### Request
 

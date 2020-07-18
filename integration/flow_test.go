@@ -207,6 +207,7 @@ func Test_NamespaceFlow(t *testing.T) {
 	parentUrl := ""
 
 	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, map[string]interface{}{})), 400, nil)
+	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, map[string]interface{}{"visibility": "foo"})), 400, nil)
 	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, parent)), 201, func(t *testing.T, r *http.Request, b []byte) {
 		n := struct {
 			URL string

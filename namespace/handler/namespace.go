@@ -66,7 +66,10 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 		return nn, paginator, errors.Err(err)
 	}
 
-	if err := build.LoadRelations(h.Loaders, bb...); err != nil {
+	loaders := h.Loaders.Copy()
+	loaders.Delete("namespace")
+
+	if err := build.LoadRelations(loaders, bb...); err != nil {
 		return nn, paginator, errors.Err(err)
 	}
 

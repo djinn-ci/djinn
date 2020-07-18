@@ -363,7 +363,7 @@ func (ls *Loaders) Delete(name string) {
 			break
 		}
 	}
-	ls.order = append(ls.order[i:], ls.order[i+1:]...)
+	ls.order = append(ls.order[:i], ls.order[i+1:]...)
 }
 
 // Get returns a Loader of the given name.

@@ -7,6 +7,11 @@ import "bytes"
 // validation, and each string in the slice is the error message.
 type Errors map[string][]string
 
+type UnmarshalError struct {
+	Field string
+	Err   error
+}
+
 // NewErrors returns a new form.Errors type.
 func NewErrors() Errors { return Errors(make(map[string][]string)) }
 
@@ -60,3 +65,5 @@ func (e *Errors) Put(key string, err error) {
 	}
 	(*e)[key] = append((*e)[key], err.Error())
 }
+
+func (u UnmarshalError) Error() string { return u.Field + " " + u.Err.Error() }

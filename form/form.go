@@ -68,8 +68,27 @@ func Unmarshal(f Form, r *http.Request) error {
 // UnmarshalAndValidate parses the HTTP reques body and stores it in the given
 // form, then validates it.
 func UnmarshalAndValidate(f Form, r *http.Request) error {
+	var unmarshalerr UnmarshalError
+
 	if err := Unmarshal(f, r); err != nil {
-		return errors.Err(err)
+		unmarshalerr, _ = errors.Cause(err).(UnmarshalError)
 	}
-	return errors.Err(f.Validate())
+
+	if err := f.Validate(); err != nil {
+		if ferrs, ok := errors.Cause(err).(Errors); ok {
+			if unmarshalerr.Field != "" && unmarshalerr.Err != nil {
+				ferrs.Put(unmarshalerr.Field, unmarshalerr.Err)
+			}
+			return ferrs
+		}
+		return errors.Cause(err)
+	}
+
+	if unmarshalerr.Field != "" && unmarshalerr.Err != nil {
+		ferrs := NewErrors()
+		ferrs.Put(unmarshalerr.Field, unmarshalerr.Err)
+
+		return ferrs
+	}
+	return nil
 }

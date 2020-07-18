@@ -32,6 +32,19 @@ access to. This requires the explicit `build:read` permission for the user.
 | `search` | `string` | N        | Get the builds with tags like the given value. |
 | `status` | `string` | N        | Get the builds with the given status.          |
 
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/builds
+
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/builds?search=go&status=finished
+
 ### Response
 
     200 OK
@@ -123,6 +136,21 @@ This requires the explicit `build:write` permission.
 | `manifest` | `string`   | Y        | The YAML formatted build manifest.        |
 | `tags`     | `string[]` | N        | An array of the tags to add to the build. |
 
+**Examples**
+
+    $ curl -X POST \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           -d '{"manifest":"namespace: djinn\ndriver:\n  image: centos/7\n  type: qemu\nenv:\n- LOCALE=en_GB.UTF-8\nobjects:\n- data => data\nstages:\n- clean\njobs:\n- stage: clean\n  commands:\n  - tr -d '0-9' data > data.cleaned\n  artifacts:\n  - data.cleaned => data.cleaned"}' \
+           https://api.djinn-ci.com/builds
+
+
+    $ curl -X POST \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           -d '{"manifest":"namespace: djinn\ndriver:\n  image: centos/7\n  type: qemu\nenv:\n- LOCALE=en_GB.UTF-8\nobjects:\n- data => data\nstages:\n- clean\njobs:\n- stage: clean\n  commands:\n  - tr -d '0-9' data > data.cleaned\n  artifacts:\n  - data.cleaned => data.cleaned", "tags":["tag1"]}' \
+           https://api.djinn-ci.com/builds
+
 ### Response
 
     201 Created
@@ -213,6 +241,13 @@ requires the explicit `build:read` permission.
 | `user` | `string` | Y        | The name of the user the build belongs to. |
 | `id`   | `int`    | Y        | The id of the build to get.                |
 
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3
+
 ### Response
 
     200 OK
@@ -295,6 +330,13 @@ placed on the build. This requires the explicit `build:read` permission.
 | `user` | `string` | Y        | The name of the user the build belongs to. |
 | `id`   | `int`    | Y        | The id of the build to get.                |
 
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/objects
+
 ### Response
 
     200 OK
@@ -338,6 +380,13 @@ This requires the explicit `build:read` permission.
 | `user` | `string` | Y        | The name of the user the build belongs to. |
 | `id`   | `int`    | Y        | The id of the build to get.                |
 
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/variables
+
 ### Response
 
     200 OK
@@ -375,6 +424,13 @@ requires the explicit `build:read` permission.
 |--------|----------|----------|--------------------------------------------|
 | `user` | `string` | Y        | The name of the user the build belongs to. |
 | `id`   | `int`    | Y        | The id of the build to get.                |
+
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/jobs
 
 ### Response
 
@@ -430,6 +486,13 @@ explicit `build:read` permission.
 | `user`   | `string` | Y        | The name of the user the build belongs to. |
 | `id`     | `int`    | Y        | The id of the build to get.                |
 | `job_id` | `int`    | Y        | The id of the job to get.                  |
+
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/jobs/5
 
 ### Response
 
@@ -532,6 +595,13 @@ requires the explicit `build:read` permission.
 | `user` | `string` | Y        | The name of the user the build belongs to. |
 | `id`   | `int`    | Y        | The id of the build to get.                |
 
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/artifacts
+
 ### Response
 
     200 OK
@@ -575,6 +645,13 @@ explicit `build:read` permission.
 | `user`        | `string` | Y        | The name of the user the build belongs to. |
 | `id`          | `int`    | Y        | The id of the build to get.                |
 | `artifact_id` | `int`    | Y        | The id of the artifact to get.             |
+
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/artifacts/1
 
 ### Response
 
@@ -670,6 +747,13 @@ This will list the tags set on the given build. This requires the explicit
 | `user` | `string` | Y        | The name of the user the build belongs to. |
 | `id`   | `int`    | Y        | The id of the build to get.                |
 
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/tags
+
 ### Response
 
     200 OK
@@ -719,6 +803,13 @@ This will get the given tag from the given build. This requires the explicit
 | `user`   | `string` | Y        | The name of the user the build belongs to. |
 | `id`     | `int`    | Y        | The id of the build to get.                |
 | `tag_id` | `int`    | Y        | The id of the tag to delete.               |
+
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/tags/4
 
 ### Response
 
@@ -813,6 +904,8 @@ This will add the given tags to the given build. This requires the explicit
 This request expects a JSON array of string values to be submitted to the
 endpoint as the request body, for example,
 
+**Examples**
+
     $ curl -X POST \
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
@@ -864,6 +957,13 @@ This will remove the given tag from a given build. This requires the explicit
 | `id`     | `int`    | Y        | The id of the build to get.                |
 | `tag_id` | `int`    | Y        | The id of the tag to delete.               |
 
+**Examples**
+
+    $ curl -X DELETE \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3/tags/5
+
 ### Response
 
     204 No Content
@@ -883,6 +983,13 @@ This will kill a build that is running. This requires the explicit
 |--------|----------|----------|--------------------------------------------|
 | `user` | `string` | Y        | The name of the user the build belongs to. |
 | `id`   | `int`    | Y        | The id of the build to get.                |
+
+**Examples**
+
+    $ curl -X DELETE \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/b/me/3
 
 ### Response
 

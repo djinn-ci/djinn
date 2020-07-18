@@ -198,7 +198,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/", build.Index).Methods("GET")
 	auth.HandleFunc("/builds/create", build.Create).Methods("GET")
 	auth.HandleFunc("/builds", build.Store).Methods("POST")
-	auth.Use(r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.Middleware.AuthPerms("build:read", "build:write"), csrf)
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")

@@ -1,6 +1,7 @@
 driver:
   type: docker
   image: golang
+  workspace: /go
 env:
 - GOPATH=/go
 stages:

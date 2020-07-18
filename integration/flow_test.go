@@ -64,6 +64,7 @@ func Test_AnonymousBuildCreateFlow(t *testing.T) {
 
 	flow.Add(ApiPost(t, "/api/builds", myTok, JSON(t, build)), 201, func(t *testing.T, r *http.Request, b []byte) {
 		resp := struct {
+			URL          string
 			ObjectsURL   string `json:"objects_url"`
 			VariablesURL string `json:"variables_url"`
 			JobsURL      string `json:"jobs_url"`
@@ -75,7 +76,10 @@ func Test_AnonymousBuildCreateFlow(t *testing.T) {
 			t.Fatalf("%q %q unexpected Unmarshal error: %s: %q\n", r.Method, r.URL, err, string(b))
 		}
 
-		u, _ := url.Parse(resp.ObjectsURL)
+		u, _ := url.Parse(resp.URL)
+		buildUrl := u.Path
+
+		u, _ = url.Parse(resp.ObjectsURL)
 		objectsUrl := u.Path
 
 		u, _ = url.Parse(resp.VariablesURL)
@@ -92,16 +96,18 @@ func Test_AnonymousBuildCreateFlow(t *testing.T) {
 
 		subflow := NewFlow()
 
+		subflow.Add(ApiGet(t, buildUrl, myTok), 200, nil)
 		subflow.Add(ApiGet(t, objectsUrl, myTok), 200, checkJSONResponseSize(0))
 		subflow.Add(ApiGet(t, variablesUrl, myTok), 200, checkJSONResponseSize(1))
 		subflow.Add(ApiGet(t, jobsUrl, myTok), 200, checkJSONResponseSize(2))
 		subflow.Add(ApiGet(t, artifactsUrl, myTok), 200, checkJSONResponseSize(0))
-		subflow.Add(ApiGet(t, tagsUrl, myTok), 200, checkJSONResponseSize(1))
+		subflow.Add(ApiGet(t, tagsUrl, myTok), 200, checkJSONResponseSize(2))
 		subflow.Do(t, server.Client())
 	})
 
-	flow.Add(ApiGet(t, "/api/n/me/djinn/-/builds?search=anon", myTok), 200, checkJSONResponseSize(0))
+	flow.Add(ApiGet(t, "/api/builds?search=anon", myTok), 200, checkJSONResponseSize(1))
 	flow.Add(ApiGet(t, "/api/builds?search=golang", myTok), 200, checkJSONResponseSize(1))
+	flow.Do(t, server.Client())
 }
 
 func Test_NamespaceBuildCreateFlow(t *testing.T) {

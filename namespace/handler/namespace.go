@@ -137,7 +137,7 @@ func (h Namespace) UpdateModel(r *http.Request) (*namespace.Namespace, namespace
 		return nil, f, errors.Err(err)
 	}
 
-	err := namespaces.Update(n.ID, f.Name, f.Description, f.Visibility)
+	err := namespaces.Update(n.ID, f.Description, f.Visibility)
 	return n, f, errors.Err(err)
 }
 

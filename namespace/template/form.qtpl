@@ -79,6 +79,14 @@ func (p *Form) disabled(vis namespace.Visibility) string {
 %}
 
 {% collapsespace %}
+{% func (p *Form) Title() %}
+	{% if p.Namespace == nil %}
+		Create Namespace - Thrall
+	{% else %}
+		Edit Namespace - Thrall
+	{% endif %}
+{% endfunc %}
+
 {% func (p *Form) Body() %}
 	<div class="panel">
 		<div class="panel-body slim">
@@ -90,11 +98,13 @@ func (p *Form) disabled(vis namespace.Visibility) string {
 				{% if p.Parent != nil && !p.Parent.IsZero() %}
 					<input type="hidden" name="parent" value="{%s p.Parent.Path %}"/>
 				{% endif %}
-				<div class="form-field">
-					<label class="label" for="name">Name</label>
-					<input class="form-text" type="text" name="name" value="{%s p.Field("name") %}" autocomplete="off"/>
-					{%= p.Error("name") %}
-				</div>
+				{% if p.Namespace == nil %}
+					<div class="form-field">
+						<label class="label" for="name">Name</label>
+						<input class="form-text" type="text" name="name" value="{%s p.Field("name") %}" autocomplete="off"/>
+						{%= p.Error("name") %}
+					</div>
+				{% endif %}
 				<div class="form-field">
 					<label class="label" for="name">Description</label>
 					<input class="form-text" type="text" name="description" value="{%s p.Field("description") %}" autocomplete="off"/>

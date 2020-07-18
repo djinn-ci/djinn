@@ -413,7 +413,7 @@ func (s *Store) Create(parent, name, description string, visibility Visibility) 
 // Update updates the namespace of the given id with the given name, description
 // and visibility. If the namespace is a root namespace, then the new visibility
 // is applied to all children.
-func (s *Store) Update(id int64, name, description string, visibility Visibility) error {
+func (s *Store) Update(id int64, description string, visibility Visibility) error {
 	parent, err := s.Get(
 		query.WhereQuery("id", "=", query.Select(
 			query.Columns("parent_id"),
@@ -442,7 +442,6 @@ func (s *Store) Update(id int64, name, description string, visibility Visibility
 
 	q := query.Update(
 		query.Table(table),
-		query.Set("name", name),
 		query.Set("description", description),
 		query.Set("visibility", visibility),
 		query.Where("id", "=", id),

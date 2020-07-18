@@ -3,9 +3,11 @@ package namespace
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/form"
 )
 
 // Visibility represents the visibility level of a Namespace, there are three
@@ -53,9 +55,36 @@ func (v *Visibility) Scan(val interface{}) error {
 	return errors.Err(v.UnmarshalText(b))
 }
 
+// UnmarshalJSON takes the given byte slice, and attempts to unmarshal it to a
+// string from its JSON representation. This is then mapped to a known
+// Visibility. This will return form.UnmarshalError if any error occurs.
+func (v *Visibility) UnmarshalJSON(b []byte) error {
+	var (
+		s  string
+		ok bool
+	)
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		return form.UnmarshalError{
+			Field: "Visibility",
+			Err:   err,
+		}
+	}
+
+	(*v), ok = visMap[s]
+
+	if !ok {
+		return form.UnmarshalError{
+			Field: "visibility",
+			Err:   errors.New("unknown visibility " + s),
+		}
+	}
+	return nil
+}
+
 // UnmarshalText takes the given byte slice, and attempts to map it to a known
 // Visibility. If it is a known Visibility, then that the current Visibility is
-// set to that, otherwise an error is returned.
+// set to that, otherwise form.UnmarshalError is returned.
 func (v *Visibility) UnmarshalText(b []byte) error {
 	var ok bool
 
@@ -63,7 +92,10 @@ func (v *Visibility) UnmarshalText(b []byte) error {
 	(*v), ok = visMap[s]
 
 	if !ok {
-		return errors.New("unknown Visibility " + s)
+		return form.UnmarshalError{
+			Field: "visibility",
+			Err:   errors.New("unknown visibility " + s),
+		}
 	}
 	return nil
 }

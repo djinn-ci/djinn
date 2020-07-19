@@ -323,6 +323,11 @@ func Test_CollaboratorFlow(t *testing.T) {
 		"value":     "1a2b3c4d",
 	}
 
+	yourNamespace := map[string]interface{}{
+		"parent": "conclave",
+		"name":   "sistine",
+	}
+
 	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, myNamespace)), 201, nil)
 	f1.Add(ApiGet(t, "/api/n/me/conclave", yourTok), 404, nil)
 	f1.Add(ApiPost(t, "/api/n/me/conclave/-/invites", myTok, JSON(t, map[string]interface{}{"handle": "me"})), 400, nil)
@@ -361,12 +366,14 @@ func Test_CollaboratorFlow(t *testing.T) {
 
 			f3.Do(t, server.Client())
 		})
+		f2.Add(ApiPost(t, "/api/namespaces", yourTok, JSON(t, yourNamespace)), 422, nil)
 
 		f2.Do(t, server.Client())
 	})
 	f1.Add(ApiDelete(t, "/api/n/me/conclave/-/collaborators/you", yourTok), 404, nil)
 	f1.Add(ApiDelete(t, "/api/n/me/conclave/-/collaborators/you", myTok), 204, nil)
 	f1.Add(ApiGet(t, "/api/n/me/conclave", yourTok), 404, nil)
+	f1.Add(ApiPost(t, "/api/namespaces", yourTok, JSON(t, yourNamespace)), 422, nil)
 	f1.Add(ApiPost(t, "/api/variables", yourTok, JSON(t, variable)), 422, nil)
 
 	f1.Do(t, server.Client())

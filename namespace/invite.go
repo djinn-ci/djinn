@@ -246,6 +246,14 @@ func (s *InviteStore) Accept(id int64) (*Namespace, *user.User, *user.User, erro
 		return n, inviter, invitee, errors.Err(err)
 	}
 
+	if n.RootID.Int64 != n.ID {
+		n, err = NewStore(s.DB).Get(query.Where("id", "=", n.RootID))
+
+		if err != nil {
+			return n, inviter, invitee, errors.Err(err)
+		}
+	}
+
 	collaborators := NewCollaboratorStore(s.DB, n)
 
 	c := collaborators.New()

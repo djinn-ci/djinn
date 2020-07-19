@@ -57,9 +57,7 @@ type Store struct {
 	database.Store
 
 	// User is the bound User model. If not nil this will bind the User model to
-	// any Namespace models that are created. If not nil this will be passed to
-	// the namespace.WhereCollaborator query option on each SELECT query
-	// performed.
+	// any Namespace models that are created.
 	User *user.User
 
 	// Namespace is the bound Namespace model. If not nil this will bind the
@@ -122,22 +120,19 @@ func SelectRootID(id int64) query.Query {
 // database either owns the Namespace, or is a collaborator for the Namespace. If
 // the given database.Model is not of *user.User, then the WHERE clauses are not
 // applied.
-func SharedWith(m database.Model) query.Option {
+func SharedWith(u *user.User) query.Option {
 	return func(q query.Query) query.Query {
-		if _, ok := m.(*user.User); !ok {
+		if u == nil {
 			return q
 		}
-		if m == nil || m.IsZero() {
-			return q
-		}
-		_, id := m.Primary()
+
 		return query.Options(
-			query.Where("user_id", "=", id),
+			query.Where("user_id", "=", u.ID),
 			query.OrWhereQuery("root_id", "IN",
 				query.Select(
 					query.Columns("namespace_id"),
 					query.From(collaboratorTable),
-					query.Where("user_id", "=", id),
+					query.Where("user_id", "=", u.ID),
 				),
 			),
 		)(q)
@@ -356,14 +351,56 @@ func (s *Store) Bind(mm ...database.Model) {
 	}
 }
 
+func (s *Store) getFromOwnerPath(path string) (*Namespace, error) {
+	namespaces := NewStore(s.DB)
+
+	if strings.Contains(path, "@") {
+		parts := strings.Split(path, "@")
+		path = parts[0]
+
+		u, err := user.NewStore(s.DB).Get(query.Where("username", "=", parts[1]))
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+		namespaces.Bind(u)
+	}
+
+	n, err := namespaces.Get(query.Where("path", "=", path))
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	if n.IsZero() {
+		return n, nil
+	}
+
+	cc, err := NewCollaboratorStore(s.DB, n).All()
+
+	if err != nil {
+		return n, errors.Err(err)
+	}
+
+	n.LoadCollaborators(cc)
+	return n, nil
+}
+
 // Create creates a new namespace under the given parent, with the given name,
 // description, and visibility. The parent and description variables can be
 // empty.
 func (s *Store) Create(parent, name, description string, visibility Visibility) (*Namespace, error) {
-	p, err := s.Get(query.Where("path", "=", parent))
+	p, err := s.Get(
+		database.Where(s.User, "user_id"),
+		query.Where("path", "=", parent),
+	)
 
 	if err != nil {
 		return nil, errors.Err(err)
+	}
+
+	if p.IsZero() && parent != "" {
+		return nil, database.ErrNotFound
 	}
 
 	n := s.New()
@@ -563,7 +600,6 @@ func (s *Store) Get(opts ...query.Option) (*Namespace, error) {
 	}
 
 	opts = append([]query.Option{
-		SharedWith(s.User),
 		database.Where(s.Namespace, "parent_id"),
 	}, opts...)
 
@@ -583,44 +619,13 @@ func (s *Store) Get(opts ...query.Option) (*Namespace, error) {
 // will be returned if it exists, if not then nothing will be returned and a
 // Namespace will not be created.
 func (s *Store) GetByPath(path string) (*Namespace, error) {
-	create := true
-	users := user.NewStore(s.DB)
-
-	if strings.Contains(path, "@") {
-		parts := strings.Split(path, "@")
-
-		username := parts[1]
-		path = parts[0]
-
-		u, err := users.Get(query.Where("username", "=", username))
-
-		if err != nil {
-			return &Namespace{}, errors.Err(err)
-		}
-
-		if !u.IsZero() {
-			s.User = u
-			create = false
-		}
-	}
-
-	n, err := s.Get(query.Where("path", "=", path))
+	n, err := s.getFromOwnerPath(path)
 
 	if err != nil {
-		return n, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
 	if !n.IsZero() {
-		cc, err := NewCollaboratorStore(s.DB, n).All()
-
-		if err != nil {
-			return n, errors.Err(err)
-		}
-		n.LoadCollaborators(cc)
-		return n, nil
-	}
-
-	if !create {
 		return n, nil
 	}
 

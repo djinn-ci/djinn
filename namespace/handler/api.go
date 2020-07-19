@@ -71,13 +71,18 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if cause == namespace.ErrDepth {
+		switch cause {
+		case namespace.ErrDepth:
 			web.JSONError(w, cause.Error(), http.StatusUnprocessableEntity)
 			return
+		case database.ErrNotFound:
+			web.JSONError(w, "Could not find parent" , http.StatusUnprocessableEntity)
+			return
+		default:
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
 		}
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
-		return
 	}
 	web.JSON(w, n.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
@@ -115,6 +120,32 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		// Namespace already bound to build models, so no need to reload.
+		loaders := h.Loaders.Copy()
+		loaders.Delete("namespace")
+
+		if err := build.LoadRelations(h.Loaders, bb...); err != nil {
+			h.Log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		mm := make([]database.Model, 0, len(bb))
+
+		for _, b := range bb {
+			if b.NamespaceID.Valid {
+				mm = append(mm, b.Namespace)
+			}
+		}
+
+		err = h.Users.Load("id", database.MapKey("user_id", mm), database.Bind("user_id", "id", mm...))
+
+		if err != nil {
+			h.Log.Error.Println(errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 

@@ -105,9 +105,16 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, false, errors.Err(err)
 		}
 
+		if owner.IsZero() {
+			return r, false, nil
+		}
+
 		path := strings.TrimSuffix(vars["namespace"], "/")
 
-		n, err := namespace.NewStore(db, owner).Get(query.Where("path", "=", path))
+		n, err := namespace.NewStore(db, owner).Get(
+			database.Where(owner, "user_id"),
+			query.Where("path", "=", path),
+		)
 
 		if err != nil {
 			return r, false, errors.Err(err)
@@ -115,6 +122,10 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		if n.IsZero() {
 			return r, false, errors.Err(err)
+		}
+
+		if n.UserID != owner.ID {
+			return r, false, nil
 		}
 
 		// Can the current user modify/delete the current namespace.

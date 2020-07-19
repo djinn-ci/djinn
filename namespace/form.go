@@ -3,6 +3,7 @@ package namespace
 import (
 	"strings"
 
+	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/user"
@@ -102,7 +103,10 @@ func (f Form) Validate() error {
 	}
 
 	if checkUnique {
-		n, err := f.Namespaces.Get(query.Where("path", "=", f.Name))
+		n, err := f.Namespaces.Get(
+			database.Where(f.Namespaces.User, "user_id"),
+			query.Where("path", "=", f.Name),
+		)
 
 		if err != nil {
 			return errors.Err(err)

@@ -84,7 +84,9 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	parent, err := namespace.NewStore(h.DB, u).Get(query.Where("path", "=", r.URL.Query().Get("parent")))
+	path := r.URL.Query().Get("parent")
+
+	parent, err := namespace.NewStore(h.DB, u).Get(query.Where("path", "=", path))
 
 	if err != nil {
 		h.Log.Error.Println(errors.Err(err))
@@ -93,6 +95,11 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if parent.Level+1 > namespace.MaxDepth {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if parent.UserID != u.ID && path != "" {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}
@@ -130,15 +137,21 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if cause == namespace.ErrDepth {
+		switch cause {
+		case namespace.ErrDepth:
 			sess.AddFlash(template.Danger(strings.Title(cause.Error())), "alert")
 			h.RedirectBack(w, r)
 			return
+		case database.ErrNotFound:
+			sess.AddFlash(template.Danger("Failed to create namespace: could not find parent"), "alert")
+			h.RedirectBack(w, r)
+			return
+		default:
+			h.Log.Error.Println(errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to create namespace"), "alert")
+			h.RedirectBack(w, r)
+			return
 		}
-		h.Log.Error.Println(errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create namespace"), "alert")
-		h.RedirectBack(w, r)
-		return
 	}
 	sess.AddFlash(template.Success("Namespace '"+n.Name+"' created"), "alert")
 	h.Redirect(w, r, n.Endpoint())
@@ -329,9 +342,9 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		//		// Namespace already bound to build models, so no need to reload.
-		//		loaders := h.Loaders.Copy()
-		//		loaders.Delete("namespace")
+		// Namespace already bound to build models, so no need to reload.
+		loaders := h.Loaders.Copy()
+		loaders.Delete("namespace")
 
 		if err := build.LoadRelations(h.Loaders, bb...); err != nil {
 			h.Log.Error.Println(errors.Err(err))

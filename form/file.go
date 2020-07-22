@@ -70,7 +70,7 @@ func (f *File) Validate() error {
 			if strings.Contains(err.Error(), "request body too large") {
 				errs.Put("file", ErrFieldInvalid("File", "too big"))
 			}
-			return errors.Err(err)
+			return errs
 		}
 
 		b := buf.Bytes()

@@ -3,6 +3,7 @@
 * [List namespaces for the authenticated user](#list-namespaces-for-the-authenticated-user)
 * [Create a namespace for the authenticated user](#create-a-namespace-for-the-authenticated-user)
 * [Update a namespace](#update-a-namespace)
+* [Delete a namespace](#delete-a-namespace)
 * [List a namespace's builds](#list-a-namespaces-builds)
 * [List a namespace's namespaces](#list-a-namespaces-namespaces)
 * [List a namespace's images](#list-a-namespaces-images)
@@ -258,6 +259,35 @@ child namespace independently.
             "created_at": "2006-01-02T15:04:05Z"
         }
     }
+
+## Delete a namespace
+
+This will delete the given namespace, and all of the given namespace's children.
+This requires the explicit `namespace:delete` permission. This will set the
+`namespace_id` on all of the resources and builds in the namespace to `NULL`
+upon deletion.
+
+### Request
+
+    DELETE /n/:user/:path
+
+**Parameters**
+
+    $ curl -X DELETE \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/n/me/djinn/lantern
+
+### Response
+
+    204 No Content
+
+| Name     | Type     | Required  | Description                       |
+|----------|----------|-----------|-----------------------------------|
+| `user`   | `string` | Y         | The user that owns the namespace. |
+| `path`   | `string` | Y         | The path of the namespace.        |
+
+**Examples**
 
 ## List a namespace's builds
 

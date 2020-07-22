@@ -54,7 +54,6 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, u), r.URL.Query())
 
 	if err != nil {
-		println(err.Error())
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

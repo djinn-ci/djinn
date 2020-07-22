@@ -2,6 +2,7 @@
 
 * [List namespaces for the authenticated user](#list-namespaces-for-the-authenticated-user)
 * [Create a namespace for the authenticated user](#create-a-namespace-for-the-authenticated-user)
+* [Get an individual namespace](#get-an-individual-namespace)
 * [Update a namespace](#update-a-namespace)
 * [Delete a namespace](#delete-a-namespace)
 * [List a namespace's builds](#list-a-namespaces-builds)
@@ -196,6 +197,63 @@ cannot be found.
 Nullable fields:
 
 * `parent_id`
+
+## Get an individual namespace
+
+This will get the given namespace. This requires the explicit `namespace:read`
+permission.
+
+### Request
+
+    GET /n/:user/:path
+
+**Parameters**
+
+| Name   | Type     | Required  | Description                       |
+|--------|----------|-----------|-----------------------------------|
+| `user` | `string` | Y         | The user that owns the namespace. |
+| `path` | `string` | Y         | The path of the namespace.        |
+
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/n/me/djinn
+
+### Response
+
+    200 OK
+    Content-Length: 755
+    Content-Type: application/json; charset=utf-8
+    {
+        "id": 3,
+        "user_id": 1,
+        "root_id": 3,
+        "parent_id": null,
+        "name": "djinn",
+        "path": "djinn",
+        "description": "",
+        "visibility": "private",
+        "created_at": "2006-01-02T15:04:05Z",
+        "url": "https://api.djinn-ci.com/n/me/djinn",
+        "builds_url": "https://api.djinn-ci.com/n/me/djinn/-/builds",
+        "namespaces_url": "https://api.djinn-ci.com/n/me/djinn/-/namespaces",
+        "images_url": "https://api.djinn-ci.com/n/me/djinn/-/images",
+        "objects_url": "https://api.djinn-ci.com/n/me/djinn/-/objects",
+        "variables_url": "https://api.djinn-ci.com/n/me/djinn/-/variables",
+        "keys_url": "https://api.djinn-ci.com/n/me/djinn/-/keys",
+        "collaborators_url": "https://api.djinn-ci.com/n/me/djinn/-/collaborators",
+        "user": {
+            "id": 1,
+            "email": "me@example.com",
+            "username": "me",
+            "created_at": "2006-01-02T15:04:05Z"
+        }
+    }
+
+If the namespace has a parent then the `parent` field with the namespace's
+parent.
 
 ## Update a namespace
 

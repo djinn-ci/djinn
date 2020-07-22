@@ -2,8 +2,8 @@
 
 * [List images for the authenticated user](#list-images-for-the-authenticated-user)
 * [Create an image for the authenticated user](#create-an-image-for-the-authenticated-user)
-* [Delete an image](#delete-an-image)
 * [Get an individual image](#get-an-individual-image)
+* [Delete an image](#delete-an-image)
 
 ## List images for the authenticated user
 
@@ -155,32 +155,6 @@ parameter.
     Content-Type: application/json; charset=utf-8
     {"name": ["Name already exists"]}
 
-## Delete an image
-
-This will delete the given image, this requires the explicit `image:delete`
-permission.
-
-### Request
-
-    DELETE /images/:image
-
-**Parameters**
-
-| Name    | Type  | Required | Description          |
-|---------|-------|----------|----------------------|
-| `image` | `int` | Y        | The id of the image. |
-
-**Examples**
-
-    $ curl -X DELETE \
-           -H "Content-Type: application/json" \
-           -H "Authorization: Bearer 1a2b3c4d5f" \
-           https://api.djinn-ci.com/images/3
-
-### Response
-
-    204 No Content
-
 ## Get an individual image
 
 This will get the given image, this requires the explicit `image:read`
@@ -231,3 +205,29 @@ permission.
 
 If the `Accept` header is set to `application/octet-stream` then the response
 body will be the contents of the image file.
+
+## Delete an image
+
+This will delete the given image, this requires the explicit `image:delete`
+permission.
+
+### Request
+
+    DELETE /images/:image
+
+**Parameters**
+
+| Name    | Type  | Required | Description          |
+|---------|-------|----------|----------------------|
+| `image` | `int` | Y        | The id of the image. |
+
+**Examples**
+
+    $ curl -X DELETE \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           https://api.djinn-ci.com/images/3
+
+### Response
+
+    204 No Content

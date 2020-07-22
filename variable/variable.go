@@ -57,6 +57,7 @@ var (
 
 	table     = "variables"
 	relations = map[string]database.RelationFunc{
+		"user":      database.Relation("user_id", "id"),
 		"namespace": database.Relation("namespace_id", "id"),
 	}
 )
@@ -190,6 +191,7 @@ func (s *Store) Create(key, val string) (*Variable, error) {
 	v := s.New()
 	v.Key = key
 	v.Value = val
+	v.CreatedAt = time.Now()
 
 	err := s.Store.Create(table, v)
 	return v, errors.Err(err)

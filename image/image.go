@@ -65,6 +65,7 @@ var (
 
 	table     = "images"
 	relations = map[string]database.RelationFunc{
+		"user":      database.Relation("user_id", "id"),
 		"namespace": database.Relation("namespace_id", "id"),
 	}
 )
@@ -229,6 +230,7 @@ func (s *Store) Create(hash, name string, t driver.Type, r io.Reader) (*Image, e
 	i.Driver = t
 	i.Hash = hash
 	i.Name = name
+	i.CreatedAt = time.Now()
 
 	err = s.Store.Create(table, i)
 	return i, errors.Err(err)

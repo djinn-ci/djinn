@@ -185,6 +185,15 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		loaders := h.Loaders.Copy()
+		loaders.Delete("namespace")
+
+		if err := image.LoadRelations(loaders, ii...); err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
 		data := make([]interface{}, 0, len(ii))
 
 		for _, i := range ii {
@@ -198,6 +207,15 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		oo, paginator, err := object.NewStore(h.DB, n).Index(q)
 
 		if err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		loaders := h.Loaders.Copy()
+		loaders.Delete("namespace")
+
+		if err := object.LoadRelations(loaders, oo...); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -221,6 +239,15 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		loaders := h.Loaders.Copy()
+		loaders.Delete("namespace")
+
+		if err := variable.LoadRelations(loaders, vv...); err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
 		data := make([]interface{}, 0, len(vv))
 
 		for _, v := range vv {
@@ -234,6 +261,15 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		kk, paginator, err := key.NewStore(h.DB, n).Index(q)
 
 		if err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		loaders := h.Loaders.Copy()
+		loaders.Delete("namespace")
+
+		if err := key.LoadRelations(loaders, kk...); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 			return

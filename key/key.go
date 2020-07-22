@@ -64,6 +64,7 @@ var (
 
 	table     = "keys"
 	relations = map[string]database.RelationFunc{
+		"user":      database.Relation("user_id", "id"),
 		"namespace": database.Relation("namespace_id", "id"),
 	}
 )
@@ -240,6 +241,7 @@ func (s *Store) Create(name, key, config string) (*Key, error) {
 	k.Name = strings.Replace(name, " ", "_", -1)
 	k.Key = b
 	k.Config = config
+	k.CreatedAt = time.Now()
 
 	err = s.Store.Create(table, k)
 	return k, errors.Err(err)
@@ -255,6 +257,7 @@ func (s *Store) Update(id, namespaceId int64, config string) error {
 			Valid: namespaceId > 0,
 		}),
 		query.Set("config", config),
+		query.Set("updated_at", time.Now()),
 		query.Where("id", "=", id),
 	)
 

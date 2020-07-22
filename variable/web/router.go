@@ -49,6 +49,7 @@ func Gate(db *sqlx.DB) web.Gate {
 
 func (r *Router) Init(h web.Handler) {
 	loaders := database.NewLoaders()
+	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
 
 	r.variable = handler.Variable{

@@ -72,6 +72,7 @@ var (
 
 	table     = "objects"
 	relations = map[string]database.RelationFunc{
+		"user":      database.Relation("user_id", "id"),
 		"namespace": database.Relation("namespace_id", "id"),
 	}
 )
@@ -258,6 +259,7 @@ func (s *Store) Create(name, hash, typ string, r io.Reader) (*Object, error) {
 	o.Size = size
 	o.MD5 = md5.Sum(nil)
 	o.SHA256 = sha256.Sum(nil)
+	o.CreatedAt = time.Now()
 
 	err = s.Store.Create(table, o)
 	return o, errors.Err(err)

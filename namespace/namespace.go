@@ -326,6 +326,9 @@ func (n *Namespace) Endpoint(uri ...string) string {
 // the following values, user_id, root_id, parent_id, name, path, description,
 // level, and visibility.
 func (n *Namespace) Values() map[string]interface{} {
+	if n == nil {
+		return map[string]interface{}{}
+	}
 	return map[string]interface{}{
 		"user_id":     n.UserID,
 		"root_id":     n.RootID,

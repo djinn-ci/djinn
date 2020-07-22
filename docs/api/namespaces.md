@@ -22,7 +22,7 @@ access to. This requires the explicit `namespace:read` permission.
 
     GET /namespaces
 
-**Parameters**
+**Query Parameters**
 
 | Name     | Type     | Required  | Description                                         |
 |----------|----------|-----------|-----------------------------------------------------|
@@ -127,7 +127,7 @@ the explicit `namespace:write` permission.
 
     POST /namespaces
 
-**Parameters**
+**Body**
 
 | Name          | Type     | Required  | Description                               |
 |---------------|----------|-----------|-------------------------------------------|
@@ -207,7 +207,7 @@ permission.
 
     GET /n/:user/:path
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required  | Description                       |
 |--------|----------|-----------|-----------------------------------|
@@ -264,7 +264,7 @@ This will update the given namespace. This requires the explicit
 
     PATCH /n/:user/:path
 
-**Parameters**
+**Body**
 
 | Name          | Type     | Required  | Description                               |
 |---------------|----------|-----------|-------------------------------------------|
@@ -329,7 +329,7 @@ upon deletion.
 
     DELETE /n/:user/:path
 
-**Parameters**
+**URI Parameters**
 
     $ curl -X DELETE \
            -H "Content-Type: application/json" \
@@ -356,12 +356,17 @@ the explicit `namespace:read` permission.
 
     GET /n/:user/:path/-/builds
 
-**Parameters**
+**URI Parameters**
 
-| Name     | Type     | Required  | Description                                   |
-|----------|----------|-----------|-----------------------------------------------|
-| `user`   | `string` | Y        | The user that owns the namespace.              |
-| `path`   | `string` | Y        | The path of the namespace.                     |
+| Name   | Type     | Required  | Description                       |
+|--------|----------|-----------|-----------------------------------|
+| `user` | `string` | Y         | The user that owns the namespace. |
+| `path` | `string` | Y         | The path of the namespace.        |
+
+**Query Parameters**
+
+| Name     | Type     | Required | Description                                    |
+|----------|----------|----------|------------------------------------------------|
 | `tag`    | `string` | N        | Get the builds with the given tag name.        |
 | `search` | `string` | N        | Get the builds with tags like the given value. |
 | `status` | `string` | N        | Get the builds with the given status.          |
@@ -456,12 +461,17 @@ requires the explicit `namespace:read` permission.
 
     GET /n/:user/:path/-/namespaces
 
-**Parameters**
+**URI Parameters**
+
+| Name   | Type     | Required  | Description                       |
+|--------|----------|-----------|-----------------------------------|
+| `user` | `string` | Y         | The user that owns the namespace. |
+| `path` | `string` | Y         | The path of the namespace.        |
+
+**Query Parameters**
 
 | Name     | Type     | Required  | Description                                     |
 |----------|----------|-----------|-------------------------------------------------|
-| `user`   | `string` | Y         | The user that owns the namespace.               |
-| `path`   | `string` | Y         | The path of the namespace.                      |
 | `search` | `string` | N         | Get the builds with tags like the given value.  |
 
 
@@ -522,12 +532,17 @@ This will list the images for the given namespace. This requires the explicit
 
     GET /n/:user/:path/-/images
 
-**Parameters**
+**URI Parameters**
+
+| Name   | Type     | Required  | Description                       |
+|--------|----------|-----------|-----------------------------------|
+| `user` | `string` | Y         | The user that owns the namespace. |
+| `path` | `string` | Y         | The path of the namespace.        |
+
+**Query Parameters**
 
 | Name     | Type     | Required  | Description                                     |
 |----------|----------|-----------|-------------------------------------------------|
-| `user`   | `string` | Y         | The user that owns the namespace.               |
-| `path`   | `string` | Y         | The path of the namespace.                      |
 | `search` | `string` | N         | Get the images with names like the given value. |
 
 **Examples**
@@ -599,12 +614,17 @@ This will list the objects for the given namespace. This requires the explicit
 
     GET /n/:user/:path/-/objects
 
-**Parameters**
+**URI Parameters**
+
+| Name   | Type     | Required  | Description                       |
+|--------|----------|-----------|-----------------------------------|
+| `user` | `string` | Y         | The user that owns the namespace. |
+| `path` | `string` | Y         | The path of the namespace.        |
+
+**Query Parameters**
 
 | Name     | Type     | Required  | Description                                      |
 |----------|----------|-----------|--------------------------------------------------|
-| `user`   | `string` | Y         | The user that owns the namespace.                |
-| `path`   | `string` | Y         | The path of the namespace.                       |
 | `search` | `string` | N         | Get the objects with names like the given value. |
 
 **Examples**
@@ -680,12 +700,17 @@ This will list the variables for the given namespace. This requires the explicit
 
     GET /n/:user/:path/-/variables
 
-**Parameters**
+**URI Parameters**
+
+| Name   | Type     | Required  | Description                       |
+|--------|----------|-----------|-----------------------------------|
+| `user` | `string` | Y         | The user that owns the namespace. |
+| `path` | `string` | Y         | The path of the namespace.        |
+
+**Query Parameters**
 
 | Name     | Type     | Required  | Description                                       |
 |----------|----------|-----------|---------------------------------------------------|
-| `user`   | `string` | Y         | The user that owns the namespace.                 |
-| `path`   | `string` | Y         | The path of the namespace.                        |
 | `search` | `string` | N         | Get the variables with keys like the given value. |
 
 **Examples**
@@ -758,12 +783,17 @@ This will list the keys for the given namespace. This requires the explicit
 
     GET /n/:user/:path/-/keys
 
-**Parameters**
+**URI Parameters**
+
+| Name   | Type     | Required  | Description                       |
+|--------|----------|-----------|-----------------------------------|
+| `user` | `string` | Y         | The user that owns the namespace. |
+| `path` | `string` | Y         | The path of the namespace.        |
+
+**Query Parameters**
 
 | Name     | Type     | Required  | Description                                   |
 |----------|----------|-----------|-----------------------------------------------|
-| `user`   | `string` | Y         | The user that owns the namespace.             |
-| `path`   | `string` | Y         | The path of the namespace.                    |
 | `search` | `string` | N         | Get the keys with names like the given value. |
 
 **Examples**
@@ -838,12 +868,12 @@ not own the given namespace, then a `404 Not Found` response will be sent.
 
     GET /n/:user/:path/-/collaborators
 
-**Parameters**
+**URI Parameters**
 
-| Name     | Type     | Required  | Description                       |
-|----------|----------|-----------|-----------------------------------|
-| `user`   | `string` | Y         | The user that owns the namespace. |
-| `path`   | `string` | Y         | The path of the namespace.        |
+| Name   | Type     | Required  | Description                       |
+|--------|----------|-----------|-----------------------------------|
+| `user` | `string` | Y         | The user that owns the namespace. |
+| `path` | `string` | Y         | The path of the namespace.        |
 
 **Examples**
 

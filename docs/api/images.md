@@ -14,7 +14,7 @@ access to. This requires the explicit `image:read` permission.
 
     GET /images
 
-**Parameters**
+**Query Parameters**
 
 | Name     | Type     | Required  | Description                                     |
 |----------|----------|-----------|-------------------------------------------------|
@@ -104,12 +104,14 @@ the explicit `image:write` permission.
 
     POST /images
 
-**Parameters**
+**Query Parameters**
 
 | Name        | Type     | Required  | Description                        |
 |-------------|----------|-----------|------------------------------------|
 | `name`      | `string` | Y         | The name of the image to create.   |
 | `namespace` | `string` | N         | The namespace to put the image in. |
+
+**Body**
 
 The body of this request should be the contents of the image file being created.
 
@@ -164,7 +166,7 @@ permission.
 
     GET /images/:image
 
-**Parameters**
+**URI Parameters**
 
 | Name    | Type  | Required | Description          |
 |---------|-------|----------|----------------------|
@@ -215,7 +217,7 @@ permission.
 
     DELETE /images/:image
 
-**Parameters**
+**URI Parameters**
 
 | Name    | Type  | Required | Description          |
 |---------|-------|----------|----------------------|

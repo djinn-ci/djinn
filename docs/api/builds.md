@@ -24,7 +24,7 @@ access to. This requires the explicit `build:read` permission for the user.
 
     GET /builds
 
-**Parameters**
+**Query Parameters**
 
 | Name     | Type     | Required | Description                                    |
 |----------|----------|----------|------------------------------------------------|
@@ -129,7 +129,7 @@ This requires the explicit `build:write` permission.
 
     POST /builds
 
-**Parameters**
+**Body**
 
 | Name       | Type       | Required | Description                               |
 |------------|------------|----------|-------------------------------------------|
@@ -234,7 +234,7 @@ requires the explicit `build:read` permission.
 
     GET /b/:user/:id
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required | Description                                |
 |--------|----------|----------|--------------------------------------------|
@@ -323,7 +323,7 @@ placed on the build. This requires the explicit `build:read` permission.
 
     GET /b/:user/:id/objects
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required | Description                                |
 |--------|----------|----------|--------------------------------------------|
@@ -373,7 +373,7 @@ This requires the explicit `build:read` permission.
 
     GET /b/:user/:id/variables
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required | Description                                |
 |--------|----------|----------|--------------------------------------------|
@@ -418,7 +418,7 @@ requires the explicit `build:read` permission.
 
     GET /b/:user/:id/jobs
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required | Description                                |
 |--------|----------|----------|--------------------------------------------|
@@ -479,7 +479,7 @@ explicit `build:read` permission.
 
     GET /b/:user/:id/jobs/:job_id
 
-**Parameters**
+**URI Parameters**
 
 | Name     | Type     | Required | Description                                |
 |----------|----------|----------|--------------------------------------------|
@@ -588,7 +588,7 @@ requires the explicit `build:read` permission.
 
     GET /b/:user/:id/artifacts
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required | Description                                |
 |--------|----------|----------|--------------------------------------------|
@@ -638,7 +638,7 @@ explicit `build:read` permission.
 
     GET /b/:user/:id/artifacts/:artifact_id
 
-**Parameters**
+**URI Parameters**
 
 | Name          | Type     | Required | Description                                |
 |---------------|----------|----------|--------------------------------------------|
@@ -740,7 +740,7 @@ This will list the tags set on the given build. This requires the explicit
 
     GET /b/:user/:id/tags
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required | Description                                |
 |--------|----------|----------|--------------------------------------------|
@@ -796,7 +796,7 @@ This will get the given tag from the given build. This requires the explicit
 
     GET /b/:user/:id/tags/:tag_id
 
-**Parameters**
+**URI Parameters**
 
 | Name     | Type     | Required | Description                                |
 |----------|----------|----------|--------------------------------------------|
@@ -894,12 +894,14 @@ This will add the given tags to the given build. This requires the explicit
 
     POST /b/:user/:id/tags
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required | Description                                |
 |--------|----------|----------|--------------------------------------------|
 | `user` | `string` | Y        | The name of the user the build belongs to. |
 | `id`   | `int`    | Y        | The id of the build to get.                |
+
+**Body**
 
 This request expects a JSON array of string values to be submitted to the
 endpoint as the request body, for example,
@@ -949,7 +951,7 @@ This will remove the given tag from a given build. This requires the explicit
 
     DELETE /b/:user/:id/tags/:tag_id
 
-**Parameters**
+**URI Parameters**
 
 | Name     | Type     | Required | Description                                |
 |----------|----------|----------|--------------------------------------------|
@@ -977,7 +979,7 @@ This will kill a build that is running. This requires the explicit
 
     DELETE /b/:user/:id
 
-**Parameters**
+**URI Parameters**
 
 | Name   | Type     | Required | Description                                |
 |--------|----------|----------|--------------------------------------------|

@@ -14,7 +14,7 @@ access to. This requires the explicit `object:read` permission.
 
     GET /objects
 
-**Parameters**
+**Query Parameters**
 
 | Name     | Type     | Required  | Description                                      |
 |----------|----------|-----------|--------------------------------------------------|
@@ -107,12 +107,14 @@ the explicit `object:write` permission.
 
     POST /objects
 
-**Parameters**
+**Query Parameters**
 
 | Name        | Type     | Required  | Description                         |
 |-------------|----------|-----------|-------------------------------------|
 | `name`      | `string` | Y         | The name of the object to create.   |
 | `namespace` | `string` | N         | The namespace to put the object in. |
+
+**Body**
 
 The body of this request should be the contents of the object file being
 created. The header `Content-Type` should be the MIME type of the file being
@@ -143,7 +145,7 @@ permission.
 
     GET /objects/:object
 
-**Parameters**
+**URI Parameters**
 
 | Name     | Type  | Required  | Description           |
 |----------|-------|-----------|-----------------------|
@@ -197,7 +199,7 @@ permission.
 
     DELETE /objects/:object
 
-**Parameters**
+**URI Parameters**
 
 | Name     | Type  | Required  | Description           |
 |----------|-------|-----------|-----------------------|

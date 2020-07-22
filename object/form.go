@@ -64,7 +64,13 @@ func (f *Form) Validate() error {
 	}
 
 	if err := f.File.Validate(); err != nil {
-		for k, v := range err.(form.Errors) {
+		ferrs, ok := err.(form.Errors)
+
+		if !ok {
+			return errors.Err(err)
+		}
+
+		for k, v := range ferrs {
 			for _, err := range v {
 				errs.Put(k, errors.New(err))
 			}

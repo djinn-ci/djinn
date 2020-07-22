@@ -3,7 +3,7 @@
 * [List images for the authenticated user](#list-images-for-the-authenticated-user)
 * [Create an image for the authenticated user](#create-an-image-for-the-authenticated-user)
 * [Delete an image](#delete-an-image)
-* [Get an individual image](#get-an-invidual-image)
+* [Get an individual image](#get-an-individual-image)
 
 ## List images for the authenticated user
 

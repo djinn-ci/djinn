@@ -133,7 +133,22 @@ uploaded.
     201 Created
     Content-Type: application/json; charset=utf-8
     {
-
+        "id": 1,
+        "user_id": 1,
+        "namespace_id": null,
+        "name": "file",
+        "type": "text/plain; charset=utf-8",
+        "size": 4097,
+        "md5":  "45ff663815a1a57ff3e24f51992238f8",
+        "sha256": "2cc0ce967ed630d79f9db9e694e620f19f79afeebd0e1d2928feff773e8a7129",
+        "created_at": "2006-01-02T15:04:05Z",
+        "url": "https://api.djinn-ci.com/objects/1",
+        "user": {
+            "id": 1,
+            "email": "me@example.com",
+            "username": "me",
+            "created_at": "2006-01-02T15:04:05Z"
+        }
     }
 
 ## Get an individual object

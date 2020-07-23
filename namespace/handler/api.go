@@ -317,13 +317,25 @@ func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h InviteAPI) Index(w http.ResponseWriter, r *http.Request) {
-	n, ok := namespace.FromContext(r.Context())
+	ctx := r.Context()
+
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, "failed to get namespace from request context")
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	ii, err := h.IndexWithRelations(namespace.NewInviteStore(h.DB, n))
+	invites := namespace.NewInviteStore(h.DB)
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		invites.Bind(u)
+	} else {
+		invites.Bind(n)
+	}
+
+	ii, err := h.IndexWithRelations(invites)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

@@ -87,19 +87,13 @@ func (h Invite) DeleteModel(r *http.Request) error {
 		return errors.New("no user in request context")
 	}
 
-	n, ok := namespace.FromContext(ctx)
-
-	if !ok {
-		return errors.New("no namespace in request context")
-	}
-
 	i, ok := namespace.InviteFromContext(ctx)
 
 	if !ok {
 		return errors.New("no invite in request context")
 	}
 
-	if i.IsZero() || (u.ID != i.InviteeID && u.ID != n.UserID) {
+	if i.IsZero() || (u.ID != i.InviteeID && u.ID != i.InviterID) {
 		return database.ErrNotFound
 	}
 	return errors.Err(h.Invites.Delete(i))

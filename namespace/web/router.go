@@ -85,7 +85,7 @@ func Gate(db *sqlx.DB) web.Gate {
 				_, ok = u.Permissions["invite:delete"]
 			}
 
-			i, err := namespace.NewInviteStore(db, u).Get(query.Where("id", "=", id))
+			i, err := namespace.NewInviteStore(db).Get(query.Where("id", "=", id))
 
 			if err != nil {
 				return r, ok, errors.Err(err)

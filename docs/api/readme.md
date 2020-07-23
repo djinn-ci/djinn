@@ -6,13 +6,13 @@
 
 ## Resources
 
-* [Builds](/builds.md)
-* [Namespaces](/namespaces.md)
-* [Objects](/objects.md)
-* [Keys](/keys.md)
-* [Variables](/variables.md)
-* [Images](/images.md)
-* [Invites](/invites.md)
+* [Builds](/docs/api/builds.md)
+* [Namespaces](/docs/api/namespaces.md)
+* [Objects](/docs/api/objects.md)
+* [Keys](/docs/api/keys.md)
+* [Variables](/docs/api/variables.md)
+* [Images](/docs/api/images.md)
+* [Invites](/docs/api/invites.md)
 
 ## Scopes
 

@@ -2,7 +2,6 @@
 
 * [Resources](#resources)
 * [Authentication](#authentication)
-  * [Scopes](#scopes)
 
 ## Resources
 
@@ -25,21 +24,8 @@ by the server itself, or generated as part of the OAuth authorization flow
 for an application.
 
 For more details on the OAuth authorization flow see
-[Authorizing OAuth Apps](/docs/api/oauth.md#authorizing-oauth-apps).
+[Authorizing an OAuth app](/docs/api/oauth.md#authorizing-oauth-apps).
 
-### Scopes
-
-The bearer token that is used for authenticating incoming requests to the API
-will have a set of scopes against them. These scopes will dictate what the user
-can do with a resource. Each resource has three permissions,
-
-* `read` - Get a resource
-* `write` - Create or modify a resource
-* `delete` - Delete a resource
-
-when a resource and permission are put together you get a single scope, for
-example `build:read,write`. This scope would grant the user the ability to
-create a build, and get a build.
-
-For more information about token scopes see
-[Token Scopes](/docs/api/oauth.md#token-scopes).
+The amount of access a user has to the API is dictate by the scopes of the
+bearer token. For more information about token scopes see
+[Token scopes](/docs/api/oauth.md#token-scopes).

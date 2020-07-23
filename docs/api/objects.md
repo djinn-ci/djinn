@@ -151,6 +151,15 @@ uploaded.
         }
     }
 
+If any of the required request paramrters are missing, or of an invalid value,
+then a `400 Bad Request` response is sent back, detailing the errors for each
+parameter.
+
+    400 Bad Request
+    Content-Length: 48
+    Content-Type: application/json; charset=utf-8
+    {"name": ["Name already exists"]}
+
 ## Get an individual object
 
 This will get the given object. This requires the explicit `object:read`
@@ -195,15 +204,6 @@ permission.
             "created_at": "2006-01-02T15:04:05Z"
         }
     }
-
-If any of the required request paramrters are missing, or of an invalid value,
-then a `400 Bad Request` response is sent back, detailing the errors for each
-parameter.
-
-    400 Bad Request
-    Content-Length: 48
-    Content-Type: application/json; charset=utf-8
-    {"name": ["Name already exists"]}
 
 ## Delete an object
 

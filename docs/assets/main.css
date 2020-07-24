@@ -1,0 +1,145 @@
+* {
+	margin: 0;
+	padding: 0;
+}
+a {
+	color: #146de0;
+	cursor: pointer;
+	text-decoration: none;
+}
+body {
+	font-size: 14px;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Sego UI Symbol";
+	color: #444;
+}
+.sidebar {
+	position: fixed;
+	top: 0;
+	left: 0;
+	height: 100%;
+	width: 225px;
+	background: #383e51;
+}
+.sidebar .sidebar-header {
+	color: #fff;
+	padding: 20px;
+	background: #272b39;
+}
+.sidebar .sidebar-header h2 {
+	display: inline-block;
+}
+.sidebar .sidebar-nav {
+	list-style: none;
+}
+.sidebar .sidebar-nav li {
+	display: block;
+}
+.sidebar .sidebar-nav li.sidebar-nav-header {
+	padding: 15px;
+	font-weight: bold;
+	color: #fff;
+}
+.sidebar .sidebar-nav li a {
+	display: block;
+	color: rgba(255, 255, 255, 0.5);
+	padding: 15px;
+}
+.sidebar .sidebar-nav a:hover, a.active {
+	text-decoration: none;
+	background: #272b39;
+	color: #fff;
+}
+.sidebar .sidebar-nav a.active {
+	text-decoration: none;
+	background: #272b39;
+	color: #fff;
+}
+.doc-content {
+	margin-left: 225px;
+}
+.doc-content .doc-wrap {
+	margin: 0 auto;
+	max-width: 1000px;
+	padding: 20px;
+}
+.markdown {
+	padding: 15px;
+	line-height: 1.5;
+	word-wrap: break-word;
+}
+.markdown a {
+	text-decoration: none;
+}
+.markdown a:hover {
+	text-decoration: underline;
+}
+.markdown p {
+	margin-bottom: 15px;
+}
+.markdown ul {
+	margin-bottom: 15px;
+	list-style: inside;
+	padding-left: 1em;
+}
+.markdown h1 {
+	margin-bottom: 15px;
+}
+.markdown h2 {
+	margin-bottom: 15px;
+}
+.markdown h2:target {
+	background: #c4def4;
+}
+.markdown h3 {
+	margin-bottom: 15px;
+}
+.markdown h3:target {
+	background: #c4def4;
+}
+.markdown h4 {
+	margin-bottom: 15px;
+}
+.markdown h5 {
+	margin-bottom: 15px;
+}
+.markdown h6 {
+	margin-bottom: 15px;
+}
+.markdown pre {
+	margin-bottom: 15px;
+	white-space: pre-wrap;
+	padding: 15px;
+	border-radius: 3px;
+	background: #eee;
+}
+.markdown pre > code {
+	line-height: inherit;
+}
+.markdown code {
+	padding: 3px;
+	border-radius: 3px;
+	background: #eee;
+}
+.markdown table {
+	margin-bottom: 15px;
+	display: block;
+	width: 100%;
+	overflow: auto;
+	border-spacing: 0;
+	border-collapse: collapse;
+}
+.markdown table td {
+	border: solid 1px #ccc;
+	padding: 10px;
+}
+.markdown table th {
+	border: solid 1px #ccc;
+	padding: 10px;
+}
+.markdown blockquote {
+	margin-bottom: 15px;
+	border-left: solid 3px #ccc;
+	padding-left: 10px;
+	padding-right: 10px;
+	color: #555;
+}

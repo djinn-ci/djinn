@@ -1,0 +1,42 @@
+<!DOCTYPE HTML>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<link rel="stylesheet" href="/assets/main.css"/>
+		{{if eq .Title "Readme"}}
+			<title>Djinn Docs</title>
+		{{else}}
+			<title>Djinn Docs - {{ .Title }}</title>
+		{{end}}
+	</head>
+	<body>
+		<div class="doc-content">
+			<div class="doc-wrap">
+				<div class="markdown">{{ .Document }}</div>
+			</div>
+		</div>
+		<div class="sidebar">
+			<div class="sidebar-header">
+				<h2>Djinn Docs</h2>
+			</div>
+			<ul class="sidebar-nav">
+				<li><a href="/" {{if eq .Path "/"}}class="active"{{end}}>Documentation Home</a></li>
+				<li class="sidebar-nav-header">API</li>
+				<li><a href="/api" {{if eq .Path "/api"}}class="active"{{end}}>Overview</a></li>
+				<li><a href="/api/builds" {{if eq .Path "/api/builds"}}class="active"{{end}}>Builds</a></li>
+				<li><a href="/api/images" {{if eq .Path "/api/images"}}class="active"{{end}}>Images</a></li>
+				<li><a href="/api/invites" {{if eq .Path "/api/invites"}}class="active"{{end}}>Invites</a></li>
+				<li><a href="/api/keys" {{if eq .Path "/api/keys"}}class="active"{{end}}>Keys</a></li>
+				<li><a href="/api/namespaces" {{if eq .Path "/api/namespaces"}}class="active"{{end}}>Namespaces</a></li>
+				<li><a href="/api/oauth" {{if eq .Path "/api/oauth"}}class="active"{{end}}>OAuth</a></li>
+				<li><a href="/api/objects" {{if eq .Path "/api/objects"}}class="active"{{end}}>Objects</a></li>
+				<li><a href="/api/variables" {{if eq .Path "/api/variables"}}class="active"{{end}}>Variables</a></li>
+				<li class="sidebar-nav-header">USER</li>
+				<li><a href="/user/concepts" {{if eq .Path "/user/concepts"}}class="active"{{end}}>Concepts</a></li>
+				<li class="sidebar-nav-header">ADMIN</li>
+				<li><a href="/admin/build" {{if eq .Path "/admin/build"}}class="active"{{end}}>Building</a></li>
+				<li><a href="/admin/deploy" {{if eq .Path "/admin/deploy"}}class="active"{{end}}>Deploying</a></li>
+			</ul>
+		</div>
+	</body>
+</html>

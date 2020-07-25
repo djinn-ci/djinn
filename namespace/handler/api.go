@@ -383,6 +383,11 @@ func (h InviteAPI) Update(w http.ResponseWriter, r *http.Request) {
 	n, inviter, invitee, err := h.Accept(r)
 
 	if err != nil {
+		if errors.Cause(err) == database.ErrNotFound {
+			web.JSONError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return

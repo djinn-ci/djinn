@@ -68,10 +68,22 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 }
 
 func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user.User, error) {
+	ctx := r.Context()
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		return nil, nil, nil, errors.New("no user in request context")
+	}
+
 	i, ok := namespace.InviteFromContext(r.Context())
 
 	if !ok {
 		return nil, nil, nil, errors.New("no invite in request context")
+	}
+
+	if i.InviteeID != u.ID {
+		return nil, nil, nil, database.ErrNotFound
 	}
 
 	n, inviter, invitee, err := namespace.NewInviteStore(h.DB).Accept(i.ID)

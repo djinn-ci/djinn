@@ -426,7 +426,6 @@ func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		}
-
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update namespace"), "alert")
 		h.RedirectBack(w, r)
@@ -555,6 +554,10 @@ func (h InviteUI) Update(w http.ResponseWriter, r *http.Request) {
 	alert := template.Success("Your are now a collaborator in: " + n.Name)
 
 	if err != nil {
+		if errors.Cause(err) == database.ErrNotFound {
+			web.HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		alert = template.Danger("Failed to accept invite")
 	}

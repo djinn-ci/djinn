@@ -19,6 +19,7 @@ body {
 	height: 100%;
 	width: 225px;
 	background: #383e51;
+	overflow: auto;
 }
 .sidebar .sidebar-header {
 	color: #fff;

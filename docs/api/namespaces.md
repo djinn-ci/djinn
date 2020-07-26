@@ -145,7 +145,7 @@ the explicit `namespace:write` permission.
            -d '{"name": "djinn", "visibility": "private"}'\
            https://api.djinn-ci.com/namespaces
 
-The `visibility` parameter must be on of `public`, `internal`, or `private`.
+The `visibility` parameter must be one of `public`, `internal`, or `private`.
 
 ### Response
 
@@ -282,7 +282,7 @@ This will update the given namespace. This requires the explicit
            -d '{"visibility": "internal"}'\
            https://api.djinn-ci.com/n/me/djinn
 
-The `visibility` parameter must be on of `public`, `internal`, or `private`.
+The `visibility` parameter must be one of `public`, `internal`, or `private`.
 
 >**Note:** changing the visibility of a namespace will only take affect on a
 root namespace and all of its children. You cannot change the visibility of a

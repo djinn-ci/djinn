@@ -21,6 +21,18 @@
 			</div>
 			<ul class="sidebar-nav">
 				<li><a href="/" {{if eq .Path "/"}}class="active"{{end}}>Documentation Home</a></li>
+				<li class="sidebar-nav-header">USER</li>
+				<li><a href="/user" {{if eq .Path "/user"}}class="active"{{end}}>Overview</a></li>
+				<li><a href="/user/introduction" {{if eq .Path "/user/introduction"}}class="active"{{end}}>Introduction</a></li>
+				<li><a href="/user/the-basics" {{if eq .Path "/user/the-basics"}}class="active"{{end}}>The Basics</a></li>
+				<li><a href="/user/builds" {{if eq .Path "/user/builds"}}class="active"{{end}}>Builds</a></li>
+				<li><a href="/user/namespaces" {{if eq .Path "/user/namespaces"}}class="active"{{end}}>Namespaces</a></li>
+				<li><a href="/user/drivers" {{if eq .Path "/user/drivers"}}class="active"{{end}}>Drivers</a></li>
+				<li><a href="/user/manifest" {{if eq .Path "/user/manifest"}}class="active"{{end}}>Manifest</a></li>
+				<li><a href="/user/images" {{if eq .Path "/user/images"}}class="active"{{end}}>Images</a></li>
+				<li><a href="/user/objects" {{if eq .Path "/user/objects"}}class="active"{{end}}>Objects</a></li>
+				<li><a href="/user/keys" {{if eq .Path "/user/keys"}}class="active"{{end}}>Keys</a></li>
+				<li><a href="/user/variables" {{if eq .Path "/user/variables"}}class="active"{{end}}>Variables</a></li>
 				<li class="sidebar-nav-header">API</li>
 				<li><a href="/api" {{if eq .Path "/api"}}class="active"{{end}}>Overview</a></li>
 				<li><a href="/api/builds" {{if eq .Path "/api/builds"}}class="active"{{end}}>Builds</a></li>
@@ -31,8 +43,6 @@
 				<li><a href="/api/oauth" {{if eq .Path "/api/oauth"}}class="active"{{end}}>OAuth</a></li>
 				<li><a href="/api/objects" {{if eq .Path "/api/objects"}}class="active"{{end}}>Objects</a></li>
 				<li><a href="/api/variables" {{if eq .Path "/api/variables"}}class="active"{{end}}>Variables</a></li>
-				<li class="sidebar-nav-header">USER</li>
-				<li><a href="/user/concepts" {{if eq .Path "/user/concepts"}}class="active"{{end}}>Concepts</a></li>
 				<li class="sidebar-nav-header">ADMIN</li>
 				<li><a href="/admin/build" {{if eq .Path "/admin/build"}}class="active"{{end}}>Building</a></li>
 				<li><a href="/admin/deploy" {{if eq .Path "/admin/deploy"}}class="active"{{end}}>Deploying</a></li>

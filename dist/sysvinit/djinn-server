@@ -1,0 +1,66 @@
+#!/bin/sh
+
+DESC="Djinn CI Server"
+
+NAME="djinn-server"
+USER="djinn-server"
+GROUP="djinn"
+
+BIN="/usr/bin/djinn-server"
+
+PIDFILE="/var/run/$NAME.pid"
+OPTS="-c /etc/djinn/server.toml"
+
+start() {
+	start-stop-daemon --start \
+		--quiet \
+		--make-pidfile \
+		--pidfile "$PIDFILE" \
+		--background \
+		--user "$USER" \
+		--group "$GROUP" \
+		--exec "$BIN" -- $OPTS
+}
+
+stop() {
+	start-stop-daemon --stop \
+		--quiet \
+		--pidfile "$PIDFILE" \
+		--name "$NAME"
+
+	rm -f "$PIDFILE"
+}
+
+status() {
+	if [ -f "$PIDFILE" ]; then
+		if kill -0 $(cat "$PIDFILE"); then
+			printf "%s is running\n" "$NAME"
+		else
+			printf "%s is dead, put pidfile %s exists\n" "$NAME" "$PIDFILE"
+		fi
+	else
+		printf "%s is not running\n" "$NAME"
+	fi
+}
+
+case "$1" in
+	start)
+		printf "Starting %s\n" "$NAME"
+		start
+		;;
+	stop)
+		printf "Stopping %s\n" "$NAME"
+		stop
+		;;
+	restart)
+		printf "Restarting %s\n" "$NAME"
+		stop
+		start
+		;;
+	status)
+		status
+		;;
+	*)
+		printf "Usage: %s {start|stop|restart|status}\n" "$0"
+		exit 2
+esac

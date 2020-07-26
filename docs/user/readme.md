@@ -1,4 +1,4 @@
-# User documentation
+# User documentation overview
 
 Learn what Djinn is and how you can use it to execute builds as part of your
 development flow. These documents will cover what Djinn is, how builds are

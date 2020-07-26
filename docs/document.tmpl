@@ -44,8 +44,11 @@
 				<li><a href="/api/objects" {{if eq .Path "/api/objects"}}class="active"{{end}}>Objects</a></li>
 				<li><a href="/api/variables" {{if eq .Path "/api/variables"}}class="active"{{end}}>Variables</a></li>
 				<li class="sidebar-nav-header">ADMIN</li>
-				<li><a href="/admin/build" {{if eq .Path "/admin/build"}}class="active"{{end}}>Building</a></li>
-				<li><a href="/admin/deploy" {{if eq .Path "/admin/deploy"}}class="active"{{end}}>Deploying</a></li>
+				<li><a href="/admin" {{if eq .Path "/admin"}}class="active"{{end}}>Overview</a></li>
+				<li><a href="/admin/building" {{if eq .Path "/admin/building"}}class="active"{{end}}>Building</a></li>
+				<li><a href="/admin/server" {{if eq .Path "/admin/server"}}class="active"{{end}}>Server</a></li>
+				<li><a href="/admin/worker" {{if eq .Path "/admin/worker"}}class="active"{{end}}>Worker</a></li>
+				<li><a href="/admin/deployments" {{if eq .Path "/admin/deployments"}}class="active"{{end}}>Deployments</a></li>
 			</ul>
 		</div>
 	</body>

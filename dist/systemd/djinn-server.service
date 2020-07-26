@@ -1,0 +1,16 @@
+
+
+[Unit]
+Description=Djinn CI Server
+After=network-online.target
+
+[Service]
+Type=simple
+User=djinn-server
+Group=djinn
+ExecStart=/usr/bin/djinn-server -c /etc/djinn/server.toml
+KillMode=mixed
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

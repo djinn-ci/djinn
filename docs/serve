@@ -2,8 +2,10 @@
 
 set -e
 
-if ! hash mdsrv; then
+if ! hash mdsrv &> /dev/null; then
 	>&2 printf "could not find mdsrv\n"
+	>&2 printf "download and install to serve markdown documents locally\n"
+	>&2 printf "https://github.com/andrewpillar/mdsrv\n"
 	exit 1
 fi
 

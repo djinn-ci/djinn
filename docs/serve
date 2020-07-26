@@ -1,0 +1,12 @@
+#!/bin/sh
+
+set -e
+
+if ! hash mdsrv; then
+	>&2 printf "could not find mdsrv\n"
+	exit 1
+fi
+
+dir="$(dirname $(realpath "$0"))"
+
+mdsrv -dir "$dir" -assets "$dir"/assets -tmpl "$dir"/document.tmpl

@@ -217,7 +217,7 @@ func (s *Store) Update(id int64, email string, password []byte) error {
 		query.Table(table),
 		query.Set("email", email),
 		query.Set("password", hash),
-		query.Set("updated_at", time.Now()),
+		query.SetRaw("updated_at", "NOW()"),
 		query.Where("id", "=", id),
 	)
 

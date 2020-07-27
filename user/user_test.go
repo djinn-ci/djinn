@@ -185,7 +185,7 @@ func Test_StoreUpdate(t *testing.T) {
 	defer close_()
 
 	mock.ExpectExec(
-		"^UPDATE users SET email = \\$1, password = \\$2, updated_at = \\$3 WHERE \\(id = \\$4\\)$",
+		"^UPDATE users SET email = \\$1, password = \\$2, updated_at = NOW\\(\\) WHERE \\(id = \\$3\\)$",
 	).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	if err := store.Update(13, "me@elpmaxe.com", []byte("secret")); err != nil {

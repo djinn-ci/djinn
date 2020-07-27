@@ -154,10 +154,10 @@ func Test_StoreGet(t *testing.T) {
 			[]database.Model{},
 		},
 		{
-			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2)))",
+			"SELECT * FROM namespaces",
 			[]query.Option{},
 			sqlmock.NewRows(namespaceCols),
-			[]driver.Value{1, 1},
+			[]driver.Value{},
 			[]database.Model{&user.User{ID: 1}},
 		},
 		{
@@ -175,10 +175,10 @@ func Test_StoreGet(t *testing.T) {
 			[]database.Model{},
 		},
 		{
-			"SELECT * FROM namespaces WHERE (user_id = $1 OR root_id IN (SELECT namespace_id FROM namespace_collaborators WHERE (user_id = $2))) AND (LOWER(path) LIKE $3)",
+			"SELECT * FROM namespaces WHERE (LOWER(path) LIKE $1)",
 			[]query.Option{database.Search("path", "blackmesa")},
 			sqlmock.NewRows(namespaceCols),
-			[]driver.Value{1, 1, "%blackmesa%"},
+			[]driver.Value{"%blackmesa%"},
 			[]database.Model{&user.User{ID: 1}},
 		},
 		{
@@ -306,10 +306,10 @@ func Test_StoreUpdate(t *testing.T) {
 	).WithArgs(Public, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	mock.ExpectExec(
-		"^UPDATE namespaces SET name = \\$1, description = \\$2, visibility = \\$3 WHERE \\(id = \\$4\\)$",
-	).WithArgs("project", "", Public, 1).WillReturnResult(sqlmock.NewResult(0, 1))
+		"^UPDATE namespaces SET description = \\$1, visibility = \\$2 WHERE \\(id = \\$3\\)$",
+	).WithArgs("", Public, 1).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	if err := store.Update(1, "project", "", Public); err != nil {
+	if err := store.Update(1, "", Public); err != nil {
 		t.Fatal(errors.Cause(err))
 	}
 }

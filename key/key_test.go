@@ -153,7 +153,7 @@ func Test_StoreUpdate(t *testing.T) {
 	defer close_()
 
 	mock.ExpectExec(
-		"^UPDATE keys SET namespace_id = \\$1, config = \\$2 WHERE \\(id = \\$3\\)$",
+		"^UPDATE keys SET namespace_id = \\$1, config = \\$2, updated_at = NOW\\(\\) WHERE \\(id = \\$3\\)$",
 	).WithArgs(1, "", 10).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	if err := store.Update(10, 1, ""); err != nil {

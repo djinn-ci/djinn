@@ -257,7 +257,7 @@ func (s *Store) Update(id, namespaceId int64, config string) error {
 			Valid: namespaceId > 0,
 		}),
 		query.Set("config", config),
-		query.Set("updated_at", time.Now()),
+		query.SetRaw("updated_at", "NOW()"),
 		query.Where("id", "=", id),
 	)
 

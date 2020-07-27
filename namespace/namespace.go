@@ -354,12 +354,12 @@ func (s *Store) Bind(mm ...database.Model) {
 	}
 }
 
-func (s *Store) getFromOwnerPath(path string) (*Namespace, error) {
+func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
 	namespaces := NewStore(s.DB)
 
-	if strings.Contains(path, "@") {
-		parts := strings.Split(path, "@")
-		path = parts[0]
+	if strings.Contains((*path), "@") {
+		parts := strings.Split((*path), "@")
+		(*path) = parts[0]
 
 		u, err := user.NewStore(s.DB).Get(query.Where("username", "=", parts[1]))
 
@@ -622,7 +622,7 @@ func (s *Store) Get(opts ...query.Option) (*Namespace, error) {
 // will be returned if it exists, if not then nothing will be returned and a
 // Namespace will not be created.
 func (s *Store) GetByPath(path string) (*Namespace, error) {
-	n, err := s.getFromOwnerPath(path)
+	n, err := s.getFromOwnerPath(&path)
 
 	if err != nil {
 		return nil, errors.Err(err)

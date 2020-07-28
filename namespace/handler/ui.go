@@ -88,7 +88,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	parent, err := namespace.NewStore(h.DB, u).Get(query.Where("path", "=", path))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -146,7 +146,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		default:
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to create namespace"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -176,13 +176,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	err := h.Users.Load("id", []interface{}{n.UserID}, database.Bind("user_id", "id", n))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
 
 	if err := h.loadParent(n); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -206,7 +206,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, n), q)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -222,7 +222,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		ii, paginator, err := image.NewStore(h.DB, n).Index(q)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -238,7 +238,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		oo, paginator, err := object.NewStore(h.DB, n).Index(q)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -254,7 +254,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		vv, paginator, err := variable.NewStore(h.DB, n).Index(q)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -270,7 +270,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		kk, paginator, err := key.NewStore(h.DB, n).Index(q)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -286,13 +286,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		ii, err := namespace.NewInviteStore(h.DB, n).All()
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 
 		if err := namespace.LoadInviteRelations(h.Loaders, ii...); err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -307,7 +307,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		cc, err := namespace.NewCollaboratorStore(h.DB, n).All()
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -321,7 +321,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		err = h.Users.Load("id", database.MapKey("user_id", mm), database.Bind("user_id", "id", mm...))
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -336,7 +336,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		bb, paginator, err := build.NewStore(h.DB, n).Index(q)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -346,7 +346,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		loaders.Delete("namespace")
 
 		if err := build.LoadRelations(h.Loaders, bb...); err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -362,7 +362,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		err = h.Users.Load("id", database.MapKey("user_id", mm), database.Bind("user_id", "id", mm...))
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -393,7 +393,7 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.loadParent(n); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}

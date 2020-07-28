@@ -35,7 +35,7 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 	ii, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -101,7 +101,7 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		default:
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to create image"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -133,7 +133,7 @@ func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -147,7 +147,7 @@ func (h Image) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.DeleteModel(r); err != nil {
 		if !os.IsNotExist(errors.Cause(err)) {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		}
 		sess.AddFlash(template.Danger("Failed to delete image"), "alert")
 		h.RedirectBack(w, r)

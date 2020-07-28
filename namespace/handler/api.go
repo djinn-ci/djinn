@@ -128,7 +128,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		loaders.Delete("namespace")
 
 		if err := build.LoadRelations(h.Loaders, bb...); err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -144,7 +144,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		err = h.Users.Load("id", database.MapKey("user_id", mm), database.Bind("user_id", "id", mm...))
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}

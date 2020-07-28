@@ -205,7 +205,7 @@ func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bo
 			}
 			http.SetCookie(w, c)
 		} else {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		}
 		return u, false
 	}
@@ -311,7 +311,7 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				r, ok, err = g(u, r)
 
 				if err != nil {
-					h.Log.Error.Println(errors.Err(err))
+					h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 					errh(w, "Something went wrong", http.StatusInternalServerError)
 					return
 				}

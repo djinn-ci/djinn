@@ -65,7 +65,7 @@ func (h App) Index(w http.ResponseWriter, r *http.Request) {
 	aa, err := oauth2.NewAppStore(h.DB, u).All()
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}

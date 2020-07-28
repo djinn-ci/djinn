@@ -36,7 +36,7 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 	tt, err := oauth2.NewTokenStore(h.DB, u).All(query.OrderDesc("created_at"))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -147,7 +147,7 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 	t, err := tokens.Create(f.Name, sc)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create token"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -203,7 +203,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 
 	if web.BasePath(r.URL.Path) == "regenerate" {
 		if err := h.Tokens.Reset(t.ID); err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to update token"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -240,7 +240,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 	sc, _ := oauth2.UnmarshalScope(strings.Join(f.Scope, " "))
 
 	if err := h.Tokens.Update(t.ID, f.Name, sc); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update token"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -268,7 +268,7 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 		tt, err := tokens.All()
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to revoke tokens"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -281,7 +281,7 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := tokens.Delete(ids...); err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to revoke tokens"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -297,7 +297,7 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Tokens.Delete(t.ID); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to revoke token"), "alert")
 		h.RedirectBack(w, r)
 		return

@@ -522,7 +522,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 			web.Text(w, invalidNamespaceName, http.StatusBadRequest)
 			return
 		}
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.Text(w, "Failed to create build: "+cause.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -720,7 +720,7 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 			web.Text(w, invalidNamespaceName, http.StatusBadRequest)
 			return
 		}
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.Text(w, "Failed to create build: "+cause.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -126,7 +126,7 @@ func (s *Store) Save(r *http.Request, w http.ResponseWriter, sess *sessions.Sess
 	b, err := serialize(sess)
 
 	if err != nil {
-		return err
+		return errors.Err(err)
 	}
 
 	if s.MaxLength != 0 && len(b) > s.MaxLength {

@@ -30,7 +30,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	vv, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -96,7 +96,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		default:
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to create variable"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -111,7 +111,7 @@ func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := h.DeleteModel(r); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to delete variable"), "alert")
 		h.RedirectBack(w, r)
 		return

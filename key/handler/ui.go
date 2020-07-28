@@ -33,7 +33,7 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 	kk, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusNotFound)
 		return
 	}
@@ -99,7 +99,7 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		default:
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to create key"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -116,7 +116,7 @@ func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 	k, err := h.ShowWithRelations(r)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -153,7 +153,7 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		}
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		h.RedirectBack(w, r)
 		return
 	}
@@ -166,7 +166,7 @@ func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := h.DeleteModel(r); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to delete key"), "alert")
 		h.RedirectBack(w, r)
 		return

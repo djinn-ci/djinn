@@ -71,7 +71,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 	a, err := h.Apps.Get(query.Where("client_id", "=", b))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -82,7 +82,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		t, err := oauth2.NewTokenStore(h.DB, u, a).Get()
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -104,7 +104,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 			c, err := oauth2.NewCodeStore(h.DB, u).Create(scope)
 
 			if err != nil {
-				h.Log.Error.Println(errors.Err(err))
+				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 				return
 			}
@@ -191,7 +191,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 	a, err := h.Apps.Get(query.Where("client_id", "=", clientId))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -201,7 +201,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			if errors.Cause(err) != user.ErrAuth {
-				h.Log.Error.Println(errors.Err(err))
+				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 				return
 			}
@@ -232,7 +232,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 	c, err := oauth2.NewCodeStore(h.DB, u, a).Create(scope)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -264,7 +264,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 			web.JSONError(w, "invalid client id and secret", http.StatusBadRequest)
 			return
 		}
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
@@ -280,7 +280,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	c, err := codes.Get(query.Where("code", "=", code))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
@@ -298,7 +298,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	u, err := h.Users.Get(query.Where("id", "=", c.UserID))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
@@ -308,7 +308,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	t, err := tokens.Get()
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
@@ -330,7 +330,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := codes.Delete(c.ID); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -368,7 +368,7 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 	t, err := h.Tokens.Get(query.Where("token", "=", b))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -378,7 +378,7 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Tokens.Delete(t.ID); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -417,7 +417,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	access, refresh, providerUser, err := prv.Auth(r.Context(), q.Get("code"))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 		h.Redirect(w, r, "/settings")
 		return
@@ -437,7 +437,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 		)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -447,7 +447,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 			password := make([]byte, 16)
 
 			if _, err := rand.Read(password); err != nil {
-				h.Log.Error.Println(errors.Err(err))
+				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 				h.Redirect(w, r, "/settings")
 				return
@@ -462,7 +462,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 			u, err = h.Users.Create(providerUser.Email, username, password)
 
 			if err != nil {
-				h.Log.Error.Println(errors.Err(err))
+				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 				h.Redirect(w, r, "/settings")
 				return
@@ -472,7 +472,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 		encoded, err := h.SecureCookie.Encode("user", strconv.FormatInt(u.ID, 10))
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 			h.Redirect(w, r, "/settings")
 			return
@@ -493,7 +493,7 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 	p, err := providers.Get(query.Where("name", "=", name))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 		h.Redirect(w, r, "/settings")
 		return
@@ -503,14 +503,14 @@ func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
 		p, err = providers.Create(providerUser.ID, name, access, refresh, true)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 			h.Redirect(w, r, "/settings")
 			return
 		}
 	} else {
 		if err := providers.Update(p.ID, providerUser.ID, name, access, refresh, true); err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
 			h.Redirect(w, r, "/settings")
 			return
@@ -542,7 +542,7 @@ func (h Oauth2) RevokeClient(w http.ResponseWriter, r *http.Request) {
 	p, err := providers.Get(query.Where("name", "=", name))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -554,7 +554,7 @@ func (h Oauth2) RevokeClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := providers.Update(p.ID, 0, p.Name, nil, nil, false); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
 		h.RedirectBack(w, r)
 		return

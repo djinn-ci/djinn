@@ -51,7 +51,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	bb, paginator, err := h.IndexWithRelations(r)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -124,7 +124,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		default:
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to create build"), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -132,7 +132,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(h.Queues[b.Manifest.Driver["type"]], b); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create build"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -190,7 +190,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		oo, err := h.objectsWithRelations(b)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -205,7 +205,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		aa, err := build.NewArtifactStore(h.DB, b).All(database.Search("name", search))
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -220,7 +220,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		vv, err := h.variablesWithRelations(b)
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -233,7 +233,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		kk, err := build.NewKeyStore(h.DB, b).All()
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -246,7 +246,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		tt, err := build.NewTagStore(h.DB, b).All()
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -256,7 +256,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		err = h.Users.Load("id", database.MapKey("user_id", mm), database.Bind("user_id", "id", mm...))
 
 		if err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -278,7 +278,7 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 	b, ok := build.FromContext(r.Context())
 
 	if !ok {
-		h.Log.Error.Println("Failed to get build from request context")
+		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
 	}
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["artifact"], 10, 64)
@@ -286,7 +286,7 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", id))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -304,7 +304,7 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -317,7 +317,7 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := h.Kill(r); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to kill build"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -330,7 +330,7 @@ func (h TagUI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if _, err := h.StoreModel(r); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to tag build"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -342,7 +342,7 @@ func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := h.DeleteModel(r); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to tag build"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -357,7 +357,7 @@ func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 	j, err := h.ShowWithRelations(r)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}

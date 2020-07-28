@@ -96,7 +96,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(h.Queues[b.Manifest.Driver["type"]], b); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -179,7 +179,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.Kill(r); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -196,7 +196,7 @@ func (h JobAPI) Index(w http.ResponseWriter, r *http.Request) {
 	jj, err := h.IndexWithRelations(build.NewJobStore(h.DB, b), nil)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -217,7 +217,7 @@ func (h JobAPI) Show(w http.ResponseWriter, r *http.Request) {
 	j, err := h.ShowWithRelations(r)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -239,7 +239,7 @@ func (h ArtifactAPI) Index(w http.ResponseWriter, r *http.Request) {
 	aa, err := build.NewArtifactStore(h.DB, b).All(database.Search("name", r.URL.Query().Get("search")))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -264,7 +264,7 @@ func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := build.LoadRelations(h.Loaders, b); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -274,7 +274,7 @@ func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
 	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", id))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -296,7 +296,7 @@ func (h TagAPI) Index(w http.ResponseWriter, r *http.Request) {
 	tt, err := build.NewTagStore(h.DB, b).All()
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -306,7 +306,7 @@ func (h TagAPI) Index(w http.ResponseWriter, r *http.Request) {
 	err = h.Users.Load("id", database.MapKey("user_id", mm), database.Bind("user_id", "id", mm...))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -352,7 +352,7 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := build.LoadRelations(h.Loaders, b); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -362,7 +362,7 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 	t, err := build.NewTagStore(h.DB, b).Get(query.Where("id", "=", id))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -375,7 +375,7 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 	err = h.Users.Load("id", []interface{}{t.UserID}, database.Bind("user_id", "id", t))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -384,7 +384,7 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 
 func (h TagAPI) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}

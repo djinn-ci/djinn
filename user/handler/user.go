@@ -63,7 +63,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	u, err := h.Users.Create(f.Email, f.Username, []byte(f.Password))
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -72,7 +72,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 
 	for name := range h.Providers {
 		if _, err := providers.Create(0, name, nil, nil, false); err != nil {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
@@ -137,7 +137,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		cause := errors.Cause(err)
 
 		if cause != user.ErrAuth {
-			h.Log.Error.Println(errors.Err(err))
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to login:"+cause.Error()), "alert")
 			h.RedirectBack(w, r)
 			return
@@ -158,7 +158,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 	encoded, err := h.SecureCookie.Encode("user", id)
 
 	if err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
@@ -278,7 +278,7 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	u.UpdatedAt = time.Now()
 
 	if err := h.Users.Update(u.ID, f.Email, []byte(f.VerifyPassword)); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update account"), "alert")
 		h.RedirectBack(w, r)
 		return
@@ -318,7 +318,7 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.Users.Update(u.ID, u.Email, []byte(f.NewPassword)); err != nil {
-		h.Log.Error.Println(errors.Err(err))
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update password"), "alert")
 		h.RedirectBack(w, r)
 		return

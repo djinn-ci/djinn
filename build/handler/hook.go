@@ -398,7 +398,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 
 		rawurl := strings.Replace(push.Repo.ContentsURL, "{+path}", ".thrall", 1)
 
-		urls, err := h.getManifestURLs(tok, rawurl + "?ref=" + push.HeadCommit.ID, geturl)
+		urls, err := h.getManifestURLs(tok, rawurl+"?ref="+push.HeadCommit.ID, geturl)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(errors.Err(err)))
@@ -406,7 +406,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		urls = append(urls, rawurl + ".yml?ref=" + push.HeadCommit.ID)
+		urls = append(urls, rawurl+".yml?ref="+push.HeadCommit.ID)
 
 		h.Log.Debug.Println("loading manifests")
 
@@ -448,7 +448,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 
 		rawurl := strings.Replace(pull.PullRequest.Head.Repo.ContentsURL, "{+path}", ".thrall", 1)
 
-		urls, err := h.getManifestURLs(tok, rawurl + "?ref=" + pull.PullRequest.Head.Sha, geturl)
+		urls, err := h.getManifestURLs(tok, rawurl+"?ref="+pull.PullRequest.Head.Sha, geturl)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(errors.Err(err)))
@@ -456,7 +456,7 @@ func (h Hook) Github(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		urls = append(urls, rawurl + ".yml?ref=" + pull.PullRequest.Head.Sha)
+		urls = append(urls, rawurl+".yml?ref="+pull.PullRequest.Head.Sha)
 
 		h.Log.Debug.Println("loading manifests")
 
@@ -576,7 +576,7 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 			Source          struct {
 				WebURL string `json:"web_url"`
 			}
-			LastCommit      struct {
+			LastCommit struct {
 				ID string
 			} `json:"last_commit"`
 			URL    string
@@ -625,7 +625,7 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 
 		rawurl := url.Scheme + "://" + url.Host + "/api/v4/projects/" + strconv.FormatInt(push.Project.ID, 10) + "/repository/files/.thrall"
 
-		urls, err := h.getManifestURLs(tok, rawurl + "?ref=" + head.ID , geturl(rawurl, head.ID))
+		urls, err := h.getManifestURLs(tok, rawurl+"?ref="+head.ID, geturl(rawurl, head.ID))
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(errors.Err(err)))
@@ -633,7 +633,7 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		urls = append(urls, rawurl + ".yml?ref=" + head.ID)
+		urls = append(urls, rawurl+".yml?ref="+head.ID)
 
 		h.Log.Debug.Println("loading manifests")
 
@@ -686,7 +686,7 @@ func (h Hook) Gitlab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		urls = append(urls, rawurl + ".yml?ref=" + merge.Attrs.LastCommit.ID)
+		urls = append(urls, rawurl+".yml?ref="+merge.Attrs.LastCommit.ID)
 
 		h.Log.Debug.Println("loading manifests")
 

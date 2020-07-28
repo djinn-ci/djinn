@@ -88,6 +88,8 @@ func mainCommand(cmd cli.Command) {
 
 	defer logf.Close()
 
+	log.Info.Println("logging initialized, writing to", logf.Name())
+
 	log.SetWriter(logf)
 
 	blockCipher, err := crypto.NewBlock([]byte(cfg.Crypto.Block))

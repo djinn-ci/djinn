@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
+	"flag"
 	"os"
 	"os/signal"
-
-	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/config"
@@ -33,8 +32,30 @@ var (
 	}
 )
 
-func mainCommand(c cli.Command) {
-	mf, err := os.Open(c.Flags.GetString("manifest"))
+func main() {
+	var (
+		showversion  bool
+		artifactsdir string
+		objectsdir   string
+		manifestfile string
+		driverfile   string
+		stage        string
+	)
+
+	flag.BoolVar(&showversion, "version", false, "show the version and exit")
+	flag.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
+	flag.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
+	flag.StringVar(&manifestfile, "manifest", ".thrall.yml", "the manifest file to use")
+	flag.StringVar(&driverfile, "driver", "thrall-driver.toml", "the driver config to use")
+	flag.StringVar(&stage, "stage", "", "the stage to execute")
+	flag.Parse()
+
+	if showversion {
+		fmt.Println("thrall", Version, Build)
+		os.Exit(0)
+	}
+
+	mf, err := os.Open(manifestfile)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
@@ -55,7 +76,7 @@ func mainCommand(c cli.Command) {
 		os.Exit(1)
 	}
 
-	df, err := os.Open(c.Flags.GetString("driver"))
+	df, err := os.Open(driverfile)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
@@ -82,14 +103,14 @@ func mainCommand(c cli.Command) {
 		drivers.Register(name, driverInits[name])
 	}
 
-	placer := block.NewFilesystem(c.Flags.GetString("objects"))
+	placer := block.NewFilesystem(objectsdir)
 
 	if err := placer.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
 		os.Exit(1)
 	}
 
-	collector := block.NewFilesystem(c.Flags.GetString("artifacts"))
+	collector := block.NewFilesystem(artifactsdir)
 
 	if err := collector.Init(); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
@@ -177,26 +198,8 @@ func mainCommand(c cli.Command) {
 		})
 	}
 
-	only := c.Flags.GetAll("stage")
-
-	if len(only) > 0 {
-		remove := make([]string, 0, len(stages))
-
-		for runnerStage := range stages {
-			keep := false
-
-			for _, flag := range only {
-				if runnerStage == flag.GetString() || runnerStage == setupStage {
-					keep = true
-				}
-			}
-
-			if !keep {
-				remove = append(remove, runnerStage)
-			}
-		}
-
-		r.Remove(remove...)
+	if stage != "" && stage != setupStage {
+		r.Remove(stage)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -235,74 +238,6 @@ func mainCommand(c cli.Command) {
 	d := driverInit(os.Stdout, merged)
 
 	if err := r.Run(ctx, d); err != nil {
-		os.Exit(1)
-	}
-}
-
-func main() {
-	c := cli.New()
-
-	c.AddFlag(&cli.Flag{
-		Name:      "help",
-		Long:      "--help",
-		Exclusive: true,
-		Handler: func(f cli.Flag, c cli.Command) {
-			fmt.Println(usage)
-		},
-	})
-
-	c.AddFlag(&cli.Flag{
-		Name:      "version",
-		Long:      "--version",
-		Exclusive: true,
-		Handler: func(f cli.Flag, c cli.Command) {
-			fmt.Println("thrall", Build, Version)
-		},
-	})
-
-	cmd := c.MainCommand(mainCommand)
-
-	cmd.AddFlag(&cli.Flag{
-		Name:     "artifacts",
-		Short:    "-a",
-		Long:     "--artifacts",
-		Argument: true,
-		Default:  ".",
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name:     "objects",
-		Short:    "-o",
-		Long:     "--objects",
-		Argument: true,
-		Default:  ".",
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name:     "manifest",
-		Short:    "-m",
-		Long:     "--manifest",
-		Argument: true,
-		Default:  ".thrall.yml",
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name:     "driver",
-		Short:    "-d",
-		Long:     "--driver",
-		Argument: true,
-		Default:  "thrall-driver.toml",
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name:     "stage",
-		Short:    "-s",
-		Long:     "--stage",
-		Argument: true,
-	})
-
-	if err := c.Run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err.Error())
 		os.Exit(1)
 	}
 }

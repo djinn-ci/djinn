@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"net"
 	"net/http"
@@ -9,8 +10,6 @@ import (
 	"os/signal"
 	"strings"
 	"time"
-
-	"github.com/andrewpillar/cli"
 
 	"github.com/andrewpillar/thrall/block"
 	buildweb "github.com/andrewpillar/thrall/build/web"
@@ -57,10 +56,33 @@ var (
 	}
 )
 
-func mainCommand(cmd cli.Command) {
+func main() {
+	var (
+		showversion bool
+		serveui     bool
+		serveapi    bool
+		configfile  string
+	)
+
+	flag.BoolVar(&showversion, "version", false, "show the version and exit")
+	flag.BoolVar(&serveui, "ui", false, "serve only the ui endpoints")
+	flag.BoolVar(&serveapi, "api", false, "serve only the api endpoints")
+	flag.StringVar(&configfile, "config", "thrall-server.toml", "the config file to use")
+	flag.Parse()
+
+	if showversion {
+		fmt.Println("thrall-server", Version, Build)
+		os.Exit(0)
+	}
+
+	if !serveui && !serveapi {
+		serveui = true
+		serveapi = true
+	}
+
 	log := log.New(os.Stdout)
 
-	f, err := os.Open(cmd.Flags.GetString("config"))
+	f, err := os.Open(configfile)
 
 	if err != nil {
 		log.Error.Fatalf("failed to open server config: %s\n", err)
@@ -181,18 +203,12 @@ func mainCommand(cmd cli.Command) {
 		log.Error.Fatalf("block key must be either 16, 24, or 32 bytes in size\n")
 	}
 
-	var (
-		imageStore    block.Store
-		objectStore   block.Store = blockstores[cfg.Objects.Type](cfg.Objects.Path, cfg.Objects.Limit)
-		artifactStore block.Store = blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
-	)
+	imageStore := blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit)
+	objectStore := blockstores[cfg.Objects.Type](cfg.Objects.Path, cfg.Objects.Limit)
+	artifactStore := blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
 
-	if cfg.Images.Path != "" {
-		imageStore = blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit)
-
-		if err := imageStore.Init(); err != nil {
-			log.Error.Fatalf("failed to initialize image store: %s\n", errors.Cause(err))
-		}
+	if err := imageStore.Init(); err != nil {
+		log.Error.Fatalf("failed to initialize image store: %s\n", errors.Cause(err))
 	}
 
 	if err := objectStore.Init(); err != nil {
@@ -268,15 +284,6 @@ func mainCommand(cmd cli.Command) {
 		Key:    cfg.Net.SSL.Key,
 	}
 
-	serveUI := cmd.Flags.IsSet("ui")
-	serveAPI := cmd.Flags.IsSet("api")
-
-	// No flags were given, so serve both.
-	if !serveUI && !serveAPI {
-		serveUI = true
-		serveAPI = true
-	}
-
 	srv.AddRouter("auth", &userweb.Router{
 		Providers:  providers,
 		Middleware: middleware,
@@ -334,7 +341,7 @@ func mainCommand(cmd cli.Command) {
 
 	srv.Init(handler)
 
-	if serveUI {
+	if serveui {
 		ui := server.UI{
 			Server: srv,
 			CSRF: csrf.Protect(
@@ -358,8 +365,8 @@ func mainCommand(cmd cli.Command) {
 
 	var apiPrefix string
 
-	if serveAPI {
-		if serveUI {
+	if serveapi {
+		if serveui {
 			apiPrefix = "/api"
 		}
 
@@ -403,42 +410,4 @@ func mainCommand(cmd cli.Command) {
 	srv.Shutdown(ctx)
 
 	log.Info.Println("signal:", sig, "received, shutting down")
-}
-
-func main() {
-	c := cli.New()
-
-	cmd := c.MainCommand(mainCommand)
-
-	c.AddFlag(&cli.Flag{
-		Name:      "version",
-		Long:      "--version",
-		Exclusive: true,
-		Handler: func(f cli.Flag, c cli.Command) {
-			fmt.Println("thrall-server", Version, Build)
-		},
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name: "ui",
-		Long: "--ui",
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name: "api",
-		Long: "--api",
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name:     "config",
-		Short:    "-c",
-		Long:     "--config",
-		Argument: true,
-		Default:  "thrall-server.toml",
-	})
-
-	if err := c.Run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
-	}
 }

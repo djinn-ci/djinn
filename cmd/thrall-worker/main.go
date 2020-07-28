@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
@@ -16,8 +17,6 @@ import (
 	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
-
-	"github.com/andrewpillar/cli"
 
 	"github.com/go-redis/redis"
 
@@ -44,10 +43,26 @@ var (
 	}
 )
 
-func mainCommand(c cli.Command) {
+func main() {
+	var (
+		showversion bool
+		configfile  string
+		driverfile  string
+	)
+
+	flag.BoolVar(&showversion, "version", false, "show the version and exit")
+	flag.StringVar(&configfile, "config", "thrall-worker.toml", "the config file to use")
+	flag.StringVar(&driverfile, "driver", "thrall-driver.toml", "the driver config to use")
+	flag.Parse()
+
+	if showversion {
+		fmt.Println("thrall-worker", Version, Build)
+		os.Exit(0)
+	}
+
 	log := log.New(os.Stdout)
 
-	cf, err := os.Open(c.Flags.GetString("config"))
+	cf, err := os.Open(configfile)
 
 	if err != nil {
 		log.Error.Fatalf("failed to open worker config: %s\n", err)
@@ -55,7 +70,7 @@ func mainCommand(c cli.Command) {
 
 	defer cf.Close()
 
-	df, err := os.Open(c.Flags.GetString("driver"))
+	df, err := os.Open(driverfile)
 
 	if err != nil {
 		log.Error.Fatalf("failed to open driver config: %s\n", err)
@@ -162,18 +177,12 @@ func mainCommand(c cli.Command) {
 		log.Error.Fatalf("failed to setup queue %s: %s\n", cfg.Queue, err)
 	}
 
-	var (
-		images    block.Store
-		objects   block.Store = blockstores[cfg.Objects.Type](cfg.Objects.Path, cfg.Objects.Limit)
-		artifacts block.Store = blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
-	)
+	images := blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit)
+	objects := blockstores[cfg.Objects.Type](cfg.Objects.Path, cfg.Objects.Limit)
+	artifacts := blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
 
-	if cfg.Images.Path != "" {
-		images = blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit)
-
-		if err := images.Init(); err != nil {
-			log.Error.Fatalf("failed to initialize image store: %s\n", errors.Cause(err))
-		}
+	if err := images.Init(); err != nil {
+		log.Error.Fatalf("failed to initialize image store: %s\n", errors.Cause(err))
 	}
 
 	if err := objects.Init(); err != nil {
@@ -215,41 +224,5 @@ func mainCommand(c cli.Command) {
 
 	if err := w.worker.Launch(); err != nil {
 		log.Error.Fatalf("failed to launch worker: %s\n", errors.Cause(err))
-	}
-}
-
-func main() {
-	c := cli.New()
-
-	cmd := c.MainCommand(mainCommand)
-
-	c.AddFlag(&cli.Flag{
-		Name:      "version",
-		Long:      "--version",
-		Exclusive: true,
-		Handler: func(f cli.Flag, c cli.Command) {
-			fmt.Println("thrall-worker", Version, Build)
-		},
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name:     "config",
-		Short:    "-c",
-		Long:     "--config",
-		Argument: true,
-		Default:  "thrall-worker.toml",
-	})
-
-	cmd.AddFlag(&cli.Flag{
-		Name:     "driver",
-		Short:    "-d",
-		Long:     "--driver",
-		Argument: true,
-		Default:  "thrall-driver.toml",
-	})
-
-	if err := c.Run(os.Args[1:]); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
 	}
 }

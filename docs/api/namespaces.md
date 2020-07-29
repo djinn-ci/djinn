@@ -1,3 +1,5 @@
+[Prev](/api/keys) - [Next](/api/oauth)
+
 # Namespaces
 
 * [List namespaces for the authenticated user](#list-namespaces-for-the-authenticated-user)

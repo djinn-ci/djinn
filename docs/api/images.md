@@ -1,3 +1,5 @@
+[Prev](/api/builds) - [Next](/api/invites)
+
 # Images
 
 * [List images for the authenticated user](#list-images-for-the-authenticated-user)

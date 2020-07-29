@@ -1,3 +1,5 @@
+[Prev](/api/namespaces) - [Next](/api/objects)
+
 # OAuth
 
 * [Creating an OAuth app](#creating-an-oauth-app)

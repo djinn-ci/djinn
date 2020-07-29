@@ -1,3 +1,5 @@
+[Prev](/api/oauth) - [Next](/api/variables)
+
 # Objects
 
 * [List objects for the authenticated user](#list-objects-for-the-authenticated-user)

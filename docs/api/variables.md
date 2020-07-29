@@ -1,3 +1,5 @@
+[Prev](/api/objects) - [Next](/admin)
+
 # Variables
 
 * [List variables for the authenticated user](#list-variables-for-the-authenticated-user)

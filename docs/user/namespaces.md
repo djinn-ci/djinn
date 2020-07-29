@@ -1,3 +1,5 @@
+[Prev](/user/builds) - [Next](/user/drivers)
+
 # Namespaces
 
 Namespaces allow you to organize builds and their resources. Users can be

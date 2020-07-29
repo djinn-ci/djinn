@@ -1,3 +1,5 @@
+[Prev](/user/introduction) - [Next](/user/builds)
+
 # The basics
 
 This document will cover the basics of using Djinn for submitting builds,

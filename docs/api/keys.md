@@ -1,3 +1,5 @@
+[Prev](/api/invites) - [Next](/api/namespaces)
+
 # Keys
 
 * [List keys for the authenticated user](#list-keys-for-the-authenticated-user)

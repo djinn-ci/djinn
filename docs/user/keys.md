@@ -1,3 +1,5 @@
+[Prev](/user/objects) - [Next](/user/variables)
+
 # Keys
 
 SSH keys can be uploaded to Djinn to be used in the build environment. These

@@ -1,3 +1,5 @@
+[Prev](/user/images) - [Next](/user/keys)
+
 # Objects
 
 Objects are files that can be placed into a build environment just after the

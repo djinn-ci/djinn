@@ -1,3 +1,5 @@
+[Prev](/user/variables) - [Next](/api/builds)
+
 # REST API Overview
 
 * [Resources](#resources)

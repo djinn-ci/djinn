@@ -1,3 +1,5 @@
+[Prev](/user/keys) - [Next](/api)
+
 # Variables
 
 Variables can not only be set in build manifest files, but also as "global"

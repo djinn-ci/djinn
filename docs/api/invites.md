@@ -1,3 +1,5 @@
+[Prev](/api/images) - [Next](/api/keys)
+
 # Invites
 
 * [List invites for the authenticated user](#list-invites-for-the-authenticated-user)

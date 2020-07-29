@@ -1,3 +1,5 @@
+[Prev](/user) - [Next](/user/the-basics)
+
 # Introduction
 
 * [What is Djinn](#what-is-djinn)

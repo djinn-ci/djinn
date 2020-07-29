@@ -1,3 +1,5 @@
+[Prev](/user/drivers) - [Next](/user/images)
+
 # Manifest
 
 The build manifest is a YAML file that describes how a build should be executed.

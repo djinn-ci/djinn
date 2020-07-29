@@ -1,3 +1,5 @@
+[Prev](/admin/server) - [Next](/admin/deployments)
+
 # Worker
 
 * [External dependencies](#external-dependencies)
@@ -116,10 +118,10 @@ source repository.
 To run the worker simply invoke the `djinn-worker` binary. There are two flags
 that can be given to the `djinn-worker` binary.
 
-* `-c, --config` - This specifies the configuration file to use, by default
+* `-config` - This specifies the configuration file to use, by default
 this will be `djinn-worker.toml`.
 
-* `-d, --driver` - This specifies the driver configuration file to use, for
+* `-driver` - This specifies the driver configuration file to use, for
 configuring the drivers you want to support on your server, by default this
 will be `djinn-driver.toml`.
 

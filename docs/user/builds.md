@@ -1,3 +1,5 @@
+[Prev](/user/the-basics) - [Next](/user/namespaces)
+
 # Builds
 
 Builds are an arbitrary collection of jobs grouped into stages that are

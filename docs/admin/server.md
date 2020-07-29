@@ -1,3 +1,5 @@
+[Prev](/admin/building) - [Next](/admin/worker)
+
 # Server
 
 * [External dependencies](#external-dependencies)
@@ -160,12 +162,12 @@ source repository.
 To run the server simply invoke the `djinn-server` binary. There are three flags
 that can be given to the `djinn-server` binary.
 
-* `-c, --config` - This specifies the configuration file to use, by default
+* `-config` - This specifies the configuration file to use, by default
 this will be `djinn-server.toml`.
 
-* `--api` - This tells the server to only serve the [REST API](/api) endpoints.
+* `-api` - This tells the server to only serve the [REST API](/api) endpoints.
 
-* `--ui` - This tells the server to only serve the UI endpoints.
+* `-ui` - This tells the server to only serve the UI endpoints.
 
 If you do not specify either the `--api`, or `--ui` flag then both groups of
 endpoints will be served. The [REST API](/api) endpoints will be served under

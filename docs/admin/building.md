@@ -1,3 +1,5 @@
+[Prev](/admin) - [Next](/admin/server)
+
 # Building
 
 To build Djinn you will need to install the following dependencies,

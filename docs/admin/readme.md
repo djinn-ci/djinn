@@ -1,3 +1,5 @@
+[Prev](/api/variables) - [Next](/admin/building)
+
 # Admin documentation overview
 
 Learn how to host your own installation of Djinn, how to build it from source,

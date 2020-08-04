@@ -301,14 +301,16 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				errh errHandler = HTMLError
 			)
 
-			if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			json := strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
+
+			if json {
 				errh = JSONError
 			}
 
 			r = r.WithContext(context.WithValue(r.Context(), "user", u))
 
-			for _, g := range gates {
-				r, ok, err = g(u, r)
+			for _, gate := range gates {
+				r, ok, err = gate(u, r)
 
 				if err != nil {
 					h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -317,6 +319,14 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				}
 
 				if !ok {
+					if u.IsZero() {
+						if !json {
+							h.Redirect(w, r, "/login")
+							return
+						}
+						errh(w, "Not found", http.StatusNotFound)
+						return
+					}
 					errh(w, "Not found", http.StatusNotFound)
 					return
 				}

@@ -29,7 +29,9 @@ type Show struct {
 	{% if p.Namespace.Parent != nil %}
 		<a class="back" href="{%s p.Namespace.Parent.Endpoint() %}">{%cat "../../static/svg/back.svg" %}</a>
 	{% else %}
-		<a class="back" href="/namespaces">{% cat "../../static/svg/back.svg" %}</a>
+		{% if !p.User.IsZero() %}
+			<a class="back" href="/namespaces">{% cat "../../static/svg/back.svg" %}</a>
+		{% endif %}
 	{% endif %}
 	{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %}
 	{% if p.Tag != "" %}

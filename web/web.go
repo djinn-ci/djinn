@@ -119,7 +119,7 @@ func BaseAddress(r *http.Request) string {
 // BasePath returns the last element of the given path. This will split the
 // path using the "/" separator. If the path is empty BasePath returns "/".
 func BasePath(path string) string {
-	if path == "" {
+	if path == "" || path == "/" {
 		return "/"
 	}
 

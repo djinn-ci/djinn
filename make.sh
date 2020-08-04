@@ -72,7 +72,7 @@ build() {
 			exit 1
 		fi
 		set -x
-		GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags "$LDFLAGS" -tags "$TAGS" -o "$c".out ./cmd/"$c"
+		GOOS="$GOOS" GOARCH="$GOARCH" go build -gcflags "-e" -ldflags "$LDFLAGS" -tags "$TAGS" -o "$c".out ./cmd/"$c"
 		set +x
 	done
 }
@@ -143,7 +143,7 @@ case "$1" in
 		;;
 	*)
 		if [ "$1" = "" ]; then
-			go test -tags "$TAGS" -cover ./...
+			go test -gcflags "-e" -tags "$TAGS" -cover ./...
 			ui
 			build
 		else

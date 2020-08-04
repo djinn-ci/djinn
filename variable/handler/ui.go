@@ -47,12 +47,18 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Paginator: paginator,
 		Variables: vv,
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
 	sess, save := h.Session(r)
 
 	csrfField := string(csrf.TemplateField(r))
@@ -64,7 +70,7 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 			Fields: web.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

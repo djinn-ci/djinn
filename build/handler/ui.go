@@ -69,13 +69,19 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Status:    q.Get("status"),
 		Tag:       q.Get("tag"),
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	p := &buildtemplate.Create{
 		Form: template.Form{
@@ -85,7 +91,7 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -268,7 +274,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrfField))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -354,6 +360,12 @@ func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
 	j, err := h.ShowWithRelations(r)
 
 	if err != nil {
@@ -377,7 +389,7 @@ func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 		Job:      j,
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

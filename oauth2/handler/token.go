@@ -66,13 +66,19 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 			Tokens: tt,
 		},
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrfField))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	csrfField := string(csrf.TemplateField(r))
 	f := web.FormFields(sess)
@@ -99,7 +105,7 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 		Section: section,
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -160,6 +166,12 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
 	t, ok := oauth2.TokenFromContext(r.Context())
 
 	if !ok {
@@ -179,7 +191,7 @@ func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 		Token:  t,
 		Scopes: t.Permissions(),
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

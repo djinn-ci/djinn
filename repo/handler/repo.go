@@ -213,7 +213,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		Provider:  prv,
 		Providers: pp,
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

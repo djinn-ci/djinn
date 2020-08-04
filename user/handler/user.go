@@ -240,7 +240,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		p.Providers = append(p.Providers, m[name])
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

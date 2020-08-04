@@ -52,13 +52,19 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 		Images:    ii,
 		Search:    r.URL.Query().Get("search"),
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	csrfField := string(csrf.TemplateField(r))
 
@@ -69,7 +75,7 @@ func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 			Fields: web.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

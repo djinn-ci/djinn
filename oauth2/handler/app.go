@@ -85,13 +85,19 @@ func (h App) Index(w http.ResponseWriter, r *http.Request) {
 			Apps: aa,
 		},
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h App) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	csrfField := string(csrf.TemplateField(r))
 
@@ -102,7 +108,7 @@ func (h App) Create(w http.ResponseWriter, r *http.Request) {
 			Fields: web.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -153,6 +159,12 @@ func (h App) Store(w http.ResponseWriter, r *http.Request) {
 func (h App) Show(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
 	a, err := h.appFromRequest(r)
 
 	if err != nil {
@@ -185,7 +197,7 @@ func (h App) Show(w http.ResponseWriter, r *http.Request) {
 		},
 		App: a,
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

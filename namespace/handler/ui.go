@@ -69,7 +69,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		Search:     r.URL.Query().Get("search"),
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -117,7 +117,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		p.Parent = parent
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrfField))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -378,13 +378,19 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
 func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
 
 	n, ok := namespace.FromContext(r.Context())
 
@@ -408,7 +414,7 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 		},
 		Namespace: n,
 	}
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -517,7 +523,7 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 
 	csrfField := string(csrf.TemplateField(r))
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -635,7 +641,7 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

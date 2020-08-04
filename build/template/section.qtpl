@@ -5,6 +5,7 @@ import (
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
 )
 %}
 
@@ -51,6 +52,7 @@ type Tags struct {
 	section
 
 	CSRF  string
+	User  *user.User
 	Build *build.Build
 	Tags  []*build.Tag
 }
@@ -136,9 +138,9 @@ type Tags struct {
 							</td>
 							<td class="align-right">
 								{% if o.Placed %}
-									<span class="pill pill-green">{% cat "../../static/svg/check.svg"  %}</span>
+									<span class="svg-green" title="Placed">{% cat "../../static/svg/check.svg" %}</span>
 								{% else %}
-									<span class="pill pill-red">{% cat "../../static/svg/close.svg" %}</span>
+									<span class="svg-red" title="Not placed">{% cat "../../static/svg/close.svg" %}</span>
 								{% endif %}
 							</td>
 						</tr>
@@ -223,15 +225,17 @@ type Tags struct {
 
 {% func (p *Tags) Body() %}
 	<div class="panel">
-		<div class="panel-header panel-body">
-			<form method="POST" action="{%s p.Build.Endpoint("tags") %}">
-				{%s= p.CSRF %}
-				<div class="form-field form-field-inline">
-					<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
-					<button type="submit" class="btn btn-primary">Tag</button>
-				</div>
-			</form>
-		</div>
+		{% if !p.User.IsZero() %}
+			<div class="panel-header panel-body">
+				<form method="POST" action="{%s p.Build.Endpoint("tags") %}">
+					{%s= p.CSRF %}
+					<div class="form-field form-field-inline">
+						<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
+						<button type="submit" class="btn btn-primary">Tag</button>
+					</div>
+				</form>
+			</div>
+		{% endif %}
 		{% if len(p.Tags) == 0 %}
 			<div class="panel-message muted">No tags have been set for this build.</div>
 		{% else %}
@@ -249,11 +253,13 @@ type Tags struct {
 							<td><a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a></td>
 							<td>{%s t.User.Username %} &lt;{%s t.User.Email %}&gt;</td>
 							<td class="align-right">
-								<form method="POST" action="{%s t.Endpoint() %}">
-									{%s= p.CSRF %}
-									<input type="hidden" name="_method" value="DELETE">
-									<button type="submit" class="btn btn-danger">Delete</button>
-								</form>
+								{% if !p.User.IsZero() %}
+									<form method="POST" action="{%s t.Endpoint() %}">
+										{%s= p.CSRF %}
+										<input type="hidden" name="_method" value="DELETE">
+										<button type="submit" class="btn btn-danger">Delete</button>
+									</form>
+								{% endif %}
 							</td>
 						</tr>
 					{% endfor %}

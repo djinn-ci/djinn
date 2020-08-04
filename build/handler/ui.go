@@ -269,6 +269,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 		p.Section = &buildtemplate.Tags{
 			CSRF:  string(csrfField),
+			User:  u,
 			Build: b,
 			Tags:  tt,
 		}

@@ -11,22 +11,23 @@ import (
 
 	"github.com/andrewpillar/thrall/build"
 	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/thrall/user"
 )
 
-//line build/template/section.qtpl:11
+//line build/template/section.qtpl:12
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line build/template/section.qtpl:11
+//line build/template/section.qtpl:12
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line build/template/section.qtpl:12
+//line build/template/section.qtpl:13
 type section struct{}
 
 type Manifest struct {
@@ -69,752 +70,769 @@ type Tags struct {
 	section
 
 	CSRF  string
+	User  *user.User
 	Build *build.Build
 	Tags  []*build.Tag
 }
 
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 func (p *section) StreamActions(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 }
 
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 func (p *section) WriteActions(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 	p.StreamActions(qw422016)
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 }
 
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 func (p *section) Actions() string {
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 	p.WriteActions(qb422016)
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 	return qs422016
-//line build/template/section.qtpl:60
+//line build/template/section.qtpl:62
 }
 
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 func (p *section) StreamHeader(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 }
 
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 func (p *section) WriteHeader(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 	p.StreamHeader(qw422016)
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 }
 
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 func (p *section) Header() string {
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 	p.WriteHeader(qb422016)
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 	return qs422016
-//line build/template/section.qtpl:61
+//line build/template/section.qtpl:63
 }
 
-//line build/template/section.qtpl:63
+//line build/template/section.qtpl:65
 func (p *Manifest) StreamTitle(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:63
+//line build/template/section.qtpl:65
 	qw422016.N().S(` Build #`)
-//line build/template/section.qtpl:64
+//line build/template/section.qtpl:66
 	qw422016.E().V(p.Build.ID)
-//line build/template/section.qtpl:64
+//line build/template/section.qtpl:66
 	qw422016.N().S(` - Manifest `)
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 }
 
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 func (p *Manifest) WriteTitle(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 	p.StreamTitle(qw422016)
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 }
 
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 func (p *Manifest) Title() string {
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 	p.WriteTitle(qb422016)
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 	return qs422016
-//line build/template/section.qtpl:65
+//line build/template/section.qtpl:67
 }
 
-//line build/template/section.qtpl:67
+//line build/template/section.qtpl:69
 func (p *Manifest) StreamBody(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:67
+//line build/template/section.qtpl:69
 	qw422016.N().S(` <div class="panel"> <div class="panel-header"> <ul class="panel-actions"> <li> <a class="btn btn-primary" href="`)
-//line build/template/section.qtpl:72
+//line build/template/section.qtpl:74
 	qw422016.E().S(p.Build.Endpoint("manifest", "raw"))
-//line build/template/section.qtpl:72
+//line build/template/section.qtpl:74
 	qw422016.N().S(`"> `)
-//line build/template/section.qtpl:73
+//line build/template/section.qtpl:75
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M12.984 9h5.531l-5.531-5.484v5.484zM15.984 14.016v-2.016h-7.969v2.016h7.969zM15.984 18v-2.016h-7.969v2.016h7.969zM14.016 2.016l6 6v12c0 1.078-0.938 1.969-2.016 1.969h-12c-1.078 0-2.016-0.891-2.016-1.969l0.047-16.031c0-1.078 0.891-1.969 1.969-1.969h8.016z"></path>
 </svg>
 `)
-//line build/template/section.qtpl:73
+//line build/template/section.qtpl:75
 	qw422016.N().S(`<span>Raw</span> </a> </li> </ul> </div> `)
-//line build/template/section.qtpl:78
+//line build/template/section.qtpl:80
 	template.StreamRenderCode(qw422016, p.Build.Manifest.String())
-//line build/template/section.qtpl:78
+//line build/template/section.qtpl:80
 	qw422016.N().S(` </div> `)
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 }
 
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 func (p *Manifest) WriteBody(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 	p.StreamBody(qw422016)
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 }
 
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 func (p *Manifest) Body() string {
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 	p.WriteBody(qb422016)
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 	return qs422016
-//line build/template/section.qtpl:80
+//line build/template/section.qtpl:82
 }
 
-//line build/template/section.qtpl:82
+//line build/template/section.qtpl:84
 func (p *Objects) StreamTitle(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:82
+//line build/template/section.qtpl:84
 	qw422016.N().S(` Build #`)
-//line build/template/section.qtpl:83
+//line build/template/section.qtpl:85
 	qw422016.E().V(p.Build.ID)
-//line build/template/section.qtpl:83
+//line build/template/section.qtpl:85
 	qw422016.N().S(` - Objects `)
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 }
 
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 func (p *Objects) WriteTitle(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 	p.StreamTitle(qw422016)
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 }
 
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 func (p *Objects) Title() string {
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 	p.WriteTitle(qb422016)
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 	return qs422016
-//line build/template/section.qtpl:84
+//line build/template/section.qtpl:86
 }
 
-//line build/template/section.qtpl:86
+//line build/template/section.qtpl:88
 func (p *Objects) StreamBody(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:86
+//line build/template/section.qtpl:88
 	qw422016.N().S(` <div class="panel"> `)
-//line build/template/section.qtpl:88
+//line build/template/section.qtpl:90
 	if len(p.Objects) == 0 {
-//line build/template/section.qtpl:88
+//line build/template/section.qtpl:90
 		qw422016.N().S(` <div class="panel-message muted">No objects have been placed for this build.</div> `)
-//line build/template/section.qtpl:90
+//line build/template/section.qtpl:92
 	} else {
-//line build/template/section.qtpl:90
+//line build/template/section.qtpl:92
 		qw422016.N().S(` <table class="table"> <thead> <tr> <th>SOURCE</th> <th>NAME</th> <th>TYPE</th> <th>HASHES</th> <th></th> </tr> </thead> <tbody> `)
-//line build/template/section.qtpl:102
+//line build/template/section.qtpl:104
 		for _, o := range p.Objects {
-//line build/template/section.qtpl:102
+//line build/template/section.qtpl:104
 			qw422016.N().S(` <tr> <td> `)
-//line build/template/section.qtpl:105
+//line build/template/section.qtpl:107
 			if o != nil && !o.Object.DeletedAt.Valid {
-//line build/template/section.qtpl:105
+//line build/template/section.qtpl:107
 				qw422016.N().S(` <a href="`)
-//line build/template/section.qtpl:106
+//line build/template/section.qtpl:108
 				qw422016.E().S(o.Object.Endpoint())
-//line build/template/section.qtpl:106
+//line build/template/section.qtpl:108
 				qw422016.N().S(`">`)
-//line build/template/section.qtpl:106
+//line build/template/section.qtpl:108
 				qw422016.E().S(o.Source)
-//line build/template/section.qtpl:106
+//line build/template/section.qtpl:108
 				qw422016.N().S(`</a> `)
-//line build/template/section.qtpl:107
+//line build/template/section.qtpl:109
 			} else {
-//line build/template/section.qtpl:107
+//line build/template/section.qtpl:109
 				qw422016.N().S(` <a title="Object not found"><strike>`)
-//line build/template/section.qtpl:108
+//line build/template/section.qtpl:110
 				qw422016.E().S(o.Source)
-//line build/template/section.qtpl:108
+//line build/template/section.qtpl:110
 				qw422016.N().S(`</strike></a> `)
-//line build/template/section.qtpl:109
+//line build/template/section.qtpl:111
 			}
-//line build/template/section.qtpl:109
+//line build/template/section.qtpl:111
 			qw422016.N().S(` </td> <td><span class="code">`)
-//line build/template/section.qtpl:111
+//line build/template/section.qtpl:113
 			qw422016.E().S(o.Name)
-//line build/template/section.qtpl:111
+//line build/template/section.qtpl:113
 			qw422016.N().S(`</span></td> <td> `)
-//line build/template/section.qtpl:113
+//line build/template/section.qtpl:115
 			if o.Object != nil {
-//line build/template/section.qtpl:113
+//line build/template/section.qtpl:115
 				qw422016.N().S(` <span class="code">`)
-//line build/template/section.qtpl:114
+//line build/template/section.qtpl:116
 				qw422016.E().S(o.Object.Type)
-//line build/template/section.qtpl:114
+//line build/template/section.qtpl:116
 				qw422016.N().S(`</span> `)
-//line build/template/section.qtpl:115
+//line build/template/section.qtpl:117
 			} else {
-//line build/template/section.qtpl:115
+//line build/template/section.qtpl:117
 				qw422016.N().S(` <span class="code">--</span> `)
-//line build/template/section.qtpl:117
+//line build/template/section.qtpl:119
 			}
-//line build/template/section.qtpl:117
+//line build/template/section.qtpl:119
 			qw422016.N().S(` </td> <td> <div> <strong>MD5</strong> `)
-//line build/template/section.qtpl:122
+//line build/template/section.qtpl:124
 			if o != nil {
-//line build/template/section.qtpl:122
+//line build/template/section.qtpl:124
 				qw422016.N().S(` <span class="code">`)
-//line build/template/section.qtpl:123
+//line build/template/section.qtpl:125
 				qw422016.E().S(fmt.Sprintf("%x", o.Object.MD5))
-//line build/template/section.qtpl:123
+//line build/template/section.qtpl:125
 				qw422016.N().S(`</span> `)
-//line build/template/section.qtpl:124
+//line build/template/section.qtpl:126
 			} else {
-//line build/template/section.qtpl:124
+//line build/template/section.qtpl:126
 				qw422016.N().S(` <span class="code">--</span> `)
-//line build/template/section.qtpl:126
+//line build/template/section.qtpl:128
 			}
-//line build/template/section.qtpl:126
+//line build/template/section.qtpl:128
 			qw422016.N().S(` </div> <div> <strong>SHA256</strong> `)
-//line build/template/section.qtpl:130
+//line build/template/section.qtpl:132
 			if o != nil {
-//line build/template/section.qtpl:130
+//line build/template/section.qtpl:132
 				qw422016.N().S(` <span class="code">`)
-//line build/template/section.qtpl:131
+//line build/template/section.qtpl:133
 				qw422016.E().S(fmt.Sprintf("%x", o.Object.SHA256))
-//line build/template/section.qtpl:131
+//line build/template/section.qtpl:133
 				qw422016.N().S(`</span> `)
-//line build/template/section.qtpl:132
+//line build/template/section.qtpl:134
 			} else {
-//line build/template/section.qtpl:132
+//line build/template/section.qtpl:134
 				qw422016.N().S(` <span class="code">--</span> `)
-//line build/template/section.qtpl:134
+//line build/template/section.qtpl:136
 			}
-//line build/template/section.qtpl:134
+//line build/template/section.qtpl:136
 			qw422016.N().S(` </div> </td> <td class="align-right"> `)
-//line build/template/section.qtpl:138
+//line build/template/section.qtpl:140
 			if o.Placed {
-//line build/template/section.qtpl:138
-				qw422016.N().S(` <span class="pill pill-green">`)
-//line build/template/section.qtpl:139
+//line build/template/section.qtpl:140
+				qw422016.N().S(` <span class="svg-green" title="Placed">`)
+//line build/template/section.qtpl:141
 				qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M9 16.172l10.594-10.594 1.406 1.406-12 12-5.578-5.578 1.406-1.406z"></path>
 </svg>
 `)
-//line build/template/section.qtpl:139
-				qw422016.N().S(`</span> `)
-//line build/template/section.qtpl:140
-			} else {
-//line build/template/section.qtpl:140
-				qw422016.N().S(` <span class="pill pill-red">`)
 //line build/template/section.qtpl:141
+				qw422016.N().S(`</span> `)
+//line build/template/section.qtpl:142
+			} else {
+//line build/template/section.qtpl:142
+				qw422016.N().S(` <span class="svg-red" title="Not placed">`)
+//line build/template/section.qtpl:143
 				qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M18.984 6.422l-5.578 5.578 5.578 5.578-1.406 1.406-5.578-5.578-5.578 5.578-1.406-1.406 5.578-5.578-5.578-5.578 1.406-1.406 5.578 5.578 5.578-5.578z"></path>
 </svg>
 `)
-//line build/template/section.qtpl:141
+//line build/template/section.qtpl:143
 				qw422016.N().S(`</span> `)
-//line build/template/section.qtpl:142
+//line build/template/section.qtpl:144
 			}
-//line build/template/section.qtpl:142
+//line build/template/section.qtpl:144
 			qw422016.N().S(` </td> </tr> `)
-//line build/template/section.qtpl:145
+//line build/template/section.qtpl:147
 		}
-//line build/template/section.qtpl:145
+//line build/template/section.qtpl:147
 		qw422016.N().S(` </tbody> </table> `)
-//line build/template/section.qtpl:148
-	}
-//line build/template/section.qtpl:148
-	qw422016.N().S(` </div> `)
 //line build/template/section.qtpl:150
+	}
+//line build/template/section.qtpl:150
+	qw422016.N().S(` </div> `)
+//line build/template/section.qtpl:152
 }
 
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 func (p *Objects) WriteBody(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 	p.StreamBody(qw422016)
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 }
 
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 func (p *Objects) Body() string {
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 	p.WriteBody(qb422016)
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 	return qs422016
-//line build/template/section.qtpl:150
+//line build/template/section.qtpl:152
 }
 
-//line build/template/section.qtpl:152
+//line build/template/section.qtpl:154
 func (p *Artifacts) StreamTitle(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:152
+//line build/template/section.qtpl:154
 	qw422016.N().S(` Build #`)
-//line build/template/section.qtpl:153
+//line build/template/section.qtpl:155
 	qw422016.E().V(p.Build.ID)
-//line build/template/section.qtpl:153
+//line build/template/section.qtpl:155
 	qw422016.N().S(` - Artifacts `)
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 }
 
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 func (p *Artifacts) WriteTitle(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 	p.StreamTitle(qw422016)
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 }
 
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 func (p *Artifacts) Title() string {
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 	p.WriteTitle(qb422016)
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 	return qs422016
-//line build/template/section.qtpl:154
+//line build/template/section.qtpl:156
 }
 
-//line build/template/section.qtpl:156
+//line build/template/section.qtpl:158
 func (p *Artifacts) StreamBody(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:156
+//line build/template/section.qtpl:158
 	qw422016.N().S(` <div class="panel">`)
-//line build/template/section.qtpl:157
+//line build/template/section.qtpl:159
 	StreamRenderArtifactTable(qw422016, p.Artifacts, p.URL.Path, p.Search)
-//line build/template/section.qtpl:157
+//line build/template/section.qtpl:159
 	qw422016.N().S(`</div> `)
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 }
 
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 func (p *Artifacts) WriteBody(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 	p.StreamBody(qw422016)
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 }
 
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 func (p *Artifacts) Body() string {
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 	p.WriteBody(qb422016)
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 	return qs422016
-//line build/template/section.qtpl:158
+//line build/template/section.qtpl:160
 }
 
-//line build/template/section.qtpl:160
+//line build/template/section.qtpl:162
 func (p *Variables) StreamTitle(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:160
+//line build/template/section.qtpl:162
 	qw422016.N().S(` Build #`)
-//line build/template/section.qtpl:161
+//line build/template/section.qtpl:163
 	qw422016.E().V(p.Build.ID)
-//line build/template/section.qtpl:161
+//line build/template/section.qtpl:163
 	qw422016.N().S(` - Variables `)
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 }
 
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 func (p *Variables) WriteTitle(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 	p.StreamTitle(qw422016)
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 }
 
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 func (p *Variables) Title() string {
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 	p.WriteTitle(qb422016)
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 	return qs422016
-//line build/template/section.qtpl:162
+//line build/template/section.qtpl:164
 }
 
-//line build/template/section.qtpl:164
+//line build/template/section.qtpl:166
 func (p *Variables) StreamBody(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:164
-	qw422016.N().S(` <div class="panel"> `)
 //line build/template/section.qtpl:166
+	qw422016.N().S(` <div class="panel"> `)
+//line build/template/section.qtpl:168
 	if len(p.Variables) == 0 {
-//line build/template/section.qtpl:166
+//line build/template/section.qtpl:168
 		qw422016.N().S(` <div class="panel-message muted">No variables have been set for this build.</div> `)
-//line build/template/section.qtpl:168
+//line build/template/section.qtpl:170
 	} else {
-//line build/template/section.qtpl:168
+//line build/template/section.qtpl:170
 		qw422016.N().S(` <table class="table"> <thead> <tr> <th>KEY</th> <th>VALUE</th> <th>FROM MANIFEST</th> </tr> </thead> <tbody> `)
-//line build/template/section.qtpl:178
+//line build/template/section.qtpl:180
 		for _, v := range p.Variables {
-//line build/template/section.qtpl:178
-			qw422016.N().S(` <tr> <td><span class="code">`)
 //line build/template/section.qtpl:180
+			qw422016.N().S(` <tr> <td><span class="code">`)
+//line build/template/section.qtpl:182
 			qw422016.E().S(v.Key)
-//line build/template/section.qtpl:180
+//line build/template/section.qtpl:182
 			qw422016.N().S(`</span></td> <td><span class="code">`)
-//line build/template/section.qtpl:181
+//line build/template/section.qtpl:183
 			qw422016.E().S(v.Value)
-//line build/template/section.qtpl:181
+//line build/template/section.qtpl:183
 			qw422016.N().S(`</span></td> <td>`)
-//line build/template/section.qtpl:182
+//line build/template/section.qtpl:184
 			if v.VariableID.Valid {
-//line build/template/section.qtpl:182
+//line build/template/section.qtpl:184
 				qw422016.N().S(`False`)
-//line build/template/section.qtpl:182
+//line build/template/section.qtpl:184
 			} else {
-//line build/template/section.qtpl:182
+//line build/template/section.qtpl:184
 				qw422016.N().S(`True`)
-//line build/template/section.qtpl:182
+//line build/template/section.qtpl:184
 			}
-//line build/template/section.qtpl:182
+//line build/template/section.qtpl:184
 			qw422016.N().S(`</td> </tr> `)
-//line build/template/section.qtpl:184
+//line build/template/section.qtpl:186
 		}
-//line build/template/section.qtpl:184
+//line build/template/section.qtpl:186
 		qw422016.N().S(` </tbody> </table> `)
-//line build/template/section.qtpl:187
-	}
-//line build/template/section.qtpl:187
-	qw422016.N().S(` </div> `)
 //line build/template/section.qtpl:189
+	}
+//line build/template/section.qtpl:189
+	qw422016.N().S(` </div> `)
+//line build/template/section.qtpl:191
 }
 
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 func (p *Variables) WriteBody(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 	p.StreamBody(qw422016)
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 }
 
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 func (p *Variables) Body() string {
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 	p.WriteBody(qb422016)
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 	return qs422016
-//line build/template/section.qtpl:189
+//line build/template/section.qtpl:191
 }
 
-//line build/template/section.qtpl:191
+//line build/template/section.qtpl:193
 func (p *Keys) StreamTitle(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:191
+//line build/template/section.qtpl:193
 	qw422016.N().S(` Build #`)
-//line build/template/section.qtpl:192
+//line build/template/section.qtpl:194
 	qw422016.E().V(p.Build.ID)
-//line build/template/section.qtpl:192
+//line build/template/section.qtpl:194
 	qw422016.N().S(` - Keys `)
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 }
 
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 func (p *Keys) WriteTitle(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 	p.StreamTitle(qw422016)
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 }
 
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 func (p *Keys) Title() string {
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 	p.WriteTitle(qb422016)
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 	return qs422016
-//line build/template/section.qtpl:193
+//line build/template/section.qtpl:195
 }
 
-//line build/template/section.qtpl:195
+//line build/template/section.qtpl:197
 func (p *Keys) StreamBody(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:195
+//line build/template/section.qtpl:197
 	qw422016.N().S(` <div class="panel"> `)
-//line build/template/section.qtpl:197
+//line build/template/section.qtpl:199
 	if len(p.Keys) == 0 {
-//line build/template/section.qtpl:197
+//line build/template/section.qtpl:199
 		qw422016.N().S(` <div class="panel-message muted">No keys have been added to this build.</div> `)
-//line build/template/section.qtpl:199
+//line build/template/section.qtpl:201
 	} else {
-//line build/template/section.qtpl:199
+//line build/template/section.qtpl:201
 		qw422016.N().S(` <table class="table"> <thead> <tr> <th>KEY</th> <th>LOCATION</th> </tr> </thead> <tbody> `)
-//line build/template/section.qtpl:208
+//line build/template/section.qtpl:210
 		for _, k := range p.Keys {
-//line build/template/section.qtpl:208
+//line build/template/section.qtpl:210
 			qw422016.N().S(` <tr> <td><span class="code">`)
-//line build/template/section.qtpl:210
+//line build/template/section.qtpl:212
 			qw422016.E().S(k.Name)
-//line build/template/section.qtpl:210
+//line build/template/section.qtpl:212
 			qw422016.N().S(`</span></td> <td><span class="code">`)
-//line build/template/section.qtpl:211
+//line build/template/section.qtpl:213
 			qw422016.E().S(k.Location)
-//line build/template/section.qtpl:211
+//line build/template/section.qtpl:213
 			qw422016.N().S(`</span></td> </tr> `)
-//line build/template/section.qtpl:213
+//line build/template/section.qtpl:215
 		}
-//line build/template/section.qtpl:213
+//line build/template/section.qtpl:215
 		qw422016.N().S(` </tbody> </table> `)
-//line build/template/section.qtpl:216
-	}
-//line build/template/section.qtpl:216
-	qw422016.N().S(` </div> `)
 //line build/template/section.qtpl:218
+	}
+//line build/template/section.qtpl:218
+	qw422016.N().S(` </div> `)
+//line build/template/section.qtpl:220
 }
 
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 func (p *Keys) WriteBody(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 	p.StreamBody(qw422016)
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 }
 
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 func (p *Keys) Body() string {
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 	p.WriteBody(qb422016)
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 	return qs422016
-//line build/template/section.qtpl:218
+//line build/template/section.qtpl:220
 }
 
-//line build/template/section.qtpl:220
+//line build/template/section.qtpl:222
 func (p *Tags) StreamTitle(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:220
+//line build/template/section.qtpl:222
 	qw422016.N().S(` Build #`)
-//line build/template/section.qtpl:221
+//line build/template/section.qtpl:223
 	qw422016.E().V(p.Build.ID)
-//line build/template/section.qtpl:221
+//line build/template/section.qtpl:223
 	qw422016.N().S(` - Tags `)
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 }
 
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 func (p *Tags) WriteTitle(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 	p.StreamTitle(qw422016)
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 }
 
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 func (p *Tags) Title() string {
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 	p.WriteTitle(qb422016)
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 	return qs422016
-//line build/template/section.qtpl:222
+//line build/template/section.qtpl:224
 }
 
-//line build/template/section.qtpl:224
+//line build/template/section.qtpl:226
 func (p *Tags) StreamBody(qw422016 *qt422016.Writer) {
-//line build/template/section.qtpl:224
-	qw422016.N().S(` <div class="panel"> <div class="panel-header panel-body"> <form method="POST" action="`)
-//line build/template/section.qtpl:227
-	qw422016.E().S(p.Build.Endpoint("tags"))
-//line build/template/section.qtpl:227
-	qw422016.N().S(`"> `)
+//line build/template/section.qtpl:226
+	qw422016.N().S(` <div class="panel"> `)
 //line build/template/section.qtpl:228
-	qw422016.N().S(p.CSRF)
+	if !p.User.IsZero() {
 //line build/template/section.qtpl:228
-	qw422016.N().S(` <div class="form-field form-field-inline"> <input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/> <button type="submit" class="btn btn-primary">Tag</button> </div> </form> </div> `)
-//line build/template/section.qtpl:235
-	if len(p.Tags) == 0 {
-//line build/template/section.qtpl:235
-		qw422016.N().S(` <div class="panel-message muted">No tags have been set for this build.</div> `)
-//line build/template/section.qtpl:237
-	} else {
-//line build/template/section.qtpl:237
-		qw422016.N().S(` <table class="table"> <thead> <tr> <th>TAG</th> <th>TAGGED BY</th> <th></th> </tr> </thead> <tbody> `)
-//line build/template/section.qtpl:247
-		for _, t := range p.Tags {
-//line build/template/section.qtpl:247
-			qw422016.N().S(` <tr> <td><a href="/?tag=`)
-//line build/template/section.qtpl:249
-			qw422016.E().S(t.Name)
-//line build/template/section.qtpl:249
-			qw422016.N().S(`" class="pill pill-light">`)
-//line build/template/section.qtpl:249
-			qw422016.E().S(t.Name)
-//line build/template/section.qtpl:249
-			qw422016.N().S(`</a></td> <td>`)
-//line build/template/section.qtpl:250
-			qw422016.E().S(t.User.Username)
-//line build/template/section.qtpl:250
-			qw422016.N().S(` &lt;`)
-//line build/template/section.qtpl:250
-			qw422016.E().S(t.User.Email)
-//line build/template/section.qtpl:250
-			qw422016.N().S(`&gt;</td> <td class="align-right"> <form method="POST" action="`)
-//line build/template/section.qtpl:252
-			qw422016.E().S(t.Endpoint())
-//line build/template/section.qtpl:252
-			qw422016.N().S(`"> `)
-//line build/template/section.qtpl:253
-			qw422016.N().S(p.CSRF)
-//line build/template/section.qtpl:253
-			qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"> <button type="submit" class="btn btn-danger">Delete</button> </form> </td> </tr> `)
-//line build/template/section.qtpl:259
-		}
-//line build/template/section.qtpl:259
-		qw422016.N().S(` </tbody> </table> `)
-//line build/template/section.qtpl:262
+		qw422016.N().S(` <div class="panel-header panel-body"> <form method="POST" action="`)
+//line build/template/section.qtpl:230
+		qw422016.E().S(p.Build.Endpoint("tags"))
+//line build/template/section.qtpl:230
+		qw422016.N().S(`"> `)
+//line build/template/section.qtpl:231
+		qw422016.N().S(p.CSRF)
+//line build/template/section.qtpl:231
+		qw422016.N().S(` <div class="form-field form-field-inline"> <input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/> <button type="submit" class="btn btn-primary">Tag</button> </div> </form> </div> `)
+//line build/template/section.qtpl:238
 	}
+//line build/template/section.qtpl:238
+	qw422016.N().S(` `)
+//line build/template/section.qtpl:239
+	if len(p.Tags) == 0 {
+//line build/template/section.qtpl:239
+		qw422016.N().S(` <div class="panel-message muted">No tags have been set for this build.</div> `)
+//line build/template/section.qtpl:241
+	} else {
+//line build/template/section.qtpl:241
+		qw422016.N().S(` <table class="table"> <thead> <tr> <th>TAG</th> <th>TAGGED BY</th> <th></th> </tr> </thead> <tbody> `)
+//line build/template/section.qtpl:251
+		for _, t := range p.Tags {
+//line build/template/section.qtpl:251
+			qw422016.N().S(` <tr> <td><a href="/?tag=`)
+//line build/template/section.qtpl:253
+			qw422016.E().S(t.Name)
+//line build/template/section.qtpl:253
+			qw422016.N().S(`" class="pill pill-light">`)
+//line build/template/section.qtpl:253
+			qw422016.E().S(t.Name)
+//line build/template/section.qtpl:253
+			qw422016.N().S(`</a></td> <td>`)
+//line build/template/section.qtpl:254
+			qw422016.E().S(t.User.Username)
+//line build/template/section.qtpl:254
+			qw422016.N().S(` &lt;`)
+//line build/template/section.qtpl:254
+			qw422016.E().S(t.User.Email)
+//line build/template/section.qtpl:254
+			qw422016.N().S(`&gt;</td> <td class="align-right"> `)
+//line build/template/section.qtpl:256
+			if !p.User.IsZero() {
+//line build/template/section.qtpl:256
+				qw422016.N().S(` <form method="POST" action="`)
+//line build/template/section.qtpl:257
+				qw422016.E().S(t.Endpoint())
+//line build/template/section.qtpl:257
+				qw422016.N().S(`"> `)
+//line build/template/section.qtpl:258
+				qw422016.N().S(p.CSRF)
+//line build/template/section.qtpl:258
+				qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"> <button type="submit" class="btn btn-danger">Delete</button> </form> `)
 //line build/template/section.qtpl:262
+			}
+//line build/template/section.qtpl:262
+			qw422016.N().S(` </td> </tr> `)
+//line build/template/section.qtpl:265
+		}
+//line build/template/section.qtpl:265
+		qw422016.N().S(` </tbody> </table> `)
+//line build/template/section.qtpl:268
+	}
+//line build/template/section.qtpl:268
 	qw422016.N().S(` </div> `)
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 }
 
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 func (p *Tags) WriteBody(qq422016 qtio422016.Writer) {
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 	p.StreamBody(qw422016)
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 }
 
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 func (p *Tags) Body() string {
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 	p.WriteBody(qb422016)
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 	qs422016 := string(qb422016.B)
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 	return qs422016
-//line build/template/section.qtpl:264
+//line build/template/section.qtpl:270
 }

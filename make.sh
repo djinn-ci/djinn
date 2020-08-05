@@ -107,9 +107,12 @@ help_() {
 		css)
 			printf "compile the less to css\n"
 			;;
+		dev)
+			printf "copy the configuration files in dist/ for local dev\n"
+			;;
 		*)
 			printf "build the server and offline runner\n"
-			printf "usage: make.sh [clean|css|runner|server|ui|worker]\n"
+			printf "usage: make.sh [clean|css|dev|runner|server|ui|worker]\n"
 			;;
 	esac
 }
@@ -140,6 +143,17 @@ case "$1" in
 		;;
 	css)
 		yarn_
+		;;
+	dev)
+		cp dist/*.toml .
+		sed -i "s/\/var\/lib\/ssl\/server\.crt//g" *.toml
+		sed -i "s/\/var\/lib\/ssl\/server\.key//g" *.toml
+		sed -i "s/\/var\/lib\/djinn\/images/\/tmp/g" *.toml
+		sed -i "s/\/var\/lib\/djinn\/artifacts/\/tmp/g" *.toml
+		sed -i "s/\/var\/lib\/djinn\/objects/\/tmp/g" *.toml
+		sed -i "s/\/var\/log\/djinn\/server\.log/\/dev\/stdout/g" *.toml
+		sed -i "s/\/var\/log\/djinn\/worker\.log/\/dev\/stdout/g" *.toml
+		sed -i "s/https/http/g" *.toml
 		;;
 	*)
 		if [ "$1" = "" ]; then

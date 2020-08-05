@@ -56,4 +56,4 @@ path  = "/var/lib/djinn/objects"
 
 [log]
 level = "info"
-file  = "/var/log/djinn/server.log"
+file  = "/var/log/djinn/worker.log"

@@ -7,6 +7,9 @@
 *.log
 node_modules/
 .vimrc
+driver.toml
+worker.toml
+server.toml
 thrall-driver.toml
 thrall-worker.toml
 thrall-server.toml

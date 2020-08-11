@@ -169,21 +169,21 @@ this will be `djinn-server.toml`.
 
 * `-ui` - This tells the server to only serve the UI endpoints.
 
-If you do not specify either the `--api`, or `--ui` flag then both groups of
+If you do not specify either the `-api`, or `-ui` flag then both groups of
 endpoints will be served. The [REST API](/api) endpoints will be served under
 the `/api` prefix,
 
 **Serving both the UI and API**
 
-    $ djinn-server -c /etc/djinn/server.toml
+    $ djinn-server -config /etc/djinn/server.toml
 
 **Serving just the API**
 
-    $ djinn-server -c /etc/djinn/server.toml --api
+    $ djinn-server -config /etc/djinn/server.toml -api
 
 **Serving just the UI**
 
-    $ djinn-server -c /etc/djinn/server.toml --ui
+    $ djinn-server -config /etc/djinn/server.toml -ui
 
 ## Configuring the server daemon
 

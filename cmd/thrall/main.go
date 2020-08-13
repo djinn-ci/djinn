@@ -6,6 +6,7 @@ import (
 	"flag"
 	"os"
 	"os/signal"
+	"path/filepath"
 
 	"github.com/andrewpillar/thrall/block"
 	"github.com/andrewpillar/thrall/config"
@@ -42,11 +43,17 @@ func main() {
 		stage        string
 	)
 
+	cfgdir, err := os.UserConfigDir()
+
+	if err != nil {
+		cfgdir = "."
+	}
+
 	flag.BoolVar(&showversion, "version", false, "show the version and exit")
 	flag.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
 	flag.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
 	flag.StringVar(&manifestfile, "manifest", ".thrall.yml", "the manifest file to use")
-	flag.StringVar(&driverfile, "driver", "thrall-driver.toml", "the driver config to use")
+	flag.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "thrall-driver.toml"), "the driver config to use")
 	flag.StringVar(&stage, "stage", "", "the stage to execute")
 	flag.Parse()
 

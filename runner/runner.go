@@ -14,6 +14,7 @@ import (
 
 var (
 	errStageNotFound = errors.New("stage could not be found")
+	errTimedOut      = errors.New("timed out")
 	errRunFailed     = errors.New("run failed")
 
 	createTimeout   = time.Duration(time.Minute * 5)
@@ -228,6 +229,9 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 	case <-done:
 		if r.Status == Failed {
 			return errRunFailed
+		}
+		if r.Status == TimedOut {
+			return errTimedOut
 		}
 		return nil
 	}

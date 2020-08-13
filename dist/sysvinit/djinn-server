@@ -9,9 +9,14 @@ GROUP="djinn"
 BIN="/usr/bin/djinn-server"
 
 PIDFILE="/var/run/$NAME.pid"
-OPTS="-c /etc/djinn/server.toml"
+OPTS="-config /etc/djinn/server.toml"
 
 start() {
+	if [ -f "$PIDFILE" ]; then
+		printf "%s is already running\n" "$NAME"
+		exit 0
+	fi
+
 	start-stop-daemon --start \
 		--quiet \
 		--make-pidfile \

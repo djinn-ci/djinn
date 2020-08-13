@@ -9,9 +9,14 @@ GROUP="djinn"
 BIN="/usr/bin/djinn-worker"
 
 PIDFILE="/var/run/$NAME.pid"
-OPTS="-c /etc/djinn/worker.toml -d /etc/djinn/driver.toml"
+OPTS="-config /etc/djinn/worker.toml -driver /etc/djinn/driver.toml"
 
 start() {
+	if [ -f "$PIDFILE" ]; then
+		printf "%s is already running\n" "$NAME"
+		exit 0
+	fi
+
 	start-stop-daemon --start \
 		--quiet \
 		--make-pidfile \

@@ -2,15 +2,11 @@ package build
 
 import (
 	"database/sql"
-	"io"
-	"os"
-	"time"
 
 	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/key"
-	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
 
@@ -31,14 +27,6 @@ type Key struct {
 	Build *Build `db:"-"`
 }
 
-// keyInfo is a bare minimum implementation of the os.FileInfo interface just
-// so we can return it from the KeyStore.Stat call.
-type keyInfo struct {
-	name    string
-	size    int64
-	modTime time.Time
-}
-
 // KeyStore is the type for creating and modifying Key models in the database.
 // The KeyStore type uses an underlying crypto.Block for encrypting the SSH key
 // itself when being stored in the database.
@@ -51,11 +39,9 @@ type KeyStore struct {
 }
 
 var (
-	_ os.FileInfo     = (*keyInfo)(nil)
 	_ database.Model  = (*Key)(nil)
 	_ database.Binder = (*KeyStore)(nil)
 	_ database.Loader = (*KeyStore)(nil)
-	_ runner.Placer   = (*KeyStore)(nil)
 
 	keyTable = "build_keys"
 )
@@ -85,14 +71,6 @@ func KeyModel(kk []*Key) func(int) database.Model {
 		return kk[i]
 	}
 }
-
-// keyInfo method stubs for os.FileInfo interface.
-func (i *keyInfo) Name() string       { return i.name }
-func (i *keyInfo) Size() int64        { return i.size }
-func (*keyInfo) Mode() os.FileMode    { return os.FileMode(0600) }
-func (i *keyInfo) ModTime() time.Time { return i.modTime }
-func (i *keyInfo) IsDir() bool        { return false }
-func (i *keyInfo) Sys() interface{}   { return nil }
 
 // Bind implements the database.Binder interface. This will only bind the
 // models if they are pointers to a Build model.
@@ -283,50 +261,4 @@ func (s *KeyStore) getKeyToPlace(name string) (*Key, error) {
 		return nil, errors.New("cannot find key: " + name)
 	}
 	return k, nil
-}
-
-// Place looks up the Key by the given name, and decrypts its content so it can
-// be written to the given io.Writer.
-func (s *KeyStore) Place(name string, w io.Writer) (int64, error) {
-	if s.block == nil {
-		return 0, errors.New("nil block cipher")
-	}
-
-	k, err := s.getKeyToPlace(name)
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	b, err := s.block.Decrypt(k.Key)
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	n, err := w.Write(b)
-	return int64(n), errors.Err(err)
-}
-
-// Stat returns an implementation of os.FileInfo for the given SSH key. The
-// ModTime is always going to be when this method was invoked, and the length
-// will be the length of the decrypted SSH key itself.
-func (s *KeyStore) Stat(name string) (os.FileInfo, error) {
-	if s.block == nil {
-		return nil, errors.New("nil block cipher")
-	}
-
-	k, err := s.getKeyToPlace(name)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	b, err := s.block.Decrypt(k.Key)
-
-	return &keyInfo{
-		name:    k.Name,
-		size:    int64(len(b)),
-		modTime: time.Now(),
-	}, errors.Err(err)
 }

@@ -67,9 +67,16 @@ func (r *buildRunner) load() error {
 		return errors.Err(err)
 	}
 
+	keycfg := bytes.Buffer{}
+	keys := make(map[string][]byte)
+
 	for _, k := range kk {
-		r.runner.Objects.Set("key:"+k.Name, k.Location)
+		keycfg.WriteString(k.Config)
+		keys["key:"+k.Name] = k.Key
+
+		r.runner.Objects.Set("key:"+k.Name, "/root/.ssh/"+k.Name)
 	}
+	r.runner.Objects.Set("keycfg:", "/root/.ssh/config")
 
 	oo, err := build.NewObjectStore(r.db, r.build).All()
 
@@ -133,6 +140,8 @@ func (r *buildRunner) load() error {
 		db:      r.db,
 		block:   r.block,
 		build:   r.build,
+		keycfg:  keycfg.String(),
+		keys:    keys,
 		objects: r.placer,
 	}
 	r.runner.Collector = build.NewArtifactStoreWithCollector(r.db, r.collector, r.build)

@@ -29,6 +29,9 @@ properties for this file,
 queue mechanism. This will write additional information about the builds being
 processed to `stdout`.
 
+* `webserver` - This is the address of the web server that serves Djinn CI. This
+will be used for any links in emails.
+
 * `parallelism` - This specifies the parallelism to use when running multiple
 builds at one. Set this to `0` to use the number of CPU cores available.
 
@@ -40,6 +43,20 @@ Valie time units are `ns`, `us`, `ms`, `s`, `m`, and `h`.
 * `crypto.block` - The key to use for the block cipher that is used for
 encrypting values. This must be either 16, 24, or 32 characters in length. This
 should match what is configured for the server.
+
+* `smtp.addr` - The address of the SMTP server to use for sending mail.
+
+* `smtp.ca` - The path to the CA root chain that should be used, if you want to
+invoke the `STARTTLS` command on the SMTP server.
+
+* `smtp.admin` - The postmaster's email. This will be used in the `From` field
+in any mail that is sent via the SMTP server.
+
+* `smtp.username` - The username of the account to authenticate with on the SMTP
+server.
+
+* `smtp.password` - The password of the account to authenticate with on the SMTP
+server.
 
 * `database.addr` - The address of the PostgreSQL server to connect to.
 

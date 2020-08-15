@@ -4,6 +4,16 @@
 
 * [External dependencies](#external-dependencies)
 * [Configuring the server](#configuring-the-server)
+  * [Network](#network)
+  * [Crypto](#crypto)
+  * [Database](#database)
+  * [Redis](#redis)
+  * [Images](#images)
+  * [Artifacts](#artifacts)
+  * [Objects](#objects)
+  * [Logging](#logging)
+  * [Drivers](#drivers)
+  * [Providers](#providers)
 * [Example server configuration](#example-server-configuration)
 * [Running the server](#running-the-server)
 * [Configuring the server daemon](#configuring-the-server-daemon)
@@ -28,12 +38,16 @@ for OAuth redirects and setting the endpoint to which the webhooks are sent.
 This can be either an IP address or a FQDN, though it is recommend to be the
 latter.
 
+### Network
+
 * `net.listen` - The address that should be used to serve over.
 
 * `net.ssl.cert` - The certificate to use if you want the server to serve over
 TLS.
 
 * `net.ssl.key` - The key to use if you want the server to serve over TLS.
+
+### Crypto
 
 * `crypto.hash` - The hash key to use for authenticating encrypted cookie
 values via HMAC. This must be either 32, or 64 characters in length.
@@ -47,6 +61,8 @@ should match what is configured for the worker.
 * `cypto.auth` - The key to use to protect against CSRF attacks. This must be 32
 characters long.
 
+### Database
+
 * `database.addr` - The address of the PostgreSQL server to connect to.
 
 * `database.name` - The name of the database to use.
@@ -55,17 +71,25 @@ characters long.
 
 * `database.password` - The password of the database user.
 
+### Redis
+
 * `redis.addr` - The address of the Redis server to connect to.
+
+### Images
 
 * `images.type` - The type of store to use for storing custom image files. Must
 be one of: `file`.
 
 * `images.path` - The location of where custom image files are stored.
 
+### Artifacts
+
 * `artifacts.type` - The type of store to use for storing artifacts. Must be one
 of: `file`.
 
 * `artifacts.path` - The location of where artifacts are stored.
+
+### Objects
 
 * `objects.type` - The type of store to use for storing objects. Must be one of:
 `file`.
@@ -75,14 +99,22 @@ of: `file`.
 * `objects.limit` - The maximum size of objects that can be uploaded to the
 server. Set to `0` for unlimited.
 
+### Logging
+
 * `log.level` - The level of logging to use whilst the server is running. Must
 be one of: `debug`, `info`, or `error`.
+
+* `log.file` - The file to write logs to, defaults to `/dev/stdout`.
+
+### Drivers
 
 * `drivers.type` - The type of driver to support on the server. Must be one of:
 `docker`, `qemu`, or `ssh`.
 
 * `drivers.queue` - The name of the queue that builds for the given driver should
 be submitted to.
+
+### Providers
 
 * `providers.name` - The name of a Git provider to support integration to. Must
 be one of: `github` or `gitlab`.

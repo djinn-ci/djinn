@@ -4,6 +4,15 @@
 
 * [External dependencies](#external-dependencies)
 * [Configuring the worker](#configuring-the-worker)
+  * [General configuration](#general-configuration)
+  * [Crypto](#crypto)
+  * [SMTP](#smtp)
+  * [Database](#database)
+  * [Redis](#redis)
+  * [Images](#images)
+  * [Artifacts](#artifacts)
+  * [Objects](#objects)
+  * [Logging](#logging)
 * [Example worker configuration](#example-worker-configuration)
 * [Running the worker](#running-the-worker)
 * [Configuring the worker daemon](#configuring-the-worker-daemon)
@@ -29,6 +38,8 @@ properties for this file,
 queue mechanism. This will write additional information about the builds being
 processed to `stdout`.
 
+### General configuration
+
 * `webserver` - This is the address of the web server that serves Djinn CI. This
 will be used for any links in emails.
 
@@ -38,11 +49,15 @@ builds at one. Set this to `0` to use the number of CPU cores available.
 * `queue` - This specifies the queue that builds should be popped off.
 
 * `timeout` - This specifies the duration after which builds should be killed.
-Valie time units are `ns`, `us`, `ms`, `s`, `m`, and `h`.
+Valid time units are `ns`, `us`, `ms`, `s`, `m`, and `h`.
+
+### Crypto
 
 * `crypto.block` - The key to use for the block cipher that is used for
 encrypting values. This must be either 16, 24, or 32 characters in length. This
 should match what is configured for the server.
+
+### SMTP
 
 * `smtp.addr` - The address of the SMTP server to use for sending mail.
 
@@ -58,6 +73,8 @@ server.
 * `smtp.password` - The password of the account to authenticate with on the SMTP
 server.
 
+### Database
+
 * `database.addr` - The address of the PostgreSQL server to connect to.
 
 * `database.name` - The name of the database to use.
@@ -66,12 +83,18 @@ server.
 
 * `database.password` - The password of the database user.
 
+### Redis
+
 * `redis.addr` - The address of the Redis server to connect to.
+
+### Images
 
 * `images.type` - The type of store to use for storing custom image files. Must
 be one of: `file`.
 
 * `images.path` - The location of where custom image files are stored.
+
+### Artifacts
 
 * `artifacts.type` - The type of store to use for storing artifacts. Must be one
 of: `file`.
@@ -82,13 +105,19 @@ of: `file`.
 environment. This will cut off collection of an individual artifact at the given
 amount in bytes. Set to `0` for unlimited.
 
+### Objects
+
 * `objects.type` - The type of store to use for storing objects. Must be one of:
 `file`.
 
 * `objects.path` - The location of where to store objects to place into builds.
 
+### Logging
+
 * `log.level` - The level of logging to use whilst the server is running. Must
 be one of: `debug`, `info`, or `error`.
+
+* `log.file` - The file to write logs to, defaults to `/dev/stdout`.
 
 ## Example worker configuration
 

@@ -275,9 +275,9 @@ func main() {
 	}
 
 	w := worker{
-		db:         db,
-		redis:      redis,
-		smtp:       struct {
+		db:    db,
+		redis: redis,
+		smtp: struct {
 			client *smtp.Client
 			from   string
 		}{

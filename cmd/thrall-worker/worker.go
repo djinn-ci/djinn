@@ -48,15 +48,15 @@ type worker struct {
 	driverconf map[string]map[string]interface{} // global driver config
 	drivers    *driver.Registry                  // configured drivers
 
-	timeout    time.Duration
+	timeout time.Duration
 
-	server     *machinery.Server
-	worker     *machinery.Worker
+	server *machinery.Server
+	worker *machinery.Worker
 
-	placer     runner.Placer
-	collector  runner.Collector
+	placer    runner.Placer
+	collector runner.Collector
 
-	builds     *build.Store
+	builds *build.Store
 }
 
 func sendmail(cli *smtp.Client, subject, from string, to []string, msg string) error {
@@ -66,7 +66,7 @@ func sendmail(cli *smtp.Client, subject, from string, to []string, msg string) e
 	for i, rcpt := range to {
 		buf.WriteString(rcpt)
 
-		if i != len(to) - 1 {
+		if i != len(to)-1 {
 			buf.WriteString("; ")
 		}
 	}
@@ -284,7 +284,7 @@ func (w *worker) run(id int64) error {
 			parts := strings.Split(j.Output.String, "\n")
 
 			if len(parts) >= 15 {
-				parts = parts[len(parts) - 15:]
+				parts = parts[len(parts)-15:]
 			}
 			output = strings.Join(parts, "\n")
 		case runner.TimedOut:
@@ -301,7 +301,6 @@ func (w *worker) run(id int64) error {
 		if output != "" {
 			buf.WriteString("\n" + output + "\n")
 		}
-
 		return errors.Err(sendmail(w.smtp.client, subj, w.smtp.from, to, buf.String()))
 	}
 	return nil

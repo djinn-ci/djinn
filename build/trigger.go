@@ -251,6 +251,34 @@ func (t Trigger) CommentTitle() string {
 	return title
 }
 
+// String returns a formatted string of the trigger itself, this will detail the
+// user who submitted it, if not nil, and format the comment into the title and
+// body.
+func (t Trigger) String() string {
+	buf := bytes.Buffer{}
+
+	username := ""
+
+	if t.Build != nil && t.Build.User != nil {
+		username = t.Build.User.Username
+	}
+
+	switch t.Type {
+	case Manual:
+		buf.WriteString("Submitted by " + username + "\n")
+	case Push:
+		buf.WriteString("Committed " + t.Data["id"][:7] + " to " + t.Data["ref"] + "\n")
+	case Pull:
+		buf.WriteString(strings.Title(t.Data["action"]) + " pull request to " + t.Data["ref"] + "\n")
+	}
+
+	if t.Comment != "" {
+		buf.WriteString("\n" + t.CommentTitle() + "\n")
+		buf.WriteString(t.CommentBody() + "\n")
+	}
+	return buf.String()
+}
+
 // Bind implements the database.Binder interface. This will only bind the models
 // if they are pointers to a Build model.
 func (s *TriggerStore) Bind(mm ...database.Model) {
@@ -265,6 +293,23 @@ func (s *TriggerStore) Bind(mm ...database.Model) {
 func (s *TriggerStore) Create(tt ...*Trigger) error {
 	mm := database.ModelSlice(len(tt), TriggerModel(tt))
 	return errors.Err(s.Store.Create(triggerTable, mm...))
+}
+
+func (s TriggerStore) Get(opts ...query.Option) (*Trigger, error) {
+	t := &Trigger{
+		Build: s.Build,
+	}
+
+	opts = append([]query.Option{
+		database.Where(s.Build, "build_id"),
+	}, opts...)
+
+	err := s.Store.Get(t, triggerTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+	return t, errors.Err(err)
 }
 
 // All returns a slice of Trigger models, applying each query.Option that is

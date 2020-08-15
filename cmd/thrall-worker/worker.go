@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/smtp"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -57,22 +58,6 @@ type worker struct {
 
 	builds     *build.Store
 }
-
-var (
-	subjfmt = "Djinn - Build #%d %s"
-	msgfmt  = `Job %s in build #%d %s
-
-Build: %s
-Job:   %s
-
-%s`
-
-	failedGrammar = map[runner.Status]string{
-		runner.Killed:   "killed",
-		runner.Failed:   "failed",
-		runner.TimedOut: "timed out",
-	}
-)
 
 func sendmail(cli *smtp.Client, subject, from string, to []string, msg string) error {
 	buf := bytes.NewBufferString("From: " + from + "\r\n")
@@ -246,6 +231,12 @@ func (w *worker) run(id int64) error {
 
 		b.User = u
 
+		t, err := build.NewTriggerStore(w.db, b).Get()
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
 		to = append(to, u.Email)
 
 		if b.NamespaceID.Valid {
@@ -266,27 +257,52 @@ func (w *worker) run(id int64) error {
 			}
 		}
 
-		j, err := build.NewJobStore(w.db, b).Get(
-			query.Where("status", "IN", runner.Killed, runner.Failed, runner.TimedOut),
-			query.OrderDesc("finished_at"),
-		)
+		var subj, output string
 
-		if err != nil {
-			return errors.Err(err)
+		buf := bytes.Buffer{}
+
+		switch status {
+		case runner.Killed:
+			subj = "Djinn - Build #" + strconv.FormatInt(b.ID, 10) + " was killed"
+
+			buf.WriteString("Build #" + strconv.FormatInt(b.ID, 10) + " was killed\n\n")
+		case runner.Failed:
+			subj = "Djinn - Build #" + strconv.FormatInt(b.ID, 10) + " failed"
+
+			j, err := build.NewJobStore(w.db, b).Get(
+				query.Where("status", "=", runner.Failed),
+				query.OrderDesc("finished_at"),
+			)
+
+			if err != nil {
+				return errors.Err(err)
+			}
+
+			buf.WriteString("Job " + j.Name + " failed in ")
+			buf.WriteString("build #" + strconv.FormatInt(b.ID, 10) + " failed\n\n")
+
+			parts := strings.Split(j.Output.String, "\n")
+
+			if len(parts) >= 15 {
+				parts = parts[len(parts) - 15:]
+			}
+			output = strings.Join(parts, "\n")
+		case runner.TimedOut:
+			subj = "Djinn - Build #" + strconv.FormatInt(b.ID, 10) + " timed out"
+
+			buf.WriteString("Build #" + strconv.FormatInt(b.ID, 10) + " timed out\n\n")
 		}
 
-		subj := fmt.Sprintf(subjfmt, b.ID, failedGrammar[status])
-		msg := fmt.Sprintf(
-			msgfmt,
-			j.Name,
-			b.ID,
-			failedGrammar[status],
-			w.webserver + b.Endpoint(),
-			w.webserver + j.Endpoint(),
-			j.Output.String,
-		)
+		buf.WriteString("Build: " + w.webserver + b.Endpoint() + "\n\n")
+		buf.WriteString("-----\n")
+		buf.WriteString(t.String())
+		buf.WriteString("----\n")
 
-		return errors.Err(sendmail(w.smtp.client, subj, w.smtp.from, to, msg))
+		if output != "" {
+			buf.WriteString("\n" + output + "\n")
+		}
+
+		return errors.Err(sendmail(w.smtp.client, subj, w.smtp.from, to, buf.String()))
 	}
 	return nil
 }

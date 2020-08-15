@@ -73,7 +73,7 @@ func Err(err error) error {
 		funcName = pcFunc.Name()
 	}
 
-	parts := strings.SplitN(fname, "thrall", 2)
+	parts := strings.SplitN(fname, "djinn", 2)
 
 	return &Error{
 		Err:  err,

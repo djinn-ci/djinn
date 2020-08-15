@@ -274,7 +274,7 @@ func (t Trigger) String() string {
 	}
 
 	if t.Comment != "" {
-		buf.WriteString("\n" + t.CommentTitle() + "\n")
+		buf.WriteString("\n" + t.CommentTitle() + "\n\n")
 		buf.WriteString(t.CommentBody() + "\n")
 	}
 	return buf.String()

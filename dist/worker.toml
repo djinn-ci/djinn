@@ -1,5 +1,9 @@
 
 
+# The name of the main Djinn CI server. This is used when generating links to
+# failed builds and jobs in emails.
+webserver = "https://localhost:8443"
+
 # The number of builds to run in parallel. Set to 0 to use the number of CPU
 # cores available.
 parallelism = 0
@@ -15,6 +19,26 @@ timeout = "30m"
 # The block key is required for encrypting data. This must be either, 16, 24,
 # or 32 characters in length. This should be the same as what's in server.toml.
 block = "1a2b3c4d5e6f7g8h"
+
+# If SMTP is configured for the worker, then this will allow the worker to send
+# mail to users about any builds that may have been killed, failed, or timed
+# out.
+[smtp]
+# The address of the SMTP server to use for sending mail.
+addr     = "smtp.example.com:587"
+
+# If connecting via TLS, then path to the file that contains a set of root
+# certificate authorities.
+ca       = "/etc/ssl/cert.pem"
+
+# Admin will be the email of the postmaster. This will be the email used in the
+# From field of mails that are sent. Typically set this to noreply@<hostname>.
+admin    = "noreply@example.com"
+
+# The username and password to use if authentication is required when connecting
+# to the SMTP server.
+username = "postmaster@example.com"
+password = "1a2b3c4d"
 
 [database]
 addr     = "localhost:5432"

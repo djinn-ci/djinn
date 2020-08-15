@@ -69,6 +69,16 @@ func CollaboratorModel(cc []*Collaborator) func(int) database.Model {
 	}
 }
 
+// CollaboratorSelect returns a query that selects the given column from the
+// namespace_collaborators table, with each given query.Option applied to the
+// returned query.
+func CollaboratorSelect(col string, opts ...query.Option) query.Query {
+	return query.Select(append([]query.Option{
+		query.Columns(col),
+		query.From(collaboratorTable),
+	}, opts...)...)
+}
+
 // WhereCollaborator returns a query.Option that when applied to a query will
 // check to see if the given database.Model (assuming it's of type *user.User),
 // is either a Collaborator, or owner of a Namespace. This would typically

@@ -148,7 +148,7 @@ func (r *buildRunner) load() error {
 	return nil
 }
 
-func (r *buildRunner) run(c context.Context, d runner.Driver) error {
+func (r *buildRunner) run(c context.Context, d runner.Driver) (runner.Status, error) {
 	builds := build.NewStore(r.db)
 	jobs := build.NewJobStore(r.db)
 
@@ -181,15 +181,15 @@ func (r *buildRunner) run(c context.Context, d runner.Driver) error {
 	})
 
 	if err := builds.Started(r.build.ID); err != nil {
-		return errors.Err(err)
+		return runner.Failed, errors.Err(err)
 	}
 
 	r.runner.Run(c, d)
 
 	if err := builds.Finished(r.build.ID, r.buf.String(), r.runner.Status); err != nil {
-		return errors.Err(err)
+		return r.runner.Status, errors.Err(err)
 	}
-	return errors.Err(r.updateJobs())
+	return r.runner.Status, errors.Err(r.updateJobs())
 }
 
 func (r *buildRunner) updateJobs() error {

@@ -1,9 +1,13 @@
 package main
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net"
+	"net/smtp"
 	"os"
 	"time"
 
@@ -207,9 +211,80 @@ func main() {
 		driverconf[key] = subtree.ToMap()
 	}
 
+	var client *smtp.Client
+
+	if cfg.SMTP.Addr != "" {
+		var auth smtp.Auth
+
+		host, _, err := net.SplitHostPort(cfg.SMTP.Addr)
+
+		if cfg.SMTP.Username != "" && cfg.SMTP.Password != "" {
+			if err != nil {
+				log.Error.Fatalf("invalid smtp address: %s\n", err)
+			}
+
+			auth = smtp.PlainAuth("", cfg.SMTP.Username, cfg.SMTP.Password, host)
+		}
+
+		var tlscfg *tls.Config
+
+		if cfg.SMTP.CA != "" {
+			b, err := ioutil.ReadFile(cfg.SMTP.CA)
+
+			if err != nil {
+				log.Error.Fatalf("failed to read ca file: %s\n", err)
+			}
+
+			pool := x509.NewCertPool()
+
+			if !pool.AppendCertsFromPEM(b) {
+				log.Error.Fatalf("failed to append certificates from PEM, please check if valid\n")
+			}
+
+			log.Debug.Println("loaded root ca chain")
+
+			tlscfg = &tls.Config{
+				ServerName: host,
+				RootCAs:    pool,
+			}
+		}
+
+		client, err = smtp.Dial(cfg.SMTP.Addr)
+
+		if err != nil {
+			log.Error.Fatalf("failed to create smtp client: %s\n", err)
+		}
+
+		log.Debug.Println("connected to smtp server", cfg.SMTP.Addr)
+
+		if tlscfg != nil {
+			log.Debug.Println("issuing STARTTLS command to smtp server")
+
+			if err := client.StartTLS(tlscfg); err != nil {
+				log.Error.Fatalf("STARTTLS command failed: %s\n", err)
+			}
+		}
+
+		if auth != nil {
+			if err := client.Auth(auth); err != nil {
+				log.Error.Fatalf("smtp client auth failed: %s\n", err)
+			}
+		}
+
+		log.Info.Println("connected to smtp server", cfg.SMTP.Addr)
+	}
+
 	w := worker{
 		db:         db,
 		redis:      redis,
+		smtp:       struct {
+			client *smtp.Client
+			from   string
+		}{
+			client: client,
+			from:   cfg.SMTP.Admin,
+		},
+		webserver:  cfg.Webserver,
 		block:      blockCipher,
 		log:        log,
 		driverconf: driverconf,

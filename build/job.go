@@ -164,7 +164,7 @@ func (j *Job) Endpoint(uri ...string) string {
 	if j.Build == nil || j.Build.IsZero() {
 		return ""
 	}
-	return j.Build.Endpoint("jobs", strconv.FormatInt(j.ID, 10))
+	return j.Build.Endpoint(append([]string{"jobs", strconv.FormatInt(j.ID, 10)}, uri...)...)
 }
 
 // Values implements the database.Model interface. This will return a map with

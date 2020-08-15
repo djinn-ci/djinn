@@ -76,7 +76,7 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, ok, nil
 		}
 
-		if base == "tags" && r.Method == "POST" || r.Method == "DELETE" {
+		if base == "tags" && r.Method == "POST" || base == "tags" && r.Method == "DELETE" {
 			return r, ok, nil
 		}
 

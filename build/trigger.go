@@ -257,15 +257,16 @@ func (t Trigger) CommentTitle() string {
 func (t Trigger) String() string {
 	buf := bytes.Buffer{}
 
-	username := ""
+	var username, email string
 
 	if t.Build != nil && t.Build.User != nil {
 		username = t.Build.User.Username
+		email = t.Build.User.Email
 	}
 
 	switch t.Type {
 	case Manual:
-		buf.WriteString("Submitted by " + username + "\n")
+		buf.WriteString("Submitted by " + username + "<" + email + ">\n")
 	case Push:
 		buf.WriteString("Committed " + t.Data["id"][:7] + " to " + t.Data["ref"] + "\n")
 	case Pull:

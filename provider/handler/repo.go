@@ -2,7 +2,7 @@ package handler
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/gob"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -13,12 +13,10 @@ import (
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/provider"
-	"github.com/andrewpillar/thrall/repo"
-	repotemplate "github.com/andrewpillar/thrall/repo/template"
-	"github.com/andrewpillar/thrall/template"
+	providertemplate "github.com/andrewpillar/thrall/provider/template"
 	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/web"
 
 	"github.com/andrewpillar/query"
@@ -31,89 +29,75 @@ import (
 type Repo struct {
 	web.Handler
 
-	Redis     *redis.Client
-	Repos     *repo.Store
-	Block     *crypto.Block
-	Providers map[string]oauth2.Provider
-}
-
-type repos struct {
-	Paginator database.Paginator
-	Items     []*repo.Repo
+	Redis    *redis.Client
+	Block    *crypto.Block
+	Registry *provider.Registry
+	Repos    *provider.RepoStore
 }
 
 var cacheKey = "repos-%s-%v-%v"
 
-func (h Repo) cachePut(name string, id, page int64, repos repos) error {
-	buf := &bytes.Buffer{}
+func (h Repo) cachePut(name string, id int64, rr []*provider.Repo, paginator database.Paginator) error {
+	var err error
 
-	json.NewEncoder(buf).Encode(repos)
+	buf := bytes.Buffer{}
+	enc := gob.NewEncoder(&buf)
 
-	_, err := h.Redis.Set(fmt.Sprintf(cacheKey, name, id, page), buf.String(), time.Hour).Result()
+	rr1 := make([]*provider.Repo, 0, len(rr))
+
+	for _, r := range rr {
+		r1 := (*r)
+		r1.User = nil
+		r1.Provider = nil
+
+		rr1 = append(rr1, &r1)
+	}
+
+	if err := enc.Encode(rr1); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := enc.Encode(paginator); err != nil {
+		return errors.Err(err)
+	}
+
+	_, err = h.Redis.Set(fmt.Sprintf(cacheKey, name, id, paginator.Page), buf.String(), time.Hour).Result()
 	return errors.Err(err)
 }
 
-func (h Repo) cacheGet(name string, id, page int64) (repos, error) {
-	repos := repos{}
+func (h Repo) cacheGet(name string, id, page int64) ([]*provider.Repo, database.Paginator, error) {
+	var err error
+
+	rr := make([]*provider.Repo, 0)
+	paginator := database.Paginator{}
 
 	s, err := h.Redis.Get(fmt.Sprintf(cacheKey, name, id, page)).Result()
 
 	if err != nil {
 		if err == redis.Nil {
-			return repos, nil
+			return rr, paginator, nil
 		}
-		return repos, errors.Err(err)
+		return rr, paginator, errors.Err(err)
 	}
 
-	err = json.NewDecoder(strings.NewReader(s)).Decode(&repos)
-	return repos, errors.Err(err)
+	r := strings.NewReader(s)
+	dec := gob.NewDecoder(r)
+
+	if err := dec.Decode(&rr); err != nil {
+		return rr, paginator, errors.Err(err)
+	}
+
+	err = dec.Decode(&paginator)
+	return rr, paginator, errors.Err(err)
 }
 
-func (h Repo) loadRepos(p *provider.Provider, page int64) (repos, error) {
-	repos := repos{
-		Paginator: database.Paginator{
-			Page: page,
-		},
-		Items: make([]*repo.Repo, 0),
-	}
-
+func (h Repo) loadRepos(p *provider.Provider, page int64) ([]*provider.Repo, database.Paginator, error) {
 	if !p.Connected {
-		return repos, nil
+		return []*provider.Repo{}, database.Paginator{}, nil
 	}
 
-	prv, ok := h.Providers[p.Name]
-
-	if !ok {
-		return repos, nil
-	}
-
-	tok, err := h.Block.Decrypt(p.AccessToken)
-
-	if err != nil {
-		return repos, errors.Err(err)
-	}
-
-	tmp, err := prv.Repos(tok, page)
-
-	if err != nil {
-		return repos, errors.Err(err)
-	}
-
-	repos.Paginator.Next = tmp.Next
-	repos.Paginator.Prev = tmp.Prev
-	repos.Paginator.Pages = []int64{tmp.Next, tmp.Prev}
-
-	for _, r := range tmp.Items {
-		repos.Items = append(repos.Items, &repo.Repo{
-			UserID:     p.UserID,
-			ProviderID: p.ID,
-			RepoID:     r.ID,
-			Name:       r.Name,
-			Href:       r.Href,
-			Provider:   p,
-		})
-	}
-	return repos, nil
+	rr, paginator, err := p.Repos(h.Registry, page)
+	return rr, paginator, errors.Err(err)
 }
 
 func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
@@ -133,7 +117,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 
 	providers := provider.NewStore(h.DB, u)
 
-	prv, err := providers.Get(opt)
+	p, err := providers.Get(opt)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -147,7 +131,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	repos, err := h.cacheGet(prv.Name, u.ID, page)
+	rr, paginator, err := h.cacheGet(p.Name, u.ID, page)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -155,8 +139,8 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(repos.Items) == 0 {
-		repos, err = h.loadRepos(prv, page)
+	if len(rr) == 0 {
+		rr, paginator, err = h.loadRepos(p, page)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -164,14 +148,14 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.cachePut(prv.Name, u.ID, page, repos); err != nil {
+		if err := h.cachePut(p.Name, u.ID, rr, paginator); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
 		}
 	}
 
-	enabled, err := repo.NewStore(h.DB, u, prv).All(query.Where("enabled", "=", true))
+	enabled, err := provider.NewRepoStore(h.DB, u, p).All(query.Where("enabled", "=", true))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -181,11 +165,11 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 
 	m := make(map[int64]int64)
 
-	for _, repo := range enabled {
-		m[repo.RepoID] = repo.ID
+	for _, r := range enabled {
+		m[r.RepoID] = r.ID
 	}
 
-	for _, r := range repos.Items {
+	for _, r := range rr {
 		if id, ok := m[r.RepoID]; ok {
 			r.ID = id
 			r.Enabled = true
@@ -202,18 +186,18 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 
 	csrfField := string(csrf.TemplateField(r))
 
-	p := &repotemplate.Index{
+	pg := &providertemplate.RepoIndex{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
 		},
 		CSRF:      csrfField,
-		Paginator: repos.Paginator,
-		Repos:     repos.Items,
-		Provider:  prv,
+		Paginator: paginator,
+		Repos:     rr,
+		Provider:  p,
 		Providers: pp,
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(pg, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -242,7 +226,7 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	repos, err := h.loadRepos(p, page)
+	rr, paginator, err := h.loadRepos(p, page)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -251,13 +235,12 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.cachePut(p.Name, u.ID, page, repos); err != nil {
+	if err := h.cachePut(p.Name, u.ID, rr, paginator); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to refresh repository cache"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-
 	sess.AddFlash(template.Success("Successfully reloaded repository cache"), "alert")
 	h.RedirectBack(w, r)
 }
@@ -271,7 +254,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	f := &repo.Form{}
+	f := &provider.RepoForm{}
 
 	if err := form.Unmarshal(f, r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -289,24 +272,9 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, ok := h.Providers[f.Provider]; !ok || p.IsZero() {
-		sess.AddFlash(template.Danger("Failed to enable repository hooks: unknow provider "+f.Provider), "alert")
-		h.RedirectBack(w, r)
-		return
-	}
+	repos := provider.NewRepoStore(h.DB, u)
 
-	var rp *repo.Repo
-
-	enabled := func(id int64) (int64, bool, error) {
-		rp, err = repo.NewStore(h.DB, u).Get(query.Where("id", "=", id))
-
-		if err != nil {
-			return 0, false, errors.Err(err)
-		}
-		return rp.HookID, rp.Enabled, nil
-	}
-
-	tok, err := h.Block.Decrypt(p.AccessToken)
+	repo, err := repos.Get(query.Where("id", "=", f.RepoID))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -315,22 +283,24 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hookId, err := h.Providers[f.Provider].ToggleRepo(tok, f.RepoID, enabled)
+	if repo.IsZero() {
+		repo.RepoID = f.RepoID
+		repo.Name = f.Name
+	}
 
-	if err != nil {
+	if err := p.ToggleRepo(h.Registry, repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	if _, err := repo.NewStore(h.DB, u, p).Create(f.RepoID, hookId); err != nil {
+	if _, err := repos.Create(f.RepoID, repo.HookID.Int64); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-
 	sess.AddFlash(template.Success("Repository hooks enabled"), "alert")
 	h.RedirectBack(w, r)
 }
@@ -338,19 +308,19 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	rp, ok := repo.FromContext(r.Context())
+	repo, ok := provider.RepoFromContext(r.Context())
 
 	if !ok {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get repo from request context")
 	}
 
-	if !rp.Enabled {
+	if !repo.Enabled {
 		sess.AddFlash(template.Success("Repository hooks disabled"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	p, err := provider.NewStore(h.DB).Get(query.Where("id", "=", rp.ProviderID))
+	p, err := provider.NewStore(h.DB).Get(query.Where("id", "=", repo.ProviderID))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -359,35 +329,21 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	enabled := func(id int64) (int64, bool, error) {
-		return rp.HookID, rp.Enabled, nil
-	}
-
-	tok, err := h.Block.Decrypt(p.AccessToken)
-
-	if err != nil {
+	if err := p.ToggleRepo(h.Registry, repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	if _, err := h.Providers[p.Name].ToggleRepo(tok, rp.RepoID, enabled); err != nil {
+	repo.Enabled = false
+
+	if err := h.Repos.Update(repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-
-	rp.Enabled = false
-
-	if err := h.Repos.Update(rp); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
-		h.RedirectBack(w, r)
-		return
-	}
-
 	sess.AddFlash(template.Success("Repository hooks disabled"), "alert")
 	h.RedirectBack(w, r)
 }

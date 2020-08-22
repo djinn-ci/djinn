@@ -2,7 +2,6 @@ package handler
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/hex"
 	"io"
 	"net/http"
@@ -15,7 +14,6 @@ import (
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/oauth2"
 	oauth2template "github.com/andrewpillar/thrall/oauth2/template"
-	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
@@ -23,15 +21,13 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
-	"github.com/gorilla/mux"
 )
 
 type Oauth2 struct {
 	web.Handler
 
-	Apps      *oauth2.AppStore
-	Tokens    *oauth2.TokenStore
-	Providers map[string]oauth2.Provider
+	Apps   *oauth2.AppStore
+	Tokens *oauth2.TokenStore
 }
 
 func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
@@ -384,181 +380,4 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 	}
 resp:
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// AuthClient will authenticate the current OAuth2 provider as a client for the
-// current user. If there is no current user then they will either be looked up
-// in the database via the name of the provider, and the ID of the user for that
-// provider. If this lookup fails, then a user is created using the information
-// from that provider. The password generated for the user will be a random 16
-// byte slice, this will never be disclosed to the user, and is there simply
-// for security measures.
-func (h Oauth2) AuthClient(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
-
-	name := mux.Vars(r)["provider"]
-
-	prv, ok := h.Providers[name]
-
-	if !ok {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	u, _ := user.FromContext(r.Context())
-
-	q := r.URL.Query()
-
-	if q.Get("state") != string(prv.Secret()) {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	access, refresh, providerUser, err := prv.Auth(r.Context(), q.Get("code"))
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-		h.Redirect(w, r, "/settings")
-		return
-	}
-
-	// If the user is not logged in, then try and find them in the database,
-	// otherwise create the user using the information about them from the
-	// provider they just authenticated against.
-	if u.IsZero() {
-		u, err = h.Users.Get(
-			query.WhereQuery("id", "=", provider.Select(
-				"user_id",
-				query.Where("provider_user_id", "=", providerUser.ID),
-				query.Where("name", "=", name),
-			)),
-			query.OrWhere("email", "=", providerUser.Email),
-		)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-			h.RedirectBack(w, r)
-			return
-		}
-
-		if u.IsZero() {
-			password := make([]byte, 16)
-
-			if _, err := rand.Read(password); err != nil {
-				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-				sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-				h.Redirect(w, r, "/settings")
-				return
-			}
-
-			username := providerUser.Username
-
-			if username == "" {
-				username = providerUser.Login
-			}
-
-			u, err = h.Users.Create(providerUser.Email, username, password)
-
-			if err != nil {
-				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-				sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-				h.Redirect(w, r, "/settings")
-				return
-			}
-		}
-
-		encoded, err := h.SecureCookie.Encode("user", strconv.FormatInt(u.ID, 10))
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-			h.Redirect(w, r, "/settings")
-			return
-		}
-
-		http.SetCookie(w, &http.Cookie{
-			Name:     "user",
-			HttpOnly: true,
-			MaxAge:   user.MaxAge,
-			Expires:  time.Now().Add(time.Duration(user.MaxAge) * time.Second),
-			Value:    encoded,
-			Path:     "/",
-		})
-	}
-
-	providers := provider.NewStore(h.DB, u)
-
-	p, err := providers.Get(query.Where("name", "=", name))
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-		h.Redirect(w, r, "/settings")
-		return
-	}
-
-	if p.IsZero() {
-		p, err = providers.Create(providerUser.ID, name, access, refresh, true)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-			h.Redirect(w, r, "/settings")
-			return
-		}
-	} else {
-		if err := providers.Update(p.ID, providerUser.ID, name, access, refresh, true); err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to connect to "+name), "alert")
-			h.Redirect(w, r, "/settings")
-			return
-		}
-	}
-
-	sess.AddFlash(template.Success("Successfully connected to "+name), "alert")
-	h.Redirect(w, r, "/settings")
-}
-
-func (h Oauth2) RevokeClient(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
-
-	name := mux.Vars(r)["provider"]
-
-	if _, ok := h.Providers[name]; !ok {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	u, ok := user.FromContext(r.Context())
-
-	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
-	}
-
-	providers := provider.NewStore(h.DB, u)
-
-	p, err := providers.Get(query.Where("name", "=", name))
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
-		h.RedirectBack(w, r)
-		return
-	}
-
-	if p.IsZero() {
-		h.RedirectBack(w, r)
-		return
-	}
-
-	if err := providers.Update(p.ID, 0, p.Name, nil, nil, false); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
-		h.RedirectBack(w, r)
-		return
-	}
-	sess.AddFlash(template.Success("Successfully disconnected from provider"), "alert")
-	h.RedirectBack(w, r)
 }

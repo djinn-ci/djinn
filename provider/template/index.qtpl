@@ -2,18 +2,17 @@
 import (
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/provider"
-	"github.com/andrewpillar/thrall/repo"
 	"github.com/andrewpillar/thrall/template"
 )
 %}
 
 {% code
-type Index struct {
+type RepoIndex struct {
 	template.BasePage
 
 	CSRF      string
 	Paginator database.Paginator
-	Repos     []*repo.Repo
+	Repos     []*provider.Repo
 	Provider  *provider.Provider
 	Providers []*provider.Provider
 }
@@ -25,15 +24,15 @@ var providerNames = map[string]string{
 %}
 
 {% collapsespace %}
-{% func (p *Index) Title() %}
+{% func (p *RepoIndex) Title() %}
 	Repositories - Thrall
 {% endfunc %}
 
-{% func (p *Index) Header() %}
+{% func (p *RepoIndex) Header() %}
 	Repositories
 {% endfunc %}
 
-{% func (p *Index) Body() %}
+{% func (p *RepoIndex) Body() %}
 	<div class="panel">
 		<div class="panel-header">
 			{% stripspace %}
@@ -111,7 +110,7 @@ var providerNames = map[string]string{
 	{%= template.RenderPaginator(p.URL, p.Paginator) %}
 {% endfunc %}
 
-{% func (p *Index) Actions() %}
+{% func (p *RepoIndex) Actions() %}
 	{% if len(p.Providers) > 0 %}
 		<form method="POST" action="/repos/reload?provider={%s p.Provider.Name %}&page={%v p.Paginator.Page %}">
 			{%s= p.CSRF %}
@@ -121,5 +120,5 @@ var providerNames = map[string]string{
 	{% endif %}
 {% endfunc %}
 
-{% func (p *Index) Navigation() %}{% endfunc %}
+{% func (p *RepoIndex) Navigation() %}{% endfunc %}
 {% endcollapsespace %}

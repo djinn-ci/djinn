@@ -1,5 +1,4 @@
-// Package repo providers the database.Model implementation of the Repo entity.
-package repo
+package provider
 
 import (
 	"context"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -19,21 +17,21 @@ import (
 
 // Repo is the type that represents a Repo from a remote Git hosting provider.
 type Repo struct {
-	ID         int64  `db:"id"`
-	UserID     int64  `db:"user_id"`
-	ProviderID int64  `db:"provider_id"`
-	HookID     int64  `db:"hook_id"`
-	RepoID     int64  `db:"repo_id"`
-	Enabled    bool   `db:"enabled"`
-	Name       string `db:"-"`
-	Href       string `db:"-"`
+	ID         int64          `db:"id"`
+	UserID     int64          `db:"user_id"`
+	ProviderID int64          `db:"provider_id"`
+	HookID     sql.NullInt64  `db:"hook_id"`
+	RepoID     int64          `db:"repo_id"`
+	Enabled    bool           `db:"enabled"`
+	Name       string         `db:"name"`
+	Href       string         `db:"href"`
 
-	User     *user.User         `db:"-"`
-	Provider *provider.Provider `db:"-"`
+	User     *user.User `db:"-"`
+	Provider *Provider  `db:"-"`
 }
 
-// Store is the type for creating and modifying Repo models in the database.
-type Store struct {
+// RepoStore is the type for creating and modifying Repo models in the database.
+type RepoStore struct {
 	database.Store
 
 	// User is the bound user.User model. If not nil this will bind the
@@ -42,57 +40,57 @@ type Store struct {
 	// performed.
 	User *user.User
 
-	// Provider is the bound provider.Provider model. If not nil this will bind
-	// the provider.Provider model to any Repo models that are created. If not
-	// nil this will append a WHERE clause on the provider_id column for all
-	// SELECT queries performed.
-	Provider *provider.Provider
+	// Provider is the bound Provider model. If not nil this will bind the
+	// Provider model to any Repo models that are created. If not nil this will
+	// append a WHERE clause on the provider_id column for all SELECT queries
+	// performed.
+	Provider *Provider
 }
 
 var (
 	_ database.Model  = (*Repo)(nil)
-	_ database.Binder = (*Store)(nil)
+	_ database.Binder = (*RepoStore)(nil)
 
-	table     = "provider_repos"
+	repoTable  = "provider_repos"
 	relations = map[string]database.RelationFunc{
 		"user":     database.Relation("user_id", "id"),
 		"provider": database.Relation("provider_id", "id"),
 	}
 )
 
-// NewStore returns a new Store for querying the provider_repos table. Each
-// database passed to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
-	s := &Store{
+// NewRepoStore returns a new RepoStore for querying the provider_repos table. Each
+// database passed to this function will be bound to the returned RepoStore.
+func NewRepoStore(db *sqlx.DB, mm ...database.Model) *RepoStore {
+	s := &RepoStore{
 		Store: database.Store{DB: db},
 	}
 	s.Bind(mm...)
 	return s
 }
 
-// FromContext returns the Repo model from the given context, if any.
-func FromContext(ctx context.Context) (*Repo, bool) {
+// RepoFromContext returns the Repo model from the given context, if any.
+func RepoFromContext(ctx context.Context) (*Repo, bool) {
 	r, ok := ctx.Value("repo").(*Repo)
 	return r, ok
 }
 
-// Model is called along with database.ModelSlice to convert the given slice of Repo
-// models to a slice of database.Model interfaces.
-func Model(rr []*Repo) func(int) database.Model {
+// RepoModel is called along with database.ModelSlice to convert the given
+// slice of Repo models to a slice of database.Model interfaces.
+func RepoModel(rr []*Repo) func(int) database.Model {
 	return func(i int) database.Model {
 		return rr[i]
 	}
 }
 
 // Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to either a user.User model or provider.Provider model.
+// if it is a pointer to either a user.User model or Provider model.
 func (r *Repo) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
 			r.User = m.(*user.User)
-		case *provider.Provider:
-			r.Provider = m.(*provider.Provider)
+		case *Provider:
+			r.Provider = m.(*Provider)
 		}
 	}
 }
@@ -108,7 +106,7 @@ func (r *Repo) IsZero() bool {
 	return r == nil || r.ID == 0 &&
 		r.UserID == 0 &&
 		r.ProviderID == 0 &&
-		r.HookID == 0 &&
+		!r.HookID.Valid &&
 		r.RepoID == 0 &&
 		!r.Enabled
 }
@@ -139,8 +137,8 @@ func (r *Repo) Values() map[string]interface{} {
 }
 
 // New returns a new Repo binding any non-nil models to it from the current
-// Store.
-func (s *Store) New() *Repo {
+// RepoStore.
+func (s *RepoStore) New() *Repo {
 	r := &Repo{
 		User:     s.User,
 		Provider: s.Provider,
@@ -158,53 +156,56 @@ func (s *Store) New() *Repo {
 
 // Create creates a new repository with the given repoId of the repository from
 // the provider, and hookId of the webhook that was created for the repository.
-func (s *Store) Create(repoId, hookId int64) (*Repo, error) {
+func (s *RepoStore) Create(repoId, hookId int64) (*Repo, error) {
 	r := s.New()
 	r.RepoID = repoId
-	r.HookID = hookId
+	r.HookID = sql.NullInt64{
+		Int64: hookId,
+		Valid: hookId > 0,
+	}
 	r.Enabled = hookId != 0
 
-	err := s.Store.Create(table, r)
+	err := s.Store.Create(repoTable, r)
 	return r, errors.Err(err)
 }
 
 // Update updates the given Repo models in the providers table.
-func (s *Store) Update(rr ...*Repo) error {
-	mm := database.ModelSlice(len(rr), Model(rr))
-	return errors.Err(s.Store.Update(table, mm...))
+func (s *RepoStore) Update(rr ...*Repo) error {
+	mm := database.ModelSlice(len(rr), RepoModel(rr))
+	return errors.Err(s.Store.Update(repoTable, mm...))
 }
 
 // Delete deletes the repos from the database with the given ids.
-func (s *Store) Delete(ids ...int64) error {
+func (s *RepoStore) Delete(ids ...int64) error {
 	vals := make([]interface{}, 0, len(ids))
 
 	for _, id := range ids {
 		vals = append(vals, id)
 	}
 
-	q := query.Delete(query.From(table), query.Where("id", "IN", vals...))
+	q := query.Delete(query.From(repoTable), query.Where("id", "IN", vals...))
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
 }
 
 // Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to either a user.User model or provider.Provider model.
-func (s *Store) Bind(mm ...database.Model) {
+// if it is a pointer to either a user.User model or Provider model.
+func (s *RepoStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
 		case *user.User:
 			s.User = m.(*user.User)
-		case *provider.Provider:
-			s.Provider = m.(*provider.Provider)
+		case *Provider:
+			s.Provider = m.(*Provider)
 		}
 	}
 }
 
 // Get returns a single Repo database, applying each query.Option that is given.
-// The database.Where option is applied to the *user.User and *provider.Provider
+// The database.Where option is applied to the *user.User and *Provider
 // bound models.
-func (s *Store) Get(opts ...query.Option) (*Repo, error) {
+func (s *RepoStore) Get(opts ...query.Option) (*Repo, error) {
 	r := &Repo{
 		User:     s.User,
 		Provider: s.Provider,
@@ -215,7 +216,7 @@ func (s *Store) Get(opts ...query.Option) (*Repo, error) {
 		database.Where(s.Provider, "provider_id"),
 	}, opts...)
 
-	err := s.Store.Get(r, table, opts...)
+	err := s.Store.Get(r, repoTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil
@@ -224,9 +225,9 @@ func (s *Store) Get(opts ...query.Option) (*Repo, error) {
 }
 
 // All returns a slice Repo models, applying each query.Option that is given.
-// The database.Where option is applied to the *user.User and *provider.Provider
+// The database.Where option is applied to the *user.User and *Provider
 // bound models.
-func (s *Store) All(opts ...query.Option) ([]*Repo, error) {
+func (s *RepoStore) All(opts ...query.Option) ([]*Repo, error) {
 	rr := make([]*Repo, 0)
 
 	opts = append([]query.Option{
@@ -234,7 +235,7 @@ func (s *Store) All(opts ...query.Option) ([]*Repo, error) {
 		database.Where(s.Provider, "provider_id"),
 	}, opts...)
 
-	err := s.Store.All(&rr, table, opts...)
+	err := s.Store.All(&rr, repoTable, opts...)
 
 	if err == sql.ErrNoRows {
 		err = nil

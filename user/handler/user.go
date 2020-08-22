@@ -8,7 +8,6 @@ import (
 
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/template"
 	"github.com/andrewpillar/thrall/user"
@@ -23,8 +22,8 @@ import (
 type User struct {
 	web.Handler
 
-	Prefix    string
-	Providers map[string]oauth2.Provider
+	Prefix   string
+	Registry *provider.Registry
 }
 
 func (h User) Register(w http.ResponseWriter, r *http.Request) {
@@ -70,7 +69,9 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 
 	providers := provider.NewStore(h.DB, u)
 
-	for name := range h.Providers {
+	cfgs, _ := h.Registry.All()
+
+	for name := range cfgs {
 		if _, err := providers.Create(0, name, nil, nil, false); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
@@ -84,20 +85,24 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
 	if r.Method == "GET" {
-		order := make([]string, 0, len(h.Providers))
+		cfgs, _ := h.Registry.All()
 
-		for name := range h.Providers {
+		order := make([]string, 0, len(cfgs))
+
+		for name := range cfgs {
 			order = append(order, name)
 		}
 
 		sort.Strings(order)
 
-		pp := make([]*provider.Provider, 0, len(h.Providers))
+		pp := make([]*provider.Provider, 0, len(cfgs))
 
 		for _, name := range order {
+			cfg := cfgs[name]
+
 			pp = append(pp, &provider.Provider{
 				Name:    name,
-				AuthURL: h.Providers[name].AuthURL(),
+				AuthURL: cfg.AuthCodeURL(cfg.Secret),
 			})
 		}
 
@@ -206,18 +211,20 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		m[p.Name] = p
 	}
 
-	order := make([]string, 0, len(h.Providers))
+	cfgs, _ := h.Registry.All()
 
-	for name, p := range h.Providers {
+	order := make([]string, 0, len(cfgs))
+
+	for name, cfg := range cfgs {
 		order = append(order, name)
 
 		if _, ok := m[name]; !ok {
 			m[name] = &provider.Provider{
 				Name:    name,
-				AuthURL: p.AuthURL(),
+				AuthURL: cfg.AuthCodeURL(cfg.Secret),
 			}
 		} else {
-			m[name].AuthURL = p.AuthURL()
+			m[name].AuthURL = cfg.AuthCodeURL(cfg.Secret)
 		}
 	}
 
@@ -233,7 +240,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 			Errors: web.FormErrors(sess),
 			Fields: web.FormFields(sess),
 		},
-		Providers: make([]*provider.Provider, 0, len(h.Providers)),
+		Providers: make([]*provider.Provider, 0, len(cfgs)),
 	}
 
 	for _, name := range order {

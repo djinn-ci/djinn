@@ -2,18 +2,14 @@ package provider
 
 import (
 	"bytes"
+	"database/sql"
 	"encoding/json"
-	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 
 	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/oauth2"
 )
-
-// GitHub provides an oauth2.Provider implementation for the GitHub REST API.
-type GitHub struct {
-	client
-}
 
 type githubError struct {
 	Message string
@@ -21,8 +17,6 @@ type githubError struct {
 }
 
 var (
-	_ oauth2.Provider = (*GitHub)(nil)
-
 	githubURL    = "https://api.github.com"
 	githubScopes = []string{
 		"repo",
@@ -30,50 +24,35 @@ var (
 	}
 )
 
-func (e githubError) String() string {
-	buf := bytes.Buffer{}
-	buf.WriteString(e.Message + ": ")
-	buf.WriteString(e.Errors[0]["message"])
-	return buf.String()
+func unmarshalGitHubRepos(r io.Reader, userId, providerId int64) []*Repo {
+	items := make([]struct {
+		ID       int64
+		FullName string `json:"full_name"`
+		HTMLURL  string `json:"html_url"`
+	}, 0)
+
+	json.NewDecoder(r).Decode(&items)
+
+	rr := make([]*Repo, 0, len(items))
+
+	for _, it := range items {
+		rr = append(rr, &Repo{
+			UserID:     userId,
+			ProviderID: providerId,
+			RepoID:     it.ID,
+			Name:       it.FullName,
+			Href:       it.HTMLURL,
+		})
+	}
+	return rr
 }
 
-// ToggleRepo will either add or remove the webhook to the repository of the
-// given ID depending on whether it was previously enabled as determined by
-// the given callback. The new webhook will trigger on push and pull_request
-// events.
-func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, bool, error)) (int64, error) {
-	respGet, err := g.Get(string(tok), fmt.Sprintf("%s/repositories/%v", g.Endpoint, id))
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	defer respGet.Body.Close()
-
-	if respGet.StatusCode != http.StatusOK {
-		return 0, errors.New("failed to get repository " + respGet.Status)
-	}
-
-	repo := struct {
-		Name  string
-		Owner struct {
-			Login string
-		}
-	}{}
-
-	json.NewDecoder(respGet.Body).Decode(&repo)
-
-	hookId, ok, err := enabled(id)
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	if !ok {
+func toggleGitHubRepo(cli Client, tok string, r *Repo) error {
+	if !r.Enabled {
 		body := map[string]interface{}{
 			"config": map[string]interface{}{
-				"url":          g.hookEndpoint,
-				"secret":       g.secret,
+				"url":          cli.host + "/hook/github",
+				"secret":       cli.Secret,
 				"content_type": "json",
 				"insecure_ssl": 0,
 			},
@@ -84,83 +63,65 @@ func (g GitHub) ToggleRepo(tok []byte, id int64, enabled func(int64) (int64, boo
 
 		json.NewEncoder(buf).Encode(body)
 
-		url := fmt.Sprintf("%s/repos/%s/%s/hooks", g.Endpoint, repo.Owner.Login, repo.Name)
-		respPost, err := g.Post(string(tok), url, buf)
+		resp, err := cli.Post(tok, "/repos/" + r.Name + "/hooks", buf)
 
 		if err != nil {
-			return 0, errors.Err(err)
+			return errors.Err(err)
 		}
 
-		defer respPost.Body.Close()
+		defer resp.Body.Close()
 
-		if respPost.StatusCode != http.StatusCreated {
-			ghErr := githubError{}
-
-			json.NewDecoder(respPost.Body).Decode(&ghErr)
-			return 0, errors.New(ghErr.String())
+		if resp.StatusCode != http.StatusCreated {
+			err := githubError{}
+			json.NewDecoder(resp.Body).Decode(&err)
+			return errors.New(err.String())
 		}
 
 		hook := struct {
 			ID int64
 		}{}
 
-		json.NewDecoder(respPost.Body).Decode(&hook)
-		return hook.ID, nil
+		json.NewDecoder(resp.Body).Decode(&hook)
+
+		r.HookID = sql.NullInt64{
+			Int64: hook.ID,
+			Valid: true,
+		}
+		r.Enabled = true
+		return nil
 	}
 
-	url := fmt.Sprintf("%s/repos/%s/%s/hooks/%v", g.Endpoint, repo.Owner.Login, repo.Name, hookId)
-	respDelete, err := g.Delete(string(tok), url)
+	resp, err := cli.Delete(tok, "/repos/" + r.Name + "/hooks/" + strconv.FormatInt(r.HookID.Int64, 10))
 
 	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	defer respDelete.Body.Close()
-
-	if respDelete.StatusCode != http.StatusNoContent {
-		ghErr := githubError{}
-
-		json.NewDecoder(respDelete.Body).Decode(&ghErr)
-		return 0, errors.New(ghErr.String())
-	}
-	return 0, nil
-}
-
-// Repos returns the repos from GitHub ordered by when they were last updated.
-func (g GitHub) Repos(tok []byte, page int64) (oauth2.Repos, error) {
-	resp, err := g.Get(string(tok), fmt.Sprintf("%s/user/repos?sort=updated&page=%v", g.Endpoint, page))
-
-	if err != nil {
-		return oauth2.Repos{}, errors.Err(err)
+		return errors.Err(err)
 	}
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return oauth2.Repos{}, errors.New("unexpected status code " + resp.Status)
+	if resp.StatusCode != http.StatusCreated {
+		err := githubError{}
+		json.NewDecoder(resp.Body).Decode(&err)
+		return errors.New(err.String())
 	}
 
-	next, prev := getNextAndPrev(resp.Header.Get("Link"))
-
-	repos := oauth2.Repos{
-		Next: next,
-		Prev: prev,
+	r.HookID = sql.NullInt64{
+		Int64: 0,
+		Valid: false,
 	}
+	r.Enabled = false
+	return nil
+}
 
-	items := make([]struct {
-		ID       int64
-		FullName string `json:"full_name"`
-		HTMLURL  string `json:"html_url"`
-	}, 0)
+func (e githubError) String() string {
+	s := e.Message + ": "
 
-	json.NewDecoder(resp.Body).Decode(&items)
+	for i, err := range e.Errors {
+		s += err["message"]
 
-	for _, item := range items {
-		repos.Items = append(repos.Items, oauth2.Repo{
-			ID:   item.ID,
-			Name: item.FullName,
-			Href: item.HTMLURL,
-		})
+		if i != len(e.Errors) - 1 {
+			s += ", "
+		}
 	}
-	return repos, nil
+	return s
 }

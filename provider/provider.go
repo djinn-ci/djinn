@@ -4,7 +4,11 @@
 package provider
 
 import (
+	"encoding/json"
 	"database/sql"
+	"io"
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/andrewpillar/thrall/database"
@@ -127,6 +131,112 @@ func (p *Provider) Values() map[string]interface{} {
 		"connected":        p.Connected,
 		"expires_at":       p.ExpiresAt,
 	}
+}
+
+// ToggleRepo will with add or remove a hook for the given repository hosted on
+// the current provider. This will either set/unset the HookID field on the
+// given Repo struct, and will toggle the Enabled field depending on whether a
+// hook was added or removed.
+func (p *Provider) ToggleRepo(clients *Registry, r *Repo) error {
+	_, cli, err := clients.Get(p.Name)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	tok, err := cli.block.Decrypt(p.AccessToken)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	switch p.Name {
+	case "github":
+		err = toggleGitHubRepo(cli, string(tok), r)
+	case "gitlab":
+		err = toggleGitLabRepo(cli, string(tok), r)
+	}
+	return errors.Err(err)
+}
+
+// Repos get's the repositories from the current provider's API endpoint. The
+// given crypto.Block is used to decrypt the access token that is used to
+// authenticate against the API. The given page is used to get the repositories
+// on that given page.
+func (p *Provider) Repos(clients *Registry, page int64) ([]*Repo, database.Paginator, error) {
+	paginator := database.Paginator{}
+
+	_, cli, err := clients.Get(p.Name)
+
+	if err != nil {
+		return nil, paginator, errors.Err(err)
+	}
+
+	tok, err := cli.block.Decrypt(p.AccessToken)
+
+	if err != nil {
+		return nil, paginator, errors.Err(err)
+	}
+
+	spage := strconv.FormatInt(page, 10)
+
+	var (
+		endpoint  string
+		unmarshal func(io.Reader, int64, int64) []*Repo
+	)
+
+	switch p.Name {
+	case "github":
+		endpoint = "/user/repos?sort=updated&part=" + spage
+		unmarshal = unmarshalGitHubRepos
+	case "gitlab":
+		resp0, err := cli.Get(string(tok), "/user")
+
+		if err != nil {
+			return nil, paginator, errors.Err(err)
+		}
+
+		defer resp0.Body.Close()
+
+		if resp0.StatusCode != http.StatusOK {
+			return nil, paginator, errors.New("unexpected http status: " + resp0.Status)
+		}
+
+		u := struct {
+			ID int64
+		}{}
+
+		json.NewDecoder(resp0.Body).Decode(&u)
+
+		endpoint = "/users/" + strconv.FormatInt(u.ID, 10) + "/projects?simple=true&order_by=updated_at&page=" + spage
+		unmarshal = unmarshalGitLabRepos
+	}
+
+	resp, err := cli.Get(string(tok), endpoint)
+
+	if err != nil {
+		return nil, paginator, errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, paginator, errors.New("unexpected http status: " + resp.Status)
+	}
+
+	rr := unmarshal(resp.Body, p.UserID, p.ID)
+
+	for i := range rr {
+		rr[i].Provider = p
+	}
+
+	next, prev := getNextAndPrev(resp.Header.Get("Link"))
+
+	paginator.Next = next
+	paginator.Prev = prev
+	paginator.Pages = []int64{next, prev}
+
+	return rr, paginator, errors.Err(err)
 }
 
 // New returns a new Provider binding any non-nil models to it from the current

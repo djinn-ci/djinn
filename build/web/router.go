@@ -12,7 +12,6 @@ import (
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/oauth2"
 	"github.com/andrewpillar/thrall/object"
 	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/server"
@@ -46,7 +45,7 @@ type Router struct {
 	Artifacts  block.Store
 	Hasher     *crypto.Hasher
 	Queues     map[string]*machinery.Server
-	Providers  map[string]oauth2.Provider
+	Registry   *provider.Registry
 }
 
 var _ server.Router = (*Router)(nil)
@@ -166,7 +165,7 @@ func (r *Router) Init(h web.Handler) {
 	r.hook = handler.Hook{
 		Build:           r.build,
 		Providers:       provider.NewStore(h.DB),
-		Oauth2Providers: r.Providers,
+		Registry:        r.Registry,
 	}
 	r.artifact = handler.ArtifactAPI{
 		Handler: h,

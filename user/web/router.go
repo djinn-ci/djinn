@@ -3,7 +3,7 @@ package web
 import (
 	"net/http"
 
-	"github.com/andrewpillar/thrall/oauth2"
+	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/user/handler"
@@ -15,7 +15,7 @@ import (
 type Router struct {
 	user handler.User
 
-	Providers  map[string]oauth2.Provider
+	Registry   *provider.Registry
 	Middleware web.Middleware
 }
 
@@ -25,8 +25,8 @@ var _ server.Router = (*Router)(nil)
 // Router's map of oauth2.Provider interfaces.
 func (r *Router) Init(h web.Handler) {
 	r.user = handler.User{
-		Handler:   h,
-		Providers: r.Providers,
+		Handler:  h,
+		Registry: r.Registry,
 	}
 }
 

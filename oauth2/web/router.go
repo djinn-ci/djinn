@@ -27,7 +27,6 @@ type Router struct {
 
 	Block      *crypto.Block
 	Middleware web.Middleware
-	Providers  map[string]oauth2.Provider
 }
 
 var _ server.Router = (*Router)(nil)
@@ -59,9 +58,8 @@ func tokenGate(db *sqlx.DB) web.Gate {
 
 func (r *Router) Init(h web.Handler) {
 	r.oauth2 = handler.Oauth2{
-		Handler:   h,
-		Apps:      oauth2.NewAppStore(h.DB),
-		Providers: r.Providers,
+		Handler: h,
+		Apps:    oauth2.NewAppStore(h.DB),
 	}
 	r.app = handler.App{
 		Handler: h,
@@ -98,11 +96,6 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	tok.HandleFunc("/{token}/regenerate", r.token.Update).Methods("PATCH")
 	tok.HandleFunc("/{token}", r.token.Destroy).Methods("DELETE")
 	tok.Use(r.Middleware.Gate(tokenGate(r.token.DB)), csrf)
-
-	sr := mux.PathPrefix("/oauth").Subrouter()
-	sr.HandleFunc("/{provider}", r.oauth2.AuthClient).Methods("GET")
-	sr.HandleFunc("/{provider}", r.oauth2.RevokeClient).Methods("DELETE")
-	sr.Use(csrf)
 }
 
 func (r *Router) RegisterAPI(_ string, _ *mux.Router, _ ...web.Gate) {}

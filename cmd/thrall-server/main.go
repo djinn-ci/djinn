@@ -25,7 +25,7 @@ import (
 	oauth2web "github.com/andrewpillar/thrall/oauth2/web"
 	objectweb "github.com/andrewpillar/thrall/object/web"
 	"github.com/andrewpillar/thrall/provider"
-	repoweb "github.com/andrewpillar/thrall/repo/web"
+	providerweb "github.com/andrewpillar/thrall/provider/web"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
 	"github.com/andrewpillar/thrall/user"
@@ -225,21 +225,21 @@ func main() {
 		log.Error.Fatalf("auth key must be 32 bytes in size\n")
 	}
 
-	providers := make(map[string]oauth2.Provider)
+	providers := provider.NewRegistry()
 
 	for _, p := range cfg.Providers {
-		provider, err := provider.New(p.Name, blockCipher, provider.Opts{
-			Host:         cfg.Host,
-			Endpoint:     p.Endpoint,
-			Secret:       p.Secret,
-			ClientID:     p.ClientID,
-			ClientSecret: p.ClientSecret,
-		})
+		oauthcfg, err := provider.NewConfig(p.Name, cfg.Host, p.Endpoint, p.ClientID, p.ClientSecret)
 
 		if err != nil {
-			log.Error.Fatalf("failed to configure oauth provider: %s\n", errors.Cause(err))
+			log.Error.Fatal(err)
 		}
-		providers[p.Name] = provider
+
+		cli, err := provider.NewClient(p.Name, p.Secret, cfg.Host, p.Endpoint, blockCipher)
+
+		if err != nil {
+			log.Error.Fatal(err)
+		}
+		providers.Register(p.Name, oauthcfg, cli)
 	}
 
 	handler := web.Handler{
@@ -285,7 +285,7 @@ func main() {
 	}
 
 	srv.AddRouter("auth", &userweb.Router{
-		Providers:  providers,
+		Registry:   providers,
 		Middleware: middleware,
 	})
 
@@ -296,17 +296,17 @@ func main() {
 		Redis:      redis,
 		Hasher:     hasher,
 		Queues:     queues,
-		Providers:  providers,
+		Registry:   providers,
 	})
 
 	srv.AddRouter("namespace", &namespaceweb.Router{
 		Middleware: middleware,
 	})
 
-	srv.AddRouter("repo", &repoweb.Router{
+	srv.AddRouter("provider", &providerweb.Router{
 		Redis:      redis,
 		Block:      blockCipher,
-		Providers:  providers,
+		Registry:   providers,
 		Middleware: middleware,
 	})
 
@@ -336,7 +336,6 @@ func main() {
 	srv.AddRouter("oauth2", &oauth2web.Router{
 		Block:      blockCipher,
 		Middleware: middleware,
-		Providers:  providers,
 	})
 
 	srv.Init(handler)
@@ -354,7 +353,7 @@ func main() {
 		ui.Init()
 		ui.Register("auth")
 		ui.Register("build", buildweb.Gate(db))
-		ui.Register("repo", repoweb.Gate(db))
+		ui.Register("provider", providerweb.Gate(db))
 		ui.Register("namespace", namespaceweb.Gate(db))
 		ui.Register("image", imageweb.Gate(db))
 		ui.Register("object", objectweb.Gate(db))

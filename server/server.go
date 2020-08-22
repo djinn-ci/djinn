@@ -184,6 +184,11 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 				if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 					errh = web.JSONError
 				}
+
+				if e, ok := err.(error); ok {
+					s.Log.Error.Println(r.Method, r.URL, e.Error())
+				}
+
 				s.Log.Error.Println(r.Method, r.URL, string(debug.Stack()))
 				errh(w, "Something went wrong", http.StatusInternalServerError)
 			}

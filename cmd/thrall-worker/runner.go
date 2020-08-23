@@ -10,6 +10,7 @@ import (
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/runner"
 
 	"github.com/andrewpillar/query"
@@ -28,6 +29,8 @@ type buildRunner struct {
 	buf       *bytes.Buffer
 	bufs      map[int64]*bytes.Buffer
 	jobs      map[string]*build.Job
+	provider  *provider.Provider
+	registry  *provider.Registry
 }
 
 func (r *buildRunner) driverJob() *build.Job {
@@ -49,6 +52,15 @@ func (r *buildRunner) driverBuffer() *bytes.Buffer {
 }
 
 func (r *buildRunner) load() error {
+	if r.build.Trigger.ProviderID.Valid {
+		p, err := provider.NewStore(r.db).Get(query.Where("id", "=," r.build.Trigger.ProviderID)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+		r.provider = p
+	}
+
 	vv, err := build.NewVariableStore(r.db, r.build).All()
 
 	if err != nil {

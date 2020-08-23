@@ -30,7 +30,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	name := mux.Vars(r)["provider"]
 
-	cfg, _, err := h.Registry.Get(name)
+	cli, err := h.Registry.Get(name)
 
 	if err != nil {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
@@ -39,16 +39,13 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	u, _ := user.FromContext(r.Context())
 
-	q := r.URL.Query()
-
-	if q.Get("state") != cfg.Secret {
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-		return
-	}
-
-	access, refresh, user1, err := cfg.Auth(r.Context(), q.Get("code"))
+	access, refresh, user1, err := cli.Auth(r.Context(), r.URL.Query())
 
 	if err != nil {
+		if err == provider.ErrStateMismatch {
+			web.HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
 		h.Redirect(w, r, "/settings")
@@ -172,7 +169,7 @@ func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 
 	name := mux.Vars(r)["provider"]
 
-	if _, _, err := h.Registry.Get(name); err != nil {
+	if _, err := h.Registry.Get(name); err != nil {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}

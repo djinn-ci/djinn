@@ -96,7 +96,7 @@ func (h Repo) loadRepos(p *provider.Provider, page int64) ([]*provider.Repo, dat
 		return []*provider.Repo{}, database.Paginator{}, nil
 	}
 
-	rr, paginator, err := p.Repos(h.Registry, page)
+	rr, paginator, err := p.Repos(h.Block, h.Registry, page)
 	return rr, paginator, errors.Err(err)
 }
 
@@ -288,7 +288,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		repo.Name = f.Name
 	}
 
-	if err := p.ToggleRepo(h.Registry, repo); err != nil {
+	if err := p.ToggleRepo(h.Block, h.Registry, repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
@@ -329,7 +329,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := p.ToggleRepo(h.Registry, repo); err != nil {
+	if err := p.ToggleRepo(h.Block, h.Registry, repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
 		h.RedirectBack(w, r)

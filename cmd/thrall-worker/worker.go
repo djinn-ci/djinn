@@ -128,6 +128,14 @@ func (w *worker) run(id int64) error {
 		return errors.Err(err)
 	}
 
+	t, err := build.NewTriggerStore(w.db, b).Get()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	b.Trigger = t
+
 	r := buildRunner{
 		db:        w.db,
 		build:     b,
@@ -138,6 +146,7 @@ func (w *worker) run(id int64) error {
 		buf:       &bytes.Buffer{},
 		bufs:      make(map[int64]*bytes.Buffer),
 		jobs:      make(map[string]*build.Job),
+		registry:  w.registry,
 	}
 
 	if b.Status == runner.Killed {
@@ -230,12 +239,6 @@ func (w *worker) run(id int64) error {
 		}
 
 		b.User = u
-
-		t, err := build.NewTriggerStore(w.db, b).Get()
-
-		if err != nil {
-			return errors.Err(err)
-		}
 
 		to = append(to, u.Email)
 

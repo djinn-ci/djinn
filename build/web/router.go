@@ -200,8 +200,8 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	job := handler.JobUI{Job: r.job}
 
 	hookRouter := mux.PathPrefix("/hook").Subrouter()
-	hookRouter.HandleFunc("/github", r.hook.Github).Methods("POST")
-	hookRouter.HandleFunc("/gitlab", r.hook.Gitlab).Methods("POST")
+	hookRouter.HandleFunc("/github", r.hook.GitHub).Methods("POST")
+	hookRouter.HandleFunc("/gitlab", r.hook.GitLab).Methods("POST")
 
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/", build.Index).Methods("GET")

@@ -25,6 +25,8 @@ import (
 	oauth2web "github.com/andrewpillar/thrall/oauth2/web"
 	objectweb "github.com/andrewpillar/thrall/object/web"
 	"github.com/andrewpillar/thrall/provider"
+	"github.com/andrewpillar/thrall/provider/github"
+	"github.com/andrewpillar/thrall/provider/gitlab"
 	providerweb "github.com/andrewpillar/thrall/provider/web"
 	"github.com/andrewpillar/thrall/server"
 	"github.com/andrewpillar/thrall/session"
@@ -52,6 +54,15 @@ var (
 	blockstores = map[string]func(string, int64) block.Store{
 		"file": func(dsn string, limit int64) block.Store {
 			return block.NewFilesystemWithLimit(dsn, limit)
+		},
+	}
+
+	providerFactories = map[string]provider.Factory{
+		"github": func(host, endpoint, secret, clientId, clientSecret string) provider.Interface {
+			return github.New(host, endpoint, secret, clientId, clientSecret)
+		},
+		"gitlab": func(host, endpoint, secret, clientId, clientSecret string) provider.Interface {
+			return gitlab.New(host, endpoint, secret, clientId, clientSecret)
 		},
 	}
 )
@@ -228,18 +239,15 @@ func main() {
 	providers := provider.NewRegistry()
 
 	for _, p := range cfg.Providers {
-		oauthcfg, err := provider.NewConfig(p.Name, cfg.Host, p.Endpoint, p.ClientID, p.ClientSecret)
+		factory, ok := providerFactories[p.Name]
 
-		if err != nil {
-			log.Error.Fatal(err)
+		if !ok {
+			log.Error.Fatalf("unknown provider: %s\n", p.Name)
 		}
-
-		cli, err := provider.NewClient(p.Name, p.Secret, cfg.Host, p.Endpoint, blockCipher)
-
-		if err != nil {
-			log.Error.Fatal(err)
-		}
-		providers.Register(p.Name, oauthcfg, cli)
+		providers.Register(
+			p.Name,
+			factory(cfg.Host, p.Endpoint, p.Secret, p.ClientID, p.ClientSecret),
+		)
 	}
 
 	handler := web.Handler{

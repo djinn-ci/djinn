@@ -4,15 +4,13 @@
 package provider
 
 import (
-	"encoding/json"
 	"database/sql"
-	"io"
-	"net/http"
-	"strconv"
 	"time"
 
+	"github.com/andrewpillar/thrall/crypto"
 	"github.com/andrewpillar/thrall/database"
 	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/user"
 
 	"github.com/andrewpillar/query"
@@ -137,106 +135,69 @@ func (p *Provider) Values() map[string]interface{} {
 // the current provider. This will either set/unset the HookID field on the
 // given Repo struct, and will toggle the Enabled field depending on whether a
 // hook was added or removed.
-func (p *Provider) ToggleRepo(clients *Registry, r *Repo) error {
-	_, cli, err := clients.Get(p.Name)
+func (p *Provider) ToggleRepo(block *crypto.Block, reg *Registry, r *Repo) error {
+	cli, err := reg.Get(p.Name)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	tok, err := cli.block.Decrypt(p.AccessToken)
+	tok, err := block.Decrypt(p.AccessToken)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+	return errors.Err(cli.ToggleRepo(string(tok), r))
+}
+
+// SetCommitStatus will set the given status for the given commit sha on the
+// current provider. This assumes the given commit sha is part of a merge/pull
+// request.
+func (p *Provider) SetCommitStatus(block *crypto.Block, reg *Registry, r *Repo, status runner.Status, url, sha string) error {
+	cli, err := reg.Get(p.Name)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	switch p.Name {
-	case "github":
-		err = toggleGitHubRepo(cli, string(tok), r)
-	case "gitlab":
-		err = toggleGitLabRepo(cli, string(tok), r)
+	tok, err := block.Decrypt(p.AccessToken)
+
+	if err != nil {
+		return errors.Err(err)
 	}
-	return errors.Err(err)
+	return errors.Err(cli.SetCommitStatus(string(tok), r, status, url, sha))
 }
 
 // Repos get's the repositories from the current provider's API endpoint. The
 // given crypto.Block is used to decrypt the access token that is used to
 // authenticate against the API. The given page is used to get the repositories
 // on that given page.
-func (p *Provider) Repos(clients *Registry, page int64) ([]*Repo, database.Paginator, error) {
+func (p *Provider) Repos(block *crypto.Block, reg *Registry, page int64) ([]*Repo, database.Paginator, error) {
 	paginator := database.Paginator{}
 
-	_, cli, err := clients.Get(p.Name)
+	cli, err := reg.Get(p.Name)
 
 	if err != nil {
 		return nil, paginator, errors.Err(err)
 	}
 
-	tok, err := cli.block.Decrypt(p.AccessToken)
+	tok, err := block.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return nil, paginator, errors.Err(err)
 	}
 
-	spage := strconv.FormatInt(page, 10)
-
-	var (
-		endpoint  string
-		unmarshal func(io.Reader, int64, int64) []*Repo
-	)
-
-	switch p.Name {
-	case "github":
-		endpoint = "/user/repos?sort=updated&part=" + spage
-		unmarshal = unmarshalGitHubRepos
-	case "gitlab":
-		resp0, err := cli.Get(string(tok), "/user")
-
-		if err != nil {
-			return nil, paginator, errors.Err(err)
-		}
-
-		defer resp0.Body.Close()
-
-		if resp0.StatusCode != http.StatusOK {
-			return nil, paginator, errors.New("unexpected http status: " + resp0.Status)
-		}
-
-		u := struct {
-			ID int64
-		}{}
-
-		json.NewDecoder(resp0.Body).Decode(&u)
-
-		endpoint = "/users/" + strconv.FormatInt(u.ID, 10) + "/projects?simple=true&order_by=updated_at&page=" + spage
-		unmarshal = unmarshalGitLabRepos
-	}
-
-	resp, err := cli.Get(string(tok), endpoint)
+	rr, paginator, err := cli.Repos(string(tok), page)
 
 	if err != nil {
 		return nil, paginator, errors.Err(err)
 	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, paginator, errors.New("unexpected http status: " + resp.Status)
-	}
-
-	rr := unmarshal(resp.Body, p.UserID, p.ID)
 
 	for i := range rr {
-		rr[i].Provider = p
+		rr[i].UserID = p.UserID
+		rr[i].ProviderID = p.ID
 	}
-
-	next, prev := getNextAndPrev(resp.Header.Get("Link"))
-
-	paginator.Next = next
-	paginator.Prev = prev
-	paginator.Pages = []int64{next, prev}
-
-	return rr, paginator, errors.Err(err)
+	return rr, paginator, nil
 }
 
 // New returns a new Provider binding any non-nil models to it from the current
@@ -307,7 +268,7 @@ func (s *Store) Delete(pp ...*Provider) error {
 	return errors.Err(s.Store.Delete(table, mm...))
 }
 
-// Get returns a single Provider database, applying each query.Option that is
+// Get returns a single Provider model, applying each query.Option that is
 // given. The database.Where option is applied to the *user.User bound database.
 func (s *Store) Get(opts ...query.Option) (*Provider, error) {
 	p := &Provider{
@@ -323,6 +284,38 @@ func (s *Store) Get(opts ...query.Option) (*Provider, error) {
 	if err == sql.ErrNoRows {
 		err = nil
 	}
+	return p, errors.Err(err)
+}
+
+// GetByProviderUserID returns a single Provider model. This will first get the
+// user for the model to load into the returned Provider model. It uses the
+// given name and userId to lookup a Provider via the name and provider_user_id
+// columns respectively. This will only return a provider, if the user is
+// connected to that provider.
+func (s *Store) GetByProviderUserID(name string, userId int64) (*Provider, error) {
+	opts := query.Options(
+		query.Where("provider_user_id", "=", userId),
+		query.Where("name", "=", name),
+		query.Where("connected", "=", true),
+	)
+
+	u, err := user.NewStore(s.DB).Get(query.WhereQuery("id", "=",
+		query.Select(
+			query.From(table),
+			query.Columns("user_id"),
+			opts,
+		),
+	))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	p := &Provider{
+		User: u,
+	}
+
+	err = s.Store.Get(p, table, opts)
 	return p, errors.Err(err)
 }
 

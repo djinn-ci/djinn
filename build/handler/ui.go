@@ -137,7 +137,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(h.Queues[b.Manifest.Driver["type"]], b); err != nil {
+	if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(h.Queues[b.Manifest.Driver["type"]], web.BaseAddress(r), b); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create build"), "alert")
 		h.RedirectBack(w, r)

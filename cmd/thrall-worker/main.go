@@ -284,7 +284,6 @@ func main() {
 			client: client,
 			from:   cfg.SMTP.Admin,
 		},
-		webserver:  cfg.Webserver,
 		block:      blockCipher,
 		log:        log,
 		driverconf: driverconf,

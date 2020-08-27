@@ -69,7 +69,6 @@ type Server struct {
 
 // Worker represents the configuration used for the thrall-worker.
 type Worker struct {
-	Webserver   string
 	Parallelism int
 	Queue       string
 	Timeout     string

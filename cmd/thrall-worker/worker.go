@@ -40,8 +40,6 @@ type worker struct {
 		from   string
 	}
 
-	webserver string // hostname of the main ci web server
-
 	block *crypto.Block // used for decrypting ssh keys
 	log   *log.Logger
 
@@ -121,7 +119,7 @@ func (w *worker) qemuRealPath(b *build.Build, disks string) func(string, string)
 	}
 }
 
-func (w *worker) run(id int64) error {
+func (w *worker) run(id int64, host string) error {
 	b, err := w.builds.Get(query.Where("id", "=", id))
 
 	if err != nil {
@@ -295,7 +293,7 @@ func (w *worker) run(id int64) error {
 			buf.WriteString("Build #" + strconv.FormatInt(b.ID, 10) + " timed out\n\n")
 		}
 
-		buf.WriteString("Build: " + w.webserver + b.Endpoint() + "\n\n")
+		buf.WriteString("Build: " + host + "/" + b.Endpoint() + "\n\n")
 		buf.WriteString("-----\n")
 		buf.WriteString(t.String())
 		buf.WriteString("----\n")

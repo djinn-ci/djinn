@@ -344,7 +344,7 @@ func (b *Build) Values() map[string]interface{} {
 // submitting the build to the queue server. This signature will simply
 // contain the ID of the current Build. Each signature is configured to
 // retry 3 times before finally failing.
-func (b *Build) Signature() *tasks.Signature {
+func (b *Build) Signature(host string) *tasks.Signature {
 	return &tasks.Signature{
 		Name:       "run_build",
 		RetryCount: 3,
@@ -352,6 +352,10 @@ func (b *Build) Signature() *tasks.Signature {
 			tasks.Arg{
 				Type:  "int64",
 				Value: b.ID,
+			},
+			tasks.Arg{
+				Type:  "string",
+				Value: host,
 			},
 		},
 	}
@@ -583,7 +587,7 @@ func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) e
 // Submit the given build to the givern queue server. This will also create all
 // of the related entities that belong to the newly submitted build, such as
 // keys, objects, variables, stages, jobs, and artifacts.
-func (s *Store) Submit(srv *machinery.Server, b *Build) error {
+func (s *Store) Submit(srv *machinery.Server, host string, b *Build) error {
 	if _, err := NewDriverStore(s.DB, b).Create(b.Manifest.Driver); err != nil {
 		return errors.Err(err)
 	}
@@ -750,6 +754,6 @@ func (s *Store) Submit(srv *machinery.Server, b *Build) error {
 		}
 	}
 
-	_, err = srv.SendTask(b.Signature())
+	_, err = srv.SendTask(b.Signature(host))
 	return errors.Err(err)
 }

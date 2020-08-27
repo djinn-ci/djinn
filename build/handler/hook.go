@@ -104,7 +104,7 @@ func getGitLabURL(rawurl, ref string) func(map[string]string) string {
 	}
 }
 
-func (h Hook) execute(name string, data hookData, geturl func(map[string]string) string) error {
+func (h Hook) execute(host, name string, data hookData, geturl func(map[string]string) string) error {
 	u, p, err := h.getUserAndProvider(name, data.userId)
 
 	if err != nil {
@@ -155,7 +155,7 @@ func (h Hook) execute(name string, data hookData, geturl func(map[string]string)
 
 	h.Log.Debug.Println("submitting", len(mm), "build manifests")
 
-	bb, err := h.submitBuilds(mm, u, t)
+	bb, err := h.submitBuilds(mm, host, u, t)
 
 	if err != nil {
 		return errors.Err(err)
@@ -330,7 +330,7 @@ func (h Hook) getManifestURLs(tok, rawurl string, geturl func(map[string]string)
 
 // submitBuilds will create and submit a build for each manifest in the given
 // slice of manifests.
-func (h Hook) submitBuilds(mm []config.Manifest, u *user.User, t *build.Trigger) ([]*build.Build, error) {
+func (h Hook) submitBuilds(mm []config.Manifest, host string, u *user.User, t *build.Trigger) ([]*build.Build, error) {
 	bb := make([]*build.Build, 0, len(mm))
 
 	for _, m := range mm {
@@ -347,7 +347,7 @@ func (h Hook) submitBuilds(mm []config.Manifest, u *user.User, t *build.Trigger)
 	for _, b := range bb {
 		q := h.Queues[b.Manifest.Driver["type"]]
 
-		if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(q, b); err != nil {
+		if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(q, host, b); err != nil {
 			return nil, errors.Err(err)
 		}
 		submitted = append(submitted, b)
@@ -435,7 +435,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.execute("github", data, getGitHubURL)
+	err = h.execute(web.BaseAddress(r), "github", data, getGitHubURL)
 
 	if err != nil {
 		if manifesterr, ok := err.(manifestError); ok {
@@ -529,7 +529,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.execute("gitlab", data, getGitLabURL(data.dirurl, data.ref))
+	err = h.execute(web.BaseAddress(r), "gitlab", data, getGitLabURL(data.dirurl, data.ref))
 
 	if err != nil {
 		if manifesterr, ok := err.(manifestError); ok {

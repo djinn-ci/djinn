@@ -53,7 +53,7 @@ func (r *buildRunner) driverBuffer() *bytes.Buffer {
 
 func (r *buildRunner) load() error {
 	if r.build.Trigger.ProviderID.Valid {
-		p, err := provider.NewStore(r.db).Get(query.Where("id", "=," r.build.Trigger.ProviderID)
+		p, err := provider.NewStore(r.db).Get(query.Where("id", "=", r.build.Trigger.ProviderID))
 
 		if err != nil {
 			return errors.Err(err)

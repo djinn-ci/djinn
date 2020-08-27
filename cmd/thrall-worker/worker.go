@@ -146,7 +146,6 @@ func (w *worker) run(id int64) error {
 		buf:       &bytes.Buffer{},
 		bufs:      make(map[int64]*bytes.Buffer),
 		jobs:      make(map[string]*build.Job),
-		registry:  w.registry,
 	}
 
 	if b.Status == runner.Killed {

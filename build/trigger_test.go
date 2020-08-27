@@ -47,17 +47,17 @@ func triggerDataEquals(a, b map[string]string) bool {
 func Test_TriggerType(t *testing.T) {
 	tests := []struct {
 		val         []byte
-		expected    triggerType
+		expected    TriggerType
 		shouldError bool
 	}{
 		{[]byte("manual"), Manual, false},
 		{[]byte("push"), Push, false},
 		{[]byte("pull"), Pull, false},
-		{[]byte("foo"), triggerType(0), true},
+		{[]byte("foo"), TriggerType(0), true},
 	}
 
 	for i, test := range tests {
-		var typ triggerType
+		var typ TriggerType
 
 		if err := typ.Scan(test.val); err != nil {
 			if test.shouldError {

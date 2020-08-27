@@ -228,6 +228,7 @@ CREATE TABLE build_triggers (
 	id          SERIAL PRIMARY KEY,
 	build_id    INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
 	provider_id INT NULL REFERENCES providers(id) ON DELETE SET NULL,
+	repo_id     INT NULL REFERENCES provider_repos(id) ON DELETE SET NULL,
 	type        trigger_type NOT NULL,
 	comment     TEXT NOT NULL,
 	data        JSON NOT NULL,

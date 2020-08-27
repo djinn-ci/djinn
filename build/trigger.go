@@ -16,7 +16,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type triggerType uint8
+type TriggerType uint8
 
 type triggerData map[string]string
 
@@ -25,7 +25,8 @@ type Trigger struct {
 	ID         int64         `db:"id"`
 	BuildID    int64         `db:"build_id"`
 	ProviderID sql.NullInt64 `db:"provider_id"`
-	Type       triggerType   `db:"type"`
+	RepoID     sql.NullInt64 `db:"repo_id"`
+	Type       TriggerType   `db:"type"`
 	Comment    string        `db:"comment"`
 	Data       triggerData   `db:"data"`
 	CreatedAt  time.Time     `db:"created_at"`
@@ -41,14 +42,14 @@ type TriggerStore struct {
 	Build *Build
 }
 
-//go:generate stringer -type triggerType -linecomment
+//go:generate stringer -type TriggerType -linecomment
 const (
 	// There are three different trigger types for a build trigger,
 	// Manual - for when a build was manually submitted for either via the API
 	// or UI.
 	// Push - for when a build was triggered via a commit hook.
 	// Pull - for when a build was triggered via a pull-request hook.
-	Manual triggerType = iota // manual
+	Manual TriggerType = iota // manual
 	Push                      // push
 	Pull                      // pull
 )
@@ -61,11 +62,11 @@ var (
 	_ sql.Scanner   = (*triggerData)(nil)
 	_ driver.Valuer = (*triggerData)(nil)
 
-	_ sql.Scanner   = (*triggerType)(nil)
-	_ driver.Valuer = (*triggerType)(nil)
+	_ sql.Scanner   = (*TriggerType)(nil)
+	_ driver.Valuer = (*TriggerType)(nil)
 
 	triggerTable = "build_triggers"
-	triggersMap  = map[string]triggerType{
+	triggersMap  = map[string]TriggerType{
 		"manual": Manual,
 		"push":   Push,
 		"pull":   Pull,
@@ -94,7 +95,7 @@ func TriggerModel(tt []*Trigger) func(int) database.Model {
 	}
 }
 
-func (t *triggerType) Scan(val interface{}) error {
+func (t *TriggerType) Scan(val interface{}) error {
 	b, err := database.Scan(val)
 
 	if err != nil {
@@ -102,13 +103,13 @@ func (t *triggerType) Scan(val interface{}) error {
 	}
 
 	if len(b) == 0 {
-		(*t) = triggerType(0)
+		(*t) = TriggerType(0)
 		return nil
 	}
 	return errors.Err(t.UnmarshalText(b))
 }
 
-func (t *triggerType) UnmarshalText(b []byte) error {
+func (t *TriggerType) UnmarshalText(b []byte) error {
 	var ok bool
 
 	s := string(b)
@@ -120,7 +121,7 @@ func (t *triggerType) UnmarshalText(b []byte) error {
 	return nil
 }
 
-func (t triggerType) Value() (driver.Value, error) { return driver.Value(t.String()), nil }
+func (t TriggerType) Value() (driver.Value, error) { return driver.Value(t.String()), nil }
 
 func (d *triggerData) Scan(val interface{}) error {
 	b, err := database.Scan(val)
@@ -172,7 +173,7 @@ func (t Trigger) Primary() (string, int64) { return "id", t.ID }
 func (t *Trigger) IsZero() bool {
 	return t == nil || t.ID == 0 &&
 		t.BuildID == 0 &&
-		t.Type == triggerType(0) &&
+		t.Type == TriggerType(0) &&
 		t.Comment == "" &&
 		len(t.Data) == 0 &&
 		t.CreatedAt == time.Time{}

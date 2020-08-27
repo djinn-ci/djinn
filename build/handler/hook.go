@@ -21,6 +21,8 @@ import (
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/user"
 	"github.com/andrewpillar/thrall/web"
+
+	"github.com/andrewpillar/query"
 )
 
 var (
@@ -30,6 +32,24 @@ repository appeared to contain invalid YAML, see below:`
 	invalidNamespaceName = `Invalid namespace name in build manifest, the name can only contain letters or
 numbers`
 )
+
+// manifestError is a simple type flag used to delineate an internal error from
+// a malformed manifest error. This is an acceptable error to occur, and won't
+// prevent all builds from being submitted, only those that have invalid
+// manifests.
+type manifestError error
+
+// hookData represents the minimum data extracted from a webhook's event payload
+// we need to submit builds.
+type hookData struct {
+	userId  int64 // the id of the user from the provider who sent the hook
+	repoId  int64 // the id of the repo from the provider
+	dirurl  string
+	ref     string
+	typ     build.TriggerType
+	comment string
+	data    map[string]string
+}
 
 type Hook struct {
 	Build
@@ -82,6 +102,86 @@ func getGitLabURL(rawurl, ref string) func(map[string]string) string {
 		}
 		return rawurl + "/repository/files/" + url.QueryEscape(m["path"]) + "?ref=" + ref
 	}
+}
+
+func (h Hook) execute(name string, data hookData, geturl func(map[string]string) string) error {
+	u, p, err := h.getUserAndProvider(name, data.userId)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	r, err := provider.NewRepoStore(h.DB, p).Get(query.Where("repo_id", "=", data.repoId))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	b, err := h.Block.Decrypt(p.AccessToken)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	tok := string(b)
+
+	dirurl := data.dirurl + "?ref=" + data.ref
+
+	h.Log.Debug.Println("getting manifest urls from", dirurl)
+
+	urls, err := h.getManifestURLs(tok, dirurl, geturl)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	urls = append(urls, data.dirurl + ".yml?ref=" + data.ref)
+
+	mm, manifesterr := h.loadManifests(decodeBase64JSONManifest, tok, urls)
+
+	t := &build.Trigger{
+		ProviderID: sql.NullInt64{
+			Int64: p.ID,
+			Valid: true,
+		},
+		RepoID :   sql.NullInt64{
+			Int64: r.ID,
+			Valid: true,
+		},
+		Type:      data.typ,
+		Comment:   data.comment,
+		Data:      data.data,
+	}
+
+	h.Log.Debug.Println("submitting", len(mm), "build manifests")
+
+	bb, err := h.submitBuilds(mm, u, t)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if t.Type == build.Pull {
+		last := bb[len(bb)-1]
+
+		err = p.SetCommitStatus(
+			h.Block,
+			h.Registry,
+			r,
+			runner.Queued,
+			last.Endpoint(),
+			data.ref,
+		)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	if manifesterr != nil {
+		return manifestError(manifesterr)
+	}
+	return nil
 }
 
 func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) ([]config.Manifest, error) {
@@ -168,6 +268,28 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 	return mm, nil
 }
 
+func (h Hook) getUserAndProvider(name string, userId int64) (*user.User, *provider.Provider, error) {
+	u, err := h.Users.Get(
+		query.WhereQuery("id", "=", provider.Select(
+			"user_id",
+			query.Where("provider_user_id", "=", userId),
+			query.Where("connected", "=", true),
+			query.Where("name", "=", name),
+		)),
+	)
+
+	if err != nil {
+		return nil, nil, errors.Err(err)
+	}
+
+	p, err := h.Providers.Get(
+		query.Where("user_id", "=", u.ID),
+		query.Where("connected", "=", true),
+		query.Where("name", "=", name),
+	)
+	return u, p, errors.Err(err)
+}
+
 func (h Hook) getManifestURLs(tok, rawurl string, geturl func(map[string]string) string) ([]string, error) {
 	urls := make([]string, 0)
 
@@ -233,31 +355,6 @@ func (h Hook) submitBuilds(mm []config.Manifest, u *user.User, t *build.Trigger)
 	return submitted, nil
 }
 
-// GitHub is the webhook for the ping, push, and pull_request events. Before
-// each event is handled individually the request's X-Hub-Signature is checked
-// to make sure it is valid. On a successful handling of an event this sends
-// back a 204 No Content, otherwise we send back a plain text response with
-// 500 Internal Server Error, and the verbatim error cause in the response
-// body. Detailed below is how each event is handled,
-//
-// ping - This simple sends a plain text response back with 200 OK and "pong\n"
-// as the response body.
-//
-// push - This will extract information about the author of the pushed commit
-// and use this to create a build.Push build.Trigger. The data of the trigger
-// will contain the id of the head commit, the url to the head commit, the ref
-// of the pushed commit, along with the email and username from the pushed
-// commit. The build manifests are then extracted from the repository that
-// was pushed to.
-//
-// pull_request - This will create a build.Pull build.Trigger. The data of the
-// trigger will contain the id of the pull request, the url of the pull request
-// and the ref of the pull request. The username of the pull request author is
-// included, but not the email. The action key in the build data is set to
-// whatever the action is on the incoming pull request event, unless the
-// action is synchronize, in which case this is changed to synchronized. The
-// build manifests are then extracted from the head repository of the pull
-// request.
 func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 	h.Log.Debug.Println("github webhook received")
 
@@ -271,7 +368,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := cli.VerifyRequest(r.Body, r.Header.Get("X-Hub-Signature"))
+	body, err := cli.VerifyRequest(r.Body, r.Header.Get("X-Hub-Signatur"))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -279,143 +376,74 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var (
-		manifestErr error
-		mm          []config.Manifest
-		p           *provider.Provider
-		t           *build.Trigger = &build.Trigger{}
-	)
-
 	h.Log.Debug.Println("github event type:", event)
+
+	data := hookData{}
 
 	switch event {
 	case "ping":
 		web.Text(w, "pong\n", http.StatusOK)
 		return
 	case "push":
-		push := github.PushEvent{}
+		data.typ = build.Push
 
+		push := github.PushEvent{}
 		json.Unmarshal(body, &push)
 
-		var (
-			tok string
-			err error
-		)
-
-		h.Log.Debug.Println("getting user and access token, provider_user_id =", push.Repo.Owner.ID)
-
-		p, err = h.Providers.GetByProviderUserID("github", push.Repo.Owner.ID)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
+		data.userId = push.Repo.Owner.ID
+		data.repoId = push.Repo.ID
+		data.dirurl = strings.Replace(push.Repo.ContentsURL, "{+path}", ".thrall", 1)
+		data.ref = push.HeadCommit.ID
+		data.comment = push.HeadCommit.Message
+		data.data = map[string]string{
+			"id":       push.HeadCommit.ID,
+			"url":      push.HeadCommit.URL,
+			"ref":      push.Ref,
+			"email":    push.HeadCommit.Author["email"],
+			"username": push.HeadCommit.Author["username"],
 		}
-
-		h.Log.Debug.Println(
-			"getting manifest urls from repository",
-			push.Repo.ContentsURL,
-			"at ref",
-			push.HeadCommit.ID,
-		)
-
-		rawurl := strings.Replace(push.Repo.ContentsURL, "{+path}", ".thrall", 1)
-
-		urls, err := h.getManifestURLs(tok, rawurl+"?ref="+push.HeadCommit.ID, getGitHubURL)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
-		}
-
-		urls = append(urls, rawurl+".yml?ref="+push.HeadCommit.ID)
-
-		h.Log.Debug.Println("loading manifests")
-
-		mm, manifestErr = h.loadManifests(decodeBase64JSONManifest, tok, urls)
-
-		t.Type = build.Push
-		t.Comment = push.HeadCommit.Message
-		t.Data.Set("id", push.HeadCommit.ID)
-		t.Data.Set("url", push.HeadCommit.URL)
-		t.Data.Set("ref", push.Ref)
-		t.Data.Set("email", push.HeadCommit.Author["email"])
-		t.Data.Set("username", push.HeadCommit.Author["username"])
 	case "pull_request":
-		pull := &github.PullRequestEvent{}
+		data.typ = build.Pull
 
-		json.Unmarshal(body, pull)
-
-		var (
-			tok string
-			err error
-		)
+		pull := github.PullRequestEvent{}
+		json.Unmarshal(body, &pull)
 
 		if _, ok := github.PullRequestActions[pull.Action]; !ok {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 
-		h.Log.Debug.Println("getting user and access token, provider_user_id =", pull.PullRequest.User.ID)
-
-		p, err = h.Providers.GetByProviderUserID("github", pull.PullRequest.User.ID)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
-		}
-
-		h.Log.Debug.Println(
-			"getting manifest urls from repository",
-			pull.PullRequest.Head.Repo.ContentsURL,
-			"at ref",
-			pull.PullRequest.Head.Sha,
-		)
-
-		rawurl := strings.Replace(pull.PullRequest.Head.Repo.ContentsURL, "{+path}", ".thrall", 1)
-
-		urls, err := h.getManifestURLs(tok, rawurl+"?ref="+pull.PullRequest.Head.Sha, getGitHubURL)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
-		}
-
-		urls = append(urls, rawurl+".yml?ref="+pull.PullRequest.Head.Sha)
-
-		h.Log.Debug.Println("loading manifests")
-
-		mm, manifestErr = h.loadManifests(decodeBase64JSONManifest, tok, urls)
+		data.userId = pull.PullRequest.Head.Owner.ID
+		data.repoId = pull.PullRequest.Head.Repo.ID
+		data.dirurl = strings.Replace(pull.PullRequest.Head.Repo.ContentsURL, "{+path}", ".thrall", 1)
+		data.ref = pull.PullRequest.Head.Sha
+		data.comment = pull.PullRequest.Title
 
 		action := pull.Action
 
 		if action == "synchronize" {
-			action = "synchronized"
+			action = "syncrhonized"
 		}
 
-		t.Type = build.Pull
-		t.Comment = pull.PullRequest.Title
-		t.Data.Set("id", strconv.FormatInt(pull.Number, 10))
-		t.Data.Set("url", pull.PullRequest.HTMLURL)
-		t.Data.Set("ref", pull.PullRequest.Base.Ref)
-		t.Data.Set("sha", pull.PullRequest.Head.Sha)
-		t.Data.Set("username", pull.PullRequest.User.Login)
-		t.Data.Set("action", action)
+		data.data = map[string]string{
+			"id":       strconv.FormatInt(pull.Number, 10),
+			"url":      pull.PullRequest.HTMLURL,
+			"ref":      pull.PullRequest.Base.Ref,
+			"sha":      pull.PullRequest.Head.Sha,
+			"username": pull.PullRequest.User.Login,
+			"action":   action,
+		}
 	}
 
-	t.ProviderID = sql.NullInt64{
-		Int64: p.ID,
-		Valid: true,
-	}
-
-	h.Log.Debug.Println("submitting", len(mm), "build manifests")
-
-	bb, err := h.submitBuilds(mm, p.User, t)
+	err = h.execute("github", data, getGitHubURL)
 
 	if err != nil {
+		if manifesterr, ok := err.(manifestError); ok {
+			h.Log.Debug.Println("found some invalid manifests, responding with 202 Accepted")
+			web.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
+			return
+		}
+
 		cause := errors.Cause(err)
 
 		if cause == namespace.ErrName {
@@ -423,48 +451,12 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.Text(w, "Failed to create build: "+cause.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if t.Type == build.Pull {
-		last := bb[len(bb)-1]
-
-		if err := p.SetCommitStatus(h.Block, h.Registry, nil, runner.Queued, last.Endpoint(), ""); err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, "Failed to create build: " + errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
-		}
-	}
-
-	if manifestErr != nil {
-		h.Log.Debug.Println("found some invalid manifests, responding with 202 Accepted")
-
-		web.Text(w, invalidManifest+"\n\n"+manifestErr.Error(), http.StatusAccepted)
+		web.Text(w, cause.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GitLab is the webhook for the "Push Hook", and "Merge Request Hook" events.
-// Before each event is handled individually the request'x X-Gitlab-Token is
-// checked to make sure it is valid. On a successful handling of an event this
-// send back a 204 No Content, otherwise we send back a plain text response with
-// 500 Internal Server Error, and the verbatim error cause in the response body.
-// Detailed below is how each event is handled,
-//
-// Push Hook - This will extract information about the author of the pushed
-// commit and use this to create a build.Push build.Trigger. The data of the
-// trigger will contain the id of the head commit, the url of the head commit,
-// and the ref. The email, and username keys will be populated from the author
-// of the commit. The build manifests are then extracted from the repository
-// that was pushed to.
-//
-// Merge Request Hook -  This will created a build.Pull build.Trigger. The data
-// of the trigger will contain the id of the merge request, the url of the merge
-// request, and the ref to the merge request. The author's username of the
-// merge request is set in the trigger's data. The build manifests are then
-// extracted from the head repository of the merge request.
 func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 	h.Log.Debug.Println("gitlab webhook received")
 
@@ -492,130 +484,60 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var (
-		manifestErr error
-		mm          []config.Manifest
-		p           *provider.Provider
-		t           *build.Trigger
-	)
-
 	h.Log.Debug.Println("gitlab event type:", event)
+
+	data := hookData{}
 
 	switch event {
 	case "Push Hook":
-		push := &gitlab.PushEvent{}
+		data.typ = build.Push
 
-		json.Unmarshal(body, push)
-
-		var (
-			tok string
-			err error
-		)
-
-		h.Log.Debug.Println("getting user and access token, provider_user_id =", push.UserID)
-
-		p, err = h.Providers.GetByProviderUserID("gitlab", push.UserID)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
-		}
+		push := gitlab.PushEvent{}
+		json.Unmarshal(body, &push)
 
 		head := push.Commits[len(push.Commits)-1]
 
-		h.Log.Debug.Println("getting manifest urls from repository", push.Project.WebURL, "at ref", head.ID)
-
-		rawurl := gl.APIEndpoint + "/projects/" + strconv.FormatInt(push.Project.ID, 10) + "/repository/files/.thrall"
-
-		urls, err := h.getManifestURLs(tok, rawurl+"?ref="+head.ID, getGitLabURL(rawurl, head.ID))
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
+		data.userId = push.UserID
+		data.repoId = push.Project.ID
+		data.dirurl = gl.APIEndpoint + "/projects/" + strconv.FormatInt(push.Project.ID, 10) + "/repository/files/.thrall"
+		data.ref = head.ID
+		data.comment = head.Message
+		data.data = map[string]string{
+			"id":       head.ID,
+			"url":      head.URL,
+			"ref":      push.Ref,
+			"email":    head.Author["email"],
+			"username": head.Author["username"],
 		}
-
-		urls = append(urls, rawurl+".yml?ref="+head.ID)
-
-		h.Log.Debug.Println("loading manifests")
-
-		mm, manifestErr = h.loadManifests(decodeBase64JSONManifest, tok, urls)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
-		}
-
-		t.Type = build.Push
-		t.Comment = head.Message
-		t.Data.Set("id", head.ID)
-		t.Data.Set("url", head.URL)
-		t.Data.Set("ref", push.Ref)
-		t.Data.Set("email", head.Author["email"])
-		t.Data.Set("username", head.Author["username"])
 	case "Merge Request Hook":
-		merge := &gitlab.MergeRequestEvent{}
+		data.typ = build.Pull
 
-		json.Unmarshal(body, merge)
+		merge := gitlab.MergeRequestEvent{}
+		json.Unmarshal(body, &merge)
 
-		var (
-			tok string
-			err error
-		)
-
-		h.Log.Debug.Println("getting user and access token, provider_user_id =", merge.Attrs.AuthorID)
-
-		p, err = h.Providers.GetByProviderUserID("gitlab", merge.Attrs.AuthorID)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
+		data.userId = merge.User.ID
+		data.repoId = merge.Project.ID
+		data.dirurl = gl.APIEndpoint + "/projects/" + strconv.FormatInt(merge.Attrs.SourceProjectID, 10) + "/repository/files/.thrall"
+		data.ref = merge.Attrs.LastCommit.ID
+		data.comment = merge.Attrs.Title
+		data.data = map[string]string{
+			"id":       strconv.FormatInt(merge.Attrs.ID, 10),
+			"url":      merge.Attrs.URL,
+			"ref":      merge.Attrs.TargetBranch,
+			"username": merge.User.Name,
+			"action":   merge.Attrs.Action,
 		}
-
-		h.Log.Debug.Println("getting manifest urls from repository", merge.Attrs.Source.WebURL, "at ref", merge.Attrs.LastCommit.ID)
-
-		rawurl := gl.APIEndpoint + "/projects/" + strconv.FormatInt(merge.Attrs.SourceProjectID, 10) + "/repository/files/.thrall"
-
-		urls, err := h.getManifestURLs(tok, rawurl, getGitLabURL(rawurl, merge.Attrs.LastCommit.ID))
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
-		}
-
-		urls = append(urls, rawurl+".yml?ref="+merge.Attrs.LastCommit.ID)
-
-		h.Log.Debug.Println("loading manifests")
-
-		mm, manifestErr = h.loadManifests(decodeBase64JSONManifest, tok, urls)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
-			return
-		}
-
-		t.Type = build.Pull
-		t.Comment = merge.Attrs.Title
-		t.Data.Set("id", strconv.FormatInt(merge.Attrs.ID, 10))
-		t.Data.Set("url", merge.Attrs.URL)
-		t.Data.Set("ref", merge.Attrs.TargetBranch)
-		t.Data.Set("username", merge.User.Name)
-		t.Data.Set("action", merge.Attrs.Action)
 	}
 
-	t.ProviderID = sql.NullInt64{
-		Int64: p.ID,
-		Valid: true,
-	}
+	err = h.execute("gitlab", data, getGitLabURL(data.dirurl, data.ref))
 
-	h.Log.Debug.Println("submitting", len(mm), "build manifests")
+	if err != nil {
+		if manifesterr, ok := err.(manifestError); ok {
+			h.Log.Debug.Println("found some invalid manifests, responding with 202 Accepted")
+			web.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
+			return
+		}
 
-	if _, err := h.submitBuilds(mm, p.User, t); err != nil {
 		cause := errors.Cause(err)
 
 		if cause == namespace.ErrName {
@@ -623,12 +545,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.Text(w, "Failed to create build: "+cause.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if manifestErr != nil {
-		web.Text(w, invalidManifest+"\n\n"+manifestErr.Error(), http.StatusAccepted)
+		web.Text(w, cause.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

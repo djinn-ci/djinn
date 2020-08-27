@@ -287,38 +287,6 @@ func (s *Store) Get(opts ...query.Option) (*Provider, error) {
 	return p, errors.Err(err)
 }
 
-// GetByProviderUserID returns a single Provider model. This will first get the
-// user for the model to load into the returned Provider model. It uses the
-// given name and userId to lookup a Provider via the name and provider_user_id
-// columns respectively. This will only return a provider, if the user is
-// connected to that provider.
-func (s *Store) GetByProviderUserID(name string, userId int64) (*Provider, error) {
-	opts := query.Options(
-		query.Where("provider_user_id", "=", userId),
-		query.Where("name", "=", name),
-		query.Where("connected", "=", true),
-	)
-
-	u, err := user.NewStore(s.DB).Get(query.WhereQuery("id", "=",
-		query.Select(
-			query.From(table),
-			query.Columns("user_id"),
-			opts,
-		),
-	))
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	p := &Provider{
-		User: u,
-	}
-
-	err = s.Store.Get(p, table, opts)
-	return p, errors.Err(err)
-}
-
 // All returns a slice of Provider models, applying each query.Option that is
 // given. The database.Where option is applied to the *user.User bound database.
 func (s *Store) All(opts ...query.Option) ([]*Provider, error) {

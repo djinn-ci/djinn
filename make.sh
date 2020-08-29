@@ -107,6 +107,9 @@ help_() {
 		css)
 			printf "compile the less to css\n"
 			;;
+		manif)
+			printf "create a sum manifest file\n"
+			;;
 		dev)
 			printf "copy the configuration files in dist/ for local dev\n"
 			;;
@@ -140,6 +143,9 @@ case "$1" in
 		rm -f *.tar
 		find . -name "*.log" -exec rm -f {} \;
 		go clean -x -testcache
+		;;
+	manif)
+		shasum -a 256 *.out | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
 		;;
 	css)
 		yarn_

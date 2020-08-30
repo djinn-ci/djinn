@@ -120,6 +120,10 @@ help_() {
 	esac
 }
 
+manif() {
+	shasum -a 256 *.out | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
+}
+
 case "$1" in
 	ui)
 		shift 1
@@ -145,7 +149,7 @@ case "$1" in
 		go clean -x -testcache
 		;;
 	manif)
-		shasum -a 256 *.out | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
+		manif
 		;;
 	css)
 		yarn_
@@ -166,6 +170,7 @@ case "$1" in
 			go test -gcflags "-e" -tags "$TAGS" -cover ./...
 			ui
 			build
+			manif
 		else
 			>&2 printf "unknown job %s\n" "$1"
 			exit 1

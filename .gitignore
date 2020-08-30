@@ -5,6 +5,8 @@
 *.key
 *.record
 *.log
+*.manif
+*.sig
 node_modules/
 .vimrc
 driver.toml

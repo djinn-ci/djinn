@@ -368,7 +368,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := cli.VerifyRequest(r.Body, r.Header.Get("X-Hub-Signatur"))
+	body, err := cli.VerifyRequest(r.Body, r.Header.Get("X-Hub-Signature"))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

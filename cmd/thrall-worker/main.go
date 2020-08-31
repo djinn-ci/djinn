@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/smtp"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/andrewpillar/thrall/block"
@@ -86,6 +87,17 @@ func main() {
 
 	if err != nil {
 		log.Error.Fatalf("failed to decode worker config: %s\n", err)
+	}
+
+	if cfg.Pidfile != "" {
+		pidf, err := os.OpenFile(cfg.Pidfile, os.O_WRONLY|os.O_CREATE, 0660)
+
+		if err != nil {
+			log.Error.Fatalf("failed to create pidfile: %s\n", err)
+		}
+
+		pidf.Write([]byte(strconv.FormatInt(int64(os.Getpid()), 10)))
+		pidf.Close()
 	}
 
 	tree, err := toml.LoadReader(df)
@@ -298,5 +310,11 @@ func main() {
 
 	if err := w.worker.Launch(); err != nil {
 		log.Error.Fatalf("failed to launch worker: %s\n", errors.Cause(err))
+	}
+
+	if cfg.Pidfile != "" {
+		if err := os.RemoveAll(cfg.Pidfile); err != nil {
+			log.Error.Println("failed to remove pidfile", err)
+		}
 	}
 }

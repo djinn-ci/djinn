@@ -8,6 +8,7 @@ After=network-online.target
 Type=simple
 User=djinn-worker
 Group=djinn
+PIDFile=/run/djinn/worker.pid
 ExecStart=/usr/bin/djinn-worker -config /etc/djinn/worker.toml -driver /etc/djinn/driver.toml
 KillMode=mixed
 KillSignal=SIGINT

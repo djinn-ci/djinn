@@ -19,7 +19,8 @@ import (
 
 // Server represents the configuration used for the thrall-server.
 type Server struct {
-	Host string
+	Host    string
+	Pidfile string
 
 	Images    Storage
 	Artifacts Storage

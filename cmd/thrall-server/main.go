@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"time"
 
@@ -109,6 +110,17 @@ func main() {
 
 	if len(cfg.Drivers) == 0 {
 		log.Error.Fatalf("no drivers configured, exiting\n")
+	}
+
+	if cfg.Pidfile != "" {
+		pidf, err := os.OpenFile(cfg.Pidfile, os.O_WRONLY|os.O_CREATE, 0660)
+
+		if err != nil {
+			log.Error.Fatalf("failed to create pidfile: %s\n", err)
+		}
+
+		pidf.Write([]byte(strconv.FormatInt(int64(os.Getpid()), 10)))
+		pidf.Close()
 	}
 
 	log.SetLevel(cfg.Log.Level)
@@ -260,7 +272,6 @@ func main() {
 
 	middleware := web.Middleware{
 		Handler: handler,
-		Users:   user.NewStore(db),
 		Tokens:  oauth2.NewTokenStore(db),
 	}
 
@@ -415,6 +426,12 @@ func main() {
 	sig := <-c
 
 	srv.Shutdown(ctx)
+
+	if cfg.Pidfile != "" {
+		if err := os.RemoveAll(cfg.Pidfile); err != nil {
+			log.Error.Println("failed to remove pidfile", err)
+		}
+	}
 
 	log.Info.Println("signal:", sig, "received, shutting down")
 }

@@ -25,7 +25,6 @@ import (
 type Middleware struct {
 	Handler
 
-	Users  *user.Store
 	Tokens *oauth2.TokenStore
 }
 
@@ -319,12 +318,8 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				}
 
 				if !ok {
-					if u.IsZero() {
-						if !json {
-							h.Redirect(w, r, "/login")
-							return
-						}
-						errh(w, "Not found", http.StatusNotFound)
+					if !json {
+						h.Redirect(w, r, "/login")
 						return
 					}
 					errh(w, "Not found", http.StatusNotFound)

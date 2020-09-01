@@ -163,25 +163,32 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	m := make(map[int64]int64)
-
-	for _, r := range enabled {
-		m[r.RepoID] = r.ID
-	}
-
-	for _, r := range rr {
-		if id, ok := m[r.RepoID]; ok {
-			r.ID = id
-			r.Enabled = true
-		}
-	}
-
 	pp, err := providers.All(query.OrderAsc("name"))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
+	}
+
+	providersLookup := make(map[int64]*provider.Provider)
+
+	for _, p := range pp {
+		providersLookup[p.ID] = p
+	}
+
+	enabledLookup := make(map[int64]int64)
+
+	for _, r := range enabled {
+		enabledLookup[r.RepoID] = r.ID
+	}
+
+	for _, r := range rr {
+		if id, ok := enabledLookup[r.RepoID]; ok {
+			r.ID = id
+			r.Enabled = true
+		}
+		r.Provider = providersLookup[r.ProviderID]
 	}
 
 	csrfField := string(csrf.TemplateField(r))
@@ -272,7 +279,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repos := provider.NewRepoStore(h.DB, u)
+	repos := provider.NewRepoStore(h.DB, u, p)
 
 	repo, err := repos.Get(query.Where("id", "=", f.RepoID))
 

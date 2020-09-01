@@ -23,7 +23,6 @@ import (
 )
 
 type GitHub struct {
-	oauth2.Config
 	provider.Client
 }
 
@@ -159,16 +158,14 @@ func New(host, endpoint, secret, clientId, clientSecret string) *GitHub {
 		},
 	}
 
-	cli := provider.Client{
-		Host:        host,
-		APIEndpoint: endpoint,
-		State:       hex.EncodeToString(b),
-		Secret:      secret,
-	}
-
 	return &GitHub{
-		Config: cfg,
-		Client: cli,
+		Client: provider.Client{
+			Config:      cfg,
+			Host:        host,
+			APIEndpoint: endpoint,
+			State:       hex.EncodeToString(b),
+			Secret:      secret,
+		},
 	}
 }
 
@@ -234,7 +231,7 @@ func (g *GitHub) ToggleRepo(tok string, r *provider.Repo) error {
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusCreated {
-			return decodeError(resp.Body)
+			return errors.Err(decodeError(resp.Body))
 		}
 
 		hook := struct {

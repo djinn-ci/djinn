@@ -21,7 +21,6 @@ import (
 )
 
 type GitLab struct {
-	oauth2.Config
 	provider.Client
 }
 
@@ -95,16 +94,14 @@ func New(host, endpoint, secret, clientId, clientSecret string) *GitLab {
 		},
 	}
 
-	cli := provider.Client{
-		Host:        host,
-		APIEndpoint: endpoint,
-		State:       hex.EncodeToString(b),
-		Secret:      secret,
-	}
-
 	return &GitLab{
-		Config: cfg,
-		Client: cli,
+		Client: provider.Client{
+			Config:      cfg,
+			Host:        host,
+			APIEndpoint: endpoint,
+			State:       hex.EncodeToString(b),
+			Secret:      secret,
+		},
 	}
 }
 

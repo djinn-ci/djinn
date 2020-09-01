@@ -13,6 +13,8 @@ import (
 
 var skip = 1
 
+type Slice []error
+
 // Error implements the builtin error interface. This captures information
 // about the underlying error itself, and where the error occurred.
 type Error struct {
@@ -31,8 +33,6 @@ type Error struct {
 
 type errorStr string
 
-type errorSlice []error
-
 // New returns a simple string error. This is equivalent to the errors.New
 // function from the stdlib.
 func New(s string) error {
@@ -42,7 +42,7 @@ func New(s string) error {
 
 // MultiError returns a concatenation of the given errors.
 func MultiError(err ...error) error {
-	e := errorSlice(err)
+	e := Slice(err)
 	return &e
 }
 
@@ -91,10 +91,10 @@ func (e *Error) Error() string {
 
 func (e *errorStr) Error() string { return string(*e) }
 
-func (e *errorSlice) Error() string {
+func (e Slice) Error() string {
 	buf := &bytes.Buffer{}
 
-	for _, err := range *e {
+	for _, err := range e {
 		buf.WriteString(err.Error() + "\n")
 	}
 	return buf.String()

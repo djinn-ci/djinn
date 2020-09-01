@@ -46,9 +46,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-		h.Redirect(w, r, "/settings")
+		web.HTMLError(w, r.URL.Query().Get("error_description"), http.StatusBadRequest)
 		return
 	}
 
@@ -144,7 +142,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if p.IsZero() {
-		p, err = providers.Create(u.ID, name, encAccess, encRefresh, true)
+		p, err = providers.Create(user1.ID, name, encAccess, encRefresh, true)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -161,7 +159,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	sess.AddFlash(template.Success("Successfully connected to " + name), "alert")
-	h.Redirect(w, r, "/settings")
+	h.Redirect(w, r, "/")
 }
 
 func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {

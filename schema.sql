@@ -92,9 +92,7 @@ CREATE TABLE provider_repos (
 	provider_id INT NOT NULL REFERENCES providers(id),
 	hook_id     INT NULL,
 	repo_id     INT NOT NULL,
-	enabled     BOOLEAN NOT NULL DEFAULT TRUE,
-	name        VARCHAR NOT NULL,
-	href        VARCHAR NOT NULL
+	enabled     BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE images (

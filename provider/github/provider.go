@@ -63,12 +63,13 @@ type PullRequestEvent struct {
 		User    User
 		HTMLURL string `json:"html_url"`
 		Head    struct {
-			Sha   string
-			Owner User
-			Repo  Repo
+			Sha  string
+			User User
+			Repo Repo
 		}
 		Base    struct {
 			Ref  string
+			User User
 			Repo Repo
 		}
 	} `json:"pull_request"`
@@ -289,7 +290,7 @@ func (g *GitHub) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		return decodeError(resp.Body)
+		return errors.Err(decodeError(resp.Body))
 	}
 	return nil
 }

@@ -33,12 +33,6 @@ repository appeared to contain invalid YAML, see below:`
 numbers`
 )
 
-// manifestError is a simple type flag used to delineate an internal error from
-// a malformed manifest error. This is an acceptable error to occur, and won't
-// prevent all builds from being submitted, only those that have invalid
-// manifests.
-type manifestError error
-
 // hookData represents the minimum data extracted from a webhook's event payload
 // we need to submit builds.
 type hookData struct {
@@ -105,6 +99,8 @@ func getGitLabURL(rawurl, ref string) func(map[string]string) string {
 }
 
 func (h Hook) execute(host, name string, data hookData, geturl func(map[string]string) string) error {
+	h.Log.Debug.Println("data.userId =", data.userId)
+
 	u, p, err := h.getUserAndProvider(name, data.userId)
 
 	if err != nil {
@@ -177,11 +173,7 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 			return errors.Err(err)
 		}
 	}
-
-	if manifesterr != nil {
-		return manifestError(manifesterr)
-	}
-	return nil
+	return manifesterr
 }
 
 func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) ([]config.Manifest, error) {
@@ -413,7 +405,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		data.userId = pull.PullRequest.Head.Owner.ID
+		data.userId = pull.PullRequest.Base.User.ID
 		data.repoId = pull.PullRequest.Head.Repo.ID
 		data.dirurl = strings.Replace(pull.PullRequest.Head.Repo.ContentsURL, "{+path}", ".thrall", 1)
 		data.ref = pull.PullRequest.Head.Sha
@@ -438,13 +430,13 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 	err = h.execute(web.BaseAddress(r), "github", data, getGitHubURL)
 
 	if err != nil {
-		if manifesterr, ok := err.(manifestError); ok {
+		cause := errors.Cause(err)
+
+		if manifesterr, ok := cause.(*errors.Slice); ok {
 			h.Log.Debug.Println("found some invalid manifests, responding with 202 Accepted")
 			web.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
 			return
 		}
-
-		cause := errors.Cause(err)
 
 		if cause == namespace.ErrName {
 			web.Text(w, invalidNamespaceName, http.StatusBadRequest)
@@ -532,7 +524,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 	err = h.execute(web.BaseAddress(r), "gitlab", data, getGitLabURL(data.dirurl, data.ref))
 
 	if err != nil {
-		if manifesterr, ok := err.(manifestError); ok {
+		if manifesterr, ok := err.(*errors.Slice); ok {
 			h.Log.Debug.Println("found some invalid manifests, responding with 202 Accepted")
 			web.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
 			return

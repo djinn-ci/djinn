@@ -91,10 +91,10 @@ func (e *Error) Error() string {
 
 func (e *errorStr) Error() string { return string(*e) }
 
-func (e Slice) Error() string {
+func (e *Slice) Error() string {
 	buf := &bytes.Buffer{}
 
-	for _, err := range e {
+	for _, err := range *e {
 		buf.WriteString(err.Error() + "\n")
 	}
 	return buf.String()

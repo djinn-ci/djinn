@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/form"
 	"github.com/andrewpillar/thrall/template"
 
@@ -179,29 +178,4 @@ func Text(w http.ResponseWriter, content string, status int) {
 func FlashFormWithErrors(sess *sessions.Session, f form.Form, errs form.Errors) {
 	sess.AddFlash(f.Fields(), "form_fields")
 	sess.AddFlash(errs, "form_errors")
-}
-
-// Validate form takes the given form interface and calls Validate on it. If
-// a form.Errors type is returned from validation, then this will be flashed to
-// the given session, along with the contents of the form. If the given session
-// is nil, then no data will be flashed. This will return any errors from the
-// subsequent Validate call.
-func ValidateForm(f form.Form, sess *sessions.Session) error {
-	if err := f.Validate(); err != nil {
-		cause := errors.Cause(err)
-
-		if ferrs, ok := cause.(form.Errors); ok {
-			if sess != nil {
-				sess.AddFlash(ferrs, "form_errors")
-				sess.AddFlash(f.Fields(), "form_fields")
-			}
-			return ferrs
-		}
-
-		if sess != nil {
-			sess.AddFlash(template.Danger("Failed to validate form"), "alert")
-		}
-		return errors.Err(err)
-	}
-	return nil
 }

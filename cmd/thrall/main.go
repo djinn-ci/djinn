@@ -53,12 +53,12 @@ func main() {
 	flag.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
 	flag.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
 	flag.StringVar(&manifestfile, "manifest", ".thrall.yml", "the manifest file to use")
-	flag.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "thrall-driver.toml"), "the driver config to use")
+	flag.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.toml"), "the driver config to use")
 	flag.StringVar(&stage, "stage", "", "the stage to execute")
 	flag.Parse()
 
 	if showversion {
-		fmt.Println("thrall", Version, Build)
+		fmt.Println("djinn", Version, Build)
 		os.Exit(0)
 	}
 

@@ -23,6 +23,8 @@ import (
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/provider"
+	"github.com/andrewpillar/thrall/provider/github"
+	"github.com/andrewpillar/thrall/provider/gitlab"
 
 	"github.com/go-redis/redis"
 
@@ -66,12 +68,12 @@ func main() {
 	)
 
 	flag.BoolVar(&showversion, "version", false, "show the version and exit")
-	flag.StringVar(&configfile, "config", "thrall-worker.toml", "the config file to use")
-	flag.StringVar(&driverfile, "driver", "thrall-driver.toml", "the driver config to use")
+	flag.StringVar(&configfile, "config", "djinn-worker.toml", "the config file to use")
+	flag.StringVar(&driverfile, "driver", "djinn-driver.toml", "the driver config to use")
 	flag.Parse()
 
 	if showversion {
-		fmt.Println("thrall-worker", Version, Build)
+		fmt.Println("djinn-worker", Version, Build)
 		os.Exit(0)
 	}
 
@@ -229,7 +231,7 @@ func main() {
 		}
 		providers.Register(
 			p.Name,
-			factory(cfg.Host, p.Endpoint, p.Secret, p.ClientID, p.ClientSecret),
+			factory("", p.Endpoint, p.Secret, p.ClientID, p.ClientSecret),
 		)
 	}
 

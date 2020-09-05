@@ -79,11 +79,11 @@ func main() {
 	flag.BoolVar(&showversion, "version", false, "show the version and exit")
 	flag.BoolVar(&serveui, "ui", false, "serve only the ui endpoints")
 	flag.BoolVar(&serveapi, "api", false, "serve only the api endpoints")
-	flag.StringVar(&configfile, "config", "thrall-server.toml", "the config file to use")
+	flag.StringVar(&configfile, "config", "djinn-server.toml", "the config file to use")
 	flag.Parse()
 
 	if showversion {
-		fmt.Println("thrall-server", Version, Build)
+		fmt.Println("djinn-server", Version, Build)
 		os.Exit(0)
 	}
 
@@ -413,7 +413,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))
 	defer cancel()
 
-	log.Info.Println("thrall-server started on", cfg.Net.Listen)
+	log.Info.Println("djinn-server started on", cfg.Net.Listen)
 
 	if apiPrefix != "" {
 		log.Info.Println("api routes being served under", cfg.Net.Listen+apiPrefix)

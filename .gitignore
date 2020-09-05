@@ -12,6 +12,6 @@ node_modules/
 driver.toml
 worker.toml
 server.toml
-thrall-driver.toml
-thrall-worker.toml
-thrall-server.toml
+djinn-driver.toml
+djinn-worker.toml
+djinn-server.toml

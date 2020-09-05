@@ -58,7 +58,7 @@ func main() {
 	flag.Parse()
 
 	if showversion {
-		fmt.Println("djinn", Version, Build)
+		fmt.Println(os.Args[0], Version, Build)
 		os.Exit(0)
 	}
 

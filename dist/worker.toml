@@ -81,3 +81,18 @@ path  = "/var/lib/djinn/objects"
 [log]
 level = "info"
 file  = "/var/log/djinn/worker.log"
+
+# Configure the Git providers you want to support integrations with. Each
+# provider listed below will allow users to either login using their respective
+# accounts, or connect their Djinn accounts to them.
+[[providers]]
+name          = "github"
+secret        = "123456"
+client_id     = "1a2b3c4d"
+client_secret = "1a2b3c4d5e6f7g8h9i0k"
+
+[[providers]]
+name          = "gitlab"
+secret        = "123456"
+client_id     = "1a2b3c4d"
+client_secret = "1a2b3c4d5e6f7g8h9i0k"

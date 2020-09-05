@@ -1,9 +1,5 @@
 
 
-# The name of the main Djinn CI server. This is used when generating links to
-# failed builds and jobs in emails.
-webserver = "https://localhost:8443"
-
 # The number of builds to run in parallel. Set to 0 to use the number of CPU
 # cores available.
 parallelism = 0

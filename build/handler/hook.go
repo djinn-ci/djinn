@@ -165,7 +165,7 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 			h.Registry,
 			r,
 			runner.Queued,
-			last.Endpoint(),
+			host + last.Endpoint(),
 			data.ref,
 		)
 

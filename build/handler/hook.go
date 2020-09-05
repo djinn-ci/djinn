@@ -160,14 +160,7 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 	if t.Type == build.Pull {
 		last := bb[len(bb)-1]
 
-		err = p.SetCommitStatus(
-			h.Block,
-			h.Registry,
-			r,
-			runner.Queued,
-			host + last.Endpoint(),
-			data.ref,
-		)
+		err = p.SetCommitStatus(h.Block, h.Registry, r, runner.Queued, host + last.Endpoint(), data.ref)
 
 		if err != nil {
 			return errors.Err(err)

@@ -135,7 +135,7 @@ func (l level) String() string {
 		<div class="sidebar">
 			<div class="sidebar-header">
 				<div class="logo"><div class="left"></div><div class="right"></div></div>
-				<h2>Thrall</h2>
+				<h2>Djinn</h2>
 			</div>
 			{% if p.User.IsZero() %}
 				<div class="sidebar-auth">

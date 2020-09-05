@@ -235,184 +235,188 @@ func (p *RepoIndex) StreamBody(qw422016 *qt422016.Writer) {
 //line provider/template/index.qtpl:87
 			if !r.Enabled {
 //line provider/template/index.qtpl:87
-				qw422016.N().S(` <form method="POST" action="/repos/enable"> `)
+				qw422016.N().S(` <form method="POST" action="/repos/enable"> <input type="hidden" name="repo_id" value="`)
 //line provider/template/index.qtpl:89
+				qw422016.E().V(r.RepoID)
+//line provider/template/index.qtpl:89
+				qw422016.N().S(`"> <input type="hidden" name="provider" value="`)
+//line provider/template/index.qtpl:90
+				qw422016.E().S(r.Provider.Name)
+//line provider/template/index.qtpl:90
+				qw422016.N().S(`"> <input type="hidden" name="name" value="`)
+//line provider/template/index.qtpl:91
+				qw422016.E().S(r.Name)
+//line provider/template/index.qtpl:91
+				qw422016.N().S(`"> <input type="hidden" name="href" value="`)
+//line provider/template/index.qtpl:92
+				qw422016.E().S(r.Href)
+//line provider/template/index.qtpl:92
+				qw422016.N().S(`"> `)
+//line provider/template/index.qtpl:93
 			} else {
-//line provider/template/index.qtpl:89
+//line provider/template/index.qtpl:93
 				qw422016.N().S(` <form method="POST" action="/repos/disable/`)
-//line provider/template/index.qtpl:90
+//line provider/template/index.qtpl:94
 				qw422016.E().V(r.ID)
-//line provider/template/index.qtpl:90
+//line provider/template/index.qtpl:94
 				qw422016.N().S(`"> <input type="hidden" name="_method" value="DELETE"/> `)
-//line provider/template/index.qtpl:92
+//line provider/template/index.qtpl:96
 			}
-//line provider/template/index.qtpl:92
+//line provider/template/index.qtpl:96
 			qw422016.N().S(` `)
-//line provider/template/index.qtpl:93
+//line provider/template/index.qtpl:97
 			qw422016.N().S(p.CSRF)
-//line provider/template/index.qtpl:93
-			qw422016.N().S(` <input type="hidden" name="repo_id" value="`)
-//line provider/template/index.qtpl:94
-			qw422016.E().V(r.RepoID)
-//line provider/template/index.qtpl:94
-			qw422016.N().S(`"> <input type="hidden" name="name" value="`)
-//line provider/template/index.qtpl:95
-			qw422016.E().S(r.Name)
-//line provider/template/index.qtpl:95
-			qw422016.N().S(`"> <input type="hidden" name="provider" value="`)
-//line provider/template/index.qtpl:96
-			qw422016.E().S(r.Provider.Name)
-//line provider/template/index.qtpl:96
-			qw422016.N().S(`"> `)
 //line provider/template/index.qtpl:97
+			qw422016.N().S(` `)
+//line provider/template/index.qtpl:98
 			if !r.Enabled {
-//line provider/template/index.qtpl:97
+//line provider/template/index.qtpl:98
 				qw422016.N().S(` <button type="submit" class="btn btn-primary" `)
-//line provider/template/index.qtpl:98
+//line provider/template/index.qtpl:99
 				if !r.Provider.Connected {
-//line provider/template/index.qtpl:98
+//line provider/template/index.qtpl:99
 					qw422016.N().S(`disabled="true"`)
-//line provider/template/index.qtpl:98
+//line provider/template/index.qtpl:99
 				}
-//line provider/template/index.qtpl:98
+//line provider/template/index.qtpl:99
 				qw422016.N().S(`>Enable</button> `)
-//line provider/template/index.qtpl:99
+//line provider/template/index.qtpl:100
 			} else {
-//line provider/template/index.qtpl:99
+//line provider/template/index.qtpl:100
 				qw422016.N().S(` <button type="submit" class="btn btn-danger" `)
-//line provider/template/index.qtpl:100
+//line provider/template/index.qtpl:101
 				if !r.Provider.Connected {
-//line provider/template/index.qtpl:100
+//line provider/template/index.qtpl:101
 					qw422016.N().S(`disabled="true"`)
-//line provider/template/index.qtpl:100
+//line provider/template/index.qtpl:101
 				}
-//line provider/template/index.qtpl:100
+//line provider/template/index.qtpl:101
 				qw422016.N().S(`>Disable</button> `)
-//line provider/template/index.qtpl:101
+//line provider/template/index.qtpl:102
 			}
-//line provider/template/index.qtpl:101
+//line provider/template/index.qtpl:102
 			qw422016.N().S(` </form> </td> </tr> `)
-//line provider/template/index.qtpl:105
+//line provider/template/index.qtpl:106
 		}
-//line provider/template/index.qtpl:105
+//line provider/template/index.qtpl:106
 		qw422016.N().S(` </tbody> </table> `)
-//line provider/template/index.qtpl:108
+//line provider/template/index.qtpl:109
 	}
-//line provider/template/index.qtpl:108
+//line provider/template/index.qtpl:109
 	qw422016.N().S(` </div> `)
-//line provider/template/index.qtpl:110
+//line provider/template/index.qtpl:111
 	template.StreamRenderPaginator(qw422016, p.URL, p.Paginator)
-//line provider/template/index.qtpl:110
-	qw422016.N().S(` `)
 //line provider/template/index.qtpl:111
+	qw422016.N().S(` `)
+//line provider/template/index.qtpl:112
 }
 
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 func (p *RepoIndex) WriteBody(qq422016 qtio422016.Writer) {
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 	p.StreamBody(qw422016)
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 	qt422016.ReleaseWriter(qw422016)
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 }
 
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 func (p *RepoIndex) Body() string {
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 	qb422016 := qt422016.AcquireByteBuffer()
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 	p.WriteBody(qb422016)
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 	qs422016 := string(qb422016.B)
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 	qt422016.ReleaseByteBuffer(qb422016)
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 	return qs422016
-//line provider/template/index.qtpl:111
+//line provider/template/index.qtpl:112
 }
 
-//line provider/template/index.qtpl:113
+//line provider/template/index.qtpl:114
 func (p *RepoIndex) StreamActions(qw422016 *qt422016.Writer) {
-//line provider/template/index.qtpl:113
-	qw422016.N().S(` `)
 //line provider/template/index.qtpl:114
+	qw422016.N().S(` `)
+//line provider/template/index.qtpl:115
 	if len(p.Providers) > 0 {
-//line provider/template/index.qtpl:114
+//line provider/template/index.qtpl:115
 		qw422016.N().S(` <form method="POST" action="/repos/reload?provider=`)
-//line provider/template/index.qtpl:115
+//line provider/template/index.qtpl:116
 		qw422016.E().S(p.Provider.Name)
-//line provider/template/index.qtpl:115
+//line provider/template/index.qtpl:116
 		qw422016.N().S(`&page=`)
-//line provider/template/index.qtpl:115
+//line provider/template/index.qtpl:116
 		qw422016.E().V(p.Paginator.Page)
-//line provider/template/index.qtpl:115
+//line provider/template/index.qtpl:116
 		qw422016.N().S(`"> `)
-//line provider/template/index.qtpl:116
+//line provider/template/index.qtpl:117
 		qw422016.N().S(p.CSRF)
-//line provider/template/index.qtpl:116
+//line provider/template/index.qtpl:117
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"> <button type="submit" class="btn btn-primary">Reload</button> </form> `)
-//line provider/template/index.qtpl:120
+//line provider/template/index.qtpl:121
 	}
-//line provider/template/index.qtpl:120
+//line provider/template/index.qtpl:121
 	qw422016.N().S(` `)
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 }
 
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 func (p *RepoIndex) WriteActions(qq422016 qtio422016.Writer) {
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 	p.StreamActions(qw422016)
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 	qt422016.ReleaseWriter(qw422016)
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 }
 
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 func (p *RepoIndex) Actions() string {
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 	qb422016 := qt422016.AcquireByteBuffer()
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 	p.WriteActions(qb422016)
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 	qs422016 := string(qb422016.B)
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 	qt422016.ReleaseByteBuffer(qb422016)
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 	return qs422016
-//line provider/template/index.qtpl:121
+//line provider/template/index.qtpl:122
 }
 
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 func (p *RepoIndex) StreamNavigation(qw422016 *qt422016.Writer) {
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 }
 
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 func (p *RepoIndex) WriteNavigation(qq422016 qtio422016.Writer) {
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 	p.StreamNavigation(qw422016)
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 	qt422016.ReleaseWriter(qw422016)
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 }
 
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 func (p *RepoIndex) Navigation() string {
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 	qb422016 := qt422016.AcquireByteBuffer()
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 	p.WriteNavigation(qb422016)
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 	qs422016 := string(qb422016.B)
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 	qt422016.ReleaseByteBuffer(qb422016)
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 	return qs422016
-//line provider/template/index.qtpl:123
+//line provider/template/index.qtpl:124
 }

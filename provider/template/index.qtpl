@@ -86,14 +86,15 @@ var providerNames = map[string]string{
 							<td class="align-right">
 								{% if !r.Enabled %}
 									<form method="POST" action="/repos/enable">
+										<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
+										<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
+										<input type="hidden" name="name" value="{%s r.Name %}">
+										<input type="hidden" name="href" value="{%s r.Href %}">
 								{% else %}
 									<form method="POST" action="/repos/disable/{%v r.ID %}">
 										<input type="hidden" name="_method" value="DELETE"/>
 								{% endif %}
 									{%s= p.CSRF %}
-									<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
-									<input type="hidden" name="name" value="{%s r.Name %}">
-									<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
 								{% if !r.Enabled %}
 									<button type="submit" class="btn btn-primary" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
 								{% else %}

@@ -302,7 +302,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := repos.Create(f.RepoID, repo.HookID.Int64); err != nil {
+	if _, err := repos.Create(f.RepoID, f.Name, f.Href, repo.HookID.Int64); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)

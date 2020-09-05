@@ -6,8 +6,9 @@ import "github.com/andrewpillar/thrall/form"
 // repository on a Git hosting provider.
 type RepoForm struct {
 	RepoID   int64  `schema:"repo_id"`
-	Name     string `schema:"name"`
 	Provider string `schema:"provider"`
+	Name     string `schema:"name"`
+	Href     string `schema:"href"`
 }
 
 var _ form.Form = (*RepoForm)(nil)

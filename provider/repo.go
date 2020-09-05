@@ -133,6 +133,8 @@ func (r *Repo) Values() map[string]interface{} {
 		"hook_id":     r.HookID,
 		"repo_id":     r.RepoID,
 		"enabled":     r.Enabled,
+		"name":        r.Name,
+		"href":        r.Href,
 	}
 }
 
@@ -156,7 +158,7 @@ func (s *RepoStore) New() *Repo {
 
 // Create creates a new repository with the given repoId of the repository from
 // the provider, and hookId of the webhook that was created for the repository.
-func (s *RepoStore) Create(repoId, hookId int64) (*Repo, error) {
+func (s *RepoStore) Create(repoId int64, name, href string, hookId int64) (*Repo, error) {
 	r := s.New()
 	r.RepoID = repoId
 	r.HookID = sql.NullInt64{
@@ -164,6 +166,8 @@ func (s *RepoStore) Create(repoId, hookId int64) (*Repo, error) {
 		Valid: hookId > 0,
 	}
 	r.Enabled = hookId != 0
+	r.Name = name
+	r.Href = href
 
 	err := s.Store.Create(repoTable, r)
 	return r, errors.Err(err)

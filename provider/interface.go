@@ -57,6 +57,16 @@ type User struct {
 var (
 	ErrInvalidSignature = errors.New("invalid signature")
 	ErrStateMismatch    = errors.New("state mismatch")
+
+	StatusDescriptions = map[runner.Status]string{
+		runner.Queued:             "Build is queued.",
+		runner.Running:            "Build is running.",
+		runner.Passed:             "Build has passed.",
+		runner.PassedWithFailures: "Build has passed with failures.",
+		runner.Failed:             "Build has failed.",
+		runner.Killed:             "Build was killed.",
+		runner.TimedOut:           "Build has timed out.",
+	}
 )
 
 // parseLink parses the given string value as the value of the Link header

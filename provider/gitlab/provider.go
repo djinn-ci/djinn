@@ -71,6 +71,16 @@ type MergeRequestEvent struct {
 
 var (
 	_ provider.Interface = (*GitLab)(nil)
+
+	states = map[runner.Status]string{
+		runner.Queued:              "pending",
+		runner.Running:             "running",
+		runner.Passed:              "success",
+		runner.PassedWithFailures:  "success",
+		runner.Failed:              "failed",
+		runner.Killed:              "canceled",
+		runner.TimedOut:            "canceled",
+	}
 )
 
 func New(host, endpoint, secret, clientId, clientSecret string) *GitLab {
@@ -233,5 +243,29 @@ func (g *GitLab) ToggleRepo(tok string, r *provider.Repo) error {
 }
 
 func (g *GitLab) SetCommitStatus(tok string, r *provider.Repo, status runner.Status, url, sha string) error {
+	body := map[string]interface{}{
+		"id":          r.RepoID,
+		"sha":         sha,
+		"state":       states[status],
+		"target_url":  url,
+		"description": provider.StatusDescriptions[status],
+	}
+
+	buf := &bytes.Buffer{}
+
+	json.NewEncoder(buf).Encode(body)
+
+	resp, err := g.Post(tok, "/projects/" + strconv.FormatInt(r.RepoID, 10) + "/statuses/" + sha, buf)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		b, _ := ioutil.ReadAll(resp.Body)
+		return errors.New(string(b))
+	}
 	return nil
 }

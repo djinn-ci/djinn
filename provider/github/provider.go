@@ -90,16 +90,6 @@ var (
 		runner.TimedOut:           "failure",
 	}
 
-	statusDescriptions = map[runner.Status]string{
-		runner.Queued:             "Build is queued.",
-		runner.Running:            "Build is running.",
-		runner.Passed:             "Build has passed.",
-		runner.PassedWithFailures: "Build has passed with failures.",
-		runner.Failed:             "Build has failed.",
-		runner.Killed:             "Build was killed.",
-		runner.TimedOut:           "Build has timed out.",
-	}
-
 	PullRequestActions = map[string]struct{}{
 		"opened":      {},
 		"reopened":    {},
@@ -273,7 +263,7 @@ func (g *GitHub) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 	body := map[string]string{
 		"state":       states[status],
 		"target_url":  url,
-		"description": statusDescriptions[status],
+		"description": provider.StatusDescriptions[status],
 		"context":     "continuous-integration/djinn-ci",
 	}
 

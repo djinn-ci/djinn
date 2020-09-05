@@ -107,6 +107,14 @@ type Worker struct {
 		Level string
 		File  string
 	}
+
+	Providers []struct {
+		Name         string
+		Secret       string
+		Endpoint     string
+		ClientID     string `toml:"client_id"`
+		ClientSecret string `toml:"client_secret"`
+	}
 }
 
 type Database struct {

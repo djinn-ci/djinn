@@ -20,6 +20,7 @@ import (
 	"github.com/andrewpillar/thrall/image"
 	"github.com/andrewpillar/thrall/log"
 	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/thrall/provider"
 	"github.com/andrewpillar/thrall/runner"
 	"github.com/andrewpillar/thrall/user"
 
@@ -45,6 +46,8 @@ type worker struct {
 
 	driverconf map[string]map[string]interface{} // global driver config
 	drivers    *driver.Registry                  // configured drivers
+
+	providers *provider.Registry
 
 	timeout time.Duration
 
@@ -132,7 +135,25 @@ func (w *worker) run(id int64, host string) error {
 		return errors.Err(err)
 	}
 
-	b.Trigger = t
+	p, err := provider.NewStore(w.db).Get(query.Where("id", "=", t.ProviderID))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	repo, err := provider.NewRepoStore(w.db, p).Get(query.Where("id", "=", t.RepoID))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if t.Type == build.Pull {
+		err := p.SetCommitStatus(w.block, w.providers, repo, runner.Running, host + b.Endpoint(), t.Data["id"])
+
+		if err != nil {
+			return errors.Err(err)
+		}
+	}
 
 	r := buildRunner{
 		db:        w.db,
@@ -150,7 +171,14 @@ func (w *worker) run(id int64, host string) error {
 		if err := w.builds.Finished(b.ID, "build killed", b.Status); err != nil {
 			return errors.Err(err)
 		}
-		return errors.Err(r.updateJobs())
+		if err := r.updateJobs(); err != nil {
+			return errors.Err(err)
+		}
+
+		if t.Type == build.Pull {
+			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host + b.Endpoint(), t.Data["id"])
+			return errors.Err(err)
+		}
 	}
 
 	buildDriver, err := build.NewDriverStore(w.db, b).Get()
@@ -171,7 +199,14 @@ func (w *worker) run(id int64, host string) error {
 		if err := w.builds.Finished(b.ID, r.buf.String(), runner.Killed); err != nil {
 			return errors.Err(err)
 		}
-		return errors.Err(r.updateJobs())
+		if err := r.updateJobs(); err != nil {
+			return errors.Err(err)
+		}
+
+		if t.Type == build.Pull {
+			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host + b.Endpoint(), t.Data["id"])
+			return errors.Err(err)
+		}
 	}
 
 	if err := r.load(); err != nil {
@@ -215,6 +250,11 @@ func (w *worker) run(id int64, host string) error {
 	status, err := r.run(ctx, d)
 
 	if err != nil {
+		return errors.Err(err)
+	}
+
+	if t.Type == build.Pull {
+		err := p.SetCommitStatus(w.block, w.providers, repo, status, host + b.Endpoint(), t.Data["id"])
 		return errors.Err(err)
 	}
 

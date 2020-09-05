@@ -22,6 +22,7 @@ import (
 	"github.com/andrewpillar/thrall/driver/ssh"
 	"github.com/andrewpillar/thrall/errors"
 	"github.com/andrewpillar/thrall/log"
+	"github.com/andrewpillar/thrall/provider"
 
 	"github.com/go-redis/redis"
 
@@ -44,6 +45,15 @@ var (
 	blockstores = map[string]func(string, int64) block.Store{
 		"file": func(dsn string, limit int64) block.Store {
 			return block.NewFilesystemWithLimit(dsn, limit)
+		},
+	}
+
+	providerFactories = map[string]provider.Factory{
+		"github": func(host, endpoint, secret, clientId, clientSecret string) provider.Interface {
+			return github.New(host, endpoint, secret, clientId, clientSecret)
+		},
+		"gitlab": func(host, endpoint, secret, clientId, clientSecret string) provider.Interface {
+			return gitlab.New(host, endpoint, secret, clientId, clientSecret)
 		},
 	}
 )
@@ -209,6 +219,20 @@ func main() {
 		log.Error.Fatalf("failed to initialize artifact store: %s\n", errors.Cause(err))
 	}
 
+	providers := provider.NewRegistry()
+
+	for _, p := range cfg.Providers {
+		factory, ok := providerFactories[p.Name]
+
+		if !ok {
+			log.Error.Fatalf("unknown provider: %s\n", p.Name)
+		}
+		providers.Register(
+			p.Name,
+			factory(cfg.Host, p.Endpoint, p.Secret, p.ClientID, p.ClientSecret),
+		)
+	}
+
 	timeout, err := time.ParseDuration(cfg.Timeout)
 
 	if err != nil {
@@ -300,6 +324,7 @@ func main() {
 		log:        log,
 		driverconf: driverconf,
 		drivers:    drivers,
+		providers:  providers,
 		timeout:    timeout,
 		server:     queue,
 		placer:     objects,

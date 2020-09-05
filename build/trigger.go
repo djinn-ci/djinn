@@ -199,6 +199,7 @@ func (t Trigger) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"build_id":    t.BuildID,
 		"provider_id": t.ProviderID,
+		"repo_id":     t.RepoID,
 		"type":        t.Type,
 		"comment":     t.Comment,
 		"data":        t.Data,

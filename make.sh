@@ -130,13 +130,13 @@ case "$1" in
 		ui "$1"
 		;;
 	runner)
-		build thrall
+		build djinn
 		;;
 	server)
-		build thrall-server
+		build djinn-server
 		;;
 	worker)
-		build thrall-worker
+		build djinn-worker
 		;;
 	help)
 		shift 1

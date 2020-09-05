@@ -115,7 +115,7 @@ help_() {
 			;;
 		*)
 			printf "build the server and offline runner\n"
-			printf "usage: make.sh [clean|css|dev|runner|server|ui|worker]\n"
+			printf "usage: make.sh [clean|css|dev|manif|runner|server|ui|worker]\n"
 			;;
 	esac
 }

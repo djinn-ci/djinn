@@ -1,4 +1,4 @@
-[Prev](/user/variables) - [Next](/api/builds)
+[Prev](/user/offline-runner) - [Next](/api/builds)
 
 # REST API Overview
 

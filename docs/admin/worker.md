@@ -33,6 +33,9 @@ start and run,
 The server is configured via a `worker.toml` file, detailed below are the
 properties for this file,
 
+The worker also requires a `driver.toml` file to be configured, see details
+on how to do this [here](/user/offline-runner#configuring-drivers).
+
 >**Note:** Under the hood the worker uses
 [RichardKnop/machinery](https://github.com/RichardKnop/machinery) as its work
 queue mechanism. This will write additional information about the builds being

@@ -166,7 +166,7 @@ var driverValidators = map[string]func(*toml.Tree) error{
 }
 
 func validateSSH(tree *toml.Tree) error {
-	for _, key := range []string{"timeout", "key"} {
+	for _, key := range []string{"timeout", "user", "password"} {
 		if !tree.Has(key) {
 			return errors.New("ssh config missing property " + key)
 		}
@@ -176,8 +176,12 @@ func validateSSH(tree *toml.Tree) error {
 		return errors.New("ssh timeout is not an integer")
 	}
 
-	if _, ok := tree.Get("key").(string); !ok {
-		return errors.New("ssh key is not a string")
+	if _, ok := tree.Get("user").(string); !ok {
+		return errors.New("ssh user is not a string")
+	}
+
+	if _, ok := tree.Get("password").(string); !ok {
+		return errors.New("ssh password is not a string")
 	}
 	return nil
 }
@@ -185,14 +189,10 @@ func validateSSH(tree *toml.Tree) error {
 func validateDocker(_ *toml.Tree) error { return nil }
 
 func validateQEMU(tree *toml.Tree) error {
-	for _, key := range []string{"key", "disks", "cpus", "memory"} {
+	for _, key := range []string{"disks", "cpus", "memory"} {
 		if !tree.Has(key) {
 			return errors.New("qemu config missing property " + key)
 		}
-	}
-
-	if _, ok := tree.Get("key").(string); !ok {
-		return errors.New("qemu key is not a string")
 	}
 
 	if _, ok := tree.Get("disks").(string); !ok {

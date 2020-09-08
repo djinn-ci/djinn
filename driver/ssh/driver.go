@@ -5,9 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -29,11 +27,9 @@ type SSH struct {
 	// Addr is the address of the machine to connect to.
 	Addr string
 
-	// User is the user to connect via SSH as.
-	User string
-
-	// Key is the path to the SSH key to use during SSH.
-	Key string
+	// The user credentials to use for accessing the machine via SSH.
+	User     string
+	Password string
 
 	// Timeout is the timeout to use when attempting the SSH connection.
 	Timeout time.Duration
@@ -45,9 +41,6 @@ var _ runner.Driver = (*SSH)(nil)
 // configuration map. Detailed below are the values, types, and default values
 // that are used in the configuration map.
 //
-// Key - The key for the SSH driver is specified via the "key" field. It is
-// expected for this to be a string, the default value is $HOME/.ssh/.id_rsa.
-//
 // Timeout - The timeout for the SSH driver is specified via the "timeout"
 // field. It is expected for this to be an int64 for the timeout in seconds. The
 // default value is 60.
@@ -56,11 +49,14 @@ var _ runner.Driver = (*SSH)(nil)
 // field. It is expected for this to be a string, there is no default value
 // for this.
 func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
-	key, ok := cfg["key"].(string)
+	user, ok := cfg["user"].(string)
 
 	if !ok {
-		key = filepath.Join(os.Getenv("HOME"), ".ssh", "id_rsa")
+		user = "root"
 	}
+
+	// Leave empty if we have nothing.
+	password, _ := cfg["password"].(string)
 
 	timeout, ok := cfg["timeout"].(int64)
 
@@ -71,11 +67,11 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	addr, _ := cfg["address"].(string)
 
 	return &SSH{
-		Writer:  w,
-		Addr:    addr,
-		User:    "root",
-		Key:     key,
-		Timeout: time.Duration(time.Second * time.Duration(timeout)),
+		Writer:   w,
+		Addr:     addr,
+		User:     user,
+		Password: password,
+		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
 	}
 }
 
@@ -94,18 +90,6 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 
 	client := make(chan *ssh.Client)
 
-	b, err := ioutil.ReadFile(s.Key)
-
-	if err != nil {
-		return err
-	}
-
-	signer, err := ssh.ParsePrivateKey(b)
-
-	if err != nil {
-		return err
-	}
-
 	go func() {
 		for {
 			select {
@@ -113,13 +97,13 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 				cfg := &ssh.ClientConfig{
 					User: s.User,
 					Auth: []ssh.AuthMethod{
-						ssh.PublicKeys(signer),
+						ssh.Password(s.Password),
 					},
 					HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 					Timeout:         time.Second,
 				}
 
-				fmt.Fprintf(s.Writer, "Connecting to %s...\n", s.Addr)
+				fmt.Fprintf(s.Writer, "Connecting to %s@%s...\n", s.User, s.Addr)
 
 				cli, err := ssh.Dial("tcp", s.Addr, cfg)
 

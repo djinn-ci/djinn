@@ -67,9 +67,6 @@ var (
 // "memory" filed in the map. This is expected to be an int64, by default will
 // be 2048.
 //
-// Key - The key to use when connecting to the QEMU machine via SSH. It is
-// expected for this to be a string, the default value is $HOME/.ssh/.id_rsa.
-//
 // Disks - The directory to look in when looking up the location of the QCOW2
 // images. This is expected to be a string, by default it will be ".".
 //
@@ -196,11 +193,11 @@ func (q *QEMU) runCmd() error {
 
 	q.pidfile = pidfile
 	q.ssh = &driverssh.SSH{
-		Writer:  ioutil.Discard,
-		Addr:    net.JoinHostPort("127.0.0.1", strconv.FormatInt(q.port, 10)),
-		User:    "root",
-		Key:     q.Key,
-		Timeout: time.Duration(time.Second * 60),
+		Writer:   ioutil.Discard,
+		Addr:     net.JoinHostPort("127.0.0.1", strconv.FormatInt(q.port, 10)),
+		User:     "root",
+		Password: "",
+		Timeout:  time.Duration(time.Second * 60),
 	}
 	return nil
 }
@@ -248,7 +245,7 @@ func (q *QEMU) Create(c context.Context, env []string, objs runner.Passthrough, 
 		return err
 	}
 
-	fmt.Fprintf(q.Writer, "Etablished SSH connection to machine...\n\n")
+	fmt.Fprintf(q.Writer, "Established SSH connection to machine as %s...\n\n", q.ssh.User)
 
 	q.ssh.Writer = q.Writer
 	err = q.ssh.PlaceObjects(objs, p)

@@ -28,3 +28,4 @@ jobs:
   - bin/djinn
   - bin/djinn-server
   - bin/djinn-worker
+  - sum.manif

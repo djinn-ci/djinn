@@ -125,6 +125,8 @@ func (g *GitLab) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 }
 
 func (g *GitLab) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
+	spage := strconv.FormatInt(page, 10)
+
 	resp, err := g.Get(tok, "/projects?&membership=true&simple=true&order_by=updated_at&page=" + spage)
 
 	if err != nil {

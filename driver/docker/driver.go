@@ -33,6 +33,9 @@ type Docker struct {
 	env        []string
 	containers []string
 
+	Host    string
+	Version string
+
 	// Image specifies the Docker image of the container to use.
 	Image string
 
@@ -51,10 +54,16 @@ type Docker struct {
 // Workspace - The location to mount the volume to, this is expected to be a string,
 // there is no default value.
 func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
+	host, _ := cfg["host"].(string)
+	version, _ := cfg["version"].(string)
+
 	image, _ := cfg["image"].(string)
 	workspace, _ := cfg["workspace"].(string)
 
 	return &Docker{
+		Writer:    w,
+		Host:      host,
+		Version:   version,
 		Image:     image,
 		Workspace: workspace,
 	}
@@ -73,7 +82,10 @@ func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough
 
 	fmt.Fprintf(d.Writer, "Running with Docker driver...\n")
 
-	d.client, err = client.NewEnvClient()
+	d.client, err = client.NewClientWithOpts(
+		client.WithHost(d.Host),
+		client.WithVersion(d.Version),
+	)
 
 	if err != nil {
 		return err
@@ -118,7 +130,7 @@ func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough
 		return err
 	}
 
-	fmt.Fprintf(d.Writer, "Using Docker image %s - %s...\n", d.Image, image.ID)
+	fmt.Fprintf(d.Writer, "Using Docker image %s - %s...\n\n", d.Image, image.ID)
 
 	d.env = env
 	return d.placeObjects(objs, p)

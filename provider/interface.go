@@ -38,6 +38,11 @@ type Interface interface {
 
 	Repos(string, int64) ([]*Repo, database.Paginator, error)
 
+	// Groups returns the ID of groups that a user is a member of from the
+	// provider (if any/supported). This will be used to create multiple
+	// providers in the database for each group, allowing for easy lookup
+	// during webhook execution, should any webhook contain a group ID in place
+	// of a user ID.
 	Groups(string) ([]int64, error)
 
 	ToggleRepo(string, *Repo) error

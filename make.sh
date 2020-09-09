@@ -58,6 +58,8 @@ ui() {
 }
 
 build() {
+	[ ! -d bin ] && mkdir bin
+
 	cmd="$1"
 
 	if [ -z "$cmd" ]; then
@@ -72,7 +74,7 @@ build() {
 			exit 1
 		fi
 		set -x
-		GOOS="$GOOS" GOARCH="$GOARCH" go build -gcflags "-e" -ldflags "$LDFLAGS" -tags "$TAGS" -o "$c".out ./cmd/"$c"
+		GOOS="$GOOS" GOARCH="$GOARCH" go build -gcflags "-e" -ldflags "$LDFLAGS" -tags "$TAGS" -o bin/"$c" ./cmd/"$c"
 		set +x
 	done
 }
@@ -143,8 +145,7 @@ case "$1" in
 		help_ "$1"
 		;;
 	clean)
-		rm -f *.out
-		rm -f *.tar
+		rm -f bin/*
 		find . -name "*.log" -exec rm -f {} \;
 		go clean -x -testcache
 		;;

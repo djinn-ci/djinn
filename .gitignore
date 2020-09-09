@@ -1,5 +1,4 @@
 *.swp
-*.out
 *.tar
 *.crt
 *.key
@@ -7,8 +6,9 @@
 *.log
 *.manif
 *.sig
-node_modules/
 .vimrc
+bin/
+node_modules/
 driver.toml
 worker.toml
 server.toml

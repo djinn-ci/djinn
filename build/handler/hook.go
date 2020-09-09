@@ -377,7 +377,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 
 		data.userId = push.Repo.Owner.ID
 		data.repoId = push.Repo.ID
-		data.dirurl = strings.Replace(push.Repo.ContentsURL, "{+path}", ".thrall", 1)
+		data.dirurl = strings.Replace(push.Repo.ContentsURL, "{+path}", ".djinn", 1)
 		data.ref = push.HeadCommit.ID
 		data.comment = push.HeadCommit.Message
 		data.data = map[string]string{
@@ -400,7 +400,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 
 		data.userId = pull.PullRequest.Base.User.ID
 		data.repoId = pull.PullRequest.Head.Repo.ID
-		data.dirurl = strings.Replace(pull.PullRequest.Head.Repo.ContentsURL, "{+path}", ".thrall", 1)
+		data.dirurl = strings.Replace(pull.PullRequest.Head.Repo.ContentsURL, "{+path}", ".djinn", 1)
 		data.ref = pull.PullRequest.Head.Sha
 		data.comment = pull.PullRequest.Title
 
@@ -484,7 +484,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 
 		data.userId = push.UserID
 		data.repoId = push.Project.ID
-		data.dirurl = gl.APIEndpoint + "/projects/" + strconv.FormatInt(push.Project.ID, 10) + "/repository/files/.thrall"
+		data.dirurl = gl.APIEndpoint + "/projects/" + strconv.FormatInt(push.Project.ID, 10) + "/repository/files/.djinn"
 		data.ref = head.ID
 		data.comment = head.Message
 		data.data = map[string]string{
@@ -502,7 +502,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 
 		data.userId = merge.User.ID
 		data.repoId = merge.Project.ID
-		data.dirurl = gl.APIEndpoint + "/projects/" + strconv.FormatInt(merge.Attrs.SourceProjectID, 10) + "/repository/files/.thrall"
+		data.dirurl = gl.APIEndpoint + "/projects/" + strconv.FormatInt(merge.Attrs.SourceProjectID, 10) + "/repository/files/.djinn"
 		data.ref = merge.Attrs.LastCommit.ID
 		data.comment = merge.Attrs.Title
 		data.data = map[string]string{

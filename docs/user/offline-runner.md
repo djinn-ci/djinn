@@ -22,7 +22,7 @@ once cloned, change into the directory and run the `make.sh` script.
 
     $ ./make.sh runner
 
-This will produce a binary called `djinn.out`, simply move this binary into a
+This will produce a binary called `bin/djinn`, simply move this binary into a
 location that will make it accessible via your `PATH`.
 
 ## Configuration Locations

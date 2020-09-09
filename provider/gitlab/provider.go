@@ -125,7 +125,7 @@ func (g *GitLab) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 }
 
 func (g *GitLab) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
-	resp, err := g.Get(tok, "/projects?&owned=true&simple=true&order_by=updated_at&page=" + spage)
+	resp, err := g.Get(tok, "/projects?&membership=true&simple=true&order_by=updated_at&page=" + spage)
 
 	if err != nil {
 		return nil, database.Paginator{}, errors.Err(err)

@@ -99,7 +99,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err := config.ValidateDrivers(tree); err != nil {
+	if err := config.ValidateDrivers(driverfile, tree); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}

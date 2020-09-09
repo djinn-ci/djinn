@@ -186,7 +186,14 @@ func validateSSH(tree *toml.Tree) error {
 	return nil
 }
 
-func validateDocker(_ *toml.Tree) error { return nil }
+func validateDocker(tree *toml.Tree) error {
+	for _, key := range []string{"host", "version"} {
+		if !tree.Has(key) {
+			return errors.New("docker config missing property " + key)
+		}
+	}
+	return nil
+}
 
 func validateQEMU(tree *toml.Tree) error {
 	for _, key := range []string{"disks", "cpus", "memory"} {
@@ -272,25 +279,25 @@ func DecodeWorker(r io.Reader) (Worker, error) {
 
 // ValidateDriver takes the given toml.Tree and validates its configuration
 // based off the driver the configuration is for.
-func ValidateDrivers(tree *toml.Tree) error {
+func ValidateDrivers(name string, tree *toml.Tree) error {
 	keys := tree.Keys()
 
 	if len(keys) == 0 {
-		return errors.New("no drivers configured")
+		return errors.New(name + ": no drivers configured")
 	}
 
 	for _, key := range keys {
 		if _, ok := driverValidators[key]; !ok {
-			return errors.New("unknown driver configured: " + key)
+			return errors.New(name + ": unknown driver configured: " + key)
 		}
 
 		subtree, ok := tree.Get(key).(*toml.Tree)
 
 		if !ok {
-			return errors.New("expected key-value configuration for driver: " + key)
+			return errors.New(name + ": expected key-value configuration for driver: " + key)
 		}
 		if err := driverValidators[key](subtree); err != nil {
-			return err
+			return errors.New(name + ": " + err.Error())
 		}
 	}
 	return nil

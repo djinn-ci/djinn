@@ -118,7 +118,7 @@ func main() {
 		log.Error.Fatalf("failed to load driver config: %s\n", err)
 	}
 
-	if err := config.ValidateDrivers(tree); err != nil {
+	if err := config.ValidateDrivers(driverfile, tree); err != nil {
 		log.Error.Fatalf("driver config validation failed: %s\n", err)
 	}
 

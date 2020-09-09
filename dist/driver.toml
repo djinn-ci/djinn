@@ -8,6 +8,14 @@
 # for any builds that use the SSH driver.
 timeout = "60s"
 
+# Global configuration for the Docker driver.
+[docker]
+# Host specifies the host ther Docker container engine is running on.
+host     = "unix:///var/run/docker.sock"
+
+# Verison specifies the version of the Docker API to use.
+version  = "1.40"
+
 # Global configuration for the QEMU driver.
 [qemu]
 

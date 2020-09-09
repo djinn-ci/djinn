@@ -3,9 +3,9 @@ package variable
 import (
 	"regexp"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/namespace"
 
 	"github.com/andrewpillar/query"
 )

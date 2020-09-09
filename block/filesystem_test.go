@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/errors"
 )
 
 func randBytes(t *testing.T) []byte {

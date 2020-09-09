@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/errors"
 )
 
 // Filesystem provides an implementation of the Store interface for the

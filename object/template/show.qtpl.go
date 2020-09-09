@@ -8,8 +8,8 @@ package template
 import (
 	"fmt"
 
-	"github.com/andrewpillar/thrall/object"
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/object"
+	"github.com/andrewpillar/djinn/template"
 )
 
 //line object/template/show.qtpl:10

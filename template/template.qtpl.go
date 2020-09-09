@@ -10,9 +10,9 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/user"
 )
 
 //line template/template.qtpl:14

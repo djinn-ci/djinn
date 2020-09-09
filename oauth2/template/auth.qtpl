@@ -1,8 +1,8 @@
 {%
 import (
-	"github.com/andrewpillar/thrall/oauth2"
-	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/oauth2"
+	"github.com/andrewpillar/djinn/template"
+	"github.com/andrewpillar/djinn/user"
 )
 %}
 

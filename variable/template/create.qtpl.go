@@ -6,7 +6,7 @@ package template
 
 //line variable/template/create.qtpl:2
 import (
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/template"
 )
 
 //line variable/template/create.qtpl:7

@@ -3,13 +3,13 @@ package handler
 import (
 	"net/http"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/user"
-	variabletemplate "github.com/andrewpillar/thrall/variable/template"
-	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/namespace"
+	"github.com/andrewpillar/djinn/template"
+	"github.com/andrewpillar/djinn/user"
+	variabletemplate "github.com/andrewpillar/djinn/variable/template"
+	"github.com/andrewpillar/djinn/web"
 
 	"github.com/gorilla/csrf"
 )

@@ -1,7 +1,7 @@
 {%
 import (
-	"github.com/andrewpillar/thrall/provider"
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/provider"
+	"github.com/andrewpillar/djinn/template"
 )
 %}
 

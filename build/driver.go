@@ -5,9 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/driver"
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/driver"
+	"github.com/andrewpillar/djinn/errors"
 
 	"github.com/andrewpillar/query"
 

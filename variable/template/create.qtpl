@@ -1,6 +1,6 @@
 {%
 import (
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/template"
 )
 %}
 

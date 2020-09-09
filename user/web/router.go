@@ -3,11 +3,11 @@ package web
 import (
 	"net/http"
 
-	"github.com/andrewpillar/thrall/provider"
-	"github.com/andrewpillar/thrall/server"
-	"github.com/andrewpillar/thrall/user"
-	"github.com/andrewpillar/thrall/user/handler"
-	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/djinn/provider"
+	"github.com/andrewpillar/djinn/server"
+	"github.com/andrewpillar/djinn/user"
+	"github.com/andrewpillar/djinn/user/handler"
+	"github.com/andrewpillar/djinn/web"
 
 	"github.com/gorilla/mux"
 )

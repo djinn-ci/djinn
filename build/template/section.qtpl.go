@@ -9,9 +9,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/build"
+	"github.com/andrewpillar/djinn/template"
+	"github.com/andrewpillar/djinn/user"
 )
 
 //line build/template/section.qtpl:12

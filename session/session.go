@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/errors"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"

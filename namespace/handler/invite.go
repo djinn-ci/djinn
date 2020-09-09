@@ -3,12 +3,12 @@ package handler
 import (
 	"net/http"
 
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/user"
-	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/namespace"
+	"github.com/andrewpillar/djinn/user"
+	"github.com/andrewpillar/djinn/web"
 
 	"github.com/gorilla/mux"
 )

@@ -6,8 +6,8 @@ package template
 
 //line user/template/login.qtpl:2
 import (
-	"github.com/andrewpillar/thrall/provider"
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/provider"
+	"github.com/andrewpillar/djinn/template"
 )
 
 //line user/template/login.qtpl:8

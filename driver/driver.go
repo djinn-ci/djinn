@@ -8,8 +8,8 @@ import (
 	"io"
 	"sync"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/runner"
 )
 
 // Init is the function for fully initializing a driver with the given

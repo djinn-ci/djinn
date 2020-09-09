@@ -4,8 +4,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
 )
 
 func Test_RegisterForm(t *testing.T) {

@@ -3,7 +3,7 @@ package oauth2
 import (
 	"database/sql/driver"
 
-	"github.com/andrewpillar/thrall/database"
+	"github.com/andrewpillar/djinn/database"
 
 	"github.com/andrewpillar/query"
 

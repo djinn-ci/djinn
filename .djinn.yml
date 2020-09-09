@@ -3,7 +3,7 @@ driver:
   type: qemu
   image: djinn-dev
 sources:
-- https://github.com/andrewpillar/thrall.git => thrall
+- https://github.com/andrewpillar/djinn.git => thrall
 env:
 - PGADDR=host=localhost port=5432 dbname=thrall user=thrall password=secret sslmode=disable
 - RDADDR=localhost:6379

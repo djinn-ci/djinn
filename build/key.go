@@ -3,10 +3,10 @@ package build
 import (
 	"database/sql"
 
-	"github.com/andrewpillar/thrall/crypto"
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/key"
+	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/key"
 
 	"github.com/andrewpillar/query"
 

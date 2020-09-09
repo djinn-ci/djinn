@@ -1,4 +1,4 @@
-module github.com/andrewpillar/thrall
+module github.com/andrewpillar/djinn
 
 go 1.14
 

@@ -6,12 +6,12 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/thrall/block"
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/driver"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/driver"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/namespace"
+	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
 

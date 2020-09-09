@@ -6,10 +6,10 @@ package template
 
 //line namespace/template/index.qtpl:2
 import (
-	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/build"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/namespace"
+	"github.com/andrewpillar/djinn/template"
 )
 
 //line namespace/template/index.qtpl:10

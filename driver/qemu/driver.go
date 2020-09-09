@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	driverssh "github.com/andrewpillar/thrall/driver/ssh"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/runner"
+	driverssh "github.com/andrewpillar/djinn/driver/ssh"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/runner"
 )
 
 type realpathFunc func(string, string) (string, error)

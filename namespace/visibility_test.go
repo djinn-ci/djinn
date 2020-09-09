@@ -3,7 +3,7 @@ package namespace
 import (
 	"testing"
 
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/errors"
 )
 
 func Test_Visibility(t *testing.T) {

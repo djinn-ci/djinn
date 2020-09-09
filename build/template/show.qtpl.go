@@ -8,9 +8,9 @@ package template
 import (
 	"time"
 
-	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/runner"
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/build"
+	"github.com/andrewpillar/djinn/runner"
+	"github.com/andrewpillar/djinn/template"
 
 	"github.com/hako/durafmt"
 )

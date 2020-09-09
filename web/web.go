@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/template"
 
 	"github.com/gorilla/sessions"
 )

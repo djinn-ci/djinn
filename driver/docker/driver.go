@@ -11,9 +11,9 @@ import (
 	"io/ioutil"
 	"strings"
 
-	"github.com/andrewpillar/thrall/driver"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/djinn/driver"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/runner"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"

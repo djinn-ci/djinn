@@ -6,10 +6,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/thrall/build"
-	"github.com/andrewpillar/thrall/crypto"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/djinn/build"
+	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/runner"
 
 	"github.com/jmoiron/sqlx"
 )

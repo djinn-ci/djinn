@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/errors"
 
 	"github.com/gorilla/schema"
 )

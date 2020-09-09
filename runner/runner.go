@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/errors"
 )
 
 var (

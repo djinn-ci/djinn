@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/namespace"
+	"github.com/andrewpillar/djinn/user"
 
 	"github.com/DATA-DOG/go-sqlmock"
 

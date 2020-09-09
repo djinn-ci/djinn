@@ -4,14 +4,14 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
-	"github.com/andrewpillar/thrall/oauth2"
-	oauth2template "github.com/andrewpillar/thrall/oauth2/template"
-	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/user"
-	usertemplate "github.com/andrewpillar/thrall/user/template"
-	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/oauth2"
+	oauth2template "github.com/andrewpillar/djinn/oauth2/template"
+	"github.com/andrewpillar/djinn/template"
+	"github.com/andrewpillar/djinn/user"
+	usertemplate "github.com/andrewpillar/djinn/user/template"
+	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
 

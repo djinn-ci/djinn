@@ -3,9 +3,9 @@ package web
 import (
 	"net/http"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/log"
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/log"
+	"github.com/andrewpillar/djinn/user"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"

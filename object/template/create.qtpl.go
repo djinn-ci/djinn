@@ -5,7 +5,7 @@
 package template
 
 //line object/template/create.qtpl:1
-import "github.com/andrewpillar/thrall/template"
+import "github.com/andrewpillar/djinn/template"
 
 //line object/template/create.qtpl:3
 import (

@@ -2,7 +2,7 @@
 import (
 	"net/url"
 
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/user"
 )
 %}
 

@@ -6,9 +6,9 @@ package template
 
 //line oauth2/template/auth.qtpl:2
 import (
-	"github.com/andrewpillar/thrall/oauth2"
-	"github.com/andrewpillar/thrall/template"
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/oauth2"
+	"github.com/andrewpillar/djinn/template"
+	"github.com/andrewpillar/djinn/user"
 )
 
 //line oauth2/template/auth.qtpl:10

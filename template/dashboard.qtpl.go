@@ -8,7 +8,7 @@ package template
 import (
 	"net/url"
 
-	"github.com/andrewpillar/thrall/user"
+	"github.com/andrewpillar/djinn/user"
 )
 
 //line template/dashboard.qtpl:10

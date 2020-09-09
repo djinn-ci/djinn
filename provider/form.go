@@ -1,6 +1,6 @@
 package provider
 
-import "github.com/andrewpillar/thrall/form"
+import "github.com/andrewpillar/djinn/form"
 
 // Form is the type that represents the input data for enabling/disabling a
 // repository on a Git hosting provider.

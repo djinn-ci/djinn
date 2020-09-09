@@ -8,14 +8,14 @@ import (
 	"os/signal"
 	"path/filepath"
 
-	"github.com/andrewpillar/thrall/block"
-	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/driver"
-	"github.com/andrewpillar/thrall/driver/docker"
-	"github.com/andrewpillar/thrall/driver/qemu"
-	"github.com/andrewpillar/thrall/driver/ssh"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/config"
+	"github.com/andrewpillar/djinn/driver"
+	"github.com/andrewpillar/djinn/driver/docker"
+	"github.com/andrewpillar/djinn/driver/qemu"
+	"github.com/andrewpillar/djinn/driver/ssh"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/runner"
 
 	"github.com/pelletier/go-toml"
 )

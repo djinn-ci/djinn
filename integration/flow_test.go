@@ -13,7 +13,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/andrewpillar/thrall/namespace"
+	"github.com/andrewpillar/djinn/namespace"
 )
 
 func Test_ManifestNamespaceValidation(t *testing.T) {

@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/andrewpillar/thrall/crypto"
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/provider"
-	"github.com/andrewpillar/thrall/provider/handler"
-	"github.com/andrewpillar/thrall/server"
-	"github.com/andrewpillar/thrall/user"
-	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/provider"
+	"github.com/andrewpillar/djinn/provider/handler"
+	"github.com/andrewpillar/djinn/server"
+	"github.com/andrewpillar/djinn/user"
+	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
 

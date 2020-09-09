@@ -6,9 +6,9 @@ package template
 
 //line object/template/index.qtpl:2
 import (
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/object"
-	"github.com/andrewpillar/thrall/template"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/object"
+	"github.com/andrewpillar/djinn/template"
 )
 
 //line object/template/index.qtpl:9

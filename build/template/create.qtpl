@@ -1,4 +1,4 @@
-{% import "github.com/andrewpillar/thrall/template" %}
+{% import "github.com/andrewpillar/djinn/template" %}
 
 {% code
 type Create struct {

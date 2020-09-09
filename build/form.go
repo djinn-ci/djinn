@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/djinn/config"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
 )
 
 type tags []string

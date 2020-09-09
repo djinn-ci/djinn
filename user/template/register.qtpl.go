@@ -5,7 +5,7 @@
 package template
 
 //line user/template/register.qtpl:2
-import "github.com/andrewpillar/thrall/template"
+import "github.com/andrewpillar/djinn/template"
 
 //line user/template/register.qtpl:5
 import (

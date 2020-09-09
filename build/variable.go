@@ -3,9 +3,9 @@ package build
 import (
 	"database/sql"
 
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/variable"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/variable"
 
 	"github.com/andrewpillar/query"
 

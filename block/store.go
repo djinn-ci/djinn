@@ -3,8 +3,8 @@ package block
 import (
 	"io"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/runner"
 )
 
 type limitedWriter struct {

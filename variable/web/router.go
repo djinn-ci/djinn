@@ -4,14 +4,14 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/namespace"
-	"github.com/andrewpillar/thrall/server"
-	"github.com/andrewpillar/thrall/user"
-	"github.com/andrewpillar/thrall/variable"
-	"github.com/andrewpillar/thrall/variable/handler"
-	"github.com/andrewpillar/thrall/web"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/namespace"
+	"github.com/andrewpillar/djinn/server"
+	"github.com/andrewpillar/djinn/user"
+	"github.com/andrewpillar/djinn/variable"
+	"github.com/andrewpillar/djinn/variable/handler"
+	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
 

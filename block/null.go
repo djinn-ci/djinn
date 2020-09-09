@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/errors"
 )
 
 // Null provides an implementation of the Store interface for working with

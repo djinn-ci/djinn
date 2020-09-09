@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/errors"
 )
 
 type sectionReadCloser struct {

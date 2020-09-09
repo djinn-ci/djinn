@@ -3,8 +3,8 @@ package build
 import (
 	"testing"
 
-	"github.com/andrewpillar/thrall/config"
-	"github.com/andrewpillar/thrall/errors"
+	"github.com/andrewpillar/djinn/config"
+	"github.com/andrewpillar/djinn/errors"
 )
 
 func Test_BuildForm(t *testing.T) {

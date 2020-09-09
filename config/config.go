@@ -9,8 +9,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/runner"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/runner"
 
 	"github.com/pelletier/go-toml"
 

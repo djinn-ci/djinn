@@ -5,9 +5,9 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 
-	"github.com/andrewpillar/thrall/database"
-	"github.com/andrewpillar/thrall/errors"
-	"github.com/andrewpillar/thrall/form"
+	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
 )
 
 // Visibility represents the visibility level of a Namespace, there are three

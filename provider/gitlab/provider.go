@@ -125,27 +125,7 @@ func (g *GitLab) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 }
 
 func (g *GitLab) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
-	resp0, err := g.Get(tok, "/user")
-
-	if err != nil {
-		return nil, database.Paginator{}, errors.Err(err)
-	}
-
-	defer resp0.Body.Close()
-
-	if resp0.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(resp0.Body)
-		return nil, database.Paginator{}, errors.New(string(b))
-	}
-
-	u := User{}
-
-	json.NewDecoder(resp0.Body).Decode(&u)
-
-	suid := strconv.FormatInt(u.ID, 10)
-	spage := strconv.FormatInt(page, 10)
-
-	resp, err := g.Get(tok, "/users/" + suid + "/projects?simple=true&order_by=updated&page=" + spage)
+	resp, err := g.Get(tok, "/projects?&owned=true&simple=true&order_by=updated_at&page=" + spage)
 
 	if err != nil {
 		return nil, database.Paginator{}, errors.Err(err)
@@ -178,7 +158,28 @@ func (g *GitLab) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	return rr, p, nil
 }
 
-func (g *GitLab) Groups(tok string) ([]int64, error) { return nil, nil }
+func (g *GitLab) Groups(tok string) ([]int64, error) {
+	resp, err := g.Get(tok, "/groups")
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	groups := make([]struct {
+		ID int64
+	}, 0)
+
+	json.NewDecoder(resp.Body).Decode(&groups)
+
+	ids := make([]int64, 0, len(groups))
+
+	for _, group := range groups {
+		ids = append(ids, group.ID)
+	}
+	return ids, nil
+}
 
 func (g *GitLab) ToggleRepo(tok string, r *provider.Repo) error {
 	id := strconv.FormatInt(r.RepoID, 10)

@@ -192,6 +192,7 @@ func (g *GitHub) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	p := database.Paginator{
 		Next:  next,
 		Prev:  prev,
+		Page:  page,
 		Pages: []int64{next, prev},
 	}
 	return rr, p, nil

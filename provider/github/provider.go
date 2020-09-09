@@ -142,7 +142,7 @@ func New(host, endpoint, secret, clientId, clientSecret string) *GitHub {
 		ClientID:     clientId,
 		ClientSecret: clientSecret,
 		RedirectURL:  host + "/oauth/github",
-		Scopes:       []string{"repo", "admin:repo_hook"},
+		Scopes:       []string{"admin:repo_hook", "read:org", "repo"},
 		Endpoint:     oauth2.Endpoint{
 			AuthURL:  url + "/login/oauth/authorize",
 			TokenURL: url + "/login/oauth/access_token",

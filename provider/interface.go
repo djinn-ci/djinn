@@ -38,6 +38,8 @@ type Interface interface {
 
 	Repos(string, int64) ([]*Repo, database.Paginator, error)
 
+	Groups(string) ([]int64, error)
+
 	ToggleRepo(string, *Repo) error
 
 	SetCommitStatus(string, *Repo, runner.Status, string, string) error

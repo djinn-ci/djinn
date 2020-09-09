@@ -198,6 +198,29 @@ func (g *GitHub) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	return rr, p, nil
 }
 
+func (g *GitHub) Groups(tok string) ([]int64, error) {
+	resp, err := g.Get(tok, "/user/orgs")
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	orgs := make([]struct {
+		ID int64
+	}, 0)
+
+	json.NewDecoder(resp.Body).Decode(&orgs)
+
+	ids := make([]int64, 0, len(orgs))
+
+	for _, org := range orgs {
+		ids = append(ids, org.ID)
+	}
+	return ids, nil
+}
+
 func (g *GitHub) ToggleRepo(tok string, r *provider.Repo) error {
 	if !r.Enabled {
 		body := map[string]interface{}{

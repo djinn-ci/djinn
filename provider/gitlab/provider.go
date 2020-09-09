@@ -178,6 +178,8 @@ func (g *GitLab) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	return rr, p, nil
 }
 
+func (g *GitLab) Groups(tok string) ([]int64, error) { return nil, nil }
+
 func (g *GitLab) ToggleRepo(tok string, r *provider.Repo) error {
 	id := strconv.FormatInt(r.RepoID, 10)
 

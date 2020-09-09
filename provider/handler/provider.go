@@ -158,6 +158,26 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+
+	// Workaround for pushing from org repos.
+	groupIds, err := cli.Groups(access)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+		h.Redirect(w, r, "/settings")
+		return
+	}
+
+	for _, id := range groupIds {
+		if _, err = providers.Create(id, name, encAccess, encRefresh, true); err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+			h.Redirect(w, r, "/settings")
+			return
+		}
+	}
+
 	sess.AddFlash(template.Success("Successfully connected to " + name), "alert")
 	h.Redirect(w, r, "/")
 }

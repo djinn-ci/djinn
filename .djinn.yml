@@ -25,6 +25,6 @@ jobs:
   - ./make.sh worker
   artifacts:
   - integration/server.log
-  - djinn.out
-  - djinn-server.out
-  - djinn-worker.out
+  - bin/djinn
+  - bin/djinn-server
+  - bin/djinn-worker

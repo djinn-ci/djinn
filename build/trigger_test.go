@@ -197,7 +197,7 @@ func Test_TriggerStoreCreate(t *testing.T) {
 	}
 
 	mock.ExpectQuery(
-		"^INSERT INTO build_triggers \\((.+)\\) VALUES \\(\\$1, \\$2, \\$3, \\$4, \\$5\\) RETURNING id$",
+		"^INSERT INTO build_triggers \\((.+)\\) VALUES \\(\\$1, \\$2, \\$3, \\$4, \\$5, \\$6\\) RETURNING id$",
 	).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(10))
 
 	if err := store.Create(tr); err != nil {

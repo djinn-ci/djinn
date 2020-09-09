@@ -123,7 +123,7 @@ help_() {
 }
 
 manif() {
-	shasum -a 256 *.out | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
+	shasum -a 256 bin/* | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
 }
 
 case "$1" in

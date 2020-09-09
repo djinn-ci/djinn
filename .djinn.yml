@@ -3,9 +3,9 @@ driver:
   type: qemu
   image: djinn-dev
 sources:
-- https://github.com/andrewpillar/djinn.git => thrall
+- https://github.com/andrewpillar/djinn.git => djinn
 env:
-- PGADDR=host=localhost port=5432 dbname=thrall user=thrall password=secret sslmode=disable
+- PGADDR=host=localhost port=5432 dbname=djinn user=djinn password=secret sslmode=disable
 - RDADDR=localhost:6379
 - LDFLAGS=-s -w
 stages:
@@ -14,12 +14,12 @@ stages:
 jobs:
 - stage: test
   commands:
-  - cd thrall
+  - cd djinn
   - go test -cover ./...
   - go test -tags "integration" ./integration
 - stage: make
   commands:
-  - cd thrall
+  - cd djinn
   - ./make.sh runner
   - ./make.sh server
   - ./make.sh worker

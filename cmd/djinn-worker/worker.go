@@ -19,6 +19,7 @@ import (
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/image"
 	"github.com/andrewpillar/djinn/log"
+	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/runner"
@@ -58,43 +59,6 @@ type worker struct {
 	collector runner.Collector
 
 	builds *build.Store
-}
-
-func sendmail(cli *smtp.Client, subject, from string, to []string, msg string) error {
-	buf := bytes.NewBufferString("From: " + from + "\r\n")
-	buf.WriteString("To: ")
-
-	for i, rcpt := range to {
-		buf.WriteString(rcpt)
-
-		if i != len(to)-1 {
-			buf.WriteString("; ")
-		}
-	}
-
-	buf.WriteString("\r\nSubject: " + subject + "\r\n\r\n")
-	buf.WriteString(msg)
-
-	if err := cli.Mail(from); err != nil {
-		return errors.Err(err)
-	}
-
-	for _, rcpt := range to {
-		if err := cli.Rcpt(rcpt); err != nil {
-			// handle
-		}
-	}
-
-	w, err := cli.Data()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if _, err := w.Write(buf.Bytes()); err != nil {
-		return errors.Err(err)
-	}
-	return errors.Err(w.Close())
 }
 
 func (w *worker) init(name string, concurrency int) {
@@ -341,7 +305,14 @@ func (w *worker) run(id int64, host string) error {
 		if output != "" {
 			buf.WriteString("\n" + output + "\n")
 		}
-		return errors.Err(sendmail(w.smtp.client, subj, w.smtp.from, to, buf.String()))
+
+		m := mail.Mail{
+			From:    w.smtp.from,
+			To:      to,
+			Subject: subj,
+			Body:    buf.String(),
+		}
+		return errors.Err(m.Send(w.smtp.client))
 	}
 	return nil
 }

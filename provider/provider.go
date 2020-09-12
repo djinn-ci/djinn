@@ -28,6 +28,7 @@ type Provider struct {
 	AccessToken    []byte        `db:"access_token"`
 	RefreshToken   []byte        `db:"refresh_token"`
 	Connected      bool          `db:"connected"`
+	MainAccount    bool          `db:"main_account"`
 	ExpiresAt      time.Time     `db:"expires_at"`
 	AuthURL        string        `db:"-"`
 
@@ -127,6 +128,7 @@ func (p *Provider) Values() map[string]interface{} {
 		"access_token":     p.AccessToken,
 		"refresh_token":    p.RefreshToken,
 		"connected":        p.Connected,
+		"main_account":     p.MainAccount,
 		"expires_at":       p.ExpiresAt,
 	}
 }
@@ -227,7 +229,7 @@ func (s *Store) Bind(mm ...database.Model) {
 // Create creates a new provider of the given name, and with the given access
 // and refresh tokens. The given userId parameter should be the ID of the user's
 // account from the provider we're connecting to.
-func (s *Store) Create(userId int64, name string, access, refresh []byte, connected bool) (*Provider, error) {
+func (s *Store) Create(userId int64, name string, access, refresh []byte, main, connected bool) (*Provider, error) {
 	p := s.New()
 	p.ProviderUserID = sql.NullInt64{
 		Int64: userId,
@@ -236,6 +238,7 @@ func (s *Store) Create(userId int64, name string, access, refresh []byte, connec
 	p.Name = name
 	p.AccessToken = access
 	p.RefreshToken = refresh
+	p.MainAccount = main
 	p.Connected = connected
 
 	err := s.Store.Create(table, p)
@@ -244,7 +247,7 @@ func (s *Store) Create(userId int64, name string, access, refresh []byte, connec
 
 // Update updates the provider in the database for the given id. This will set
 // the userId, name, tokens, and connected status to the given values.
-func (s *Store) Update(id, userId int64, name string, access, refresh []byte, connected bool) error {
+func (s *Store) Update(id, userId int64, name string, access, refresh []byte, main, connected bool) error {
 	q := query.Update(
 		query.Table(table),
 		query.Set("provider_user_id", sql.NullInt64{
@@ -255,6 +258,7 @@ func (s *Store) Update(id, userId int64, name string, access, refresh []byte, co
 		query.Set("access_token", access),
 		query.Set("refresh_token", refresh),
 		query.Set("connected", connected),
+		query.Set("main_account", main),
 		query.Where("id", "=", id),
 	)
 

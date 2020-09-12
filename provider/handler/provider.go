@@ -157,7 +157,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if p.IsZero() {
-		p, err = providers.Create(user1.ID, name, encAccess, encRefresh, true)
+		p, err = providers.Create(user1.ID, name, encAccess, encRefresh, true, true)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -166,7 +166,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	} else {
-		if err := providers.Update(p.ID, user1.ID, name, encAccess, encRefresh, true); err != nil {
+		if err := providers.Update(p.ID, user1.ID, name, encAccess, encRefresh, true, true); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
 			h.Redirect(w, r, back)
@@ -185,7 +185,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, id := range groupIds {
-		if _, err = providers.Create(id, name, encAccess, encRefresh, true); err != nil {
+		if _, err = providers.Create(id, name, encAccess, encRefresh, false, true); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
 			h.Redirect(w, r, back)
@@ -229,7 +229,23 @@ func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := providers.Update(p.ID, 0, p.Name, nil, nil, false); err != nil {
+	if err := providers.Update(p.ID, 0, p.Name, nil, nil, true, false); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	pp, err := providers.All(query.Where("main_account", "=", false))
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if err := providers.Delete(pp...); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
 		h.RedirectBack(w, r)

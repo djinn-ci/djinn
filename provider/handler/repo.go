@@ -163,7 +163,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pp, err := providers.All(query.OrderAsc("name"))
+	pp, err := providers.All(query.Where("main_account", "=", true), query.OrderAsc("name"))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

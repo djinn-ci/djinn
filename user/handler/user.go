@@ -102,7 +102,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	providers := provider.NewStore(h.DB, u)
 
 	for name := range h.Registry.All() {
-		if _, err := providers.Create(0, name, nil, nil, false); err != nil {
+		if _, err := providers.Create(0, name, nil, nil, false, false); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to create account"), "alert")
 			return

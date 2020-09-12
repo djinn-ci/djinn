@@ -66,6 +66,7 @@ CREATE TABLE providers (
 	access_token     BYTEA NULL,
 	refresh_token    BYTEA NULL,
 	connected        BOOLEAN NOT NULL DEFAULT FALSE,
+	main_account     BOOLEAN NOT NULL DEFAULT FALSE,
 	expires_at       TIMESTAMP NULL
 );
 

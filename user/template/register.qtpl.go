@@ -31,7 +31,7 @@ type Register struct {
 //line user/template/register.qtpl:15
 func (p *Register) StreamTitle(qw422016 *qt422016.Writer) {
 //line user/template/register.qtpl:15
-	qw422016.N().S(` Register - Thrall `)
+	qw422016.N().S(` Register - Djinn `)
 //line user/template/register.qtpl:17
 }
 
@@ -101,7 +101,7 @@ func (p *Register) Footer() string {
 //line user/template/register.qtpl:23
 func (p *Register) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/register.qtpl:23
-	qw422016.N().S(` <div class="auth-page"> <div class="auth-form"> <div class="auth-header"> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> <h1>Signup to Thrall</h1> `)
+	qw422016.N().S(` <div class="auth-page"> <div class="auth-form"> <div class="auth-header"> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> <h1>Signup to Djinn</h1> `)
 //line user/template/register.qtpl:32
 	template.StreamRenderAlert(qw422016, p.Alert, "")
 //line user/template/register.qtpl:32

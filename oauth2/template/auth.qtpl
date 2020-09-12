@@ -22,7 +22,7 @@ type Auth struct {
 
 {% collapsespace %}
 {% func (p *Auth) Title() %}
-	Authenticate App - Thrall
+	Authenticate App - Djinn
 {% endfunc %}
 
 {% func (p *Auth) Footer() %}

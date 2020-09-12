@@ -103,7 +103,7 @@ func pageURL(url *url.URL, page int64) string {
 
 {% func (f Form) Error(field string) %} <div class="form-error">{%s f.Errors.First(field) %}</div> {% endfunc %}
 
-{% func (p *BasePage) Title() %} Thrall {% endfunc %}
+{% func (p *BasePage) Title() %} Djinn {% endfunc %}
 {% func (p *BasePage) Body() %}{% endfunc %}
 {% func (p *BasePage) Footer() %}  {% endfunc %}
 {% endcollapsespace %}

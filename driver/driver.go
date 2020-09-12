@@ -1,5 +1,5 @@
 // Package driver has implementations of the runner.Driver interface for the
-// different drivers available in Thrall.
+// different drivers available in Djinn.
 package driver
 
 import (

@@ -41,7 +41,7 @@ type TokenIndex struct {
 //line oauth2/template/section.qtpl:25
 func (p *AppIndex) StreamTitle(qw422016 *qt422016.Writer) {
 //line oauth2/template/section.qtpl:25
-	qw422016.N().S(` OAuth Apps - Thrall `)
+	qw422016.N().S(` OAuth Apps - Djinn `)
 //line oauth2/template/section.qtpl:27
 }
 
@@ -213,7 +213,7 @@ func (p *AppIndex) Actions() string {
 //line oauth2/template/section.qtpl:60
 func (p *TokenIndex) StreamTitle(qw422016 *qt422016.Writer) {
 //line oauth2/template/section.qtpl:60
-	qw422016.N().S(` Access Tokens - Thrall `)
+	qw422016.N().S(` Access Tokens - Djinn `)
 //line oauth2/template/section.qtpl:62
 }
 

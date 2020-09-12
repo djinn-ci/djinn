@@ -11,7 +11,7 @@ type Error struct {
 
 {% collapsespace %}
 {% func (p *Error) Title() %}
-	Error - Thrall
+	Error - Djinn
 {% endfunc %}
 
 {% func (p *Error) Footer() %}

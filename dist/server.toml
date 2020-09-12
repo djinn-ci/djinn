@@ -70,7 +70,7 @@ limit = 5000000
 level = "info"
 file  = "/var/log/djinn/server.log"
 
-# Configure the drivers you want to support on the Thrall server. Each build
+# Configure the drivers you want to support on the Djinn server. Each build
 # for a specific driver can be placed on an individual queue, or they can be
 # placed on the same queue.
 [[drivers]]

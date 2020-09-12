@@ -87,7 +87,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 	{% if p.Section != nil %}
 		{%= p.Section.Title() %}
 	{% else %}
-		Build #{%v p.Build.ID %} {%s p.Build.Trigger.CommentTitle() %} - Thrall
+		Build #{%v p.Build.ID %} {%s p.Build.Trigger.CommentTitle() %} - Djinn
 	{% endif %}
 {% endfunc %}
 
@@ -235,7 +235,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 {% endstripspace %}
 
 {% func (p *Job) Title() %}
-	{%s p.Job.Name %} - Thrall
+	{%s p.Job.Name %} - Djinn
 {% endfunc %}
 
 {% func (p *Job) Body() %}

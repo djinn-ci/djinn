@@ -9,7 +9,7 @@ type Create struct {
 
 {% collapsespace %}
 {% func (p *Create) Title() %}
-	Create Object - Thrall
+	Create Object - Djinn
 {% endfunc %}
 
 {% func (p *Create) Body() %}

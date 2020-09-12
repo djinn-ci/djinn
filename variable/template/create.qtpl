@@ -16,7 +16,7 @@ type Create struct {
 
 {% collapsespace %}
 {% func (p *Create) Title() %}
-	Create Variable - Thrall
+	Create Variable - Djinn
 {% endfunc %}
 
 {% func (p *Create) Body() %}

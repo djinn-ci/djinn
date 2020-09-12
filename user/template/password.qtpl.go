@@ -39,7 +39,7 @@ type NewPassword struct {
 //line user/template/password.qtpl:23
 func (p *PasswordReset) StreamTitle(qw422016 *qt422016.Writer) {
 //line user/template/password.qtpl:23
-	qw422016.N().S(` Reset Password - Thrall `)
+	qw422016.N().S(` Reset Password - Djinn `)
 //line user/template/password.qtpl:25
 }
 
@@ -158,7 +158,7 @@ func (p *PasswordReset) Body() string {
 //line user/template/password.qtpl:58
 func (p *NewPassword) StreamTitle(qw422016 *qt422016.Writer) {
 //line user/template/password.qtpl:58
-	qw422016.N().S(` Reset Password - Thrall `)
+	qw422016.N().S(` Reset Password - Djinn `)
 //line user/template/password.qtpl:60
 }
 

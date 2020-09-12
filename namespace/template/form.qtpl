@@ -81,9 +81,9 @@ func (p *Form) disabled(vis namespace.Visibility) string {
 {% collapsespace %}
 {% func (p *Form) Title() %}
 	{% if p.Namespace == nil %}
-		Create Namespace - Thrall
+		Create Namespace - Djinn
 	{% else %}
-		Edit Namespace - Thrall
+		Edit Namespace - Djinn
 	{% endif %}
 {% endfunc %}
 

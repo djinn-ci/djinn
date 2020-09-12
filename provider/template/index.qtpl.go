@@ -43,7 +43,7 @@ var providerNames = map[string]string{
 //line provider/template/index.qtpl:27
 func (p *RepoIndex) StreamTitle(qw422016 *qt422016.Writer) {
 //line provider/template/index.qtpl:27
-	qw422016.N().S(` Repositories - Thrall `)
+	qw422016.N().S(` Repositories - Djinn `)
 //line provider/template/index.qtpl:29
 }
 

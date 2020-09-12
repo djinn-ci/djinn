@@ -24,9 +24,9 @@ func (p *Form) Action() string {
 {% collapsespace %}
 {% func (p *Form) Title() %}
 	{% if p.Key == nil %}
-		Create Key - Thrall
+		Create Key - Djinn
 	{% else %}
-		Edit Key - Thrall
+		Edit Key - Djinn
 	{% endif %}
 {% endfunc %}
 

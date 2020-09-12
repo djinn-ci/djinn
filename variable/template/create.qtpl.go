@@ -34,7 +34,7 @@ type Create struct {
 //line variable/template/create.qtpl:18
 func (p *Create) StreamTitle(qw422016 *qt422016.Writer) {
 //line variable/template/create.qtpl:18
-	qw422016.N().S(` Create Variable - Thrall `)
+	qw422016.N().S(` Create Variable - Djinn `)
 //line variable/template/create.qtpl:20
 }
 

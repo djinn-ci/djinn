@@ -38,7 +38,7 @@ type Index struct {
 //line namespace/template/index.qtpl:22
 func (p *Index) StreamTitle(qw422016 *qt422016.Writer) {
 //line namespace/template/index.qtpl:22
-	qw422016.N().S(` Namespaces - Thrall `)
+	qw422016.N().S(` Namespaces - Djinn `)
 //line namespace/template/index.qtpl:24
 }
 

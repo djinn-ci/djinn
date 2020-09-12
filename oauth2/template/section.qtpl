@@ -23,7 +23,7 @@ type TokenIndex struct {
 
 {% collapsespace %}
 {% func (p *AppIndex) Title() %}
-	OAuth Apps - Thrall
+	OAuth Apps - Djinn
 {% endfunc %}
 
 {% func (p *AppIndex) Body() %}
@@ -58,7 +58,7 @@ type TokenIndex struct {
 {% endfunc %}
 
 {% func (p *TokenIndex) Title() %}
-	Access Tokens - Thrall
+	Access Tokens - Djinn
 {% endfunc %}
 
 {% func (p *TokenIndex) Body() %}

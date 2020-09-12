@@ -280,7 +280,7 @@ func (p *Show) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/show.qtpl:90
 		qw422016.E().S(p.Build.Trigger.CommentTitle())
 //line build/template/show.qtpl:90
-		qw422016.N().S(` - Thrall `)
+		qw422016.N().S(` - Djinn `)
 //line build/template/show.qtpl:91
 	}
 //line build/template/show.qtpl:91
@@ -753,7 +753,7 @@ func (p *Job) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/show.qtpl:238
 	qw422016.E().S(p.Job.Name)
 //line build/template/show.qtpl:238
-	qw422016.N().S(` - Thrall `)
+	qw422016.N().S(` - Djinn `)
 //line build/template/show.qtpl:239
 }
 

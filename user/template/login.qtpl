@@ -22,7 +22,7 @@ var providerNames = map[string]string{
 
 {% collapsespace %}
 {% func (p *Login) Title() %}
-	Login - Thrall
+	Login - Djinn
 {% endfunc %}
 
 {% func (p *Login) Footer() %}
@@ -37,7 +37,7 @@ var providerNames = map[string]string{
 					<div class="left"></div>
 					<div class="right"></div>
 				</div>
-				<h1>Login to Thrall</h1>
+				<h1>Login to Djinn</h1>
 				{%= template.RenderAlert(p.Alert, "") %}
 			</div>
 			<form method="POST" action="/login">

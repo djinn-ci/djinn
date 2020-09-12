@@ -39,7 +39,7 @@ type Auth struct {
 //line oauth2/template/auth.qtpl:24
 func (p *Auth) StreamTitle(qw422016 *qt422016.Writer) {
 //line oauth2/template/auth.qtpl:24
-	qw422016.N().S(` Authenticate App - Thrall `)
+	qw422016.N().S(` Authenticate App - Djinn `)
 //line oauth2/template/auth.qtpl:26
 }
 

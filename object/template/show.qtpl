@@ -19,7 +19,7 @@ type Show struct {
 
 {% collapsespace %}
 {% func (p *Show) Title() %}
-	Objects {%s p.Object.Name %} - Thrall
+	Objects {%s p.Object.Name %} - Djinn
 {% endfunc %}
 
 {% func (p *Show) Body() %}

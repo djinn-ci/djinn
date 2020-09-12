@@ -19,7 +19,7 @@ type Index struct {
 
 {% collapsespace %}
 {% func (p *Index) Title() %}
-	Variables - Thrall
+	Variables - Djinn
 {% endfunc %}
 
 {% func (p *Index) Header() %}

@@ -175,6 +175,10 @@ func Test_StoreCreate(t *testing.T) {
 		"^INSERT INTO users \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(13))
 
+	mock.ExpectQuery(
+		"^SELECT COUNT\\(\\*\\) FROM account_tokens WHERE \\(user_id = \\$1 AND purpose = \\$2\\)$",
+	).WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(0))
+
 	mock.ExpectExec(
 		"^INSERT INTO account_tokens \\((.+)\\) VALUES \\((.+)\\)$",
 	).WillReturnResult(sqlmock.NewResult(0, 1))

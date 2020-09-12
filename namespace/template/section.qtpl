@@ -10,7 +10,7 @@ import (
 {% code
 type section struct {}
 
-type Invites struct {
+type InviteIndex struct {
 	section
 	template.BasePage
 	template.Form
@@ -34,15 +34,17 @@ type CollaboratorIndex struct {
 {% func (p *section) Header() %}{% endfunc %}
 {% func (p *section) Actions() %}{% endfunc %}
 
-{% func (p *Invites) Title() %}
-	Namespace Invites
+{% func (p *InviteIndex) Navigation() %}{% endfunc %}
+
+{% func (p *InviteIndex) Title() %}
+	Invites
 {% endfunc %}
 
-{% func (p *Invites) Header() %}
-	Namespace Invites
+{% func (p *InviteIndex) Header() %}
+	Invites
 {% endfunc %}
 
-{% func (p *Invites) Body() %}
+{% func (p *InviteIndex) Body() %}
 	<div class="panel">
 		{% if p.Namespace != nil %}
 			<div class="panel-header panel-body">

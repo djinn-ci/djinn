@@ -19,7 +19,6 @@ import (
 	objecttemplate "github.com/andrewpillar/djinn/object/template"
 	"github.com/andrewpillar/djinn/template"
 	"github.com/andrewpillar/djinn/user"
-	usertemplate "github.com/andrewpillar/djinn/user/template"
 	"github.com/andrewpillar/djinn/variable"
 	variabletemplate "github.com/andrewpillar/djinn/variable/template"
 	"github.com/andrewpillar/djinn/web"
@@ -297,7 +296,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		p.Section = &namespacetemplate.Invites{
+		p.Section = &namespacetemplate.InviteIndex{
 			BasePage:  bp,
 			CSRF:      csrf.TemplateField(r),
 			Namespace: n,
@@ -497,7 +496,7 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 		User: u,
 	}
 
-	section := &namespacetemplate.Invites{
+	inviteIndex := &namespacetemplate.InviteIndex{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
 			Errors: web.FormErrors(sess),
@@ -512,13 +511,10 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 		p = &namespacetemplate.Show{
 			BasePage:  bp,
 			Namespace: n,
-			Section:   section,
+			Section:   inviteIndex,
 		}
 	} else {
-		p = &usertemplate.Settings{
-			BasePage: bp,
-			Section:  section,
-		}
+		p = inviteIndex
 	}
 
 	csrfField := string(csrf.TemplateField(r))

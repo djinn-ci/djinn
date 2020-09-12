@@ -143,13 +143,6 @@ type Settings struct {
 		{% endif %}
 	</li>
 	<li>
-		{% if p.URL.Path == "/settings/invites" %}
-			<a href="/settings/invites" class="active">{% cat "../../static/svg/mail.svg" %}<span>Invites</span></a>
-		{% else %}
-			<a href="/settings/invites">{% cat "../../static/svg/mail.svg" %}<span>Invites</span></a>
-		{% endif %}
-	</li>
-	<li>
 		{% if p.URL.Path == "/settings/apps" %}
 			<a href="/settings/apps" class="active">{% cat "../../static/svg/folder.svg" %}<span>OAuth Apps</span></a>
 		{% else %}

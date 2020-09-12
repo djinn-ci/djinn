@@ -59,6 +59,7 @@ const (
 
 var (
 	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
+	InvitesURI      =  "\\/invites\\/?"
 	BuildsURI       = "(^\\/$|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
 	SettingsURI     = "\\/settings\\/?"
 	RepositoriesURI = "\\/repos\\/?"
@@ -165,6 +166,11 @@ func (l level) String() string {
 						<li><a title="Namespaces" href="/namespaces" class="active">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
 					{% else %}
 						<li><a title="Namespaces" href="/namespaces">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
+					{% endif %}
+					{% if Match(p.URL.Path, InvitesURI) %}
+						<li><a title="Invites" href="/invites" class="active">{% cat "../static/svg/mail.svg" %}</span>Invites</span></a></li>
+					{% else %}
+						<li><a title="Invites" href="/invites">{% cat "../static/svg/mail.svg" %}</span>Invites</span></a></li>
 					{% endif %}
 					{% if Match(p.URL.Path, RepositoriesURI) %}
 						<li><a title="Repositories" href="/repos" class="active">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>

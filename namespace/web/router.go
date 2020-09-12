@@ -204,9 +204,9 @@ func (r *Router) Init(h web.Handler) {
 // routes. These routes respond with a text/html Content-Type.
 //
 // simple auth routes - These routes (/namespaces, /namespaces/create,
-// /settings/invites, /invites/{invite:[0-9]+}) havbe the auth middleware
-// applied to them to check if a user is authenticated to access the route. The
-// given http.Handler is applied to these routes for CSRF protection.
+// /invites, /invites/{invite:[0-9]+}) havbe the auth middleware applied to
+// them to check if a user is authenticated to access the route. The given
+// http.Handler is applied to these routes for CSRF protection.
 //
 // individual namespace routes - These routes (prefixed with
 // /n/{username}/{namespace:[a-zA-Z0-9\\/?]+}), use the given http.Handler for
@@ -228,7 +228,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/namespaces", namespace.Index).Methods("GET")
 	auth.HandleFunc("/namespaces/create", namespace.Create).Methods("GET")
 	auth.HandleFunc("/namespaces", namespace.Store).Methods("POST")
-	auth.HandleFunc("/settings/invites", invite.Index).Methods("GET")
+	auth.HandleFunc("/invites", invite.Index).Methods("GET")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Update).Methods("PATCH")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Destroy).Methods("DELETE")
 	auth.Use(r.Middleware.Gate(gates...), csrf)

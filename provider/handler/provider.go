@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"net/http"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/andrewpillar/djinn/crypto"
@@ -23,6 +24,45 @@ type Provider struct {
 
 	Block    *crypto.Block
 	Registry *provider.Registry
+}
+
+func (h Provider) disableHooks(p *provider.Provider) error {
+	rr, err := provider.NewRepoStore(h.DB, p).All(query.Where("enabled", "=", true))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	cherrs := make(chan error)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(len(rr))
+
+	for _, r := range rr {
+		go func(r *provider.Repo) {
+			defer wg.Done()
+
+			if err := p.ToggleRepo(h.Block, h.Registry, r); err != nil {
+				cherrs <- err
+			}
+		}(r)
+	}
+
+	go func() {
+		wg.Wait()
+		close(cherrs)
+	}()
+
+	errs := make([]error, 0)
+
+	for err := range cherrs {
+		errs = append(errs, err)
+	}
+
+	if len(errs) > 0 {
+		return errors.Slice(errs)
+	}
+	return nil
 }
 
 func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
@@ -197,6 +237,9 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/")
 }
 
+// Revoke will disconnect the user from the provider sent in the request. This
+// will also disable all of the repository hooks for the given provider if any
+// were set.
 func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -229,6 +272,13 @@ func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.disableHooks(p); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
 	if err := providers.Update(p.ID, 0, p.Name, nil, nil, true, false); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disconnect from provider"), "alert")
@@ -251,6 +301,7 @@ func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 		h.RedirectBack(w, r)
 		return
 	}
+
 	sess.AddFlash(template.Success("Successfully disconnected from provider"), "alert")
 	h.RedirectBack(w, r)
 }

@@ -37,7 +37,13 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	back := "/settings"
+
 	u, _ := user.FromContext(r.Context())
+
+	if u.IsZero() {
+		back = "/login"
+	}
 
 	access, refresh, user1, err := cli.Auth(r.Context(), r.URL.Query())
 
@@ -55,7 +61,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-		h.Redirect(w, r, "/settings")
+		h.Redirect(w, r, back)
 		return
 	}
 
@@ -64,7 +70,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-		h.Redirect(w, r, "/settings")
+		h.Redirect(w, r, back)
 		return
 	}
 
@@ -81,7 +87,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-			h.Redirect(w, r, "/settings")
+			h.Redirect(w, r, back)
 			return
 		}
 
@@ -91,7 +97,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 			if _, err := rand.Read(password); err != nil {
 				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-				h.Redirect(w, r, "/settings")
+				h.Redirect(w, r, back)
 				return
 			}
 
@@ -108,14 +114,14 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-				h.Redirect(w, r, "/settings")
+				h.Redirect(w, r, back)
 				return
 			}
 
 			if err := h.Users.Verify(tok); err != nil {
 				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-				h.Redirect(w, r, "/settings")
+				h.Redirect(w, r, back)
 				return
 			}
 		}
@@ -125,7 +131,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-			h.Redirect(w, r, "/settings")
+			h.Redirect(w, r, back)
 			return
 		}
 
@@ -146,7 +152,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-		h.Redirect(w, r, "/settings")
+		h.Redirect(w, r, back)
 		return
 	}
 
@@ -156,14 +162,14 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-			h.Redirect(w, r, "/settings")
+			h.Redirect(w, r, back)
 			return
 		}
 	} else {
 		if err := providers.Update(p.ID, user1.ID, name, encAccess, encRefresh, true); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-			h.Redirect(w, r, "/settings")
+			h.Redirect(w, r, back)
 			return
 		}
 	}
@@ -174,7 +180,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-		h.Redirect(w, r, "/settings")
+		h.Redirect(w, r, back)
 		return
 	}
 
@@ -182,7 +188,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		if _, err = providers.Create(id, name, encAccess, encRefresh, true); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-			h.Redirect(w, r, "/settings")
+			h.Redirect(w, r, back)
 			return
 		}
 	}

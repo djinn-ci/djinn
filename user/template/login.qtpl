@@ -10,6 +10,7 @@ type Login struct {
 	template.BasePage
 	template.Form
 
+	Alert     template.Alert
 	Providers []*provider.Provider
 }
 
@@ -37,12 +38,10 @@ var providerNames = map[string]string{
 					<div class="right"></div>
 				</div>
 				<h1>Login to Thrall</h1>
+				{%= template.RenderAlert(p.Alert, "") %}
 			</div>
 			<form method="POST" action="/login">
 				{%s= string(p.CSRF) %}
-				{% if p.Errors.First("login") != "" %}
-					{%= p.Error("login") %}
-				{% endif %}
 				<div class="input-field">
 					<label>Email / Username</label>
 					<input class="text" type="text" name="handle" value="{%s p.Fields["handle"] %}" autocomplete="off"/>
@@ -70,6 +69,7 @@ var providerNames = map[string]string{
 					</div>
 				{% endfor %}
 				<div class="input-field">Don't have an account? <a href="/register">Register</a></div>
+				<div class="input-field"><a href="/password_reset">Forgot your password?</a></div>
 			</form>
 		</div>
 	</div>

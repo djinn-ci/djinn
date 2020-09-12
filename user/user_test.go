@@ -175,7 +175,11 @@ func Test_StoreCreate(t *testing.T) {
 		"^INSERT INTO users \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(13))
 
-	if _, err := store.Create("me@example.com", "me", []byte("secret")); err != nil {
+	mock.ExpectExec(
+		"^INSERT INTO account_tokens \\((.+)\\) VALUES \\((.+)\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 1))
+
+	if _, _, err := store.Create("me@example.com", "me", []byte("secret")); err != nil {
 		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }

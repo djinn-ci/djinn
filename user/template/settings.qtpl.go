@@ -217,329 +217,341 @@ func (p *Settings) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/settings.qtpl:54
 		qw422016.N().S(` <div class="panel"> <div class="panel-body slim"> `)
 //line user/template/settings.qtpl:57
-		if len(p.Providers) > 0 {
+		if !p.User.Verified {
 //line user/template/settings.qtpl:57
-			qw422016.N().S(` <h2>Connected accounts</h2> <div class="separator"></div> <div class="providers"> `)
-//line user/template/settings.qtpl:61
-			for _, prv := range p.Providers {
-//line user/template/settings.qtpl:61
-				qw422016.N().S(` `)
-//line user/template/settings.qtpl:62
-				p.streamrenderProvider(qw422016, prv)
-//line user/template/settings.qtpl:62
-				qw422016.N().S(` `)
-//line user/template/settings.qtpl:63
-			}
-//line user/template/settings.qtpl:63
-			qw422016.N().S(` </div> `)
-//line user/template/settings.qtpl:65
+			qw422016.N().S(` <form method="POST" action="/settings/verify"> <h2>Verify account</h2> `)
+//line user/template/settings.qtpl:60
+			qw422016.N().S(p.CSRF)
+//line user/template/settings.qtpl:60
+			qw422016.N().S(` <div class="form-field"> <button type="submit" class="btn btn-primary">Send verification email</button> </div> </form> <div class="separator"></div> `)
+//line user/template/settings.qtpl:66
 		}
-//line user/template/settings.qtpl:65
-		qw422016.N().S(` <form method="POST" action="/settings/email"> <h2>Change email</h2> <div class="separator"></div> `)
-//line user/template/settings.qtpl:69
+//line user/template/settings.qtpl:66
+		qw422016.N().S(` `)
+//line user/template/settings.qtpl:67
+		if len(p.Providers) > 0 {
+//line user/template/settings.qtpl:67
+			qw422016.N().S(` <h2>Connected accounts</h2> <div class="providers"> `)
+//line user/template/settings.qtpl:70
+			for _, prv := range p.Providers {
+//line user/template/settings.qtpl:70
+				qw422016.N().S(` `)
+//line user/template/settings.qtpl:71
+				p.streamrenderProvider(qw422016, prv)
+//line user/template/settings.qtpl:71
+				qw422016.N().S(` `)
+//line user/template/settings.qtpl:72
+			}
+//line user/template/settings.qtpl:72
+			qw422016.N().S(` </div> `)
+//line user/template/settings.qtpl:74
+		}
+//line user/template/settings.qtpl:74
+		qw422016.N().S(` <div class="separator"></div> <form method="POST" action="/settings/email"> <h2>Change email</h2> `)
+//line user/template/settings.qtpl:78
 		qw422016.N().S(p.CSRF)
-//line user/template/settings.qtpl:69
+//line user/template/settings.qtpl:78
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <div class="form-field"> <label class="label" for="email">Email</label> <input class="form-text" type="text" id="email" name="email" value="`)
-//line user/template/settings.qtpl:73
+//line user/template/settings.qtpl:82
 		qw422016.E().S(p.Fields["email"])
-//line user/template/settings.qtpl:73
+//line user/template/settings.qtpl:82
 		qw422016.N().S(`" autocomplete="off"/> `)
-//line user/template/settings.qtpl:74
+//line user/template/settings.qtpl:83
 		p.StreamError(qw422016, "email")
-//line user/template/settings.qtpl:74
+//line user/template/settings.qtpl:83
 		qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="verify_password">Verify Password</label> <input class="form-text" type="password" id="verify_password" name="verify_password" autocomplete="off"/> `)
-//line user/template/settings.qtpl:79
+//line user/template/settings.qtpl:88
 		p.StreamError(qw422016, "email_verify_password")
-//line user/template/settings.qtpl:79
-		qw422016.N().S(` </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> <div class="separator"></div> <form method="POST" action="/settings/password"> <h2>Change password</h2> <div class="separator"></div> <input type="hidden" name="_method" value="PATCH"/> `)
-//line user/template/settings.qtpl:90
+//line user/template/settings.qtpl:88
+		qw422016.N().S(` </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> <div class="separator"></div> <form method="POST" action="/settings/password"> <h2>Change password</h2> <input type="hidden" name="_method" value="PATCH"/> `)
+//line user/template/settings.qtpl:98
 		qw422016.N().S(p.CSRF)
-//line user/template/settings.qtpl:90
+//line user/template/settings.qtpl:98
 		qw422016.N().S(` <div class="form-field"> <label class="label" for="old_password">Old Password</label> <input class="form-text" type="password" id="old_password" name="old_password" autocomplete="off"/> `)
-//line user/template/settings.qtpl:94
+//line user/template/settings.qtpl:102
 		p.StreamError(qw422016, "old_password")
-//line user/template/settings.qtpl:94
+//line user/template/settings.qtpl:102
 		qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="new_password">New Password</label> <input class="form-text" type="password" id="new_password" name="new_password" autocomplete="off"/> `)
-//line user/template/settings.qtpl:99
+//line user/template/settings.qtpl:107
 		p.StreamError(qw422016, "new_password")
-//line user/template/settings.qtpl:99
+//line user/template/settings.qtpl:107
 		qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="verify_password">Verify Password</label> <input class="form-text" type="password" id="verify_password" name="verify_password" autocomplete="off"/> `)
-//line user/template/settings.qtpl:104
+//line user/template/settings.qtpl:112
 		p.StreamError(qw422016, "pass_verify_password")
-//line user/template/settings.qtpl:104
+//line user/template/settings.qtpl:112
 		qw422016.N().S(` </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> </div> </div> `)
-//line user/template/settings.qtpl:112
+//line user/template/settings.qtpl:120
 	}
-//line user/template/settings.qtpl:112
+//line user/template/settings.qtpl:120
 	qw422016.N().S(` `)
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 }
 
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 func (p *Settings) WriteBody(qq422016 qtio422016.Writer) {
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 	p.StreamBody(qw422016)
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 	qt422016.ReleaseWriter(qw422016)
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 }
 
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 func (p *Settings) Body() string {
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 	qb422016 := qt422016.AcquireByteBuffer()
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 	p.WriteBody(qb422016)
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 	qs422016 := string(qb422016.B)
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 	qt422016.ReleaseByteBuffer(qb422016)
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 	return qs422016
-//line user/template/settings.qtpl:113
+//line user/template/settings.qtpl:121
 }
 
-//line user/template/settings.qtpl:115
+//line user/template/settings.qtpl:123
 func (p *Settings) StreamHeader(qw422016 *qt422016.Writer) {
-//line user/template/settings.qtpl:115
+//line user/template/settings.qtpl:123
 	qw422016.N().S(` `)
-//line user/template/settings.qtpl:116
+//line user/template/settings.qtpl:124
 	if p.Section != nil {
-//line user/template/settings.qtpl:116
+//line user/template/settings.qtpl:124
 		qw422016.N().S(` `)
-//line user/template/settings.qtpl:117
+//line user/template/settings.qtpl:125
 		p.Section.StreamHeader(qw422016)
-//line user/template/settings.qtpl:117
+//line user/template/settings.qtpl:125
 		qw422016.N().S(` `)
-//line user/template/settings.qtpl:118
+//line user/template/settings.qtpl:126
 	} else {
-//line user/template/settings.qtpl:118
+//line user/template/settings.qtpl:126
 		qw422016.N().S(` Settings `)
-//line user/template/settings.qtpl:120
+//line user/template/settings.qtpl:128
 	}
-//line user/template/settings.qtpl:120
+//line user/template/settings.qtpl:128
 	qw422016.N().S(` `)
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 }
 
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 func (p *Settings) WriteHeader(qq422016 qtio422016.Writer) {
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 	p.StreamHeader(qw422016)
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 	qt422016.ReleaseWriter(qw422016)
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 }
 
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 func (p *Settings) Header() string {
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 	qb422016 := qt422016.AcquireByteBuffer()
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 	p.WriteHeader(qb422016)
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 	qs422016 := string(qb422016.B)
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 	qt422016.ReleaseByteBuffer(qb422016)
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 	return qs422016
-//line user/template/settings.qtpl:121
+//line user/template/settings.qtpl:129
 }
 
-//line user/template/settings.qtpl:123
+//line user/template/settings.qtpl:131
 func (p *Settings) StreamActions(qw422016 *qt422016.Writer) {
-//line user/template/settings.qtpl:123
+//line user/template/settings.qtpl:131
 	qw422016.N().S(` `)
-//line user/template/settings.qtpl:124
+//line user/template/settings.qtpl:132
 	if p.Section != nil {
-//line user/template/settings.qtpl:124
+//line user/template/settings.qtpl:132
 		qw422016.N().S(` `)
-//line user/template/settings.qtpl:125
+//line user/template/settings.qtpl:133
 		p.Section.StreamActions(qw422016)
-//line user/template/settings.qtpl:125
+//line user/template/settings.qtpl:133
 		qw422016.N().S(` `)
-//line user/template/settings.qtpl:126
+//line user/template/settings.qtpl:134
 	}
-//line user/template/settings.qtpl:126
+//line user/template/settings.qtpl:134
 	qw422016.N().S(` `)
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 }
 
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 func (p *Settings) WriteActions(qq422016 qtio422016.Writer) {
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 	p.StreamActions(qw422016)
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 	qt422016.ReleaseWriter(qw422016)
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 }
 
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 func (p *Settings) Actions() string {
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 	qb422016 := qt422016.AcquireByteBuffer()
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 	p.WriteActions(qb422016)
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 	qs422016 := string(qb422016.B)
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 	qt422016.ReleaseByteBuffer(qb422016)
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 	return qs422016
-//line user/template/settings.qtpl:127
+//line user/template/settings.qtpl:135
 }
 
-//line user/template/settings.qtpl:129
+//line user/template/settings.qtpl:137
 func (p *Settings) StreamNavigation(qw422016 *qt422016.Writer) {
-//line user/template/settings.qtpl:129
+//line user/template/settings.qtpl:137
 	qw422016.N().S(` <li> `)
-//line user/template/settings.qtpl:131
+//line user/template/settings.qtpl:139
 	if p.URL.Path == "/settings" {
-//line user/template/settings.qtpl:131
+//line user/template/settings.qtpl:139
 		qw422016.N().S(` <a href="/settings" class="active">`)
-//line user/template/settings.qtpl:132
+//line user/template/settings.qtpl:140
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <title>user</title>
 <path d="M12 14.016c2.672 0 8.016 1.313 8.016 3.984v2.016h-16.031v-2.016c0-2.672 5.344-3.984 8.016-3.984zM12 12c-2.203 0-3.984-1.781-3.984-3.984s1.781-4.031 3.984-4.031 3.984 1.828 3.984 4.031-1.781 3.984-3.984 3.984z"></path>
 </svg>
 `)
-//line user/template/settings.qtpl:132
+//line user/template/settings.qtpl:140
 		qw422016.N().S(`<span>Account</span></a> `)
-//line user/template/settings.qtpl:133
+//line user/template/settings.qtpl:141
 	} else {
-//line user/template/settings.qtpl:133
+//line user/template/settings.qtpl:141
 		qw422016.N().S(` <a href="/settings">`)
-//line user/template/settings.qtpl:134
+//line user/template/settings.qtpl:142
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <title>user</title>
 <path d="M12 14.016c2.672 0 8.016 1.313 8.016 3.984v2.016h-16.031v-2.016c0-2.672 5.344-3.984 8.016-3.984zM12 12c-2.203 0-3.984-1.781-3.984-3.984s1.781-4.031 3.984-4.031 3.984 1.828 3.984 4.031-1.781 3.984-3.984 3.984z"></path>
 </svg>
 `)
-//line user/template/settings.qtpl:134
+//line user/template/settings.qtpl:142
 		qw422016.N().S(`<span>Account</span></a> `)
-//line user/template/settings.qtpl:135
+//line user/template/settings.qtpl:143
 	}
-//line user/template/settings.qtpl:135
+//line user/template/settings.qtpl:143
 	qw422016.N().S(` </li> <li> `)
-//line user/template/settings.qtpl:138
+//line user/template/settings.qtpl:146
 	if p.URL.Path == "/settings/invites" {
-//line user/template/settings.qtpl:138
+//line user/template/settings.qtpl:146
 		qw422016.N().S(` <a href="/settings/invites" class="active">`)
-//line user/template/settings.qtpl:139
+//line user/template/settings.qtpl:147
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <title>mail</title>
 <path d="M12 11.016l8.016-5.016h-16.031zM20.016 18v-9.984l-8.016 4.969-8.016-4.969v9.984h16.031zM20.016 3.984c1.078 0 1.969 0.938 1.969 2.016v12c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h16.031z"></path>
 </svg>
 `)
-//line user/template/settings.qtpl:139
+//line user/template/settings.qtpl:147
 		qw422016.N().S(`<span>Invites</span></a> `)
-//line user/template/settings.qtpl:140
+//line user/template/settings.qtpl:148
 	} else {
-//line user/template/settings.qtpl:140
+//line user/template/settings.qtpl:148
 		qw422016.N().S(` <a href="/settings/invites">`)
-//line user/template/settings.qtpl:141
+//line user/template/settings.qtpl:149
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <title>mail</title>
 <path d="M12 11.016l8.016-5.016h-16.031zM20.016 18v-9.984l-8.016 4.969-8.016-4.969v9.984h16.031zM20.016 3.984c1.078 0 1.969 0.938 1.969 2.016v12c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h16.031z"></path>
 </svg>
 `)
-//line user/template/settings.qtpl:141
+//line user/template/settings.qtpl:149
 		qw422016.N().S(`<span>Invites</span></a> `)
-//line user/template/settings.qtpl:142
+//line user/template/settings.qtpl:150
 	}
-//line user/template/settings.qtpl:142
+//line user/template/settings.qtpl:150
 	qw422016.N().S(` </li> <li> `)
-//line user/template/settings.qtpl:145
+//line user/template/settings.qtpl:153
 	if p.URL.Path == "/settings/apps" {
-//line user/template/settings.qtpl:145
+//line user/template/settings.qtpl:153
 		qw422016.N().S(` <a href="/settings/apps" class="active">`)
-//line user/template/settings.qtpl:146
+//line user/template/settings.qtpl:154
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M9.984 3.984l2.016 2.016h8.016c1.078 0 1.969 0.938 1.969 2.016v9.984c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h6z"></path>
 </svg>
 `)
-//line user/template/settings.qtpl:146
+//line user/template/settings.qtpl:154
 		qw422016.N().S(`<span>OAuth Apps</span></a> `)
-//line user/template/settings.qtpl:147
+//line user/template/settings.qtpl:155
 	} else {
-//line user/template/settings.qtpl:147
+//line user/template/settings.qtpl:155
 		qw422016.N().S(` <a href="/settings/apps">`)
-//line user/template/settings.qtpl:148
+//line user/template/settings.qtpl:156
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M9.984 3.984l2.016 2.016h8.016c1.078 0 1.969 0.938 1.969 2.016v9.984c0 1.078-0.891 2.016-1.969 2.016h-16.031c-1.078 0-1.969-0.938-1.969-2.016v-12c0-1.078 0.891-2.016 1.969-2.016h6z"></path>
 </svg>
 `)
-//line user/template/settings.qtpl:148
+//line user/template/settings.qtpl:156
 		qw422016.N().S(`<span>OAuth Apps</span></a> `)
-//line user/template/settings.qtpl:149
+//line user/template/settings.qtpl:157
 	}
-//line user/template/settings.qtpl:149
+//line user/template/settings.qtpl:157
 	qw422016.N().S(` </li> <li> `)
-//line user/template/settings.qtpl:152
+//line user/template/settings.qtpl:160
 	if p.URL.Path == "/settings/tokens" || p.URL.Path == "/settings/tokens/create" {
-//line user/template/settings.qtpl:152
+//line user/template/settings.qtpl:160
 		qw422016.N().S(` <a href="/settings/tokens" class="active">`)
-//line user/template/settings.qtpl:153
+//line user/template/settings.qtpl:161
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M14.578 16.594l4.641-4.594-4.641-4.594 1.406-1.406 6 6-6 6zM9.422 16.594l-1.406 1.406-6-6 6-6 1.406 1.406-4.641 4.594z"></path>
 </svg>
 `)
-//line user/template/settings.qtpl:153
+//line user/template/settings.qtpl:161
 		qw422016.N().S(`<span>Access Tokens</span></a> `)
-//line user/template/settings.qtpl:154
+//line user/template/settings.qtpl:162
 	} else {
-//line user/template/settings.qtpl:154
+//line user/template/settings.qtpl:162
 		qw422016.N().S(` <a href="/settings/tokens">`)
-//line user/template/settings.qtpl:155
+//line user/template/settings.qtpl:163
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M14.578 16.594l4.641-4.594-4.641-4.594 1.406-1.406 6 6-6 6zM9.422 16.594l-1.406 1.406-6-6 6-6 1.406 1.406-4.641 4.594z"></path>
 </svg>
 `)
-//line user/template/settings.qtpl:155
+//line user/template/settings.qtpl:163
 		qw422016.N().S(`<span>Access Tokens</span></a> `)
-//line user/template/settings.qtpl:156
+//line user/template/settings.qtpl:164
 	}
-//line user/template/settings.qtpl:156
+//line user/template/settings.qtpl:164
 	qw422016.N().S(` </li> `)
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 }
 
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 func (p *Settings) WriteNavigation(qq422016 qtio422016.Writer) {
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 	p.StreamNavigation(qw422016)
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 	qt422016.ReleaseWriter(qw422016)
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 }
 
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 func (p *Settings) Navigation() string {
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 	qb422016 := qt422016.AcquireByteBuffer()
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 	p.WriteNavigation(qb422016)
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 	qs422016 := string(qb422016.B)
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 	qt422016.ReleaseByteBuffer(qb422016)
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 	return qs422016
-//line user/template/settings.qtpl:158
+//line user/template/settings.qtpl:166
 }

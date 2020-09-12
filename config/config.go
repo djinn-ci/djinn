@@ -35,6 +35,14 @@ type Server struct {
 		}
 	}
 
+	SMTP struct {
+		Addr     string
+		CA       string
+		Admin    string
+		Username string
+		Password string
+	}
+
 	Crypto struct {
 		Hash  string
 		Block string

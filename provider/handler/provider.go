@@ -101,9 +101,18 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 				username = user1.Login
 			}
 
-			u, err = h.Users.Create(user1.Email, username, password)
+			var tok []byte
+
+			u, tok, err = h.Users.Create(user1.Email, username, password)
 
 			if err != nil {
+				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+				h.Redirect(w, r, "/settings")
+				return
+			}
+
+			if err := h.Users.Verify(tok); err != nil {
 				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
 				h.Redirect(w, r, "/settings")

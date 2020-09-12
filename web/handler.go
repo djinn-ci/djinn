@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"net/smtp"
 
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
@@ -19,6 +20,11 @@ const sessionName = "session"
 type Handler struct {
 	// DB is the current connection to the database.
 	DB *sqlx.DB
+
+	SMTP struct {
+		Client *smtp.Client
+		From   string
+	}
 
 	// Log is the log file that the HTTP server is writing to.
 	Log *log.Logger

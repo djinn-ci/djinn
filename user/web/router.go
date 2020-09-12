@@ -38,10 +38,13 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	guest := mux.PathPrefix("/").Subrouter()
 	guest.HandleFunc("/register", r.user.Register).Methods("GET", "POST")
 	guest.HandleFunc("/login", r.user.Login).Methods("GET", "POST")
+	guest.HandleFunc("/password_reset", r.user.PasswordReset).Methods("GET", "POST")
+	guest.HandleFunc("/new_password", r.user.NewPassword).Methods("GET", "POST")
 	guest.Use(r.Middleware.Guest, csrf)
 
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/settings", r.user.Settings).Methods("GET")
+	auth.HandleFunc("/settings/verify", r.user.Verify).Methods("GET", "POST")
 	auth.HandleFunc("/settings/email", r.user.Email).Methods("PATCH")
 	auth.HandleFunc("/settings/password", r.user.Password).Methods("PATCH")
 	auth.HandleFunc("/logout", r.user.Logout).Methods("POST")
@@ -51,7 +54,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
-		u, _ := r.Context().Value("user").(*user.User)
+		u, _ := user.FromContext(r.Context())
 		web.JSON(w, u.JSON(web.BaseAddress(r)+"/"+prefix), http.StatusOK)
 	})
 	auth.Use(r.Middleware.Auth)

@@ -1,13 +1,17 @@
 package handler
 
 import (
+	"encoding/hex"
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
 	"time"
 
+	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/template"
 	"github.com/andrewpillar/djinn/user"
@@ -17,6 +21,20 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/csrf"
+)
+
+var (
+	resetMail = `A request was made to reset your password. Follow the link below to reset your
+account's password:
+
+    %s/new_password?token=%s
+
+if you did not make this request then ignore this email.`
+
+	verifyMail = `To secure your account please verify your email. Click the link below to
+verify your account's email address,
+
+    %s/settings/verify?token=%s`
 )
 
 type User struct {
@@ -36,6 +54,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 				Errors: web.FormErrors(sess),
 				Fields: web.FormFields(sess),
 			},
+			Alert: web.Alert(sess),
 		}
 		save(r, w)
 		web.HTML(w, template.Render(p), http.StatusOK)
@@ -54,16 +73,29 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		sess.AddFlash(template.Danger("Failed to create account"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	u, err := h.Users.Create(f.Email, f.Username, []byte(f.Password))
+	u, tok, err := h.Users.Create(f.Email, f.Username, []byte(f.Password))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		sess.AddFlash(template.Danger("Failed to create account"), "alert")
+		return
+	}
+
+	m := mail.Mail{
+		From:    h.SMTP.From,
+		To:      []string{u.Email},
+		Subject: "Djinn - Verify email",
+		Body:    fmt.Sprintf(verifyMail, web.BaseAddress(r), hex.EncodeToString(tok)),
+	}
+
+	if err := m.Send(h.SMTP.Client); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to create account"), "alert")
 		return
 	}
 
@@ -72,10 +104,12 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	for name := range h.Registry.All() {
 		if _, err := providers.Create(0, name, nil, nil, false); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			sess.AddFlash(template.Danger("Failed to create account"), "alert")
 			return
 		}
 	}
+
+	sess.AddFlash(template.Warn("A verification link has been sent to your email, use this to verify your account"))
 	h.Redirect(w, r, "/login")
 }
 
@@ -110,6 +144,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 				Errors: web.FormErrors(sess),
 				Fields: web.FormFields(sess),
 			},
+			Alert:     web.Alert(sess),
 			Providers: pp,
 		}
 		save(r, w)
@@ -129,7 +164,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		sess.AddFlash(template.Danger("Unexpected error occurred during authentication"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -141,7 +176,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 
 		if cause != user.ErrAuth {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to login:"+cause.Error()), "alert")
+			sess.AddFlash(template.Danger("Unexpected error occurred during authentication"), "alert")
 			h.RedirectBack(w, r)
 			return
 		}
@@ -162,7 +197,8 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		sess.AddFlash(template.Danger("Unexpected error occurred during authentication"), "alert")
+		h.RedirectBack(w, r)
 		return
 	}
 
@@ -174,6 +210,135 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		Value:    encoded,
 	})
 	h.Redirect(w, r, "/")
+}
+
+func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	if r.Method == "GET" {
+		p := &usertemplate.NewPassword{
+			Form: template.Form{
+				CSRF:   string(csrf.TemplateField(r)),
+				Errors: web.FormErrors(sess),
+				Fields: web.FormFields(sess),
+			},
+			Token: r.URL.Query().Get("token"),
+			Alert: web.Alert(sess),
+		}
+		save(r, w)
+		web.HTML(w, template.Render(p), http.StatusOK)
+		return
+	}
+
+	f := &user.NewPasswordForm{}
+
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
+		return
+	}
+
+	tok, err := hex.DecodeString(f.Token)
+
+	if err != nil {
+		sess.AddFlash(template.Danger("Invalid token"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if err := h.Users.UpdatePassword(tok, []byte(f.Password)); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
+		return
+	}
+
+	sess.AddFlash(template.Success("Password updated"), "alert")
+	h.Redirect(w, r, "/login")
+}
+
+func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	if r.Method == "GET" {
+		p := &usertemplate.PasswordReset{
+			Form: template.Form{
+				CSRF:   string(csrf.TemplateField(r)),
+				Errors: web.FormErrors(sess),
+				Fields: web.FormFields(sess),
+			},
+			Alert: web.Alert(sess),
+		}
+		save(r, w)
+		web.HTML(w, template.Render(p), http.StatusOK)
+		return
+	}
+
+	f := &user.PasswordResetForm{}
+
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
+		return
+	}
+
+	u, err := h.Users.Get(query.Where("email", "=", f.Email))
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if u.IsZero() {
+		sess.AddFlash(template.Success("Password reset instructions sent"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	tok, err := h.Users.ResetPassword(u.ID)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
+		return
+	}
+
+	m := mail.Mail{
+		From:    h.SMTP.From,
+		To:      []string{u.Email},
+		Subject: "Djinn - Password reset request",
+		Body:    fmt.Sprintf(resetMail, web.BaseAddress(r), hex.EncodeToString(tok)),
+	}
+
+	if err := m.Send(h.SMTP.Client); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
+		return
+	}
+	sess.AddFlash(template.Success("Password reset instructions sent"), "alert")
+	h.RedirectBack(w, r)
 }
 
 func (h User) Logout(w http.ResponseWriter, r *http.Request) {
@@ -248,6 +413,90 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
+}
+
+// Verify will either send a verification email to the user, or verify the
+// user's account. If the tok query parameter is in the current request then
+// an attempt will be made to verify the user's account. If the tok query
+// parameter is not in the current request then the verification email is
+// sent for account verification.
+func (h User) Verify(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	if r.Method == "POST" {
+		u, ok := user.FromContext(r.Context())
+
+		if !ok {
+			h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+		}
+
+		tok, err := h.Users.RequestVerify(u.ID)
+
+		if err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to send verification email"), "alert")
+			h.RedirectBack(w, r)
+			return
+		}
+
+		m := mail.Mail{
+			From:    h.SMTP.From,
+			To:      []string{u.Email},
+			Subject: "Djinn - Verify email",
+			Body:    fmt.Sprintf(verifyMail, web.BaseAddress(r), hex.EncodeToString(tok)),
+		}
+
+		if err := m.Send(h.SMTP.Client); err != nil {
+			cause := errors.Cause(err)
+
+			if rcpterrs, ok := cause.(*mail.ErrRcpts); ok {
+				h.Log.Error.Println(r.Method, r.URL, "Failed to send verification email to " + rcpterrs.Error())
+				goto resp
+			}
+
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to send verification email"), "alert")
+			h.RedirectBack(w, r)
+			return
+		}
+
+resp:
+		sess.AddFlash(template.Success("Verification email sent to: " + u.Email), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	b, err := hex.DecodeString(r.URL.Query().Get("token"))
+
+	if err != nil {
+		if errors.Cause(err) == user.ErrTokenExpired {
+			sess.AddFlash(template.Danger("Token expired, resend verification email"), "alert")
+			h.Redirect(w, r, "/settings")
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to verify account"), "alert")
+		h.Redirect(w, r, "/settings")
+		return
+	}
+
+	if err := h.Users.Verify(b); err != nil {
+		cause := errors.Cause(err)
+
+		if cause == database.ErrNotFound {
+			h.Redirect(w, r, "/settings")
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to verify account"), "alert")
+		h.Redirect(w, r, "/settings")
+		return
+	}
+
+	sess.AddFlash(template.Success("Account has been verified"), "alert")
+	h.Redirect(w, r, "/settings")
 }
 
 func (h User) Email(w http.ResponseWriter, r *http.Request) {

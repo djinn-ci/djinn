@@ -123,3 +123,43 @@ h1 {
 .provider-gitlab:hover {
 	background: #e65328;
 }
+.alert {
+	margin-top: 15px;
+	overflow: auto;
+	padding: 15px;
+	border-radius: 3px;
+
+	.alert-message {
+		float: left;
+		color: rgba(0, 0, 0, 0.6);
+	}
+
+	a {
+		float: right;
+		display: inline-block;
+
+		svg {
+			width: 15px;
+			height: 15px;
+			fill: rgba(0, 0, 0, 0.4);
+		}
+	}
+
+	a:hover {
+		svg {
+			fill: rgba(0, 0, 0, 0.5);
+		}
+	}
+}
+.alert-success {
+	background: #caf5ca;
+	border-bottom: solid 1px #a0dfa0;
+}
+.alert-warn {
+	background: #fff3cd;
+	border-bottom: solid 1px #d9c995;
+}
+.alert-danger {
+	background: #ffd4d4;
+	border-bottom: solid 1px #e19e9e;
+}

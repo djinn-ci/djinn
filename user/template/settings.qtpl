@@ -54,18 +54,27 @@ type Settings struct {
 	{% else %}
 		<div class="panel">
 			<div class="panel-body slim">
+				{% if !p.User.Verified %}
+					<form method="POST" action="/settings/verify">
+						<h2>Verify account</h2>
+						{%s= p.CSRF %}
+						<div class="form-field">
+							<button type="submit" class="btn btn-primary">Send verification email</button>
+						</div>
+					</form>
+					<div class="separator"></div>
+				{% endif %}
 				{% if len(p.Providers) > 0 %}
 					<h2>Connected accounts</h2>
-					<div class="separator"></div>
 					<div class="providers">
 						{% for _, prv := range p.Providers %}
 							{%= p.renderProvider(prv) %}
 						{% endfor %}
 					</div>
 				{% endif %}
+				<div class="separator"></div>
 				<form method="POST" action="/settings/email">
 					<h2>Change email</h2>
-					<div class="separator"></div>
 					{%s= p.CSRF %}
 					<input type="hidden" name="_method" value="PATCH"/>
 					<div class="form-field">
@@ -85,7 +94,6 @@ type Settings struct {
 				<div class="separator"></div>
 				<form method="POST" action="/settings/password">
 					<h2>Change password</h2>
-					<div class="separator"></div>
 					<input type="hidden" name="_method" value="PATCH"/>
 					{%s= p.CSRF %}
 					<div class="form-field">

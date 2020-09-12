@@ -25,6 +25,7 @@ DROP TABLE IF EXISTS build_tags;
 DROP TABLE IF EXISTS builds;
 DROP TYPE IF EXISTS status; 
 DROP TABLE IF EXISTS namespaces;
+DROP TABLE IF EXISTS account_tokens;
 DROP TABLE IF EXISTS users;
 
 DROP TYPE IF EXISTS visibility;
@@ -42,9 +43,19 @@ CREATE TABLE users (
 	email      VARCHAR NOT NULL UNIQUE,
 	username   VARCHAR NOT NULL UNIQUE,
 	password   BYTEA NOT NULL,
+	verified   BOOLEAN NOT NULL DEFAULT FALSE,
 	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	deleted_at TIMESTAMP NULL
+);
+
+CREATE TABLE account_tokens (
+	id         SERIAL PRIMARY KEY,
+	user_id    INT NOT NULL REFERENCES users(id),
+	token      BYTEA NOT NULL UNIQUE,
+	purpose    VARCHAR NOT NULL,
+	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	expires_at TIMESTAMP NOT NULL
 );
 
 CREATE TABLE providers (

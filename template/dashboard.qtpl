@@ -112,15 +112,26 @@ func (l level) String() string {
 %}
 
 {% collapsespace %}
+{% func RenderAlert(a Alert, url string) %}
+	{% if !a.IsZero() %}
+		<div class="alert alert-{%s a.Level.String() %}">
+			<div class="alert-message">{%s a.Message %}</div>
+			{% if url != "" %}
+				<a href="{%s url %}" class="alert-close">{% cat "../static/svg/close.svg" %}</a>
+			{% endif %}
+		</div>
+	{% endif %}
+{% endfunc %}
+
 {% func (p *baseDashboard) Body() %}
 	<div class="dashboard">
 		<div class="dashboard-content">
-			{% if !p.alert.IsZero() %}
-				<div class="alert alert-{%s p.alert.Level.String() %}">
-					<div class="alert-message">{%s p.alert.Message %}</div>
-					<a href="{%s p.URL.Path %}">{% cat "../static/svg/close.svg" %}</a>
+			{% if !p.User.Verified %}
+				<div class="alert alert-warn">
+					<div class="alert-message">Your account is not verified, go to your <a href="/settings">settings</a> to verify it.</div>
 				</div>
 			{% endif %}
+			{%= RenderAlert(p.alert, p.URL.Path) %}
 			<div class="dashboard-wrap">
 				<div class="dashboard-header">
 					<div class="overflow">

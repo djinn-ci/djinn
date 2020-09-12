@@ -6,6 +6,8 @@ import "github.com/andrewpillar/djinn/template"
 type Register struct {
 	template.BasePage
 	template.Form
+
+	Alert template.Alert
 }
 %}
 
@@ -27,12 +29,10 @@ type Register struct {
 					<div class="right"></div>
 				</div>
 				<h1>Signup to Thrall</h1>
+				{%= template.RenderAlert(p.Alert, "") %}
 			</div>
 			<form method="POST" action="/register">
 				{%s= string(p.CSRF) %}
-				{% if p.Errors.First("register") != "" %}
-					<span class="error">Failed to register account: {%s p.Errors.First("register") %}</span>
-				{% endif %}
 				<div class="input-field">
 					<label>Email</label>
 					<input class="text" type="text" name="email" value="{%v p.Fields["email"] %}" autocomplete="off"/>

@@ -42,11 +42,23 @@ type PasswordForm struct {
 	VerifyPassword string `schema:"verify_password"`
 }
 
+type PasswordResetForm struct {
+	Email string `schema:"email"`
+}
+
+type NewPasswordForm struct {
+	Token          string `schema:"token"`
+	Password       string `schema:"password"`
+	VerifyPassword string `schema:"verify_password"`
+}
+
 var (
 	_ form.Form = (*RegisterForm)(nil)
 	_ form.Form = (*LoginForm)(nil)
 	_ form.Form = (*EmailForm)(nil)
 	_ form.Form = (*PasswordForm)(nil)
+	_ form.Form = (*PasswordResetForm)(nil)
+	_ form.Form = (*NewPasswordForm)(nil)
 
 	reEmail           = regexp.MustCompile("@")
 	reAlphaNumDotDash = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
@@ -234,6 +246,53 @@ func (f PasswordForm) Validate() error {
 	if f.NewPassword != f.VerifyPassword {
 		errs.Put("new_password", form.ErrFieldInvalid("Password", "does not match"))
 		errs.Put("pass_verify_password", form.ErrFieldInvalid("Password", "does not match"))
+	}
+	return errs.Err()
+}
+
+func (f PasswordResetForm) Fields() map[string]string {
+	return map[string]string{
+		"email": f.Email,
+	}
+}
+
+func (f PasswordResetForm) Validate() error {
+	errs := form.NewErrors()
+
+	if f.Email == "" {
+		errs.Put("email", form.ErrFieldRequired("Email"))
+	}
+
+	if len(f.Email) > 254 {
+		errs.Put("email", form.ErrFieldInvalid("Email", "must be less than 254 characters"))
+	}
+
+	if !reEmail.Match([]byte(f.Email)) {
+		errs.Put("email", form.ErrFieldInvalid("Email", ""))
+	}
+	return errs.Err()
+}
+
+func (f NewPasswordForm) Fields() map[string]string { return map[string]string{} }
+
+func (f NewPasswordForm) Validate() error {
+	errs := form.NewErrors()
+
+	if f.Password == "" {
+		errs.Put("password", form.ErrFieldRequired("New password"))
+	}
+
+	if len(f.Password) < 6 || len(f.Password) > 60 {
+		errs.Put("password", form.ErrFieldInvalid("Password", "must be between 6 ans 60 characters in length"))
+	}
+
+	if f.VerifyPassword == "" {
+		errs.Put("verify_password", form.ErrFieldRequired("Password"))
+	}
+
+	if f.Password != f.VerifyPassword {
+		errs.Put("password", form.ErrFieldInvalid("Password", "does not match"))
+		errs.Put("verify_password", form.ErrFieldInvalid("Password", "does not match"))
 	}
 	return errs.Err()
 }

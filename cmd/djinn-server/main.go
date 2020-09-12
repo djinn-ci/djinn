@@ -21,6 +21,7 @@ import (
 	imageweb "github.com/andrewpillar/djinn/image/web"
 	keyweb "github.com/andrewpillar/djinn/key/web"
 	"github.com/andrewpillar/djinn/log"
+	"github.com/andrewpillar/djinn/mail"
 	namespaceweb "github.com/andrewpillar/djinn/namespace/web"
 	"github.com/andrewpillar/djinn/oauth2"
 	oauth2web "github.com/andrewpillar/djinn/oauth2/web"
@@ -152,6 +153,17 @@ func main() {
 		log.Error.Fatalf("failed to initialize hashing mechanism: %s\n", err)
 	}
 
+	smtp, err := mail.NewClient(mail.ClientConfig{
+		CA:       cfg.SMTP.CA,
+		Addr:     cfg.SMTP.Addr,
+		Username: cfg.SMTP.Username,
+		Password: cfg.SMTP.Password,
+	})
+
+	if err != nil {
+		log.Error.Fatal(err)
+	}
+
 	host, port, err := net.SplitHostPort(cfg.Database.Addr)
 
 	if err != nil {
@@ -269,6 +281,9 @@ func main() {
 		SecureCookie: securecookie.New(hashKey, blockKey),
 		Users:        user.NewStore(db),
 	}
+
+	handler.SMTP.Client = smtp
+	handler.SMTP.From = cfg.SMTP.Admin
 
 	middleware := web.Middleware{
 		Handler: handler,

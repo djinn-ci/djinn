@@ -386,9 +386,9 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		data.ref = push.HeadCommit.ID
 		data.comment = push.HeadCommit.Message
 		data.data = map[string]string{
-			"id":       push.HeadCommit.ID,
 			"url":      push.HeadCommit.URL,
 			"ref":      push.Ref,
+			"sha":      push.HeadCommit.ID,
 			"email":    push.HeadCommit.Author["email"],
 			"username": push.HeadCommit.Author["username"],
 		}
@@ -514,6 +514,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 			"id":       strconv.FormatInt(merge.Attrs.ID, 10),
 			"url":      merge.Attrs.URL,
 			"ref":      merge.Attrs.TargetBranch,
+			"sha":      merge.Attrs.LastCommit.ID,
 			"username": merge.User.Name,
 			"action":   merge.Attrs.Action,
 		}

@@ -86,142 +86,7 @@ func (w *worker) qemuRealPath(b *build.Build, disks string) func(string, string)
 	}
 }
 
-func (w *worker) run(id int64, host string) error {
-	b, err := w.builds.Get(query.Where("id", "=", id))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	t, err := build.NewTriggerStore(w.db, b).Get()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	p, err := provider.NewStore(w.db).Get(query.Where("id", "=", t.ProviderID))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	repo, err := provider.NewRepoStore(w.db, p).Get(query.Where("id", "=", t.RepoID))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if t.Type == build.Pull {
-		err := p.SetCommitStatus(w.block, w.providers, repo, runner.Running, host + b.Endpoint(), t.Data["id"])
-
-		if err != nil {
-			return errors.Err(err)
-		}
-	}
-
-	r := buildRunner{
-		db:        w.db,
-		build:     b,
-		log:       w.log,
-		block:     w.block,
-		collector: w.collector,
-		placer:    w.placer,
-		buf:       &bytes.Buffer{},
-		bufs:      make(map[int64]*bytes.Buffer),
-		jobs:      make(map[string]*build.Job),
-	}
-
-	if b.Status == runner.Killed {
-		if err := w.builds.Finished(b.ID, "build killed", b.Status); err != nil {
-			return errors.Err(err)
-		}
-		if err := r.updateJobs(); err != nil {
-			return errors.Err(err)
-		}
-
-		if t.Type == build.Pull {
-			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host + b.Endpoint(), t.Data["id"])
-			return errors.Err(err)
-		}
-	}
-
-	buildDriver, err := build.NewDriverStore(w.db, b).Get()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	cfg := make(map[string]string)
-	json.Unmarshal([]byte(buildDriver.Config), &cfg)
-
-	driverInit, err := w.drivers.Get(cfg["type"])
-
-	if err != nil {
-		fmt.Fprintf(r.buf, "driver %s has not been configured for the worker\n", cfg["type"])
-		fmt.Fprintf(r.buf, "killing build...\n")
-
-		if err := w.builds.Finished(b.ID, r.buf.String(), runner.Killed); err != nil {
-			return errors.Err(err)
-		}
-		if err := r.updateJobs(); err != nil {
-			return errors.Err(err)
-		}
-
-		if t.Type == build.Pull {
-			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host + b.Endpoint(), t.Data["id"])
-			return errors.Err(err)
-		}
-	}
-
-	if err := r.load(); err != nil {
-		return errors.Err(err)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
-	defer cancel()
-
-	sub := w.redis.Subscribe(fmt.Sprintf("kill-%v", b.ID))
-	defer sub.Close()
-
-	go func() {
-		msg := <-sub.Channel()
-
-		if msg == nil {
-			return
-		}
-		if msg.Payload == b.Secret.String {
-			cancel()
-		}
-	}()
-
-	merged := make(map[string]interface{})
-
-	for k, v := range cfg {
-		merged[k] = v
-	}
-
-	for k, v := range w.driverconf[cfg["type"]] {
-		merged[k] = v
-	}
-
-	d := driverInit(io.MultiWriter(r.buf, r.driverBuffer()), merged)
-
-	if q, ok := d.(*qemu.QEMU); ok {
-		q.Image = strings.Replace(q.Image, "..", "", -1)
-		q.Realpath = w.qemuRealPath(b, merged["disks"].(string))
-	}
-
-	status, err := r.run(ctx, d)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if t.Type == build.Pull {
-		err := p.SetCommitStatus(w.block, w.providers, repo, status, host + b.Endpoint(), t.Data["id"])
-		return errors.Err(err)
-	}
-
+func (w *worker) sendmail(host string, status runner.Status, b *build.Build, t *build.Trigger) error {
 	// Send email to the build user, and namespace collaborators if we have
 	// SMTP configured for the worker.
 	if status == runner.Killed || status == runner.Failed || status == runner.TimedOut {
@@ -315,4 +180,143 @@ func (w *worker) run(id int64, host string) error {
 		return errors.Err(m.Send(w.smtp.client))
 	}
 	return nil
+}
+
+func (w *worker) run(id int64, host string) error {
+	b, err := w.builds.Get(query.Where("id", "=", id))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	t, err := build.NewTriggerStore(w.db, b).Get()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	p, err := provider.NewStore(w.db).Get(query.Where("id", "=", t.ProviderID))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	repo, err := provider.NewRepoStore(w.db, p).Get(query.Where("id", "=", t.RepoID))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if t.Type == build.Pull {
+		err := p.SetCommitStatus(w.block, w.providers, repo, runner.Running, host + b.Endpoint(), t.Data["id"])
+
+		if err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	r := buildRunner{
+		db:        w.db,
+		build:     b,
+		log:       w.log,
+		block:     w.block,
+		collector: w.collector,
+		placer:    w.placer,
+		buf:       &bytes.Buffer{},
+		bufs:      make(map[int64]*bytes.Buffer),
+		jobs:      make(map[string]*build.Job),
+	}
+
+	if b.Status == runner.Killed {
+		if err := w.builds.Finished(b.ID, "build killed", b.Status); err != nil {
+			return errors.Err(err)
+		}
+		if err := r.updateJobs(); err != nil {
+			return errors.Err(err)
+		}
+
+		if t.Type == build.Pull {
+			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host + b.Endpoint(), t.Data["id"])
+			return errors.Err(err)
+		}
+	}
+
+	buildDriver, err := build.NewDriverStore(w.db, b).Get()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	cfg := make(map[string]string)
+	json.Unmarshal([]byte(buildDriver.Config), &cfg)
+
+	driverInit, err := w.drivers.Get(cfg["type"])
+
+	if err != nil {
+		fmt.Fprintf(r.buf, "driver %s has not been configured for the worker\n", cfg["type"])
+		fmt.Fprintf(r.buf, "killing build...\n")
+
+		if err := w.builds.Finished(b.ID, r.buf.String(), runner.Killed); err != nil {
+			return errors.Err(err)
+		}
+		if err := r.updateJobs(); err != nil {
+			return errors.Err(err)
+		}
+
+		if t.Type == build.Pull {
+			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host + b.Endpoint(), t.Data["id"])
+			return errors.Err(err)
+		}
+		return errors.Err(w.sendmail(host, runner.Killed, b, t))
+	}
+
+	if err := r.load(); err != nil {
+		return errors.Err(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), w.timeout)
+	defer cancel()
+
+	sub := w.redis.Subscribe(fmt.Sprintf("kill-%v", b.ID))
+	defer sub.Close()
+
+	go func() {
+		msg := <-sub.Channel()
+
+		if msg == nil {
+			return
+		}
+		if msg.Payload == b.Secret.String {
+			cancel()
+		}
+	}()
+
+	merged := make(map[string]interface{})
+
+	for k, v := range cfg {
+		merged[k] = v
+	}
+
+	for k, v := range w.driverconf[cfg["type"]] {
+		merged[k] = v
+	}
+
+	d := driverInit(io.MultiWriter(r.buf, r.driverBuffer()), merged)
+
+	if q, ok := d.(*qemu.QEMU); ok {
+		q.Image = strings.Replace(q.Image, "..", "", -1)
+		q.Realpath = w.qemuRealPath(b, merged["disks"].(string))
+	}
+
+	status, err := r.run(ctx, d)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if t.Type == build.Pull {
+		err := p.SetCommitStatus(w.block, w.providers, repo, status, host + b.Endpoint(), t.Data["id"])
+		return errors.Err(err)
+	}
+	return errors.Err(w.sendmail(host, status, b, t))
 }

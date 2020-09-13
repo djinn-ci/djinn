@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -239,7 +240,7 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 		u, ok := h.auth(w, r)
 
 		if !ok {
-			h.Redirect(w, r, "/login")
+			h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
 			return
 		}
 
@@ -265,7 +266,7 @@ func (h Middleware) AuthPerms(perms ...string) mux.MiddlewareFunc {
 					return
 				}
 
-				h.Redirect(w, r, "/login")
+				h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
 				return
 			}
 
@@ -276,7 +277,7 @@ func (h Middleware) AuthPerms(perms ...string) mux.MiddlewareFunc {
 						return
 					}
 
-					h.Redirect(w, r, "/login")
+					h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
 					return
 				}
 			}
@@ -319,7 +320,7 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 
 				if !ok {
 					if !json {
-						h.Redirect(w, r, "/login")
+						h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
 						return
 					}
 					errh(w, "Not found", http.StatusNotFound)

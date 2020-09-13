@@ -202,6 +202,12 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	uri := "/"
+
+	if uri1 := r.URL.Query().Get("redirect_uri"); uri1 != "" {
+		uri = uri1
+	}
+
 	http.SetCookie(w, &http.Cookie{
 		Name:     "user",
 		HttpOnly: true,
@@ -209,7 +215,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		Expires:  time.Now().Add(time.Duration(user.MaxAge) * time.Second),
 		Value:    encoded,
 	})
-	h.Redirect(w, r, "/")
+	h.Redirect(w, r, uri)
 }
 
 func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {

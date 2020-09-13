@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
@@ -19,6 +21,11 @@ type Invite struct {
 	Loaders *database.Loaders
 	Invites *namespace.InviteStore
 }
+
+var inviteMail = `%s has invited you to be a collaborator in %s. You can accept this invite via
+your Invites list,
+
+    %s/invites`
 
 func (h Invite) IndexWithRelations(s *namespace.InviteStore) ([]*namespace.Invite, error) {
 	ii, err := s.All()
@@ -64,7 +71,19 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 	}
 
 	i, err := invites.Create(f.Inviter.ID, f.Invitee.ID)
-	return i, f, errors.Err(err)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	m := mail.Mail{
+		From:    h.SMTP.From,
+		To:      []string{f.Invitee.Email},
+		Subject: fmt.Sprintf("Djinn - %s invited you to %s", f.Inviter.Username, n.Path),
+		Body:    fmt.Sprintf(inviteMail, f.Inviter.Username, n.Path, web.BaseAddress(r)),
+	}
+
+	return i, f, errors.Err(m.Send(h.SMTP.Client))
 }
 
 func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user.User, error) {

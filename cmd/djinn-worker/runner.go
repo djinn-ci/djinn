@@ -208,7 +208,7 @@ func (r *buildRunner) updateJobs() error {
 			output = buf.String()
 		}
 
-		if err := jobs.Finished(j.ID, output, r.build.Status); err != nil {
+		if err := jobs.Finished(j.ID, output, r.runner.Status); err != nil {
 			return errors.Err(err)
 		}
 	}

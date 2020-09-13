@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -121,7 +122,6 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 				query.Where("provider_user_id", "=", user1.ID),
 				query.Where("name", "=", name),
 			)),
-			query.OrWhere("email", "=", user1.Email),
 		)
 
 		if err != nil {
@@ -152,6 +152,14 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 			u, tok, err = h.Users.Create(user1.Email, username, password)
 
 			if err != nil {
+				cause := errors.Cause(err)
+
+				if strings.Contains(cause.Error(), "duplicate key value violates unique constraint") {
+					sess.AddFlash(template.Danger("User already exists with email " + user1.Email + " and username " + username), "alert")
+					h.RedirectBack(w, r)
+					return
+				}
+
 				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
 				h.Redirect(w, r, back)

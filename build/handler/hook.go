@@ -208,18 +208,18 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 				return
 			}
 
+			parts := strings.Split(strings.Split(raw, "?")[0], "/")
+			path := strings.Join(parts[len(parts)-1:], "/")
+
 			m, err := decode(resp.Body)
 
 			if err != nil {
-				parts := strings.Split(strings.Split(raw, "?")[0], "/")
-				path := strings.Join(parts[len(parts)-2:], "/")
-
-				errs <- errors.New("failed to decode manifest " + path + ":\n" + errors.Cause(err).Error())
+				errs <- errors.New("failed to decode manifest: " + path + ": " + errors.Cause(err).Error())
 				return
 			}
 
 			if err := m.Validate(); err != nil {
-				errs <- err
+				errs <- errors.New("manifest invalid: " + path + ": " + err.Error())
 				return
 			}
 			manifests <- m

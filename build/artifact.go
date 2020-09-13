@@ -179,7 +179,8 @@ func (a *Artifact) Endpoint(uris ...string) string {
 	if a.Build == nil || a.Build.IsZero() {
 		return ""
 	}
-	return a.Build.Endpoint("artifacts", strconv.FormatInt(a.ID, 10))
+	uris = append([]string{"artifacts", strconv.FormatInt(a.ID, 10)}, uris...)
+	return a.Build.Endpoint(uris...)
 }
 
 // Values implements the database.Model interface. This will return a map with

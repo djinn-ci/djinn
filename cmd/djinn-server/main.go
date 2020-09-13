@@ -153,17 +153,6 @@ func main() {
 		log.Error.Fatalf("failed to initialize hashing mechanism: %s\n", err)
 	}
 
-	smtp, err := mail.NewClient(mail.ClientConfig{
-		CA:       cfg.SMTP.CA,
-		Addr:     cfg.SMTP.Addr,
-		Username: cfg.SMTP.Username,
-		Password: cfg.SMTP.Password,
-	})
-
-	if err != nil {
-		log.Error.Fatal(err)
-	}
-
 	host, port, err := net.SplitHostPort(cfg.Database.Addr)
 
 	if err != nil {
@@ -226,6 +215,29 @@ func main() {
 		}
 		queues[d.Type] = queue
 	}
+
+	log.Debug.Println("connecting to smtp addr", cfg.SMTP.Addr)
+
+	if cfg.SMTP.Username != "" && cfg.SMTP.Password != "" {
+		log.Debug.Println("connecting to smtp with plain auth username =", cfg.SMTP.Username, "password =", cfg.SMTP.Password)
+	}
+
+	if cfg.SMTP.CA != "" {
+		log.Debug.Println("connecting to smtp with tls")
+	}
+
+	smtp, err := mail.NewClient(mail.ClientConfig{
+		CA:       cfg.SMTP.CA,
+		Addr:     cfg.SMTP.Addr,
+		Username: cfg.SMTP.Username,
+		Password: cfg.SMTP.Password,
+	})
+
+	if err != nil {
+		log.Error.Fatalf("failed to connect to smtp server: %s\n", err)
+	}
+
+	log.Info.Println("connected to smtp server")
 
 	hashKey := []byte(cfg.Crypto.Hash)
 	blockKey := []byte(cfg.Crypto.Block)

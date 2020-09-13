@@ -1,11 +1,8 @@
 package main
 
 import (
-	"crypto/tls"
-	"crypto/x509"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/smtp"
 	"os"
@@ -22,6 +19,7 @@ import (
 	"github.com/andrewpillar/djinn/driver/ssh"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
+	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/provider/github"
 	"github.com/andrewpillar/djinn/provider/gitlab"
@@ -252,64 +250,28 @@ func main() {
 	var client *smtp.Client
 
 	if cfg.SMTP.Addr != "" {
-		var auth smtp.Auth
-
-		host, _, err := net.SplitHostPort(cfg.SMTP.Addr)
+		log.Debug.Println("connecting to smtp addr", cfg.SMTP.Addr)
 
 		if cfg.SMTP.Username != "" && cfg.SMTP.Password != "" {
-			if err != nil {
-				log.Error.Fatalf("invalid smtp address: %s\n", err)
-			}
-
-			auth = smtp.PlainAuth("", cfg.SMTP.Username, cfg.SMTP.Password, host)
+			log.Debug.Println("connecting to smtp with plain auth username =", cfg.SMTP.Username, "password =", cfg.SMTP.Password)
 		}
-
-		var tlscfg *tls.Config
 
 		if cfg.SMTP.CA != "" {
-			b, err := ioutil.ReadFile(cfg.SMTP.CA)
-
-			if err != nil {
-				log.Error.Fatalf("failed to read ca file: %s\n", err)
-			}
-
-			pool := x509.NewCertPool()
-
-			if !pool.AppendCertsFromPEM(b) {
-				log.Error.Fatalf("failed to append certificates from PEM, please check if valid\n")
-			}
-
-			log.Debug.Println("loaded root ca chain")
-
-			tlscfg = &tls.Config{
-				ServerName: host,
-				RootCAs:    pool,
-			}
+			log.Debug.Println("connecting to smtp with tls")
 		}
 
-		client, err = smtp.Dial(cfg.SMTP.Addr)
+		client, err = mail.NewClient(mail.ClientConfig{
+			CA:       cfg.SMTP.CA,
+			Addr:     cfg.SMTP.Addr,
+			Username: cfg.SMTP.Username,
+			Password: cfg.SMTP.Password,
+		})
 
 		if err != nil {
-			log.Error.Fatalf("failed to create smtp client: %s\n", err)
+			log.Error.Fatalf("failed to connect to smtp server: %s\n", errors.Cause(err))
 		}
 
-		log.Debug.Println("connected to smtp server", cfg.SMTP.Addr)
-
-		if tlscfg != nil {
-			log.Debug.Println("issuing STARTTLS command to smtp server")
-
-			if err := client.StartTLS(tlscfg); err != nil {
-				log.Error.Fatalf("STARTTLS command failed: %s\n", err)
-			}
-		}
-
-		if auth != nil {
-			if err := client.Auth(auth); err != nil {
-				log.Error.Fatalf("smtp client auth failed: %s\n", err)
-			}
-		}
-
-		log.Info.Println("connected to smtp server", cfg.SMTP.Addr)
+		log.Info.Println("connected to smtp server")
 	}
 
 	w := worker{

@@ -217,6 +217,11 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 				errs <- errors.New("failed to decode manifest " + path + ":\n" + errors.Cause(err).Error())
 				return
 			}
+
+			if err := m.Validate(); err != nil {
+				errs <- err
+				return
+			}
 			manifests <- m
 		}(wg, raw)
 	}
@@ -240,7 +245,7 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 			ee = append(ee, err)
 		case m, ok := <-manifests:
 			if !ok {
-				errs = nil
+				manifests = nil
 				break
 			}
 			mm = append(mm, m)

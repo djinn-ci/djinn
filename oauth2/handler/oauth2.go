@@ -178,7 +178,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 		errs := form.NewErrors()
 		errs.Put("client_id", err)
 
-		sess.AddFlash(errs, "form_errorS")
+		sess.AddFlash(errs, "form_errors")
 		sess.AddFlash(f.Fields(), "form_fields")
 		h.RedirectBack(w, r)
 		return

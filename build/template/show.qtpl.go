@@ -169,7 +169,7 @@ func StreamRenderTrigger(qw422016 *qt422016.Writer, b *build.Build) {
 //line build/template/show.qtpl:70
 		qw422016.N().S(`">`)
 //line build/template/show.qtpl:70
-		qw422016.E().S(b.Trigger.Data["id"][:7])
+		qw422016.E().S(b.Trigger.Data["sha"][:7])
 //line build/template/show.qtpl:70
 		qw422016.N().S(`</a> to <span class="code">`)
 //line build/template/show.qtpl:70

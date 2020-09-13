@@ -493,9 +493,9 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		data.ref = head.ID
 		data.comment = head.Message
 		data.data = map[string]string{
-			"id":       head.ID,
 			"url":      head.URL,
 			"ref":      push.Ref,
+			"sha":      head.ID,
 			"email":    head.Author["email"],
 			"username": head.Author["username"],
 		}

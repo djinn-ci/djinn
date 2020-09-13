@@ -205,7 +205,7 @@ func (l level) String() string {
 					{% endif %}
 					<li>
 						<form method="POST" action="/logout">
-							{%s= string(p.CSRF) %}
+							{%s= p.CSRF %}
 							<button title="Logout" type="submit">{% cat "../static/svg/logout.svg" %}<span>Logout</span></button>
 						</form>
 					</li>

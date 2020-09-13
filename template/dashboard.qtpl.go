@@ -535,7 +535,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 //line template/dashboard.qtpl:205
 		qw422016.N().S(` <li> <form method="POST" action="/logout"> `)
 //line template/dashboard.qtpl:208
-		qw422016.N().S(string(p.CSRF))
+		qw422016.N().S(p.CSRF)
 //line template/dashboard.qtpl:208
 		qw422016.N().S(` <button title="Logout" type="submit">`)
 //line template/dashboard.qtpl:209

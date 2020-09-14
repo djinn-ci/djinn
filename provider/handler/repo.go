@@ -292,6 +292,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 	if repo.IsZero() {
 		repo.RepoID = f.RepoID
+		repo.ProviderName = f.Provider
 		repo.Name = f.Name
 	}
 

@@ -164,6 +164,7 @@ func (r *Router) Init(h web.Handler) {
 	}
 	r.hook = handler.Hook{
 		Build:           r.build,
+		Repos:           provider.NewRepoStore(h.DB),
 		Providers:       provider.NewStore(h.DB),
 		Registry:        r.Registry,
 	}

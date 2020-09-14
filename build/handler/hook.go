@@ -48,6 +48,7 @@ type hookData struct {
 type Hook struct {
 	Build
 
+	Repos     *provider.RepoStore
 	Providers *provider.Store
 	Registry  *provider.Registry
 }
@@ -101,7 +102,7 @@ func getGitLabURL(rawurl, ref string) func(map[string]string) string {
 func (h Hook) execute(host, name string, data hookData, geturl func(map[string]string) string) error {
 	h.Log.Debug.Println("data.userId =", data.userId)
 
-	u, p, err := h.getUserAndProvider(name, data.userId)
+	u, p, err := h.getUserAndProvider(name, data.repoId)
 
 	if err != nil {
 		return errors.Err(err)
@@ -258,25 +259,23 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 	return mm, nil
 }
 
-func (h Hook) getUserAndProvider(name string, userId int64) (*user.User, *provider.Provider, error) {
-	u, err := h.Users.Get(
-		query.WhereQuery("id", "=", provider.Select(
-			"user_id",
-			query.Where("provider_user_id", "=", userId),
-			query.Where("connected", "=", true),
-			query.Where("name", "=", name),
-		)),
+func (h Hook) getUserAndProvider(name string, repoId int64) (*user.User, *provider.Provider, error) {
+	r, err := h.Repos.Get(
+		query.Where("repo_id", "=", repoId),
+		query.Where("provider_name", "=", name),
 	)
 
 	if err != nil {
 		return nil, nil, errors.Err(err)
 	}
 
-	p, err := h.Providers.Get(
-		query.Where("user_id", "=", u.ID),
-		query.Where("connected", "=", true),
-		query.Where("name", "=", name),
-	)
+	p, err := h.Providers.Get(query.Where("id", "=", r.ProviderID))
+
+	if err != nil {
+		return nil, nil, errors.Err(err)
+	}
+
+	u, err := h.Users.Get(query.Where("id", "=", p.UserID))
 	return u, p, errors.Err(err)
 }
 

@@ -17,14 +17,15 @@ import (
 
 // Repo is the type that represents a Repo from a remote Git hosting provider.
 type Repo struct {
-	ID         int64          `db:"id"`
-	UserID     int64          `db:"user_id"`
-	ProviderID int64          `db:"provider_id"`
-	HookID     sql.NullInt64  `db:"hook_id"`
-	RepoID     int64          `db:"repo_id"`
-	Enabled    bool           `db:"enabled"`
-	Name       string         `db:"name"`
-	Href       string         `db:"href"`
+	ID           int64          `db:"id"`
+	UserID       int64          `db:"user_id"`
+	ProviderID   int64          `db:"provider_id"`
+	HookID       sql.NullInt64  `db:"hook_id"`
+	RepoID       int64          `db:"repo_id"`
+	ProviderName string         `db:"provider_name"`
+	Enabled      bool           `db:"enabled"`
+	Name         string         `db:"name"`
+	Href         string         `db:"href"`
 
 	User     *user.User `db:"-"`
 	Provider *Provider  `db:"-"`
@@ -128,13 +129,14 @@ func (r *Repo) Endpoint(uri ...string) string {
 // the following values, user_id, provider_id, hook_id, repo_id, and enabled.
 func (r *Repo) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"user_id":     r.UserID,
-		"provider_id": r.ProviderID,
-		"hook_id":     r.HookID,
-		"repo_id":     r.RepoID,
-		"enabled":     r.Enabled,
-		"name":        r.Name,
-		"href":        r.Href,
+		"user_id":       r.UserID,
+		"provider_id":   r.ProviderID,
+		"hook_id":       r.HookID,
+		"repo_id":       r.RepoID,
+		"provider_name": r.ProviderName,
+		"enabled":       r.Enabled,
+		"name":          r.Name,
+		"href":          r.Href,
 	}
 }
 

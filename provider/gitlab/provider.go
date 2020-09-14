@@ -53,7 +53,7 @@ type MergeRequestEvent struct {
 	User    User
 	Project Repo
 	Attrs   struct {
-		ID              int64  `json:"id"`
+		ID              int64  `json:"iid"`
 		TargetBranch    string `json:"target_branch"`
 		SourceProjectID int64  `json:"source_project_id"`
 		AuthorID        int64  `json:"author_id"`

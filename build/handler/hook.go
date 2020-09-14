@@ -499,6 +499,11 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 			"username": head.Author["username"],
 		}
 	case "Merge Request Hook":
+		actions := map[string]string{
+			"open":   "opened",
+			"update": "updated",
+		}
+
 		data.typ = build.Pull
 
 		merge := gitlab.MergeRequestEvent{}
@@ -514,8 +519,8 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 			"url":      merge.Attrs.URL,
 			"ref":      merge.Attrs.TargetBranch,
 			"sha":      merge.Attrs.LastCommit.ID,
-			"username": merge.User.Name,
-			"action":   merge.Attrs.Action,
+			"username": merge.User.Username,
+			"action":   actions[merge.Attrs.Action],
 		}
 	}
 

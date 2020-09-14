@@ -187,6 +187,32 @@ func (g *GitLab) ToggleRepo(tok string, r *provider.Repo) error {
 	id := strconv.FormatInt(r.RepoID, 10)
 
 	if !r.Enabled {
+		resp0, err := g.Get(tok, "/projects/" + id + "/hooks")
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		defer resp0.Body.Close()
+
+		hooks := make([]struct {
+			ID  int64
+			URL string
+		}, 0)
+
+		json.NewDecoder(resp0.Body).Decode(&hooks)
+
+		for _, hook := range hooks {
+			if hook.URL == g.Host + "/hook/gitlab" {
+				r.HookID = sql.NullInt64{
+					Int64: hook.ID,
+					Valid: hook.ID > 0,
+				}
+				r.Enabled = r.HookID.Valid
+				return nil
+			}
+		}
+
 		body := map[string]interface{}{
 			"id":                       r.RepoID,
 			"url":                      g.Host + "/hook/gitlab",
@@ -200,7 +226,7 @@ func (g *GitLab) ToggleRepo(tok string, r *provider.Repo) error {
 
 		json.NewEncoder(buf).Encode(body)
 
-		resp, err := g.Post(tok, "/projects/" + id, buf)
+		resp, err := g.Post(tok, "/projects/" + id + "/hooks", buf)
 
 		if err != nil {
 			return errors.Err(err)

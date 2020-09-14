@@ -98,10 +98,39 @@ var (
 	}
 )
 
-func decodeError(r io.Reader) error {
-	err := &Error{}
-	json.NewDecoder(r).Decode(err)
+func decodeError(r io.Reader) Error {
+	err := Error{}
+	json.NewDecoder(r).Decode(&err)
 	return err
+}
+
+func (g *GitHub) findHook(tok, name, url string) (int64, error) {
+	resp, err := g.Get(tok, "/repos/" + name + "/hooks")
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	hooks := make([]struct {
+		ID     int64
+		Config struct {
+			URL string
+		}
+	}, 0)
+
+	json.NewDecoder(resp.Body).Decode(&hooks)
+
+	var id int64
+
+	for _, hook := range hooks {
+		if hook.Config.URL == url {
+			id = hook.ID
+			break
+		}
+	}
+	return id, nil
 }
 
 func (g *GitHub) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
@@ -246,6 +275,22 @@ func (g *GitHub) ToggleRepo(tok string, r *provider.Repo) error {
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusCreated {
+			err := decodeError(resp.Body)
+
+			if err.Has("Hook already exists on this repository") {
+				hookId, err := g.findHook(tok, r.Name, g.Host + "/hook/github")
+
+				if err != nil {
+					return errors.Err(err)
+				}
+
+				r.HookID = sql.NullInt64{
+					Int64: hookId,
+					Valid: hookId > 0,
+				}
+				r.Enabled = r.HookID.Valid
+				return nil
+			}
 			return errors.Err(decodeError(resp.Body))
 		}
 
@@ -309,7 +354,7 @@ func (g *GitHub) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 	return nil
 }
 
-func (e *Error) Error() string {
+func (e Error) Error() string {
 	if len(e.Errors) > 0 {
 		s := e.Message + ": "
 
@@ -323,4 +368,13 @@ func (e *Error) Error() string {
 		return s
 	}
 	return e.Message
+}
+
+func (e Error) Has(err1 string) bool {
+	for _, err := range e.Errors {
+		if err["message"] == err1 {
+			return true
+		}
+	}
+	return false
 }

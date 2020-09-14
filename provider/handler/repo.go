@@ -281,7 +281,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 	repos := provider.NewRepoStore(h.DB, u, p)
 
-	repo, err := repos.Get(query.Where("id", "=", f.RepoID))
+	repo, err := repos.Get(query.Where("repo_id", "=", f.RepoID))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -302,12 +302,13 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := repos.Create(f.RepoID, f.Name, f.Href, repo.HookID.Int64); err != nil {
+	if err := repos.Touch(repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
+
 	sess.AddFlash(template.Success("Repository hooks enabled"), "alert")
 	h.RedirectBack(w, r)
 }
@@ -342,8 +343,6 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		h.RedirectBack(w, r)
 		return
 	}
-
-	repo.Enabled = false
 
 	if err := h.Repos.Update(repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

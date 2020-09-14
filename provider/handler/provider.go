@@ -122,6 +122,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 				query.Where("provider_user_id", "=", user1.ID),
 				query.Where("name", "=", name),
 			)),
+			query.OrWhere("email", "=", user1.Email),
 		)
 
 		if err != nil {

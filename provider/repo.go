@@ -156,21 +156,18 @@ func (s *RepoStore) New() *Repo {
 	return r
 }
 
-// Create creates a new repository with the given repoId of the repository from
-// the provider, and hookId of the webhook that was created for the repository.
-func (s *RepoStore) Create(repoId int64, name, href string, hookId int64) (*Repo, error) {
-	r := s.New()
-	r.RepoID = repoId
-	r.HookID = sql.NullInt64{
-		Int64: hookId,
-		Valid: hookId > 0,
-	}
-	r.Enabled = hookId != 0
-	r.Name = name
-	r.Href = href
+// Touch will create the given Repo if it does not exist, otherwise it will
+// update it.
+func (s *RepoStore) Touch(r *Repo) error {
+	if r.ID == 0 {
+		r1 := s.New()
 
-	err := s.Store.Create(repoTable, r)
-	return r, errors.Err(err)
+		r.UserID = r1.UserID
+		r.ProviderID = r1.ProviderID
+
+		return errors.Err(s.Store.Create(repoTable, r))
+	}
+	return errors.Err(s.Store.Update(repoTable, r))
 }
 
 // Update updates the given Repo models in the providers table.

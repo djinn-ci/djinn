@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -69,7 +70,9 @@ var (
 	}
 )
 
-func main() {
+func run(stdout, stderr io.Writer, args []string) error {
+	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
+
 	var (
 		showversion bool
 		serveui     bool
@@ -77,15 +80,15 @@ func main() {
 		configfile  string
 	)
 
-	flag.BoolVar(&showversion, "version", false, "show the version and exit")
-	flag.BoolVar(&serveui, "ui", false, "serve only the ui endpoints")
-	flag.BoolVar(&serveapi, "api", false, "serve only the api endpoints")
-	flag.StringVar(&configfile, "config", "djinn-server.toml", "the config file to use")
-	flag.Parse()
+	flags.BoolVar(&showversion, "version", false, "show the version and exit")
+	flags.BoolVar(&serveui, "ui", false, "serve only the ui endpoints")
+	flags.BoolVar(&serveapi, "api", false, "serve only the api endpoints")
+	flags.StringVar(&configfile, "config", "djinn-server.toml", "the config file to use")
+	flags.Parse(args[1:])
 
 	if showversion {
-		fmt.Println(os.Args[0], Version, Build)
-		os.Exit(0)
+		fmt.Fprintf(stdout, "%s %s %s\n", args[0], Version, Build)
+		return nil
 	}
 
 	if !serveui && !serveapi {
@@ -93,12 +96,12 @@ func main() {
 		serveapi = true
 	}
 
-	log := log.New(os.Stdout)
+	log := log.New(stdout)
 
 	f, err := os.Open(configfile)
 
 	if err != nil {
-		log.Error.Fatalf("failed to open server config: %s\n", err)
+		return err
 	}
 
 	defer f.Close()
@@ -106,18 +109,18 @@ func main() {
 	cfg, err := config.DecodeServer(f)
 
 	if err != nil {
-		log.Error.Fatalf("failed to decode server config: %s\n", err)
+		return err
 	}
 
 	if len(cfg.Drivers) == 0 {
-		log.Error.Fatalf("no drivers configured, exiting\n")
+		return errors.New("no drivers configured")
 	}
 
 	if cfg.Pidfile != "" {
 		pidf, err := os.OpenFile(cfg.Pidfile, os.O_WRONLY|os.O_CREATE, 0660)
 
 		if err != nil {
-			log.Error.Fatalf("failed to create pidfile: %s\n", err)
+			return err
 		}
 
 		pidf.Write([]byte(strconv.FormatInt(int64(os.Getpid()), 10)))
@@ -129,7 +132,7 @@ func main() {
 	logf, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
 
 	if err != nil {
-		log.Error.Fatalf("failed to open log file %s: %s\n", cfg.Log.File, err)
+		return err
 	}
 
 	defer logf.Close()
@@ -141,7 +144,7 @@ func main() {
 	blockCipher, err := crypto.NewBlock([]byte(cfg.Crypto.Block))
 
 	if err != nil {
-		log.Error.Fatalf("failed to setup block cipher: %s\n", errors.Cause(err))
+		return err
 	}
 
 	hasher := &crypto.Hasher{
@@ -150,13 +153,13 @@ func main() {
 	}
 
 	if err := hasher.Init(); err != nil {
-		log.Error.Fatalf("failed to initialize hashing mechanism: %s\n", err)
+		return err
 	}
 
 	host, port, err := net.SplitHostPort(cfg.Database.Addr)
 
 	if err != nil {
-		log.Error.Fatal(err)
+		return err
 	}
 
 	dsn := fmt.Sprintf(
@@ -173,7 +176,7 @@ func main() {
 	db, err := database.Connect(dsn)
 
 	if err != nil {
-		log.Error.Fatalf("failed to connect to database: %s\n", errors.Cause(err))
+		return err
 	}
 
 	log.Info.Println("connected to postgresql database")
@@ -186,7 +189,7 @@ func main() {
 	log.Debug.Println("connecting to redis database with:", cfg.Redis.Addr, cfg.Redis.Password)
 
 	if _, err := redis.Ping().Result(); err != nil {
-		log.Error.Fatalf("failed to ping redis: %s\n", err)
+		return err
 	}
 
 	defer redis.Close()
@@ -211,7 +214,7 @@ func main() {
 		})
 
 		if err != nil {
-			log.Error.Fatalf("failed to setup queue %s: %s\n", d.Queue, err)
+			return err
 		}
 		queues[d.Type] = queue
 	}
@@ -234,7 +237,7 @@ func main() {
 	})
 
 	if err != nil {
-		log.Error.Fatalf("failed to connect to smtp server: %s\n", err)
+		return err
 	}
 
 	log.Info.Println("connected to smtp server")
@@ -243,11 +246,11 @@ func main() {
 	blockKey := []byte(cfg.Crypto.Block)
 
 	if len(hashKey) < 32 || len(hashKey) > 64 {
-		log.Error.Fatalf("hash key is either too long or too short, make sure it between 32 and 64 bytes in size\n")
+		return errors.New("invalid hash key length, must be between 32 and 64 bytes")
 	}
 
 	if len(blockKey) != 16 && len(blockKey) != 24 && len(blockKey) != 32 {
-		log.Error.Fatalf("block key must be either 16, 24, or 32 bytes in size\n")
+		return errors.New("invalid block key, must be either 16, 24, or 32 bytes")
 	}
 
 	imageStore := blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit)
@@ -255,21 +258,21 @@ func main() {
 	artifactStore := blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
 
 	if err := imageStore.Init(); err != nil {
-		log.Error.Fatalf("failed to initialize image store: %s\n", errors.Cause(err))
+		return err
 	}
 
 	if err := objectStore.Init(); err != nil {
-		log.Error.Fatalf("failed to initialize object store: %s\n", errors.Cause(err))
+		return err
 	}
 
 	if err := artifactStore.Init(); err != nil {
-		log.Error.Fatalf("failed to initialize artifact store: %s\n", errors.Cause(err))
+		return err
 	}
 
 	authKey := []byte(cfg.Crypto.Auth)
 
 	if len(authKey) != 32 {
-		log.Error.Fatalf("auth key must be 32 bytes in size\n")
+		return errors.New("invalid auth key, must be 32 bytes")
 	}
 
 	providers := provider.NewRegistry()
@@ -278,7 +281,7 @@ func main() {
 		factory, ok := providerFactories[p.Name]
 
 		if !ok {
-			log.Error.Fatalf("unknown provider: %s\n", p.Name)
+			return errors.New("unknown provider: " + p.Name)
 		}
 		providers.Register(
 			p.Name,
@@ -456,9 +459,17 @@ func main() {
 
 	if cfg.Pidfile != "" {
 		if err := os.RemoveAll(cfg.Pidfile); err != nil {
-			log.Error.Println("failed to remove pidfile", err)
+			return err
 		}
 	}
 
 	log.Info.Println("signal:", sig, "received, shutting down")
+	return nil
+}
+
+func main() {
+	if err := run(os.Stdout, os.Stderr, os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
+	}
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -14,7 +15,6 @@ import (
 	"github.com/andrewpillar/djinn/driver/docker"
 	"github.com/andrewpillar/djinn/driver/qemu"
 	"github.com/andrewpillar/djinn/driver/ssh"
-	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/runner"
 
 	"github.com/pelletier/go-toml"
@@ -33,7 +33,9 @@ var (
 	}
 )
 
-func main() {
+func run(stdout, stderr io.Writer, args []string) error {
+	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
+
 	var (
 		showversion  bool
 		artifactsdir string
@@ -49,24 +51,23 @@ func main() {
 		cfgdir = "."
 	}
 
-	flag.BoolVar(&showversion, "version", false, "show the version and exit")
-	flag.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
-	flag.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
-	flag.StringVar(&manifestfile, "manifest", ".djinn.yml", "the manifest file to use")
-	flag.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.toml"), "the driver config to use")
-	flag.StringVar(&stage, "stage", "", "the stage to execute")
-	flag.Parse()
+	flags.BoolVar(&showversion, "version", false, "show the version and exit")
+	flags.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
+	flags.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
+	flags.StringVar(&manifestfile, "manifest", ".djinn.yml", "the manifest file to use")
+	flags.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.toml"), "the driver config to use")
+	flags.StringVar(&stage, "stage", "", "the stage to execute")
+	flags.Parse(args[1:])
 
 	if showversion {
-		fmt.Println(os.Args[0], Version, Build)
-		os.Exit(0)
+		fmt.Fprintf(stdout, "%s %s %s\n", args[0], Version, Build)
+		return nil
 	}
 
 	mf, err := os.Open(manifestfile)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		return err
 	}
 
 	defer mf.Close()
@@ -74,20 +75,17 @@ func main() {
 	manifest, err := config.DecodeManifest(mf)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		return err
 	}
 
 	if err := manifest.Validate(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		return err
 	}
 
 	df, err := os.Open(driverfile)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		return err
 	}
 
 	defer df.Close()
@@ -95,13 +93,11 @@ func main() {
 	tree, err := toml.LoadReader(df)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		return err
 	}
 
 	if err := config.ValidateDrivers(driverfile, tree); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		return err
 	}
 
 	drivers := driver.NewRegistry()
@@ -113,15 +109,13 @@ func main() {
 	placer := block.NewFilesystem(objectsdir)
 
 	if err := placer.Init(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
-		os.Exit(1)
+		return err
 	}
 
 	collector := block.NewFilesystem(artifactsdir)
 
 	if err := collector.Init(); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
-		os.Exit(1)
+		return err
 	}
 
 	r := runner.Runner{
@@ -224,8 +218,7 @@ func main() {
 	driverInit, err := drivers.Get(manifest.Driver["type"])
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
-		os.Exit(1)
+		return err
 	}
 
 	merged := make(map[string]interface{})
@@ -244,7 +237,12 @@ func main() {
 
 	d := driverInit(os.Stdout, merged)
 
-	if err := r.Run(ctx, d); err != nil {
+	return r.Run(ctx, d)
+}
+
+func main() {
+	if err := run(os.Stdout, os.Stderr, os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
 		os.Exit(1)
 	}
 }

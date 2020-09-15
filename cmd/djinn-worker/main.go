@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net"
 	"net/smtp"
 	"os"
@@ -58,29 +59,31 @@ var (
 	}
 )
 
-func main() {
+func run(stdout, stderr io.Writer, args []string) error {
+	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
+
 	var (
 		showversion bool
 		configfile  string
 		driverfile  string
 	)
 
-	flag.BoolVar(&showversion, "version", false, "show the version and exit")
-	flag.StringVar(&configfile, "config", "djinn-worker.toml", "the config file to use")
-	flag.StringVar(&driverfile, "driver", "djinn-driver.toml", "the driver config to use")
-	flag.Parse()
+	flags.BoolVar(&showversion, "version", false, "show the version and exit")
+	flags.StringVar(&configfile, "config", "djinn-worker.toml", "the config file to use")
+	flags.StringVar(&driverfile, "driver", "djinn-driver.toml", "the driver config to use")
+	flags.Parse(args[1:])
 
 	if showversion {
-		fmt.Println(os.Args[0], Version, Build)
-		os.Exit(0)
+		fmt.Fprintf(stdout, "%s %s %s\n", args[0], Version, Build)
+		return nil
 	}
 
-	log := log.New(os.Stdout)
+	log := log.New(stdout)
 
 	cf, err := os.Open(configfile)
 
 	if err != nil {
-		log.Error.Fatalf("failed to open worker config: %s\n", err)
+		return err
 	}
 
 	defer cf.Close()
@@ -88,7 +91,7 @@ func main() {
 	df, err := os.Open(driverfile)
 
 	if err != nil {
-		log.Error.Fatalf("failed to open driver config: %s\n", err)
+		return err
 	}
 
 	defer df.Close()
@@ -96,14 +99,14 @@ func main() {
 	cfg, err := config.DecodeWorker(cf)
 
 	if err != nil {
-		log.Error.Fatalf("failed to decode worker config: %s\n", err)
+		return err
 	}
 
 	if cfg.Pidfile != "" {
 		pidf, err := os.OpenFile(cfg.Pidfile, os.O_WRONLY|os.O_CREATE, 0660)
 
 		if err != nil {
-			log.Error.Fatalf("failed to create pidfile: %s\n", err)
+			return err
 		}
 
 		pidf.Write([]byte(strconv.FormatInt(int64(os.Getpid()), 10)))
@@ -113,11 +116,11 @@ func main() {
 	tree, err := toml.LoadReader(df)
 
 	if err != nil {
-		log.Error.Fatalf("failed to load driver config: %s\n", err)
+		return err
 	}
 
 	if err := config.ValidateDrivers(driverfile, tree); err != nil {
-		log.Error.Fatalf("driver config validation failed: %s\n", err)
+		return err
 	}
 
 	drivers := driver.NewRegistry()
@@ -127,7 +130,7 @@ func main() {
 	}
 
 	if cfg.Queue == "" {
-		log.Error.Fatalf("no queue to work from\n")
+		return errors.New("no queue to work from")
 	}
 
 	log.SetLevel(cfg.Log.Level)
@@ -135,7 +138,7 @@ func main() {
 	logf, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
 
 	if err != nil {
-		log.Error.Fatalf("failed to open log file %s: %s\n", cfg.Log.File, err)
+		return err
 	}
 
 	defer logf.Close()
@@ -145,13 +148,13 @@ func main() {
 	blockCipher, err := crypto.NewBlock([]byte(cfg.Crypto.Block))
 
 	if err != nil {
-		log.Error.Fatalf("failed to setup block cipher: %s\n", errors.Cause(err))
+		return err
 	}
 
 	host, port, err := net.SplitHostPort(cfg.Database.Addr)
 
 	if err != nil {
-		log.Error.Fatal(err)
+		return err
 	}
 
 	dsn := fmt.Sprintf(
@@ -168,7 +171,7 @@ func main() {
 	db, err := database.Connect(dsn)
 
 	if err != nil {
-		log.Error.Fatalf("failed to connect to database: %s\n", errors.Cause(err))
+		return err
 	}
 
 	log.Info.Println("connected to postgresql database")
@@ -179,7 +182,7 @@ func main() {
 	})
 
 	if _, err := redis.Ping().Result(); err != nil {
-		log.Error.Fatalf("failed to ping redis: %s\n", err)
+		return err
 	}
 
 	defer redis.Close()
@@ -200,7 +203,7 @@ func main() {
 	})
 
 	if err != nil {
-		log.Error.Fatalf("failed to setup queue %s: %s\n", cfg.Queue, err)
+		return err
 	}
 
 	images := blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit)
@@ -208,15 +211,15 @@ func main() {
 	artifacts := blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
 
 	if err := images.Init(); err != nil {
-		log.Error.Fatalf("failed to initialize image store: %s\n", errors.Cause(err))
+		return err
 	}
 
 	if err := objects.Init(); err != nil {
-		log.Error.Fatalf("failed to initialize object store: %s\n", errors.Cause(err))
+		return err
 	}
 
 	if err := artifacts.Init(); err != nil {
-		log.Error.Fatalf("failed to initialize artifact store: %s\n", errors.Cause(err))
+		return err
 	}
 
 	providers := provider.NewRegistry()
@@ -236,7 +239,7 @@ func main() {
 	timeout, err := time.ParseDuration(cfg.Timeout)
 
 	if err != nil {
-		log.Error.Fatalf("failed to parse worker timeout: %s\n", err)
+		return err
 	}
 
 	driverconf := make(map[string]map[string]interface{})
@@ -298,12 +301,20 @@ func main() {
 	w.init(cfg.Queue, cfg.Parallelism)
 
 	if err := w.worker.Launch(); err != nil {
-		log.Error.Fatalf("failed to launch worker: %s\n", errors.Cause(err))
+		return err
 	}
 
 	if cfg.Pidfile != "" {
 		if err := os.RemoveAll(cfg.Pidfile); err != nil {
-			log.Error.Println("failed to remove pidfile", err)
+			return err
 		}
+	}
+	return nil
+}
+
+func main() {
+	if err := run(os.Stdout, os.Stderr, os.Args); err != nil {
+		fmt.Fprintf(os.Stderr, "%s\n", err)
+		os.Exit(1)
 	}
 }

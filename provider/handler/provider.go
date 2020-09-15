@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -66,6 +65,59 @@ func (h Provider) disableHooks(p *provider.Provider) error {
 	return nil
 }
 
+func (h Provider) lookupUser(name string, userId int64, email, username string) (*user.User, error) {
+	// Do we have a pre-existing user that is connected.
+	u, err := h.Users.Get(
+		query.WhereQuery("id", "=", provider.Select(
+			"user_id",
+			query.Where("provider_user_id", "=", userId),
+			query.Where("name", "=", name),
+			query.Where("main_account", "=", true),
+		)),
+		query.Where("email", "=", email),
+	)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if !u.IsZero() {
+		return u, nil
+	}
+
+	// No pre-existing user, try and create a user on the fly if the email
+	// isn't taken.
+	u, err = h.Users.Get(
+		query.WhereQuery("id", "=", provider.Select(
+			"user_id",
+			query.Where("name", "=", name),
+			query.Where("main_account", "=", true),
+		)),
+		query.Where("email", "=", email),
+	)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if !u.IsZero() {
+		return nil, user.ErrExists
+	}
+
+	password := make([]byte, 16)
+
+	if _, err := rand.Read(password); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	u, tok, err := h.Users.Create(email, username, password)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return u, errors.Err(h.Users.Verify(tok))
+}
+
 func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -80,7 +132,8 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	back := "/settings"
 
-	u, _ := user.FromContext(r.Context())
+//	u, _ := user.FromContext(r.Context())
+	u, _ := h.UserFromCookie(r)
 
 	if u.IsZero() {
 		back = "/login"
@@ -116,63 +169,27 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if u.IsZero() {
-		u, err = h.Users.Get(
-			query.WhereQuery("id", "=", provider.Select(
-				"user_id",
-				query.Where("provider_user_id", "=", user1.ID),
-				query.Where("name", "=", name),
-			)),
-			query.OrWhere("email", "=", user1.Email),
-		)
+		username := user1.Username
+
+		if username == "" {
+			username = user1.Login
+		}
+
+		u, err = h.lookupUser(name, user1.ID, user1.Email, username)
 
 		if err != nil {
+			cause := errors.Cause(err)
+
+			if cause == user.ErrExists {
+				sess.AddFlash(template.Danger("User already exists with email " + user1.Email), "alert")
+				h.RedirectBack(w, r)
+				return
+			}
+
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
 			h.Redirect(w, r, back)
 			return
-		}
-
-		if u.IsZero() {
-			password := make([]byte, 16)
-
-			if _, err := rand.Read(password); err != nil {
-				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-				h.Redirect(w, r, back)
-				return
-			}
-
-			username := user1.Username
-
-			if username == "" {
-				username = user1.Login
-			}
-
-			var tok []byte
-
-			u, tok, err = h.Users.Create(user1.Email, username, password)
-
-			if err != nil {
-				cause := errors.Cause(err)
-
-				if strings.Contains(cause.Error(), "duplicate key value violates unique constraint") {
-					sess.AddFlash(template.Danger("User already exists with email " + user1.Email + " and username " + username), "alert")
-					h.RedirectBack(w, r)
-					return
-				}
-
-				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-				h.Redirect(w, r, back)
-				return
-			}
-
-			if err := h.Users.Verify(tok); err != nil {
-				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-				sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
-				h.Redirect(w, r, back)
-				return
-			}
 		}
 
 		encoded, err := h.SecureCookie.Encode("user", strconv.FormatInt(u.ID, 10))
@@ -196,7 +213,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	providers := provider.NewStore(h.DB, u)
 
-	p, err := providers.Get(query.Where("name", "=", name))
+	p, err := providers.Get(query.Where("name", "=", name), query.Where("main_account", "=", true))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -223,6 +240,21 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	groups, err := providers.All(query.Where("name", "=", name), query.Where("main_account", "=", false))
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+		h.Redirect(w, r, back)
+		return
+	}
+
+	m := make(map[int64]struct{})
+
+	for _, g := range groups {
+		m[g.ProviderUserID.Int64] = struct{}{}
+	}
+
 	// Workaround for pushing from org repos.
 	groupIds, err := cli.Groups(access)
 
@@ -234,6 +266,10 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, id := range groupIds {
+		if _, ok := m[id]; ok {
+			continue
+		}
+
 		if _, err = providers.Create(id, name, encAccess, encRefresh, false, true); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")

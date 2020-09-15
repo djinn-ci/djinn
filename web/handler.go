@@ -1,12 +1,18 @@
 package web
 
 import (
+	"encoding/hex"
 	"net/http"
 	"net/smtp"
+	"strconv"
+	"strings"
 
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
+	"github.com/andrewpillar/djinn/oauth2"
 	"github.com/andrewpillar/djinn/user"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -64,4 +70,66 @@ func (h *Handler) Session(r *http.Request) (*sessions.Session, func(*http.Reques
 			h.Log.Error.Println(r.Method, r.URL, "failed to save session", errors.Err(err))
 		}
 	}
+}
+
+func (h Handler) UserFromCookie(r *http.Request) (*user.User, error) {
+	c, err := r.Cookie("user")
+
+	if err != nil {
+		if err == http.ErrNoCookie {
+			return &user.User{}, nil
+		}
+		return &user.User{}, errors.Err(err)
+	}
+
+	var s string
+
+	if err := h.SecureCookie.Decode("user", c.Value, &s); err != nil {
+		return &user.User{}, errors.Err(err)
+	}
+
+	id, err := strconv.ParseInt(s, 10, 64)
+
+	if err != nil {
+		return &user.User{}, nil
+	}
+
+	u, err := h.Users.Get(query.Where("id", "=", id))
+
+	if u.DeletedAt.Valid {
+		return &user.User{}, nil
+	}
+	return u, errors.Err(err)
+}
+
+func (h Middleware) UserFromToken(r *http.Request) (*user.User, *oauth2.Token, error) {
+	prefix := "Bearer "
+	tok := r.Header.Get("Authorization")
+
+	if !strings.HasPrefix(tok, prefix) {
+		return &user.User{}, &oauth2.Token{}, nil
+	}
+
+	b, err := hex.DecodeString(tok[len(prefix):])
+
+	if err != nil {
+		return &user.User{}, &oauth2.Token{}, errors.Err(err)
+	}
+
+	t, err := h.Tokens.Get(query.Where("token", "=", b))
+
+	if err != nil {
+		return &user.User{}, t, errors.Err(err)
+	}
+
+	if t.IsZero() {
+		return &user.User{}, t, nil
+	}
+
+	u, err := h.Users.Get(query.Where("id", "=", t.UserID))
+
+	if u.DeletedAt.Valid {
+		return &user.User{}, t, nil
+	}
+	return u, t, errors.Err(err)
 }

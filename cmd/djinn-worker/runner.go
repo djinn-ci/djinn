@@ -76,7 +76,10 @@ func (r *buildRunner) load() error {
 
 		r.runner.Objects.Set("key:"+k.Name, "/root/.ssh/"+k.Name)
 	}
-	r.runner.Objects.Set("keycfg:", "/root/.ssh/config")
+
+	if len(kk) > 0 {
+		r.runner.Objects.Set("/root/.ssh/config", "/root/.ssh/config")
+	}
 
 	oo, err := build.NewObjectStore(r.db, r.build).All()
 

@@ -51,7 +51,7 @@ func (i *info) Sys() interface{}   { return nil }
 func (p *placer) Place(name string, w io.Writer) (int64, error) {
 	var pl runner.Placer = build.NewObjectStoreWithPlacer(p.db, p.objects, p.build)
 
-	if strings.HasPrefix(name, "keycfg:") {
+	if name == "/root/.ssh/config" {
 		n, err := w.Write([]byte(p.keycfg))
 		return int64(n), errors.Err(err)
 	}

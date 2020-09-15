@@ -52,6 +52,10 @@ type NewPasswordForm struct {
 	VerifyPassword string `schema:"verify_password"`
 }
 
+type DeleteForm struct {
+	Password string `schema:"delete_password"`
+}
+
 var (
 	_ form.Form = (*RegisterForm)(nil)
 	_ form.Form = (*LoginForm)(nil)
@@ -59,6 +63,7 @@ var (
 	_ form.Form = (*PasswordForm)(nil)
 	_ form.Form = (*PasswordResetForm)(nil)
 	_ form.Form = (*NewPasswordForm)(nil)
+	_ form.Form = (*DeleteForm)(nil)
 
 	reEmail           = regexp.MustCompile("@")
 	reAlphaNumDotDash = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
@@ -293,6 +298,17 @@ func (f NewPasswordForm) Validate() error {
 	if f.Password != f.VerifyPassword {
 		errs.Put("password", form.ErrFieldInvalid("Password", "does not match"))
 		errs.Put("verify_password", form.ErrFieldInvalid("Password", "does not match"))
+	}
+	return errs.Err()
+}
+
+func (f DeleteForm) Fields() map[string]string { return map[string]string{} }
+
+func (f DeleteForm) Validate() error {
+	errs := form.NewErrors()
+
+	if f.Password == "" {
+		errs.Put("delete_password", form.ErrFieldRequired("Password"))
 	}
 	return errs.Err()
 }

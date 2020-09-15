@@ -115,6 +115,19 @@ type Settings struct {
 						<button type="submit" class="btn btn-primary">Update</button>
 					</div>
 				</form>
+				<div class="separator"></div>
+				<form method="POST" action="/settings/delete">
+					<h2>Delete account</h2>
+					{%s= p.CSRF %}
+					<div class="form-field">
+						<label class="label" for="delete_password">Verify Password</label>
+						<input class="form-text" type="password" id="delete_password" name="delete_password" autocomplete="off"/>
+						{%= p.Error("delete_password") %}
+					</div>
+					<div class="form-field">
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</div>
+				</form>
 			</div>
 		</div>
 	{% endif %}

@@ -47,6 +47,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/settings/verify", r.user.Verify).Methods("GET", "POST")
 	auth.HandleFunc("/settings/email", r.user.Email).Methods("PATCH")
 	auth.HandleFunc("/settings/password", r.user.Password).Methods("PATCH")
+	auth.HandleFunc("/settings/delete", r.user.Destroy).Methods("POST")
 	auth.HandleFunc("/logout", r.user.Logout).Methods("POST")
 	auth.Use(r.Middleware.Auth, csrf)
 }

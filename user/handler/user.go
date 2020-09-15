@@ -83,6 +83,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create account"), "alert")
+		h.RedirectBack(w, r)
 		return
 	}
 
@@ -96,6 +97,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	if err := m.Send(h.SMTP.Client); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create account"), "alert")
+		h.RedirectBack(w, r)
 		return
 	}
 
@@ -586,4 +588,90 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 
 	sess.AddFlash(template.Success("Password has been updated"), "alert")
 	h.RedirectBack(w, r)
+}
+
+func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
+	f := &user.DeleteForm{}
+
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(form.Errors); ok {
+			web.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	providers := provider.NewStore(h.DB, u)
+
+	pp, err := providers.All()
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if err := providers.Delete(pp...); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if err := h.Users.Delete(u.ID, []byte(f.Password)); err != nil {
+		cause := errors.Cause(err)
+
+		if cause == user.ErrAuth {
+			errs := form.NewErrors()
+			errs.Put("delete_password", errors.New("Invalid password"))
+
+			web.FlashFormWithErrors(sess, f, errs)
+			h.RedirectBack(w, r)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	m := mail.Mail{
+		From:    h.SMTP.From,
+		To:      []string{u.Email},
+		Subject: "Djinn - Account deleted",
+		Body:    "Your Djinn account has been deleted, you will no longer be able to access your builds.",
+	}
+
+	if err := m.Send(h.SMTP.Client); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "user",
+		HttpOnly: true,
+		Path:     "/",
+		Expires:  time.Unix(0, 0),
+	})
+	sess.AddFlash(template.Success("Account deleted"), "alert")
+	h.Redirect(w, r, "/")
 }

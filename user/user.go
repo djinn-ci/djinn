@@ -14,22 +14,20 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/lib/pq"
-
 	"golang.org/x/crypto/bcrypt"
 )
 
 // User represents a user account in the database. This will either be created
 // through registration, or sign-on via an OAuth provider.
 type User struct {
-	ID        int64       `db:"id"`
-	Email     string      `db:"email"`
-	Username  string      `db:"username"`
-	Password  []byte      `db:"password"`
-	Verified  bool        `db:"verified"`
-	CreatedAt time.Time   `db:"created_at"`
-	UpdatedAt time.Time   `db:"updated_at"`
-	DeletedAt pq.NullTime `db:"deleted_at"`
+	ID        int64        `db:"id"`
+	Email     string       `db:"email"`
+	Username  string       `db:"username"`
+	Password  []byte       `db:"password"`
+	Verified  bool         `db:"verified"`
+	CreatedAt time.Time    `db:"created_at"`
+	UpdatedAt time.Time    `db:"updated_at"`
+	DeletedAt sql.NullTime `db:"deleted_at"`
 
 	Permissions map[string]struct{} `db:"-"`
 }
@@ -334,7 +332,7 @@ func (s *Store) Update(id int64, email string, password []byte) error {
 		query.Table(table),
 		query.Set("email", email),
 		query.Set("password", hash),
-		query.SetRaw("updated_at", "NOW()"),
+		query.Set("updated_at", time.Now()),
 		query.Where("id", "=", id),
 	)
 
@@ -344,13 +342,23 @@ func (s *Store) Update(id int64, email string, password []byte) error {
 
 // Delete the user with the given id. This will set the deleted_at field in the
 // table to the time at which this method was called.
-func (s *Store) Delete(id int64, currPass []byte) error {
+func (s *Store) Delete(id int64, password []byte) error {
+	u, err := s.Get(query.Where("id", "=", id), query.WhereRaw("deleted_at", "IS", "NULL"))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword(u.Password, password); err != nil {
+		return ErrAuth
+	}
+
 	q := query.Update(
 		query.Table(table),
 		query.Set("deleted_at", time.Now()),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	_, err = s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
 }
 
@@ -400,11 +408,15 @@ func (s *Store) Auth(handle, password string) (*User, error) {
 	u, err := s.Get(WhereHandle(handle), query.WhereRaw("deleted_at", "IS", "NULL"))
 
 	if err != nil {
-		return u, errors.Err(err)
+		return nil, errors.Err(err)
+	}
+
+	if u.IsZero() {
+		return nil, ErrAuth
 	}
 
 	if err := bcrypt.CompareHashAndPassword(u.Password, []byte(password)); err != nil {
-		return u, ErrAuth
+		return nil, ErrAuth
 	}
 	return u, nil
 }

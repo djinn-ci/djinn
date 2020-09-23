@@ -7,6 +7,8 @@ DROP TABLE IF EXISTS build_triggers;
 DROP TABLE IF EXISTS provider_repos;
 DROP TABLE IF EXISTS providers;
 DROP TABLE IF EXISTS images;
+DROP TABLE IF EXISTS cron_builds;
+DROP TABLE IF EXISTS cron;
 DROP TABLE IF EXISTS build_keys;
 DROP TABLE IF EXISTS namespace_collaborators;
 DROP TABLE IF EXISTS namespace_invites;
@@ -32,11 +34,13 @@ DROP TYPE IF EXISTS visibility;
 DROP TYPE IF EXISTS status;
 DROP TYPE IF EXISTS driver_type;
 DROP TYPE IF EXISTS trigger_type;
+DROP TYPE IF EXISTS schedule;
 
 CREATE TYPE visibility AS ENUM ('private', 'internal', 'public');
 CREATE TYPE status AS ENUM ('queued', 'running', 'passed', 'passed_with_failures', 'failed', 'killed', 'timed_out');
 CREATE TYPE driver_type AS ENUM ('ssh', 'qemu', 'docker');
-CREATE TYPE trigger_type AS ENUM ('manual', 'push', 'pull');
+CREATE TYPE trigger_type AS ENUM ('manual', 'push', 'pull', 'schedule');
+CREATE TYPE schedule AS ENUM ('daily', 'weekly', 'monthly');
 
 CREATE TABLE users (
 	id         SERIAL PRIMARY KEY,
@@ -256,6 +260,25 @@ CREATE TABLE build_keys (
 	key        BYTEA NOT NULL,
 	config     TEXT NOT NULL,
 	location   VARCHAR NOT NULL
+);
+
+CREATE TABLE cron (
+	id           SERIAL PRIMARY KEY,
+	user_id      INT NOT NULL REFERENCES users(id),
+	namespace_id INT NULL REFERENCES namespaces(id),
+	name         VARCHAR NOT NULL,
+	schedule     schedule NOT NULL,
+	manifest     TEXT NOT NULL,
+	prev_run     TIMESTAMP NULL,
+	next_run     TIMESTAMP NOT NULL,
+	created_at   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE cron_builds (
+	id         SERIAL PRIMARY KEY,
+	cron_id    INT NOT NULL REFERENCES cron(id) ON DELETE CASCADE,
+	build_id   INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
+	created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE oauth_apps (

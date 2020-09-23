@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/andrewpillar/djinn/block"
+	cronweb "github.com/andrewpillar/djinn/cron/web"
 	buildweb "github.com/andrewpillar/djinn/build/web"
 	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/crypto"
@@ -352,6 +353,10 @@ func run(stdout, stderr io.Writer, args []string) error {
 		Middleware: middleware,
 	})
 
+	srv.AddRouter("cron", &cronweb.Router{
+		Middleware: middleware,
+	})
+
 	srv.AddRouter("provider", &providerweb.Router{
 		Redis:      redis,
 		Block:      blockCipher,
@@ -404,6 +409,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 		ui.Register("build", buildweb.Gate(db))
 		ui.Register("provider", providerweb.Gate(db))
 		ui.Register("namespace", namespaceweb.Gate(db))
+		ui.Register("cron", cronweb.Gate(db))
 		ui.Register("image", imageweb.Gate(db))
 		ui.Register("object", objectweb.Gate(db))
 		ui.Register("variable", variableweb.Gate(db))
@@ -426,6 +432,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 		api.Init()
 		api.Register("build", buildweb.Gate(db))
 		api.Register("namespace", namespaceweb.Gate(db))
+		api.Register("cron", cronweb.Gate(db))
 		api.Register("image", imageweb.Gate(db))
 		api.Register("object", objectweb.Gate(db))
 		api.Register("variable", variableweb.Gate(db))

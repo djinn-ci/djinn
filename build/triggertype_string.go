@@ -11,11 +11,12 @@ func _() {
 	_ = x[Manual-0]
 	_ = x[Push-1]
 	_ = x[Pull-2]
+	_ = x[Schedule-3]
 }
 
-const _TriggerType_name = "manualpushpull"
+const _TriggerType_name = "manualpushpullschedule"
 
-var _TriggerType_index = [...]uint8{0, 6, 10, 14}
+var _TriggerType_index = [...]uint8{0, 6, 10, 14, 22}
 
 func (i TriggerType) String() string {
 	if i >= TriggerType(len(_TriggerType_index)-1) {

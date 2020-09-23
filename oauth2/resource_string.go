@@ -15,11 +15,12 @@ func _() {
 	_ = x[Object-5]
 	_ = x[Variable-6]
 	_ = x[Key-7]
+	_ = x[Cron-8]
 }
 
-const _Resource_name = "buildinviteimagenamespaceobjectvariablekey"
+const _Resource_name = "buildinviteimagenamespaceobjectvariablekeycron"
 
-var _Resource_index = [...]uint8{0, 5, 11, 16, 25, 31, 39, 42}
+var _Resource_index = [...]uint8{0, 5, 11, 16, 25, 31, 39, 42, 46}
 
 func (i Resource) String() string {
 	i -= 1

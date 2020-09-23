@@ -55,6 +55,7 @@ const (
 	Object                        // object
 	Variable                      // variable
 	Key                           // key
+	Cron                          // cron
 )
 
 var (
@@ -72,6 +73,7 @@ var (
 		Object,
 		Variable,
 		Key,
+		Cron,
 	}
 
 	perms map[string]Permission = map[string]Permission{
@@ -88,6 +90,7 @@ var (
 		"object":    Object,
 		"variable":  Variable,
 		"key":       Key,
+		"cron":      Cron,
 	}
 )
 

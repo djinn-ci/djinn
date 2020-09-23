@@ -47,11 +47,14 @@ const (
 	// There are three different trigger types for a build trigger,
 	// Manual - for when a build was manually submitted for either via the API
 	// or UI.
-	// Push - for when a build was triggered via a commit hook.
-	// Pull - for when a build was triggered via a pull-request hook.
+	//
+	// Push     - for when a build was triggered via a commit hook.
+	// Pull     - for when a build was triggered via a pull-request hook.
+	// Schedule - for when a build was triggered via a cron.
 	Manual TriggerType = iota // manual
 	Push                      // push
 	Pull                      // pull
+	Schedule                  // schedule
 )
 
 var (

@@ -76,14 +76,17 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 		return nil, f, errors.Err(err)
 	}
 
-	m := mail.Mail{
-		From:    h.SMTP.From,
-		To:      []string{f.Invitee.Email},
-		Subject: fmt.Sprintf("Djinn - %s invited you to %s", f.Inviter.Username, n.Path),
-		Body:    fmt.Sprintf(inviteMail, f.Inviter.Username, n.Path, web.BaseAddress(r)),
-	}
+	if h.SMTP.Client != nil {
+		m := mail.Mail{
+			From:    h.SMTP.From,
+			To:      []string{f.Invitee.Email},
+			Subject: fmt.Sprintf("Djinn - %s invited you to %s", f.Inviter.Username, n.Path),
+			Body:    fmt.Sprintf(inviteMail, f.Inviter.Username, n.Path, web.BaseAddress(r)),
+		}
 
-	return i, f, errors.Err(m.Send(h.SMTP.Client))
+		return i, f, errors.Err(m.Send(h.SMTP.Client))
+	}
+	return i, f, nil
 }
 
 func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user.User, error) {

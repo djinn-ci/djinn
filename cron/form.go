@@ -39,6 +39,10 @@ func (f Form) Fields() map[string]string {
 func (f Form) Validate() error {
 	errs := form.NewErrors()
 
+	if err := f.Resource.BindNamespace(f.Crons); err != nil {
+		return errors.Err(err)
+	}
+
 	if f.Cron != nil {
 		if f.Name == "" {
 			f.Name = f.Cron.Name

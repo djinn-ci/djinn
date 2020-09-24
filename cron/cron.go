@@ -146,6 +146,7 @@ func (c *Cron) JSON(addr string) map[string]interface{} {
 		"manifest":     c.Manifest.String(),
 		"next_run":     c.NextRun.Format(time.RFC3339),
 		"created_at":   c.CreatedAt.Format(time.RFC3339),
+		"url":          addr + c.Endpoint(),
 	}
 
 	if c.NamespaceID.Valid {

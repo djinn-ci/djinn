@@ -18,6 +18,7 @@ import (
 	"testing"
 
 	"github.com/andrewpillar/djinn/block"
+	cronweb "github.com/andrewpillar/djinn/cron/web"
 	buildweb "github.com/andrewpillar/djinn/build/web"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
@@ -166,7 +167,9 @@ func NewApiRequest(t *testing.T, method, path string, tok *oauth2.Token, r io.Re
 		t.Fatalf("unexpected NewRequest error: %s\n", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+hex.EncodeToString(tok.Token))
+	if tok != nil {
+		req.Header.Set("Authorization", "Bearer "+hex.EncodeToString(tok.Token))
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	return req
@@ -213,11 +216,15 @@ func (f *Flow) fatal(t *testing.T, i int, req []byte, resp []byte, err error) {
 
 func (f *Flow) Do(t *testing.T, cli *http.Client) {
 	for i, r := range f.requests {
+
+		// Make sure only new flow requests are executed in case Do is invoked
+		// multiple times.
 		if _, ok := f.done[i]; ok {
 			continue
 		}
 
 		func(i int, r *http.Request) {
+			t.Logf("requests[%d] - %s %s\n", i, r.Method, r.URL.Path)
 			reqBytes, err := httputil.DumpRequest(r, true)
 
 			if err != nil {
@@ -284,13 +291,13 @@ func TestMain(m *testing.M) {
 
 	users := user.NewStore(db)
 
-	me, err := users.Create("me@example.com", "me", []byte("secret"))
+	me, _, err := users.Create("me@example.com", "me", []byte("secret"))
 
 	if err != nil {
 		fatalf("failed to create user: %s\n", err)
 	}
 
-	you, err := users.Create("you@example.com", "you", []byte("secret"))
+	you, _, err := users.Create("you@example.com", "you", []byte("secret"))
 
 	if err != nil {
 		fatalf("failed to create user: %s\n", err)
@@ -412,7 +419,6 @@ func TestMain(m *testing.M) {
 
 	middleware := web.Middleware{
 		Handler: webHandler,
-		Users:   users,
 		Tokens:  oauth2.NewTokenStore(db),
 	}
 
@@ -429,6 +435,12 @@ func TestMain(m *testing.M) {
 	}
 	buildRouter.Init(webHandler)
 	buildRouter.RegisterAPI("/api", subrouter, buildweb.Gate(db))
+
+	cronRouter := cronweb.Router{
+		Middleware: middleware,
+	}
+	cronRouter.Init(webHandler)
+	cronRouter.RegisterAPI("/api", subrouter, cronweb.Gate(db))
 
 	namespaceRouter := namespaceweb.Router{
 		Middleware: middleware,

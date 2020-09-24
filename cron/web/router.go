@@ -87,6 +87,8 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	}
 
 	sr := mux.PathPrefix("/cron").Subrouter()
+	sr.HandleFunc("", cron.Index).Methods("GET")
+	sr.HandleFunc("", cron.Store).Methods("POST")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Show).Methods("GET")
 	sr.HandleFunc("/{cron:[0-9]+}/builds", cron.Show).Methods("GET")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Update).Methods("PATCH")

@@ -45,8 +45,8 @@ func (h Cron) IndexWithRelations(s *cron.Store, vals url.Values) ([]*cron.Cron, 
 	return cc, paginator, errors.Err(err)
 }
 
-func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
-	f := cron.Form{}
+func (h Cron) StoreModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
+	f := &cron.Form{}
 
 	u, ok := user.FromContext(r.Context())
 
@@ -62,17 +62,17 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 	}
 	f.Crons = crons
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 
 	c, err := crons.Create(f.Name, f.Schedule, f.Manifest)
-	return c, cron.Form{}, errors.Err(err)
+	return c, f, errors.Err(err)
 }
 
-func (h Cron) UpdateModel(r *http.Request) (*cron.Cron, cron.Form, error) {
+func (h Cron) UpdateModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
 	ctx := r.Context()
-	f := cron.Form{}
+	f := &cron.Form{}
 
 	u, ok := user.FromContext(ctx)
 
@@ -91,7 +91,7 @@ func (h Cron) UpdateModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 	f.Cron = c
 	f.Crons = crons
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := form.UnmarshalAndValidate(f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

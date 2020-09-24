@@ -36,7 +36,7 @@ func (f Form) Fields() map[string]string {
 	}
 }
 
-func (f Form) Validate() error {
+func (f *Form) Validate() error {
 	errs := form.NewErrors()
 
 	if err := f.Resource.BindNamespace(f.Crons); err != nil {
@@ -46,6 +46,14 @@ func (f Form) Validate() error {
 	if f.Cron != nil {
 		if f.Name == "" {
 			f.Name = f.Cron.Name
+		}
+
+		if f.Schedule == Schedule(0) {
+			f.Schedule = f.Cron.Schedule
+		}
+
+		if f.Manifest.String() == "{}" {
+			f.Manifest = f.Cron.Manifest
 		}
 	}
 

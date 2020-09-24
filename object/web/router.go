@@ -100,6 +100,6 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("", object.Store).Methods("POST")
 	sr.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}/builds", object.Show).Methods("GET")
-	sr.HandleFunc("/{object:[0-9+}", object.Destroy).Methods("DELETE")
+	sr.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
 	sr.Use(r.Middleware.Gate(gates...))
 }

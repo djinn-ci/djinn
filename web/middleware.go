@@ -63,7 +63,7 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFu
 
 	base := BasePath(r.URL.Path)
 
-	if base == "/" || base == "create" || base == name+"s" {
+	if base == "/" || base == "create" || base == name || base == name+"s" {
 		return ok, nil
 	}
 

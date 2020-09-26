@@ -91,6 +91,13 @@ func (e *Error) Error() string {
 
 func (e *errorStr) Error() string { return string(*e) }
 
+func (e Slice) Err() error {
+	if len(e) > 0 {
+		return e
+	}
+	return nil
+}
+
 func (e Slice) Error() string {
 	buf := &bytes.Buffer{}
 

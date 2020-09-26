@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"regexp"
 
+	"github.com/andrewpillar/djinn/build"
 	buildtemplate "github.com/andrewpillar/djinn/build/template"
 	"github.com/andrewpillar/djinn/cron"
 	crontemplate "github.com/andrewpillar/djinn/cron/template"
@@ -149,6 +150,12 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if err := build.LoadRelations(h.Loaders, bb...); err != nil {
+		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}

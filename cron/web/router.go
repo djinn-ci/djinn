@@ -52,6 +52,8 @@ func (r *Router) Init(h web.Handler) {
 	loaders := database.NewLoaders()
 	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
+	loaders.Put("build_tag", build.NewTagStore(h.DB))
+	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
 	r.cron = handler.Cron{
 		Handler: h,

@@ -108,4 +108,9 @@ func (b *Build) JSON(addr string) map[string]interface{} { return b.Build.JSON(a
 func (b *Build) Endpoint(uri ...string) string { return "" }
 
 // Values implements the database.Model interface.
-func (b *Build) Values() map[string]interface{} { return map[string]interface{}{} }
+func (b *Build) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"cron_id":  b.CronID,
+		"build_id": b.BuildID,
+	}
+}

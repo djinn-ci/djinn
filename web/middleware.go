@@ -30,7 +30,7 @@ type Middleware struct {
 
 type databaseFunc func(int64) (database.Model, error)
 
-type errHandler func(http.ResponseWriter, string, int)
+type errorHandler func(http.ResponseWriter, string, int)
 
 // Gate serves as a stripped down middleware handler function that will be
 // passed the current user in the request, if any, along with the request
@@ -41,12 +41,14 @@ type Gate func(u *user.User, r *http.Request) (*http.Request, bool, error)
 // CanAccessResource returns whether the current user has access to the given
 // resource. The resource's ID will be taken from the request based on the
 // name, this is passed back to the databaseFunc which will return the underlying
-// database for that resource. The name of the resource is also used to check
+// model for that resource. The name of the resource is also used to check
 // against the permissions of that user.
 func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFunc) (bool, error) {
-	u := r.Context().Value("user").(*user.User)
+	u, ok := user.FromContext(r.Context())
 
-	var ok bool
+	if !ok {
+		return false, nil
+	}
 
 	switch r.Method {
 	case "GET":
@@ -113,55 +115,63 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFu
 
 // Get the currently authenticated user from the request. Check for token
 // auth first, then fallback to cookie.
-func (h Middleware) auth(w http.ResponseWriter, r *http.Request) (*user.User, bool) {
+func (h Middleware) userFromRequest(w http.ResponseWriter, r *http.Request) (*user.User, bool, error) {
 	if _, ok := r.Header["Authorization"]; ok {
-		u, t, err := h.UserFromToken(r)
+		u, ok, err := h.UserFromToken(r)
 
 		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
-			return u, false
+			return nil, ok, errors.Err(err)
 		}
-
-		if !u.IsZero() {
-			u.Permissions = t.Permissions()
-		}
-		return u, !u.IsZero()
+		return u, ok, nil
 	}
 
-	u, err := h.UserFromCookie(r)
+	u, ok, err := h.UserFromCookie(r)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if strings.Contains(cause.Error(), "expired timestamp") {
-			c := &http.Cookie{
-				Name:     "user",
-				HttpOnly: true,
-				Path:     "/",
-				Expires:  time.Unix(0, 0),
-			}
-			http.SetCookie(w, c)
-		} else {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		if !strings.Contains(cause.Error(), "expired timestamp") {
+			return nil, false, errors.Err(err)
 		}
-		return u, false
-	}
 
-	if !u.IsZero() {
-		for _, res := range oauth2.Resources {
-			u.SetPermission(res.String() + ":read")
-			u.SetPermission(res.String() + ":write")
-			u.SetPermission(res.String() + ":delete")
+		c := &http.Cookie{
+			Name:     "user",
+			HttpOnly: true,
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
 		}
+
+		http.SetCookie(w, c)
+		return nil, false, nil
 	}
-	return u, !u.IsZero()
+	return u, ok, nil
 }
 
 // Guest redirects the user back to the homepage if they're already
 // authenticated. Otherwise it let's them continue with the request.
 func (h Middleware) Guest(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := h.auth(w, r); ok {
+		var errh errorHandler = HTMLError
+
+		json := strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
+
+		if json {
+			errh = JSONError
+		}
+
+		_, ok, err := h.userFromRequest(w, r)
+
+		if err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			errh(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		if ok {
+			if json {
+				JSONError(w, "Not found", http.StatusNotFound)
+				return
+			}
 			h.Redirect(w, r, "/")
 			return
 		}
@@ -174,9 +184,27 @@ func (h Middleware) Guest(next http.Handler) http.Handler {
 // context.
 func (h Middleware) Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, ok := h.auth(w, r)
+		var errh errorHandler = HTMLError
+
+		json := strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
+
+		if json {
+			errh = JSONError
+		}
+
+		u, ok, err := h.userFromRequest(w, r)
+
+		if err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			errh(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
 
 		if !ok {
+			if json {
+				JSONError(w, "Not found", http.StatusNotFound)
+				return
+			}
 			h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
 			return
 		}
@@ -186,57 +214,12 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 	})
 }
 
-// AuthPerms redirects the user back to /login if they're not authenticated, or
-// if they do not have any of the given permissions. If the user is
-// authenticated then they continue on to the next request, and the User is set
-// in the request context.
-func (h Middleware) AuthPerms(perms ...string) mux.MiddlewareFunc {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u, ok := h.auth(w, r)
-
-			json := strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
-
-			if !ok {
-				if json {
-					JSONError(w, "Not Found", http.StatusNotFound)
-					return
-				}
-
-				h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
-				return
-			}
-
-			for _, perm := range perms {
-				if _, ok := u.Permissions[perm]; !ok {
-					if json {
-						JSONError(w, "Not Found", http.StatusNotFound)
-						return
-					}
-
-					h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
-					return
-				}
-			}
-
-			r = r.WithContext(context.WithValue(r.Context(), "user", u))
-			next.ServeHTTP(w, r)
-		})
-	}
-}
-
 // Gate returns a mux.MiddlewareFunc that when called will iterate over the
 // given gates to determine if the user can access the next request.
 func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			u, _ := h.auth(w, r)
-
-			var (
-				ok   bool
-				err  error
-				errh errHandler = HTMLError
-			)
+			var errh errorHandler = HTMLError
 
 			json := strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
 
@@ -244,7 +227,17 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				errh = JSONError
 			}
 
-			r = r.WithContext(context.WithValue(r.Context(), "user", u))
+			u, ok, err := h.userFromRequest(w, r)
+
+			if err != nil {
+				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+				errh(w, "Something went wrong", http.StatusInternalServerError)
+				return
+			}
+
+			if ok {
+				r = r.WithContext(context.WithValue(r.Context(), "user", u))
+			}
 
 			for _, gate := range gates {
 				r, ok, err = gate(u, r)
@@ -256,10 +249,6 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				}
 
 				if !ok {
-					if !json {
-						h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
-						return
-					}
 					errh(w, "Not found", http.StatusNotFound)
 					return
 				}

@@ -132,10 +132,15 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	back := "/settings"
 
-//	u, _ := user.FromContext(r.Context())
-	u, _ := h.UserFromCookie(r)
+	u, ok, err := h.UserFromCookie(r)
 
-	if u.IsZero() {
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	if !ok {
 		back = "/login"
 	}
 

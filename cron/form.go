@@ -9,6 +9,8 @@ import (
 	"github.com/andrewpillar/query"
 )
 
+// Form is the type that represents input data for creating and editing a cron
+// job.
 type Form struct {
 	namespace.Resource
 
@@ -21,6 +23,8 @@ type Form struct {
 
 var _ form.Form = (*Form)(nil)
 
+// Fields returns a map of fields for the current Form. This map will contain
+// the Namespace, Name, Schedule, and Manifest fields of the current form.
 func (f Form) Fields() map[string]string {
 	manifest := f.Manifest.String()
 
@@ -36,6 +40,10 @@ func (f Form) Fields() map[string]string {
 	}
 }
 
+// Validate will bind a Namespace to the Form's Store, if the Namespace field
+// is present. The presence of the Name field is then checked, followed by a
+// uniqueness check of that field. The present oft he Manifest field is then
+// checked, followed by a validation of that manifest.
 func (f *Form) Validate() error {
 	errs := form.NewErrors()
 

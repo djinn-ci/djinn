@@ -15,6 +15,7 @@ import (
 	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 
@@ -31,6 +32,7 @@ import (
 // Monthly - This will trigger a Cron on the start of the next month
 type Schedule uint
 
+// Cron is the type that represents a cron job that has been created by the user.
 type Cron struct {
 	ID          int64           `db:"id"`
 	UserID      int64           `db:"user_id"`
@@ -46,10 +48,21 @@ type Cron struct {
 	Namespace *namespace.Namespace `db:"-"`
 }
 
+// Store is the type for creating, modifying, and deleting Cron models in the
+// database.
 type Store struct {
 	database.Store
 
-	User      *user.User
+	// User is the bound user.User model. If not nil this will bind the
+	// user.User model to any Cron models that are created. If not nil this
+	// will append a WHERE clause on the user_id column for all SELECT queries
+	// performed.
+	User *user.User
+
+	// Namespace is the bound namespace.Namespace model. If not nil this will
+	// bind the namespace.Namespace model to any Variable models that are
+	// created. If not nil this will append a WHERE clause on the namespace_id
+	// column for all SELECT queries performed.
 	Namespace *namespace.Namespace
 }
 
@@ -78,6 +91,8 @@ var (
 	}
 )
 
+// NewStore returns a new Store for querying the cron table. Each of the given
+// models is bound to the returned Store.
 func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 	s := &Store{
 		Store: database.Store{DB: db},
@@ -86,29 +101,29 @@ func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 	return s
 }
 
+// FromContext returns the Cron model from the given context, if any.
 func FromContext(ctx context.Context) (*Cron, bool) {
 	c, ok := ctx.Value("cron").(*Cron)
 	return c, ok
 }
 
+// Model is called along with database.ModelSlice to convert the given slice of
+// Cron models to a slice of database.Model interfaces.
 func Model(cc []*Cron) func(int) database.Model {
 	return func(i int) database.Model {
 		return cc[i]
 	}
 }
 
-func SelectBuild(col string, opts ...query.Option) query.Query {
-	return query.Select(append([]query.Option{
-		query.Columns(col),
-		query.From(buildTable),
-	}, opts...)...)
-}
-
+// LoadRelations loads all of the available relations for the given Cron models
+// using the given loaders available.
 func LoadRelations(loaders *database.Loaders, cc ...*Cron) error {
 	mm := database.ModelSlice(len(cc), Model(cc))
 	return errors.Err(database.LoadRelations(relations, loaders, mm...))
 }
 
+// Bind implements the database.Binder interface. This will only bind the model
+// if they are pointers to either user.User or namespace.Namespace.
 func (c *Cron) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -120,10 +135,13 @@ func (c *Cron) Bind(mm ...database.Model) {
 	}
 }
 
+// SetPrimary implements the database.Model interface.
 func (c *Cron) SetPrimary(id int64) { c.ID = id }
 
+// Primary implements the database.Model interface.
 func (c *Cron) Primary() (string, int64) { return "id", c.ID }
 
+// IsZero implements the database.Model interface.
 func (c *Cron) IsZero() bool {
 	return c == nil || c.ID == 0 &&
 		c.UserID == 0 &&
@@ -136,6 +154,10 @@ func (c *Cron) IsZero() bool {
 		c.CreatedAt == time.Time{}
 }
 
+// JSON implements the database.Model interface. This will return a map with
+// the current Cron values under each key. If any of the User, or Namespace
+// bound models exist on the Cron, then the JSON representation of these models
+// will be returned in the map, under the user, and namespace keys respectively.
 func (c *Cron) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":           c.ID,
@@ -164,6 +186,8 @@ func (c *Cron) JSON(addr string) map[string]interface{} {
 	return json
 }
 
+// Endpoint returns the endpoint to the current Variable database, with the given
+// URI parts appended to it.
 func (c *Cron) Endpoint(uri ...string) string {
 	if len(uri) > 0 {
 		return "/cron/" + strconv.FormatInt(c.ID, 10) + "/" + strings.Join(uri, "/")
@@ -171,6 +195,9 @@ func (c *Cron) Endpoint(uri ...string) string {
 	return "/cron/" + strconv.FormatInt(c.ID, 10)
 }
 
+// Values implements the database.Model interface. This will return a map with
+// the following values, user_id, namespace_id, name, schedule, manifest, and
+// next_run.
 func (c *Cron) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      c.UserID,
@@ -182,6 +209,8 @@ func (c *Cron) Values() map[string]interface{} {
 	}
 }
 
+// Bind implements the database.Binder interface. This will only bind the model
+// if they are pointers to either user.User or namespace.Namespace.
 func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch m.(type) {
@@ -193,6 +222,8 @@ func (s *Store) Bind(mm ...database.Model) {
 	}
 }
 
+// New returns a new Cron binding any non-nil models to it from the current
+// Store.
 func (s *Store) New() *Cron {
 	c := &Cron{
 		User:      s.User,
@@ -297,6 +328,10 @@ func (s *Store) Invoke(c *Cron) (*build.Build, error) {
 	return b, nil
 }
 
+// All returns a single Cron model, applying each query.Option that is
+// given. The namespace.WhereCollaborator option is applied to the *user.User
+// bound database, and the database.Where option is applied to the
+// *namespace.Namespace bound database.
 func (s *Store) Get(opts ...query.Option) (*Cron, error) {
 	c := &Cron{
 		User:      s.User,
@@ -316,6 +351,10 @@ func (s *Store) Get(opts ...query.Option) (*Cron, error) {
 	return c, errors.Err(err)
 }
 
+// All returns a slice of Variable models, applying each query.Option that is
+// given. The namespace.WhereCollaborator option is applied to the *user.User
+// bound database, and the database.Where option is applied to the
+// *namespace.Namespace bound database.
 func (s *Store) All(opts ...query.Option) ([]*Cron, error) {
 	cc := make([]*Cron, 0)
 
@@ -337,11 +376,20 @@ func (s *Store) All(opts ...query.Option) ([]*Cron, error) {
 	return cc, errors.Err(err)
 }
 
+// Paginate returns the database.Paginator for the cron table for the given page.
+// This applies the namespace.WhereCollaborator option to the *user.User bound
+// database, and the database.Where option to the *namespace.Namespace bound
+// database.
 func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
 	paginator, err := s.Store.Paginate(table, page, opts...)
 	return paginator, errors.Err(err)
 }
 
+// Index returns the paginated results from the cron table depending on the
+// values that are present in url.Values. Detailed below are the values that
+// are used from the given url.Values,
+//
+// name - This applies the database.Search query.Option using the value of key
 func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Cron, database.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
@@ -368,6 +416,10 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Cron, database.
 	return cc, paginator, errors.Err(err)
 }
 
+// Load loads in a slice of Cron models where the given key is in the list of
+// given vals. Each database is loaded individually via a call to the given
+// load callback. This method calls Store.All under the hood, so any bound
+// models will impact the models being loaded.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
 	cc, err := s.All(query.Where(key, "IN", vals...))
 
@@ -403,19 +455,30 @@ func (s *Schedule) Next() time.Time {
 	}
 }
 
+// UnmarshalText takes the given byte slice, and attempts to map it to a known
+// Schedule. If it is a known Schedule, then that the current Schedule is
+// set to that, otherwise form.UnmarshalError is returned.
 func (s *Schedule) UnmarshalText(b []byte) error {
 	var ok bool
 
 	(*s), ok = schedules[string(b)]
 
 	if !ok {
-		return errors.New("unknown schedule: " + string(b))
+		return form.UnmarshalError{
+			Field: "schedule",
+			Err:   errors.New("unknown schedule: " + string(b)),
+		}
 	}
 	return nil
 }
 
+// Value returns the string value of the current Schedule so it can be inserted
+// into the database.
 func (s Schedule) Value() (driver.Value, error) { return driver.Value(s.String()), nil }
 
+// Scan scans the given interface value into a byte slice and will attempt to
+// turn it into the correct Schedule value. If it success then it set's it on
+// the current Schedule, otherwise an error is returned.
 func (s *Schedule) Scan(val interface{}) error {
 	b, err := database.Scan(val)
 

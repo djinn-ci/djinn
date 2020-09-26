@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -17,8 +18,6 @@ import (
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
 
-	"github.com/go-redis/redis"
-
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
@@ -28,38 +27,45 @@ var (
 	Version string
 )
 
-func runBatches(host string, queues map[string]*machinery.Server, crons *cron.Store, builds *build.Store) error {
+func runBatches(log *log.Logger, queues map[string]*machinery.Server, crons *cron.Store, builds *build.Store) (err error) {
+	defer func() {
+		v := recover()
+
+		if e, ok := v.(error); ok {
+			err = errors.New(e.Error() + "\n" + string(debug.Stack()))
+		}
+	}()
+
 	batcher := cron.NewBatcher(crons, 1000)
-	errs := make([]error, 0)
 
 	for batcher.Next() {
 		cc := batcher.Crons()
+
+		log.Debug.Println("invoking", len(cc), "cron job(s)")
 
 		for _, c := range cc {
 			b, err := crons.Invoke(c)
 
 			if err != nil {
-				errs = append(errs, err)
+				log.Error.Println("failed to invoke cron", errors.Err(err))
 				continue
 			}
 
-			queue, ok := queues[b.Manifest.Driver["Type"]]
+			queue, ok := queues[b.Manifest.Driver["type"]]
 
 			if !ok {
+				log.Error.Println("invalid build driver", b.Manifest.Driver["type"], "for build", b.ID)
 				continue
 			}
 
-			if err := builds.Submit(queue, host, b); err != nil {
-				errs = append(errs, err)
-				continue
+			log.Debug.Println("submitting build", b.ID, "for cron", c.ID)
+
+			if err := builds.Submit(queue, "djinn-scheduler", b); err != nil {
+				log.Error.Println("failed to submit build", errors.Err(err))
 			}
 		}
 	}
-
-	if err := batcher.Err(); err != nil {
-		return errors.Err(err)
-	}
-	return errors.Slice(errs).Err()
+	return errors.Err(batcher.Err())
 }
 
 func run(stdout, stderr io.Writer, args []string) error {
@@ -145,26 +151,13 @@ func run(stdout, stderr io.Writer, args []string) error {
 
 	log.Info.Println("connected to postgresql database")
 
-	redis := redis.NewClient(&redis.Options{
-		Addr:     cfg.Redis.Addr,
-		Password: cfg.Redis.Password,
-	})
-
-	log.Debug.Println("connecting to redis database with:", cfg.Redis.Addr, cfg.Redis.Password)
-
-	if _, err := redis.Ping().Result(); err != nil {
-		return err
-	}
-
-	defer redis.Close()
-
-	log.Info.Println("connected to redis database")
-
 	broker := "redis://"
 
 	if cfg.Redis.Password != "" {
 		broker += cfg.Redis.Password + "@"
 	}
+
+	broker += cfg.Redis.Addr
 
 	queues := make(map[string]*machinery.Server)
 
@@ -196,7 +189,7 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			if err := runBatches(cfg.DjinnServer, queues, crons, builds); err != nil {
+			if err := runBatches(log, queues, crons, builds); err != nil {
 				log.Error.Println("failed to run cron job batch", errors.Err(err))
 			}
 		case sig := <-c:

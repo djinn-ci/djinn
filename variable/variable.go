@@ -79,7 +79,7 @@ func FromContext(ctx context.Context) (*Variable, bool) {
 }
 
 // Model is called along with database.ModelSlice to convert the given slice of
-// Variable  models to a slice of database.Model interfaces.
+// Variable models to a slice of database.Model interfaces.
 func Model(vv []*Variable) func(int) database.Model {
 	return func(i int) database.Model {
 		return vv[i]
@@ -293,7 +293,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Variable, datab
 	return vv, paginator, errors.Err(err)
 }
 
-// All returns a single Variable database, applying each query.Option that is
+// All returns a single Variable model, applying each query.Option that is
 // given. The namespace.WhereCollaborator option is applied to the *user.User
 // bound database, and the database.Where option is applied to the
 // *namespace.Namespace bound database.

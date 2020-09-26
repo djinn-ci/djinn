@@ -212,7 +212,7 @@ func (s *Store) Delete(ids ...int64) error {
 // bound database, and the database.Where option to the *namespace.Namespace bound
 // database.
 func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Store.Paginate(table, page, opts...)
+	paginator, err := s.Store.Paginate(table, page, 25, opts...)
 	return paginator, errors.Err(err)
 }
 
@@ -287,7 +287,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Variable, datab
 	vv, err := s.All(append(
 		opts,
 		query.OrderAsc("key"),
-		query.Limit(database.PageLimit),
+		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)...)
 	return vv, paginator, errors.Err(err)

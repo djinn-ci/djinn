@@ -514,7 +514,7 @@ func (s *Store) Delete(ids ...int64) error {
 // page. This applies the SharedWith option on the bound User database, and the
 // database.Where option to the bound Namespace database on the "parent_id".
 func (s Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Store.Paginate(table, page, opts...)
+	paginator, err := s.Store.Paginate(table, page, 25, opts...)
 	return paginator, errors.Err(err)
 }
 
@@ -587,7 +587,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, data
 	nn, err := s.All(append(
 		opts,
 		query.OrderAsc("path"),
-		query.Limit(database.PageLimit),
+		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)...)
 	return nn, paginator, errors.Err(err)

@@ -277,7 +277,7 @@ func (s *Store) Delete(ids ...int64) error {
 
 // Paginate returns the database.Paginator for the keys table for the given page.
 func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Store.Paginate(table, page, opts...)
+	paginator, err := s.Store.Paginate(table, page, 25, opts...)
 	return paginator, errors.Err(err)
 }
 
@@ -329,7 +329,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Key, database.P
 	kk, err := s.All(append(
 		opts,
 		query.OrderAsc("key"),
-		query.Limit(database.PageLimit),
+		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)...)
 	return kk, paginator, errors.Err(err)

@@ -381,7 +381,7 @@ func (s *Store) All(opts ...query.Option) ([]*Cron, error) {
 // database, and the database.Where option to the *namespace.Namespace bound
 // database.
 func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Store.Paginate(table, page, opts...)
+	paginator, err := s.Store.Paginate(table, page, 25, opts...)
 	return paginator, errors.Err(err)
 }
 
@@ -410,7 +410,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Cron, database.
 	cc, err := s.All(append(
 		opts,
 		query.OrderAsc("name"),
-		query.Limit(database.PageLimit),
+		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)...)
 	return cc, paginator, errors.Err(err)

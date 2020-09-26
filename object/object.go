@@ -288,7 +288,7 @@ func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, 
 		database.Where(s.Namespace, "namespace_id"),
 	}, opts...)
 
-	paginator, err := s.Store.Paginate(table, page, opts...)
+	paginator, err := s.Store.Paginate(table, page, 25, opts...)
 	return paginator, errors.Err(err)
 }
 
@@ -363,7 +363,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Object, databas
 	oo, err := s.All(append(
 		opts,
 		query.OrderAsc("name"),
-		query.Limit(database.PageLimit),
+		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)...)
 	return oo, paginator, errors.Err(err)

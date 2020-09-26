@@ -104,14 +104,11 @@ type Paginator struct {
 	Prev   int64
 	Offset int64
 	Page   int64
+	Limit  int64
 	Pages  []int64
 }
 
-var (
-	PageLimit int64 = 25
-
-	ErrNotFound = errors.New("not found")
-)
+var ErrNotFound = errors.New("not found")
 
 // Connect returns an sqlx database connection to a PostgreSQL database using
 // the given dsn. Once the connection is open a subsequent Ping is made to the
@@ -500,12 +497,15 @@ func (s Store) Delete(table string, mm ...Model) error {
 // page. The returned struct contains information about the paginated data, but
 // not the data itself. It is expected for a subsequent All call to be made
 // using the paginator information to get the desired data.
-func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginator, error) {
+func (s Store) Paginate(table string, page, limit int64, opts ...query.Option) (Paginator, error) {
 	if page <= 0 {
 		page = 1
 	}
 
-	p := Paginator{Page: page}
+	p := Paginator{
+		Page:  page,
+		Limit: limit,
+	}
 
 	opts = append([]query.Option{
 		query.Count("*"),
@@ -520,9 +520,9 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 		return p, errors.Err(err)
 	}
 
-	pages := count / PageLimit
+	pages := count / limit
 
-	if count%PageLimit != 0 {
+	if count%limit != 0 {
 		pages++
 	}
 
@@ -531,7 +531,7 @@ func (s Store) Paginate(table string, page int64, opts ...query.Option) (Paginat
 	}
 
 	if p.Page != 0 {
-		p.Offset = (p.Page - 1) * PageLimit
+		p.Offset = (p.Page - 1) * limit
 	}
 
 	for i := int64(0); i < pages; i++ {

@@ -81,7 +81,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 	flags.Parse(args[1:])
 
 	if showversion {
-		fmt.Fprintf(stdout, "%s %s %s\n", os.Args[0], Version, Build)
+		fmt.Fprintf(stdout, "%s %s %s\n", args[0], Version, Build)
 		return nil
 	}
 

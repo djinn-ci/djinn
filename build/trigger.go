@@ -70,9 +70,10 @@ var (
 
 	triggerTable = "build_triggers"
 	triggersMap  = map[string]TriggerType{
-		"manual": Manual,
-		"push":   Push,
-		"pull":   Pull,
+		"manual":   Manual,
+		"push":     Push,
+		"pull":     Pull,
+		"schedule": Schedule,
 	}
 )
 

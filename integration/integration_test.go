@@ -338,25 +338,25 @@ func TestMain(m *testing.M) {
 		fatalf("failed to create token: %s\n", err)
 	}
 
-	namespaceRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", namespaceScope)
+	namespaceRWD, err = oauth2.NewTokenStore(db, me).Create("Namespace Token", namespaceScope)
 
 	if err != nil {
 		fatalf("failed to create token: %s\n", err)
 	}
 
-	objectRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", objectScope)
+	objectRWD, err = oauth2.NewTokenStore(db, me).Create("Object Token", objectScope)
 
 	if err != nil {
 		fatalf("failed to create token: %s\n", err)
 	}
 
-	variableRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", variableScope)
+	variableRWD, err = oauth2.NewTokenStore(db, me).Create("Variable Token", variableScope)
 
 	if err != nil {
 		fatalf("failed to create token: %s\n", err)
 	}
 
-	keyRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", keyScope)
+	keyRWD, err = oauth2.NewTokenStore(db, me).Create("Key Token", keyScope)
 
 	if err != nil {
 		fatalf("failed to create token: %s\n", err)

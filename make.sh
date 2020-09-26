@@ -140,6 +140,9 @@ case "$1" in
 	worker)
 		build djinn-worker
 		;;
+	scheduler)
+		build djinn-scheduler
+		;;
 	help)
 		shift 1
 		help_ "$1"

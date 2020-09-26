@@ -144,7 +144,7 @@ func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
 //line cron/template/index.qtpl:54
 				qw422016.N().S(`</td> <td>`)
 //line cron/template/index.qtpl:55
-				qw422016.E().S(c.NextRun.Format("Mon, Jan 2 2006 15:04"))
+				qw422016.E().S(c.NextRun.Format("Mon, Jan 2 15:04 2006"))
 //line cron/template/index.qtpl:55
 				qw422016.N().S(`</td> <td class="align-right"> `)
 //line cron/template/index.qtpl:57

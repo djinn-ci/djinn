@@ -52,7 +52,7 @@ type Index struct {
 							<tr>
 								<td><a href="{%s c.Endpoint() %}">{%s c.Name %}</a></td>
 								<td>{%s strings.ToUpper(c.Schedule.String()) %}</td>
-								<td>{%s c.NextRun.Format("Mon, Jan 2 2006 15:04") %}</td>
+								<td>{%s c.NextRun.Format("Mon, Jan 2 15:04 2006") %}</td>
 								<td class="align-right">
 									{% if p.User.ID == c.UserID || c.Namespace != nil && c.Namespace.UserID == p.User.ID %}
 										<form method="POST" action="{%s c.Endpoint() %}">

@@ -3,6 +3,7 @@ package cron
 import (
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
 )
@@ -40,7 +41,7 @@ func (b *Batcher) Next() bool {
 		return false
 	}
 
-	crons, err := b.store.All(
+	cc, err := b.store.All(
 		query.WhereRaw("NOW()", ">=", "next_run"),
 		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
@@ -51,12 +52,31 @@ func (b *Batcher) Next() bool {
 		return false
 	}
 
-	if len(crons) == 0 {
+	if len(cc) == 0 {
 		return false
 	}
 
+	mm := database.ModelSlice(len(cc), Model(cc))
+
+	uu, err := user.NewStore(b.store.DB).All(query.Where("id", "IN", database.MapKey("user_id", mm)...))
+
+	if err != nil {
+		b.err = errors.Err(err)
+		return false
+	}
+
+	users := make(map[int64]*user.User)
+
+	for _, u := range uu {
+		users[u.ID] = u
+	}
+
+	for _, c := range cc {
+		c.User = users[c.UserID]
+	}
+
 	b.paginator = paginator
-	b.crons = crons
+	b.crons = cc
 
 	return paginator.Page == paginator.Pages[len(paginator.Pages)-1]
 }

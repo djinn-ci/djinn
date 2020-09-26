@@ -285,7 +285,7 @@ func (s *Store) Delete(id int64) error {
 // after the current time. This will add a tag to the created build detailing
 // the name of the Cron, and it's schedule.
 func (s *Store) Invoke(c *Cron) (*build.Build, error) {
-	if c.NextRun.Before(time.Now()) {
+	if time.Now().Before(c.NextRun) {
 		return nil, nil
 	}
 

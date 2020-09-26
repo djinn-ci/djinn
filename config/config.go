@@ -76,6 +76,25 @@ type Server struct {
 	}
 }
 
+type Scheduler struct {
+	DjinnServer string `toml:"djinn-server"`
+	Pidfile     string
+
+	Database Database
+	Redis    struct {
+		Addr     string
+		Password string
+	}
+	Log     struct {
+		Level string
+		File  string
+	}
+	Drivers []struct {
+		Type  string
+		Queue string
+	}
+}
+
 // Worker represents the configuration used for the thrall-worker.
 type Worker struct {
 	Pidfile     string
@@ -266,6 +285,17 @@ func DecodeServer(r io.Reader) (Server, error) {
 		server.Artifacts.Type = "file"
 	}
 	return server, nil
+}
+
+func DecodeScheduler(r io.Reader) (Scheduler, error) {
+	dec := toml.NewDecoder(r)
+
+	scheduler := Scheduler{}
+
+	if err := dec.Decode(&scheduler); err != nil {
+		return scheduler, errors.Err(err)
+	}
+	return scheduler, nil
 }
 
 // DecodeWorker takes the given io.Reader, and decodes its content to a Worker,

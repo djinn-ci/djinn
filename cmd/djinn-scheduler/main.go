@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/andrewpillar/djinn/build"
@@ -70,7 +71,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 	)
 
 	flags.BoolVar(&showversion, "version", false, "show the version and exit")
-	flags.StringVar(&configfile, "config", "djinn-server.toml", "the config file to use")
+	flags.StringVar(&configfile, "config", "djinn-scheduler.toml", "the config file to use")
 	flags.Parse(args[1:])
 
 	if showversion {
@@ -88,11 +89,36 @@ func run(stdout, stderr io.Writer, args []string) error {
 
 	defer f.Close()
 
-	cfg, err := config.DecodeServer(f)
+	cfg, err := config.DecodeScheduler(f)
 
 	if err != nil {
 		return err
 	}
+
+	if cfg.Pidfile != "" {
+		pidf, err := os.OpenFile(cfg.Pidfile, os.O_WRONLY|os.O_CREATE, 0660)
+
+		if err != nil {
+			return err
+		}
+
+		pidf.Write([]byte(strconv.FormatInt(int64(os.Getpid()), 10)))
+		pidf.Close()
+	}
+
+	log.SetLevel(cfg.Log.Level)
+
+	logf, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+
+	if err != nil {
+		return err
+	}
+
+	defer logf.Close()
+
+	log.Info.Println("logging initialized, writing to", logf.Name())
+
+	log.SetWriter(logf)
 
 	host, port, err := net.SplitHostPort(cfg.Database.Addr)
 
@@ -170,8 +196,7 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			println("running batches", time.Now().Format("Mon, 2 Jan 15:04 2006"))
-			if err := runBatches(cfg.Host, queues, crons, builds); err != nil {
+			if err := runBatches(cfg.DjinnServer, queues, crons, builds); err != nil {
 				log.Error.Println("failed to run cron job batch", errors.Err(err))
 			}
 		case sig := <-c:

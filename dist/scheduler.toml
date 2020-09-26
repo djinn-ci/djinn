@@ -1,7 +1,5 @@
 
 
-djinn-server = "localhost:8443"
-
 [database]
 addr     = "localhost:5432"
 name     = "djinn"

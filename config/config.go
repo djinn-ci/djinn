@@ -77,8 +77,7 @@ type Server struct {
 }
 
 type Scheduler struct {
-	DjinnServer string `toml:"djinn-server"`
-	Pidfile     string
+	Pidfile string
 
 	Database Database
 	Redis    struct {

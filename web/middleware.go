@@ -235,9 +235,12 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				return
 			}
 
-			if ok {
-				r = r.WithContext(context.WithValue(r.Context(), "user", u))
+			if !ok {
+				errh(w, "Not found", http.StatusNotFound)
+				return
 			}
+
+			r = r.WithContext(context.WithValue(r.Context(), "user", u))
 
 			for _, gate := range gates {
 				r, ok, err = gate(u, r)

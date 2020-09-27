@@ -216,6 +216,7 @@ CREATE TABLE build_objects (
 
 CREATE TABLE build_artifacts (
 	id         SERIAL PRIMARY KEY,
+	user_id    INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
 	build_id   INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
 	job_id     INT NOT NULL REFERENCES build_jobs(id),
 	hash       VARCHAR NOT NULL UNIQUE,

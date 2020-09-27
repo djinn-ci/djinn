@@ -748,7 +748,7 @@ func (s *Store) Submit(srv *machinery.Server, host string, b *Build) error {
 				return errors.Err(err)
 			}
 
-			if _, err := NewArtifactStore(s.DB, j, b).Create(hash, src, dst); err != nil {
+			if _, err := NewArtifactStore(s.DB, s.User, j, b).Create(hash, src, dst); err != nil {
 				return errors.Err(err)
 			}
 		}

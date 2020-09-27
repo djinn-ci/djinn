@@ -12,6 +12,7 @@ import (
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/runner"
+	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
 
@@ -23,6 +24,7 @@ import (
 // that was collected.
 type Artifact struct {
 	ID        int64         `db:"id"`
+	UserID    int64         `db:"user_id"`
 	BuildID   int64         `db:"build_id"`
 	JobID     int64         `db:"job_id"`
 	Hash      string        `db:"hash"`
@@ -33,8 +35,9 @@ type Artifact struct {
 	SHA256    []byte        `db:"sha256"`
 	CreatedAt time.Time     `db:"created_at"`
 
-	Build *Build `db:"-"`
-	Job   *Job   `db:"-"`
+	Build *Build     `db:"-"`
+	Job   *Job       `db:"-"`
+	User  *user.User `db:"-"`
 }
 
 // ArtifactStore is the type for creating and modifying Artifact models in the
@@ -56,6 +59,8 @@ type ArtifactStore struct {
 	// any Artifact models that are created. If not nil this will append a
 	// WHERE clause on the job_id column for all SELECT queries performed.
 	Job *Job
+
+	User *user.User
 }
 
 var (
@@ -106,6 +111,8 @@ func (a *Artifact) Bind(mm ...database.Model) {
 			a.Build = m.(*Build)
 		case *Job:
 			a.Job = m.(*Job)
+		case *user.User:
+			a.User = m.(*user.User)
 		}
 	}
 }
@@ -119,6 +126,7 @@ func (a *Artifact) Primary() (string, int64) { return "id", a.ID }
 // IsZero implements the database.Model interface.
 func (a *Artifact) IsZero() bool {
 	return a == nil || a.ID == 0 &&
+		a.UserID == 0 &&
 		a.BuildID == 0 &&
 		a.JobID == 0 &&
 		a.Hash == "" &&
@@ -136,6 +144,7 @@ func (a *Artifact) IsZero() bool {
 func (a *Artifact) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":         a.ID,
+		"user_id":    a.UserID,
 		"build_id":   a.BuildID,
 		"job_id":     a.JobID,
 		"source":     a.Source,
@@ -159,6 +168,7 @@ func (a *Artifact) JSON(addr string) map[string]interface{} {
 	}
 
 	for name, m := range map[string]database.Model{
+		"user":  a.User,
 		"build": a.Build,
 		"job":   a.Job,
 	} {
@@ -184,10 +194,11 @@ func (a *Artifact) Endpoint(uris ...string) string {
 }
 
 // Values implements the database.Model interface. This will return a map with
-// the following values, build_id, job_id, hash, source, name, size, md5,
-// sha256.
+// the following values, user_id, build_id, job_id, hash, source, name, size,
+// md5, and sha256.
 func (a *Artifact) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"user_id":  a.UserID,
 		"build_id": a.BuildID,
 		"job_id":   a.JobID,
 		"hash":     a.Hash,
@@ -208,6 +219,8 @@ func (s *ArtifactStore) Bind(mm ...database.Model) {
 			s.Build = m.(*Build)
 		case *Job:
 			s.Job = m.(*Job)
+		case *user.User:
+			s.User = m.(*user.User)
 		}
 	}
 }
@@ -247,8 +260,13 @@ func (s *ArtifactStore) Create(hash, src, dst string) (*Artifact, error) {
 // ArtifactStore.
 func (s *ArtifactStore) New() *Artifact {
 	a := &Artifact{
+		User:  s.User,
 		Build: s.Build,
 		Job:   s.Job,
+	}
+
+	if s.User != nil {
+		a.UserID = s.User.ID
 	}
 
 	if s.Build != nil {
@@ -267,6 +285,7 @@ func (s *ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
 	aa := make([]*Artifact, 0)
 
 	opts = append([]query.Option{
+		database.Where(s.User, "user_id"),
 		database.Where(s.Build, "build_id"),
 		database.Where(s.Job, "job_id"),
 	}, opts...)
@@ -293,6 +312,7 @@ func (s *ArtifactStore) Get(opts ...query.Option) (*Artifact, error) {
 	}
 
 	opts = append([]query.Option{
+		database.Where(s.User, "user_id"),
 		database.Where(s.Build, "build_id"),
 		database.Where(s.Job, "job_id"),
 	}, opts...)

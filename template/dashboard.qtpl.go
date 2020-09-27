@@ -348,7 +348,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 //line template/dashboard.qtpl:172
-			qw422016.N().S(`</span>Cron</span></a></li> `)
+			qw422016.N().S(`<span>Cron</span></a></li> `)
 //line template/dashboard.qtpl:173
 		} else {
 //line template/dashboard.qtpl:173
@@ -360,7 +360,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 //line template/dashboard.qtpl:174
-			qw422016.N().S(`</span>Cron</span></a></li> `)
+			qw422016.N().S(`<span>Cron</span></a></li> `)
 //line template/dashboard.qtpl:175
 		}
 //line template/dashboard.qtpl:175
@@ -377,7 +377,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 //line template/dashboard.qtpl:177
-			qw422016.N().S(`</span>Invites</span></a></li> `)
+			qw422016.N().S(`<span>Invites</span></a></li> `)
 //line template/dashboard.qtpl:178
 		} else {
 //line template/dashboard.qtpl:178
@@ -390,7 +390,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 //line template/dashboard.qtpl:179
-			qw422016.N().S(`</span>Invites</span></a></li> `)
+			qw422016.N().S(`<span>Invites</span></a></li> `)
 //line template/dashboard.qtpl:180
 		}
 //line template/dashboard.qtpl:180

@@ -169,14 +169,14 @@ func (l level) String() string {
 						<li><a title="Namespaces" href="/namespaces">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
 					{% endif %}
 					{% if Match(p.URL.Path, CronURI) %}
-						<li><a title="Cron" href="/cron" class="active">{% cat "../static/svg/timer.svg" %}</span>Cron</span></a></li>
+						<li><a title="Cron" href="/cron" class="active">{% cat "../static/svg/timer.svg" %}<span>Cron</span></a></li>
 					{% else %}
-						<li><a title="Cron" href="/cron">{% cat "../static/svg/timer.svg" %}</span>Cron</span></a></li>
+						<li><a title="Cron" href="/cron">{% cat "../static/svg/timer.svg" %}<span>Cron</span></a></li>
 					{% endif %}
 					{% if Match(p.URL.Path, InvitesURI) %}
-						<li><a title="Invites" href="/invites" class="active">{% cat "../static/svg/mail.svg" %}</span>Invites</span></a></li>
+						<li><a title="Invites" href="/invites" class="active">{% cat "../static/svg/mail.svg" %}<span>Invites</span></a></li>
 					{% else %}
-						<li><a title="Invites" href="/invites">{% cat "../static/svg/mail.svg" %}</span>Invites</span></a></li>
+						<li><a title="Invites" href="/invites">{% cat "../static/svg/mail.svg" %}<span>Invites</span></a></li>
 					{% endif %}
 					{% if Match(p.URL.Path, RepositoriesURI) %}
 						<li><a title="Repositories" href="/repos" class="active">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>

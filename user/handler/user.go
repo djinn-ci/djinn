@@ -507,6 +507,36 @@ resp:
 	h.Redirect(w, r, "/settings")
 }
 
+// Cleanup will either disable or enable artifact cleaning for the current user.
+func (h User) Cleanup(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	if err := r.ParseForm(); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to save changes"), "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
+	cleanup := r.PostForm.Get("cleanup") == "on"
+
+	if err := h.Users.Update(u.ID, u.Email, cleanup, nil); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Danger("Failed to save changes"), "alert")
+		h.Redirect(w, r, "/settings")
+		return
+	}
+
+	sess.AddFlash(template.Success("Changes have been saved"), "alert")
+	h.RedirectBack(w, r)
+}
+
 func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -539,7 +569,7 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	u.Email = f.Email
 	u.UpdatedAt = time.Now()
 
-	if err := h.Users.Update(u.ID, f.Email, []byte(f.VerifyPassword)); err != nil {
+	if err := h.Users.Update(u.ID, f.Email, u.Cleanup, []byte(f.VerifyPassword)); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update account"), "alert")
 		h.RedirectBack(w, r)
@@ -579,7 +609,7 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Users.Update(u.ID, u.Email, []byte(f.NewPassword)); err != nil {
+	if err := h.Users.Update(u.ID, u.Email, u.Cleanup, []byte(f.NewPassword)); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update password"), "alert")
 		h.RedirectBack(w, r)

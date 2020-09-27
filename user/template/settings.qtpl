@@ -73,6 +73,26 @@ type Settings struct {
 					</div>
 				{% endif %}
 				<div class="separator"></div>
+				<form method="POST" action="/settings/cleanup">
+					{%s= p.CSRF %}
+					<input type="hidden" name="_method" value="PATCH"/>
+					<div class="form-field">
+						<label class="form-option">
+							{% if p.User.Cleanup %}
+								<input class="form-selector" type="checkbox" name="cleanup" checked="true"/>
+							{% else %}
+								<input class="form-selector" type="checkbox" name="cleanup"/>
+							{% endif %}
+							<strong>Cleanup artifacts</strong>
+							{% cat "../../static/svg/bin.svg" %}
+							<div class="form-desc">Clean up old artifacts that exceed 1GB of storage in total</div>
+						</label>
+					</div>
+					<div class="form-field">
+						<button type="submit" class="btn btn-primary">Update</button>
+					</div>
+				</form>
+				<div class="separator"></div>
 				<form method="POST" action="/settings/email">
 					<h2>Change email</h2>
 					{%s= p.CSRF %}

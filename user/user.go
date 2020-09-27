@@ -25,6 +25,7 @@ type User struct {
 	Username  string       `db:"username"`
 	Password  []byte       `db:"password"`
 	Verified  bool         `db:"verified"`
+	Cleanup   bool         `db:"cleanup"`
 	CreatedAt time.Time    `db:"created_at"`
 	UpdatedAt time.Time    `db:"updated_at"`
 	DeletedAt sql.NullTime `db:"deleted_at"`
@@ -320,24 +321,30 @@ func (s *Store) Verify(tok []byte) error {
 	return errors.Err(err)
 }
 
-// Update sets the email and password for the given user to the given values.
-// The given password will be hashed with bcrypt using the default cost.
-func (s *Store) Update(id int64, email string, password []byte) error {
-	hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	q := query.Update(
+// Update sets the email, cleanup, and password fields for the given user to
+// the given values. If the given password is nil, then this will not be
+// updated, otherwise a new hash is generated for it.
+func (s *Store) Update(id int64, email string, cleanup bool, password []byte) error {
+	opts := []query.Option{
 		query.Table(table),
 		query.Set("email", email),
-		query.Set("password", hash),
+		query.Set("cleanup", cleanup),
 		query.Set("updated_at", time.Now()),
-		query.Where("id", "=", id),
-	)
+	}
 
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
+	if password != nil {
+		hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		opts = append(opts, query.Set("password", hash))
+	}
+
+	q := query.Update(opts...)
+
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
 }
 

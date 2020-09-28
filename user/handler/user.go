@@ -146,8 +146,9 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 				Errors: web.FormErrors(sess),
 				Fields: web.FormFields(sess),
 			},
-			Alert:     web.Alert(sess),
-			Providers: pp,
+			Alert:       web.Alert(sess),
+			RedirectURI: r.URL.Query().Get("redirect_uri"),
+			Providers:   pp,
 		}
 		save(r, w)
 		web.HTML(w, template.Render(p), http.StatusOK)
@@ -206,8 +207,8 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 
 	uri := "/"
 
-	if uri1 := r.URL.Query().Get("redirect_uri"); uri1 != "" {
-		uri = uri1
+	if uri1 := f.RedirectURI; uri1 != "" {
+		uri = f.RedirectURI
 	}
 
 	http.SetCookie(w, &http.Cookie{

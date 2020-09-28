@@ -10,8 +10,9 @@ type Login struct {
 	template.BasePage
 	template.Form
 
-	Alert     template.Alert
-	Providers []*provider.Provider
+	Alert       template.Alert
+	RedirectURI string
+	Providers   []*provider.Provider
 }
 
 var providerNames = map[string]string{
@@ -42,6 +43,9 @@ var providerNames = map[string]string{
 			</div>
 			<form method="POST" action="/login">
 				{%s= string(p.CSRF) %}
+				{% if p.RedirectURI != "" %}
+					<input type="hidden" name="redirect_uri" value="{%s p.RedirectURI %}"/>
+				{% endif %}
 				<div class="input-field">
 					<label>Email / Username</label>
 					<input class="text" type="text" name="handle" value="{%s p.Fields["handle"] %}" autocomplete="off"/>

@@ -68,7 +68,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/variables", variable.Index).Methods("GET")
 	auth.HandleFunc("/variables/create", variable.Create).Methods("GET")
 	auth.HandleFunc("/variables", variable.Store).Methods("POST")
-	auth.Use(r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/variables").Subrouter()
 	sr.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")

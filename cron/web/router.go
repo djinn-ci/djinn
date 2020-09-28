@@ -72,7 +72,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/cron", cron.Index).Methods("GET")
 	auth.HandleFunc("/cron/create", cron.Create).Methods("GET")
 	auth.HandleFunc("/cron", cron.Store).Methods("POST")
-	auth.Use(r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/cron").Subrouter()
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Show).Methods("GET")

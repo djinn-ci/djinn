@@ -231,7 +231,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/invites", invite.Index).Methods("GET")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Update).Methods("PATCH")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Destroy).Methods("DELETE")
-	auth.Use(r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
 	sr.HandleFunc("", namespace.Show).Methods("GET")

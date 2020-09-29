@@ -2,9 +2,15 @@
 
 # Worker
 
-* [External dependencies](#external-dependencies)
-* [Configuring the worker](#configuring-the-worker)
-  * [General configuration](#general-configuration)
+The `djinn-worker` is the component that handles executing builds that are
+submitted via the [server](/admin/server) or the [scheduler](/admin/scheduler).
+You may need to install some additional dependencies on the worker machine
+depending on the drivers you want to make available.
+
+* [External Dependencies](#external-dependencies)
+  * [Driver Dependencies](#driver-dependencies)
+* [Configuring the Worker](#configuring-the-worker)
+  * [General Configuration](#general-configuration)
   * [Crypto](#crypto)
   * [SMTP](#smtp)
   * [Database](#database)
@@ -13,20 +19,30 @@
   * [Artifacts](#artifacts)
   * [Objects](#objects)
   * [Logging](#logging)
-* [Example worker configuration](#example-worker-configuration)
-* [Running the worker](#running-the-worker)
-* [Configuring the worker daemon](#configuring-the-worker-daemon)
+* [Example Worker Configuration](#example-worker-configuration)
+* [Running the Worker](#running-the-worker)
+* [Configuring the Worker Daemon](#configuring-the-worker-daemon)
 
-## External dependencies
+## External Dependencies
 
-Detailed below are the software dependencies that the Djinn work in order to
-start and run,
+Detailed below are the software dependencies that the worker needs in order
+to start and run,
 
 | Dependency  | Reason                                                    |
 |-------------|-----------------------------------------------------------|
 | PostgreSQL  | Primary data store for the server.                        |
 | Redis       | Data store for session data, and used as the build queue. |
 | SMTP Server | Used for sending emails on build failures.                |
+
+### Driver Dependencies
+
+Detailed below are the software dependencies that the worker needs in order
+to execute a build via that driver.
+
+| Driver   | Software                                                  |
+|----------|-----------------------------------------------------------|
+| `docker` | The `dockerd` process for managing containers             |
+| `qemu`   | The `qemu` software package for creating virtual machines |
 
 ## Configuring the worker
 
@@ -41,7 +57,7 @@ on how to do this [here](/user/offline-runner#configuring-drivers).
 queue mechanism. This will write additional information about the builds being
 processed to `stdout`.
 
-### General configuration
+### General Configuration
 
 * `webserver` - This is the address of the web server that serves Djinn CI. This
 will be used for any links in emails.
@@ -122,7 +138,7 @@ be one of: `debug`, `info`, or `error`.
 
 * `log.file` - The file to write logs to, defaults to `/dev/stdout`.
 
-## Example worker configuration
+## Example Worker Configuration
 
 An example `worker.toml` file can be found in the `dist` directory of the
 source repository.
@@ -162,7 +178,7 @@ source repository.
     level = "info"
     file  = "/var/log/djinn/worker.log"
 
-## Running the worker
+## Running the Worker
 
 To run the worker simply invoke the `djinn-worker` binary. There are two flags
 that can be given to the `djinn-worker` binary.
@@ -174,7 +190,7 @@ this will be `djinn-worker.toml`.
 configuring the drivers you want to support on your server, by default this
 will be `djinn-driver.toml`.
 
-## Configuring the worker daemon
+## Configuring the Worker Daemon
 
 The `dist` directory contains files for running the Djinn worker as a daemon
 on Linux systems that use systemd and SysVinit for daemon management. Use

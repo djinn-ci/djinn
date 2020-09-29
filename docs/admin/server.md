@@ -1,9 +1,14 @@
-[Prev](/admin/building) - [Next](/admin/worker)
+[Prev](/admin/scheduler) - [Next](/admin/worker)
 
 # Server
 
-* [External dependencies](#external-dependencies)
-* [Configuring the server](#configuring-the-server)
+The `djinn-server` is the primary component through which users would interact
+with the CI server. This handles serving the UI and API endpoints for the
+server. All assets served by the server are compiled into the binary itself,
+so there is no need to worry about where assets will exist on disk.
+
+* [External Dependencies](#external-dependencies)
+* [Configuring the Server](#configuring-the-server)
   * [Network](#network)
   * [Crypto](#crypto)
   * [Database](#database)
@@ -14,13 +19,13 @@
   * [Logging](#logging)
   * [Drivers](#drivers)
   * [Providers](#providers)
-* [Example server configuration](#example-server-configuration)
-* [Running the server](#running-the-server)
-* [Configuring the server daemon](#configuring-the-server-daemon)
+* [Example Server Configuration](#example-server-configuration)
+* [Running the Server](#running-the-server)
+* [Configuring the Server Daemon](#configuring-the-server-daemon)
 
-## External dependencies
+## External Dependencies
 
-Detailed below are the software dependencies that the Djinn server in order to
+Detailed below are the software dependencies that the server needs in order to
 start and run,
 
 | Dependency  | Reason                                                    |
@@ -28,7 +33,7 @@ start and run,
 | PostgreSQL  | Primary data store for the server.                        |
 | Redis       | Data store for session data, and used as the build queue. |
 
-## Configuring the server
+## Configuring the Server
 
 The server is configured via a `server.toml` file, detailed below are the
 properties for this file,
@@ -107,6 +112,11 @@ be one of: `debug`, `info`, or `error`.
 * `log.file` - The file to write logs to, defaults to `/dev/stdout`.
 
 ### Drivers
+
+The `[[drivers]]` table specifies the drivers that are provided by Djinn for
+executing builds. This expects the `type` of driver available, and the `queue`
+to place the builds on. It is valid for different driver types to be placed on
+to the same queue.
 
 * `drivers.type` - The type of driver to support on the server. Must be one of:
 `docker`, `qemu`, or `ssh`.
@@ -189,7 +199,7 @@ source repository.
     client_id     = "..."
     client_secret = "..."
 
-## Running the server
+## Running the Server
 
 To run the server simply invoke the `djinn-server` binary. There are three flags
 that can be given to the `djinn-server` binary.
@@ -217,7 +227,7 @@ the `/api` prefix,
 
     $ djinn-server -config /etc/djinn/server.toml -ui
 
-## Configuring the server daemon
+## Configuring the Server Daemon
 
 The `dist` directory contains files for running the Djinn server as a daemon
 on Linux systems that use systemd and SysVinit for daemon management. Use

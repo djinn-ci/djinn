@@ -1,4 +1,4 @@
-[Prev](/admin) - [Next](/admin/server)
+[Prev](/admin) - [Next](/admin/scheduler)
 
 # Building
 
@@ -21,11 +21,11 @@ server, the worker, and the offline runner.
 
     $ ./make.sh
 
-The compiled programs will be `bin/djinn`, `bin/djinn-server`, and
-`bin/djinn-worker`. Each of these will be a statically linked binary. You
-can change the target operating system and architecture via the `GOOS` and
-`GOARCH` environment variables, these will be passed through to the underlying
-`go build` command that is invoked,
+The compiled programs will be `bin/djinn`, `bin/djinn-scheduler`,
+`bin/djinn-server`, and `bin/djinn-worker`. Each of these will be a
+statically linked binary. You can change the target operating system and
+architecture via the `GOOS` and `GOARCH` environment variables, these will be
+passed through to the underlying `go build` command that is invoked,
 
     $ GOOS=freebsd GOARCH=amd64 ./make.sh
 

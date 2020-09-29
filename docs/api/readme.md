@@ -8,7 +8,7 @@
 >**Note:** The API documentation will make references to the host
 `https://api.djinn-ci.com`, of course if you are self-hosting Djinn then the
 hostname will be different. Furthermore if you are serving the UI and API from
-the same server, then the API endpoints may be served with the `/api` prefix.
+the same server, then the API endpoints will be served with the `/api` prefix.
 
 ## Resources
 
@@ -16,6 +16,7 @@ Listed below are the resources exposed via the REST API that can be created,
 modified, or deleted.
 
 * [Builds](/api/builds)
+* [Cron](/api/cron)
 * [Namespaces](/api/namespaces)
 * [Objects](/api/objects)
 * [Keys](/api/keys)

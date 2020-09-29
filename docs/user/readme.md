@@ -10,6 +10,7 @@ executed, and how build resources can be organized with namespaces.
 * [The basics](/user/the-basics)
 * [Builds](/user/builds)
 * [Namespaces](/user/namespaces)
+* [Cron](/user/cron)
 * [Drivers](/user/drivers)
 * [Manifest](/user/manifest)
 * [Objects](/user/objects)

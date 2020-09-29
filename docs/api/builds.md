@@ -1,4 +1,4 @@
-[Prev](/api) - [Next](/api/images)
+[Prev](/api) - [Next](/api/cron)
 
 # Builds
 

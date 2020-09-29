@@ -1,4 +1,4 @@
-[Prev](/api/builds) - [Next](/api/invites)
+[Prev](/api/cron) - [Next](/api/invites)
 
 # Images
 

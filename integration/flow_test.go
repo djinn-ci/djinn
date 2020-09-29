@@ -527,6 +527,14 @@ func Test_CronFlow(t *testing.T) {
 		f2.Add(ApiDelete(t, url.Path, myTok), 204, nil)
 		f2.Do(t, server.Client())
 	})
+	f1.Add(ApiPost(t, "/api/cron", myTok, JSON(t, map[string]interface{}{
+		"namespace": "cronspace",
+		"name":      "Nightly",
+		"schedule":  "daily",
+		"manifest":  `driver:
+  type: qemu
+  image: centos/7`,
+	})), 201, nil)
 
 	f1.Do(t, server.Client())
 }

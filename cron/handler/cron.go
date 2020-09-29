@@ -98,6 +98,10 @@ func (h Cron) UpdateModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
 	if err := crons.Update(c.ID, f.Name, f.Schedule, f.Manifest); err != nil {
 		return nil, f, errors.Err(err)
 	}
+
+	c.Name = f.Name
+	c.Schedule = f.Schedule
+	c.Manifest = f.Manifest
 	return c, f, nil
 }
 

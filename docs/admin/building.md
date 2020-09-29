@@ -17,7 +17,7 @@ Once the build dependencies are installed clone the repository,
 
 once cloned, change into the directory and run the `make.sh` script. This will
 execute all of the tests, compile the LESS and templates, then build the
-server, the worker, and the offline runner.
+scheduler, server, the worker, and the offline runner.
 
     $ ./make.sh
 

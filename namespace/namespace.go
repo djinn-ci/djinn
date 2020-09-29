@@ -355,21 +355,24 @@ func (s *Store) Bind(mm ...database.Model) {
 }
 
 func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
+	u := s.User
+
 	namespaces := NewStore(s.DB)
 
 	if strings.Contains((*path), "@") {
+		var err error
+
 		parts := strings.Split((*path), "@")
 		(*path) = parts[0]
 
-		u, err := user.NewStore(s.DB).Get(query.Where("username", "=", parts[1]))
+		u, err = user.NewStore(s.DB).Get(query.Where("username", "=", parts[1]))
 
 		if err != nil {
 			return nil, errors.Err(err)
 		}
-		namespaces.Bind(u)
 	}
 
-	n, err := namespaces.Get(query.Where("path", "=", path))
+	n, err := namespaces.Get(database.Where(u, "user_id"), query.Where("path", "=", path))
 
 	if err != nil {
 		return n, errors.Err(err)

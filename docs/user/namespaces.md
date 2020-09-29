@@ -39,7 +39,9 @@ different resources that can be grouped into a namespace,
 during the creation of each of these resources you will be given the option to
 specify a namespace to put it in. If the given namespace doesn't exist during
 resource creation then said namespace will be created on the fly, with the
-default visibility of Private.
+default visibility of Private. To add a resource to a namespace that you are
+a collaborator in then you can use the `<path>@<user>` notation, where `<path>`
+is the full namespace path, and `<user>` is the owner.
 
 ## Collaborators
 

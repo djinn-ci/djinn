@@ -26,7 +26,7 @@ they are required.
 
 Specify the namespace to submit the build to. If the given namespace does not
 exist then it will be created on the fly, and have the visibility of it set to
-`private` by default. You can use the `<user>@<path>` notation to submit a build
+`private` by default. You can use the `<path>@<user>` notation to submit a build
 to a namespace that you are a collaborator in.
 
 **Standalone namespace**

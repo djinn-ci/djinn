@@ -229,14 +229,13 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 
 			u, ok, err := h.userFromRequest(w, r)
 
+			if !ok {
+				u = &user.User{}
+			}
+
 			if err != nil {
 				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 				errh(w, "Something went wrong", http.StatusInternalServerError)
-				return
-			}
-
-			if !ok {
-				errh(w, "Not found", http.StatusNotFound)
 				return
 			}
 

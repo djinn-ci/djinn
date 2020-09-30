@@ -14,6 +14,7 @@ import (
 	"testing"
 
 	"github.com/andrewpillar/djinn/namespace"
+	"github.com/andrewpillar/djinn/oauth2"
 )
 
 func Test_ManifestNamespaceValidation(t *testing.T) {
@@ -28,18 +29,27 @@ func Test_ManifestNamespaceValidation(t *testing.T) {
 
 	tests := []struct {
 		name         string
+		tok          *oauth2.Token
 		expectedCode int
 	}{
 		{
 			"black-mesa",
+			myTok,
 			400,
 		},
 		{
 			"city17@you",
+			myTok,
 			422,
 		},
 		{
 			"blackmesa",
+			myTok,
+			201,
+		},
+		{
+			"blackmesa",
+			yourTok,
 			201,
 		},
 	}
@@ -49,7 +59,7 @@ func Test_ManifestNamespaceValidation(t *testing.T) {
 			"manifest": "namespace: " + test.name + "\ndriver:\n  type: qemu\n  image: centos/7",
 		}
 
-		flow.Add(ApiPost(t, "/api/builds", myTok, JSON(t, build)), test.expectedCode, nil)
+		flow.Add(ApiPost(t, "/api/builds", test.tok, JSON(t, build)), test.expectedCode, nil)
 	}
 	flow.Do(t, server.Client())
 }
@@ -497,8 +507,26 @@ func Test_ObjectFlow(t *testing.T) {
 func Test_CronFlow(t *testing.T) {
 	f1 := NewFlow()
 
+	f1.Add(ApiPost(t, "/api/namespaces", myTok, JSON(t, map[string]interface{}{
+		"name":       "cronspace",
+		"visibility": "private",
+	})), 201, nil)
+
+	f1.Add(ApiPost(t, "/api/namespaces", yourTok, JSON(t, map[string]interface{}{
+		"name":       "spacecron",
+		"visibility": "private",
+	})), 201, nil)
+
 	f1.Add(ApiPost(t, "/api/cron", nil, nil), 404, nil)
 	f1.Add(ApiPost(t, "/api/cron", myTok, nil), 400, nil)
+	f1.Add(ApiPost(t, "/api/cron", myTok, JSON(t, map[string]interface{}{
+		"namespace": "spacecron@you",
+		"name":      "Nightly",
+		"schedule":  "daily",
+		"manifest":  `driver:
+  type: qemu
+  image: centos/7`,
+	})), 422, nil)
 	f1.Add(ApiPost(t, "/api/cron", myTok, JSON(t, map[string]interface{}{
 		"name": "Nightly",
 		"schedule": "foo",

@@ -12,6 +12,7 @@ node_modules/
 driver.toml
 worker.toml
 server.toml
+scheduler.toml
 djinn-driver.toml
 djinn-worker.toml
 djinn-server.toml

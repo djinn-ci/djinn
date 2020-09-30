@@ -246,7 +246,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 //line template/dashboard.qtpl:128
 	qw422016.N().S(` <div class="dashboard"> <div class="dashboard-content"> `)
 //line template/dashboard.qtpl:131
-	if !p.User.IsZero() && p.User.Verified {
+	if !p.User.IsZero() && !p.User.Verified {
 //line template/dashboard.qtpl:131
 		qw422016.N().S(` <div class="alert alert-warn"> <div class="alert-message">Your account is not verified, go to your <a href="/settings">settings</a> to verify it.</div> </div> `)
 //line template/dashboard.qtpl:135

@@ -128,7 +128,7 @@ func (l level) String() string {
 {% func (p *baseDashboard) Body() %}
 	<div class="dashboard">
 		<div class="dashboard-content">
-			{% if !p.User.IsZero() && p.User.Verified %}
+			{% if !p.User.IsZero() && !p.User.Verified %}
 				<div class="alert alert-warn">
 					<div class="alert-message">Your account is not verified, go to your <a href="/settings">settings</a> to verify it.</div>
 				</div>

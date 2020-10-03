@@ -59,11 +59,12 @@ func tokenGate(db *sqlx.DB) web.Gate {
 func (r *Router) Init(h web.Handler) {
 	r.oauth2 = handler.Oauth2{
 		Handler: h,
-		Apps:    oauth2.NewAppStore(h.DB),
+		Apps:    oauth2.NewAppStoreWithBlock(h.DB, r.Block),
 	}
 	r.app = handler.App{
 		Handler: h,
 		Block:   r.Block,
+		Apps:    oauth2.NewAppStore(h.DB),
 	}
 	r.token = handler.Token{
 		Handler: h,
@@ -72,9 +73,9 @@ func (r *Router) Init(h web.Handler) {
 }
 
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
-	mux.HandleFunc("/oauth/authorize", r.oauth2.Auth).Methods("GET", "POST")
-	mux.HandleFunc("/oauth/token", r.oauth2.Token).Methods("POST")
-	mux.HandleFunc("/oauth/revoke", r.oauth2.Revoke).Methods("POST")
+	mux.HandleFunc("/login/oauth/authorize", r.oauth2.Auth).Methods("GET", "POST")
+	mux.HandleFunc("/login/oauth/token", r.oauth2.Token).Methods("POST")
+	mux.HandleFunc("/logout/oauth/revoke", r.oauth2.Revoke).Methods("POST")
 
 	auth := mux.PathPrefix("/settings").Subrouter()
 	auth.HandleFunc("/apps", r.app.Index).Methods("GET")

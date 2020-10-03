@@ -406,6 +406,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 
 		ui.Init()
 		ui.Register("auth")
+		ui.Register("oauth2")
 		ui.Register("build", buildweb.Gate(db))
 		ui.Register("provider", providerweb.Gate(db))
 		ui.Register("namespace", namespaceweb.Gate(db))
@@ -414,7 +415,6 @@ func run(stdout, stderr io.Writer, args []string) error {
 		ui.Register("object", objectweb.Gate(db))
 		ui.Register("variable", variableweb.Gate(db))
 		ui.Register("key", keyweb.Gate(db))
-		ui.Register("oauth2")
 	}
 
 	var apiPrefix string
@@ -430,6 +430,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 		}
 
 		api.Init()
+		api.Register("auth")
 		api.Register("build", buildweb.Gate(db))
 		api.Register("namespace", namespaceweb.Gate(db))
 		api.Register("cron", cronweb.Gate(db))

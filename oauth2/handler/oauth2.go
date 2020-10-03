@@ -1,9 +1,7 @@
 package handler
 
 import (
-	"bytes"
 	"encoding/hex"
-	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -30,13 +28,36 @@ type Oauth2 struct {
 	Tokens *oauth2.TokenStore
 }
 
+func (h Oauth2) getClientCredentialsAndCode(r *http.Request) (string, string, string, error) {
+	if err := r.ParseForm(); err != nil {
+		return "", "", "", errors.Err(err)
+	}
+
+	id := r.Form.Get("client_id")
+	secret := r.Form.Get("client_secret")
+	code := r.Form.Get("code")
+
+	if auth := r.Header.Get("Authorization"); auth != "" {
+		var ok bool
+
+		id, secret, ok = r.BasicAuth()
+
+		if !ok {
+			return "", "", "", errors.New("could not get basic auth credentials")
+		}
+	}
+	return id, secret, code, nil
+}
+
 func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
-	u, ok := user.FromContext(r.Context())
+	u, _, err := h.UserFromCookie(r)
 
-	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	q := r.URL.Query()
@@ -72,6 +93,14 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	author, err := h.Users.Get(query.Where("id", "=", a.UserID))
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	// User is logged in, so check for an existing token and update the scope
 	// for the token if a new scope is requested.
 	if !u.IsZero() {
@@ -97,7 +126,12 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 				scope = t.Scope
 			}
 
-			c, err := oauth2.NewCodeStore(h.DB, u).Create(scope)
+			if a.RedirectURI != redirectUri {
+				web.HTMLError(w, "redirect_uri does not match", http.StatusBadRequest)
+				return
+			}
+
+			c, err := oauth2.NewCodeStore(h.DB, u, a).Create(scope)
 
 			if err != nil {
 				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -129,6 +163,7 @@ resp:
 			Fields: web.FormFields(sess),
 		},
 		User:        u,
+		Author:      author,
 		Name:        a.Name,
 		ClientID:    clientId,
 		RedirectURI: a.RedirectURI,
@@ -147,6 +182,15 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 
 	sess, _ := h.Session(r)
 
+	u, ok, err := h.UserFromCookie(r)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
+		return
+	}
+
 	f := &oauth2.AuthorizeForm{}
 
 	if err := form.UnmarshalAndValidate(f, r); err != nil {
@@ -163,14 +207,6 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 		h.RedirectBack(w, r)
 		return
 	}
-
-	u, ok := user.FromContext(r.Context())
-
-	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
-	}
-
-	var err error
 
 	clientId, err := hex.DecodeString(f.ClientID)
 
@@ -192,7 +228,17 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if f.Authenticate {
+	if a.IsZero() {
+		web.HTMLError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if f.RedirectURI != a.RedirectURI {
+		web.HTMLError(w, "redirect_uri does not match", http.StatusBadRequest)
+		return
+	}
+
+	if !ok {
 		u, err = h.Users.Auth(f.Handle, f.Password)
 
 		if err != nil {
@@ -211,11 +257,6 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		}
-	}
-
-	if u.IsZero() {
-		web.HTMLError(w, "No user in request", http.StatusBadRequest)
-		return
 	}
 
 	scope, err := oauth2.UnmarshalScope(f.Scope)
@@ -243,29 +284,24 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
-	buf := &bytes.Buffer{}
-	io.Copy(buf, r.Body)
-
-	q, err := url.ParseQuery(buf.String())
+	id, secret, code, err :=  h.getClientCredentialsAndCode(r)
 
 	if err != nil {
 		web.JSONError(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	a, err := h.Apps.Auth(q.Get("client_id"), q.Get("client_secret"))
+	a, err := h.Apps.Auth(id, secret)
 
 	if err != nil {
-		if errors.Cause(err) == oauth2.ErrAuth {
-			web.JSONError(w, "invalid client id and secret", http.StatusBadRequest)
-			return
+		if errors.Cause(err) != oauth2.ErrAuth {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		}
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.JSONError(w, errors.Cause(err).Error(), http.StatusInternalServerError)
+		web.JSONError(w, "invalid client id and secret", http.StatusInternalServerError)
 		return
 	}
 
-	code, err := hex.DecodeString(q.Get("code"))
+	realCode, err := hex.DecodeString(code)
 
 	if err != nil {
 		web.JSONError(w, err.Error(), http.StatusBadRequest)
@@ -273,7 +309,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	codes := oauth2.NewCodeStore(h.DB, a)
-	c, err := codes.Get(query.Where("code", "=", code))
+	c, err := codes.Get(query.Where("code", "=", realCode))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -286,7 +322,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if c.ExpiresAt.Sub(time.Now()) > time.Minute*10 {
+	if time.Now().Sub(c.ExpiresAt) > time.Minute * 10 {
 		web.JSONError(w, "code expired", http.StatusBadRequest)
 		return
 	}

@@ -109,6 +109,8 @@ func (*Code) Endpoint(_ ...string) string { return "" }
 // the following values, code, scope, and expires_at.
 func (c *Code) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"user_id":    c.UserID,
+		"app_id":     c.AppID,
 		"code":       c.Code,
 		"scope":      c.Scope,
 		"expires_at": c.ExpiresAt,
@@ -120,10 +122,14 @@ func (c *Code) Values() map[string]interface{} {
 func (s *CodeStore) New() *Code {
 	c := &Code{
 		User: s.User,
+		App:  s.App,
 	}
 
 	if s.User != nil {
 		c.UserID = s.User.ID
+	}
+	if s.App != nil {
+		c.AppID = s.App.ID
 	}
 	return c
 }

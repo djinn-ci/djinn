@@ -239,7 +239,7 @@ func (s *AppStore) Update(id int64, name, description, homepage, redirect string
 		query.Table(appTable),
 		query.Set("name", name),
 		query.Set("description", description),
-		query.Set("homepage_uri", homepage),
+		query.Set("home_uri", homepage),
 		query.Set("redirect_uri", redirect),
 		query.Where("id", "=", id),
 	)

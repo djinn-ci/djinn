@@ -24,7 +24,7 @@ type AppForm struct {
 // authorization page, for when a user authorizes an App's access to their
 // account.
 type AuthorizeForm struct {
-	Authenticate bool   `schema:"authenticate"`
+	Authorize    bool   `schema:"bool"`
 	ClientID     string `schema:"client_id"`
 	Handle       string `schema:"handle"`
 	Password     string `schema:"password"`
@@ -120,6 +120,10 @@ func (f AuthorizeForm) Fields() map[string]string {
 // Validate checks to see if the Handle, and Password fields are present in the
 // current AuthorizeForm.
 func (f AuthorizeForm) Validate() error {
+	if !f.Authorize {
+		return nil
+	}
+
 	errs := form.NewErrors()
 
 	if f.Handle == "" {

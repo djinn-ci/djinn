@@ -298,6 +298,7 @@ CREATE TABLE oauth_apps (
 CREATE TABLE oauth_codes (
 	id         SERIAL PRIMARY KEY,
 	user_id    INT NOT NULL REFERENCES users(id),
+	app_id        INT NOT NULL REFERENCES oauth_apps(id),
 	code       BYTEA NOT NULL UNIQUE,
 	scope      BYTEA NOT NULL,
 	expires_at TIMESTAMP NOT NULL

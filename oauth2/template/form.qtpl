@@ -87,8 +87,8 @@ func (p *AppForm) field(field string) string {
 			<div class="panel-body slim">
 				<h1 class="mb-10">{%s p.App.Name %}</h1>
 				<div class="mb-10">
-					<strong>Client ID</strong><br/><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientID) %}</span><br/><br/>
-					<strong>Client Secret</strong><br/><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientSecret) %}</span></br>
+					<strong>Client ID</strong><br/><code><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientID) %}</span></code><br/><br/>
+					<strong>Client Secret</strong><br/><code><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientSecret) %}</span></code></br>
 				</div>
 				<form method="POST" action="{%s p.App.Endpoint("revoke") %}" class="inline-block">
 					{%s= p.CSRF %}

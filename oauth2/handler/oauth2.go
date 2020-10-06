@@ -166,7 +166,7 @@ resp:
 		Author:      author,
 		Name:        a.Name,
 		ClientID:    clientId,
-		RedirectURI: a.RedirectURI,
+		RedirectURI: redirectUri,
 		State:       state,
 		Scope:       scope,
 	}
@@ -346,7 +346,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if t.IsZero() {
-		_, err := tokens.Create("client."+strconv.FormatInt(u.ID, 10), c.Scope)
+		t, err = tokens.Create("client."+strconv.FormatInt(u.ID, 10), c.Scope)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

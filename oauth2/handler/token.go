@@ -33,7 +33,10 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	tt, err := oauth2.NewTokenStore(h.DB, u).All(query.OrderDesc("created_at"))
+	tt, err := oauth2.NewTokenStore(h.DB, u).All(
+		query.WhereRaw("app_id", "IS", "NULL"),
+		query.OrderDesc("created_at"),
+	)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -277,7 +280,7 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 	if web.BasePath(r.URL.Path) == "revoke" {
 		tokens := oauth2.NewTokenStore(h.DB, u)
 
-		tt, err := tokens.All()
+		tt, err := tokens.All(query.WhereRaw("app_id", "IS", "NULL"))
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

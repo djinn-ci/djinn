@@ -1,0 +1,59 @@
+{%
+import (
+	"strings"
+
+	"github.com/andrewpillar/djinn/oauth2"
+)
+%}
+
+{% code
+func renderPermissionList(p oauth2.Permission) string {
+	var buf strings.Builder
+
+	exp := p.Expand()
+	l := len(exp) - 1
+
+	for i, perm := range exp {
+		buf.WriteString(strings.Title(perm.String()))
+
+		if i + 1 == l {
+			buf.WriteString(", and")
+		}
+
+		if i != l {
+			buf.WriteString(", ")
+			continue
+		}
+	}
+	return buf.String()
+}
+%}
+
+{% collapsespace %}
+{% func renderScope(res oauth2.Resource, perm oauth2.Permission) %}
+	<div class="scope-item">
+		{% switch res %}
+		{% case oauth2.Build %}
+			{% cat "../../static/svg/build.svg" %}
+		{% case oauth2.Invite %}
+			{% cat "../../static/svg/mail.svg" %}
+		{% case oauth2.Image %}
+			{% cat "../../static/svg/image.svg" %}
+		{% case oauth2.Namespace %}
+			{% cat "../../static/svg/folder.svg" %}
+		{% case oauth2.Object %}
+			{% cat "../../static/svg/upload.svg" %}
+		{% case oauth2.Variable %}
+			{% cat "../../static/svg/code.svg" %}
+		{% case oauth2.Key %}
+			{% cat "../../static/svg/key.svg" %}
+		{% case oauth2.Cron %}
+			{% cat "../../static/svg/timer.svg" %}
+		{% endswitch %}
+		<span>
+			<strong>{%s strings.Title(res.String()) %}</strong>
+			{%s renderPermissionList(perm) %}
+		</span>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

@@ -1,0 +1,55 @@
+{%
+import (
+	"encoding/hex"
+	htmltemplate "html/template"
+
+	"github.com/andrewpillar/djinn/oauth2"
+	"github.com/andrewpillar/djinn/template"
+)
+%}
+
+{% code
+type Connection struct {
+	template.BasePage
+
+	CSRF  htmltemplate.HTML
+	Token *oauth2.Token
+}
+%}
+
+{% collapsespace %}
+{% func (p *Connection) Title() %}
+	Connection to {%s p.Token.App.Name %} - Djinn
+{% endfunc %}
+
+{% func (p *Connection) Body() %}
+	<div class="panel">
+		<div class="panel-body slim scope-list">
+			<strong>Authorized</strong> {%s p.Token.CreatedAt.Format("Mon 2, Jan 15:04 2006") %}<br/>
+			<strong>Homepage</strong> <a target="_blank" href="{%s p.Token.App.HomeURI %}">{%s p.Token.App.HomeURI %}</a><br/><br/>
+			{%s p.Token.App.Description %}
+			<div class="separator"></div>
+			<h2>Permissions</h2>
+			{% for _, sc := range p.Token.Scope %}
+				{%= renderScope(sc.Resource, sc.Permission) %}
+			{% endfor %}
+		</div>
+	</div>
+{% endfunc %}
+
+{% func (p *Connection) Header() %}
+	<a href="/settings/connections" class="back">{% cat "../../static/svg/back.svg" %}</a> Connection to {%s p.Token.App.Name %}
+{% endfunc %}
+
+{% func (p *Connection) Actions() %}
+	<li>
+		<form method="POST" actions="/settings/connections/{%s hex.EncodeToString(p.Token.App.ClientID) %}">
+			{%v= p.CSRF %}
+			<input type="hidden" name="_method" value="DELETE"/>
+			<button type="submit" class="btn btn-danger">Revoke access</button>
+		</form>
+	</li>
+{% endfunc %}
+
+{% func (p *Connection) Navigation() %}{% endfunc %}
+{% endcollapsespace %}

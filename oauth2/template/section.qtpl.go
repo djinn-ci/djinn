@@ -6,6 +6,7 @@ package template
 
 //line oauth2/template/section.qtpl:2
 import (
+	"encoding/hex"
 	"fmt"
 	htmltemplate "html/template"
 
@@ -13,24 +14,30 @@ import (
 	"github.com/andrewpillar/djinn/template"
 )
 
-//line oauth2/template/section.qtpl:11
+//line oauth2/template/section.qtpl:12
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line oauth2/template/section.qtpl:11
+//line oauth2/template/section.qtpl:12
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line oauth2/template/section.qtpl:12
+//line oauth2/template/section.qtpl:13
 type AppIndex struct {
 	template.BasePage
 
 	Apps []*oauth2.App
+}
+
+type ConnectionIndex struct {
+	template.BasePage
+
+	Tokens []*oauth2.Token
 }
 
 type TokenIndex struct {
@@ -38,358 +45,520 @@ type TokenIndex struct {
 	Tokens []*oauth2.Token
 }
 
-//line oauth2/template/section.qtpl:25
+//line oauth2/template/section.qtpl:32
 func (p *AppIndex) StreamTitle(qw422016 *qt422016.Writer) {
-//line oauth2/template/section.qtpl:25
+//line oauth2/template/section.qtpl:32
 	qw422016.N().S(` OAuth Apps - Djinn `)
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 }
 
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 func (p *AppIndex) WriteTitle(qq422016 qtio422016.Writer) {
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 	p.StreamTitle(qw422016)
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 	qt422016.ReleaseWriter(qw422016)
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 }
 
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 func (p *AppIndex) Title() string {
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 	qb422016 := qt422016.AcquireByteBuffer()
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 	p.WriteTitle(qb422016)
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 	qs422016 := string(qb422016.B)
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 	qt422016.ReleaseByteBuffer(qb422016)
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 	return qs422016
-//line oauth2/template/section.qtpl:27
+//line oauth2/template/section.qtpl:34
 }
 
-//line oauth2/template/section.qtpl:29
+//line oauth2/template/section.qtpl:36
 func (p *AppIndex) StreamBody(qw422016 *qt422016.Writer) {
-//line oauth2/template/section.qtpl:29
+//line oauth2/template/section.qtpl:36
 	qw422016.N().S(` <div class="panel"> `)
-//line oauth2/template/section.qtpl:31
+//line oauth2/template/section.qtpl:38
 	if len(p.Apps) == 0 {
-//line oauth2/template/section.qtpl:31
+//line oauth2/template/section.qtpl:38
 		qw422016.N().S(` <div class="panel-message muted">No OAuth applications created.</div> `)
-//line oauth2/template/section.qtpl:33
+//line oauth2/template/section.qtpl:40
 	} else {
-//line oauth2/template/section.qtpl:33
+//line oauth2/template/section.qtpl:40
 		qw422016.N().S(` <table class="table"> <tbody> `)
-//line oauth2/template/section.qtpl:36
+//line oauth2/template/section.qtpl:43
 		for _, a := range p.Apps {
-//line oauth2/template/section.qtpl:36
+//line oauth2/template/section.qtpl:43
 			qw422016.N().S(` <tr> <td> <a href="`)
-//line oauth2/template/section.qtpl:39
+//line oauth2/template/section.qtpl:46
 			qw422016.E().S(a.Endpoint())
-//line oauth2/template/section.qtpl:39
+//line oauth2/template/section.qtpl:46
 			qw422016.N().S(`">`)
-//line oauth2/template/section.qtpl:39
+//line oauth2/template/section.qtpl:46
 			qw422016.E().S(a.Name)
-//line oauth2/template/section.qtpl:39
+//line oauth2/template/section.qtpl:46
 			qw422016.N().S(`</a> `)
-//line oauth2/template/section.qtpl:40
+//line oauth2/template/section.qtpl:47
 			if a.Description != "" {
-//line oauth2/template/section.qtpl:40
+//line oauth2/template/section.qtpl:47
 				qw422016.N().S(` <br/><span class="muted">`)
-//line oauth2/template/section.qtpl:41
+//line oauth2/template/section.qtpl:48
 				qw422016.E().S(a.Description)
-//line oauth2/template/section.qtpl:41
+//line oauth2/template/section.qtpl:48
 				qw422016.N().S(`</span> `)
-//line oauth2/template/section.qtpl:42
+//line oauth2/template/section.qtpl:49
 			}
-//line oauth2/template/section.qtpl:42
+//line oauth2/template/section.qtpl:49
 			qw422016.N().S(` </td> </tr> `)
-//line oauth2/template/section.qtpl:45
+//line oauth2/template/section.qtpl:52
 		}
-//line oauth2/template/section.qtpl:45
+//line oauth2/template/section.qtpl:52
 		qw422016.N().S(` </tbody> </table> `)
-//line oauth2/template/section.qtpl:48
+//line oauth2/template/section.qtpl:55
 	}
-//line oauth2/template/section.qtpl:48
+//line oauth2/template/section.qtpl:55
 	qw422016.N().S(` </div> `)
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 }
 
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 func (p *AppIndex) WriteBody(qq422016 qtio422016.Writer) {
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 	p.StreamBody(qw422016)
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 	qt422016.ReleaseWriter(qw422016)
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 }
 
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 func (p *AppIndex) Body() string {
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 	qb422016 := qt422016.AcquireByteBuffer()
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 	p.WriteBody(qb422016)
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 	qs422016 := string(qb422016.B)
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 	qt422016.ReleaseByteBuffer(qb422016)
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 	return qs422016
-//line oauth2/template/section.qtpl:50
+//line oauth2/template/section.qtpl:57
 }
 
-//line oauth2/template/section.qtpl:52
+//line oauth2/template/section.qtpl:59
 func (p *AppIndex) StreamHeader(qw422016 *qt422016.Writer) {
-//line oauth2/template/section.qtpl:52
+//line oauth2/template/section.qtpl:59
 	qw422016.N().S(` Settings - OAuth Apps `)
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 }
 
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 func (p *AppIndex) WriteHeader(qq422016 qtio422016.Writer) {
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 	p.StreamHeader(qw422016)
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 	qt422016.ReleaseWriter(qw422016)
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 }
 
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 func (p *AppIndex) Header() string {
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 	qb422016 := qt422016.AcquireByteBuffer()
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 	p.WriteHeader(qb422016)
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 	qs422016 := string(qb422016.B)
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 	qt422016.ReleaseByteBuffer(qb422016)
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 	return qs422016
-//line oauth2/template/section.qtpl:54
+//line oauth2/template/section.qtpl:61
 }
 
-//line oauth2/template/section.qtpl:56
+//line oauth2/template/section.qtpl:63
 func (p *AppIndex) StreamActions(qw422016 *qt422016.Writer) {
-//line oauth2/template/section.qtpl:56
+//line oauth2/template/section.qtpl:63
 	qw422016.N().S(` <li><a href="/settings/apps/create" class="btn btn-primary">Create</a></li> `)
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 }
 
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 func (p *AppIndex) WriteActions(qq422016 qtio422016.Writer) {
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 	p.StreamActions(qw422016)
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 	qt422016.ReleaseWriter(qw422016)
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 }
 
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 func (p *AppIndex) Actions() string {
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 	qb422016 := qt422016.AcquireByteBuffer()
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 	p.WriteActions(qb422016)
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 	qs422016 := string(qb422016.B)
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 	qt422016.ReleaseByteBuffer(qb422016)
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 	return qs422016
-//line oauth2/template/section.qtpl:58
+//line oauth2/template/section.qtpl:65
 }
 
-//line oauth2/template/section.qtpl:60
-func (p *TokenIndex) StreamTitle(qw422016 *qt422016.Writer) {
-//line oauth2/template/section.qtpl:60
-	qw422016.N().S(` Access Tokens - Djinn `)
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:67
+func (p *ConnectionIndex) StreamTitle(qw422016 *qt422016.Writer) {
+//line oauth2/template/section.qtpl:67
+	qw422016.N().S(` Authorized OAuth Apps - Djinn `)
+//line oauth2/template/section.qtpl:69
 }
 
-//line oauth2/template/section.qtpl:62
-func (p *TokenIndex) WriteTitle(qq422016 qtio422016.Writer) {
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
+func (p *ConnectionIndex) WriteTitle(qq422016 qtio422016.Writer) {
+//line oauth2/template/section.qtpl:69
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
 	p.StreamTitle(qw422016)
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
 	qt422016.ReleaseWriter(qw422016)
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
 }
 
-//line oauth2/template/section.qtpl:62
-func (p *TokenIndex) Title() string {
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
+func (p *ConnectionIndex) Title() string {
+//line oauth2/template/section.qtpl:69
 	qb422016 := qt422016.AcquireByteBuffer()
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
 	p.WriteTitle(qb422016)
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
 	qs422016 := string(qb422016.B)
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
 	qt422016.ReleaseByteBuffer(qb422016)
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
 	return qs422016
-//line oauth2/template/section.qtpl:62
+//line oauth2/template/section.qtpl:69
 }
 
-//line oauth2/template/section.qtpl:64
-func (p *TokenIndex) StreamBody(qw422016 *qt422016.Writer) {
-//line oauth2/template/section.qtpl:64
+//line oauth2/template/section.qtpl:71
+func (p *ConnectionIndex) StreamBody(qw422016 *qt422016.Writer) {
+//line oauth2/template/section.qtpl:71
 	qw422016.N().S(` <div class="panel"> `)
-//line oauth2/template/section.qtpl:66
+//line oauth2/template/section.qtpl:73
 	if len(p.Tokens) == 0 {
-//line oauth2/template/section.qtpl:66
-		qw422016.N().S(` <div class="panel-message muted">No access tokens created.</div> `)
-//line oauth2/template/section.qtpl:68
+//line oauth2/template/section.qtpl:73
+		qw422016.N().S(` <div class="panel-message muted">No OAuth applications have been authorized.</div> `)
+//line oauth2/template/section.qtpl:75
 	} else {
-//line oauth2/template/section.qtpl:68
+//line oauth2/template/section.qtpl:75
 		qw422016.N().S(` <table class="table"> <tbody> `)
-//line oauth2/template/section.qtpl:71
+//line oauth2/template/section.qtpl:78
 		for _, t := range p.Tokens {
-//line oauth2/template/section.qtpl:71
-			qw422016.N().S(` <tr> <td> <strong><a href="`)
-//line oauth2/template/section.qtpl:74
-			qw422016.E().S(t.Endpoint())
-//line oauth2/template/section.qtpl:74
+//line oauth2/template/section.qtpl:78
+			qw422016.N().S(` <tr> <td> <a href="/settings/connections/`)
+//line oauth2/template/section.qtpl:81
+			qw422016.E().S(hex.EncodeToString(t.App.ClientID))
+//line oauth2/template/section.qtpl:81
 			qw422016.N().S(`">`)
-//line oauth2/template/section.qtpl:74
-			qw422016.E().S(t.Name)
-//line oauth2/template/section.qtpl:74
-			qw422016.N().S(`</a></strong> `)
-//line oauth2/template/section.qtpl:75
-			if t.Token != nil {
-//line oauth2/template/section.qtpl:75
-				qw422016.N().S(` - <span class="muted">`)
-//line oauth2/template/section.qtpl:76
-				qw422016.E().S(fmt.Sprintf("%x", t.Token))
-//line oauth2/template/section.qtpl:76
-				qw422016.N().S(`</span> `)
-//line oauth2/template/section.qtpl:77
-			}
-//line oauth2/template/section.qtpl:77
-			qw422016.N().S(` </td> <td class="align-right"> <form method="POST" action="`)
-//line oauth2/template/section.qtpl:80
-			qw422016.E().S(t.Endpoint())
-//line oauth2/template/section.qtpl:80
-			qw422016.N().S(`"> `)
 //line oauth2/template/section.qtpl:81
-			qw422016.N().V(p.CSRF)
+			qw422016.E().S(t.App.Name)
 //line oauth2/template/section.qtpl:81
-			qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> </td> </tr> `)
-//line oauth2/template/section.qtpl:87
+			qw422016.N().S(`</a><br/> Owned by `)
+//line oauth2/template/section.qtpl:82
+			qw422016.E().S(t.App.User.Username)
+//line oauth2/template/section.qtpl:82
+			qw422016.N().S(` </td> </tr> `)
+//line oauth2/template/section.qtpl:85
 		}
-//line oauth2/template/section.qtpl:87
+//line oauth2/template/section.qtpl:85
 		qw422016.N().S(` </tbody> </table> `)
-//line oauth2/template/section.qtpl:90
+//line oauth2/template/section.qtpl:88
 	}
-//line oauth2/template/section.qtpl:90
+//line oauth2/template/section.qtpl:88
 	qw422016.N().S(` </div> `)
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
 }
 
-//line oauth2/template/section.qtpl:92
-func (p *TokenIndex) WriteBody(qq422016 qtio422016.Writer) {
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
+func (p *ConnectionIndex) WriteBody(qq422016 qtio422016.Writer) {
+//line oauth2/template/section.qtpl:90
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
 	p.StreamBody(qw422016)
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
 	qt422016.ReleaseWriter(qw422016)
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
 }
 
-//line oauth2/template/section.qtpl:92
-func (p *TokenIndex) Body() string {
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
+func (p *ConnectionIndex) Body() string {
+//line oauth2/template/section.qtpl:90
 	qb422016 := qt422016.AcquireByteBuffer()
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
 	p.WriteBody(qb422016)
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
 	qs422016 := string(qb422016.B)
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
 	qt422016.ReleaseByteBuffer(qb422016)
-//line oauth2/template/section.qtpl:92
+//line oauth2/template/section.qtpl:90
 	return qs422016
+//line oauth2/template/section.qtpl:90
+}
+
 //line oauth2/template/section.qtpl:92
+func (p *ConnectionIndex) StreamHeader(qw422016 *qt422016.Writer) {
+//line oauth2/template/section.qtpl:92
+	qw422016.N().S(` Authorized OAuth Apps - Djinn `)
+//line oauth2/template/section.qtpl:94
 }
 
 //line oauth2/template/section.qtpl:94
-func (p *TokenIndex) StreamHeader(qw422016 *qt422016.Writer) {
+func (p *ConnectionIndex) WriteHeader(qq422016 qtio422016.Writer) {
 //line oauth2/template/section.qtpl:94
-	qw422016.N().S(` Settings - Access Tokens `)
-//line oauth2/template/section.qtpl:96
-}
-
-//line oauth2/template/section.qtpl:96
-func (p *TokenIndex) WriteHeader(qq422016 qtio422016.Writer) {
-//line oauth2/template/section.qtpl:96
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line oauth2/template/section.qtpl:96
+//line oauth2/template/section.qtpl:94
 	p.StreamHeader(qw422016)
-//line oauth2/template/section.qtpl:96
+//line oauth2/template/section.qtpl:94
 	qt422016.ReleaseWriter(qw422016)
-//line oauth2/template/section.qtpl:96
+//line oauth2/template/section.qtpl:94
 }
 
-//line oauth2/template/section.qtpl:96
-func (p *TokenIndex) Header() string {
-//line oauth2/template/section.qtpl:96
+//line oauth2/template/section.qtpl:94
+func (p *ConnectionIndex) Header() string {
+//line oauth2/template/section.qtpl:94
 	qb422016 := qt422016.AcquireByteBuffer()
-//line oauth2/template/section.qtpl:96
+//line oauth2/template/section.qtpl:94
 	p.WriteHeader(qb422016)
-//line oauth2/template/section.qtpl:96
+//line oauth2/template/section.qtpl:94
 	qs422016 := string(qb422016.B)
-//line oauth2/template/section.qtpl:96
+//line oauth2/template/section.qtpl:94
 	qt422016.ReleaseByteBuffer(qb422016)
-//line oauth2/template/section.qtpl:96
+//line oauth2/template/section.qtpl:94
 	return qs422016
+//line oauth2/template/section.qtpl:94
+}
+
+//line oauth2/template/section.qtpl:96
+func (p *ConnectionIndex) StreamActions(qw422016 *qt422016.Writer) {
 //line oauth2/template/section.qtpl:96
 }
 
-//line oauth2/template/section.qtpl:98
-func (p *TokenIndex) StreamActions(qw422016 *qt422016.Writer) {
-//line oauth2/template/section.qtpl:98
-	qw422016.N().S(` <li> <form method="POST" action="/settings/tokens/revoke"> `)
-//line oauth2/template/section.qtpl:101
-	qw422016.N().V(p.CSRF)
-//line oauth2/template/section.qtpl:101
-	qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Revoke All</button> </form> </li> <li><a href="/settings/tokens/create" class="btn btn-primary">Create</a></li> `)
-//line oauth2/template/section.qtpl:107
-}
-
-//line oauth2/template/section.qtpl:107
-func (p *TokenIndex) WriteActions(qq422016 qtio422016.Writer) {
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
+func (p *ConnectionIndex) WriteActions(qq422016 qtio422016.Writer) {
+//line oauth2/template/section.qtpl:96
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
 	p.StreamActions(qw422016)
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
 	qt422016.ReleaseWriter(qw422016)
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
 }
 
-//line oauth2/template/section.qtpl:107
-func (p *TokenIndex) Actions() string {
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
+func (p *ConnectionIndex) Actions() string {
+//line oauth2/template/section.qtpl:96
 	qb422016 := qt422016.AcquireByteBuffer()
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
 	p.WriteActions(qb422016)
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
 	qs422016 := string(qb422016.B)
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
 	qt422016.ReleaseByteBuffer(qb422016)
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
 	return qs422016
-//line oauth2/template/section.qtpl:107
+//line oauth2/template/section.qtpl:96
+}
+
+//line oauth2/template/section.qtpl:98
+func (p *TokenIndex) StreamTitle(qw422016 *qt422016.Writer) {
+//line oauth2/template/section.qtpl:98
+	qw422016.N().S(` Access Tokens - Djinn `)
+//line oauth2/template/section.qtpl:100
+}
+
+//line oauth2/template/section.qtpl:100
+func (p *TokenIndex) WriteTitle(qq422016 qtio422016.Writer) {
+//line oauth2/template/section.qtpl:100
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line oauth2/template/section.qtpl:100
+	p.StreamTitle(qw422016)
+//line oauth2/template/section.qtpl:100
+	qt422016.ReleaseWriter(qw422016)
+//line oauth2/template/section.qtpl:100
+}
+
+//line oauth2/template/section.qtpl:100
+func (p *TokenIndex) Title() string {
+//line oauth2/template/section.qtpl:100
+	qb422016 := qt422016.AcquireByteBuffer()
+//line oauth2/template/section.qtpl:100
+	p.WriteTitle(qb422016)
+//line oauth2/template/section.qtpl:100
+	qs422016 := string(qb422016.B)
+//line oauth2/template/section.qtpl:100
+	qt422016.ReleaseByteBuffer(qb422016)
+//line oauth2/template/section.qtpl:100
+	return qs422016
+//line oauth2/template/section.qtpl:100
+}
+
+//line oauth2/template/section.qtpl:102
+func (p *TokenIndex) StreamBody(qw422016 *qt422016.Writer) {
+//line oauth2/template/section.qtpl:102
+	qw422016.N().S(` <div class="panel"> `)
+//line oauth2/template/section.qtpl:104
+	if len(p.Tokens) == 0 {
+//line oauth2/template/section.qtpl:104
+		qw422016.N().S(` <div class="panel-message muted">No access tokens created.</div> `)
+//line oauth2/template/section.qtpl:106
+	} else {
+//line oauth2/template/section.qtpl:106
+		qw422016.N().S(` <table class="table"> <tbody> `)
+//line oauth2/template/section.qtpl:109
+		for _, t := range p.Tokens {
+//line oauth2/template/section.qtpl:109
+			qw422016.N().S(` <tr> <td> <strong><a href="`)
+//line oauth2/template/section.qtpl:112
+			qw422016.E().S(t.Endpoint())
+//line oauth2/template/section.qtpl:112
+			qw422016.N().S(`">`)
+//line oauth2/template/section.qtpl:112
+			qw422016.E().S(t.Name)
+//line oauth2/template/section.qtpl:112
+			qw422016.N().S(`</a></strong> `)
+//line oauth2/template/section.qtpl:113
+			if t.Token != nil {
+//line oauth2/template/section.qtpl:113
+				qw422016.N().S(` - <span class="muted">`)
+//line oauth2/template/section.qtpl:114
+				qw422016.E().S(fmt.Sprintf("%x", t.Token))
+//line oauth2/template/section.qtpl:114
+				qw422016.N().S(`</span> `)
+//line oauth2/template/section.qtpl:115
+			}
+//line oauth2/template/section.qtpl:115
+			qw422016.N().S(` </td> <td class="align-right"> <form method="POST" action="`)
+//line oauth2/template/section.qtpl:118
+			qw422016.E().S(t.Endpoint())
+//line oauth2/template/section.qtpl:118
+			qw422016.N().S(`"> `)
+//line oauth2/template/section.qtpl:119
+			qw422016.N().V(p.CSRF)
+//line oauth2/template/section.qtpl:119
+			qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> </td> </tr> `)
+//line oauth2/template/section.qtpl:125
+		}
+//line oauth2/template/section.qtpl:125
+		qw422016.N().S(` </tbody> </table> `)
+//line oauth2/template/section.qtpl:128
+	}
+//line oauth2/template/section.qtpl:128
+	qw422016.N().S(` </div> `)
+//line oauth2/template/section.qtpl:130
+}
+
+//line oauth2/template/section.qtpl:130
+func (p *TokenIndex) WriteBody(qq422016 qtio422016.Writer) {
+//line oauth2/template/section.qtpl:130
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line oauth2/template/section.qtpl:130
+	p.StreamBody(qw422016)
+//line oauth2/template/section.qtpl:130
+	qt422016.ReleaseWriter(qw422016)
+//line oauth2/template/section.qtpl:130
+}
+
+//line oauth2/template/section.qtpl:130
+func (p *TokenIndex) Body() string {
+//line oauth2/template/section.qtpl:130
+	qb422016 := qt422016.AcquireByteBuffer()
+//line oauth2/template/section.qtpl:130
+	p.WriteBody(qb422016)
+//line oauth2/template/section.qtpl:130
+	qs422016 := string(qb422016.B)
+//line oauth2/template/section.qtpl:130
+	qt422016.ReleaseByteBuffer(qb422016)
+//line oauth2/template/section.qtpl:130
+	return qs422016
+//line oauth2/template/section.qtpl:130
+}
+
+//line oauth2/template/section.qtpl:132
+func (p *TokenIndex) StreamHeader(qw422016 *qt422016.Writer) {
+//line oauth2/template/section.qtpl:132
+	qw422016.N().S(` Settings - Access Tokens `)
+//line oauth2/template/section.qtpl:134
+}
+
+//line oauth2/template/section.qtpl:134
+func (p *TokenIndex) WriteHeader(qq422016 qtio422016.Writer) {
+//line oauth2/template/section.qtpl:134
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line oauth2/template/section.qtpl:134
+	p.StreamHeader(qw422016)
+//line oauth2/template/section.qtpl:134
+	qt422016.ReleaseWriter(qw422016)
+//line oauth2/template/section.qtpl:134
+}
+
+//line oauth2/template/section.qtpl:134
+func (p *TokenIndex) Header() string {
+//line oauth2/template/section.qtpl:134
+	qb422016 := qt422016.AcquireByteBuffer()
+//line oauth2/template/section.qtpl:134
+	p.WriteHeader(qb422016)
+//line oauth2/template/section.qtpl:134
+	qs422016 := string(qb422016.B)
+//line oauth2/template/section.qtpl:134
+	qt422016.ReleaseByteBuffer(qb422016)
+//line oauth2/template/section.qtpl:134
+	return qs422016
+//line oauth2/template/section.qtpl:134
+}
+
+//line oauth2/template/section.qtpl:136
+func (p *TokenIndex) StreamActions(qw422016 *qt422016.Writer) {
+//line oauth2/template/section.qtpl:136
+	qw422016.N().S(` <li> <form method="POST" action="/settings/tokens/revoke"> `)
+//line oauth2/template/section.qtpl:139
+	qw422016.N().V(p.CSRF)
+//line oauth2/template/section.qtpl:139
+	qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Revoke All</button> </form> </li> <li><a href="/settings/tokens/create" class="btn btn-primary">Create</a></li> `)
+//line oauth2/template/section.qtpl:145
+}
+
+//line oauth2/template/section.qtpl:145
+func (p *TokenIndex) WriteActions(qq422016 qtio422016.Writer) {
+//line oauth2/template/section.qtpl:145
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line oauth2/template/section.qtpl:145
+	p.StreamActions(qw422016)
+//line oauth2/template/section.qtpl:145
+	qt422016.ReleaseWriter(qw422016)
+//line oauth2/template/section.qtpl:145
+}
+
+//line oauth2/template/section.qtpl:145
+func (p *TokenIndex) Actions() string {
+//line oauth2/template/section.qtpl:145
+	qb422016 := qt422016.AcquireByteBuffer()
+//line oauth2/template/section.qtpl:145
+	p.WriteActions(qb422016)
+//line oauth2/template/section.qtpl:145
+	qs422016 := string(qb422016.B)
+//line oauth2/template/section.qtpl:145
+	qt422016.ReleaseByteBuffer(qb422016)
+//line oauth2/template/section.qtpl:145
+	return qs422016
+//line oauth2/template/section.qtpl:145
 }

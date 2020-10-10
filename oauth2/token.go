@@ -80,6 +80,15 @@ func TokenModel(tt []*Token) func(int) database.Model {
 	}
 }
 
+// SelectToken returns SELECT query that will select the given column from the
+// oauth_tokens table with the given query options applied.
+func SelectToken(col string, opts ...query.Option) query.Query {
+	return query.Select(append([]query.Option{
+		query.Columns(col),
+		query.From(tokenTable),
+	}, opts...)...)
+}
+
 // Bind implements the database.Binder interface. This will only bind the model
 // if it is a pointer to either a user.User model or an App model.
 func (t *Token) Bind(mm ...database.Model) {

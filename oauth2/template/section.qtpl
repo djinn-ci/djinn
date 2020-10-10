@@ -1,5 +1,6 @@
 {%
 import (
+	"encoding/hex"
 	"fmt"
 	htmltemplate "html/template"
 
@@ -13,6 +14,12 @@ type AppIndex struct {
 	template.BasePage
 
 	Apps []*oauth2.App
+}
+
+type ConnectionIndex struct {
+	template.BasePage
+
+	Tokens []*oauth2.Token
 }
 
 type TokenIndex struct {
@@ -56,6 +63,37 @@ type TokenIndex struct {
 {% func (p *AppIndex) Actions() %}
 	<li><a href="/settings/apps/create" class="btn btn-primary">Create</a></li>
 {% endfunc %}
+
+{% func (p *ConnectionIndex) Title() %}
+	Authorized OAuth Apps - Djinn
+{% endfunc %}
+
+{% func (p *ConnectionIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Tokens) == 0 %}
+			<div class="panel-message muted">No OAuth applications have been authorized.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, t := range p.Tokens %}
+						<tr>
+							<td>
+								<a href="/settings/connections/{%s hex.EncodeToString(t.App.ClientID) %}">{%s t.App.Name %}</a><br/>
+								Owned by {%s t.App.User.Username %}
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *ConnectionIndex) Header() %}
+	Authorized OAuth Apps - Djinn
+{% endfunc %}
+
+{% func (p *ConnectionIndex) Actions() %}{% endfunc %}
 
 {% func (p *TokenIndex) Title() %}
 	Access Tokens - Djinn

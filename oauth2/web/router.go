@@ -21,9 +21,10 @@ import (
 )
 
 type Router struct {
-	oauth2 handler.Oauth2
-	app    handler.App
-	token  handler.Token
+	oauth2     handler.Oauth2
+	app        handler.App
+	token      handler.Token
+	connection handler.Connection
 
 	Block      *crypto.Block
 	Middleware web.Middleware
@@ -57,6 +58,9 @@ func tokenGate(db *sqlx.DB) web.Gate {
 }
 
 func (r *Router) Init(h web.Handler) {
+	apps := oauth2.NewAppStore(h.DB)
+	tokens := oauth2.NewTokenStore(h.DB)
+
 	r.oauth2 = handler.Oauth2{
 		Handler: h,
 		Apps:    oauth2.NewAppStoreWithBlock(h.DB, r.Block),
@@ -64,11 +68,16 @@ func (r *Router) Init(h web.Handler) {
 	r.app = handler.App{
 		Handler: h,
 		Block:   r.Block,
-		Apps:    oauth2.NewAppStore(h.DB),
+		Apps:    apps,
+	}
+	r.connection = handler.Connection{
+		Handler: h,
+		Apps:    apps,
+		Tokens:  tokens,
 	}
 	r.token = handler.Token{
 		Handler: h,
-		Tokens:  oauth2.NewTokenStore(h.DB),
+		Tokens:  tokens,
 	}
 }
 
@@ -85,6 +94,9 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/apps/{app}", r.app.Update).Methods("PATCH")
 	auth.HandleFunc("/apps/{app}/revoke", r.app.Update).Methods("PATCH")
 	auth.HandleFunc("/apps/{app}/reset", r.app.Update).Methods("PATCH")
+	auth.HandleFunc("/connections", r.connection.Index).Methods("GET")
+	auth.HandleFunc("/connections/{id}", r.connection.Show).Methods("GET")
+	auth.HandleFunc("/connections/{id}", r.connection.Destroy).Methods("DELETE")
 	auth.Use(r.Middleware.Auth, csrf)
 
 	tok := mux.PathPrefix("/settings/tokens").Subrouter()

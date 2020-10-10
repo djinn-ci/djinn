@@ -1,8 +1,8 @@
 package handler
 
 import (
+	"encoding/hex"
 	"net/http"
-	"strconv"
 
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
@@ -35,13 +35,13 @@ func (h App) appFromRequest(r *http.Request) (*oauth2.App, error) {
 		return nil, errors.New("failed to get user from context")
 	}
 
-	id, err := strconv.ParseInt(mux.Vars(r)["app"], 10, 64)
+	clientId, err := hex.DecodeString(mux.Vars(r)["app"])
 
 	if err != nil {
 		return nil, database.ErrNotFound
 	}
 
-	a, err := oauth2.NewAppStore(h.DB, u).Get(query.Where("id", "=", id))
+	a, err := oauth2.NewAppStore(h.DB, u).Get(query.Where("client_id", "=", clientId))
 
 	if err != nil {
 		return a, errors.Err(err)
@@ -70,22 +70,21 @@ func (h App) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := string(csrf.TemplateField(r))
+
+	bp := template.BasePage{
+		URL:  r.URL,
+		User: u,
+	}
 
 	p := &usertemplate.Settings{
-		BasePage: template.BasePage{
-			URL:  r.URL,
-			User: u,
-		},
-		Section: &oauth2template.AppIndex{
-			BasePage: template.BasePage{
-				URL:  r.URL,
-				User: u,
-			},
-			Apps: aa,
+		BasePage: bp,
+		Section:  &oauth2template.AppIndex{
+			BasePage: bp,
+			Apps:     aa,
 		},
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	web.HTML(w, template.Render(d), http.StatusOK)
 }

@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"strconv"
 	"strings"
 	"time"
 
@@ -135,9 +134,9 @@ func (*App) JSON(_ string) map[string]interface{} { return map[string]interface{
 // given uri parts to the returned endpoint.
 func (a *App) Endpoint(uri ...string) string {
 	if len(uri) > 0 {
-		return "/settings/apps/" + strconv.FormatInt(a.ID, 10) + "/" + strings.Join(uri, "/")
+		return "/settings/apps/" + hex.EncodeToString(a.ClientID) + "/" + strings.Join(uri, "/")
 	}
-	return "/settings/apps/" + strconv.FormatInt(a.ID, 10)
+	return "/settings/apps/" + hex.EncodeToString(a.ClientID)
 }
 
 // Values implements the database.Model interface. This will return a map with

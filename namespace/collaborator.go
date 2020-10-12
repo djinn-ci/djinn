@@ -204,8 +204,12 @@ func (s *CollaboratorStore) Create(cc ...*Collaborator) error {
 // Delete will remove the collaborator of the given username from the database.
 // The given chown functions will be invoked to change ownership of any
 // resources that user may have created within the namespace to the owner of
-// the namespace.
+// the namespace. This requires a bound Namespace to execute successfully.
 func (s *CollaboratorStore) Delete(username string, chowns ...func(int64, int64) error) error {
+	if s.Namespace == nil {
+		return errors.New("nil bound namespace")
+	}
+
 	u, err := user.NewStore(s.DB).Get(query.Where("username", "=", username))
 
 	if err != nil {

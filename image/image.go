@@ -236,6 +236,8 @@ func (s *Store) Create(hash, name string, t driver.Type, r io.Reader) (*Image, e
 	return i, errors.Err(err)
 }
 
+func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(table, from, to)) }
+
 // Delete deletes the given Image from the database, and removes the underlying
 // image file. It is expected for the Store to have a block.Store set on it,
 // otherwise it will error.

@@ -247,6 +247,8 @@ func (s *Store) Create(name, key, config string) (*Key, error) {
 	return k, errors.Err(err)
 }
 
+func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(table, from, to)) }
+
 // Update updates the key with the given id, and set's the new namespace for
 // the key, and the new config to use.
 func (s *Store) Update(id, namespaceId int64, config string) error {

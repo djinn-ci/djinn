@@ -197,6 +197,8 @@ func (s *Store) Create(key, val string) (*Variable, error) {
 	return v, errors.Err(err)
 }
 
+func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(table, from, to)) }
+
 // Delete deletes the Variable models from the database with the given ids.
 func (s *Store) Delete(ids ...int64) error {
 	mm := make([]database.Model, 0, len(ids))

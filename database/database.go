@@ -443,6 +443,17 @@ func (s Store) Create(table string, mm ...Model) error {
 	return nil
 }
 
+func (s Store) Chown(table string, from, to int64) error {
+	q := query.Update(
+		query.Table(table),
+		query.Set("user_id", to),
+		query.Where("user_id", "=", from),
+	)
+
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	return errors.Err(err)
+}
+
 // Update the given models in the given table. This expects the models given to
 // share the same column for the primary key.
 func (s Store) Update(table string, mm ...Model) error {

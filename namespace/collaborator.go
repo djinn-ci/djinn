@@ -201,11 +201,32 @@ func (s *CollaboratorStore) Create(cc ...*Collaborator) error {
 	return s.Store.Create(collaboratorTable, models...)
 }
 
-// Delete delets the given Collaborator models from the
-// namespace_collaborators table.
-func (s *CollaboratorStore) Delete(cc ...*Collaborator) error {
-	models := database.ModelSlice(len(cc), CollaboratorModel(cc))
-	return s.Store.Delete(collaboratorTable, models...)
+// Delete will remove the collaborator of the given username from the database.
+// The given chown functions will be invoked to change ownership of any
+// resources that user may have created within the namespace to the owner of
+// the namespace.
+func (s *CollaboratorStore) Delete(username string, chowns ...func(int64, int64) error) error {
+	u, err := user.NewStore(s.DB).Get(query.Where("username", "=", username))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	q := query.Delete(
+		query.From(collaboratorTable),
+		query.WhereQuery("user_id", "=", user.Select("id", query.Where("username", "=", username))),
+	)
+
+	if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+
+	for _, chown := range chowns {
+		if err := chown(u.ID, s.Namespace.UserID); err != nil {
+			return errors.Err(err)
+		}
+	}
+	return nil
 }
 
 // New returns a new Collaborator binding any non-nil models to it from the

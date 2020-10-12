@@ -265,6 +265,8 @@ func (s *Store) Create(name, hash, typ string, r io.Reader) (*Object, error) {
 	return o, errors.Err(err)
 }
 
+func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(table, from, to)) }
+
 // Delete deletes the object from the database of the given id. The given hash
 // is used to remove the object from the underlying block.Store.
 func (s *Store) Delete(id int64, hash string) error {

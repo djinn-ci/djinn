@@ -11,10 +11,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/http/httputil"
+//	"net/http/httputil"
 	"os"
 	"path/filepath"
-	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/andrewpillar/djinn/block"
@@ -22,7 +22,7 @@ import (
 	buildweb "github.com/andrewpillar/djinn/build/web"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
+//	"github.com/andrewpillar/djinn/errors"
 	imageweb "github.com/andrewpillar/djinn/image/web"
 	keyweb "github.com/andrewpillar/djinn/key/web"
 	"github.com/andrewpillar/djinn/log"
@@ -41,11 +41,19 @@ import (
 	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
-type Flow struct {
-	requests []*http.Request
-	codes    []int
-	handlers []func(*testing.T, *http.Request, []byte)
-	done     map[int]struct{}
+type client struct {
+	server *httptest.Server
+}
+
+type request struct {
+	name        string
+	method      string
+	uri         string
+	token       *oauth2.Token
+	contentType string
+	body        io.ReadCloser
+	code        int
+	check       func(*testing.T, string, *http.Request, *http.Response)
 }
 
 var (
@@ -61,6 +69,123 @@ var (
 	server *httptest.Server
 )
 
+func checkResponseJSONLen(l int) func(*testing.T, string, *http.Request, *http.Response) {
+	return func(t *testing.T, name string, req *http.Request, resp *http.Response) {
+		items := make([]interface{}, 0)
+
+		json.NewDecoder(resp.Body).Decode(&items)
+
+		if len(items) != l {
+			t.Errorf("unexpected number of json items in response for %q, expected=%d, got=%d\n", name, l, len(items))
+		}
+	}
+}
+
+func drain(t *testing.T, rc io.ReadCloser) (io.ReadCloser, io.ReadCloser) {
+	if rc == nil {
+		return nil, nil
+	}
+
+	var buf bytes.Buffer
+
+	if _, err := buf.ReadFrom(rc); err != nil {
+		t.Fatalf("unexpected bytes.Buffer.ReadFrom error: %s\n", err)
+	}
+	if err := rc.Close(); err != nil {
+		t.Fatalf("unexpected io.ReadCloser.Close error: %s\n", err)
+	}
+	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
+}
+
+func dumpRequest(t *testing.T, r *http.Request) {
+	t.Logf("%s %s", r.Method, r.URL.String())
+
+	for k, v := range r.Header {
+		t.Logf("%s: %s\n", k, strings.Join(v, "; "))
+	}
+
+	if r.Body != nil {
+		defer r.Body.Close()
+
+		var buf bytes.Buffer
+
+		if _, err := io.Copy(&buf, r.Body); err != nil {
+			t.Fatalf("unexpected io.Copy error: %s\n", err)
+		}
+		t.Logf("%s\n", buf.String())
+	}
+}
+
+func dumpResponse(t *testing.T, r *http.Response) {
+	t.Logf("%s\n", r.Status)
+
+	for k, v := range r.Header {
+		t.Logf("%s: %s\n", k, strings.Join(v, "; "))
+	}
+
+	if r.Body != nil {
+		defer r.Body.Close()
+
+		var buf bytes.Buffer
+
+		if _, err := io.Copy(&buf, r.Body); err != nil {
+			t.Fatalf("unexpected io.Copy error: %s\n", err)
+		}
+		t.Logf("%s\n", buf.String())
+	}
+}
+
+func jsonBody(v interface{}) io.ReadCloser {
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(v)
+	return ioutil.NopCloser(&buf)
+}
+
+func (c client) do(t *testing.T, r request) *http.Response {
+	req, err :=  http.NewRequest(r.method, c.server.URL + r.uri, r.body)
+
+	if err != nil {
+		t.Fatalf("unexpected http.NewRequest error: %s\n", err)
+	}
+
+	if r.token != nil {
+		req.Header.Set("Authorization", "Bearer " + hex.EncodeToString(r.token.Token))
+	}
+
+	req.Header.Set("Content-Type", r.contentType)
+
+	reqbody1, reqbody2 := drain(t, req.Body)
+
+	req.Body = reqbody1
+
+	resp, err := c.server.Client().Do(req)
+
+	if err != nil {
+		t.Fatalf("unexpected http.Client.Do error: %s\n", err)
+	}
+
+	req.Body = reqbody2
+
+	if resp.StatusCode != r.code {
+		t.Errorf("request test failed: %s\n", r.name)
+		t.Errorf("unexpected http response status, expected=%d, got=%q\n", r.code, resp.Status)
+		dumpRequest(t, req)
+		dumpResponse(t, resp)
+		t.FailNow()
+	}
+
+	respbody1, respbody2 := drain(t, resp.Body)
+
+	resp.Body = respbody1
+
+	if r.check != nil {
+		r.check(t, r.name, req, resp)
+	}
+
+	resp.Body = respbody2
+	return resp
+}
+
 func fatalf(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	os.Exit(1)
@@ -75,44 +200,7 @@ func getenv(key string) string {
 	return val
 }
 
-func NewFlow() *Flow {
-	return &Flow{
-		requests: make([]*http.Request, 0),
-		codes:    make([]int, 0),
-		handlers: make([]func(*testing.T, *http.Request, []byte), 0),
-		done:     make(map[int]struct{}),
-	}
-}
-
-func checkJSONResponseSize(l int) func(*testing.T, *http.Request, []byte) {
-	return func(t *testing.T, r *http.Request, b []byte) {
-		data := make([]interface{}, 0)
-
-		if err := json.Unmarshal(b, &data); err != nil {
-			t.Errorf("%q %q - unexpected Unmarshal error: %s\n", r.Method, r.URL, err)
-		}
-
-		if len(data) != l {
-			t.Errorf("%q %q - expected json array to have %d items, got=%d\n", r.Method, r.URL, l, len(data))
-		}
-	}
-}
-
-func checkJSONResponseSizeApprox(l int) func(*testing.T, *http.Request, []byte) {
-	return func(t *testing.T, r *http.Request, b []byte) {
-		data := make([]interface{}, 0)
-
-		if err := json.Unmarshal(b, &data); err != nil {
-			t.Errorf("%q %q - unexpected Unmarshal error: %s\n", r.Method, r.URL, err)
-		}
-
-		if len(data) < l {
-			t.Errorf("%q %q - expected json array to be >= %d, got=%d\n", r.Method, r.URL, l, len(data))
-		}
-	}
-}
-
-func ReadFile(t *testing.T, name string) []byte {
+func readFile(t *testing.T, name string) []byte {
 	b, err := ioutil.ReadFile(filepath.Join("testdata", name))
 
 	if err != nil {
@@ -121,64 +209,7 @@ func ReadFile(t *testing.T, name string) []byte {
 	return b
 }
 
-func JSON(t *testing.T, m map[string]interface{}) *bytes.Buffer {
-	buf := &bytes.Buffer{}
-
-	if err := json.NewEncoder(buf).Encode(m); err != nil {
-		t.Fatalf("unexpected Encode error: %s\n", err)
-	}
-	return buf
-}
-
-// ApiGet returns a new HTTP GET request to the given path with the given
-// token set in the Authorization header.
-func ApiGet(t *testing.T, path string, tok *oauth2.Token) *http.Request {
-	return NewApiRequest(t, "GET", path, tok, nil)
-}
-
-// ApiPost returns a new HTTP POST request to the given path, with the given
-// io.Reader as the body and with the given token set in the Authorization
-// header.
-func ApiPost(t *testing.T, path string, tok *oauth2.Token, r io.Reader) *http.Request {
-	return NewApiRequest(t, "POST", path, tok, r)
-}
-
-// ApiPatch returns a new HTTP PATCH request to the given path, with the given
-// io.Reader as the body and with the given token set in the Authorization
-// header.
-func ApiPatch(t *testing.T, path string, tok *oauth2.Token, r io.Reader) *http.Request {
-	return NewApiRequest(t, "PATCH", path, tok, r)
-}
-
-// ApiDelete returns a new HTTP DELETE request to the given path with the given
-// token set in the Authorization header.
-func ApiDelete(t *testing.T, path string, tok *oauth2.Token) *http.Request {
-	return NewApiRequest(t, "DELETE", path, tok, nil)
-}
-
-// NewApiRequest returns an http.Request with the given method, and path. This
-// will set the Authorization header to the given token, and set the
-// Content-Type header to application/json. If the creation of the request fails
-// then Fatalf is called on the given testing.T.
-func NewApiRequest(t *testing.T, method, path string, tok *oauth2.Token, r io.Reader) *http.Request {
-	req, err := http.NewRequest(method, server.URL+path, r)
-
-	if err != nil {
-		t.Fatalf("unexpected NewRequest error: %s\n", err)
-	}
-
-	if tok != nil {
-		req.Header.Set("Authorization", "Bearer "+hex.EncodeToString(tok.Token))
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	return req
-}
-
-// OpenFile opens a file of the given name from within the testdata directory
-// and returns it. If any error occurs then Fatalf is called on the given
-// testing.T.
-func OpenFile(t *testing.T, name string) *os.File {
+func openFile(t *testing.T, name string) *os.File {
 	f, err := os.Open(filepath.Join("testdata", name))
 
 	if err != nil {
@@ -187,9 +218,7 @@ func OpenFile(t *testing.T, name string) *os.File {
 	return f
 }
 
-// ReadAll returns all of the read bytes from the given io.Reader. If any errors
-// occur then Fatalf is called on the given testing.T.
-func ReadAll(t *testing.T, r io.Reader) []byte {
+func readAll(t *testing.T, r io.Reader) []byte {
 	b, err := ioutil.ReadAll(r)
 
 	if err != nil {
@@ -198,74 +227,9 @@ func ReadAll(t *testing.T, r io.Reader) []byte {
 	return b
 }
 
-func (f *Flow) Add(r *http.Request, code int, handler func(*testing.T, *http.Request, []byte)) {
-	f.requests = append(f.requests, r)
-	f.codes = append(f.codes, code)
-	f.handlers = append(f.handlers, handler)
-}
-
-func (f *Flow) fatal(t *testing.T, i int, req []byte, resp []byte, err error) {
-	buf := bytes.Buffer{}
-	buf.WriteString("requests[" + strconv.FormatInt(int64(i), 10) + "] - " + err.Error() + "\n")
-	buf.Write(req)
-	buf.WriteString("\n")
-	buf.Write(resp)
-
-	t.Fatal(buf.String())
-}
-
-func (f *Flow) Do(t *testing.T, cli *http.Client) {
-	for i, r := range f.requests {
-
-		// Make sure only new flow requests are executed in case Do is invoked
-		// multiple times.
-		if _, ok := f.done[i]; ok {
-			continue
-		}
-
-		func(i int, r *http.Request) {
-			t.Logf("requests[%d] - %s %s\n", i, r.Method, r.URL.Path)
-			reqBytes, err := httputil.DumpRequest(r, true)
-
-			if err != nil {
-				f.fatal(t, i, reqBytes, nil, errors.New("unexpected DumpRequest error: "+err.Error()))
-				return
-			}
-
-			resp, err := cli.Do(r)
-
-			if err != nil {
-				f.fatal(t, i, reqBytes, nil, errors.New("unexpected Do error: "+err.Error()))
-				return
-			}
-
-			respBytes, err := httputil.DumpResponse(resp, true)
-
-			if err != nil {
-				f.fatal(t, i, reqBytes, respBytes, errors.New("unexpected DumpResponse error: "+err.Error()))
-				return
-			}
-
-			defer resp.Body.Close()
-
-			if resp.StatusCode != f.codes[i] {
-				f.fatal(t, i, reqBytes, respBytes, fmt.Errorf("expected http status %d got=%d", f.codes[i], resp.StatusCode))
-				return
-			}
-
-			b, err := ioutil.ReadAll(resp.Body)
-
-			if err != nil {
-				f.fatal(t, i, reqBytes, respBytes, errors.New("unexpected ReadAll error: "+err.Error()))
-				return
-			}
-
-			if handler := f.handlers[i]; handler != nil {
-				handler(t, r, b)
-			}
-
-			f.done[i] = struct{}{}
-		}(i, r)
+func newClient(server *httptest.Server) client {
+	return client{
+		server: server,
 	}
 }
 

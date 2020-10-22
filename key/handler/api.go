@@ -54,7 +54,8 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			web.JSON(w, errs, http.StatusBadRequest)
 			return
 		case namespace.ErrPermission:
-			web.JSONError(w, "Unprocessable entity", http.StatusUnprocessableEntity)
+			web.JSON(w, map[string][]string{"namespace": []string{"Could not find namespace"}}, http.StatusBadRequest)
+			return
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

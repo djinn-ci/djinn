@@ -122,6 +122,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			errs := form.NewErrors()
 			errs.Put("manifest", errors.New("Namespace name can only contain letters and numbers"))
 
+			sess.AddFlash(f.Fields(), "form_fields")
 			sess.AddFlash(errs, "form_errors")
 			h.RedirectBack(w, r)
 			return

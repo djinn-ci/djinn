@@ -5,11 +5,13 @@ package config
 import (
 	"bytes"
 	"database/sql/driver"
+	"encoding/json"
 	"io"
 	"runtime"
 	"strings"
 
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/runner"
 
 	"github.com/pelletier/go-toml"
@@ -381,11 +383,22 @@ func (m Manifest) String() string {
 // Value returns a marshalled version of the manifest to be inserted into the
 // database.
 func (m Manifest) Value() (driver.Value, error) {
-	buf := &bytes.Buffer{}
-
-	enc := yaml.NewEncoder(buf)
-	enc.Encode(&m)
+	var buf bytes.Buffer
+	yaml.NewEncoder(&buf).Encode(&m)
 	return driver.Value(buf.String()), nil
+}
+
+// UnmarshalJSON unmarshal the given JSON string into the current manifest.
+func (m *Manifest) UnmarshalJSON(b []byte) error {
+	var s string
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		return form.UnmarshalError{
+			Field: "manifest",
+			Err:   err,
+		}
+	}
+	return m.UnmarshalText([]byte(s))
 }
 
 // UnmarshalText unmarshals the given bytes into a temporary anonymous struct
@@ -403,7 +416,12 @@ func (m *Manifest) UnmarshalText(b []byte) error {
 		Jobs          []Job              `yaml:",omitempty"`
 	}{}
 
-	err := yaml.Unmarshal(b, &tmp)
+	if err := yaml.Unmarshal(b, &tmp); err != nil {
+		return form.UnmarshalError{
+			Field: "manifest",
+			Err:   err,
+		}
+	}
 
 	m.Namespace = tmp.Namespace
 	m.Driver = tmp.Driver
@@ -414,7 +432,7 @@ func (m *Manifest) UnmarshalText(b []byte) error {
 	m.AllowFailures = tmp.AllowFailures
 	m.Jobs = tmp.Jobs
 
-	return errors.Err(err)
+	return nil
 }
 
 // Validate checks the manifest to see if the minimum configuration for a
@@ -423,7 +441,7 @@ func (m Manifest) Validate() error {
 	typ := m.Driver["type"]
 
 	if typ == "" {
-		return errors.New("driver type undefined")
+		return errors.New("driver not specified")
 	}
 
 	switch typ {

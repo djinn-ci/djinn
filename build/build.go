@@ -399,10 +399,6 @@ func (s *Store) Create(m config.Manifest, t *Trigger, tags ...string) (*Build, e
 			return b, errors.Err(err)
 		}
 
-		if !n.CanAdd(b.User) {
-			return b, namespace.ErrPermission
-		}
-
 		b.Namespace = n
 		b.NamespaceID = sql.NullInt64{
 			Int64: n.ID,

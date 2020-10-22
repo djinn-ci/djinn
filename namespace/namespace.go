@@ -379,16 +379,25 @@ func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
 	}
 
 	if n.IsZero() {
+		// Trying to lookup a namespace that isn't ours and doesn't exist,
+		// return ErrPermission.
+		if u.ID != s.User.ID {
+			return nil, ErrPermission
+		}
 		return n, nil
 	}
 
 	cc, err := NewCollaboratorStore(s.DB, n).All()
 
 	if err != nil {
-		return n, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
 	n.LoadCollaborators(cc)
+
+	if !n.CanAdd(s.User) {
+		return nil, ErrPermission
+	}
 	return n, nil
 }
 

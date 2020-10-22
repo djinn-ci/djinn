@@ -76,7 +76,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			web.JSONError(w, cause.Error(), http.StatusUnprocessableEntity)
 			return
 		case database.ErrNotFound:
-			web.JSONError(w, "Could not find parent", http.StatusUnprocessableEntity)
+			web.JSON(w, map[string][]string{"parent": []string{"Could not find parent"}}, http.StatusBadRequest)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

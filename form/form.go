@@ -62,33 +62,40 @@ func Unmarshal(f Form, r *http.Request) error {
 
 	dec := schema.NewDecoder()
 	dec.IgnoreUnknownKeys(true)
+
 	return errors.Err(dec.Decode(f, r.Form))
 }
 
-// UnmarshalAndValidate parses the HTTP reques body and stores it in the given
+// UnmarshalAndValidate parses the HTTP request body and stores it in the given
 // form, then validates it.
 func UnmarshalAndValidate(f Form, r *http.Request) error {
-	var unmarshalerr UnmarshalError
+	errs := NewErrors()
 
 	if err := Unmarshal(f, r); err != nil {
-		unmarshalerr, _ = errors.Cause(err).(UnmarshalError)
+		cause := errors.Cause(err)
+
+		switch v := cause.(type) {
+		case schema.MultiError:
+			for k, err := range v {
+				errs.Put(k, err)
+			}
+		case UnmarshalError:
+			errs.Put(v.Field, v.Err)
+		default:
+			return errors.Err(err)
+		}
 	}
 
 	if err := f.Validate(); err != nil {
-		if ferrs, ok := errors.Cause(err).(Errors); ok {
-			if unmarshalerr.Field != "" && unmarshalerr.Err != nil {
-				ferrs.Put(unmarshalerr.Field, unmarshalerr.Err)
-			}
-			return ferrs
+		v, ok := errors.Cause(err).(Errors)
+
+		if !ok {
+			return errors.Err(err)
 		}
-		return errors.Cause(err)
-	}
 
-	if unmarshalerr.Field != "" && unmarshalerr.Err != nil {
-		ferrs := NewErrors()
-		ferrs.Put(unmarshalerr.Field, unmarshalerr.Err)
-
-		return ferrs
+		for field, msgs := range v {
+			errs[field] = append(errs[field], msgs...)
+		}
 	}
-	return nil
+	return errs.Err()
 }

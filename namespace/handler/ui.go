@@ -645,18 +645,23 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 func (h CollaboratorUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	alert := template.Success("Collaborator removed: " + mux.Vars(r)["collaborator"])
-
 	if err := h.DeleteModel(r); err != nil {
-		if err == database.ErrNotFound {
+		switch err {
+		case database.ErrNotFound:
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
+		case namespace.ErrDeleteSelf:
+			sess.AddFlash(template.Danger("You cannot remove yourself"), "alert")
+			h.RedirectBack(w, r)
+			return
+		default:
+			h.Log.Error.Println(r.URL, r.Method, errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to remove collaborator"), "alert")
+			h.RedirectBack(w, r)
+			return
 		}
-
-		h.Log.Error.Println(r.URL, r.Method, errors.Err(err))
-		alert = template.Danger("Failed to remove collaborator")
 	}
 
-	sess.AddFlash(alert, "alert")
+	sess.AddFlash(template.Success("Collaborator remove: " + mux.Vars(r)["collaborator"]), "alert")
 	h.RedirectBack(w, r)
 }

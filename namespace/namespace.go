@@ -79,6 +79,7 @@ var (
 	ErrDepth            = errors.New("namespace cannot exceed depth of 20")
 	ErrName             = errors.New("namespace name can only contain letters and numbers")
 	ErrPermission       = errors.New("namespace permissions invalid")
+	ErrDeleteSelf       = errors.New("cannot delete self from namespace")
 )
 
 // NewStore returns a new Store for querying the namespaces table. Each database

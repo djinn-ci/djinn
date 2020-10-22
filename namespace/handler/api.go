@@ -448,6 +448,11 @@ func (h CollaboratorAPI) Index(w http.ResponseWriter, r *http.Request) {
 
 func (h CollaboratorAPI) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
+		if err == namespace.ErrDeleteSelf {
+			web.JSON(w, map[string][]string{"collaborator": []string{"You cannot remove yourself from the namespace"}}, http.StatusBadRequest)
+			return
+		}
+
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return

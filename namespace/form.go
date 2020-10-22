@@ -13,8 +13,8 @@ import (
 
 // Form is the type that represents input data for creating a new Namespace.
 type Form struct {
-	Namespaces *Store     `schema:"-"`
-	Namespace  *Namespace `schema:"-"`
+	Namespaces *Store     `schema:"-" json:"-"`
+	Namespace  *Namespace `schema:"-" json:"-"`
 
 	Parent      string     `schema:"parent"      json:"parent"`
 	Name        string     `schema:"name"        json:"name"`

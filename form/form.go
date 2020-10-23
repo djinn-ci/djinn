@@ -4,6 +4,7 @@ package form
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 
@@ -53,7 +54,14 @@ func ErrFieldRequired(field string) error { return errors.New(field + " can't be
 // header is set accordingly.
 func Unmarshal(f Form, r *http.Request) error {
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		return errors.Err(json.NewDecoder(r.Body).Decode(f))
+		err := json.NewDecoder(r.Body).Decode(f)
+
+		// If an empty body validate anyway so we can get some substantial
+		// error messages.
+		if err == io.EOF {
+			return f.Validate()
+		}
+		return errors.Err(err)
 	}
 
 	if err := r.ParseForm(); err != nil {

@@ -33,7 +33,6 @@ import (
 	"github.com/andrewpillar/djinn/provider/gitlab"
 	providerweb "github.com/andrewpillar/djinn/provider/web"
 	"github.com/andrewpillar/djinn/server"
-	"github.com/andrewpillar/djinn/session"
 	"github.com/andrewpillar/djinn/user"
 	userweb "github.com/andrewpillar/djinn/user/web"
 	variableweb "github.com/andrewpillar/djinn/variable/web"
@@ -42,8 +41,11 @@ import (
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
+	"github.com/gorilla/sessions"
 
 	"github.com/go-redis/redis"
+
+	"github.com/rbcervilla/redisstore"
 
 	"github.com/RichardKnop/machinery/v1"
 	qconfig "github.com/RichardKnop/machinery/v1/config"
@@ -290,10 +292,26 @@ func run(stdout, stderr io.Writer, args []string) error {
 		)
 	}
 
+	store, err := redisstore.NewRedisStore(redis)
+
+	if err != nil {
+		return err
+	}
+
+	store.KeyPrefix("session_")
+	store.KeyGen(func() (string, error) {
+		return string(blockKey), nil
+	})
+	store.Options(sessions.Options{
+		Path:  "/",
+		Domain: cfg.Host,
+		MaxAge: 86400 * 60,
+	})
+
 	handler := web.Handler{
 		DB:           db,
 		Log:          log,
-		Store:        session.New(redis, blockKey),
+		Store:        store,
 		SecureCookie: securecookie.New(hashKey, blockKey),
 		Users:        user.NewStore(db),
 	}

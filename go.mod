@@ -32,6 +32,7 @@ require (
 	github.com/opencontainers/image-spec v1.0.1 // indirect
 	github.com/pelletier/go-toml v1.6.0
 	github.com/pkg/sftp v1.10.1
+	github.com/rbcervilla/redisstore v1.1.0
 	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/streadway/amqp v0.0.0-20200108173154-1c71cc93ed71 // indirect
 	github.com/valyala/quicktemplate v1.4.1

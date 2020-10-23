@@ -8,16 +8,14 @@ import (
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/andrewpillar/djinn/namespace"
 )
 
 func Test_ManifestNamespaceValidation(t *testing.T) {
 	client := newClient(server)
 
-	manifest := "namespace: %s\ndriver:  type: qemu\n  image: centos/7"
-
-	checkFormErrors := func(t *testing.T, name string, req *http.Request, resp *http.Response) {
-
-	}
+	manifest := "namespace: %s\ndriver:\n  type: qemu\n  image: centos/7"
 
 	reqs := []request{
 		{
@@ -28,7 +26,7 @@ func Test_ManifestNamespaceValidation(t *testing.T) {
 			contentType: "application/json",
 			body:        jsonBody(map[string]interface{}{"manifest": fmt.Sprintf(manifest, "black-mesa")}),
 			code:        http.StatusBadRequest,
-			check:       checkFormErrors,
+			check:       checkFormErrors("manifest", namespace.ErrName.Error()),
 		},
 		{
 			name:        "incorrect namespace owner",
@@ -37,8 +35,8 @@ func Test_ManifestNamespaceValidation(t *testing.T) {
 			token:       myTok,
 			contentType: "application/json",
 			body:        jsonBody(map[string]interface{}{"manifest": fmt.Sprintf(manifest, "city17@you")}),
-			code:        http.StatusUnprocessableEntity,
-			check:       checkFormErrors,
+			code:        http.StatusBadRequest,
+			check:       checkFormErrors("namespace", "Could not find namespace"),
 		},
 		{
 			name:        "valid namespace name - me",
@@ -76,6 +74,7 @@ func Test_AnonymousBuild(t *testing.T) {
 	createResp := client.do(t, request{
 		name:        "create anonymous build",
 		method:      "POST",
+		uri:         "/api/builds",
 		token:       myTok,
 		contentType: "application/json",
 		body:        jsonBody(body),

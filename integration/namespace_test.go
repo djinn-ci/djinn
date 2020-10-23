@@ -59,6 +59,12 @@ func Test_NamespaceCRUD(t *testing.T) {
 		t.Fatalf("unexpected json.Decode error: %s\n", err)
 	}
 
+	parenturl, err := url.Parse(parent.URL)
+
+	if err != nil {
+		t.Fatalf("unexpected url.Parse error: %s\n", err)
+	}
+
 	childResp := client.do(t, request{
 		name:       "create child namespace fremen/chani",
 		method:     "POST",
@@ -105,8 +111,14 @@ func Test_NamespaceCRUD(t *testing.T) {
 		t.Fatalf("unexpected namespace visibility, expected=%q, got=%q\n", namespace.Private, grandchild.Visibility)
 	}
 
-	if grandchild.Parent.Name != "fremen/chani" {
+	if grandchild.Parent.Name != "chani" {
 		t.Fatalf("unexpected namespace name, expected=%q, got=%q\n", "fremen", grandchild.Parent.Name)
+	}
+
+	grandchildurl, err := url.Parse(grandchild.URL)
+
+	if err != nil {
+		t.Fatalf("unexpected url.Parse error: %s\n", err)
 	}
 
 	updatedGrandchild := map[string]interface{}{
@@ -115,8 +127,8 @@ func Test_NamespaceCRUD(t *testing.T) {
 
 	updateGrandchildResp := client.do(t, request{
 		name:       "attempt to set grandchild namespace visibility to 'internal'",
-		method:     "POST",
-		uri:        "/api/namespaces",
+		method:     "PATCH",
+		uri:        grandchildurl.Path,
 		token:       myTok,
 		contentType: "application/json",
 		body:        jsonBody(updatedGrandchild),
@@ -137,9 +149,9 @@ func Test_NamespaceCRUD(t *testing.T) {
 	}
 
 	updateParentResp := client.do(t, request{
-		name:       "attempt to set grandchild namespace visibility to 'internal'",
-		method:     "POST",
-		uri:        "/api/namespaces",
+		name:        "attempt to set parent namespace visibility to 'internal'",
+		method:      "PATCH",
+		uri:         parenturl.Path,
 		token:       myTok,
 		contentType: "application/json",
 		body:        jsonBody(updatedParent),
@@ -148,6 +160,20 @@ func Test_NamespaceCRUD(t *testing.T) {
 	defer updateParentResp.Body.Close()
 
 	if err := json.NewDecoder(updateParentResp.Body).Decode(&grandchild); err != nil {
+		t.Fatalf("unexpected json.Decode error: %s\n", err)
+	}
+
+	grandchildResp := client.do(t, request{
+		name:        "get grandchild namespace to recheck visibility",
+		method:      "GET",
+		uri:         grandchildurl.Path,
+		token:       myTok,
+		contentType: "application/json",
+		code:        http.StatusOK,
+	})
+	defer grandchildResp.Body.Close()
+
+	if err := json.NewDecoder(grandchildResp.Body).Decode(&grandchild); err != nil {
 		t.Fatalf("unexpected json.Decode error: %s\n", err)
 	}
 
@@ -178,12 +204,6 @@ func Test_NamespaceCRUD(t *testing.T) {
 		contentType: "application/json",
 		code:        http.StatusNotFound,
 	})
-
-	grandchildurl, err := url.Parse(grandchild.URL)
-
-	if err != nil {
-		t.Fatalf("unexpected url.Parse error: %s\n", err)
-	}
 
 	client.do(t, request{
 		name:        "attempt to view the fremen/chani namespace",

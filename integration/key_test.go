@@ -33,7 +33,16 @@ func Test_Key(t *testing.T) {
 	}
 
 	client.do(t, request{
-		name:        "attempt to create ssh key",
+		name:        "attempt to create ssh key with no body",
+		method:      "POST",
+		uri:         "/api/keys",
+		token:       myTok,
+		contentType: "application/json",
+		code:        http.StatusBadRequest,
+	})
+
+	client.do(t, request{
+		name:        "attempt to create ssh key with invalid key",
 		method:      "POST",
 		uri:         "/api/keys",
 		token:       myTok,

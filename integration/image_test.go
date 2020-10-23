@@ -37,7 +37,7 @@ func Test_Image(t *testing.T) {
 			token:       myTok,
 			contentType: "application/octet-stream",
 			body:        f,
-			code:        http.StatusBadRequest,
+			code:        http.StatusCreated,
 		},
 	}
 

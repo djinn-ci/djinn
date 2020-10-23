@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-//	"net/http/httputil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +21,6 @@ import (
 	buildweb "github.com/andrewpillar/djinn/build/web"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
-//	"github.com/andrewpillar/djinn/errors"
 	imageweb "github.com/andrewpillar/djinn/image/web"
 	keyweb "github.com/andrewpillar/djinn/key/web"
 	"github.com/andrewpillar/djinn/log"
@@ -77,6 +75,37 @@ func checkResponseJSONLen(l int) func(*testing.T, string, *http.Request, *http.R
 
 		if len(items) != l {
 			t.Errorf("unexpected number of json items in response for %q, expected=%d, got=%d\n", name, l, len(items))
+		}
+	}
+}
+
+func checkFormErrors(field string, msgs ...string) func(*testing.T, string, *http.Request, *http.Response) {
+	return func(t *testing.T, name string, req *http.Request, resp *http.Response) {
+		errs := make(map[string][]string)
+
+		if err := json.NewDecoder(resp.Body).Decode(&errs); err != nil {
+			t.Errorf("request test failed: %q\n", name)
+			t.Fatalf("unexpected json.Decode error: %s\n", err.Error())
+		}
+
+		msgs1, ok := errs[field]
+
+		if !ok {
+			t.Fatalf("expected field %s in errors json: %v\n", field, errs)
+		}
+
+		set := make(map[string]struct{})
+
+		for _, msg := range msgs1 {
+			set[msg] = struct{}{}
+		}
+
+		for _, msg := range msgs {
+			if _, ok := set[msg]; !ok {
+				dumpRequest(t, req)
+				t.Errorf("request test failed: %q\n", name)
+				t.Fatalf("could not find error message\nmessage = %q\nerrors  = %v", msg, errs)
+			}
 		}
 	}
 }
@@ -167,11 +196,10 @@ func (c client) do(t *testing.T, r request) *http.Response {
 	req.Body = reqbody2
 
 	if resp.StatusCode != r.code {
-		t.Errorf("request test failed: %s\n", r.name)
+		t.Errorf("request test failed: %q\n", r.name)
 		t.Errorf("unexpected http response status, expected=%d, got=%q\n", r.code, resp.Status)
 		dumpRequest(t, req)
 		dumpResponse(t, resp)
-		t.FailNow()
 	}
 
 	respbody1, respbody2 := drain(t, resp.Body)

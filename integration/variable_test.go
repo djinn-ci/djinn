@@ -17,7 +17,7 @@ func Test_Variable(t *testing.T) {
 
 	reqs := []request{
 		{
-			name:        "attempt to create variable",
+			name:        "attempt to create variable with no body",
 			method:      "POST",
 			uri:         "/api/variables",
 			token:       myTok,

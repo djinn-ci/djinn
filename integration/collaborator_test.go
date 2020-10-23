@@ -45,11 +45,11 @@ func Test_CollaboratorCRUD(t *testing.T) {
 	client.do(t, request{
 		name:        "attempt to create variable in conclave@me namespace as 'you'",
 		method:      "POST",
-		uri:         "/api/namespaces",
+		uri:         "/api/variables",
 		token:       yourTok,
 		contentType: "application/json",
 		body:        jsonBody(yourVariable),
-		code:        http.StatusUnprocessableEntity,
+		code:        http.StatusBadRequest,
 	})
 
 	client.do(t, request{
@@ -125,6 +125,12 @@ func Test_CollaboratorCRUD(t *testing.T) {
 		t.Fatalf("unexpected json.Decode error: %s\n", err)
 	}
 
+	variableurl, err := url.Parse(v.URL)
+
+	if err != nil {
+		t.Fatalf("unexpected url.Parse error: %s\n", err)
+	}
+
 	reqs := []request{
 		{
 			name:        "attempt to create namespace with parent 'conclave' as 'you'",
@@ -133,7 +139,7 @@ func Test_CollaboratorCRUD(t *testing.T) {
 			token:       yourTok,
 			contentType: "application/json",
 			body:        jsonBody(yourNamespace),
-			code:        http.StatusUnprocessableEntity,
+			code:        http.StatusBadRequest,
 		},
 		{
 			name:        "attempt to remove 'me' as collaborator from namespace",
@@ -168,9 +174,9 @@ func Test_CollaboratorCRUD(t *testing.T) {
 			code:        http.StatusNotFound,
 		},
 		{
-			name:        "attempt to view namespace variable as 'you'",
-			method:      "GET",
-			uri:         v.URL,
+			name:        "attempt to delete namespace variable as 'you'",
+			method:      "DELETE",
+			uri:         variableurl.Path,
 			token:       yourTok,
 			contentType: "application/json",
 			code:        http.StatusNotFound,
@@ -179,24 +185,5 @@ func Test_CollaboratorCRUD(t *testing.T) {
 
 	for _, req := range reqs {
 		client.do(t, req)
-	}
-
-	variableResp2 := client.do(t, request{
-		name:        "check variable user_id",
-		method:      "GET",
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusOK,
-	})
-	defer variableResp2.Body.Close()
-
-	originalUser := v.UserID
-
-	if err := json.NewDecoder(variableResp2.Body).Decode(&v); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
-	}
-
-	if originalUser == v.UserID {
-		t.Fatalf("expected variable user_id to change after collaborator deletion")
 	}
 }

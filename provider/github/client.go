@@ -22,8 +22,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type GitHub struct {
-	provider.Client
+type Client struct {
+	provider.BaseClient
 }
 
 type Error struct {
@@ -76,7 +76,7 @@ type PullRequestEvent struct {
 }
 
 var (
-	_ provider.Interface = (*GitHub)(nil)
+	_ provider.Client = (*Client)(nil)
 
 	signatureLength = 45
 
@@ -104,7 +104,7 @@ func decodeError(r io.Reader) Error {
 	return err
 }
 
-func (g *GitHub) findHook(tok, name, url string) (int64, error) {
+func (g *Client) findHook(tok, name, url string) (int64, error) {
 	resp, err := g.Get(tok, "/repos/" + name + "/hooks")
 
 	if err != nil {
@@ -133,7 +133,7 @@ func (g *GitHub) findHook(tok, name, url string) (int64, error) {
 	return id, nil
 }
 
-func (g *GitHub) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
+func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 	if len(signature) != signatureLength {
 		return nil, provider.ErrInvalidSignature
 	}
@@ -157,7 +157,7 @@ func (g *GitHub) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 	return b, nil
 }
 
-func New(host, endpoint, secret, clientId, clientSecret string) *GitHub {
+func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 	if endpoint == "" {
 		endpoint = "https://api.github.com"
 	}
@@ -178,8 +178,8 @@ func New(host, endpoint, secret, clientId, clientSecret string) *GitHub {
 		},
 	}
 
-	return &GitHub{
-		Client: provider.Client{
+	return &Client{
+		BaseClient: provider.BaseClient{
 			Config:      cfg,
 			Host:        host,
 			APIEndpoint: endpoint,
@@ -189,7 +189,7 @@ func New(host, endpoint, secret, clientId, clientSecret string) *GitHub {
 	}
 }
 
-func (g *GitHub) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
+func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
 	resp, err := g.Get(tok, "/user/repos?sort=updated&page=" + strconv.FormatInt(page, 10))
 
 	if err != nil {
@@ -227,7 +227,7 @@ func (g *GitHub) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	return rr, p, nil
 }
 
-func (g *GitHub) Groups(tok string) ([]int64, error) {
+func (g *Client) Groups(tok string) ([]int64, error) {
 	resp, err := g.Get(tok, "/user/orgs")
 
 	if err != nil {
@@ -250,7 +250,7 @@ func (g *GitHub) Groups(tok string) ([]int64, error) {
 	return ids, nil
 }
 
-func (g *GitHub) ToggleRepo(tok string, r *provider.Repo) error {
+func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 	if !r.Enabled {
 		body := map[string]interface{}{
 			"config": map[string]interface{}{
@@ -328,7 +328,7 @@ func (g *GitHub) ToggleRepo(tok string, r *provider.Repo) error {
 	return nil
 }
 
-func (g *GitHub) SetCommitStatus(tok string, r *provider.Repo, status runner.Status, url, sha string) error {
+func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Status, url, sha string) error {
 	body := map[string]string{
 		"state":       states[status],
 		"target_url":  url,

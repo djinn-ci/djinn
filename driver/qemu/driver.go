@@ -1,4 +1,4 @@
-// Package qemu provides an implementation of a QEMU driver for job execution.
+// Package qemu provides an implementation of a Driver driver for job execution.
 // This driver uses the SSH driver to achieve job execution.
 package qemu
 
@@ -23,54 +23,54 @@ import (
 
 type realpathFunc func(string, string) (string, error)
 
-type QEMU struct {
+type Driver struct {
 	io.Writer
 
-	ssh     *driverssh.SSH
+	ssh     *driverssh.Driver
 	pidfile *os.File
 	process *os.Process
 	port    int64
 
-	// Arch is the architecture of the QEMU machine that will be running the
+	// Arch is the architecture of the Driver machine that will be running the
 	// jobs.
 	Arch string
 
-	// CPUs specifies the number of CPUs to use on the QEMU machine.
+	// CPUs specifies the number of CPUs to use on the Driver machine.
 	CPUs int64
 
-	// Memory specifies the amount of memory to give the QEMU machine.
+	// Memory specifies the amount of memory to give the Driver machine.
 	Memory int64
 
 	Key   string
 	Image string
 
 	// Realpath is a function callback that will return the full path of the
-	// QCOW2 image to use when booting the QEMU machine.
+	// QCOW2 image to use when booting the Driver machine.
 	Realpath realpathFunc
 }
 
 var (
-	_ runner.Driver = (*QEMU)(nil)
+	_ runner.Driver = (*Driver)(nil)
 
 	tcpMaxPort int64 = 65535
 )
 
-// Init initializes a new QEMU driver using the given io.Writer, and
+// Init initializes a new Driver driver using the given io.Writer, and
 // configuration map. Detailed below are the values, types, and default values
 // that are used in the configuration map.
 //
-// CPUs - The number of CPUs to use for the QEMU machine is specified via the
+// CPUs - The number of CPUs to use for the Driver machine is specified via the
 // "cpus" field in the map. This is expected to be an int64, by default it will
 // be 1.
 //
-// Memory - The amount of memory to give the QEMU machine is specified via the
+// Memory - The amount of memory to give the Driver machine is specified via the
 // "memory" filed in the map. This is expected to be an int64, by default will
 // be 2048.
 //
 // Disks - The directory to look in when looking up the location of the QCOW2
 // images. This is expected to be a string, by default it will be ".".
 //
-// Image - The image to use when booting up the QEMU machine, it is expected to
+// Image - The image to use when booting up the Driver machine, it is expected to
 // be a string, there is no default value.
 func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	cpus, ok := cfg["cpus"].(int64)
@@ -99,7 +99,7 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 
 	image, _ := cfg["image"].(string)
 
-	return &QEMU{
+	return &Driver{
 		port:   2222,
 		Writer: w,
 		Arch:   "x86_64",
@@ -122,7 +122,7 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	}
 }
 
-func (q *QEMU) runCmd() error {
+func (q *Driver) runCmd() error {
 	disk, err := q.Realpath(q.Arch, q.Image)
 
 	if err != nil {
@@ -192,7 +192,7 @@ func (q *QEMU) runCmd() error {
 	}
 
 	q.pidfile = pidfile
-	q.ssh = &driverssh.SSH{
+	q.ssh = &driverssh.Driver{
 		Writer:   ioutil.Discard,
 		Addr:     net.JoinHostPort("127.0.0.1", strconv.FormatInt(q.port, 10)),
 		User:     "root",
@@ -202,19 +202,19 @@ func (q *QEMU) runCmd() error {
 	return nil
 }
 
-// Create will boot a new QEMU machine based on the configuration given via
-// a previous call to Init. The QEMU process will forward ports from the host
+// Create will boot a new Driver machine based on the configuration given via
+// a previous call to Init. The Driver process will forward ports from the host
 // to the guest to allow for SSH comms. The host port will be 2222, unless
 // already taken in which case it will increment until all TCP ports have been
 // exhausted.
-func (q *QEMU) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
 	var err error
 
 	if q.Writer == nil {
 		return errors.New("cannot create driver with nil io.Writer")
 	}
 
-	fmt.Fprintf(q.Writer, "Running with QEMU driver...\n")
+	fmt.Fprintf(q.Writer, "Running with Driver driver...\n")
 	fmt.Fprintf(q.Writer, "Creating machine with arch %s...\n", q.Arch)
 
 	fmt.Fprintf(q.Writer, "Booting machine with image %s...\n", q.Image)
@@ -254,13 +254,13 @@ func (q *QEMU) Create(c context.Context, env []string, objs runner.Passthrough, 
 	return errors.Err(err)
 }
 
-// Execute will perform the given job on the QEMU machine via a call to the
+// Execute will perform the given job on the Driver machine via a call to the
 // underlying SSH driver.
-func (q *QEMU) Execute(j *runner.Job, c runner.Collector) { q.ssh.Execute(j, c) }
+func (q *Driver) Execute(j *runner.Job, c runner.Collector) { q.ssh.Execute(j, c) }
 
-// Destroy will terminate the SSH connection to the QEMU machine, and kill the
+// Destroy will terminate the SSH connection to the Driver machine, and kill the
 // underlying OS process, then will remove the PIDFILE for that process.
-func (q *QEMU) Destroy() {
+func (q *Driver) Destroy() {
 	if q.ssh != nil {
 		q.ssh.Destroy()
 	}

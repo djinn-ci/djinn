@@ -1,4 +1,4 @@
-// Package docker providers an implementation of a Docker driver for job
+// Package docker providers an implementation of a Driver driver for job
 // execution. Each job executed will be done in a separate container, a volume
 // is used to persist state across these containers.
 package docker
@@ -23,9 +23,9 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-var _ runner.Driver = (*Docker)(nil)
+var _ runner.Driver = (*Driver)(nil)
 
-type Docker struct {
+type Driver struct {
 	io.Writer
 
 	client     *client.Client
@@ -36,15 +36,15 @@ type Docker struct {
 	Host    string
 	Version string
 
-	// Image specifies the Docker image of the container to use.
+	// Image specifies the Driver image of the container to use.
 	Image string
 
-	// Workspace specifies location on the Docker container to mount a volume
+	// Workspace specifies location on the Driver container to mount a volume
 	// to so state can be persisted.
 	Workspace string
 }
 
-// Init initializes a new Docker driver using the given io.Writer, and
+// Init initializes a new Driver driver using the given io.Writer, and
 // configuration map. Detailed below are the values, types, and default values
 // that are used in the configuration map.
 //
@@ -60,7 +60,7 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	image, _ := cfg["image"].(string)
 	workspace, _ := cfg["workspace"].(string)
 
-	return &Docker{
+	return &Driver{
 		Writer:    w,
 		Host:      host,
 		Version:   version,
@@ -70,17 +70,17 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 }
 
 // Create will create a volume, and pull down the configured image. The client
-// to the Docker daemon is derived from the environment. Once the client has
+// to the Driver daemon is derived from the environment. Once the client has
 // been established, the image volume is created, and the image is pulled down
 // from the repository.
-func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
 	var err error
 
 	if d.Writer == nil {
 		return errors.New("cannot create driver with nil io.Writer")
 	}
 
-	fmt.Fprintf(d.Writer, "Running with Docker driver...\n")
+	fmt.Fprintf(d.Writer, "Running with Driver driver...\n")
 
 	d.client, err = client.NewClientWithOpts(
 		client.WithHost(d.Host),
@@ -130,18 +130,18 @@ func (d *Docker) Create(c context.Context, env []string, objs runner.Passthrough
 		return err
 	}
 
-	fmt.Fprintf(d.Writer, "Using Docker image %s - %s...\n\n", d.Image, image.ID)
+	fmt.Fprintf(d.Writer, "Using Driver image %s - %s...\n\n", d.Image, image.ID)
 
 	d.env = env
 	return d.placeObjects(objs, p)
 }
 
-// Execute performs the given runner.Job in a Docker container. Each job is
+// Execute performs the given runner.Job in a Driver container. Each job is
 // turned into a shell script and placed onto an initial container. A
 // subsequent container is then created, and the previously placed script is
 // used as that new container's entrypoint. The logs for the container are
 // forwarded to the underlying io.Writer.
-func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
+func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 	hostCfg := &container.HostConfig{
 		Mounts: []mount.Mount{
 			mount.Mount{Type: mount.TypeVolume, Source: d.volume.Name, Target: d.Workspace},
@@ -310,7 +310,7 @@ func (d *Docker) Execute(j *runner.Job, c runner.Collector) {
 
 // Destroy will remove all containers created during job execution, and the
 // volume. All of these operations are forced.
-func (d *Docker) Destroy() {
+func (d *Driver) Destroy() {
 	if d.client == nil {
 		return
 	}
@@ -328,7 +328,7 @@ func (d *Docker) Destroy() {
 	d.client.VolumeRemove(ctx, d.volume.Name, true)
 }
 
-func (d *Docker) placeObjects(objs runner.Passthrough, p runner.Placer) error {
+func (d *Driver) placeObjects(objs runner.Passthrough, p runner.Placer) error {
 	if len(objs.Values) == 0 {
 		return nil
 	}

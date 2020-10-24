@@ -311,7 +311,7 @@ func (w *worker) run(id int64, host string) error {
 
 	d := driverInit(io.MultiWriter(r.buf, r.driverBuffer()), merged)
 
-	if q, ok := d.(*qemu.QEMU); ok {
+	if q, ok := d.(*qemu.Driver); ok {
 		q.Image = strings.Replace(q.Image, "..", "", -1)
 		q.Realpath = w.qemuRealPath(b, merged["disks"].(string))
 	}

@@ -459,10 +459,10 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gl, ok := cli.(*gitlab.GitLab)
+	gl, ok := cli.(*gitlab.Client)
 
 	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, "failed to type assert provider.Interface to *gitlab.GitLab")
+		h.Log.Error.Println(r.Method, r.URL, "failed to type assert provider.Client to *gitlab.Client")
 	}
 
 	body, err := cli.VerifyRequest(r.Body, r.Header.Get("X-Gitlab-Token"))

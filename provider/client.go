@@ -17,7 +17,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type Client struct {
+type BaseClient struct {
 	oauth2.Config
 
 	Host        string
@@ -28,10 +28,10 @@ type Client struct {
 
 type Registry struct {
 	mu   sync.RWMutex
-	imps map[string]Interface
+	imps map[string]Client
 }
 
-type Interface interface {
+type Client interface {
 	Auth(context.Context, url.Values) (string, string, User, error)
 
 	AuthURL() string
@@ -52,7 +52,7 @@ type Interface interface {
 	VerifyRequest(io.Reader, string) ([]byte, error)
 }
 
-type Factory func(string, string, string, string, string) Interface
+type Factory func(string, string, string, string, string) Client
 
 type User struct {
 	ID       int64
@@ -173,13 +173,13 @@ func GetNextAndPrev(link string) (int64, int64) {
 func NewRegistry() *Registry {
 	return &Registry{
 		mu:   sync.RWMutex{},
-		imps: make(map[string]Interface),
+		imps: make(map[string]Client),
 	}
 }
 
-func (c *Client) AuthURL() string { return c.AuthCodeURL(c.State) }
+func (c BaseClient) AuthURL() string { return c.AuthCodeURL(c.State) }
 
-func (c *Client) Auth(ctx context.Context, v url.Values) (string, string, User, error) {
+func (c BaseClient) Auth(ctx context.Context, v url.Values) (string, string, User, error) {
 	u := User{}
 
 	if state := v.Get("state"); state != "" {
@@ -221,7 +221,7 @@ func (c *Client) Auth(ctx context.Context, v url.Values) (string, string, User, 
 	return tok.AccessToken, tok.RefreshToken, u, nil
 }
 
-func (c *Client) do(method, tok, endpoint string, r io.Reader) (*http.Response, error) {
+func (c BaseClient) do(method, tok, endpoint string, r io.Reader) (*http.Response, error) {
 	req, err := http.NewRequest(method, c.APIEndpoint + endpoint, r)
 
 	if err != nil {
@@ -237,24 +237,24 @@ func (c *Client) do(method, tok, endpoint string, r io.Reader) (*http.Response, 
 	return resp, errors.Err(err)
 }
 
-func (c *Client) Get(tok, endpoint string) (*http.Response, error) {
+func (c BaseClient) Get(tok, endpoint string) (*http.Response, error) {
 	resp, err := c.do("GET", tok, endpoint, nil)
 	return resp, errors.Err(err)
 }
 
-func (c *Client) Post(tok, endpoint string, r io.Reader) (*http.Response, error) {
+func (c BaseClient) Post(tok, endpoint string, r io.Reader) (*http.Response, error) {
 	resp, err := c.do("POST", tok, endpoint, r)
 	return resp, errors.Err(err)
 }
 
-func (c *Client) Delete(tok, endpoint string) (*http.Response, error) {
+func (c BaseClient) Delete(tok, endpoint string) (*http.Response, error) {
 	resp, err := c.do("DELETE", tok, endpoint, nil)
 	return resp, errors.Err(err)
 }
 
-func (r *Registry) All() map[string]Interface { return r.imps }
+func (r *Registry) All() map[string]Client { return r.imps }
 
-func (r *Registry) Register(name string, imp Interface) {
+func (r *Registry) Register(name string, imp Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -264,7 +264,7 @@ func (r *Registry) Register(name string, imp Interface) {
 	r.imps[name] = imp
 }
 
-func (r *Registry) Get(name string) (Interface, error) {
+func (r *Registry) Get(name string) (Client, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

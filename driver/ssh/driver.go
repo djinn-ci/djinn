@@ -1,4 +1,4 @@
-// Package ssh provides an implemention of an SSH driver for executing jobs on.
+// Package ssh provides an implemention of an Driver driver for executing jobs on.
 package ssh
 
 import (
@@ -18,7 +18,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type SSH struct {
+type Driver struct {
 	io.Writer
 
 	client *ssh.Client
@@ -27,25 +27,25 @@ type SSH struct {
 	// Addr is the address of the machine to connect to.
 	Addr string
 
-	// The user credentials to use for accessing the machine via SSH.
+	// The user credentials to use for accessing the machine via Driver.
 	User     string
 	Password string
 
-	// Timeout is the timeout to use when attempting the SSH connection.
+	// Timeout is the timeout to use when attempting the Driver connection.
 	Timeout time.Duration
 }
 
-var _ runner.Driver = (*SSH)(nil)
+var _ runner.Driver = (*Driver)(nil)
 
-// Init initializes a new SSH driver using the given io.Writer, and
+// Init initializes a new Driver driver using the given io.Writer, and
 // configuration map. Detailed below are the values, types, and default values
 // that are used in the configuration map.
 //
-// Timeout - The timeout for the SSH driver is specified via the "timeout"
+// Timeout - The timeout for the Driver driver is specified via the "timeout"
 // field. It is expected for this to be an int64 for the timeout in seconds. The
 // default value is 60.
 //
-// Address - The address for the SSH driver is specified via the "address"
+// Address - The address for the Driver driver is specified via the "address"
 // field. It is expected for this to be a string, there is no default value
 // for this.
 func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
@@ -66,7 +66,7 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 
 	addr, _ := cfg["address"].(string)
 
-	return &SSH{
+	return &Driver{
 		Writer:   w,
 		Addr:     addr,
 		User:     user,
@@ -75,15 +75,15 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 	}
 }
 
-// Create opens up the SSH connection to the remote machine as configured via a
+// Create opens up the Driver connection to the remote machine as configured via a
 // previous call to Init. The given env slice is used to set an unexported
 // variable for setting environment variables during job execution.
-func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+func (s *Driver) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
 	if s.Writer == nil {
 		return errors.New("cannot create driver with nil io.Writer")
 	}
 
-	fmt.Fprintf(s.Writer, "Running with SSH driver...\n")
+	fmt.Fprintf(s.Writer, "Running with Driver driver...\n")
 
 	ticker := time.NewTicker(time.Second)
 	after := time.After(s.Timeout)
@@ -124,7 +124,7 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 		s.client = cli
 	}
 
-	fmt.Fprintf(s.Writer, "Established SSH connection to %s...\n\n", s.Addr)
+	fmt.Fprintf(s.Writer, "Established Driver connection to %s...\n\n", s.Addr)
 
 	s.env = env
 	return s.PlaceObjects(objs, p)
@@ -133,9 +133,9 @@ func (s *SSH) Create(c context.Context, env []string, objs runner.Passthrough, p
 // Execute will perform the given runner.Job. This turns it into a shell script
 // that is executed on the remote machine once placed via SFTP. Before the job
 // is executed however, the environment variables given via Create are set for
-// the SSH session being used to invoke the script. The stderr, and stdout
+// the Driver session being used to invoke the script. The stderr, and stdout
 // streams are forwarded to the underlying io.Writer.
-func (s *SSH) Execute(j *runner.Job, c runner.Collector) {
+func (s *Driver) Execute(j *runner.Job, c runner.Collector) {
 	sess, err := s.client.NewSession()
 
 	if err != nil {
@@ -200,14 +200,14 @@ func (s *SSH) Execute(j *runner.Job, c runner.Collector) {
 	cli.Remove(script)
 }
 
-// Destroy closes the SSH connection.
-func (s *SSH) Destroy() {
+// Destroy closes the Driver connection.
+func (s *Driver) Destroy() {
 	if s.client != nil {
 		s.client.Close()
 	}
 }
 
-func (s *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
+func (s *Driver) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 	if len(j.Artifacts.Values) == 0 {
 		return
 	}
@@ -255,7 +255,7 @@ func (s *SSH) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 
 // PlaceObjects copies the given objects from the given placer onto the
 // environment via SFTP.
-func (s *SSH) PlaceObjects(objects runner.Passthrough, p runner.Placer) error {
+func (s *Driver) PlaceObjects(objects runner.Passthrough, p runner.Placer) error {
 	if len(objects.Values) == 0 {
 		return nil
 	}

@@ -50,10 +50,10 @@ var (
 	}
 
 	providerFactories = map[string]provider.Factory{
-		"github": func(host, endpoint, secret, clientId, clientSecret string) provider.Interface {
+		"github": func(host, endpoint, secret, clientId, clientSecret string) provider.Client {
 			return github.New(host, endpoint, secret, clientId, clientSecret)
 		},
-		"gitlab": func(host, endpoint, secret, clientId, clientSecret string) provider.Interface {
+		"gitlab": func(host, endpoint, secret, clientId, clientSecret string) provider.Client {
 			return gitlab.New(host, endpoint, secret, clientId, clientSecret)
 		},
 	}

@@ -20,8 +20,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
-type GitLab struct {
-	provider.Client
+type Client struct {
+	provider.BaseClient
 }
 
 type Repo struct {
@@ -70,7 +70,7 @@ type MergeRequestEvent struct {
 }
 
 var (
-	_ provider.Interface = (*GitLab)(nil)
+	_ provider.Client = (*Client)(nil)
 
 	states = map[runner.Status]string{
 		runner.Queued:              "pending",
@@ -83,7 +83,7 @@ var (
 	}
 )
 
-func New(host, endpoint, secret, clientId, clientSecret string) *GitLab {
+func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 	if endpoint == "" {
 		endpoint = "https://gitlab.com/api/v4"
 	}
@@ -104,8 +104,8 @@ func New(host, endpoint, secret, clientId, clientSecret string) *GitLab {
 		},
 	}
 
-	return &GitLab{
-		Client: provider.Client{
+	return &Client{
+		BaseClient: provider.BaseClient{
 			Config:      cfg,
 			Host:        host,
 			APIEndpoint: endpoint,
@@ -115,7 +115,7 @@ func New(host, endpoint, secret, clientId, clientSecret string) *GitLab {
 	}
 }
 
-func (g *GitLab) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
+func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 	b, _ := ioutil.ReadAll(r)
 
 	if g.Secret != signature {
@@ -124,7 +124,7 @@ func (g *GitLab) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 	return b, nil
 }
 
-func (g *GitLab) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
+func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
 	spage := strconv.FormatInt(page, 10)
 
 	resp, err := g.Get(tok, "/projects?&membership=true&simple=true&order_by=updated_at&page=" + spage)
@@ -160,7 +160,7 @@ func (g *GitLab) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	return rr, p, nil
 }
 
-func (g *GitLab) Groups(tok string) ([]int64, error) {
+func (g *Client) Groups(tok string) ([]int64, error) {
 	resp, err := g.Get(tok, "/groups")
 
 	if err != nil {
@@ -183,7 +183,7 @@ func (g *GitLab) Groups(tok string) ([]int64, error) {
 	return ids, nil
 }
 
-func (g *GitLab) ToggleRepo(tok string, r *provider.Repo) error {
+func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 	id := strconv.FormatInt(r.RepoID, 10)
 
 	if !r.Enabled {
@@ -274,7 +274,7 @@ func (g *GitLab) ToggleRepo(tok string, r *provider.Repo) error {
 	return nil
 }
 
-func (g *GitLab) SetCommitStatus(tok string, r *provider.Repo, status runner.Status, url, sha string) error {
+func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Status, url, sha string) error {
 	body := map[string]interface{}{
 		"id":          r.RepoID,
 		"sha":         sha,

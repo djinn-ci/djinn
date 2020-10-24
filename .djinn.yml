@@ -16,15 +16,17 @@ jobs:
   commands:
   - cd djinn
   - go test -cover ./...
-  - go test -tags "integration" ./integration
+  - go test -v -tags "integration" ./integration
 - stage: make
   commands:
   - cd djinn
   - ./make.sh runner
+  - ./make.sh scheduler
   - ./make.sh server
   - ./make.sh worker
   artifacts:
   - bin/djinn
+  - bin/djinn-scheduler
   - bin/djinn-server
   - bin/djinn-worker
   - sum.manif

@@ -120,7 +120,7 @@ func (q *Driver) runCmd() error {
 	var pidfile *os.File
 
 	for q.port < tcpMaxPort {
-		pidfile, err = ioutil.TempFile("", "thrall-qemu-")
+		pidfile, err = ioutil.TempFile("", "djinn-qemu-")
 
 		if err != nil {
 			return err

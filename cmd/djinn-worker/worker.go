@@ -63,7 +63,7 @@ type worker struct {
 
 func (w *worker) init(name string, concurrency int) {
 	w.server.RegisterTask("run_build", w.run)
-	w.worker = w.server.NewWorker("thrall-worker-"+name, concurrency)
+	w.worker = w.server.NewWorker("djinn-worker-"+name, concurrency)
 	w.builds = build.NewStore(w.db)
 }
 

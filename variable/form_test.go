@@ -42,7 +42,7 @@ func Test_FormValidate(t *testing.T) {
 			Form{
 				Variables: variableStore,
 				Key:       "PGADDR",
-				Value:     "postgres://thrall:secret@localhost:5432/thrall",
+				Value:     "postgres://djinn:secret@localhost:5432/djinn",
 			},
 			[]string{},
 			false,
@@ -51,7 +51,7 @@ func Test_FormValidate(t *testing.T) {
 			Form{
 				Variables: variableStore,
 				Key:       "0PGADDR",
-				Value:     "postgres://thrall:secret@localhost:5432/thrall",
+				Value:     "postgres://djinn:secret@localhost:5432/djinn",
 			},
 			[]string{"key"},
 			true,
@@ -81,7 +81,7 @@ func Test_FormValidate(t *testing.T) {
 				},
 				Variables: variableStore,
 				Key:       "PGADDR",
-				Value:     "postgres://thrall:secret@localhost:5432/thrall",
+				Value:     "postgres://djinn:secret@localhost:5432/djinn",
 			},
 			[]string{},
 			false,

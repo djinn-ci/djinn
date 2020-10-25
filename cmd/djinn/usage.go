@@ -1,10 +1,10 @@
 package main
 
-var usage = `thrall - Simple build system
+var usage = `djinn - Simple build system
 
 Usage:
 
-  thrall [options...]
+  djinn [options...]
 
 Options:
 

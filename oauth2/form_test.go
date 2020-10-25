@@ -24,7 +24,7 @@ func Test_AppForm(t *testing.T) {
 				Apps:        store,
 				Name:        "hl2",
 				HomepageURI: "https://example.com",
-				RedirectURI: "https://example.com/oauth/thrall",
+				RedirectURI: "https://example.com/oauth/djinn",
 			},
 			[]string{},
 			false,
@@ -34,7 +34,7 @@ func Test_AppForm(t *testing.T) {
 				Apps:        store,
 				Name:        "hl2",
 				HomepageURI: "https://example.com",
-				RedirectURI: "https://example.com/oauth/thrall",
+				RedirectURI: "https://example.com/oauth/djinn",
 			},
 			[]string{},
 			false,
@@ -43,7 +43,7 @@ func Test_AppForm(t *testing.T) {
 			AppForm{
 				Apps:        store,
 				HomepageURI: "https://example.com",
-				RedirectURI: "https://example.com/oauth/thrall",
+				RedirectURI: "https://example.com/oauth/djinn",
 			},
 			[]string{"name"},
 			true,
@@ -52,7 +52,7 @@ func Test_AppForm(t *testing.T) {
 			AppForm{
 				Apps:        store,
 				HomepageURI: "https://example.com",
-				RedirectURI: "https://example.com/oauth/thrall",
+				RedirectURI: "https://example.com/oauth/djinn",
 			},
 			[]string{"name"},
 			true,
@@ -60,7 +60,7 @@ func Test_AppForm(t *testing.T) {
 		{
 			AppForm{
 				Apps:        store,
-				RedirectURI: "https://example.com/oauth/thrall",
+				RedirectURI: "https://example.com/oauth/djinn",
 			},
 			[]string{"name", "homepage_uri"},
 			true,

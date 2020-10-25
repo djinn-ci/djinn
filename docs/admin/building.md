@@ -1,4 +1,4 @@
-[Prev](/admin) - [Next](/admin/scheduler)
+[Prev](/admin) - [Next](/admin/curator)
 
 # Building
 

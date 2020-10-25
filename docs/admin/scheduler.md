@@ -1,4 +1,4 @@
-[Prev](/admin/building) - [Next](/admin/server)
+[Prev](/admin/curator) - [Next](/admin/server)
 
 # Scheduler
 
@@ -23,7 +23,7 @@ to start and run,
 
 | Dependency  | Reason                                                    |
 |-------------|-----------------------------------------------------------|
-| PostgreSQL  | Primary data store for the server.                        |
+| PostgreSQL  | Primary data store for the scheduler.                     |
 | Redis       | Data store for session data, and used as the build queue. |
 
 ## Configuring the Scheduler

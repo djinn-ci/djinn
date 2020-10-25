@@ -7,6 +7,7 @@ and how to administer the installation. These documents will also cover some
 recommended deployment strategies for Djinn.
 
 * [Building](/admin/building)
+* [Curator](/admin/curator)
 * [Scheduler](/admin/scheduler)
 * [Server](/admin/server)
 * [Worker](/admin/worker)

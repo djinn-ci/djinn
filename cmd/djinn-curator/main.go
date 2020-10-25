@@ -22,8 +22,6 @@ import (
 )
 
 var (
-	gigabyte int64 = 1 << 30
-
 	blockstores = map[string]func(string, int64) block.Store{
 		"file": func(dsn string, limit int64) block.Store {
 			return block.NewFilesystemWithLimit(dsn, limit)
@@ -34,7 +32,7 @@ var (
 	Version string
 )
 
-func curateArtifacts(log *log.Logger, users *user.Store, artifacts *build.ArtifactStore, store block.Store) error {
+func curateArtifacts(log *log.Logger, limit int64, users *user.Store, artifacts *build.ArtifactStore, store block.Store) error {
 	uu, err := users.All(query.Where("cleanup", "=", true))
 
 	if err != nil {
@@ -60,7 +58,7 @@ func curateArtifacts(log *log.Logger, users *user.Store, artifacts *build.Artifa
 		sum := sums[a.UserID]
 		sum += a.Size.Int64
 
-		if sum >= gigabyte {
+		if sum >= limit {
 			curated[a.UserID] = append(curated[a.UserID], a.Hash)
 		}
 	}
@@ -84,10 +82,12 @@ func run(stdout, stderr io.Writer, args []string) error {
 
 	var (
 		configfile  string
+		limit       int64
 		showversion bool
 	)
 
 	flags.BoolVar(&showversion, "version", false, "show the version and exit")
+	flags.Int64Var(&limit, "limit", 1 << 30, "remove artifacts that go over this limit")
 	flags.StringVar(&configfile, "config", "djinn-curator.toml", "the config file to use")
 	flags.Parse(args[1:])
 
@@ -182,7 +182,7 @@ loop:
 	for {
 		select {
 		case <-t.C:
-			if err := curateArtifacts(log, users, artifacts, store); err != nil {
+			if err := curateArtifacts(log, limit, users, artifacts, store); err != nil {
 				log.Error.Println("failed to curate artifacts", errors.Err(err))
 			}
 		case sig := <-c:

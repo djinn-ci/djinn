@@ -1,0 +1,16 @@
+
+
+[database]
+addr     = "localhost:5432"
+name     = "djinn"
+username = "djinn"
+password = "secret"
+
+# Where the artifacts to clean are stored.
+[artifacts]
+type = "file"
+path = "/var/lib/djinn/artifacts"
+
+[log]
+level = "debug"
+file  = "/dev/stdout"

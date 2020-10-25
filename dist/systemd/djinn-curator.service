@@ -1,0 +1,17 @@
+
+
+[Unit]
+Description=Djinn CI Curator
+After=network-online.target
+
+[Service]
+Type=simple
+User=djinn-curator
+Group=djinn
+PIDFile=/run/djinn/curator.pid
+ExecStart=/usr/bin/djinn-curator -config /etc/djinn/curator.toml
+KillMode=mixed
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

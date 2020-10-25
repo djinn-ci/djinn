@@ -143,6 +143,9 @@ case "$1" in
 	scheduler)
 		build djinn-scheduler
 		;;
+	curator)
+		build djinn-curator
+		;;
 	help)
 		shift 1
 		help_ "$1"

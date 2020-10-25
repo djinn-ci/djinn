@@ -83,17 +83,33 @@ type Scheduler struct {
 	Pidfile string
 
 	Database Database
-	Redis    struct {
+
+	Redis struct {
 		Addr     string
 		Password string
 	}
-	Log     struct {
+
+	Log struct {
 		Level string
 		File  string
 	}
+
 	Drivers []struct {
 		Type  string
 		Queue string
+	}
+}
+
+// Curator represents the configuration used for the djinn-curator.
+type Curator struct {
+	Pidfile string
+
+	Database  Database
+	Artifacts Storage
+
+	Log struct {
+		Level string
+		File  string
 	}
 }
 
@@ -298,6 +314,17 @@ func DecodeScheduler(r io.Reader) (Scheduler, error) {
 		return scheduler, errors.Err(err)
 	}
 	return scheduler, nil
+}
+
+func DecodeCurator(r io.Reader) (Curator, error) {
+	dec := toml.NewDecoder(r)
+
+	curator := Curator{}
+
+	if err := dec.Decode(&curator); err != nil {
+		return curator, errors.Err(err)
+	}
+	return curator, nil
 }
 
 // DecodeWorker takes the given io.Reader, and decodes its content to a Worker,

@@ -137,22 +137,3 @@ func Test_CollaboratorStoreCreate(t *testing.T) {
 		t.Fatalf("expected = '%d' actual = '%d'\n", id, c.ID)
 	}
 }
-
-func Test_CollaboratorStoreUpdate(t *testing.T) {
-	store, mock, close_ := collaboratorStore(t)
-	defer close_()
-
-	cc := []*Collaborator{
-		&Collaborator{ID: 1},
-		&Collaborator{ID: 2},
-		&Collaborator{ID: 3},
-	}
-
-	expected := fmt.Sprintf(deleteFmt, collaboratorTable)
-
-	mock.ExpectExec(expected).WillReturnResult(sqlmock.NewResult(0, 3))
-
-	if err := store.Delete(cc...); err != nil {
-		t.Fatal(errors.Cause(err))
-	}
-}

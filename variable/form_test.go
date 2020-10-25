@@ -31,6 +31,8 @@ func Test_FormValidate(t *testing.T) {
 	namespaceStore, namespaceMock, namespaceClose := namespaceStore(t)
 	defer namespaceClose()
 
+	namespaceStore.User = &user.User{ID: 10}
+
 	tests := []struct {
 		form        Form
 		errs        []string
@@ -101,8 +103,8 @@ func Test_FormValidate(t *testing.T) {
 			uniqueArgs = []driver.Value{namespaceId, test.form.Key}
 
 			namespaceMock.ExpectQuery(
-				regexp.QuoteMeta("SELECT * FROM namespaces WHERE (path = $1)"),
-			).WithArgs(test.form.Namespace).WillReturnRows(
+				regexp.QuoteMeta("SELECT * FROM namespaces WHERE (user_id = $1 AND path = $2)"),
+			).WithArgs(userId, test.form.Namespace).WillReturnRows(
 				sqlmock.NewRows([]string{"id", "root_id"}).AddRow(namespaceId, namespaceId),
 			)
 

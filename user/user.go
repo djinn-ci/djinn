@@ -341,6 +341,7 @@ func (s *Store) Update(id int64, email string, cleanup bool, password []byte) er
 
 		opts = append(opts, query.Set("password", hash))
 	}
+	opts = append(opts, query.Where("id", "=", id))
 
 	q := query.Update(opts...)
 

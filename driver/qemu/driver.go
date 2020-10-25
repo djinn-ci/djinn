@@ -80,12 +80,6 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 		memory = 2048
 	}
 
-	key, ok := cfg["key"].(string)
-
-	if !ok {
-		key = filepath.Join(os.Getenv("HOME"), ".ssh", "id_rsa")
-	}
-
 	dir, ok := cfg["disks"].(string)
 
 	if !ok {
@@ -100,7 +94,6 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 		Arch:   "x86_64",
 		CPUs:   cpus,
 		Memory: memory,
-		Key:    key,
 		Image:  image,
 		Realpath: func(arch, image string) (string, error) {
 			path := filepath.Join(dir, arch, filepath.Join(strings.Split(image, "/")...))

@@ -258,7 +258,7 @@ func Test_StoreCreate(t *testing.T) {
 			},
 			[]string{"centos/7"},
 			[]string{
-				"^SELECT \\* FROM namespaces WHERE \\(path = \\$1\\)$",
+				"^SELECT \\* FROM namespaces WHERE \\(user_id = \\$1 AND path = \\$2\\)$",
 				"^SELECT \\* FROM namespace_collaborators WHERE \\(namespace_id = \\$1\\)$",
 				"^INSERT INTO builds (.+) VALUES (.+)$",
 				"^INSERT INTO build_triggers (.+) VALUES (.+)$",

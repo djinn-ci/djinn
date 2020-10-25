@@ -130,7 +130,7 @@ func Test_AppStoreUpdate(t *testing.T) {
 	defer close_()
 
 	mock.ExpectExec(
-		"^UPDATE oauth_apps SET name = \\$1, description = \\$2, homepage_uri = \\$3, redirect_uri = \\$4 WHERE \\(id = \\$5\\)$",
+		"^UPDATE oauth_apps SET name = \\$1, description = \\$2, home_uri = \\$3, redirect_uri = \\$4 WHERE \\(id = \\$5\\)$",
 	).WithArgs("my app", "", "example.com", "example.com/oauth", 10).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	if err := store.Update(10, "my app", "", "example.com", "example.com/oauth"); err != nil {

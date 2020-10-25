@@ -204,6 +204,10 @@ func (n *Namespace) AccessibleBy(m database.Model) bool {
 // Namespace. This assumes that the collaborators have been previously loaded
 // into the Namespace.
 func (n *Namespace) CanAdd(m database.Model) bool {
+	if m.IsZero() {
+		return false
+	}
+
 	if _, ok := m.(*user.User); !ok {
 		return false
 	}
@@ -380,10 +384,12 @@ func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
 	}
 
 	if n.IsZero() {
-		// Trying to lookup a namespace that isn't ours and doesn't exist,
-		// return ErrPermission.
-		if u.ID != s.User.ID {
-			return nil, ErrPermission
+		if !s.User.IsZero() {
+			// Attempt was made to lookup a non-existent namespace for a user
+			// other than the current one, return ErrPermission.
+			if u.ID != s.User.ID {
+				return nil, ErrPermission
+			}
 		}
 		return n, nil
 	}

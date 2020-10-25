@@ -149,6 +149,8 @@ func run(stdout, stderr io.Writer, args []string) error {
 		return err
 	}
 
+	defer db.Close()
+
 	log.Info.Println("connected to postgresql database")
 
 	broker := "redis://"

@@ -37,13 +37,21 @@ verify your account's email address,
     %s/settings/verify?token=%s`
 )
 
+// User is the handler for handling requests made for managing registration,
+// authentication and account management.
 type User struct {
 	web.Handler
 
-	Prefix   string
+	// Registry is the register that holds the provider client implementations
+	// we use for interacting with that provider's API.
 	Registry *provider.Registry
 }
 
+// Register will serve the HTML response for registering an account on a GET
+// request. On a POST request it will validate the user's account being created
+// and attempt to create a new user. On successful registration an email will be
+// sent for the account to be verified, and the user will be redirect to the
+// login page.
 func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -115,6 +123,11 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/login")
 }
 
+// Login will serve the HTML response for logging in on a GET request. This
+// will either allow for direct authentication against the server itself or
+// will allow for logging in via a third party provider. On a POST request it
+// will attempt to authenticate the user. On successful authentication the user
+// is set in the session, and redirected to the main dashboard.
 func (h User) Login(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -221,6 +234,10 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, uri)
 }
 
+// NewPassword serves the HTML response for setting a new password on a GET
+// request. On a POST request this will attempt to set the new password the
+// user specified for their account, if the token given to them via email
+// is valid.
 func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -275,6 +292,11 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/login")
 }
 
+// PasswordReset will serve the HTML response for requesting a password reset
+// token as part of the forgotten password flow. On a POST request this will
+// generate a new account token that is used for authenticating the user
+// resetting the password when they cannot otherwise provide meaningful
+// authentication. The token that is generated expires after a minute.
 func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -350,6 +372,7 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Logout will log the user out of the current session.
 func (h User) Logout(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "user",
@@ -360,6 +383,8 @@ func (h User) Logout(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/")
 }
 
+// Settings will serve the HTML response showing the settings page for managing
+// a user's account.
 func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -538,6 +563,7 @@ func (h User) Cleanup(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Email will update the user's email to the one given in the request.
 func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -581,6 +607,7 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Password will update the user's password to the one given in the request.
 func (h User) Password(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -621,6 +648,8 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Destroy will mark the user's account as deleted by setting the deleted_at
+// column in the database to the current time.
 func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

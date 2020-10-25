@@ -20,19 +20,28 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Router is what registers the routes to handling the management of OAuth
+// tokens, and applications. It implements the server.Router interface.
 type Router struct {
 	oauth2     handler.Oauth2
 	app        handler.App
 	token      handler.Token
 	connection handler.Connection
 
-	Block      *crypto.Block
+	// Block is the block cipher to use for encrypting client secrets.
+	Block *crypto.Block
+
+	// Middleware is the middleware that is applied to any routes registered
+	// from this router.
 	Middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)
 
-func tokenGate(db *sqlx.DB) web.Gate {
+// Gate returns a web.Gate that checks if the current authenticated user has
+// the access permissions to the current token. If the current user can access
+// the current token, then it is set in the request's context.
+func Gate(db *sqlx.DB) web.Gate {
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
 		base := web.BasePath(r.URL.Path)
 
@@ -57,6 +66,9 @@ func tokenGate(db *sqlx.DB) web.Gate {
 	}
 }
 
+// Init initialises the handlers for the OAuth server, managing OAuth apps and
+// tokens. The exported properties on the Router itself are passed through to
+// the underlying handlers.
 func (r *Router) Init(h web.Handler) {
 	apps := oauth2.NewAppStore(h.DB)
 	tokens := oauth2.NewTokenStore(h.DB)
@@ -81,6 +93,9 @@ func (r *Router) Init(h web.Handler) {
 	}
 }
 
+// RegisterUI registers the UI routes for handling the OAuth web flow, managing
+// OAuth apps, and personal access tokens. No CSRF protection is applied to the
+// OAuth web flow routes.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
 	mux.HandleFunc("/login/oauth/authorize", r.oauth2.Auth).Methods("GET", "POST")
 	mux.HandleFunc("/login/oauth/token", r.oauth2.Token).Methods("POST")
@@ -108,7 +123,8 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	tok.HandleFunc("/{token}", r.token.Update).Methods("PATCH")
 	tok.HandleFunc("/{token}/regenerate", r.token.Update).Methods("PATCH")
 	tok.HandleFunc("/{token}", r.token.Destroy).Methods("DELETE")
-	tok.Use(r.Middleware.Gate(tokenGate(r.token.DB)), csrf)
+	tok.Use(r.Middleware.Gate(gates...), csrf)
 }
 
+// RegisterAPI is a stub method to implement the server.Router interface.
 func (r *Router) RegisterAPI(_ string, _ *mux.Router, _ ...web.Gate) {}

@@ -13,22 +13,17 @@ import (
 
 var skip = 1
 
+// Slice implements the builtin error interface. This captures a slice of
+// errors.
 type Slice []error
 
 // Error implements the builtin error interface. This captures information
 // about the underlying error itself, and where the error occurred.
 type Error struct {
-	// Err is the underlying error that occurred.
-	Err error
-
-	// Func is the name of the function caller that triggered the error.
-	Func string
-
-	// File is the name of the file where the error occured.
-	File string
-
-	// Line is the line number in the file where the error occurred.
-	Line int
+	Err  error  // Err is the underlying error that occured.
+	Func string // Func is the name of the calling function that triggered the error.
+	File string // File is the source file where the error occured.
+	Line int    // Line is the line number in the source file where the error occurred.
 }
 
 type errorStr string
@@ -91,6 +86,8 @@ func (e *Error) Error() string {
 
 func (e *errorStr) Error() string { return string(*e) }
 
+// Err returns the underlying error value for the slice of errors, if the
+// underlying slice contains errors.
 func (e Slice) Err() error {
 	if len(e) > 0 {
 		return e
@@ -98,6 +95,8 @@ func (e Slice) Err() error {
 	return nil
 }
 
+// Error returns a formatted string of the errors in the slice. Each error will
+// be on a separate line in the returned string.
 func (e Slice) Error() string {
 	buf := &bytes.Buffer{}
 

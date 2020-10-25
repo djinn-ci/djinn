@@ -25,6 +25,8 @@ import (
 
 var _ runner.Driver = (*Driver)(nil)
 
+// Driver provides an implementation of the runner.Dirver interface for running
+// jobs within a Docker container.
 type Driver struct {
 	io.Writer
 
@@ -33,11 +35,9 @@ type Driver struct {
 	env        []string
 	containers []string
 
-	Host    string
-	Version string
-
-	// Image specifies the Driver image of the container to use.
-	Image string
+	Host    string // Host is the host of the Docker registry to use.
+	Version string // Version is the Docker API version to use.
+	Image   string // Image is the name of the image to use in the Docker container.
 
 	// Workspace specifies location on the Driver container to mount a volume
 	// to so state can be persisted.

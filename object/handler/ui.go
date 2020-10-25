@@ -23,10 +23,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// UI is the handler for handling UI requests made for object creation, and
+// management.
 type UI struct {
 	Object
 }
 
+// Index serves the HTML response detailing the list of objects.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -61,6 +64,8 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for creating and uploading objects via the
+// web frontend.
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -84,6 +89,9 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for creating an
+// object. If validation fails then the user is redirected back to the request
+// referer, otherwise they are redirect back to the object index.
 func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -122,6 +130,9 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/objects")
 }
 
+// Show serves the HTML response for viewing an individual object in the given
+// request. If the penultimate part of the request URL path is "download" then
+// the object content is sent in the response body.
 func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -218,20 +229,21 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Destroy removes the object in the given request context from the database.
+// This redirects back to the object index if this was done from an individual
+// object view, otherwise it redirects back to the request's referer.
 func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := h.DeleteModel(r); err != nil {
-		if os.IsNotExist(errors.Cause(err)) {
-			goto resp
+		if !os.IsNotExist(errors.Cause(err)) {
+			h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+			sess.AddFlash(template.Danger("Failed to delete object"), "alert")
+			h.RedirectBack(w, r)
+			return
 		}
-		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete object"), "alert")
-		h.RedirectBack(w, r)
-		return
 	}
 
-resp:
 	sess.AddFlash(template.Success("Object has been deleted"), "alert")
 
 	if matched, _ := regexp.Match("/objects/[0-9]+", []byte(r.Header.Get("Referer"))); matched {

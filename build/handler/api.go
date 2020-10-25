@@ -16,31 +16,52 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// API is the handler for handling API requests made for build creation,
+// submission, and retrieval.
 type API struct {
 	Build
 
+	// Prefix is the part of the URL under which the API is being served, for
+	// example "/api".
 	Prefix string
 }
 
+// ArtrifactAPI is the handler for handling API requests made for working with
+// build artifacts.
 type ArtifactAPI struct {
 	web.Handler
 
-	Prefix  string
+	// Prefix is the part of the URL under which the API is being served, for
+	// example "/api".
+	Prefix string
+
+	// Loaders is used for loading in an artifacts build when being retrieved.
 	Loaders *database.Loaders
 }
 
+// JobAPI is the handler for handling API requests made for working with the
+// jobs within a build.
 type JobAPI struct {
 	Job
 
+	// Prefix is the part of the URL under which the API is being served, for
+	// example "/api".
 	Prefix string
 }
 
+// TagAPI is the handler for handling API requests made for working with build
+// tags.
 type TagAPI struct {
 	Tag
 
+	// Prefix is the part of the URL under which the API is being served, for
+	// example "/api".
 	Prefix string
 }
 
+// Index serves the JSON encoded list of builds for the given request. If
+// multiple pages of builds are returned then the database.Paginator is encoded
+// in the Link response header.
 func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	bb, paginator, err := h.IndexWithRelations(r)
 
@@ -61,6 +82,9 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, data, http.StatusOK)
 }
 
+// Store stores and submits the build from the given request body. If any
+// validation errors occur then these will be sent back in the JSON response.
+// On success the build is sent in the JSON response.
 func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	b, _, err := h.StoreModel(r)
 
@@ -103,6 +127,8 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, b.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
+// Show serves up the JSON response for the build in the given request. This
+// serves different responses based on the base path of the request URL.
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	b, err := h.ShowWithRelations(r)
 
@@ -177,6 +203,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, b.JSON(addr), http.StatusOK)
 }
 
+// Destroy kills the build in the given request.
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.Kill(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -186,6 +213,8 @@ func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// Index serves the JSON encoded list of jobs within a build for the given
+// request. This is not paginated.
 func (h JobAPI) Index(w http.ResponseWriter, r *http.Request) {
 	b, ok := build.FromContext(r.Context())
 
@@ -213,6 +242,7 @@ func (h JobAPI) Index(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, data, http.StatusOK)
 }
 
+// Show serves the JSON encoded build job for the given request.
 func (h JobAPI) Show(w http.ResponseWriter, r *http.Request) {
 	j, err := h.ShowWithRelations(r)
 
@@ -229,6 +259,8 @@ func (h JobAPI) Show(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, j.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
+// Index serves the JSON encoded list of artifacts for the build in the given
+// request context.
 func (h ArtifactAPI) Index(w http.ResponseWriter, r *http.Request) {
 	b, ok := build.FromContext(r.Context())
 
@@ -256,6 +288,8 @@ func (h ArtifactAPI) Index(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, data, http.StatusOK)
 }
 
+// Show serves the JSON encoded data of the given build artifact for the build
+// in the given request context.
 func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
 	b, ok := build.FromContext(r.Context())
 
@@ -286,6 +320,8 @@ func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, a.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
+// Index serves the JSON encoded list of build tags for the build in the given
+// request context.
 func (h TagAPI) Index(w http.ResponseWriter, r *http.Request) {
 	b, ok := build.FromContext(r.Context())
 
@@ -323,6 +359,9 @@ func (h TagAPI) Index(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, data, http.StatusOK)
 }
 
+// Store adds the given tags in the request's body to the build in the given
+// request context. This will serve a response to the JSON encoded list of
+// tags that were added.
 func (h TagAPI) Store(w http.ResponseWriter, r *http.Request) {
 	tt, err := h.StoreModel(r)
 
@@ -344,6 +383,8 @@ func (h TagAPI) Store(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, data, http.StatusCreated)
 }
 
+// Show serves the JSON encoded response for an individual tag on the build in
+// the given request context.
 func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 	b, ok := build.FromContext(r.Context())
 
@@ -382,6 +423,8 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, t.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
+// Destroy removes the given tag from the build in the given request context.
+// This serves no content as it's response.
 func (h TagAPI) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

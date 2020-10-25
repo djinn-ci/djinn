@@ -1,3 +1,5 @@
+// Package gitlab provides an implementation of the provider.Client interface
+// for the GitLab REST API.
 package gitlab
 
 import (
@@ -83,6 +85,9 @@ var (
 	}
 )
 
+// New returns a new Client to the GitLab REST API. If the given endpoint is
+// empty then the default "https://gitlab.com/api/v4" will be used. This will
+// set the following scopes to request: "api".
 func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 	if endpoint == "" {
 		endpoint = "https://gitlab.com/api/v4"
@@ -115,6 +120,7 @@ func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 	}
 }
 
+// VerifyRequest implements the provider.Client interface.
 func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 	b, _ := ioutil.ReadAll(r)
 
@@ -124,6 +130,7 @@ func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 	return b, nil
 }
 
+// Repos implements the provider.Client interface.
 func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
 	spage := strconv.FormatInt(page, 10)
 
@@ -160,6 +167,7 @@ func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	return rr, p, nil
 }
 
+// Groups implements the provider.Client interface.
 func (g *Client) Groups(tok string) ([]int64, error) {
 	resp, err := g.Get(tok, "/groups")
 
@@ -183,6 +191,7 @@ func (g *Client) Groups(tok string) ([]int64, error) {
 	return ids, nil
 }
 
+// ToggleRepo implements the provider.Client interface.
 func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 	id := strconv.FormatInt(r.RepoID, 10)
 
@@ -274,6 +283,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 	return nil
 }
 
+// SetCommitStatus implements the provider.Client interface.
 func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Status, url, sha string) error {
 	body := map[string]interface{}{
 		"id":          r.RepoID,

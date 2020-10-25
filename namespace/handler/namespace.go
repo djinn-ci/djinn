@@ -15,14 +15,25 @@ import (
 	"github.com/andrewpillar/query"
 )
 
+// Namespace is the base handler that provides shared logic for the UI and API
+// handlers for namespace creation, and management.
 type Namespace struct {
 	web.Handler
 
-	Loaders    *database.Loaders
-	Builds     *build.Store
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with namespaces.
+	Loaders *database.Loaders
+
+	// Builds is the build store used for retrieving builds submitted to a
+	// given namespace.
+	Builds *build.Store
+
+	// Namespaces is the namespace store used for loading in a namespace's
+	// parents, and for namespace deletion.
 	Namespaces *namespace.Store
 }
 
+// loadParent loads the immediate parent for the given namespace.
 func (h Namespace) loadParent(n *namespace.Namespace) error {
 	if !n.ParentID.Valid {
 		return nil
@@ -40,6 +51,10 @@ func (h Namespace) loadParent(n *namespace.Namespace) error {
 	return errors.Err(err)
 }
 
+// IndexWithRelations retreives a slice of *namespace.Namespace models for the
+// user in the given request context. All of the relations for each namespace
+// will be loaded into each model we have. A database.Paginator will also be
+// returned if there are multiple pages of namespaces.
 func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*namespace.Namespace, database.Paginator, error) {
 	nn, paginator, err := s.Index(vals)
 
@@ -89,6 +104,9 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 	return nn, paginator, errors.Err(err)
 }
 
+// StoreModel unmarshals the request's data into a namespace, validates it and
+// stores it in the database. Upon success this will return the newly created
+// namespace. This also returns the form for creating a namespace.
 func (h Namespace) StoreModel(r *http.Request) (*namespace.Namespace, namespace.Form, error) {
 	f := namespace.Form{}
 
@@ -110,6 +128,10 @@ func (h Namespace) StoreModel(r *http.Request) (*namespace.Namespace, namespace.
 	return n, f, errors.Err(err)
 }
 
+// UpdateModel unmarshals the request's data into a namespace, validates it and
+// updates the existing namespace in the database with the content in the form.
+// Upon success the updated namespace is returned. This also returns the form
+// for modifying a namespace.
 func (h Namespace) UpdateModel(r *http.Request) (*namespace.Namespace, namespace.Form, error) {
 	ctx := r.Context()
 
@@ -141,6 +163,8 @@ func (h Namespace) UpdateModel(r *http.Request) (*namespace.Namespace, namespace
 	return n, f, errors.Err(err)
 }
 
+// DeleteModel removes the namespace and all of its children in the given
+// request context from the database.
 func (h Namespace) DeleteModel(r *http.Request) error {
 	n, ok := namespace.FromContext(r.Context())
 

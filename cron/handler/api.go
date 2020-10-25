@@ -13,12 +13,19 @@ import (
 	"github.com/andrewpillar/query"
 )
 
+// API is the handler for handling API requests made for cron job creation,
+// and management.
 type API struct {
 	Cron
 
+	// Prefix is the part of the URL under which the API is being served, for
+	// example "/api".
 	Prefix string
 }
 
+// Index serves the JSON encoded list of cron jobs for the given request. If
+// multiple pages of cron jobs are returned then the database.Paginator is
+// encoded in the Link response header.
 func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	u, ok := user.FromContext(r.Context())
 
@@ -47,6 +54,9 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, data, http.StatusOK)
 }
 
+// Store stores and submits the cron job from the given request body. If any
+// validation errors occur then these will be sent back in the JSON response.
+// On success the cron job is sent in the JSON response.
 func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	c, _, err := h.StoreModel(r)
 
@@ -77,6 +87,9 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, c.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
 }
 
+// Show serves up the JSON response for the cron job in the given request. If
+// the base path of the URL is "/builds" then the builds submitted via the
+// cron will be served up in the JSON response.
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	c, err := h.ShowWithRelations(r)
 
@@ -114,6 +127,10 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, c.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
 }
 
+// Update applies the changes in the given request body to the existing cron
+// job in the database. If any validation errors occur then these will be sent
+// back in the JSON response. On success the updated cron job is sent in the
+// JSON response.
 func (h API) Update(w http.ResponseWriter, r *http.Request) {
 	c, _, err := h.UpdateModel(r)
 
@@ -144,6 +161,8 @@ func (h API) Update(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, c.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
 }
 
+// Destroy removes the cron job in the given request context from the database.
+// This serves no content in the response body.
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Cause(err))

@@ -15,9 +15,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Job is the base handler that provides shared logic for the UI and API
+// handlers for working with build jobs.
 type Job struct {
 	web.Handler
 
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with build jobs.
 	Loaders *database.Loaders
 }
 

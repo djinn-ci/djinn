@@ -1,3 +1,4 @@
+// Package mail provides a simple SMTP client for sending plain-text emails.
 package mail
 
 import (
@@ -12,19 +13,33 @@ import (
 )
 
 type Mail struct {
-	From    string
-	To      []string
-	Subject string
-	Body    string
+	From    string   // From is the address we're sending the mail from.
+	To      []string // To is the list of addresses to send the mail to.
+	Subject string   // Subject is the subject line of the mail.
+	Body    string   // Body is the body of the mail.
 }
 
+// ClientConfig specifies how the client connection to the SMTP server should
+// be configured.
 type ClientConfig struct {
-	CA       string
-	Addr     string
+	// CA is the path to the PEM encoded root CAs. If empty then TLS will not
+	// be attempted upon connection to the SMTP server.
+	CA string
+
+	// Addr is the full address (host and port) of the SMTP server to connect
+	// to.
+	Addr string
+
+	// Username and Password are the credentials to use the plain
+	// authentication against the SMTP server. If none are provided then no
+	// authentication attempts are made.
 	Username string
 	Password string
 }
 
+// ErrRcpts is a list of any errors that occur when a RCPT command is send to
+// the SMTP server. This will store each error message against the
+// corresponding recipient that caused the error.
 type ErrRcpts map[string]string
 
 func writeField(buf *strings.Builder, field, val string) {
@@ -92,6 +107,9 @@ func NewClient(cfg ClientConfig) (*smtp.Client, error) {
 	return cli, nil
 }
 
+// String returns the string representation of the current mail. This is
+// typically what's written to the SMTP server once the DATA command has been
+// issued.
 func (m Mail) String() string {
 	var buf strings.Builder
 

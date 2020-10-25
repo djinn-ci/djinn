@@ -16,16 +16,35 @@ import (
 	"github.com/andrewpillar/djinn/web"
 )
 
+// Image is the base handler that provides shared logic for the UI and API
+// handlers for image creation, and management.
 type Image struct {
 	web.Handler
 
-	Loaders    *database.Loaders
-	Images     *image.Store
-	Hasher     *crypto.Hasher
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with images.
+	Loaders *database.Loaders
+
+	// Images is the store used for deletion of images.
+	Images *image.Store
+
+	// Hasher is the hashing mechanism to use when generating hashes for
+	// images.
+	Hasher *crypto.Hasher
+
+	// BlockStore is the block store implementation to use for storing images
+	// that are uploaded.
 	BlockStore block.Store
-	Limit      int64
+
+	// Limit is the maximum size of images that can be uploaded.
+	Limit int64
 }
 
+// IndexWithRelations retrieves a slice of *image.Image models for the user in
+// the given request context. All of the relations for each image will be loaded
+// into each model we have. If any of the images have a bound namespace, then
+// the namespace's user will be loaded too. A database.Paginator will also be
+// returned if there are multiple pages of images.
 func (h Image) IndexWithRelations(r *http.Request) ([]*image.Image, database.Paginator, error) {
 	u, ok := user.FromContext(r.Context())
 
@@ -55,25 +74,9 @@ func (h Image) IndexWithRelations(r *http.Request) ([]*image.Image, database.Pag
 	return ii, paginator, errors.Err(err)
 }
 
-func (h Image) ShowWithRelations(r *http.Request) (*image.Image, error) {
-	i, ok := image.FromContext(r.Context())
-
-	if !ok {
-		return nil, errors.New("image not in request context")
-	}
-
-	if err := image.LoadRelations(h.Loaders, i); err != nil {
-		return i, errors.Err(err)
-	}
-
-	err := h.Users.Load(
-		"id",
-		[]interface{}{i.Namespace.Values()["user_id"]},
-		database.Bind("user_id", "id", i.Namespace),
-	)
-	return i, errors.Err(err)
-}
-
+// StoreModel unmarshals the request's data into an image, validates it and
+// stores it in the database. Upon success this will return the newly created
+// image. This also returns the form for creating an image.
 func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image, image.Form, error) {
 	f := image.Form{}
 
@@ -121,6 +124,31 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 	return i, f, errors.Err(err)
 }
 
+// ShowWithRelations retrieves the *image.Image model from the context of the
+// given request. All of the relations for the image will be loaded into the
+// model we have. If the image has a namespace bound to it, then the
+// namespace's user will be loaded to the namespace.
+func (h Image) ShowWithRelations(r *http.Request) (*image.Image, error) {
+	i, ok := image.FromContext(r.Context())
+
+	if !ok {
+		return nil, errors.New("image not in request context")
+	}
+
+	if err := image.LoadRelations(h.Loaders, i); err != nil {
+		return i, errors.Err(err)
+	}
+
+	err := h.Users.Load(
+		"id",
+		[]interface{}{i.Namespace.Values()["user_id"]},
+		database.Bind("user_id", "id", i.Namespace),
+	)
+	return i, errors.Err(err)
+}
+
+// DeleteModel removes the image in the given request context from the database
+// and the underlying block store.
 func (h Image) DeleteModel(r *http.Request) error {
 	i, ok := image.FromContext(r.Context())
 

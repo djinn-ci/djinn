@@ -19,7 +19,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-// Server represents the configuration used for the thrall-server.
+// Server represents the configuration used for the djinn-server.
 type Server struct {
 	Host    string
 	Pidfile string
@@ -78,6 +78,7 @@ type Server struct {
 	}
 }
 
+// Scheduler represents the configuration used for the djinn-scheduler.
 type Scheduler struct {
 	Pidfile string
 
@@ -96,7 +97,7 @@ type Scheduler struct {
 	}
 }
 
-// Worker represents the configuration used for the thrall-worker.
+// Worker represents the configuration used for the djinn-worker.
 type Worker struct {
 	Pidfile     string
 	Parallelism int

@@ -16,17 +16,39 @@ import (
 	"github.com/andrewpillar/djinn/web"
 )
 
+// Object is the base handler that provides shared logic for the UI and API
+// handlers for object creation, and management.
 type Object struct {
 	web.Handler
 
-	Loaders    *database.Loaders
-	Objects    *object.Store
-	Builds     *build.Store
-	Hasher     *crypto.Hasher
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with objects.
+	Loaders *database.Loaders
+
+	// Objects is the store used for deletion of objects.
+	Objects *object.Store
+
+	// Builds is the build store for retrieving the builds an object has been
+	// placed on to.
+	Builds *build.Store
+
+	// Hasher is the hashing mechanism to use when generating hashes for
+	// objects.
+	Hasher *crypto.Hasher
+
+	// BlockStore is the block store implementation to use for storing objects 
+	// that are uploaded.
 	BlockStore block.Store
-	Limit      int64
+
+	// Limit is the maximum size of images that can be uploaded.
+	Limit int64
 }
 
+// IndexWithRelations retrieves a slice of *object.Object models for the user in
+// the given request context. All of the relations for each object will be
+// loaded into each model we have. If any of the objects have a bound namespace,
+// then the namespace's user will be loaded too. A database.Paginator will also
+// be returned if there are multiple pages of objects.
 func (h Object) IndexWithRelations(r *http.Request) ([]*object.Object, database.Paginator, error) {
 	u, ok := user.FromContext(r.Context())
 
@@ -56,27 +78,9 @@ func (h Object) IndexWithRelations(r *http.Request) ([]*object.Object, database.
 	return oo, paginator, errors.Err(err)
 }
 
-func (h Object) ShowWithRelations(r *http.Request) (*object.Object, error) {
-	var err error
-
-	o, ok := object.FromContext(r.Context())
-
-	if !ok {
-		return o, errors.New("no object in request context")
-	}
-
-	if err := object.LoadRelations(h.Loaders, o); err != nil {
-		return o, errors.Err(err)
-	}
-
-	if o.Namespace != nil {
-		err = h.Users.Load(
-			"id", []interface{}{o.Namespace.Values()["user_id"]}, database.Bind("user_id", "id", o.Namespace),
-		)
-	}
-	return o, errors.Err(err)
-}
-
+// StoreModel unmarshals the request's data into an object, validates it and
+// stores it in the database. Upon success this will return the newly created
+// object. This also returns the form for creating an object.
 func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Object, object.Form, error) {
 	f := object.Form{}
 
@@ -124,6 +128,33 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 	return o, f, errors.Err(err)
 }
 
+// ShowWithRelations retrieves the *object.Object model from the context of the
+// given request. All of the relations for the object will be loaded into the
+// model we have. If the object has a namespace bound to it, then the
+// namespace's user will be loaded to the namespace.
+func (h Object) ShowWithRelations(r *http.Request) (*object.Object, error) {
+	var err error
+
+	o, ok := object.FromContext(r.Context())
+
+	if !ok {
+		return o, errors.New("no object in request context")
+	}
+
+	if err := object.LoadRelations(h.Loaders, o); err != nil {
+		return o, errors.Err(err)
+	}
+
+	if o.Namespace != nil {
+		err = h.Users.Load(
+			"id", []interface{}{o.Namespace.Values()["user_id"]}, database.Bind("user_id", "id", o.Namespace),
+		)
+	}
+	return o, errors.Err(err)
+}
+
+// DeleteModel removes the object in the given request context from the
+// database and the underlying block store.
 func (h Object) DeleteModel(r *http.Request) error {
 	o, ok := object.FromContext(r.Context())
 

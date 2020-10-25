@@ -12,13 +12,25 @@ import (
 	"github.com/andrewpillar/djinn/web"
 )
 
+// Variable is the base handler that provides shared logic for the UI and API
+// handlers for variable creation, and management.
 type Variable struct {
 	web.Handler
 
-	Loaders   *database.Loaders
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with variables.
+	Loaders *database.Loaders
+
+	// Variables is the store used for deletion of variables.
 	Variables *variable.Store
 }
 
+// IndexWithRelations retrieves a slice of *variable.Variable models for the
+// user in the given request context. All of the relations for each variable
+// will be loaded into each model we have. If any of the keys have a bound
+// namespace, then the namespace's user will be loaded too. A
+// database.Paginator will also be returned if there are multiple pages of
+// variables.
 func (h Variable) IndexWithRelations(r *http.Request) ([]*variable.Variable, database.Paginator, error) {
 	u, ok := user.FromContext(r.Context())
 
@@ -48,6 +60,9 @@ func (h Variable) IndexWithRelations(r *http.Request) ([]*variable.Variable, dat
 	return vv, paginator, errors.Err(err)
 }
 
+// StoreModel unmarshals the request's data into a variable, validates it and
+// stores it in the database. Upon success this will return the newly created
+// variable. This also returns the form for creating a variable.
 func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form, error) {
 	f := variable.Form{}
 
@@ -73,6 +88,8 @@ func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form
 	return v, f, errors.Err(err)
 }
 
+// DeleteModel removes the variable in the given request context from the
+// database.
 func (h Variable) DeleteModel(r *http.Request) error {
 	v, ok := variable.FromContext(r.Context())
 

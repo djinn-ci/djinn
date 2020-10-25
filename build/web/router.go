@@ -30,8 +30,8 @@ import (
 	"github.com/RichardKnop/machinery/v1"
 )
 
-// Router is the type that registers the UI and API routes for the build
-// entity, and all of its related entities.
+// Router is what registers the UI and API routes for managing builds. It
+// implements the server.Router interface.
 type Router struct {
 	build    handler.Build
 	job      handler.Job
@@ -39,13 +39,33 @@ type Router struct {
 	hook     handler.Hook
 	artifact handler.ArtifactAPI
 
-	Redis      *redis.Client
-	Block      *crypto.Block
+	// Redis is the client connection to redis, used for handling build
+	// submission and killing.
+	Redis *redis.Client
+
+	// Block is the cipher block used for decrypting API access tokens needed
+	// when consuming a webhook from a provider.
+	Block *crypto.Block
+
+	// Hasher is the hashing mechanism to use when generating hashes for build
+	// artifacts.
+	Hasher *crypto.Hasher
+
+	// Registry holds the registered provider.Client implementations. This is
+	// used during the consumption of webhooks to interface with their APIs.
+	Registry *provider.Registry
+
+	// Middleware is the middleware that is applied to any routes registered
+	// from this router.
 	Middleware web.Middleware
-	Artifacts  block.Store
-	Hasher     *crypto.Hasher
-	Queues     map[string]*machinery.Server
-	Registry   *provider.Registry
+
+	// Artifacts is the storage mechanism used for storing artifacts. This used
+	// for downloading artifacts from the server.
+	Artifacts block.Store
+
+	// Queues are the different queues builds can be submitted onto based on the
+	// driver being used for the build.
+	Queues map[string]*machinery.Server
 }
 
 var _ server.Router = (*Router)(nil)
@@ -71,6 +91,7 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		base := web.BasePath(r.URL.Path)
 
+		// Are we creating a build or viewing a list of builds.
 		if base == "/" || base == "create" || base == "builds" {
 			return r, ok, nil
 		}
@@ -127,8 +148,9 @@ func Gate(db *sqlx.DB) web.Gate {
 
 // Init intialises the primary handler.Build for handling the primary logic
 // of Build submission and management. This will setup the database.Loader for
-// relationship loading, and the related database stores. The exported properties
-// on the Router itself are passed through to the underlying handler.Build.
+// relationship loading, and the related database stores. The exported
+// properties on the Router itself are passed through to the underlying
+// handler.Build.
 func (r *Router) Init(h web.Handler) {
 	namespaces := namespace.NewStore(h.DB)
 	tags := build.NewTagStore(h.DB)
@@ -149,7 +171,6 @@ func (r *Router) Init(h web.Handler) {
 		Loaders:   loaders,
 		Objects:   object.NewStore(h.DB),
 		Variables: variable.NewStore(h.DB),
-		Block:     r.Block,
 		Client:    r.Redis,
 		Hasher:    r.Hasher,
 		Queues:    r.Queues,
@@ -160,13 +181,13 @@ func (r *Router) Init(h web.Handler) {
 	}
 	r.tag = handler.Tag{
 		Handler: h,
-		Loaders: loaders,
 	}
 	r.hook = handler.Hook{
-		Build:           r.build,
-		Repos:           provider.NewRepoStore(h.DB),
-		Providers:       provider.NewStore(h.DB),
-		Registry:        r.Registry,
+		Build:     r.build,
+		Block:     r.Block,
+		Repos:     provider.NewRepoStore(h.DB),
+		Providers: provider.NewStore(h.DB),
+		Registry:  r.Registry,
 	}
 	r.artifact = handler.ArtifactAPI{
 		Handler: h,
@@ -174,23 +195,22 @@ func (r *Router) Init(h web.Handler) {
 	}
 }
 
-// RegisterUI registers the UI routes for Build submission, and management.
-// There are three types of route groups, webhooks, simple auth routes, and
-// individual build routes. These routes, aside for webhook routes, respond
-// with a text/html Content-Type.
+// RegisterUI registers the UI routes for working with builds. There are three
+// types of route groups, webhooks, simple auth routes, and individual build
+// routes. These routes, aside for webhook routes, respond with a "text/html"
+// Content-Type.
 //
-// webhooks - The webhook routes are registered directly on the given
-// mux.Router. No CSRF protection is applied, any security checks are done at
-// the discretion of the provider sending the hook.
+// webhooks - The webhook routes are registered under the "/hook" prefix of the
+// given router. No CSRF protection is applied to these routes, verficiation of
+// the requests are done within the handlers themselves.
 //
-// simple auth routes - These routes (/, /builds, and /builds/create), have the
-// AuthPerms middleware applied to them to check if a user is logged in to
-// access the route. The given http.Handler is applied to these routes for CSRF
-// protection.
+// simple auth routes - These routes are registered under the "/" prefix of the
+// given router. The Auth middleware is applied to all registered routes. CSRF
+// protection is applied to all the registered routes.
 //
-// individual build routes - These routes (prefixed with
-// /b/{username}/{build:[0-9]+}), use the given http.Handler for CSRF
-// protection, and the given gates for auth checks, and permission checks.
+// individual build routes - These routes are registered under the
+// "/b/{username}/{build:[0-9]}" prefix of the given router. Each given gate
+// is applied to the registered routes, along with the given CSRF protection.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
 	build := handler.UI{
 		Build:     r.build,
@@ -229,7 +249,10 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.Use(r.Middleware.Gate(gates...), csrf)
 }
 
-// RegisterAPI registers the routes for working with builds over the API.
+// RegisterAPI registers the API routes for working with builds. The given
+// prefix string is used to specify where the API is being served under. This
+// applies all of the given gates to all routes registered. These routes
+// response with a "application/json" Content-Type.
 func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
 	build := handler.API{
 		Prefix: prefix,

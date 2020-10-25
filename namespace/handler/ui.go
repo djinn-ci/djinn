@@ -29,18 +29,25 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// UI is the handler for handling UI requests made for namespace creation,
+// and management.
 type UI struct {
 	Namespace
 }
 
+// InviteUI is the handler for handling UI requests made for sending and
+// receiving namespace invites. 
 type InviteUI struct {
 	Invite
 }
 
+// CollaboratorUI is the handler for handling UI requests made for managing
+// namespace collaborators.
 type CollaboratorUI struct {
 	Collaborator
 }
 
+// Index serves the HTML response detailing the list of namespaces.
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -73,6 +80,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for creating namespaces via the web frontend.
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -121,6 +129,9 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for creating a
+// namespace. If validation fails then the user is redirected back to the
+// request referer, otherwise they are redirect back to the namespace index.
 func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -155,6 +166,9 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, n.Endpoint())
 }
 
+// Show serves the HTML response for viewing an individual namespace in the
+// given request. This serves different responses based on the base path of the
+// request URL.
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -382,6 +396,8 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Edit serves the HTML response for editing the namespace in the given request
+// context.
 func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -418,6 +434,10 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Update validates the form submitted in the given request for updating a
+// namespace. If validation fails then the user is redirect back to the
+// request's referer, otherwise they are redirected back to the updated cron
+// job.
 func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -441,6 +461,8 @@ func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, n.Endpoint())
 }
 
+// Destroy removes the namespace in the given request context from the database.
+// This redirects back to the namespace index upon success.
 func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -460,6 +482,7 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/namespaces")
 }
 
+// Index serves the HTML response detailing the list of namespace invites.
 func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -475,6 +498,8 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 
 	n, ok := namespace.FromContext(ctx)
 
+	// Check if we're serving a response for the invites sent from a namespace
+	// or if we're serving a response for the invites sent to the current user.
 	if !ok {
 		invites.Bind(u)
 	} else {
@@ -524,6 +549,8 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for sending an
+// invite.
 func (h InviteUI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -548,6 +575,8 @@ func (h InviteUI) Store(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Update accepts the invite in the given request context. Upon success this
+// will redirect back to the request referer.
 func (h InviteUI) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -568,6 +597,7 @@ func (h InviteUI) Update(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Destroy will delete the invite in the request's context from the database.
 func (h InviteUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -587,6 +617,7 @@ func (h InviteUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Index serves the HTML response detailing the list of namespace collaborators.
 func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -642,6 +673,8 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Destroy removes the given namespace collaborator in the request from the
+// namespace.
 func (h CollaboratorUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

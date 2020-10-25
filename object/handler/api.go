@@ -13,12 +13,19 @@ import (
 	"github.com/andrewpillar/query"
 )
 
+// API is the handler for handling API requests made for object creation,
+// and management.
 type API struct {
 	Object
 
+	// Prefix is the part of the URL under which the API is being served, for
+	// example "/api".
 	Prefix string
 }
 
+// Index serves the JSON encoded list of objects for the given request. If
+// multiple pages of objects are returned then the database.Paginator is encoded
+// in the Link response header.
 func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	oo, paginator, err := h.IndexWithRelations(r)
 
@@ -39,6 +46,9 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, data, http.StatusOK)
 }
 
+// Store stores the object from the given request body. If any validation
+// errors occur then these will be sent back in the JSON response. On success
+// the object is sent in the JSON response.
 func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	o, _, err := h.StoreModel(w, r)
 
@@ -69,6 +79,12 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, o.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
+// Show serves up the JSON response for the object in the given request. If the
+// Accept header in the request is "application/octet-stream" then the content
+// of the image itself is sent in the response. If the base request URL path
+// is "/builds" then a list of the builds that the object was placed on will be
+// returned. If there are multiple pages of builds then the paginator is
+// encoded into the Link response header.
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	base := web.BasePath(r.URL.Path)
 
@@ -128,6 +144,8 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, o.JSON(addr), http.StatusOK)
 }
 
+// Destroy removes the object in the given request context from the database and
+// underlying block store. This serves no content in the response body.
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))

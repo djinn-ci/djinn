@@ -87,12 +87,9 @@ type Runner struct {
 	handleJobStart     jobHandler
 	handleJobComplete  jobHandler
 
-	// the order in which each stage is executed.
-	order  []string
+	order  []string          // the order in which each stage is executed.
 	stages map[string]*Stage
-
-	// the last job that was successfully executed, used for reporting.
-	lastJob Job
+	lastJob Job              // the last job that was successfully executed, used for reporting.
 
 	// Env is a slice of environment variables to set during job exectuion. The
 	// variables are expected to be formatted as key=value.
@@ -129,7 +126,7 @@ type Stage struct {
 
 // HandleDriverCreate sets the given callback as the underlying handler for
 // driver creation. This would typically be used for capturing timing
-// information regarding driver creation, for example
+// information regarding driver creation, for example.
 func (r *Runner) HandleDriverCreate(f func()) { r.handleDriverCreate = f }
 
 // HandleJobComplete sets the given callback as the underlying handler for Job

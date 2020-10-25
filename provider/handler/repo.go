@@ -26,13 +26,26 @@ import (
 	"github.com/go-redis/redis"
 )
 
+// Repo is the handler that handles the adding and removing of webhooks to a
+// repo on the provider.
 type Repo struct {
 	web.Handler
 
-	Redis    *redis.Client
-	Block    *crypto.Block
+	// Redis is the redis client connection used for caching the repos we get
+	// from the provider's API.
+	Redis *redis.Client
+
+	// Block is the block cipher to use for the encryption/decryption of any
+	// access tokens we use for authenticating against a provider's API.
+	Block *crypto.Block
+
+	// Registry is the register that holds the provider client implementations
+	// we use for interacting with that provider's API.
 	Registry *provider.Registry
-	Repos    *provider.RepoStore
+
+	// Repos is the repo store used for updating the repositories that we have
+	// webhooks on.
+	Repos *provider.RepoStore
 }
 
 var cacheKey = "repos-%s-%v-%v"
@@ -100,6 +113,10 @@ func (h Repo) loadRepos(p *provider.Provider, page int64) ([]*provider.Repo, dat
 	return rr, paginator, errors.Err(err)
 }
 
+// Index serves the HTML response detailing the repositories retrieved from the
+// provider in the request. It will first attempt to get the repositores from
+// the cache, if the cache is empty then the API is hit, and the cache stores
+// the response for 1 hour.
 func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -209,6 +226,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Update will reload all of the provider repos in the cache.
 func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -252,6 +270,7 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Store will add a webhook to the provider's repo in the given request.
 func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -314,6 +333,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Destroy will remove the webhook from the repo in the request.
 func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

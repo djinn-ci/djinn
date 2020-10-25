@@ -5,7 +5,6 @@ import (
 
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
-	"github.com/andrewpillar/djinn/key"
 	keytemplate "github.com/andrewpillar/djinn/key/template"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/template"
@@ -15,12 +14,13 @@ import (
 	"github.com/gorilla/csrf"
 )
 
+// UI is the handler for handling UI requests made for key creation, and
+// management.
 type UI struct {
 	Key
-
-	Keys key.Store
 }
 
+// Index serves the HTML response detailing the list of SSH keys.
 func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -56,6 +56,7 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for creating SSH keys via the web frontend.
 func (h Key) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -79,6 +80,9 @@ func (h Key) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for creating a key.
+// If validation fails then the user is redirected back to the request referer,
+// otherwise they are redirect back to the key index.
 func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -117,6 +121,8 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/keys")
 }
 
+// Edit serves the HTML response for editing the key in the given request
+// context.
 func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -149,6 +155,9 @@ func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Update validates the form submitted in the given request for updating a key.
+// If validation fails then the user is redirect back to the request's referer,
+// otherwise they are redirected back to the updated cron job.
 func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -175,6 +184,8 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/keys")
 }
 
+// Destroy removes the key in the given request context from the database.
+// This redirects back to the request's referer.
 func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

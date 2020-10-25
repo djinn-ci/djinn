@@ -21,10 +21,16 @@ import (
 	"github.com/gorilla/csrf"
 )
 
+// Oauth2 is the handler that handles the OAuth token webflow.
 type Oauth2 struct {
 	web.Handler
 
-	Apps   *oauth2.AppStore
+	// Apps is the app store to use for retrieving the OAuth app that is being
+	// used to request access to a user's account.
+	Apps *oauth2.AppStore
+
+	// Tokens is the token store to use for updating the scopes of a
+	// pre-existing token, or for deleting a token.
 	Tokens *oauth2.TokenStore
 }
 
@@ -115,38 +121,32 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		if !t.IsZero() {
 			diff := oauth2.ScopeDiff(scope, t.Scope)
 
-			// New scope has been requested, so goto auth login response.
-			if len(diff) > 0 {
-				goto resp
-			}
+			// No new scopes requested, redirect back to the app's redirect
+			// URL.
+			if len(diff) == 0 {
+				if a.RedirectURI != redirectUri {
+					web.HTMLError(w, "redirect_uri does not match", http.StatusBadRequest)
+					return
+				}
 
+				c, err := oauth2.NewCodeStore(h.DB, u, a).Create(t.Scope)
+
+				if err != nil {
+					h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+					web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+					return
+				}
+
+				redirectQuery := url.Values(make(map[string][]string))
+				redirectQuery.Add("code", hex.EncodeToString(c.Code))
+
+				if state != "" {
+					redirectQuery.Add("state", state)
+				}
+				http.Redirect(w, r, redirectUri+"?"+redirectQuery.Encode(), http.StatusSeeOther)
+				return
+			}
 			scope = append(scope, diff...)
-
-			if len(scope) == 0 {
-				scope = t.Scope
-			}
-
-			if a.RedirectURI != redirectUri {
-				web.HTMLError(w, "redirect_uri does not match", http.StatusBadRequest)
-				return
-			}
-
-			c, err := oauth2.NewCodeStore(h.DB, u, a).Create(scope)
-
-			if err != nil {
-				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-				web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-				return
-			}
-
-			redirectQuery := url.Values(make(map[string][]string))
-			redirectQuery.Add("code", hex.EncodeToString(c.Code))
-
-			if state != "" {
-				redirectQuery.Add("state", state)
-			}
-			http.Redirect(w, r, redirectUri+"?"+redirectQuery.Encode(), http.StatusSeeOther)
-			return
 		}
 	}
 
@@ -155,7 +155,6 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-resp:
 	p := &oauth2template.Auth{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
@@ -174,6 +173,11 @@ resp:
 	web.HTML(w, template.Render(p), http.StatusOK)
 }
 
+// Auth will either serve up the OAuth login page on a GET request, or process
+// the submitted form on a POST request. If the user has already granted access
+// to the OAuth app then nothing happens, and they are simply redirected back
+// to the app's redirect URL. If any scopes changed, then the original access
+// token generated for the user (if any) is updated with the new scopes.
 func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		h.handleAuthPage(w, r)
@@ -283,6 +287,11 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, f.RedirectURI+"?"+redirectQuery.Encode(), http.StatusSeeOther)
 }
 
+// Token will serve the JSON encoded access token for the user that granted
+// access to an OAuth app. This uses the OAuth code submitted in the request
+// as a means of authentication. If the submitted code has not expired then
+// the token is created, and returned in the response. The tokens generated
+// do not expire.
 func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	id, secret, code, err :=  h.getClientCredentialsAndCode(r)
 
@@ -386,6 +395,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	web.Text(w, vals.Encode(), http.StatusOK)
 }
 
+// Revoke revokes the OAuth token in the given request header.
 func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 	prefix := "Bearer "
 	tok := r.Header.Get("Authorization")
@@ -405,15 +415,12 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if t.IsZero() {
-		goto resp
+	if !t.IsZero() {
+		if err := h.Tokens.Delete(t.ID); err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	}
-
-	if err := h.Tokens.Delete(t.ID); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.JSONError(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-resp:
 	w.WriteHeader(http.StatusNoContent)
 }

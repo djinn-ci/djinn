@@ -13,35 +13,28 @@ import (
 	"github.com/andrewpillar/djinn/web"
 )
 
+// Key is the base handler that provides shared logic for the UI and API
+// handlers for key creation, and management.
 type Key struct {
 	web.Handler
 
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with SSH keys.
 	Loaders *database.Loaders
-	Block   *crypto.Block
-	Keys    *key.Store
+
+	// Block is the block cipher to use for encrypting SSH keys that are
+	// uploaded.
+	Block *crypto.Block
+
+	// Keys is the store used for deletion of keys.
+	Keys *key.Store
 }
 
-func (h Key) ShowWithRelations(r *http.Request) (*key.Key, error) {
-	var err error
-
-	k, ok := key.FromContext(r.Context())
-
-	if !ok {
-		return nil, errors.New("failed to get key from context")
-	}
-
-	if err := key.LoadRelations(h.Loaders, k); err != nil {
-		return k, errors.Err(err)
-	}
-
-	if k.Namespace != nil {
-		err = h.Users.Load(
-			"id", []interface{}{k.Namespace.Values()["user_id"]}, database.Bind("user_id", "id", k.Namespace),
-		)
-	}
-	return k, errors.Err(err)
-}
-
+// IndexWithRelations retrieves a slice of *key.Key models for the user in
+// the given request context. All of the relations for each key will be loaded
+// into each model we have. If any of the keys have a bound namespace, then
+// the namespace's user will be loaded too. A database.Paginator will also be
+// returned if there are multiple pages of keys.
 func (h Key) IndexWithRelations(r *http.Request) ([]*key.Key, database.Paginator, error) {
 	u, ok := user.FromContext(r.Context())
 
@@ -71,6 +64,9 @@ func (h Key) IndexWithRelations(r *http.Request) ([]*key.Key, database.Paginator
 	return kk, paginator, errors.Err(err)
 }
 
+// StoreModel unmarshals the request's data into a key, validates it and
+// stores it in the database. Upon success this will return the newly created
+// key. This also returns the form for creating a key.
 func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 	f := key.Form{}
 
@@ -96,6 +92,35 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 	return k, f, errors.Err(err)
 }
 
+// ShowWithRelations retrieves the *key.Keys model from the context of the
+// given request. All of the relations for the key will be loaded into the
+// model we have. If the key has a namespace bound to it, then the
+// namespace's user will be loaded to the namespace.
+func (h Key) ShowWithRelations(r *http.Request) (*key.Key, error) {
+	var err error
+
+	k, ok := key.FromContext(r.Context())
+
+	if !ok {
+		return nil, errors.New("failed to get key from context")
+	}
+
+	if err := key.LoadRelations(h.Loaders, k); err != nil {
+		return k, errors.Err(err)
+	}
+
+	if k.Namespace != nil {
+		err = h.Users.Load(
+			"id", []interface{}{k.Namespace.Values()["user_id"]}, database.Bind("user_id", "id", k.Namespace),
+		)
+	}
+	return k, errors.Err(err)
+}
+
+// UpdateModel unmarshals the request's data into a key, validates it and
+// updates the existing key in the database with the content in the form. Upon
+// success the updated key is returned. This also returns the form for
+// modifying a key.
 func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 	f := key.Form{}
 
@@ -139,6 +164,7 @@ func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 	return k, f, errors.Err(err)
 }
 
+// DeleteModel removes the key in the given request context from the database.
 func (h Key) DeleteModel(r *http.Request) error {
 	k, ok := key.FromContext(r.Context())
 

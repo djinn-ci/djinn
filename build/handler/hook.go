@@ -13,6 +13,7 @@ import (
 
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/config"
+	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/provider"
@@ -36,25 +37,42 @@ numbers`
 // hookData represents the minimum data extracted from a webhook's event payload
 // we need to submit builds.
 type hookData struct {
-	userId  int64 // the id of the user from the provider who sent the hook
-	repoId  int64 // the id of the repo from the provider
-	dirurl  string
-	ref     string
+	userId  int64  // the id of the user from the provider who sent the hook
+	repoId  int64  // the id of the repo from the provider
+	dirurl  string // the url in the repo that can contain multiple manifests, typically ".djinn"
+	ref     string // the git ref we should use when retrieving manifests from the repo
 	typ     build.TriggerType
 	comment string
-	data    map[string]string
+	data    map[string]string // additional information about the hook, such as build author
 }
 
+// Hook providers the handlers used for consuming webhooks from the various
+// providers we integrate with.
 type Hook struct {
 	Build
 
-	Repos     *provider.RepoStore
+	// Block is the block cipher we use for decrypting access tokens to the
+	// provider's API.
+	Block *crypto.Block
+
+	// Repos is the store we use to do a reverse lookup on a repository being
+	// used in a webhook to determine the user and provider.
+	Repos *provider.RepoStore
+
+	// Providers is the store we use for getting the encrypted access tokens to
+	// a provider's API.
 	Providers *provider.Store
-	Registry  *provider.Registry
+
+	// Registry hols the provider.Client implementations for the providers we
+	// execute webhooks for.
+	Registry *provider.Registry
 }
 
 type manifestDecoder func(io.Reader) (config.Manifest, error)
 
+// decodeBase64JSONManifest is the decoded used for decoding manifest files
+// from the GitHub and GitLab API whereby the actual file contents if a base64
+// encoded string.
 func decodeBase64JSONManifest(r io.Reader) (config.Manifest, error) {
 	file := struct {
 		Encoding string
@@ -99,6 +117,9 @@ func getGitLabURL(rawurl, ref string) func(map[string]string) string {
 	}
 }
 
+// execute is what will actual get the manifests, decode them, and then submit
+// them to the build queue. It uses the information provided in the given hook
+// data to determine the type of build being submitted.
 func (h Hook) execute(host, name string, data hookData, geturl func(map[string]string) string) error {
 	h.Log.Debug.Println("data.userId =", data.userId)
 
@@ -170,6 +191,12 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 	return manifesterr
 }
 
+// loadManifests concurrently hits each of the given urls to get the manifest
+// from each. It uses the given decode function to decode the manifest into
+// a useable form. If any errors occur during decoding of the manifest then
+// this will be aggregated into errors.MultiError and returned. Any manifest
+// decoding errors that do occur does not stop the rest of the manifest urls
+// from being requested.
 func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) ([]config.Manifest, error) {
 	errs := make(chan error)
 	manifests := make(chan config.Manifest)
@@ -344,6 +371,26 @@ func (h Hook) submitBuilds(mm []config.Manifest, host string, u *user.User, t *b
 	return submitted, nil
 }
 
+// GitHub serves the response for webhooks received from GitHub. This will only
+// process webhooks for "ping", "push", and "pull_request" events. The owner of
+// each build submitted will be set to the owner of the GitHub access token.
+// Each request sent from GitHub is verified using the HMAC signature sent with
+// the request. This will respond with 204 No Content on a successful execution
+// of a hook, otherwise it will respond with 500 Internal Server Error. If any
+// invalid manifest is found during hook execution, then the response
+// 202 Accepted is sent, with a message detailing what was wrong with any
+// invalid manifest that was found. If an invalid namespace name is found in
+// any of the manifests then 400 Bad Request is sent.
+//
+// On a "push" event, the repository being pushed to will be scraped to have
+// all manifests extraced from it. Each of these will be submitted as a new
+// build. The most recent commit is used as the build not, and the commit
+// author is used as the author of the build.
+//
+// On a "pull_request" event, the repository from which the pull request was
+// sent is scraped for all manifests to be extracted. Each of these will be
+// submitted as a new build. The title and body of the pull request are used
+// as the build note.
 func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 	h.Log.Debug.Println("github webhook received")
 
@@ -446,6 +493,26 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// GitLab serves the response for webhooks received from GitLab. This will only
+// process webhooks for "Push Hook", and "Merge Request Hook", events. The
+// owner of each build submitted will be set to the owner of the GitLab access
+// token. Each request sent from GitLab is verified by checking the webhook
+// token that was sent in the request. This will respond with 204 No Content on
+// a successful execution of a hook, otherwise it will respond with
+// 500 Internal Server Error. If any invalid manifest is found during hook
+// execution, then the response 202 Accepted is sent, with a message detailing
+// what was wrong with any invalid manifest that was found. If an invalid
+// namespace name is found in any of the manifests then 400 Bad Request is sent.
+//
+// On a "Push Hook" event, the repository being pushed to will be scraped to
+// have all manifests extraced from it. Each of these will be submitted as a
+// new build. The most recent commit is used as the build not, and the commit
+// author is used as the author of the build.
+//
+// On a "Merge Request Hook" event, the repository from which the pull request
+// was sent is scraped for all manifests to be extracted. Each of these will be
+// submitted as a new build. The title and body of the pull request are used
+// as the build note.
 func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 	h.Log.Debug.Println("gitlab webhook received")
 

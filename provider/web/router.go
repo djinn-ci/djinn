@@ -24,18 +24,35 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Router is what registers the UI routes for handling integrating with an
+// external provider.
 type Router struct {
 	provider handler.Provider
 	repo     handler.Repo
 
-	Redis      *redis.Client
-	Block      *crypto.Block
-	Registry   *provider.Registry
+	// Redis is the redis client connection to use for caching results from the
+	// provider's API.
+	Redis *redis.Client
+
+	// Block is the block cipher to use for the encryption/decryption of any
+	// access tokens we use for authenticating against a provider's API.
+	Block *crypto.Block
+
+	// Registry is the register that holds the provider client implementations
+	// we use for interacting with that provider's API.
+	Registry *provider.Registry
+
+	// Middleware is the middleware that is applied to any routes registered
+	// from this router.
 	Middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)
 
+// Gate returns a web.Gate that checks if the current authenticated user has
+// the access permissions to the provider's repository being accessed. If the
+// current user has access ot the current repository, then it is set in the
+// request's context.
 func Gate(db *sqlx.DB) web.Gate {
 	repos := provider.NewRepoStore(db)
 
@@ -69,6 +86,7 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
+// Init initialises the handlers for integrating the a provider.
 func (r *Router) Init(h web.Handler) {
 	gob.Register([]*provider.Repo{})
 	gob.Register(database.Paginator{})
@@ -87,6 +105,9 @@ func (r *Router) Init(h web.Handler) {
 	}
 }
 
+// RegisterUI registers the UI routes for handling integration with a provider.
+// This will register the routes for connecting to a provider, and the routes
+// for toggling webhooks on a provider's repository.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
 	auth := mux.PathPrefix("/oauth").Subrouter()
 	auth.HandleFunc("/{provider}", r.provider.Auth).Methods("GET")
@@ -101,4 +122,5 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.Use(r.Middleware.Gate(gates...), csrf)
 }
 
+// RegisterAPI is a stub method to implement the server.Router interface.
 func (*Router) RegisterAPI(_ string, _ *mux.Router, _ ...web.Gate) {}

@@ -14,10 +14,13 @@ import (
 	"github.com/gorilla/csrf"
 )
 
+// UI is the handler for handling UI requests made for variable creation, and
+// management.
 type UI struct {
 	Variable
 }
 
+// Index serves the HTML response detailing the list of variables.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -52,6 +55,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for creating variables via the web frontend.
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	u, ok := user.FromContext(r.Context())
 
@@ -75,6 +79,9 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for creating a
+// variable. If validation fails then the user is redirected back to the
+// request referer, otherwise they are redirect back to the variable index.
 func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -113,6 +120,8 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/variables")
 }
 
+// Destroy removes the variable in the given request context from the database.
+// This redirects back to the request's referer.
 func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

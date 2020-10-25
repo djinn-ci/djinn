@@ -18,21 +18,18 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// Driver provides an implementation of the runner.Driver interface for SSH
+// connections.
 type Driver struct {
 	io.Writer
 
 	client *ssh.Client
 	env    []string
 
-	// Addr is the address of the machine to connect to.
-	Addr string
-
-	// The user credentials to use for accessing the machine via Driver.
-	User     string
-	Password string
-
-	// Timeout is the timeout to use when attempting the Driver connection.
-	Timeout time.Duration
+	Addr     string        // Addr is the full address (including port) of the server.
+	User     string        // User is the user to use for SSH.
+	Password string        // Password is the password to use for the SSH user.
+	Timeout  time.Duration // Timeout is the duration for connection timeouts.
 }
 
 var _ runner.Driver = (*Driver)(nil)

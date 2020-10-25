@@ -12,10 +12,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Router is what registers the UI routes for handling registration,
+// authentication, and general management of a user's account.
 type Router struct {
 	user handler.User
 
-	Registry   *provider.Registry
+	// Registry is the register that holds the provider client implementations
+	// we use for interacting with that provider's API.
+	Registry *provider.Registry
+
+	// Middleware is the middleware that is applied to any routes registered
+	// from this router.
 	Middleware web.Middleware
 }
 
@@ -53,6 +60,8 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.Use(r.Middleware.Auth, csrf)
 }
 
+// RegisterAPI registers the only API route for a user, which is "/user". This
+// will return the currently authenticated user from the request.
 func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {

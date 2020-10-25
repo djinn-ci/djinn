@@ -41,13 +41,9 @@ type Router interface {
 type Server struct {
 	*http.Server
 
-	Log *log.Logger
-
-	// Router is the mux.Router to use for registering routes.
-	Router *mux.Router
-
-	// Routers defines the routers for the server, along with their name,
-	Routers map[string]Router
+	Log *log.Logger           // Log is the logger to use for application logging.
+	Router *mux.Router        // Router is the mux.Router to use for registering routes.
+	Routers map[string]Router // Routers defines the routers for the server, along with their name,
 
 	// Cert and Key define the paths to the certificate and key to use for
 	// serving over TLS.

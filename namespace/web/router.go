@@ -22,11 +22,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+// Router is what registers the UI and API routes for managing namespaces. It
+// implements the server.Router interface.
 type Router struct {
 	namespace    handler.Namespace
 	invite       handler.Invite
 	collaborator handler.Collaborator
 
+	// Middleware is the middleware that is applied to any routes registered
+	// from this router.
 	Middleware web.Middleware
 }
 
@@ -54,7 +58,7 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		base := web.BasePath(r.URL.Path)
 
-		// Are we creating or editing a namespace.
+		// Are we creating a namespace.
 		if base == "create" {
 			return r, ok, nil
 		}
@@ -165,10 +169,10 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-// Init initialiases the primary handle.namespace for handling the primary
+// Init initialiases the primary handler.Namespace for handling the primary
 // logic of Namespace creation and management. This will setup the database.Loader
 // for relationship loading, and the related database stores. The exported
-// properties on the Router itself are pased through to the underlying
+// properties on the Router itself are passed through to the underlying
 // handler.Namspace.
 func (r *Router) Init(h web.Handler) {
 	namespaces := namespace.NewStore(h.DB)
@@ -250,7 +254,10 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.Use(r.Middleware.Gate(gates...), csrf)
 }
 
-// RegisterAPI registers the routes for working with Namespaces over the API.
+// RegisterAPI registers the API routes for working with namespaces. The given
+// prefix string is used to specify where the API is being served under. This
+// applies all of the given gates to all routes registered. These routes
+// response with a "application/json" Content-Type.
 func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) {
 	namespace := handler.API{
 		Namespace: r.namespace,

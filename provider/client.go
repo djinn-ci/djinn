@@ -17,25 +17,51 @@ import (
 	"golang.org/x/oauth2"
 )
 
+// BaseClient provides a base implementation of a provider's Client. This is
+// used for performing all of the HTTP requests to a provider's API.
 type BaseClient struct {
 	oauth2.Config
 
-	Host        string
+	// Host is the host of the server acting as the OAuth client for the
+	// provider's OAuth server.
+	Host string
+
+	// APIEndpoint is the full URL where the provider's REST API is located.
 	APIEndpoint string
-	State       string
-	Secret      string
+
+	// State is the string used for verifying the final token exchange in the
+	// webflow.
+	State string
+
+	// Secret is the secret that is set on each webhook created to verify the
+	// request body sent by the provider.
+	Secret string
 }
 
+// Registry provides a thread-safe way of registering multiple Client
+// implementations against a given name, and for retrieving them at a
+// later point in time.
 type Registry struct {
 	mu   sync.RWMutex
 	imps map[string]Client
 }
 
+// Client provides a simple interface for a provider's REST API.
 type Client interface {
+	// Auth performs the final token exchange in the webflow. Upon success this
+	// will return the access token, refresh token, and the details of the
+	// User who successfully authenticated.
 	Auth(context.Context, url.Values) (string, string, User, error)
 
+	// AuthURL returns the full URL for authenticating against a provider and
+	// starting the token exchange webflow.
 	AuthURL() string
 
+	// Repos returns a list of repos from the provider the user either owns or
+	// has access to (via a group). The given page delineates which page of
+	// repositories to get if there are multiple pages. A database.Paginator is
+	// returned if there are multiple pages. This should return the repositories
+	// ordered by when they were last updated.
 	Repos(string, int64) ([]*Repo, database.Paginator, error)
 
 	// Groups returns the ID of groups that a user is a member of from the
@@ -45,20 +71,34 @@ type Client interface {
 	// of a user ID.
 	Groups(string) ([]int64, error)
 
+	// ToggleRepo will toggle the webhook for the given Repo using the given
+	// string as the authentication token. This will create a webhook if it
+	// doesn't exist for the Repo, otherwise it will delete it.
 	ToggleRepo(string, *Repo) error
 
+	// SetCommitStatus will set the commit status for the given commit hash to
+	// the given runner.Status. This should only be called on commits that
+	// belong to a merge or pull request.
 	SetCommitStatus(string, *Repo, runner.Status, string, string) error
 
+	// VerifyRequest verifies the contents of the given io.Reader against the
+	// given string secret. This is typically used for verifying the contents
+	// of a webhook that has been sent from said provider. Upon success it will
+	// return a byte slice read from the given io.Reader.
 	VerifyRequest(io.Reader, string) ([]byte, error)
 }
 
+// Factory is the type for creating a new Client for a provider. This takes the
+// host of the server acting as an OAuth client, the endpoint of the provider
+// for accessing the API, the secret for verifying webhooks, and finally the
+// client ID, and client secret for the app we'll be granting access to.
 type Factory func(string, string, string, string, string) Client
 
 type User struct {
-	ID       int64
-	Email    string
-	Login    string
-	Username string
+	ID       int64  // ID of the user from the provider.
+	Email    string // Email of the user from the provider.
+	Login    string // Login of the user from the provider, this is only used for GitHub.
+	Username string // Username of the user from the provider.
 }
 
 var (
@@ -177,8 +217,10 @@ func NewRegistry() *Registry {
 	}
 }
 
+// AuthURL implements the Client interface.
 func (c BaseClient) AuthURL() string { return c.AuthCodeURL(c.State) }
 
+// Auth implements the Client interface.
 func (c BaseClient) Auth(ctx context.Context, v url.Values) (string, string, User, error) {
 	u := User{}
 
@@ -237,23 +279,33 @@ func (c BaseClient) do(method, tok, endpoint string, r io.Reader) (*http.Respons
 	return resp, errors.Err(err)
 }
 
+// Get performs a GET request to the given endpoint using the given token
+// string as the authentication token.
 func (c BaseClient) Get(tok, endpoint string) (*http.Response, error) {
 	resp, err := c.do("GET", tok, endpoint, nil)
 	return resp, errors.Err(err)
 }
 
+// Post performs a POST request to the given endpoint using the given token
+// string as the authentication token, and using the given io.Reader as the
+// request body.
 func (c BaseClient) Post(tok, endpoint string, r io.Reader) (*http.Response, error) {
 	resp, err := c.do("POST", tok, endpoint, r)
 	return resp, errors.Err(err)
 }
 
+// Delete performs a DELETE request to the given endpoint using the given token
+// string as the authentication token.
 func (c BaseClient) Delete(tok, endpoint string) (*http.Response, error) {
 	resp, err := c.do("DELETE", tok, endpoint, nil)
 	return resp, errors.Err(err)
 }
 
+// All returns all Client implementations in the current Registry.
 func (r *Registry) All() map[string]Client { return r.imps }
 
+// Register the given Client implementation against the given name. If an
+// implementation is already registered this will panic.
 func (r *Registry) Register(name string, imp Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -264,6 +316,8 @@ func (r *Registry) Register(name string, imp Client) {
 	r.imps[name] = imp
 }
 
+// Get returns a Client implementation for the given name. If no implementation
+// is found then nil is returned along with an error.
 func (r *Registry) Get(name string) (Client, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()

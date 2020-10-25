@@ -1,6 +1,6 @@
-// Package provider providers the database.Model implementation for the Provider
-// entity, and implementations for the oauth2.Provider interface for the
-// different Git providers that can be used to authenticate against.
+// Package provider provides the database.Model implementation for the Provider
+// entity that represents an external provider a user has connected to
+// (GitHub, GitLab, etc.).
 package provider
 
 import (

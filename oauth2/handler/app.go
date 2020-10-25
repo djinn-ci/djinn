@@ -21,10 +21,15 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// App handles serving responses to managing an OAuth app that a user has
+// created for OAuth access to the API.
 type App struct {
 	web.Handler
 
+	// Block is the block cipher to use for encrypting client secrets.
 	Block *crypto.Block
+
+	// Apps is the app store to use for the deletion of OAuth apps.
 	Apps  *oauth2.AppStore
 }
 
@@ -53,6 +58,8 @@ func (h App) appFromRequest(r *http.Request) (*oauth2.App, error) {
 	return a, nil
 }
 
+// Index serves the HTML response detailing the list of OAuth apps for the
+// current user.
 func (h App) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -89,6 +96,7 @@ func (h App) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for creating a new OAuth app.
 func (h App) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -112,6 +120,9 @@ func (h App) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for creating an
+// OAuth app. If validation fails then the user is redirected back to the
+// request referer, otherwise they are redirect back to the OAuth app index.
 func (h App) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -155,6 +166,8 @@ func (h App) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/settings/apps")
 }
 
+// Show serves the individual HTML response for viewing an individual OAuth
+// app.
 func (h App) Show(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -201,6 +214,12 @@ func (h App) Show(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Update validates the form submitted in the given request for updating an
+// OAuth app. If validation fails then the user is redirect back to the
+// request's referer, otherwise they are redirected back to the updated OAuth
+// app. If the base of the requested URL path is "/revoke" then this will
+// revoke all of the access tokens for this app. If the base of the path is
+// "/reset" then it will generate a new client secret.
 func (h App) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

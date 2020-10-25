@@ -14,12 +14,19 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Tag is the base handler that provides shared logic for the UI and API
+// handlers for working with build tags.
 type Tag struct {
 	web.Handler
 
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with build tags.
 	Loaders *database.Loaders
 }
 
+// StoreModel unmarshals the request's data into build tags, validates it and
+// stores it in the database. Upon success this will return the newly created
+// build tags.
 func (h Tag) StoreModel(r *http.Request) ([]*build.Tag, error) {
 	ctx := r.Context()
 

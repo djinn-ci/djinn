@@ -23,6 +23,9 @@ import (
 
 type realpathFunc func(string, string) (string, error)
 
+// Driver provides an implementation of the runner.Driver interface for running
+// jobs within a QEMU virtual machine. Under the hood this makes use of the
+// ssh.Driver implementation to communicate with the virtual machine.
 type Driver struct {
 	io.Writer
 
@@ -31,18 +34,10 @@ type Driver struct {
 	process *os.Process
 	port    int64
 
-	// Arch is the architecture of the Driver machine that will be running the
-	// jobs.
-	Arch string
-
-	// CPUs specifies the number of CPUs to use on the Driver machine.
-	CPUs int64
-
-	// Memory specifies the amount of memory to give the Driver machine.
-	Memory int64
-
-	Key   string
-	Image string
+	Arch   string // Arch is the machine architecture that will be running the jobs.
+	CPUs   int64  // CPUs specifies the number of CPUs to give the machine.
+	Memory int64  // Memory specifies the amount of memory in bytes for the machine.
+	Image  string // Image is the name of the QEMU image to use for the machine.
 
 	// Realpath is a function callback that will return the full path of the
 	// QCOW2 image to use when booting the Driver machine.

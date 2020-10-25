@@ -15,10 +15,16 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Collaborator is the base handler that provides shared logic for the UI and
+// API handlers for working with namespace collaborators.
 type Collaborator struct {
 	web.Handler
 }
 
+// DeleteModel deletes the specified collaborator in the request from the
+// namespace in the given request context. Upon deletion this will modify the
+// ownership of any resources created by the original collaborator to the owner
+// of the namespace.
 func (h Collaborator) DeleteModel(r *http.Request) error {
 	ctx := r.Context()
 

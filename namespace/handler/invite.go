@@ -15,10 +15,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Invite is the base handler that provides shared logic for the UI and API
+// handlers for working with build namespace invites.
 type Invite struct {
 	web.Handler
 
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with namespace invites.
 	Loaders *database.Loaders
+
+	// Invites is the namespace invite store that is used for the deletion
+	// of namespace invites.
 	Invites *namespace.InviteStore
 }
 
@@ -27,6 +34,8 @@ your Invites list,
 
     %s/invites`
 
+// IndexWithRelations returns all of the namespace invites with their
+// relationships loaded into each return invite.
 func (h Invite) IndexWithRelations(s *namespace.InviteStore) ([]*namespace.Invite, error) {
 	ii, err := s.All()
 
@@ -48,6 +57,9 @@ func (h Invite) IndexWithRelations(s *namespace.InviteStore) ([]*namespace.Invit
 	return ii, errors.Err(err)
 }
 
+// StoreModel unmarshals the request's data into an invite, validates it and
+// stores it in the database. Upon success this will return the newly created
+// invite. This also returns the form for sending an invite.
 func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.InviteForm, error) {
 	f := namespace.InviteForm{}
 
@@ -89,6 +101,10 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 	return i, f, nil
 }
 
+// Accept accepts an invite in the given request, and adds the user the invite
+// was sent to as a collaborator to the invite's namespace. Upon success this
+// will return the namespace the user was invited to, the user who sent the
+// invite, and the user who received the invite.
 func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user.User, error) {
 	ctx := r.Context()
 
@@ -112,6 +128,8 @@ func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user
 	return n, inviter, invitee, errors.Err(err)
 }
 
+// DeleteModel deletes the namespace invite in the given request context from
+// the database.
 func (h Invite) DeleteModel(r *http.Request) error {
 	ctx := r.Context()
 

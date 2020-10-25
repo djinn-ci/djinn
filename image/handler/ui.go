@@ -19,10 +19,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// UI is the handler for handling UI requests made for image creation, and
+// management.
 type UI struct {
 	Image
 }
 
+// Index serves the HTML response detailing the list of images.
 func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -57,6 +60,8 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for creating and uploading images via the
+// web frontend.
 func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -80,6 +85,9 @@ func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for creating an
+// image. If validation fails then the user is redirected back to the request
+// referer, otherwise they are redirect back to the image index.
 func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -118,6 +126,8 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/images")
 }
 
+// Show serves the HTML response for viewing an individual image in the given
+// request.
 func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 	i, ok := image.FromContext(r.Context())
 
@@ -148,6 +158,9 @@ func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, i.Name, i.CreatedAt, rec)
 }
 
+// Destroy removes the image in the given request context from the database.
+// This redirects back to the image index if this was done from an individual
+// image view, otherwise it redirects back to the request's referer.
 func (h Image) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

@@ -1,3 +1,5 @@
+// Package github provides an implementation of the provider.Client interface
+// for the GitHub REST API.
 package github
 
 import (
@@ -27,8 +29,8 @@ type Client struct {
 }
 
 type Error struct {
-	Message string
-	Errors  []map[string]string
+	Message string              // Message is the original message from a failed request.
+	Errors  []map[string]string // Errors is the list of errors that occurred from a failed request.
 }
 
 type User struct {
@@ -104,59 +106,9 @@ func decodeError(r io.Reader) Error {
 	return err
 }
 
-func (g *Client) findHook(tok, name, url string) (int64, error) {
-	resp, err := g.Get(tok, "/repos/" + name + "/hooks")
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	defer resp.Body.Close()
-
-	hooks := make([]struct {
-		ID     int64
-		Config struct {
-			URL string
-		}
-	}, 0)
-
-	json.NewDecoder(resp.Body).Decode(&hooks)
-
-	var id int64
-
-	for _, hook := range hooks {
-		if hook.Config.URL == url {
-			id = hook.ID
-			break
-		}
-	}
-	return id, nil
-}
-
-func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
-	if len(signature) != signatureLength {
-		return nil, provider.ErrInvalidSignature
-	}
-
-	b, err := ioutil.ReadAll(r)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	actual := make([]byte, 20)
-
-	hex.Decode(actual, []byte(signature[5:]))
-
-	expected := hmac.New(sha1.New, []byte(g.Secret))
-	expected.Write(b)
-
-	if !hmac.Equal(expected.Sum(nil), actual) {
-		return nil, provider.ErrInvalidSignature
-	}
-	return b, nil
-}
-
+// New returns a new Client to the GitHub REST API. If the given endpoint is
+// empty then the default "https://api.github.com" will be used. This will
+// set the following scopes to request: "admin:repo_hook", "read:org", "repo".
 func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 	if endpoint == "" {
 		endpoint = "https://api.github.com"
@@ -189,6 +141,61 @@ func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 	}
 }
 
+func (g *Client) findHook(tok, name, url string) (int64, error) {
+	resp, err := g.Get(tok, "/repos/" + name + "/hooks")
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+
+	defer resp.Body.Close()
+
+	hooks := make([]struct {
+		ID     int64
+		Config struct {
+			URL string
+		}
+	}, 0)
+
+	json.NewDecoder(resp.Body).Decode(&hooks)
+
+	var id int64
+
+	for _, hook := range hooks {
+		if hook.Config.URL == url {
+			id = hook.ID
+			break
+		}
+	}
+	return id, nil
+}
+
+// VerifyRequest implements the provider.Client interface.
+func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
+	if len(signature) != signatureLength {
+		return nil, provider.ErrInvalidSignature
+	}
+
+	b, err := ioutil.ReadAll(r)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	actual := make([]byte, 20)
+
+	hex.Decode(actual, []byte(signature[5:]))
+
+	expected := hmac.New(sha1.New, []byte(g.Secret))
+	expected.Write(b)
+
+	if !hmac.Equal(expected.Sum(nil), actual) {
+		return nil, provider.ErrInvalidSignature
+	}
+	return b, nil
+}
+
+// Repos implements the provider.Client interface.
 func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
 	resp, err := g.Get(tok, "/user/repos?sort=updated&page=" + strconv.FormatInt(page, 10))
 
@@ -227,6 +234,9 @@ func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	return rr, p, nil
 }
 
+// Groups implements the provider.Client interface. For GitHub this will return
+// a slice of the organization IDs the user is either an owner of, or a member
+// of.
 func (g *Client) Groups(tok string) ([]int64, error) {
 	resp, err := g.Get(tok, "/user/orgs")
 
@@ -250,6 +260,7 @@ func (g *Client) Groups(tok string) ([]int64, error) {
 	return ids, nil
 }
 
+// ToggleRepo implementas the provider.Client interface.
 func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 	if !r.Enabled {
 		body := map[string]interface{}{
@@ -328,6 +339,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 	return nil
 }
 
+// SetCommitStatus implements the provider.Client interface.
 func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Status, url, sha string) error {
 	body := map[string]string{
 		"state":       states[status],
@@ -354,6 +366,7 @@ func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 	return nil
 }
 
+// Error returns a formatted string of an error from the GitHub API.
 func (e Error) Error() string {
 	if len(e.Errors) > 0 {
 		s := e.Message + ": "
@@ -370,6 +383,8 @@ func (e Error) Error() string {
 	return e.Message
 }
 
+// Has reports whether or not the given error string exists in the underlying
+// error.
 func (e Error) Has(err1 string) bool {
 	for _, err := range e.Errors {
 		if err["message"] == err1 {

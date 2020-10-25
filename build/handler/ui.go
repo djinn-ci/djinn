@@ -23,22 +23,27 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// UI is the handler for handling UI requests made for build creation,
+// submission, and retrieval.
 type UI struct {
 	Build
 
-	Job       JobUI
-	Tag       TagUI
+	// Artifacts is the block storage to use for retrieving artifacts that
+	// are downloaded through the web frontend.
 	Artifacts block.Store
 }
 
+// JobUI is the handler for handling UI requests made for managing build jobs.
 type JobUI struct {
 	Job
 }
 
+// TagUI is the handler for handling UI requests made for managing build tags.
 type TagUI struct {
 	Tag
 }
 
+// Index serves the HTML response detailing the list of builds.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -74,6 +79,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for submitting builds via the web frontend.
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -96,6 +102,9 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for submitting a
+// build. If validation fails then the user is redirected back to the previous
+// request, otherwise they are redirect back to the newly submitted build.
 func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -149,6 +158,9 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, b.Endpoint())
 }
 
+// Show serves the HTML response for viewing an individual build in the given
+// request. This serves different responses based on the base path of the
+// request URL.
 func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -281,7 +293,9 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
-// Download will serve the contents of an artifact.
+// Download will serve the contents of a build's artifact in the given request.
+// Depending on the MIME type of the artifact will depend on whether the content
+// is served in the browser directly, or downloaded.
 func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 	b, ok := build.FromContext(r.Context())
 
@@ -321,6 +335,8 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 	http.ServeContent(w, r, a.Name, a.CreatedAt, rec)
 }
 
+// Destroy kills the build. On success this will redirect back, on failure it
+// will redirect back with an error message.
 func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -334,6 +350,9 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Store adds the tags in the given form submitted in the request. Upon success
+// this will redirect back to the previous page. On a failure this will redirect
+// back with an error message.
 func (h TagUI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -346,6 +365,9 @@ func (h TagUI) Store(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Destroy will remove the specified tag from the build in the given request.
+// On success this will redirect back, otherwise it will redirect back with an
+// error message.
 func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -359,6 +381,9 @@ func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
+// Show will serve the HTML response for an individual build job. If the base
+// of the URL path is "/raw", then a "text/plain" response is served with the
+// output of the job.
 func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 

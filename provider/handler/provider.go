@@ -19,10 +19,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Provider is the handler that handles the authentication flow against a
+// provider that a user either wants to login with, or connect to.
 type Provider struct {
 	web.Handler
 
-	Block    *crypto.Block
+	// Block is the block cipher to use for the encryption/decryption of any
+	// access tokens we use for authenticating against a provider's API.
+	Block *crypto.Block
+
+	// Registry is the register that holds the provider client implementations
+	// we use for interacting with that provider's API.
 	Registry *provider.Registry
 }
 
@@ -118,6 +125,10 @@ func (h Provider) lookupUser(name string, userId int64, email, username string) 
 	return u, errors.Err(h.Users.Verify(tok))
 }
 
+// Auth will authenticate the user via the provider in the request. If a user
+// is logging in for the first time via a provider, then we create an account
+// for them and link it to the provider. Otherwise we simply connect the
+// provider to the current user's account.
 func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

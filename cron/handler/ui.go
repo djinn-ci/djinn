@@ -20,10 +20,13 @@ import (
 	"github.com/gorilla/csrf"
 )
 
+// UI is the handler for handling UI requests made for cron job creation,
+// and management.
 type UI struct {
 	Cron
 }
 
+// Index serves the HTML response detailing the list of cron jobs.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -61,6 +64,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for creating cron jobs via the web frontend.
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	u, ok := user.FromContext(r.Context())
 
@@ -84,6 +88,9 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for creating a cron
+// job. If validation fails then the user is redirected back to the request
+// referer, otherwise they are redirect back to the cron job index.
 func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -122,6 +129,8 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/cron")
 }
 
+// Show serves the HTML response for viewing an individual cron job in the given
+// request.
 func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -184,6 +193,8 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Edit serves the HTML response for editing the cron job in the given request
+// context.
 func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -214,6 +225,9 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Update validates the form submitted in the given request for updating a cron
+// job. If validation fails then the user is redirect back to the request's
+// referer, otherwise they are redirected back to the updated cron job.
 func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -252,6 +266,9 @@ func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, c.Endpoint())
 }
 
+// Destroy removes the cron job in the given request context from the database.
+// This redirects back to the cron index if this was done from an individual
+// cron view, otherwise it redirects back to the request's referer.
 func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

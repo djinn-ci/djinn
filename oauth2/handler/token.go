@@ -18,12 +18,18 @@ import (
 	"github.com/gorilla/csrf"
 )
 
+// Token handles serving responses for managing personal access tokens that a
+// user creates to access the API.
 type Token struct {
 	web.Handler
 
+	// Tokens is the token store used for updating, resetting, and deleting
+	// any personal access tokens the user creates.
 	Tokens *oauth2.TokenStore
 }
 
+// Index serves the HTML response detailing the list of personal access tokens
+// created for the current user.
 func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -74,6 +80,7 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Create serves the HTML response for creating a new personal access token.
 func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -113,6 +120,11 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Store validates the form submitted in the given request for creating a
+// personal access token. If validation fails then the user is redirected back
+// to the request referer, otherwise they are redirect back to the token index.
+// If no specific scopes are specified in the form submission, then all scopes
+// are added to the created token.
 func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -166,6 +178,7 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/settings/tokens")
 }
 
+// Edit serves the HTML response for editing a personal access token.
 func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -199,6 +212,10 @@ func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Update validates the form submitted in the given request for updating token.
+// If validation fails then the user is redirect back to the request's referer,
+// otherwise they are redirected back to the token index. If the base path of
+// the request URL is "/regenerate", then the token is simply regenerated.
 func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
@@ -266,6 +283,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/settings/tokens")
 }
 
+// Destroy removes the token in the request from the database.
 func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 

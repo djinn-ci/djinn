@@ -424,7 +424,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 
 		ui.Init()
 		ui.Register("auth")
-		ui.Register("oauth2")
+		ui.Register("oauth2", oauth2web.Gate(db))
 		ui.Register("build", buildweb.Gate(db))
 		ui.Register("provider", providerweb.Gate(db))
 		ui.Register("namespace", namespaceweb.Gate(db))

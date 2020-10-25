@@ -12,12 +12,19 @@ import (
 	"github.com/andrewpillar/djinn/web"
 )
 
+// API is the handler for handling API requests made for image creation,
+// and management.
 type API struct {
 	Image
 
+	// Prefix is the part of the URL under which the API is being served, for
+	// example "/api".
 	Prefix string
 }
 
+// Index serves the JSON encoded list of images for the given request. If
+// multiple pages of images are returned then the database.Paginator is encoded
+// in the Link response header.
 func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	ii, paginator, err := h.IndexWithRelations(r)
 
@@ -38,6 +45,9 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, data, http.StatusOK)
 }
 
+// Store stores the image from the given request body. If any validation
+// errors occur then these will be sent back in the JSON response. On success
+// the image is sent in the JSON response.
 func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	i, _, err := h.StoreModel(w, r)
 
@@ -68,6 +78,9 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, i.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
+// Show serves up the JSON response for the image in the given request. If the
+// Accept header in the request is "application/octet-stream" then the content
+// of the image itself is sent in the response.
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Accept") == "application/octet-stream" {
 		i, ok := image.FromContext(r.Context())
@@ -101,6 +114,8 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, i.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
+// Destroy removes the image in the given request context from the database and
+// underlying block store. This serves no content in the response body.
 func (h API) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

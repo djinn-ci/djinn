@@ -19,10 +19,17 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// Connection handles serving the responses to managing the OAuth apps that
+// have connected to a user's account.
 type Connection struct {
 	web.Handler
 
-	Apps   *oauth2.AppStore
+	// Apps is the store used for retrieving the original OAuth app that made
+	// the connection to the user's account.
+	Apps *oauth2.AppStore
+
+	// Tokens is the store used for retrieving the original access tokens used
+	// by the app for authenticating requests made to the API.
 	Tokens *oauth2.TokenStore
 }
 
@@ -55,6 +62,7 @@ func (h Connection) getToken(r *http.Request) (*oauth2.Token, error) {
 	return t, errors.Err(err)
 }
 
+// Index serves the HTML response detailing the list of connected apps.
 func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -123,6 +131,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Show serves the HTML response detailing an individual connected app.
 func (h Connection) Show(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -163,6 +172,9 @@ func (h Connection) Show(w http.ResponseWriter, r *http.Request) {
 	web.HTML(w, template.Render(d), http.StatusOK)
 }
 
+// Destroy will delete the connection from the user's account. This will delete
+// the underlying access token that was generated for the user from the
+// database.
 func (h Connection) Destroy(w http.ResponseWriter, r *http.Request) {
 	t, err := h.getToken(r)
 

@@ -18,19 +18,29 @@ import (
 	"github.com/RichardKnop/machinery/v1"
 )
 
-// Build is the base handler for handling the incoming HTTP requests for each
-// route. This will perform the basic handling of requests for validating,
-// storing, and retrieving of data.
+// Build is the base handler that provides shared logic for the UI and API
+// handlers for build creation, submission, and retrieval.
 type Build struct {
 	web.Handler
 
-	Block     *crypto.Block
-	Loaders   *database.Loaders
-	Objects   *object.Store
-	Variables *variable.Store
-	Client    *redis.Client
-	Hasher    *crypto.Hasher
-	Queues    map[string]*machinery.Server
+	// Loaders are the relationship loaders to use for loading the
+	// relationships we need when working with builds.
+	Loaders *database.Loaders
+
+	Objects   *object.Store   // Objects is the object store to use for build objects.
+	Variables *variable.Store // Variables is the variable store to use for build variables.
+
+	// Client is the client connection to redis. This is used for submitting
+	// builds onto the queues, and for managing the killing of builds.
+	Client *redis.Client
+
+	// Hasher is the hashing mechanism to use for generating artifact hashes
+	// for builds.
+	Hasher *crypto.Hasher
+
+	// Queues holds the different queues a build could be submitted to. Each key
+	// in the map will be a driver.
+	Queues map[string]*machinery.Server
 }
 
 func (h Build) objectsWithRelations(b *build.Build) ([]*build.Object, error) {
@@ -67,10 +77,10 @@ func (h Build) variablesWithRelations(b *build.Build) ([]*build.Variable, error)
 	return vv, errors.Err(err)
 }
 
-// ShowWithRelations will retrieve the *build.Build model from the given
-// request, if any, and load in all of the relationships for that model, and
-// the nested relationships for those relationships, such as the stage jobs,
-// namespace user.
+// ShowWithRelations retrieves the *build.Build model from the context of the
+// given request. All of the relations for the build will be loaded into the
+// model we have. If the build has a namespace bound to it, then the
+// namespace's user will be loaded to the namespace.
 func (h Build) ShowWithRelations(r *http.Request) (*build.Build, error) {
 	b, ok := build.FromContext(r.Context())
 
@@ -104,10 +114,11 @@ func (h Build) ShowWithRelations(r *http.Request) (*build.Build, error) {
 	return b, errors.Err(err)
 }
 
-// IndexWithRelations returns a paginated slice of Builds for the given request
-// with all of the Build relations loaded. This uses the user from the given
-// request to bind to a new build.Store, along with the request URL values to
-// get the Builds.
+// IndexWithRelations retreives a slice of *build.Build models for the user in
+// the given request context. All of the relations for each build will be
+// loaded into each model we have. If any of the builds have a bound namespace,
+// then the namespace's user will be loaded too. A database.Paginator will also
+// be returned if there are multiple pages of builds.
 func (h Build) IndexWithRelations(r *http.Request) ([]*build.Build, database.Paginator, error) {
 	u, ok := user.FromContext(r.Context())
 
@@ -139,8 +150,9 @@ func (h Build) IndexWithRelations(r *http.Request) ([]*build.Build, database.Pag
 	return bb, paginator, errors.Err(err)
 }
 
-// StoreModel creates a new build in the database and returns it. The given
-// http.Request is decoded to retrieve information about the build being stored.
+// StoreModel unmarshals the request's data into a build, validates it and
+// stores it in the database. Upon success this will return the newly created
+// build. This also returns the form for creating a build.
 func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 	f := build.Form{}
 
@@ -177,7 +189,7 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 	return b, f, errors.Err(err)
 }
 
-// Kill the build from the given request.
+// Kill will kill the build in the given request context.
 func (h Build) Kill(r *http.Request) error {
 	b, ok := build.FromContext(r.Context())
 

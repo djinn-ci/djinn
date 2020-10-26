@@ -1,4 +1,4 @@
-[Prev](/admin/server) - [Next](/admin/deployments)
+[Prev](/admin/server)
 
 # Worker
 

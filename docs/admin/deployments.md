@@ -1,3 +1,0 @@
-[Prev](/admin/worker)
-
-# Deployments

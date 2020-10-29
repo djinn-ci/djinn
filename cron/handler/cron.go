@@ -62,8 +62,8 @@ func (h Cron) IndexWithRelations(s *cron.Store, vals url.Values) ([]*cron.Cron, 
 // StoreModel unmarshals the request's data into a cron job, validates it and
 // stores it in the database. Upon success this will return the newly created
 // cron. This also returns the form for creating a cron job.
-func (h Cron) StoreModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
-	f := &cron.Form{}
+func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
+	var f cron.Form
 
 	u, ok := user.FromContext(r.Context())
 
@@ -79,7 +79,7 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
 	}
 	f.Crons = crons
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := form.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

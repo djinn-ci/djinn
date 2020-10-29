@@ -53,7 +53,15 @@ func (f *Form) Validate() error {
 		errs.Put("name", form.ErrFieldInvalid("Name", "can only contain letters, numbers, dashes, and dots"))
 	}
 
-	o, err := f.Objects.Get(query.Where("name", "=", f.Name))
+	opts := []query.Option{
+		query.Where("name", "=", f.Name),
+	}
+
+	if f.Objects.Namespace.IsZero() {
+		opts = append(opts, query.WhereRaw("namespace_id", "IS", "NULL"))
+	}
+
+	o, err := f.Objects.Get(opts...)
 
 	if err != nil {
 		return errors.Err(err)

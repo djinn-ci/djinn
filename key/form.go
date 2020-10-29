@@ -57,7 +57,15 @@ func (f Form) Validate() error {
 	}
 
 	if checkUnique {
-		k, err := f.Keys.Get(query.Where("name", "=", f.Name))
+		opts := []query.Option{
+			query.Where("name", "=", f.Name),
+		}
+
+		if f.Keys.Namespace.IsZero() {
+			opts = append(opts, query.WhereRaw("namespace_id", "IS", "NULL"))
+		}
+
+		k, err := f.Keys.Get(opts...)
 
 		if err != nil {
 			return errors.Err(err)

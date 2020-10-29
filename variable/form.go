@@ -51,7 +51,15 @@ func (f Form) Validate() error {
 		errs.Put("key", form.ErrFieldRequired("Key"))
 	}
 
-	v, err := f.Variables.Get(query.Where("key", "=", f.Key))
+	opts := []query.Option{
+		query.Where("key", "=", f.Key),
+	}
+
+	if f.Variables.Namespace.IsZero() {
+		opts = append(opts, query.WhereRaw("namespace_id", "IS", "NULL"))
+	}
+
+	v, err := f.Variables.Get(opts...)
 
 	if err != nil {
 		return errors.Err(err)

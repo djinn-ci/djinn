@@ -44,7 +44,7 @@ func (f Form) Fields() map[string]string {
 // is present. The presence of the Name field is then checked, followed by a
 // uniqueness check of that field. The present oft he Manifest field is then
 // checked, followed by a validation of that manifest.
-func (f *Form) Validate() error {
+func (f Form) Validate() error {
 	errs := form.NewErrors()
 
 	if err := f.Resource.BindNamespace(f.Crons); err != nil {
@@ -76,7 +76,15 @@ func (f *Form) Validate() error {
 	}
 
 	if checkUnique {
-		c, err := f.Crons.Get(query.Where("name", "=", f.Name))
+		opts := []query.Option{
+			query.Where("name", "=", f.Name),
+		}
+
+		if f.Crons.Namespace.IsZero() {
+			opts = append(opts, query.WhereRaw("namespace_id", "IS", "NULL"))
+		}
+
+		c, err := f.Crons.Get(opts...)
 
 		if err != nil {
 			return errors.Err(err)

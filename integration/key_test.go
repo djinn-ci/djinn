@@ -28,8 +28,9 @@ func Test_Key(t *testing.T) {
 	})
 
 	keyBody := map[string]interface{}{
-		"name": "id_rsa",
-		"key":  "AAAAABBBBBCCCCC",
+		"namespace": "keyspace",
+		"name":      "id_rsa",
+		"key":       "AAAAABBBBBCCCCC",
 	}
 
 	client.do(t, request{
@@ -52,6 +53,18 @@ func Test_Key(t *testing.T) {
 	})
 
 	keyBody["key"] = string(b)
+
+	client.do(t, request{
+		name:        "create ssh key in namespace keyspace",
+		method:      "POST",
+		uri:         "/api/keys",
+		token:       myTok,
+		contentType: "application/json",
+		body:        jsonBody(keyBody),
+		code:        http.StatusCreated,
+	})
+
+	delete(keyBody, "namespace")
 
 	createResp := client.do(t, request{
 		name:        "create ssh key",

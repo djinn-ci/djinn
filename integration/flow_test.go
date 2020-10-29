@@ -2,21 +2,6 @@
 
 package integration
 
-//import (
-//	"bytes"
-//	"crypto/rand"
-//	"crypto/rsa"
-//	"crypto/x509"
-//	"encoding/json"
-//	"encoding/pem"
-//	"net/http"
-//	"net/url"
-//	"testing"
-//
-//	"github.com/andrewpillar/djinn/namespace"
-//	"github.com/andrewpillar/djinn/oauth2"
-//)
-
 //func Test_ObjectFlow(t *testing.T) {
 //	f := OpenFile(t, "data")
 //	defer f.Close()

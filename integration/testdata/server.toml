@@ -1,0 +1,58 @@
+
+
+# The host on which the server will be running, used for Oauth redirects and
+# webhooks.
+host = "https://localhost:8080"
+
+[net]
+listen = "localhost:8080"
+
+[crypto]
+hash  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ012345678910"
+block = "abcdefghijklmnopqrstuvwxyzABCDEF"
+salt  = "abcdefghijklmnopqrstuvwxyzABCDEF"
+auth  = "abcdefghijklmnopqrstuvwxyzABCDEF"
+
+[database]
+addr     = "localhost:5432"
+name     = "djinn"
+username = "djinn"
+password = "secret"
+
+[smtp]
+addr  = "localhost:25"
+admin = "root@localhost"
+
+[redis]
+addr = "localhost:6379"
+
+# Where to store the uploaded driver images.
+[images]
+type = "file"
+path = "/tmp"
+
+# Where to look when downloading build artifacts.
+[artifacts]
+type = "file"
+path = "/tmp"
+
+# Where to store the uploaded build objects.
+[objects]
+type  = "file"
+path  = "/tmp"
+limit = 5000000
+
+[log]
+level = "debug"
+file  = "testdata/server.log"
+
+# Configure the drivers you want to support on the Djinn server. Each build
+# for a specific driver can be placed on an individual queue, or they can be
+# placed on the same queue.
+[[drivers]]
+type  = "qemu"
+queue = "builds"
+
+[[drivers]]
+type  = "docker"
+queue = "builds"

@@ -20,19 +20,26 @@ import (
 type Invite struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with namespace invites.
-	Loaders *database.Loaders
-
-	// Invites is the namespace invite store that is used for the deletion
-	// of namespace invites.
-	Invites *namespace.InviteStore
+	loaders *database.Loaders
 }
 
 var inviteMail = `%s has invited you to be a collaborator in %s. You can accept this invite via
 your Invites list,
 
     %s/invites`
+
+func NewInvite(h web.Handler) Invite {
+	loaders := database.NewLoaders()
+	loaders.Put("user", h.Users)
+	loaders.Put("inviter", h.Users)
+	loaders.Put("invitee", h.Users)
+	loaders.Put("namespace", namespace.NewStore(h.DB))
+
+	return Invite{
+		Handler: h,
+		loaders: loaders,
+	}
+}
 
 // IndexWithRelations returns all of the namespace invites with their
 // relationships loaded into each return invite.
@@ -43,7 +50,7 @@ func (h Invite) IndexWithRelations(s *namespace.InviteStore) ([]*namespace.Invit
 		return nil, errors.Err(err)
 	}
 
-	if err := namespace.LoadInviteRelations(h.Loaders, ii...); err != nil {
+	if err := namespace.LoadInviteRelations(h.loaders, ii...); err != nil {
 		return ii, errors.Err(err)
 	}
 
@@ -148,5 +155,5 @@ func (h Invite) DeleteModel(r *http.Request) error {
 	if i.IsZero() || (u.ID != i.InviteeID && u.ID != i.InviterID) {
 		return database.ErrNotFound
 	}
-	return errors.Err(h.Invites.Delete(i))
+	return errors.Err(namespace.NewInviteStore(h.DB).Delete(i))
 }

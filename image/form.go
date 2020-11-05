@@ -60,7 +60,7 @@ func (f *Form) Validate() error {
 	}
 
 	if f.Images.Namespace.IsZero() {
-		opts = append(opts, query.WhereRaw("namespace_id", "=", "NULL"))
+		opts = append(opts, query.WhereRaw("namespace_id", "IS", "NULL"))
 	}
 
 	i, err := f.Images.Get(opts...)

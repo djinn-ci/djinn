@@ -143,11 +143,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Namespace already bound to build models, so no need to reload.
-		loaders := h.Loaders.Copy()
-		loaders.Delete("namespace")
-
-		if err := build.LoadRelations(h.Loaders, bb...); err != nil {
+		if err := build.LoadRelations(h.loaders, bb...); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -205,10 +201,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		loaders := h.Loaders.Copy()
-		loaders.Delete("namespace")
-
-		if err := image.LoadRelations(loaders, ii...); err != nil {
+		if err := image.LoadRelations(h.loaders, ii...); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -232,10 +225,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		loaders := h.Loaders.Copy()
-		loaders.Delete("namespace")
-
-		if err := object.LoadRelations(loaders, oo...); err != nil {
+		if err := object.LoadRelations(h.loaders, oo...); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -259,7 +249,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		loaders := h.Loaders.Copy()
+		loaders := h.loaders.Copy()
 		loaders.Delete("namespace")
 
 		if err := variable.LoadRelations(loaders, vv...); err != nil {
@@ -286,7 +276,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		loaders := h.Loaders.Copy()
+		loaders := h.loaders.Copy()
 		loaders.Delete("namespace")
 
 		if err := key.LoadRelations(loaders, kk...); err != nil {

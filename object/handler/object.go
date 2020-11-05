@@ -21,27 +21,25 @@ import (
 type Object struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with objects.
-	Loaders *database.Loaders
+	loaders *database.Loaders
+	hasher  *crypto.Hasher
+	store   block.Store
+	limit   int64
+}
 
-	// Objects is the store used for deletion of objects.
-	Objects *object.Store
+func New(h web.Handler, hasher *crypto.Hasher, store block.Store, limit int64) Object {
+	loaders := database.NewLoaders()
+	loaders.Put("user", h.Users)
+	loaders.Put("namespace", namespace.NewStore(h.DB))
+	loaders.Put("build_tag", build.NewTagStore(h.DB))
+	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
-	// Builds is the build store for retrieving the builds an object has been
-	// placed on to.
-	Builds *build.Store
-
-	// Hasher is the hashing mechanism to use when generating hashes for
-	// objects.
-	Hasher *crypto.Hasher
-
-	// BlockStore is the block store implementation to use for storing objects 
-	// that are uploaded.
-	BlockStore block.Store
-
-	// Limit is the maximum size of images that can be uploaded.
-	Limit int64
+	return Object{
+		loaders: loaders,
+		hasher:  hasher,
+		store:   store,
+		limit:   limit,
+	}
 }
 
 // IndexWithRelations retrieves a slice of *object.Object models for the user in
@@ -62,7 +60,7 @@ func (h Object) IndexWithRelations(r *http.Request) ([]*object.Object, database.
 		return oo, paginator, errors.Err(err)
 	}
 
-	if err := object.LoadRelations(h.Loaders, oo...); err != nil {
+	if err := object.LoadRelations(h.loaders, oo...); err != nil {
 		return oo, paginator, errors.Err(err)
 	}
 
@@ -90,12 +88,12 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		return nil, f, errors.New("no user in request context")
 	}
 
-	objects := object.NewStoreWithBlockStore(h.DB, h.BlockStore, u)
+	objects := object.NewStoreWithBlockStore(h.DB, h.store, u)
 
 	f.File = form.File{
 		Writer:  w,
 		Request: r,
-		Limit:   h.Limit,
+		Limit:   h.limit,
 	}
 	f.Resource = namespace.Resource{
 		User:       u,
@@ -118,7 +116,7 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		return nil, f, errors.Err(err)
 	}
 
-	hash, err := h.Hasher.HashNow()
+	hash, err := h.hasher.HashNow()
 
 	if err != nil {
 		return nil, f, errors.Err(err)
@@ -141,7 +139,7 @@ func (h Object) ShowWithRelations(r *http.Request) (*object.Object, error) {
 		return o, errors.New("no object in request context")
 	}
 
-	if err := object.LoadRelations(h.Loaders, o); err != nil {
+	if err := object.LoadRelations(h.loaders, o); err != nil {
 		return o, errors.Err(err)
 	}
 
@@ -161,5 +159,5 @@ func (h Object) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get object from context")
 	}
-	return errors.Err(h.Objects.Delete(o.ID, o.Hash))
+	return errors.Err(object.NewStore(h.DB).Delete(o.ID, o.Hash))
 }

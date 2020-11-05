@@ -3,11 +3,13 @@ package handler
 import (
 	"net/http"
 
+	"github.com/andrewpillar/djinn/block"
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/object"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/variable"
@@ -23,24 +25,29 @@ import (
 type Build struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with builds.
-	Loaders *database.Loaders
+	artifacts block.Store
+	loaders   *database.Loaders
+	redis     *redis.Client
+	hasher    *crypto.Hasher
+	queues    map[string]*machinery.Server
+}
 
-	Objects   *object.Store   // Objects is the object store to use for build objects.
-	Variables *variable.Store // Variables is the variable store to use for build variables.
+func New(h web.Handler, artifacts block.Store, redis *redis.Client, hasher *crypto.Hasher, queues map[string]*machinery.Server) Build {
+	loaders := database.NewLoaders()
+	loaders.Put("user", h.Users)
+	loaders.Put("namespace", namespace.NewStore(h.DB))
+	loaders.Put("build_tag", build.NewTagStore(h.DB))
+	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
+	loaders.Put("build_stage", build.NewStageStore(h.DB))
 
-	// Client is the client connection to redis. This is used for submitting
-	// builds onto the queues, and for managing the killing of builds.
-	Client *redis.Client
-
-	// Hasher is the hashing mechanism to use for generating artifact hashes
-	// for builds.
-	Hasher *crypto.Hasher
-
-	// Queues holds the different queues a build could be submitted to. Each key
-	// in the map will be a driver.
-	Queues map[string]*machinery.Server
+	return Build{
+		Handler:   h,
+		artifacts: artifacts,
+		loaders:   loaders,
+		redis:     redis,
+		hasher:    hasher,
+		queues:    queues,
+	}
 }
 
 func (h Build) objectsWithRelations(b *build.Build) ([]*build.Object, error) {
@@ -56,7 +63,9 @@ func (h Build) objectsWithRelations(b *build.Build) ([]*build.Object, error) {
 
 	mm := database.ModelSlice(len(oo), build.ObjectModel(oo))
 
-	err = h.Objects.Load("id", database.MapKey("object_id", mm), database.Bind("object_id", "id", mm...))
+	err = object.NewStore(h.DB).Load(
+		"id", database.MapKey("object_id", mm), database.Bind("object_id", "id", mm...),
+	)
 	return oo, errors.Err(err)
 }
 
@@ -73,7 +82,9 @@ func (h Build) variablesWithRelations(b *build.Build) ([]*build.Variable, error)
 
 	mm := database.ModelSlice(len(vv), build.VariableModel(vv))
 
-	err = h.Variables.Load("id", database.MapKey("variable_id", mm), database.Bind("variable_id", "id", mm...))
+	err = variable.NewStore(h.DB).Load(
+		"id", database.MapKey("variable_id", mm), database.Bind("variable_id", "id", mm...),
+	)
 	return vv, errors.Err(err)
 }
 
@@ -88,7 +99,7 @@ func (h Build) ShowWithRelations(r *http.Request) (*build.Build, error) {
 		return nil, errors.New("failed to get build from context")
 	}
 
-	if err := build.LoadRelations(h.Loaders, b); err != nil {
+	if err := build.LoadRelations(h.loaders, b); err != nil {
 		return nil, errors.Err(err)
 	}
 
@@ -132,7 +143,7 @@ func (h Build) IndexWithRelations(r *http.Request) ([]*build.Build, database.Pag
 		return bb, paginator, errors.Err(err)
 	}
 
-	if err := build.LoadRelations(h.Loaders, bb...); err != nil {
+	if err := build.LoadRelations(h.loaders, bb...); err != nil {
 		return bb, paginator, errors.Err(err)
 	}
 
@@ -166,7 +177,7 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	if _, ok := h.Queues[f.Manifest.Driver["type"]]; !ok {
+	if _, ok := h.queues[f.Manifest.Driver["type"]]; !ok {
 		return nil, f, build.ErrDriver
 	}
 
@@ -196,5 +207,5 @@ func (h Build) Kill(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get build from context")
 	}
-	return errors.Err(b.Kill(h.Client))
+	return errors.Err(b.Kill(h.redis))
 }

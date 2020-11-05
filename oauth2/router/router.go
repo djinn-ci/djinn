@@ -1,11 +1,11 @@
-package web
+package router
 
 import (
 	"context"
 	"net/http"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/oauth2"
 	"github.com/andrewpillar/djinn/oauth2/handler"
@@ -23,17 +23,18 @@ import (
 // Router is what registers the routes to handling the management of OAuth
 // tokens, and applications. It implements the server.Router interface.
 type Router struct {
+	middleware web.Middleware
 	oauth2     handler.Oauth2
 	app        handler.App
 	token      handler.Token
 	connection handler.Connection
 
-	// Block is the block cipher to use for encrypting client secrets.
-	Block *crypto.Block
-
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
+//	// Block is the block cipher to use for encrypting client secrets.
+//	Block *crypto.Block
+//
+//	// Middleware is the middleware that is applied to any routes registered
+//	// from this router.
+//	Middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)
@@ -66,32 +67,41 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
+func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+	return &Router{
+		oauth2:     handler.New(h, cfg.BlockCipher()),
+		app:        handler.NewApp(h, cfg.BlockCipher()),
+		connection: handler.NewConnection(h),
+		token:      handler.NewToken(h),
+	}
+}
+
 // Init initialises the handlers for the OAuth server, managing OAuth apps and
 // tokens. The exported properties on the Router itself are passed through to
 // the underlying handlers.
-func (r *Router) Init(h web.Handler) {
-	apps := oauth2.NewAppStore(h.DB)
-	tokens := oauth2.NewTokenStore(h.DB)
-
-	r.oauth2 = handler.Oauth2{
-		Handler: h,
-		Apps:    oauth2.NewAppStoreWithBlock(h.DB, r.Block),
-	}
-	r.app = handler.App{
-		Handler: h,
-		Block:   r.Block,
-		Apps:    apps,
-	}
-	r.connection = handler.Connection{
-		Handler: h,
-		Apps:    apps,
-		Tokens:  tokens,
-	}
-	r.token = handler.Token{
-		Handler: h,
-		Tokens:  tokens,
-	}
-}
+//func (r *Router) Init(h web.Handler) {
+//	apps := oauth2.NewAppStore(h.DB)
+//	tokens := oauth2.NewTokenStore(h.DB)
+//
+//	r.oauth2 = handler.Oauth2{
+//		Handler: h,
+//		Apps:    oauth2.NewAppStoreWithBlock(h.DB, r.Block),
+//	}
+//	r.app = handler.App{
+//		Handler: h,
+//		Block:   r.Block,
+//		Apps:    apps,
+//	}
+//	r.connection = handler.Connection{
+//		Handler: h,
+//		Apps:    apps,
+//		Tokens:  tokens,
+//	}
+//	r.token = handler.Token{
+//		Handler: h,
+//		Tokens:  tokens,
+//	}
+//}
 
 // RegisterUI registers the UI routes for handling the OAuth web flow, managing
 // OAuth apps, and personal access tokens. No CSRF protection is applied to the
@@ -112,7 +122,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/connections", r.connection.Index).Methods("GET")
 	auth.HandleFunc("/connections/{id}", r.connection.Show).Methods("GET")
 	auth.HandleFunc("/connections/{id}", r.connection.Destroy).Methods("DELETE")
-	auth.Use(r.Middleware.Auth, csrf)
+	auth.Use(r.middleware.Auth, csrf)
 
 	tok := mux.PathPrefix("/settings/tokens").Subrouter()
 	tok.HandleFunc("", r.token.Index).Methods("GET")
@@ -123,7 +133,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	tok.HandleFunc("/{token}", r.token.Update).Methods("PATCH")
 	tok.HandleFunc("/{token}/regenerate", r.token.Update).Methods("PATCH")
 	tok.HandleFunc("/{token}", r.token.Destroy).Methods("DELETE")
-	tok.Use(r.Middleware.Gate(gates...), csrf)
+	tok.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI is a stub method to implement the server.Router interface.

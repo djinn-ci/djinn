@@ -1,11 +1,18 @@
 package cron
 
 import (
+	"fmt"
+
+	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
+
+	"github.com/jmoiron/sqlx"
+
+	"github.com/RichardKnop/machinery/v1"
 )
 
 // Batcher provides a way of retrieving batches of cron jobs that are ready
@@ -14,14 +21,16 @@ type Batcher struct {
 	err       error
 	paginator database.Paginator
 	store     *Store
-	crons     []*Cron
+	builds    *build.Store
+	batch     []*Cron
 }
 
 // NewBatcher returns a new Batcher using the given Store to retrieve cron jobs
 // from, and setting the size of each batch to the given limit.
-func NewBatcher(s *Store, limit int64) *Batcher {
+func NewBatcher(db *sqlx.DB, limit int64) *Batcher {
 	return &Batcher{
-		store:     s,
+		store:     NewStore(db),
+		builds:    build.NewStore(db),
 		paginator: database.Paginator{
 			Page:  1,
 			Limit: limit,
@@ -76,13 +85,41 @@ func (b *Batcher) Next() bool {
 	}
 
 	b.paginator = paginator
-	b.crons = cc
+	b.batch = cc
 
 	return paginator.Page == paginator.Pages[len(paginator.Pages)-1]
 }
 
-// Crons returns the slice of crons from the current batch.
-func (b *Batcher) Crons() []*Cron { return b.crons }
+func (b *Batcher) Batch() []*Cron { return b.batch }
 
 // Err returns the current error, if any, that occurred when loading a batch.
 func (b *Batcher) Err() error { return b.err }
+
+// Invoke will submit a build for each job in the current batch.
+func (b *Batcher) Invoke(queues map[string]*machinery.Server) (int, error) {
+	errs := make([]error, 0, len(b.batch))
+	n := 0
+
+	for _, c := range b.batch {
+		bld, err := b.store.Invoke(c)
+
+		if err != nil {
+			errs = append(errs, fmt.Errorf("failed to invoke cron: %v", errors.Err(err)))
+			continue
+		}
+
+		queue, ok := queues[bld.Manifest.Driver["type"]]
+
+		if !ok {
+			errs = append(errs, fmt.Errorf("invalid build driver: %v", bld.Manifest.Driver["type"]))
+			continue
+		}
+
+		if err := b.builds.Submit(queue, "djinn-scheduler", bld); err != nil {
+			errs = append(errs, fmt.Errorf("failed to submit build: %v", errors.Err(err)))
+			continue
+		}
+		n++
+	}
+	return n, errors.Slice(errs)
+}

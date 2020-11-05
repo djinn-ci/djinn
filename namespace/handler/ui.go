@@ -304,7 +304,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := namespace.LoadInviteRelations(h.Loaders, ii...); err != nil {
+		if err := namespace.LoadInviteRelations(h.loaders, ii...); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return
@@ -354,11 +354,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Namespace already bound to build models, so no need to reload.
-		loaders := h.Loaders.Copy()
-		loaders.Delete("namespace")
-
-		if err := build.LoadRelations(h.Loaders, bb...); err != nil {
+		if err := build.LoadRelations(h.loaders, bb...); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 			return

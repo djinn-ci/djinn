@@ -1,4 +1,4 @@
-package web
+package router
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/provider"
@@ -19,32 +19,15 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/go-redis/redis"
-
 	"github.com/jmoiron/sqlx"
 )
 
 // Router is what registers the UI routes for handling integrating with an
 // external provider.
 type Router struct {
-	provider handler.Provider
-	repo     handler.Repo
-
-	// Redis is the redis client connection to use for caching results from the
-	// provider's API.
-	Redis *redis.Client
-
-	// Block is the block cipher to use for the encryption/decryption of any
-	// access tokens we use for authenticating against a provider's API.
-	Block *crypto.Block
-
-	// Registry is the register that holds the provider client implementations
-	// we use for interacting with that provider's API.
-	Registry *provider.Registry
-
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
+	middleware web.Middleware
+	provider   handler.Provider
+	repo       handler.Repo
 }
 
 var _ server.Router = (*Router)(nil)
@@ -86,22 +69,16 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-// Init initialises the handlers for integrating the a provider.
-func (r *Router) Init(h web.Handler) {
+func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
 	gob.Register([]*provider.Repo{})
 	gob.Register(database.Paginator{})
 
-	r.provider = handler.Provider{
-		Handler:  h,
-		Block:    r.Block,
-		Registry: r.Registry,
-	}
-	r.repo = handler.Repo{
-		Handler:  h,
-		Redis:    r.Redis,
-		Block:    r.Block,
-		Registry: r.Registry,
-		Repos:    provider.NewRepoStore(h.DB),
+	block := cfg.BlockCipher()
+	providers := cfg.Providers()
+
+	return &Router{
+		provider: handler.New(h, block, providers),
+		repo:     handler.NewRepo(h, cfg.Redis(), block, providers),
 	}
 }
 
@@ -119,7 +96,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/reload", r.repo.Update).Methods("PATCH")
 	sr.HandleFunc("/enable", r.repo.Store).Methods("POST")
 	sr.HandleFunc("/disable/{repo:[0-9]+}", r.repo.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI is a stub method to implement the server.Router interface.

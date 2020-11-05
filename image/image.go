@@ -214,7 +214,7 @@ func (s *Store) Create(hash, name string, t driver.Type, r io.Reader) (*Image, e
 		return nil, errors.New("nil block store")
 	}
 
-	dst, err := s.blockStore.Create(filepath.Join(t.String(), hash))
+	dst, err := s.blockStore.Create(filepath.Join(hash))
 
 	if err != nil {
 		return nil, errors.Err(err)

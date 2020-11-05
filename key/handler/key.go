@@ -18,16 +18,19 @@ import (
 type Key struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with SSH keys.
-	Loaders *database.Loaders
+	loaders *database.Loaders
+	block   *crypto.Block
+}
 
-	// Block is the block cipher to use for encrypting SSH keys that are
-	// uploaded.
-	Block *crypto.Block
+func New(h web.Handler, block *crypto.Block) Key {
+	loaders := database.NewLoaders()
+	loaders.Put("namespace", namespace.NewStore(h.DB))
 
-	// Keys is the store used for deletion of keys.
-	Keys *key.Store
+	return Key{
+		Handler: h,
+		loaders: loaders,
+		block:   block,
+	}
 }
 
 // IndexWithRelations retrieves a slice of *key.Key models for the user in
@@ -48,7 +51,7 @@ func (h Key) IndexWithRelations(r *http.Request) ([]*key.Key, database.Paginator
 		return kk, paginator, errors.Err(err)
 	}
 
-	if err := key.LoadRelations(h.Loaders, kk...); err != nil {
+	if err := key.LoadRelations(h.loaders, kk...); err != nil {
 		return kk, paginator, errors.Err(err)
 	}
 
@@ -76,7 +79,7 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 		return nil, f, errors.New("no user in request context")
 	}
 
-	keys := key.NewStoreWithBlock(h.DB, h.Block, u)
+	keys := key.NewStoreWithBlock(h.DB, h.block, u)
 
 	f.Resource = namespace.Resource{
 		User:       u,
@@ -105,7 +108,7 @@ func (h Key) ShowWithRelations(r *http.Request) (*key.Key, error) {
 		return nil, errors.New("failed to get key from context")
 	}
 
-	if err := key.LoadRelations(h.Loaders, k); err != nil {
+	if err := key.LoadRelations(h.loaders, k); err != nil {
 		return k, errors.Err(err)
 	}
 
@@ -171,5 +174,5 @@ func (h Key) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("no key in request context")
 	}
-	return errors.Err(h.Keys.Delete(k.ID))
+	return errors.Err(key.NewStore(h.DB).Delete(k.ID))
 }

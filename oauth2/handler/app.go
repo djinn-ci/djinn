@@ -26,11 +26,22 @@ import (
 type App struct {
 	web.Handler
 
-	// Block is the block cipher to use for encrypting client secrets.
-	Block *crypto.Block
+	block *crypto.Block
+	apps  *oauth2.AppStore
 
-	// Apps is the app store to use for the deletion of OAuth apps.
-	Apps  *oauth2.AppStore
+//	// Block is the block cipher to use for encrypting client secrets.
+//	Block *crypto.Block
+//
+//	// Apps is the app store to use for the deletion of OAuth apps.
+//	Apps  *oauth2.AppStore
+}
+
+func NewApp(h web.Handler, block *crypto.Block) App {
+	return App{
+		Handler: h,
+		block:   block,
+		apps:    oauth2.NewAppStore(h.DB),
+	}
 }
 
 func (h App) appFromRequest(r *http.Request) (*oauth2.App, error) {
@@ -132,7 +143,7 @@ func (h App) Store(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	apps := oauth2.NewAppStoreWithBlock(h.DB, h.Block, u)
+	apps := oauth2.NewAppStoreWithBlock(h.DB, h.block, u)
 
 	f := &oauth2.AppForm{
 		Apps: apps,
@@ -189,7 +200,7 @@ func (h App) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dec, err := h.Block.Decrypt(a.ClientSecret)
+	dec, err := h.block.Decrypt(a.ClientSecret)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -252,7 +263,7 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if base == "reset" {
-		if err := oauth2.NewAppStoreWithBlock(h.DB, h.Block).Reset(a.ID); err != nil {
+		if err := oauth2.NewAppStoreWithBlock(h.DB, h.block).Reset(a.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to reset secret"), "alert")
 			h.RedirectBack(w, r)
@@ -290,7 +301,7 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Apps.Update(a.ID, f.Name, f.Description, f.HomepageURI, f.RedirectURI); err != nil {
+	if err := h.apps.Update(a.ID, f.Name, f.Description, f.HomepageURI, f.RedirectURI); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update app"), "alert")
 		h.RedirectBack(w, r)

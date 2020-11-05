@@ -1,15 +1,14 @@
-package web
+package router
 
 import (
 	"context"
 	"net/http"
 
-	"github.com/andrewpillar/djinn/build"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/cron"
 	"github.com/andrewpillar/djinn/cron/handler"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/server"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
@@ -26,9 +25,7 @@ import (
 type Router struct {
 	cron handler.Cron
 
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
+	middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)
@@ -55,23 +52,10 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-// Init intialises the primary handler.Cron for handling the primary logic
-// of Cron creation and management. This will setup the database.Loader for
-// relationship loading, and the related database stores. The exported
-// properties on the Router itself are passed through to the underlying
-// handler.Cron.
-func (r *Router) Init(h web.Handler) {
-	loaders := database.NewLoaders()
-	loaders.Put("user", h.Users)
-	loaders.Put("namespace", namespace.NewStore(h.DB))
-	loaders.Put("build_tag", build.NewTagStore(h.DB))
-	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
-
-	r.cron = handler.Cron{
-		Handler: h,
-		Loaders: loaders,
-		Crons:   cron.NewStore(h.DB),
-		Builds:  build.NewStore(h.DB),
+func New(_ config.Server, h web.Handler, mw web.Middleware) *Router {
+	return &Router{
+		middleware: mw,
+		cron:       handler.New(h),
 	}
 }
 
@@ -95,14 +79,14 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/cron", cron.Index).Methods("GET")
 	auth.HandleFunc("/cron/create", cron.Create).Methods("GET")
 	auth.HandleFunc("/cron", cron.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/cron").Subrouter()
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Show).Methods("GET")
 	sr.HandleFunc("/{cron:[0-9]+}/edit", cron.Edit).Methods("GET")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Update).Methods("PATCH")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI registers the API routes for working with cron jobs. The given
@@ -122,5 +106,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/{cron:[0-9]+}/builds", cron.Show).Methods("GET")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Update).Methods("PATCH")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...))
 }

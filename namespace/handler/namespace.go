@@ -20,17 +20,19 @@ import (
 type Namespace struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with namespaces.
-	Loaders *database.Loaders
+	loaders *database.Loaders // used for loading in build relations on a namespace
+}
 
-	// Builds is the build store used for retrieving builds submitted to a
-	// given namespace.
-	Builds *build.Store
+func New(h web.Handler) Namespace {
+	loaders := database.NewLoaders()
+	loaders.Put("user", h.Users)
+	loaders.Put("build_tag", build.NewTagStore(h.DB))
+	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
-	// Namespaces is the namespace store used for loading in a namespace's
-	// parents, and for namespace deletion.
-	Namespaces *namespace.Store
+	return Namespace{
+		Handler: h,
+		loaders: loaders,
+	}
 }
 
 // loadParent loads the immediate parent for the given namespace.
@@ -39,7 +41,7 @@ func (h Namespace) loadParent(n *namespace.Namespace) error {
 		return nil
 	}
 
-	p, err := h.Namespaces.Get(query.Where("id", "=", n.ParentID))
+	p, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", n.ParentID))
 
 	if err != nil {
 		return nil
@@ -68,11 +70,11 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 		return nn, paginator, errors.Err(err)
 	}
 
-	if err := h.Namespaces.Load("id", database.MapKey("parent_id", mm), database.Bind("parent_id", "id", mm...)); err != nil {
+	if err := namespace.NewStore(h.DB).Load("id", database.MapKey("parent_id", mm), database.Bind("parent_id", "id", mm...)); err != nil {
 		return nn, paginator, errors.Err(err)
 	}
 
-	bb, err := h.Builds.All(
+	bb, err := build.NewStore(h.DB).All(
 		query.Where("namespace_id", "IN", database.MapKey("id", mm)...),
 		query.OrderDesc("created_at"),
 	)
@@ -81,10 +83,7 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 		return nn, paginator, errors.Err(err)
 	}
 
-	loaders := h.Loaders.Copy()
-	loaders.Delete("namespace")
-
-	if err := build.LoadRelations(loaders, bb...); err != nil {
+	if err := build.LoadRelations(h.loaders, bb...); err != nil {
 		return nn, paginator, errors.Err(err)
 	}
 
@@ -171,5 +170,5 @@ func (h Namespace) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("no namespace in request context")
 	}
-	return errors.Err(h.Namespaces.Delete(n.ID))
+	return errors.Err(namespace.NewStore(h.DB).Delete(n.ID))
 }

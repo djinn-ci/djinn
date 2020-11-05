@@ -19,16 +19,20 @@ import (
 type Cron struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with cron jobs.
-	Loaders *database.Loaders
+	loaders *database.Loaders
+}
 
-	// Crons is the store used for deletion of cron jobs.
-	Crons *cron.Store
+func New(h web.Handler) Cron {
+	loaders := database.NewLoaders()
+	loaders.Put("user", h.Users)
+	loaders.Put("namespace", namespace.NewStore(h.DB))
+	loaders.Put("build_tag", build.NewTagStore(h.DB))
+	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
-	// Builds is the store used for retrieving any builds that were submitted
-	// via a scheduled cron job.
-	Builds *build.Store
+	return Cron{
+		Handler: h,
+		loaders: loaders,
+	}
 }
 
 // IndexWithRelations retrieves a slice of *cron.Cron models for the user in
@@ -43,7 +47,7 @@ func (h Cron) IndexWithRelations(s *cron.Store, vals url.Values) ([]*cron.Cron, 
 		return nil, paginator, errors.Err(err)
 	}
 
-	if err := cron.LoadRelations(h.Loaders, cc...); err != nil {
+	if err := cron.LoadRelations(h.loaders, cc...); err != nil {
 		return nil, paginator, errors.Err(err)
 	}
 
@@ -100,7 +104,7 @@ func (h Cron) ShowWithRelations(r *http.Request) (*cron.Cron, error) {
 		return nil, errors.New("no cron in request context")
 	}
 
-	if err := cron.LoadRelations(h.Loaders, c); err != nil {
+	if err := cron.LoadRelations(h.loaders, c); err != nil {
 		return nil, errors.Err(err)
 	}
 
@@ -158,5 +162,5 @@ func (h Cron) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("no cron in request context")
 	}
-	return errors.Err(h.Crons.Delete(c.ID))
+	return errors.Err(cron.NewStore(h.DB).Delete(c.ID))
 }

@@ -31,24 +31,20 @@ import (
 type Repo struct {
 	web.Handler
 
-	// Redis is the redis client connection used for caching the repos we get
-	// from the provider's API.
-	Redis *redis.Client
-
-	// Block is the block cipher to use for the encryption/decryption of any
-	// access tokens we use for authenticating against a provider's API.
-	Block *crypto.Block
-
-	// Registry is the register that holds the provider client implementations
-	// we use for interacting with that provider's API.
-	Registry *provider.Registry
-
-	// Repos is the repo store used for updating the repositories that we have
-	// webhooks on.
-	Repos *provider.RepoStore
+	redis      *redis.Client
+	block      *crypto.Block
+	providers  *provider.Registry
 }
 
 var cacheKey = "repos-%s-%v-%v"
+
+func NewRepo(h web.Handler, redis *redis.Client, block *crypto.Block, providers *provider.Registry) Repo {
+	return Repo{
+		redis:     redis,
+		block:     block,
+		providers: providers,
+	}
+}
 
 func (h Repo) cachePut(name string, id int64, rr []*provider.Repo, paginator database.Paginator) error {
 	var err error
@@ -74,7 +70,7 @@ func (h Repo) cachePut(name string, id int64, rr []*provider.Repo, paginator dat
 		return errors.Err(err)
 	}
 
-	_, err = h.Redis.Set(fmt.Sprintf(cacheKey, name, id, paginator.Page), buf.String(), time.Hour).Result()
+	_, err = h.redis.Set(fmt.Sprintf(cacheKey, name, id, paginator.Page), buf.String(), time.Hour).Result()
 	return errors.Err(err)
 }
 
@@ -84,7 +80,7 @@ func (h Repo) cacheGet(name string, id, page int64) ([]*provider.Repo, database.
 	rr := make([]*provider.Repo, 0)
 	paginator := database.Paginator{}
 
-	s, err := h.Redis.Get(fmt.Sprintf(cacheKey, name, id, page)).Result()
+	s, err := h.redis.Get(fmt.Sprintf(cacheKey, name, id, page)).Result()
 
 	if err != nil {
 		if err == redis.Nil {
@@ -109,7 +105,7 @@ func (h Repo) loadRepos(p *provider.Provider, page int64) ([]*provider.Repo, dat
 		return []*provider.Repo{}, database.Paginator{}, nil
 	}
 
-	rr, paginator, err := p.Repos(h.Block, h.Registry, page)
+	rr, paginator, err := p.Repos(h.block, h.providers, page)
 	return rr, paginator, errors.Err(err)
 }
 
@@ -315,7 +311,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		repo.Name = f.Name
 	}
 
-	if err := p.ToggleRepo(h.Block, h.Registry, repo); err != nil {
+	if err := p.ToggleRepo(h.block, h.providers, repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)
@@ -358,14 +354,14 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := p.ToggleRepo(h.Block, h.Registry, repo); err != nil {
+	if err := p.ToggleRepo(h.block, h.providers, repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	if err := h.Repos.Update(repo); err != nil {
+	if err := provider.NewRepoStore(h.DB).Update(repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
 		h.RedirectBack(w, r)

@@ -1,16 +1,14 @@
-package web
+package router
 
 import (
 	"context"
 	"net/http"
 
-	"github.com/andrewpillar/djinn/block"
-	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/image"
 	"github.com/andrewpillar/djinn/image/handler"
-	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/server"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
@@ -25,22 +23,23 @@ import (
 // Router is what registers the UI and API routes for managing driver images. It
 // implements the server.Router interface.
 type Router struct {
-	image handler.Image
+	middleware web.Middleware
+	image      handler.Image
 
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
-
-	// Hasher is the hashing mechanism to use when generating hashes for
-	// images.
-	Hasher *crypto.Hasher
-
-	// BlockStore is the block store implementation to use for storing images
-	// that are uploaded.
-	BlockStore block.Store
-
-	// Limit is the maximum limit applied to images uploaded.
-	Limit int64
+//	// Middleware is the middleware that is applied to any routes registered
+//	// from this router.
+//	Middleware web.Middleware
+//
+//	// Hasher is the hashing mechanism to use when generating hashes for
+//	// images.
+//	Hasher *crypto.Hasher
+//
+//	// BlockStore is the block store implementation to use for storing images
+//	// that are uploaded.
+//	BlockStore block.Store
+//
+//	// Limit is the maximum limit applied to images uploaded.
+//	Limit int64
 }
 
 var _ server.Router = (*Router)(nil)
@@ -71,23 +70,12 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-// Init intialises the primary handler.Image for handling the primary logic
-// of Cron creation and management. This will setup the database.Loader for
-// relationship loading, and the related database stores. The exported
-// properties on the Router itself are passed through to the underlying
-// handler.Image.
-func (r *Router) Init(h web.Handler) {
-	loaders := database.NewLoaders()
-	loaders.Put("user", h.Users)
-	loaders.Put("namespace", namespace.NewStore(h.DB))
+func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+	images := cfg.Images()
 
-	r.image = handler.Image{
-		Handler:    h,
-		Loaders:    loaders,
-		Images:     image.NewStoreWithBlockStore(h.DB, r.BlockStore),
-		Hasher:     r.Hasher,
-		BlockStore: r.BlockStore,
-		Limit:      r.Limit,
+	return &Router{
+		middleware: mw,
+		image:      handler.New(h, cfg.Hasher(), images.Store, images.Limit),
 	}
 }
 
@@ -111,12 +99,12 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/images", image.Index).Methods("GET")
 	auth.HandleFunc("/images/create", image.Create).Methods("GET")
 	auth.HandleFunc("/images", image.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/images").Subrouter()
 	sr.HandleFunc("/{image:[0-9]+}/download/{name}", image.Show).Methods("GET")
 	sr.HandleFunc("/{image:[0-9]+}", image.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI registers the API routes for working with images. The given
@@ -134,5 +122,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("", image.Store).Methods("POST")
 	sr.HandleFunc("/{image:[0-9]+}", image.Show).Methods("GET")
 	sr.HandleFunc("/{image:[0-9]+}", image.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...))
 }

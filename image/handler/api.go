@@ -59,6 +59,11 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if patherr, ok := cause.(*os.PathError); ok {
+			web.JSONError(w, patherr.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		switch cause {
 		case namespace.ErrName:
 			errs := form.NewErrors()
@@ -89,7 +94,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 			h.Log.Error.Println(r.Method, r.URL, "failed to get image from request context")
 		}
 
-		rec, err := h.BlockStore.Open(filepath.Join(i.Driver.String(), i.Hash))
+		rec, err := h.store.Open(filepath.Join(i.Driver.String(), i.Hash))
 
 		if err != nil {
 			if os.IsNotExist(errors.Cause(err)) {

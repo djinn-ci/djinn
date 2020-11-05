@@ -17,12 +17,18 @@ import (
 type Variable struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with variables.
-	Loaders *database.Loaders
+	loaders *database.Loaders
+}
 
-	// Variables is the store used for deletion of variables.
-	Variables *variable.Store
+func New(h web.Handler) Variable {
+	loaders := database.NewLoaders()
+	loaders.Put("user", h.Users)
+	loaders.Put("namespace", namespace.NewStore(h.DB))
+
+	return Variable{
+		Handler: h,
+		loaders: loaders,
+	}
 }
 
 // IndexWithRelations retrieves a slice of *variable.Variable models for the
@@ -44,7 +50,7 @@ func (h Variable) IndexWithRelations(r *http.Request) ([]*variable.Variable, dat
 		return vv, paginator, errors.Err(err)
 	}
 
-	if err := variable.LoadRelations(h.Loaders, vv...); err != nil {
+	if err := variable.LoadRelations(h.loaders, vv...); err != nil {
 		return vv, paginator, errors.Err(err)
 	}
 
@@ -96,5 +102,5 @@ func (h Variable) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("no variable in request context")
 	}
-	return errors.Err(h.Variables.Delete(v.ID))
+	return errors.Err(variable.NewStore(h.DB).Delete(v.ID))
 }

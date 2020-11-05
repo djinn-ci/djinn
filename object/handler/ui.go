@@ -150,7 +150,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		rec, err := h.BlockStore.Open(o.Hash)
+		rec, err := h.store.Open(o.Hash)
 
 		if err != nil {
 			if os.IsNotExist(errors.Cause(err)) {
@@ -184,7 +184,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	bb, paginator, err := h.Builds.Index(
+	bb, paginator, err := build.NewStore(h.DB).Index(
 		r.URL.Query(),
 		query.WhereQuery(
 			"id", "IN", build.SelectObject("build_id", query.Where("object_id", "=", o.ID)),
@@ -197,7 +197,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := build.LoadRelations(h.Loaders, bb...); err != nil {
+	if err := build.LoadRelations(h.loaders, bb...); err != nil {
 		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

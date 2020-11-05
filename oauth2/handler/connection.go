@@ -24,13 +24,24 @@ import (
 type Connection struct {
 	web.Handler
 
-	// Apps is the store used for retrieving the original OAuth app that made
-	// the connection to the user's account.
-	Apps *oauth2.AppStore
+	apps   *oauth2.AppStore
+	tokens *oauth2.TokenStore
 
-	// Tokens is the store used for retrieving the original access tokens used
-	// by the app for authenticating requests made to the API.
-	Tokens *oauth2.TokenStore
+//	// Apps is the store used for retrieving the original OAuth app that made
+//	// the connection to the user's account.
+//	Apps *oauth2.AppStore
+//
+//	// Tokens is the store used for retrieving the original access tokens used
+//	// by the app for authenticating requests made to the API.
+//	Tokens *oauth2.TokenStore
+}
+
+func NewConnection(h web.Handler) Connection {
+	return Connection{
+		Handler: h,
+		apps:    oauth2.NewAppStore(h.DB),
+		tokens:  oauth2.NewTokenStore(h.DB),
+	}
 }
 
 func (h Connection) getToken(r *http.Request) (*oauth2.Token, error) {
@@ -40,7 +51,7 @@ func (h Connection) getToken(r *http.Request) (*oauth2.Token, error) {
 		return nil, errors.New("invalid hex encoding")
 	}
 
-	a, err := h.Apps.Get(query.Where("client_id", "=", clientId))
+	a, err := h.apps.Get(query.Where("client_id", "=", clientId))
 
 	if err != nil {
 		return nil, errors.Err(err)
@@ -82,7 +93,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 
 	mm := database.ModelSlice(len(tt), oauth2.TokenModel(tt))
 
-	aa, err := h.Apps.All(query.Where("id", "IN", database.MapKey("app_id", mm)...))
+	aa, err := h.apps.All(query.Where("id", "IN", database.MapKey("app_id", mm)...))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -188,7 +199,7 @@ func (h Connection) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.Tokens.Delete(t.ID); err != nil {
+	if err := h.tokens.Delete(t.ID); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

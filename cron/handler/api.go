@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/cron"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
@@ -100,7 +101,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if web.BasePath(r.URL.Path) == "builds" {
-		bb, paginator, err := h.Builds.Index(
+		bb, paginator, err := build.NewStore(h.DB).Index(
 			r.URL.Query(),
 			query.WhereQuery(
 				"id", "IN", cron.SelectBuild("build_id", query.Where("cron_id", "=", c.ID)),

@@ -24,13 +24,15 @@ import (
 type Provider struct {
 	web.Handler
 
-	// Block is the block cipher to use for the encryption/decryption of any
-	// access tokens we use for authenticating against a provider's API.
-	Block *crypto.Block
+	block     *crypto.Block
+	providers *provider.Registry
+}
 
-	// Registry is the register that holds the provider client implementations
-	// we use for interacting with that provider's API.
-	Registry *provider.Registry
+func New(h web.Handler, block *crypto.Block, providers *provider.Registry) Provider {
+	return Provider{
+		block:     block,
+		providers: providers,
+	}
 }
 
 func (h Provider) disableHooks(p *provider.Provider) error {
@@ -49,7 +51,7 @@ func (h Provider) disableHooks(p *provider.Provider) error {
 		go func(r *provider.Repo) {
 			defer wg.Done()
 
-			if err := p.ToggleRepo(h.Block, h.Registry, r); err != nil {
+			if err := p.ToggleRepo(h.block, h.providers, r); err != nil {
 				cherrs <- err
 			}
 		}(r)
@@ -134,7 +136,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	name := mux.Vars(r)["provider"]
 
-	cli, err := h.Registry.Get(name)
+	cli, err := h.providers.Get(name)
 
 	if err != nil {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
@@ -166,7 +168,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encAccess, err := h.Block.Encrypt([]byte(access))
+	encAccess, err := h.block.Encrypt([]byte(access))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -175,7 +177,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encRefresh, err := h.Block.Encrypt([]byte(refresh))
+	encRefresh, err := h.block.Encrypt([]byte(refresh))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -306,7 +308,7 @@ func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 
 	name := mux.Vars(r)["provider"]
 
-	if _, err := h.Registry.Get(name); err != nil {
+	if _, err := h.providers.Get(name); err != nil {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}

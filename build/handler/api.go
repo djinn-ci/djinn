@@ -26,19 +26,6 @@ type API struct {
 	Prefix string
 }
 
-// ArtrifactAPI is the handler for handling API requests made for working with
-// build artifacts.
-type ArtifactAPI struct {
-	web.Handler
-
-	// Prefix is the part of the URL under which the API is being served, for
-	// example "/api".
-	Prefix string
-
-	// Loaders is used for loading in an artifacts build when being retrieved.
-	Loaders *database.Loaders
-}
-
 // JobAPI is the handler for handling API requests made for working with the
 // jobs within a build.
 type JobAPI struct {
@@ -119,7 +106,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(h.Queues[b.Manifest.Driver["type"]], web.BaseAddress(r), b); err != nil {
+	if err := build.NewStoreWithHasher(h.DB, h.hasher).Submit(h.queues[b.Manifest.Driver["type"]], web.BaseAddress(r), b); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -259,67 +246,6 @@ func (h JobAPI) Show(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, j.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
-// Index serves the JSON encoded list of artifacts for the build in the given
-// request context.
-func (h ArtifactAPI) Index(w http.ResponseWriter, r *http.Request) {
-	b, ok := build.FromContext(r.Context())
-
-	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
-	}
-
-	aa, err := build.NewArtifactStore(h.DB, b).All(database.Search("name", r.URL.Query().Get("search")))
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	data := make([]interface{}, 0, len(aa))
-	addr := web.BaseAddress(r) + h.Prefix
-
-	for _, a := range aa {
-		json := a.JSON(addr)
-		delete(json, "build")
-
-		data = append(data, json)
-	}
-	web.JSON(w, data, http.StatusOK)
-}
-
-// Show serves the JSON encoded data of the given build artifact for the build
-// in the given request context.
-func (h ArtifactAPI) Show(w http.ResponseWriter, r *http.Request) {
-	b, ok := build.FromContext(r.Context())
-
-	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
-	}
-
-	if err := build.LoadRelations(h.Loaders, b); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	id, _ := strconv.ParseInt(mux.Vars(r)["artifact"], 10, 64)
-
-	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", id))
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	if a.IsZero() {
-		web.JSONError(w, "Not found", http.StatusNotFound)
-		return
-	}
-	web.JSON(w, a.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
-}
-
 // Index serves the JSON encoded list of build tags for the build in the given
 // request context.
 func (h TagAPI) Index(w http.ResponseWriter, r *http.Request) {
@@ -392,7 +318,7 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
 	}
 
-	if err := build.LoadRelations(h.Loaders, b); err != nil {
+	if err := build.LoadRelations(h.loaders, b); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return

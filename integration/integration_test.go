@@ -16,27 +16,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/andrewpillar/djinn/block"
-	cronweb "github.com/andrewpillar/djinn/cron/web"
-	buildweb "github.com/andrewpillar/djinn/build/web"
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/database"
-	imageweb "github.com/andrewpillar/djinn/image/web"
-	keyweb "github.com/andrewpillar/djinn/key/web"
-	"github.com/andrewpillar/djinn/log"
-	namespaceweb "github.com/andrewpillar/djinn/namespace/web"
 	"github.com/andrewpillar/djinn/oauth2"
-	objectweb "github.com/andrewpillar/djinn/object/web"
+	"github.com/andrewpillar/djinn/serverutil"
 	"github.com/andrewpillar/djinn/user"
-	variableweb "github.com/andrewpillar/djinn/variable/web"
-	"github.com/andrewpillar/djinn/web"
-
-	"github.com/gorilla/mux"
-
-	goredis "github.com/go-redis/redis"
-
-	"github.com/RichardKnop/machinery/v1"
-	qconfig "github.com/RichardKnop/machinery/v1/config"
 )
 
 type client struct {
@@ -262,24 +244,23 @@ func newClient(server *httptest.Server) client {
 }
 
 func TestMain(m *testing.M) {
-	var err error
+	args := []string{
+		"djinn-server",
+		"-config",
+		filepath.Join("testdata", "server.toml"),
+	}
 
-	pgaddr := getenv("PGADDR")
-	redisaddr := getenv("RDADDR")
+	api, config, ui, _ := serverutil.ParseFlags(args)
 
-	db, err := database.Connect(pgaddr)
+	srv, cfg, close_, err := serverutil.Init(config)
 
 	if err != nil {
-		fatalf("failed to connect to database: %s\n", err)
+		fatalf("failed to initialize server: %s\n", err)
 	}
 
-	redis := goredis.NewClient(&goredis.Options{
-		Addr: redisaddr,
-	})
+	defer close_()
 
-	if _, err := redis.Ping().Result(); err != nil {
-		fatalf("failed to connect to redis: %s\n", err)
-	}
+	db := cfg.DB()
 
 	users := user.NewStore(db)
 
@@ -360,120 +341,13 @@ func TestMain(m *testing.M) {
 		fatalf("failed to create token: %s\n", err)
 	}
 
-	logf, err := os.Create("server.log")
+	serverutil.RegisterRoutes(cfg, api, ui, srv)
 
-	if err != nil {
-		fatalf("failed to create server.log file: %s\n", err)
-	}
+	server = httptest.NewServer(srv.Server.Handler)
 
-	defer logf.Close()
+	srv.Server = server.Config
 
-	log := log.New(logf)
-	log.SetLevel("debug")
-
-	blockStore := block.NewNull()
-
-	hasher := &crypto.Hasher{
-		Salt:   "123456",
-		Length: 8,
-	}
-
-	if err := hasher.Init(); err != nil {
-		fatalf("failed to initialize hashing: %s\n", err)
-	}
-
-	blockCipher, err := crypto.NewBlock([]byte("some-supersecret"))
-
-	if err != nil {
-		fatalf("failed to create block cipher: %s\n", err)
-	}
-
-	queues := make(map[string]*machinery.Server, 0)
-
-	for _, d := range []string{"qemu", "docker"} {
-		queue, err := machinery.NewServer(&qconfig.Config{
-			Broker:        "redis://" + redisaddr,
-			DefaultQueue:  "builds",
-			ResultBackend: "redis://" + redisaddr,
-		})
-
-		if err != nil {
-			fatalf("failed to setup queue %s: %s\n", d, err)
-		}
-		queues[d] = queue
-	}
-
-	webHandler := web.Handler{
-		DB:    db,
-		Log:   log,
-		Users: users,
-	}
-
-	middleware := web.Middleware{
-		Handler: webHandler,
-		Tokens:  oauth2.NewTokenStore(db),
-	}
-
-	router := mux.NewRouter()
-	subrouter := router.PathPrefix("/api").Subrouter()
-
-	buildRouter := buildweb.Router{
-		Block:      blockCipher,
-		Middleware: middleware,
-		Artifacts:  blockStore,
-		Redis:      redis,
-		Hasher:     hasher,
-		Queues:     queues,
-	}
-	buildRouter.Init(webHandler)
-	buildRouter.RegisterAPI("/api", subrouter, buildweb.Gate(db))
-
-	cronRouter := cronweb.Router{
-		Middleware: middleware,
-	}
-	cronRouter.Init(webHandler)
-	cronRouter.RegisterAPI("/api", subrouter, cronweb.Gate(db))
-
-	namespaceRouter := namespaceweb.Router{
-		Middleware: middleware,
-	}
-	namespaceRouter.Init(webHandler)
-	namespaceRouter.RegisterAPI("/api", subrouter, namespaceweb.Gate(db))
-
-	imageRouter := imageweb.Router{
-		Middleware: middleware,
-		Hasher:     hasher,
-		BlockStore: blockStore,
-	}
-	imageRouter.Init(webHandler)
-	imageRouter.RegisterAPI("/api", subrouter, imageweb.Gate(db))
-
-	objectRouter := objectweb.Router{
-		Middleware: middleware,
-		Hasher:     hasher,
-		BlockStore: blockStore,
-	}
-	objectRouter.Init(webHandler)
-	objectRouter.RegisterAPI("/api", subrouter, objectweb.Gate(db))
-
-	variableRouter := variableweb.Router{
-		Middleware: middleware,
-	}
-	variableRouter.Init(webHandler)
-	variableRouter.RegisterAPI("/api", subrouter, variableweb.Gate(db))
-
-	keyRouter := keyweb.Router{
-		Block:      blockCipher,
-		Middleware: middleware,
-	}
-	keyRouter.Init(webHandler)
-	keyRouter.RegisterAPI("/api", subrouter, keyweb.Gate(db))
-
-	server = httptest.NewServer(router)
-
-	log.Debug.Println("serving integration test server on", server.Listener.Addr())
-
-	defer server.Close()
+	serverutil.Start(srv)
 
 	os.Exit(m.Run())
 }

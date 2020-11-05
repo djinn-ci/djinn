@@ -51,24 +51,19 @@ type hookData struct {
 type Hook struct {
 	Build
 
-	// Block is the block cipher we use for decrypting access tokens to the
-	// provider's API.
-	Block *crypto.Block
-
-	// Repos is the store we use to do a reverse lookup on a repository being
-	// used in a webhook to determine the user and provider.
-	Repos *provider.RepoStore
-
-	// Providers is the store we use for getting the encrypted access tokens to
-	// a provider's API.
-	Providers *provider.Store
-
-	// Registry hols the provider.Client implementations for the providers we
-	// execute webhooks for.
-	Registry *provider.Registry
+	block     *crypto.Block
+	providers *provider.Registry
 }
 
 type manifestDecoder func(io.Reader) (config.Manifest, error)
+
+func NewHook(b Build, block *crypto.Block, providers *provider.Registry) Hook {
+	return Hook{
+		Build:     b,
+		block:     block,
+		providers: providers,
+	}
+}
 
 // decodeBase64JSONManifest is the decoded used for decoding manifest files
 // from the GitHub and GitLab API whereby the actual file contents if a base64
@@ -135,7 +130,7 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 		return errors.Err(err)
 	}
 
-	b, err := h.Block.Decrypt(p.AccessToken)
+	b, err := h.block.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return errors.Err(err)
@@ -182,7 +177,7 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 	if t.Type == build.Pull {
 		last := bb[len(bb)-1]
 
-		err = p.SetCommitStatus(h.Block, h.Registry, r, runner.Queued, host + last.Endpoint(), data.ref)
+		err = p.SetCommitStatus(h.block, h.providers, r, runner.Queued, host + last.Endpoint(), data.ref)
 
 		if err != nil {
 			return errors.Err(err)
@@ -287,7 +282,7 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 }
 
 func (h Hook) getUserAndProvider(name string, repoId int64) (*user.User, *provider.Provider, error) {
-	r, err := h.Repos.Get(
+	r, err := provider.NewRepoStore(h.DB).Get(
 		query.Where("repo_id", "=", repoId),
 		query.Where("provider_name", "=", name),
 	)
@@ -296,7 +291,7 @@ func (h Hook) getUserAndProvider(name string, repoId int64) (*user.User, *provid
 		return nil, nil, errors.Err(err)
 	}
 
-	p, err := h.Providers.Get(query.Where("id", "=", r.ProviderID))
+	p, err := provider.NewStore(h.DB).Get(query.Where("id", "=", r.ProviderID))
 
 	if err != nil {
 		return nil, nil, errors.Err(err)
@@ -361,9 +356,9 @@ func (h Hook) submitBuilds(mm []config.Manifest, host string, u *user.User, t *b
 	submitted := make([]*build.Build, 0, len(mm))
 
 	for _, b := range bb {
-		q := h.Queues[b.Manifest.Driver["type"]]
+		q := h.queues[b.Manifest.Driver["type"]]
 
-		if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(q, host, b); err != nil {
+		if err := build.NewStoreWithHasher(h.DB, h.hasher).Submit(q, host, b); err != nil {
 			return nil, errors.Err(err)
 		}
 		submitted = append(submitted, b)
@@ -396,7 +391,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 
 	event := r.Header.Get("X-GitHub-Event")
 
-	cli, err := h.Registry.Get("github")
+	cli, err := h.providers.Get("github")
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -518,7 +513,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 
 	event := r.Header.Get("X-Gitlab-Event")
 
-	cli, err := h.Registry.Get("gitlab")
+	cli, err := h.providers.Get("gitlab")
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

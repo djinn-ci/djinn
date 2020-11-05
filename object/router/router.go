@@ -1,15 +1,12 @@
-package web
+package router
 
 import (
 	"context"
 	"net/http"
 
-	"github.com/andrewpillar/djinn/block"
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/object"
 	"github.com/andrewpillar/djinn/object/handler"
 	"github.com/andrewpillar/djinn/server"
@@ -26,22 +23,23 @@ import (
 // Router is what registers the UI and API routes for managing objects. It
 // implements the server.Router interface.
 type Router struct {
-	object handler.Object
+	middleware web.Middleware
+	object     handler.Object
 
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
-
-	// Hasher is the hashing mechanism to use when generating hashes for
-	// objects.
-	Hasher *crypto.Hasher
-
-	// BlockStore is the block store implementation to use for storing objects 
-	// that are uploaded.
-	BlockStore block.Store
-
-	// Limit is the maximum limit applied to objects uploaded.
-	Limit int64
+//	// Middleware is the middleware that is applied to any routes registered
+//	// from this router.
+//	Middleware web.Middleware
+//
+//	// Hasher is the hashing mechanism to use when generating hashes for
+//	// objects.
+//	Hasher *crypto.Hasher
+//
+//	// BlockStore is the block store implementation to use for storing objects 
+//	// that are uploaded.
+//	BlockStore block.Store
+//
+//	// Limit is the maximum limit applied to objects uploaded.
+//	Limit int64
 }
 
 var _ server.Router = (*Router)(nil)
@@ -68,26 +66,12 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-// Init intialises the primary handler.Object for handling the primary logic
-// of Object creation and management. This will setup the database.Loader for
-// relationship loading, and the related database stores. The exported
-// properties on the Router itself are passed through to the underlying
-// handler.Object.
-func (r *Router) Init(h web.Handler) {
-	loaders := database.NewLoaders()
-	loaders.Put("user", h.Users)
-	loaders.Put("namespace", namespace.NewStore(h.DB))
-	loaders.Put("build_tag", build.NewTagStore(h.DB))
-	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
+func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+	objects := cfg.Objects()
 
-	r.object = handler.Object{
-		Handler:    h,
-		Loaders:    loaders,
-		Objects:    object.NewStoreWithBlockStore(h.DB, r.BlockStore),
-		Builds:     build.NewStore(h.DB),
-		Hasher:     r.Hasher,
-		BlockStore: r.BlockStore,
-		Limit:      r.Limit,
+	return &Router{
+		middleware: mw,
+		object:     handler.New(h, cfg.Hasher(), objects.Store, objects.Limit),
 	}
 }
 
@@ -111,13 +95,13 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/objects", object.Index).Methods("GET")
 	auth.HandleFunc("/objects/create", object.Create).Methods("GET")
 	auth.HandleFunc("/objects", object.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/objects").Subrouter()
 	sr.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}/download/{name}", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI registers the API routes for working with objects. The given
@@ -136,5 +120,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}/builds", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...))
 }

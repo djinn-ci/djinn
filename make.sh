@@ -3,7 +3,7 @@
 set -e
 
 LIBS="netgo osusergo"
-BUILD="-X=main.Build=$(git rev-parse HEAD)"
+BUILD="-X=version.Ref=$(git rev-parse HEAD)"
 
 if [ -z "$LDFLAGS" ]; then
 	LDFLAGS="$BUILD"

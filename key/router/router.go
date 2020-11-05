@@ -1,15 +1,14 @@
-package web
+package router
 
 import (
 	"context"
 	"net/http"
 
-	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/key"
 	"github.com/andrewpillar/djinn/key/handler"
-	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/server"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
@@ -24,15 +23,8 @@ import (
 // Router is what registers the UI and API routes for managing SSH keys. It
 // implements the server.Router interface.
 type Router struct {
-	key handler.Key
-
-	// Block is the block cipher to use for encrypting SSH keys that are
-	// uploaded.
-	Block *crypto.Block
-
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
+	middleware web.Middleware
+	key        handler.Key
 }
 
 var _ server.Router = (*Router)(nil)
@@ -59,20 +51,10 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-// Init intialises the primary handler.Key for handling the primary logic
-// of Image creation and management. This will setup the database.Loader for
-// relationship loading, and the related database stores. The exported
-// properties on the Router itself are passed through to the underlying
-// handler.Key.
-func (r *Router) Init(h web.Handler) {
-	loaders := database.NewLoaders()
-	loaders.Put("namespace", namespace.NewStore(h.DB))
-
-	r.key = handler.Key{
-		Handler: h,
-		Loaders: loaders,
-		Block:   r.Block,
-		Keys:    key.NewStore(h.DB),
+func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+	return &Router{
+		middleware: mw,
+		key:        handler.New(h, cfg.BlockCipher()),
 	}
 }
 
@@ -96,13 +78,13 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/keys", key.Index).Methods("GET")
 	auth.HandleFunc("/keys/create", key.Create).Methods("GET")
 	auth.HandleFunc("/keys", key.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/keys").Subrouter()
 	sr.HandleFunc("/{key:[0-9]+}/edit", key.Edit).Methods("GET")
 	sr.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
 	sr.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI registers the API routes for working with keys. The given
@@ -120,5 +102,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("", key.Store).Methods("POST")
 	sr.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
 	sr.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...))
 }

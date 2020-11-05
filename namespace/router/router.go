@@ -1,4 +1,4 @@
-package web
+package router
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/andrewpillar/djinn/build"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/namespace"
@@ -25,13 +25,14 @@ import (
 // Router is what registers the UI and API routes for managing namespaces. It
 // implements the server.Router interface.
 type Router struct {
+	middleware   web.Middleware
 	namespace    handler.Namespace
 	invite       handler.Invite
 	collaborator handler.Collaborator
 
 	// Middleware is the middleware that is applied to any routes registered
 	// from this router.
-	Middleware web.Middleware
+//	Middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)
@@ -169,39 +170,48 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
+func New(_ config.Server, h web.Handler, mw web.Middleware) *Router {
+	return &Router{
+		middleware:   mw,
+		namespace:    handler.New(h),
+		invite:       handler.NewInvite(h),
+		collaborator: handler.Collaborator{Handler: h},
+	}
+}
+
 // Init initialiases the primary handler.Namespace for handling the primary
 // logic of Namespace creation and management. This will setup the database.Loader
 // for relationship loading, and the related database stores. The exported
 // properties on the Router itself are passed through to the underlying
 // handler.Namspace.
-func (r *Router) Init(h web.Handler) {
-	namespaces := namespace.NewStore(h.DB)
-
-	loaders := database.NewLoaders()
-	loaders.Put("user", h.Users)
-	loaders.Put("inviter", h.Users)
-	loaders.Put("invitee", h.Users)
-	loaders.Put("namespace", namespaces)
-	loaders.Put("build_tag", build.NewTagStore(h.DB))
-	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
-
-	r.namespace = handler.Namespace{
-		Handler:    h,
-		Loaders:    loaders,
-		Builds:     build.NewStore(h.DB),
-		Namespaces: namespaces,
-	}
-
-	r.invite = handler.Invite{
-		Handler: h,
-		Invites: namespace.NewInviteStore(h.DB),
-		Loaders: loaders,
-	}
-
-	r.collaborator = handler.Collaborator{
-		Handler: h,
-	}
-}
+//func (r *Router) Init(h web.Handler) {
+//	namespaces := namespace.NewStore(h.DB)
+//
+//	loaders := database.NewLoaders()
+//	loaders.Put("user", h.Users)
+//	loaders.Put("inviter", h.Users)
+//	loaders.Put("invitee", h.Users)
+//	loaders.Put("namespace", namespaces)
+//	loaders.Put("build_tag", build.NewTagStore(h.DB))
+//	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
+//
+//	r.namespace = handler.Namespace{
+//		Handler:    h,
+//		Loaders:    loaders,
+//		Builds:     build.NewStore(h.DB),
+//		Namespaces: namespaces,
+//	}
+//
+//	r.invite = handler.Invite{
+//		Handler: h,
+//		Invites: namespace.NewInviteStore(h.DB),
+//		Loaders: loaders,
+//	}
+//
+//	r.collaborator = handler.Collaborator{
+//		Handler: h,
+//	}
+//}
 
 // RegisterUI registers the UI routes for Namespace creation, and management.
 // There are two types of routes, simple auth routes, and individual namespace
@@ -235,7 +245,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/invites", invite.Index).Methods("GET")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Update).Methods("PATCH")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Destroy).Methods("DELETE")
-	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
 	sr.HandleFunc("", namespace.Show).Methods("GET")
@@ -251,7 +261,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/-/collaborators/{collaborator}", collaborator.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI registers the API routes for working with namespaces. The given
@@ -280,7 +290,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	auth.HandleFunc("/invites", invite.Index).Methods("GET", "HEAD")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Update).Methods("PATCH")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Destroy).Methods("DELETE")
-	auth.Use(r.Middleware.Gate(gates...))
+	auth.Use(r.middleware.Gate(gates...))
 
 	sr := mux.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
 	sr.HandleFunc("", namespace.Show).Methods("GET")
@@ -296,5 +306,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/-/collaborators/{collaborator}", collaborator.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...))
 }

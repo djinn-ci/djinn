@@ -1,9 +1,9 @@
-package web
+package router
 
 import (
 	"net/http"
 
-	"github.com/andrewpillar/djinn/provider"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/server"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/user/handler"
@@ -15,25 +15,16 @@ import (
 // Router is what registers the UI routes for handling registration,
 // authentication, and general management of a user's account.
 type Router struct {
-	user handler.User
-
-	// Registry is the register that holds the provider client implementations
-	// we use for interacting with that provider's API.
-	Registry *provider.Registry
-
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
+	middleware web.Middleware
+	user       handler.User
 }
 
 var _ server.Router = (*Router)(nil)
 
-// Init initializes the current router's underlying handler.User with the
-// Router's map of oauth2.Provider interfaces.
-func (r *Router) Init(h web.Handler) {
-	r.user = handler.User{
-		Handler:  h,
-		Registry: r.Registry,
+func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+	return &Router{
+		middleware: mw,
+		user:       handler.New(h, cfg.Providers()),
 	}
 }
 
@@ -47,7 +38,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	guest.HandleFunc("/login", r.user.Login).Methods("GET", "POST")
 	guest.HandleFunc("/password_reset", r.user.PasswordReset).Methods("GET", "POST")
 	guest.HandleFunc("/new_password", r.user.NewPassword).Methods("GET", "POST")
-	guest.Use(r.Middleware.Guest, csrf)
+	guest.Use(r.middleware.Guest, csrf)
 
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/settings", r.user.Settings).Methods("GET")
@@ -57,7 +48,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/settings/password", r.user.Password).Methods("PATCH")
 	auth.HandleFunc("/settings/delete", r.user.Destroy).Methods("POST")
 	auth.HandleFunc("/logout", r.user.Logout).Methods("POST")
-	auth.Use(r.Middleware.Auth, csrf)
+	auth.Use(r.middleware.Auth, csrf)
 }
 
 // RegisterAPI registers the only API route for a user, which is "/user". This
@@ -68,5 +59,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 		u, _ := user.FromContext(r.Context())
 		web.JSON(w, u.JSON(web.BaseAddress(r)+"/"+prefix), http.StatusOK)
 	})
-	auth.Use(r.Middleware.Auth)
+	auth.Use(r.middleware.Auth)
 }

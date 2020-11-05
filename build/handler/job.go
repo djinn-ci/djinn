@@ -20,9 +20,18 @@ import (
 type Job struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with build jobs.
-	Loaders *database.Loaders
+	loaders *database.Loaders
+}
+
+func NewJob(h web.Handler) Job {
+	loaders := database.NewLoaders()
+	loaders.Put("build_stage", build.NewStageStore(h.DB))
+	loaders.Put("build_artifact", build.NewArtifactStore(h.DB))
+
+	return Job{
+		Handler: h,
+		loaders: loaders,
+	}
 }
 
 // IndexWithRelations returns all of the jobs with their relationships loaded
@@ -34,7 +43,7 @@ func (h Job) IndexWithRelations(s *build.JobStore, vals url.Values) ([]*build.Jo
 		return jj, errors.Err(err)
 	}
 
-	err = build.LoadJobRelations(h.Loaders, jj...)
+	err = build.LoadJobRelations(h.loaders, jj...)
 	return jj, errors.Err(err)
 }
 
@@ -47,7 +56,7 @@ func (h Job) ShowWithRelations(r *http.Request) (*build.Job, error) {
 		return nil, errors.New("failed to get build from request context")
 	}
 
-	if err := build.LoadRelations(h.Loaders, b); err != nil {
+	if err := build.LoadRelations(h.loaders, b); err != nil {
 		return nil, errors.Err(err)
 	}
 
@@ -59,6 +68,6 @@ func (h Job) ShowWithRelations(r *http.Request) (*build.Job, error) {
 		return j, errors.Err(err)
 	}
 
-	err = build.LoadJobRelations(h.Loaders, j)
+	err = build.LoadJobRelations(h.loaders, j)
 	return j, errors.Err(err)
 }

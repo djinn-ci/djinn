@@ -21,23 +21,24 @@ import (
 type Image struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with images.
-	Loaders *database.Loaders
+	loaders *database.Loaders
+	hasher  *crypto.Hasher
+	store   block.Store
+	limit   int64
+}
 
-	// Images is the store used for deletion of images.
-	Images *image.Store
+func New(h web.Handler, hasher *crypto.Hasher, store block.Store, limit int64) Image {
+	loaders := database.NewLoaders()
+	loaders.Put("user", h.Users)
+	loaders.Put("namespace", namespace.NewStore(h.DB))
 
-	// Hasher is the hashing mechanism to use when generating hashes for
-	// images.
-	Hasher *crypto.Hasher
-
-	// BlockStore is the block store implementation to use for storing images
-	// that are uploaded.
-	BlockStore block.Store
-
-	// Limit is the maximum size of images that can be uploaded.
-	Limit int64
+	return Image{
+		Handler: h,
+		loaders: loaders,
+		hasher:  hasher,
+		store:   store,
+		limit:   limit,
+	}
 }
 
 // IndexWithRelations retrieves a slice of *image.Image models for the user in
@@ -58,7 +59,7 @@ func (h Image) IndexWithRelations(r *http.Request) ([]*image.Image, database.Pag
 		return ii, paginator, errors.Err(err)
 	}
 
-	if err := image.LoadRelations(h.Loaders, ii...); err != nil {
+	if err := image.LoadRelations(h.loaders, ii...); err != nil {
 		return ii, paginator, errors.Err(err)
 	}
 
@@ -86,12 +87,12 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		return nil, f, errors.New("no user in request context")
 	}
 
-	images := image.NewStoreWithBlockStore(h.DB, h.BlockStore, u)
+	images := image.NewStoreWithBlockStore(h.DB, h.store, u)
 
 	f.File = form.File{
 		Writer:  w,
 		Request: r,
-		Limit:   h.Limit,
+		Limit:   h.limit,
 	}
 	f.Resource = namespace.Resource{
 		User:       u,
@@ -114,7 +115,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		return nil, f, errors.Err(err)
 	}
 
-	hash, err := h.Hasher.HashNow()
+	hash, err := h.hasher.HashNow()
 
 	if err != nil {
 		return nil, f, errors.Err(err)
@@ -135,7 +136,7 @@ func (h Image) ShowWithRelations(r *http.Request) (*image.Image, error) {
 		return nil, errors.New("image not in request context")
 	}
 
-	if err := image.LoadRelations(h.Loaders, i); err != nil {
+	if err := image.LoadRelations(h.loaders, i); err != nil {
 		return i, errors.Err(err)
 	}
 
@@ -155,5 +156,5 @@ func (h Image) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get image from context")
 	}
-	return errors.Err(h.Images.Delete(i.ID, i.Driver, i.Hash))
+	return errors.Err(image.NewStore(h.DB).Delete(i.ID, i.Driver, i.Hash))
 }

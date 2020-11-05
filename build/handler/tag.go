@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
 
@@ -19,9 +20,20 @@ import (
 type Tag struct {
 	web.Handler
 
-	// Loaders are the relationship loaders to use for loading the
-	// relationships we need when working with build tags.
-	Loaders *database.Loaders
+	loaders *database.Loaders
+}
+
+func NewTag(h web.Handler) Tag {
+	loaders := database.NewLoaders()
+	loaders.Put("user", user.NewStore(h.DB))
+	loaders.Put("namespace", namespace.NewStore(h.DB))
+	loaders.Put("build_tag", build.NewTagStore(h.DB))
+	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
+
+	return Tag{
+		Handler: h,
+		loaders: loaders,
+	}
 }
 
 // StoreModel unmarshals the request's data into build tags, validates it and

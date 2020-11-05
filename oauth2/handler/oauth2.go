@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/oauth2"
@@ -25,13 +26,24 @@ import (
 type Oauth2 struct {
 	web.Handler
 
-	// Apps is the app store to use for retrieving the OAuth app that is being
-	// used to request access to a user's account.
-	Apps *oauth2.AppStore
+	apps   *oauth2.AppStore
+	tokens *oauth2.TokenStore
 
-	// Tokens is the token store to use for updating the scopes of a
-	// pre-existing token, or for deleting a token.
-	Tokens *oauth2.TokenStore
+//	// Apps is the app store to use for retrieving the OAuth app that is being
+//	// used to request access to a user's account.
+//	Apps *oauth2.AppStore
+//
+//	// Tokens is the token store to use for updating the scopes of a
+//	// pre-existing token, or for deleting a token.
+//	Tokens *oauth2.TokenStore
+}
+
+func New(h web.Handler, block *crypto.Block) Oauth2 {
+	return Oauth2{
+		Handler: h,
+		apps:    oauth2.NewAppStoreWithBlock(h.DB, block),
+		tokens:  oauth2.NewTokenStore(h.DB),
+	}
 }
 
 func (h Oauth2) getClientCredentialsAndCode(r *http.Request) (string, string, string, error) {
@@ -91,7 +103,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := h.Apps.Get(query.Where("client_id", "=", b))
+	a, err := h.apps.Get(query.Where("client_id", "=", b))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -224,7 +236,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := h.Apps.Get(query.Where("client_id", "=", clientId))
+	a, err := h.apps.Get(query.Where("client_id", "=", clientId))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -300,7 +312,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := h.Apps.Auth(id, secret)
+	a, err := h.apps.Auth(id, secret)
 
 	if err != nil {
 		if errors.Cause(err) != oauth2.ErrAuth {
@@ -407,7 +419,7 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := h.Tokens.Get(query.Where("token", "=", b))
+	t, err := h.tokens.Get(query.Where("token", "=", b))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -416,7 +428,7 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !t.IsZero() {
-		if err := h.Tokens.Delete(t.ID); err != nil {
+		if err := h.tokens.Delete(t.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			web.JSONError(w, err.Error(), http.StatusInternalServerError)
 			return

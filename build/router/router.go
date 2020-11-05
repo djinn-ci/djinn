@@ -1,71 +1,36 @@
-package web
+package router
 
 import (
 	"context"
 	"net/http"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/block"
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/build/handler"
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/database"
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/object"
-	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/server"
 	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/variable"
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/mux"
 
-	"github.com/go-redis/redis"
-
 	"github.com/jmoiron/sqlx"
-
-	"github.com/RichardKnop/machinery/v1"
 )
 
 // Router is what registers the UI and API routes for managing builds. It
 // implements the server.Router interface.
 type Router struct {
+	middleware web.Middleware
+
 	build    handler.Build
 	job      handler.Job
 	tag      handler.Tag
 	hook     handler.Hook
-	artifact handler.ArtifactAPI
-
-	// Redis is the client connection to redis, used for handling build
-	// submission and killing.
-	Redis *redis.Client
-
-	// Block is the cipher block used for decrypting API access tokens needed
-	// when consuming a webhook from a provider.
-	Block *crypto.Block
-
-	// Hasher is the hashing mechanism to use when generating hashes for build
-	// artifacts.
-	Hasher *crypto.Hasher
-
-	// Registry holds the registered provider.Client implementations. This is
-	// used during the consumption of webhooks to interface with their APIs.
-	Registry *provider.Registry
-
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
-
-	// Artifacts is the storage mechanism used for storing artifacts. This used
-	// for downloading artifacts from the server.
-	Artifacts block.Store
-
-	// Queues are the different queues builds can be submitted onto based on the
-	// driver being used for the build.
-	Queues map[string]*machinery.Server
+	artifact handler.Artifact
 }
 
 var _ server.Router = (*Router)(nil)
@@ -146,52 +111,16 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-// Init intialises the primary handler.Build for handling the primary logic
-// of Build submission and management. This will setup the database.Loader for
-// relationship loading, and the related database stores. The exported
-// properties on the Router itself are passed through to the underlying
-// handler.Build.
-func (r *Router) Init(h web.Handler) {
-	namespaces := namespace.NewStore(h.DB)
-	tags := build.NewTagStore(h.DB)
-	triggers := build.NewTriggerStore(h.DB)
-	stages := build.NewStageStore(h.DB)
-	artifacts := build.NewArtifactStore(h.DB)
+func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+	build := handler.New(h, cfg.Artifacts().Store, cfg.Redis(), cfg.Hasher(), cfg.Queues())
 
-	loaders := database.NewLoaders()
-	loaders.Put("user", h.Users)
-	loaders.Put("namespace", namespaces)
-	loaders.Put("build_tag", tags)
-	loaders.Put("build_trigger", triggers)
-	loaders.Put("build_stage", stages)
-	loaders.Put("build_artifact", artifacts)
-
-	r.build = handler.Build{
-		Handler:   h,
-		Loaders:   loaders,
-		Objects:   object.NewStore(h.DB),
-		Variables: variable.NewStore(h.DB),
-		Client:    r.Redis,
-		Hasher:    r.Hasher,
-		Queues:    r.Queues,
-	}
-	r.job = handler.Job{
-		Handler: h,
-		Loaders: loaders,
-	}
-	r.tag = handler.Tag{
-		Handler: h,
-	}
-	r.hook = handler.Hook{
-		Build:     r.build,
-		Block:     r.Block,
-		Repos:     provider.NewRepoStore(h.DB),
-		Providers: provider.NewStore(h.DB),
-		Registry:  r.Registry,
-	}
-	r.artifact = handler.ArtifactAPI{
-		Handler: h,
-		Loaders: loaders,
+	return &Router{
+		middleware: mw,
+		build:      build,
+		job:        handler.NewJob(h),
+		tag:        handler.NewTag(h),
+		hook:       handler.NewHook(build, cfg.BlockCipher(), cfg.Providers()),
+		artifact:   handler.NewArtifact(h),
 	}
 }
 
@@ -212,11 +141,7 @@ func (r *Router) Init(h web.Handler) {
 // "/b/{username}/{build:[0-9]}" prefix of the given router. Each given gate
 // is applied to the registered routes, along with the given CSRF protection.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
-	build := handler.UI{
-		Build:     r.build,
-		Artifacts: r.Artifacts,
-	}
-
+	build := handler.UI{Build:r.build}
 	tag := handler.TagUI{Tag: r.tag}
 	job := handler.JobUI{Job: r.job}
 
@@ -228,7 +153,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/", build.Index).Methods("GET")
 	auth.HandleFunc("/builds/create", build.Create).Methods("GET")
 	auth.HandleFunc("/builds", build.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")
@@ -246,7 +171,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/tags", build.Show).Methods("GET")
 	sr.HandleFunc("/tags", tag.Store).Methods("POST")
 	sr.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI registers the API routes for working with builds. The given
@@ -274,7 +199,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	auth := mux.PathPrefix("/builds").Subrouter()
 	auth.HandleFunc("", build.Index).Methods("GET", "HEAD")
 	auth.HandleFunc("", build.Store).Methods("POST")
-	auth.Use(r.Middleware.Gate(gates...))
+	auth.Use(r.middleware.Gate(gates...))
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")
@@ -290,5 +215,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/tags", tag.Store).Methods("POST")
 	sr.HandleFunc("/tags/{tag:[0-9]+}", tag.Show).Methods("GET")
 	sr.HandleFunc("/tags/{tag:[0-9]+}", tag.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...))
 }

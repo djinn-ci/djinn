@@ -6,7 +6,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/andrewpillar/djinn/block"
 	"github.com/andrewpillar/djinn/build"
 	buildtemplate "github.com/andrewpillar/djinn/build/template"
 	"github.com/andrewpillar/djinn/database"
@@ -27,10 +26,6 @@ import (
 // submission, and retrieval.
 type UI struct {
 	Build
-
-	// Artifacts is the block storage to use for retrieving artifacts that
-	// are downloaded through the web frontend.
-	Artifacts block.Store
 }
 
 // JobUI is the handler for handling UI requests made for managing build jobs.
@@ -147,7 +142,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := build.NewStoreWithHasher(h.DB, h.Hasher).Submit(h.Queues[b.Manifest.Driver["type"]], web.BaseAddress(r), b); err != nil {
+	if err := build.NewStoreWithHasher(h.DB, h.hasher).Submit(h.queues[b.Manifest.Driver["type"]], web.BaseAddress(r), b); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create build"), "alert")
 		h.RedirectBack(w, r)
@@ -318,7 +313,7 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rec, err := h.Artifacts.Open(a.Hash)
+	rec, err := h.artifacts.Open(a.Hash)
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {

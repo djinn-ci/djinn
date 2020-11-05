@@ -102,6 +102,12 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		if patherr, ok := cause.(*os.PathError); ok {
+			sess.AddFlash(template.Danger(patherr.Error()), "alert")
+			h.RedirectBack(w, r)
+			return
+		}
+
 		switch cause {
 		case namespace.ErrName:
 			errs := form.NewErrors()
@@ -142,7 +148,7 @@ func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rec, err := h.BlockStore.Open(filepath.Join(i.Driver.String(), i.Hash))
+	rec, err := h.store.Open(filepath.Join(i.Driver.String(), i.Hash))
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {

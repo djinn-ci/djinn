@@ -150,7 +150,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	bb, paginator, err := h.Builds.Index(
+	bb, paginator, err := build.NewStore(h.DB).Index(
 		q,
 		query.WhereQuery(
 			"id", "IN", cron.SelectBuild("build_id", query.Where("cron_id", "=", c.ID)),
@@ -163,7 +163,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := build.LoadRelations(h.Loaders, bb...); err != nil {
+	if err := build.LoadRelations(h.loaders, bb...); err != nil {
 		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return

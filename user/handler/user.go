@@ -42,9 +42,14 @@ verify your account's email address,
 type User struct {
 	web.Handler
 
-	// Registry is the register that holds the provider client implementations
-	// we use for interacting with that provider's API.
-	Registry *provider.Registry
+	registry *provider.Registry
+}
+
+func New(h web.Handler, registry *provider.Registry) User {
+	return User{
+		Handler:  h,
+		registry: registry,
+	}
 }
 
 // Register will serve the HTML response for registering an account on a GET
@@ -111,7 +116,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 
 	providers := provider.NewStore(h.DB, u)
 
-	for name := range h.Registry.All() {
+	for name := range h.registry.All() {
 		if _, err := providers.Create(0, name, nil, nil, true, false); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to create account"), "alert")
@@ -132,7 +137,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
 	if r.Method == "GET" {
-		clis := h.Registry.All()
+		clis := h.registry.All()
 
 		order := make([]string, 0, len(clis))
 
@@ -408,7 +413,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		m[p.Name] = p
 	}
 
-	clis := h.Registry.All()
+	clis := h.registry.All()
 
 	order := make([]string, 0, len(clis))
 

@@ -1,12 +1,12 @@
-package web
+package router
 
 import (
 	"context"
 	"net/http"
 
+	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/server"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/variable"
@@ -23,11 +23,8 @@ import (
 // Router is what registers the UI and API routes for managing variables. It
 // implements the server.Router interface.
 type Router struct {
-	variable handler.Variable
-
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	Middleware web.Middleware
+	middleware web.Middleware
+	variable   handler.Variable
 }
 
 var _ server.Router = (*Router)(nil)
@@ -54,20 +51,10 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-// Init intialises the primary handler.Variable for handling the primary logic
-// of Variable creation and management. This will setup the database.Loader for
-// relationship loading, and the related database stores. The exported
-// properties on the Router itself are passed through to the underlying
-// handler.Variable.
-func (r *Router) Init(h web.Handler) {
-	loaders := database.NewLoaders()
-	loaders.Put("user", h.Users)
-	loaders.Put("namespace", namespace.NewStore(h.DB))
-
-	r.variable = handler.Variable{
-		Handler:   h,
-		Loaders:   loaders,
-		Variables: variable.NewStore(h.DB),
+func New(_ config.Server, h web.Handler, mw web.Middleware) *Router {
+	return &Router{
+		middleware: mw,
+		variable:   handler.New(h),
 	}
 }
 
@@ -91,11 +78,11 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/variables", variable.Index).Methods("GET")
 	auth.HandleFunc("/variables/create", variable.Create).Methods("GET")
 	auth.HandleFunc("/variables", variable.Store).Methods("POST")
-	auth.Use(r.Middleware.Auth, r.Middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
 
 	sr := mux.PathPrefix("/variables").Subrouter()
 	sr.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
 // RegisterAPI registers the API routes for working with variables. The given
@@ -112,5 +99,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("", variable.Index).Methods("GET", "HEAD")
 	sr.HandleFunc("", variable.Store).Methods("POST")
 	sr.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
-	sr.Use(r.Middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...))
 }

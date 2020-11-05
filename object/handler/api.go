@@ -99,7 +99,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	addr := web.BaseAddress(r) + h.Prefix
 
 	if base == "builds" {
-		bb, paginator, err := h.Builds.Index(
+		bb, paginator, err := build.NewStore(h.DB).Index(
 			r.URL.Query(),
 			query.WhereQuery(
 				"id", "IN", build.SelectObject("build_id", query.Where("object_id", "=", o.ID)),
@@ -124,7 +124,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Header.Get("Accept") == "application/octet-stream" {
-		rec, err := h.BlockStore.Open(o.Hash)
+		rec, err := h.store.Open(o.Hash)
 
 		if err != nil {
 			if os.IsNotExist(errors.Cause(err)) {

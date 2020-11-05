@@ -13,9 +13,11 @@ type level uint8
 // The Logger has three states representing each level that can be logged at,
 // Debug, Info, and Error.
 type Logger struct {
-	Debug state
-	Info  state
-	Error state
+	closer io.Closer
+
+	Debug  state
+	Info   state
+	Error  state
 }
 
 type state struct {
@@ -40,22 +42,23 @@ var levels = map[string]level{
 // New returns a new Logger that will write to the given io.Writer. This will
 // use the stdlib's logger with the log.Ldate, log.Ltime, and log.LUTC flags
 // set. The default level of the returned Logger is info.
-func New(w io.Writer) *Logger {
+func New(wc io.WriteCloser) *Logger {
 	defaultLevel := info
-	logger := log.New(w, "", log.Ldate|log.Ltime|log.LUTC)
+	logger := log.New(wc, "", log.Ldate|log.Ltime|log.LUTC)
 
 	return &Logger{
-		Debug: state{
+		closer: wc,
+		Debug:  state{
 			logger: logger,
 			level:  defaultLevel,
 			actual: debug,
 		},
-		Info: state{
+		Info:   state{
 			logger: logger,
 			level:  defaultLevel,
 			actual: info,
 		},
-		Error: state{
+		Error:  state{
 			logger: logger,
 			level:  defaultLevel,
 			actual: err,
@@ -75,13 +78,16 @@ func (l *Logger) SetLevel(s string) {
 }
 
 // SetWriter set's the io.Writer for the underlying logger.
-func (l *Logger) SetWriter(w io.Writer) {
+func (l *Logger) SetWriter(w io.WriteCloser) {
 	logger := log.New(w, "", log.Ldate|log.Ltime|log.LUTC)
 
+	l.closer = w
 	l.Debug.logger = logger
 	l.Info.logger = logger
 	l.Error.logger = logger
 }
+
+func (l *Logger) Close() error { return l.closer.Close() }
 
 func (s *state) Printf(format string, v ...interface{}) {
 	if s.actual < s.level {

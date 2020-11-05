@@ -23,9 +23,17 @@ import (
 type Token struct {
 	web.Handler
 
-	// Tokens is the token store used for updating, resetting, and deleting
-	// any personal access tokens the user creates.
-	Tokens *oauth2.TokenStore
+	tokens *oauth2.TokenStore
+
+//	// Tokens is the token store used for updating, resetting, and deleting
+//	// any personal access tokens the user creates.
+//	Tokens *oauth2.TokenStore
+}
+
+func NewToken(h web.Handler) Token {
+	return Token{
+		tokens: oauth2.NewTokenStore(h.DB),
+	}
 }
 
 // Index serves the HTML response detailing the list of personal access tokens
@@ -234,7 +242,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if web.BasePath(r.URL.Path) == "regenerate" {
-		if err := h.Tokens.Reset(t.ID); err != nil {
+		if err := h.tokens.Reset(t.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to update token"), "alert")
 			h.RedirectBack(w, r)
@@ -271,7 +279,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 
 	sc, _ := oauth2.UnmarshalScope(strings.Join(f.Scope, " "))
 
-	if err := h.Tokens.Update(t.ID, f.Name, sc); err != nil {
+	if err := h.tokens.Update(t.ID, f.Name, sc); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to update token"), "alert")
 		h.RedirectBack(w, r)
@@ -329,7 +337,7 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get token from request context")
 	}
 
-	if err := h.Tokens.Delete(t.ID); err != nil {
+	if err := h.tokens.Delete(t.ID); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to revoke token"), "alert")
 		h.RedirectBack(w, r)

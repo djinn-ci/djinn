@@ -136,7 +136,7 @@ func Test_FormValidate(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		uniqueQuery := "SELECT * FROM images WHERE (name = $1)"
+		uniqueQuery := "SELECT * FROM images WHERE (name = $1 AND namespace_id IS NULL)"
 		uniqueArgs := []driver.Value{test.form.Name}
 
 		if test.form.Namespace != "" {

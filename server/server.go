@@ -22,9 +22,6 @@ import (
 // stubs to statisfy the interface is a Router doesn't need to expose either via
 // the Server.
 type Router interface {
-	// Init will initialize the router with the base web.Handler.
-	Init(web.Handler)
-
 	// RegisterUI will register the router's UI routes with the given
 	// mux.Router. It will also pass through the CSRF middleware function, and
 	// a variadic list of gates to apply to the routes being registered.
@@ -41,9 +38,9 @@ type Router interface {
 type Server struct {
 	*http.Server
 
-	Log *log.Logger           // Log is the logger to use for application logging.
+	Log    *log.Logger        // Log is the logger to use for application logging.
 	Router *mux.Router        // Router is the mux.Router to use for registering routes.
-	Routers map[string]Router // Routers defines the routers for the server, along with their name,
+	Routers map[string]Router // Routers defines the routers for the server, along with their name.
 
 	// Cert and Key define the paths to the certificate and key to use for
 	// serving over TLS.
@@ -54,7 +51,7 @@ type Server struct {
 // API wraps the Server struct, and uses a separate mux.Router for serving
 // routes for the API.
 type API struct {
-	Server
+	*Server
 
 	apiRouter *mux.Router
 
@@ -64,7 +61,7 @@ type API struct {
 
 // UI wraps the Server struct, and provides CSRF middleware for each route.
 type UI struct {
-	Server
+	*Server
 
 	// CSRF defines the middleware function to use for protecting form submissions
 	// from CSRF attacks.
@@ -139,18 +136,11 @@ func (s *API) Register(name string, gates ...web.Gate) {
 	}
 }
 
-// Init initializes all of the routers given to the server with the given base
-// web.Handler.
-func (s *Server) Init(h web.Handler) {
+func (s *Server) Init() {
 	if s.Router == nil {
 		panic("initializing server with nil router")
 	}
-
 	s.Server.Handler = s.recoverHandler(spoofHandler(s.Router))
-
-	for _, r := range s.Routers {
-		r.Init(h)
-	}
 }
 
 // AddRouter adds the given router to the server with the given name. If the

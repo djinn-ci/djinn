@@ -85,7 +85,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, c.JSON(web.BaseAddress(r) + h.Prefix), http.StatusCreated)
+	web.JSON(w, c.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 // Show serves up the JSON response for the cron job in the given request. If
@@ -125,7 +125,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		web.JSON(w, data, http.StatusOK)
 		return
 	}
-	web.JSON(w, c.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
+	web.JSON(w, c.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 // Update applies the changes in the given request body to the existing cron
@@ -159,7 +159,7 @@ func (h API) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, c.JSON(web.BaseAddress(r) + h.Prefix), http.StatusOK)
+	web.JSON(w, c.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 // Destroy removes the cron job in the given request context from the database.

@@ -29,12 +29,12 @@ type Router struct {
 	token      handler.Token
 	connection handler.Connection
 
-//	// Block is the block cipher to use for encrypting client secrets.
-//	Block *crypto.Block
-//
-//	// Middleware is the middleware that is applied to any routes registered
-//	// from this router.
-//	Middleware web.Middleware
+	//	// Block is the block cipher to use for encrypting client secrets.
+	//	Block *crypto.Block
+	//
+	//	// Middleware is the middleware that is applied to any routes registered
+	//	// from this router.
+	//	Middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)

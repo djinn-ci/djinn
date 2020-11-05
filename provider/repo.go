@@ -17,15 +17,15 @@ import (
 
 // Repo is the type that represents a Repo from a remote Git hosting provider.
 type Repo struct {
-	ID           int64          `db:"id"`
-	UserID       int64          `db:"user_id"`
-	ProviderID   int64          `db:"provider_id"`
-	HookID       sql.NullInt64  `db:"hook_id"`
-	RepoID       int64          `db:"repo_id"`
-	ProviderName string         `db:"provider_name"`
-	Enabled      bool           `db:"enabled"`
-	Name         string         `db:"name"`
-	Href         string         `db:"href"`
+	ID           int64         `db:"id"`
+	UserID       int64         `db:"user_id"`
+	ProviderID   int64         `db:"provider_id"`
+	HookID       sql.NullInt64 `db:"hook_id"`
+	RepoID       int64         `db:"repo_id"`
+	ProviderName string        `db:"provider_name"`
+	Enabled      bool          `db:"enabled"`
+	Name         string        `db:"name"`
+	Href         string        `db:"href"`
 
 	User     *user.User `db:"-"`
 	Provider *Provider  `db:"-"`
@@ -52,7 +52,7 @@ var (
 	_ database.Model  = (*Repo)(nil)
 	_ database.Binder = (*RepoStore)(nil)
 
-	repoTable  = "provider_repos"
+	repoTable = "provider_repos"
 	relations = map[string]database.RelationFunc{
 		"user":     database.Relation("user_id", "id"),
 		"provider": database.Relation("provider_id", "id"),

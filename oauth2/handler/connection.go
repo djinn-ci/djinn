@@ -27,13 +27,13 @@ type Connection struct {
 	apps   *oauth2.AppStore
 	tokens *oauth2.TokenStore
 
-//	// Apps is the store used for retrieving the original OAuth app that made
-//	// the connection to the user's account.
-//	Apps *oauth2.AppStore
-//
-//	// Tokens is the store used for retrieving the original access tokens used
-//	// by the app for authenticating requests made to the API.
-//	Tokens *oauth2.TokenStore
+	//	// Apps is the store used for retrieving the original OAuth app that made
+	//	// the connection to the user's account.
+	//	Apps *oauth2.AppStore
+	//
+	//	// Tokens is the store used for retrieving the original access tokens used
+	//	// by the app for authenticating requests made to the API.
+	//	Tokens *oauth2.TokenStore
 }
 
 func NewConnection(h web.Handler) Connection {
@@ -132,7 +132,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &usertemplate.Settings{
 		BasePage: bp,
-		Section:  &oauth2template.ConnectionIndex{
+		Section: &oauth2template.ConnectionIndex{
 			BasePage: bp,
 			Tokens:   tt,
 		},
@@ -176,8 +176,8 @@ func (h Connection) Show(w http.ResponseWriter, r *http.Request) {
 			URL:  r.URL,
 			User: u,
 		},
-		CSRF:     csrf,
-		Token:    t,
+		CSRF:  csrf,
+		Token: t,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
 	web.HTML(w, template.Render(d), http.StatusOK)

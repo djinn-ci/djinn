@@ -24,13 +24,13 @@ type AppForm struct {
 // authorization page, for when a user authorizes an App's access to their
 // account.
 type AuthorizeForm struct {
-	Authorize    bool   `schema:"bool"`
-	ClientID     string `schema:"client_id"`
-	Handle       string `schema:"handle"`
-	Password     string `schema:"password"`
-	Scope        string `schema:"scope"`
-	State        string `schema:"state"`
-	RedirectURI  string `schema:"redirect_uri"`
+	Authorize   bool   `schema:"bool"`
+	ClientID    string `schema:"client_id"`
+	Handle      string `schema:"handle"`
+	Password    string `schema:"password"`
+	Scope       string `schema:"scope"`
+	State       string `schema:"state"`
+	RedirectURI string `schema:"redirect_uri"`
 }
 
 // TokenForm is the type that represents the input data for creating a new

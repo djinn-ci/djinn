@@ -148,7 +148,7 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 		return errors.Err(err)
 	}
 
-	urls = append(urls, data.dirurl + ".yml?ref=" + data.ref)
+	urls = append(urls, data.dirurl+".yml?ref="+data.ref)
 
 	mm, manifesterr := h.loadManifests(decodeBase64JSONManifest, tok, urls)
 
@@ -157,13 +157,13 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 			Int64: p.ID,
 			Valid: true,
 		},
-		RepoID :   sql.NullInt64{
+		RepoID: sql.NullInt64{
 			Int64: r.ID,
 			Valid: true,
 		},
-		Type:      data.typ,
-		Comment:   data.comment,
-		Data:      data.data,
+		Type:    data.typ,
+		Comment: data.comment,
+		Data:    data.data,
 	}
 
 	h.Log.Debug.Println("submitting", len(mm), "build manifests")
@@ -177,7 +177,7 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 	if t.Type == build.Pull {
 		last := bb[len(bb)-1]
 
-		err = p.SetCommitStatus(h.block, h.providers, r, runner.Queued, host + last.Endpoint(), data.ref)
+		err = p.SetCommitStatus(h.block, h.providers, r, runner.Queued, host+last.Endpoint(), data.ref)
 
 		if err != nil {
 			return errors.Err(err)

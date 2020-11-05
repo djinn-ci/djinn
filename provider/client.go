@@ -236,13 +236,13 @@ func (c BaseClient) Auth(ctx context.Context, v url.Values) (string, string, Use
 		return "", "", u, errors.Err(err)
 	}
 
-	req, err := http.NewRequest("GET", c.APIEndpoint + "/user", nil)
+	req, err := http.NewRequest("GET", c.APIEndpoint+"/user", nil)
 
 	if err != nil {
 		return "", "", u, errors.Err(err)
 	}
 
-	req.Header.Set("Authorization", "Bearer " + tok.AccessToken)
+	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
 	cli := http.Client{}
@@ -264,13 +264,13 @@ func (c BaseClient) Auth(ctx context.Context, v url.Values) (string, string, Use
 }
 
 func (c BaseClient) do(method, tok, endpoint string, r io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest(method, c.APIEndpoint + endpoint, r)
+	req, err := http.NewRequest(method, c.APIEndpoint+endpoint, r)
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	req.Header.Set("Authorization", "Bearer " + tok)
+	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
 	cli := &http.Client{}

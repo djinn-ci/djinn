@@ -68,9 +68,9 @@ type Store struct {
 
 //go:generate stringer -type Schedule -linecomment
 const (
-	Daily Schedule = iota // daily
-	Weekly                // weekly
-	Monthly               // monthly
+	Daily   Schedule = iota // daily
+	Weekly                  // weekly
+	Monthly                 // monthly
 )
 
 var (
@@ -178,7 +178,7 @@ func (c *Cron) JSON(addr string) map[string]interface{} {
 	for name, m := range map[string]database.Model{
 		"user":      c.User,
 		"namespace": c.Namespace,
-	}{
+	} {
 		if m != nil && !m.IsZero() {
 			json[name] = m.JSON(addr)
 		}
@@ -294,7 +294,7 @@ func (s *Store) Invoke(c *Cron) (*build.Build, error) {
 	t := &build.Trigger{
 		Type:    build.Schedule,
 		Comment: c.Name + ": Scheduled build, next run " + c.NextRun.Format("Mon Jan 2 15:04:05 2006"),
-		Data:    map[string]string{
+		Data: map[string]string{
 			"email":    c.User.Email,
 			"username": c.User.Username,
 		},
@@ -443,15 +443,15 @@ func (s *Schedule) Next() time.Time {
 
 	switch *s {
 	case Daily:
-		return time.Date(now.Year(), now.Month(), now.Day() + 1, 0, 0, 0, 0, time.UTC)
+		return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 	case Weekly:
-		offset := int(now.Weekday() - time.Sunday) + 1
+		offset := int(now.Weekday()-time.Sunday) + 1
 
-		return time.Date(now.Year(), now.Month(), now.Day() + offset, 0, 0, 0, 0, time.UTC)
+		return time.Date(now.Year(), now.Month(), now.Day()+offset, 0, 0, 0, 0, time.UTC)
 	case Monthly:
-		return time.Date(now.Year(), now.Month() + 1, now.Day(), 0, 0, 0, 0, time.UTC)
+		return time.Date(now.Year(), now.Month()+1, now.Day(), 0, 0, 0, 0, time.UTC)
 	default:
-		return time.Date(now.Year(), now.Month(), now.Day() + 1, 0, 0, 0, 0, time.UTC)
+		return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 	}
 }
 

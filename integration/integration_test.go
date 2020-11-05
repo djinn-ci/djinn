@@ -153,14 +153,14 @@ func jsonBody(v interface{}) io.ReadCloser {
 }
 
 func (c client) do(t *testing.T, r request) *http.Response {
-	req, err :=  http.NewRequest(r.method, c.server.URL + r.uri, r.body)
+	req, err := http.NewRequest(r.method, c.server.URL+r.uri, r.body)
 
 	if err != nil {
 		t.Fatalf("unexpected http.NewRequest error: %s\n", err)
 	}
 
 	if r.token != nil {
-		req.Header.Set("Authorization", "Bearer " + hex.EncodeToString(r.token.Token))
+		req.Header.Set("Authorization", "Bearer "+hex.EncodeToString(r.token.Token))
 	}
 
 	req.Header.Set("Content-Type", r.contentType)

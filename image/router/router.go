@@ -26,20 +26,20 @@ type Router struct {
 	middleware web.Middleware
 	image      handler.Image
 
-//	// Middleware is the middleware that is applied to any routes registered
-//	// from this router.
-//	Middleware web.Middleware
-//
-//	// Hasher is the hashing mechanism to use when generating hashes for
-//	// images.
-//	Hasher *crypto.Hasher
-//
-//	// BlockStore is the block store implementation to use for storing images
-//	// that are uploaded.
-//	BlockStore block.Store
-//
-//	// Limit is the maximum limit applied to images uploaded.
-//	Limit int64
+	//	// Middleware is the middleware that is applied to any routes registered
+	//	// from this router.
+	//	Middleware web.Middleware
+	//
+	//	// Hasher is the hashing mechanism to use when generating hashes for
+	//	// images.
+	//	Hasher *crypto.Hasher
+	//
+	//	// BlockStore is the block store implementation to use for storing images
+	//	// that are uploaded.
+	//	BlockStore block.Store
+	//
+	//	// Limit is the maximum limit applied to images uploaded.
+	//	Limit int64
 }
 
 var _ server.Router = (*Router)(nil)

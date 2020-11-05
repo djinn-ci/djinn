@@ -15,8 +15,8 @@ import (
 	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/provider"
 	providertemplate "github.com/andrewpillar/djinn/provider/template"
-	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/template"
+	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
@@ -31,9 +31,9 @@ import (
 type Repo struct {
 	web.Handler
 
-	redis      *redis.Client
-	block      *crypto.Block
-	providers  *provider.Registry
+	redis     *redis.Client
+	block     *crypto.Block
+	providers *provider.Registry
 }
 
 var cacheKey = "repos-%s-%v-%v"

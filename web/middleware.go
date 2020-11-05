@@ -205,7 +205,7 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 				JSONError(w, "Not found", http.StatusNotFound)
 				return
 			}
-			h.Redirect(w, r, "/login?redirect_uri=" + url.PathEscape(BaseAddress(r) + r.URL.String()))
+			h.Redirect(w, r, "/login?redirect_uri="+url.PathEscape(BaseAddress(r)+r.URL.String()))
 			return
 		}
 

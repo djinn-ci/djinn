@@ -117,7 +117,7 @@ func Test_CollaboratorCRUD(t *testing.T) {
 	defer variableResp1.Body.Close()
 
 	v := struct {
-		UserID int64  `json:"user_id"`
+		UserID int64 `json:"user_id"`
 		URL    string
 	}{}
 

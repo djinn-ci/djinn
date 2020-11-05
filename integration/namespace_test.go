@@ -31,9 +31,9 @@ func Test_NamespaceCRUD(t *testing.T) {
 	}
 
 	client.do(t, request{
-		name:       "attempt to create grandchild namespace fremen/chani/letoii",
-		method:     "POST",
-		uri:        "/api/namespaces",
+		name:        "attempt to create grandchild namespace fremen/chani/letoii",
+		method:      "POST",
+		uri:         "/api/namespaces",
 		token:       myTok,
 		contentType: "application/json",
 		body:        jsonBody(grandchildBody),
@@ -41,9 +41,9 @@ func Test_NamespaceCRUD(t *testing.T) {
 	})
 
 	parentResp := client.do(t, request{
-		name:       "create parent namespace fremen",
-		method:     "POST",
-		uri:        "/api/namespaces",
+		name:        "create parent namespace fremen",
+		method:      "POST",
+		uri:         "/api/namespaces",
 		token:       myTok,
 		contentType: "application/json",
 		body:        jsonBody(parentBody),
@@ -66,9 +66,9 @@ func Test_NamespaceCRUD(t *testing.T) {
 	}
 
 	childResp := client.do(t, request{
-		name:       "create child namespace fremen/chani",
-		method:     "POST",
-		uri:        "/api/namespaces",
+		name:        "create child namespace fremen/chani",
+		method:      "POST",
+		uri:         "/api/namespaces",
 		token:       myTok,
 		contentType: "application/json",
 		body:        jsonBody(childBody),
@@ -85,9 +85,9 @@ func Test_NamespaceCRUD(t *testing.T) {
 	}
 
 	createGrandchildResp := client.do(t, request{
-		name:       "create grandchild namespace fremen/chani/letoii",
-		method:     "POST",
-		uri:        "/api/namespaces",
+		name:        "create grandchild namespace fremen/chani/letoii",
+		method:      "POST",
+		uri:         "/api/namespaces",
 		token:       myTok,
 		contentType: "application/json",
 		body:        jsonBody(grandchildBody),
@@ -126,9 +126,9 @@ func Test_NamespaceCRUD(t *testing.T) {
 	}
 
 	updateGrandchildResp := client.do(t, request{
-		name:       "attempt to set grandchild namespace visibility to 'internal'",
-		method:     "PATCH",
-		uri:        grandchildurl.Path,
+		name:        "attempt to set grandchild namespace visibility to 'internal'",
+		method:      "PATCH",
+		uri:         grandchildurl.Path,
 		token:       myTok,
 		contentType: "application/json",
 		body:        jsonBody(updatedGrandchild),

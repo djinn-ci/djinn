@@ -29,13 +29,13 @@ type Oauth2 struct {
 	apps   *oauth2.AppStore
 	tokens *oauth2.TokenStore
 
-//	// Apps is the app store to use for retrieving the OAuth app that is being
-//	// used to request access to a user's account.
-//	Apps *oauth2.AppStore
-//
-//	// Tokens is the token store to use for updating the scopes of a
-//	// pre-existing token, or for deleting a token.
-//	Tokens *oauth2.TokenStore
+	//	// Apps is the app store to use for retrieving the OAuth app that is being
+	//	// used to request access to a user's account.
+	//	Apps *oauth2.AppStore
+	//
+	//	// Tokens is the token store to use for updating the scopes of a
+	//	// pre-existing token, or for deleting a token.
+	//	Tokens *oauth2.TokenStore
 }
 
 func New(h web.Handler, block *crypto.Block) Oauth2 {
@@ -305,7 +305,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 // the token is created, and returned in the response. The tokens generated
 // do not expire.
 func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
-	id, secret, code, err :=  h.getClientCredentialsAndCode(r)
+	id, secret, code, err := h.getClientCredentialsAndCode(r)
 
 	if err != nil {
 		web.JSONError(w, err.Error(), http.StatusBadRequest)
@@ -343,7 +343,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if time.Now().Sub(c.ExpiresAt) > time.Minute * 10 {
+	if time.Now().Sub(c.ExpiresAt) > time.Minute*10 {
 		web.JSONError(w, "code expired", http.StatusBadRequest)
 		return
 	}

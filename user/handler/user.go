@@ -489,7 +489,7 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 			cause := errors.Cause(err)
 
 			if rcpterrs, ok := cause.(*mail.ErrRcpts); ok {
-				h.Log.Error.Println(r.Method, r.URL, "Failed to send verification email to " + rcpterrs.Error())
+				h.Log.Error.Println(r.Method, r.URL, "Failed to send verification email to "+rcpterrs.Error())
 				goto resp
 			}
 
@@ -499,8 +499,8 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-resp:
-		sess.AddFlash(template.Success("Verification email sent to: " + u.Email), "alert")
+	resp:
+		sess.AddFlash(template.Success("Verification email sent to: "+u.Email), "alert")
 		h.RedirectBack(w, r)
 		return
 	}

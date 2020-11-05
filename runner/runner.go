@@ -87,9 +87,9 @@ type Runner struct {
 	handleJobStart     jobHandler
 	handleJobComplete  jobHandler
 
-	order  []string          // the order in which each stage is executed.
-	stages map[string]*Stage
-	lastJob Job              // the last job that was successfully executed, used for reporting.
+	order   []string // the order in which each stage is executed.
+	stages  map[string]*Stage
+	lastJob Job // the last job that was successfully executed, used for reporting.
 
 	// Env is a slice of environment variables to set during job exectuion. The
 	// variables are expected to be formatted as key=value.

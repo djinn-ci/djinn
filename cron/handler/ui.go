@@ -53,10 +53,10 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 			URL:  r.URL,
 			User: u,
 		},
-		Paginator:  paginator,
-		Crons:      cc,
-		CSRF:       csrf,
-		Search:     q.Get("search"),
+		Paginator: paginator,
+		Crons:     cc,
+		CSRF:      csrf,
+		Search:    q.Get("search"),
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
@@ -125,7 +125,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sess.AddFlash(template.Success("Cron has been added: " + c.Name + " it will next trigger on " + c.NextRun.Format("Mon, 2 Jan 15:04 2006")), "alert")
+	sess.AddFlash(template.Success("Cron has been added: "+c.Name+" it will next trigger on "+c.NextRun.Format("Mon, 2 Jan 15:04 2006")), "alert")
 	h.Redirect(w, r, "/cron")
 }
 
@@ -179,7 +179,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		BasePage: bp,
 		CSRF:     csrf,
 		Cron:     c,
-		Builds:   &buildtemplate.Index{
+		Builds: &buildtemplate.Index{
 			BasePage:  bp,
 			Paginator: paginator,
 			Builds:    bb,

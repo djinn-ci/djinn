@@ -90,7 +90,7 @@ func (b *Build) Bind(mm ...database.Model) {
 }
 
 // SetPrimary implements the database.Model interface.
-func (b *Build) SetPrimary(_ int64) { }
+func (b *Build) SetPrimary(_ int64) {}
 
 // Primary implements the database.Model interface.
 func (b *Build) Primary() (string, int64) { return "id", b.ID }

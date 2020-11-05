@@ -3,11 +3,11 @@ package config
 import (
 	"io"
 
-	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/driver/docker"
-	"github.com/andrewpillar/djinn/driver/ssh"
 	"github.com/andrewpillar/djinn/driver/qemu"
+	"github.com/andrewpillar/djinn/driver/ssh"
+	"github.com/andrewpillar/djinn/errors"
 
 	"github.com/pelletier/go-toml"
 )

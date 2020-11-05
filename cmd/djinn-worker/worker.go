@@ -216,7 +216,7 @@ func (w *worker) run(id int64, host string) error {
 	}
 
 	if t.Type == build.Pull {
-		err := p.SetCommitStatus(w.block, w.providers, repo, runner.Running, host + b.Endpoint(), t.Data["sha"])
+		err := p.SetCommitStatus(w.block, w.providers, repo, runner.Running, host+b.Endpoint(), t.Data["sha"])
 
 		if err != nil {
 			return errors.Err(err)
@@ -244,7 +244,7 @@ func (w *worker) run(id int64, host string) error {
 		}
 
 		if t.Type == build.Pull {
-			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host + b.Endpoint(), t.Data["sha"])
+			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host+b.Endpoint(), t.Data["sha"])
 			return errors.Err(err)
 		}
 	}
@@ -272,7 +272,7 @@ func (w *worker) run(id int64, host string) error {
 		}
 
 		if t.Type == build.Pull {
-			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host + b.Endpoint(), t.Data["sha"])
+			err := p.SetCommitStatus(w.block, w.providers, repo, runner.Killed, host+b.Endpoint(), t.Data["sha"])
 			return errors.Err(err)
 		}
 		return errors.Err(w.sendmail(host, runner.Killed, b, t))
@@ -323,7 +323,7 @@ func (w *worker) run(id int64, host string) error {
 	}
 
 	if t.Type == build.Pull {
-		err := p.SetCommitStatus(w.block, w.providers, repo, status, host + b.Endpoint(), t.Data["sha"])
+		err := p.SetCommitStatus(w.block, w.providers, repo, status, host+b.Endpoint(), t.Data["sha"])
 		return errors.Err(err)
 	}
 	return errors.Err(w.sendmail(host, status, b, t))

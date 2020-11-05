@@ -56,7 +56,7 @@ var (
 		"variable",
 	}
 
-	DefaultGates = map[string]func(*sqlx.DB)web.Gate{
+	DefaultGates = map[string]func(*sqlx.DB) web.Gate{
 		"build":     buildrouter.Gate,
 		"cron":      cronrouter.Gate,
 		"image":     imagerouter.Gate,
@@ -211,7 +211,7 @@ func RegisterRoutesWithGates(cfg config.Server, api, ui bool, srv *server.Server
 		if ui {
 			prefix = "/api"
 
-			srv.Log.Info.Println("api routes served under", srv.Server.Addr + prefix)
+			srv.Log.Info.Println("api routes served under", srv.Server.Addr+prefix)
 		}
 
 		apisrv := server.API{

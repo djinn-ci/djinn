@@ -34,7 +34,7 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second * 15))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))
 	defer cancel()
 
 	signal.Notify(c, os.Interrupt)

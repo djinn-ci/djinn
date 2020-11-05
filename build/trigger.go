@@ -51,10 +51,10 @@ const (
 	// Push     - for when a build was triggered via a commit hook.
 	// Pull     - for when a build was triggered via a pull-request hook.
 	// Schedule - for when a build was triggered via a cron.
-	Manual TriggerType = iota // manual
-	Push                      // push
-	Pull                      // pull
-	Schedule                  // schedule
+	Manual   TriggerType = iota // manual
+	Push                        // push
+	Pull                        // pull
+	Schedule                    // schedule
 )
 
 var (

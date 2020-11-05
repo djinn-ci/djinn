@@ -172,7 +172,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+		sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 		h.Redirect(w, r, back)
 		return
 	}
@@ -181,7 +181,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+		sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 		h.Redirect(w, r, back)
 		return
 	}
@@ -199,13 +199,13 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 			cause := errors.Cause(err)
 
 			if cause == user.ErrExists {
-				sess.AddFlash(template.Danger("User already exists with email " + user1.Email), "alert")
+				sess.AddFlash(template.Danger("User already exists with email "+user1.Email), "alert")
 				h.RedirectBack(w, r)
 				return
 			}
 
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+			sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 			h.Redirect(w, r, back)
 			return
 		}
@@ -214,7 +214,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+			sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 			h.Redirect(w, r, back)
 			return
 		}
@@ -235,7 +235,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+		sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 		h.Redirect(w, r, back)
 		return
 	}
@@ -245,14 +245,14 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+			sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 			h.Redirect(w, r, back)
 			return
 		}
 	} else {
 		if err := providers.Update(p.ID, user1.ID, name, encAccess, encRefresh, true, true); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+			sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 			h.Redirect(w, r, back)
 			return
 		}
@@ -262,7 +262,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+		sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 		h.Redirect(w, r, back)
 		return
 	}
@@ -278,7 +278,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+		sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 		h.Redirect(w, r, back)
 		return
 	}
@@ -290,13 +290,13 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 		if _, err = providers.Create(id, name, encAccess, encRefresh, false, true); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to authenticate to " + name), "alert")
+			sess.AddFlash(template.Danger("Failed to authenticate to "+name), "alert")
 			h.Redirect(w, r, back)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Successfully connected to " + name), "alert")
+	sess.AddFlash(template.Success("Successfully connected to "+name), "alert")
 	h.Redirect(w, r, "/")
 }
 

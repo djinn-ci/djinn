@@ -29,8 +29,8 @@ type Batcher struct {
 // from, and setting the size of each batch to the given limit.
 func NewBatcher(db *sqlx.DB, limit int64) *Batcher {
 	return &Batcher{
-		store:     NewStore(db),
-		builds:    build.NewStore(db),
+		store:  NewStore(db),
+		builds: build.NewStore(db),
 		paginator: database.Paginator{
 			Page:  1,
 			Limit: limit,

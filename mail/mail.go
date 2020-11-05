@@ -168,10 +168,10 @@ func (e *ErrRcpts) Error() string {
 
 	i := 0
 
-	for k, v := range (*e) {
+	for k, v := range *e {
 		buf.WriteString(k + ": " + v)
 
-		if i != len((*e)) - 1 {
+		if i != len((*e))-1 {
 			buf.WriteRune('\n')
 		}
 		i++

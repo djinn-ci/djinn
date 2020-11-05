@@ -75,7 +75,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	web.JSON(w, k.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
-// Update applies the changes in the given request body to the existing key 
+// Update applies the changes in the given request body to the existing key
 // in the database. If any validation errors occur then these will be sent
 // back in the JSON response. On success the updated key is sent in the JSON
 // response.

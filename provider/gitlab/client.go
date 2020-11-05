@@ -63,7 +63,7 @@ type MergeRequestEvent struct {
 		Source          struct {
 			WebURL string `json:"web_url"`
 		}
-		LastCommit      struct {
+		LastCommit struct {
 			ID string
 		} `json:"last_commit"`
 		URL    string
@@ -75,13 +75,13 @@ var (
 	_ provider.Client = (*Client)(nil)
 
 	states = map[runner.Status]string{
-		runner.Queued:              "pending",
-		runner.Running:             "running",
-		runner.Passed:              "success",
-		runner.PassedWithFailures:  "success",
-		runner.Failed:              "failed",
-		runner.Killed:              "canceled",
-		runner.TimedOut:            "canceled",
+		runner.Queued:             "pending",
+		runner.Running:            "running",
+		runner.Passed:             "success",
+		runner.PassedWithFailures: "success",
+		runner.Failed:             "failed",
+		runner.Killed:             "canceled",
+		runner.TimedOut:           "canceled",
 	}
 )
 
@@ -103,7 +103,7 @@ func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 		ClientSecret: clientSecret,
 		RedirectURL:  host + "/oauth/gitlab",
 		Scopes:       []string{"api"},
-		Endpoint:     oauth2.Endpoint{
+		Endpoint: oauth2.Endpoint{
 			AuthURL:  url + "/oauth/authorize",
 			TokenURL: url + "/oauth/token",
 		},
@@ -134,7 +134,7 @@ func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
 	spage := strconv.FormatInt(page, 10)
 
-	resp, err := g.Get(tok, "/projects?&membership=true&simple=true&order_by=updated_at&page=" + spage)
+	resp, err := g.Get(tok, "/projects?&membership=true&simple=true&order_by=updated_at&page="+spage)
 
 	if err != nil {
 		return nil, database.Paginator{}, errors.Err(err)
@@ -196,7 +196,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 	id := strconv.FormatInt(r.RepoID, 10)
 
 	if !r.Enabled {
-		resp0, err := g.Get(tok, "/projects/" + id + "/hooks")
+		resp0, err := g.Get(tok, "/projects/"+id+"/hooks")
 
 		if err != nil {
 			return errors.Err(err)
@@ -212,7 +212,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 		json.NewDecoder(resp0.Body).Decode(&hooks)
 
 		for _, hook := range hooks {
-			if hook.URL == g.Host + "/hook/gitlab" {
+			if hook.URL == g.Host+"/hook/gitlab" {
 				r.HookID = sql.NullInt64{
 					Int64: hook.ID,
 					Valid: hook.ID > 0,
@@ -235,7 +235,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 
 		json.NewEncoder(buf).Encode(body)
 
-		resp, err := g.Post(tok, "/projects/" + id + "/hooks", buf)
+		resp, err := g.Post(tok, "/projects/"+id+"/hooks", buf)
 
 		if err != nil {
 			return errors.Err(err)
@@ -262,7 +262,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 		return nil
 	}
 
-	resp, err := g.Delete(tok, "/projects/" + id + "/hooks/" + strconv.FormatInt(r.HookID.Int64, 10))
+	resp, err := g.Delete(tok, "/projects/"+id+"/hooks/"+strconv.FormatInt(r.HookID.Int64, 10))
 
 	if err != nil {
 		return errors.Err(err)
@@ -297,7 +297,7 @@ func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 
 	json.NewEncoder(buf).Encode(body)
 
-	resp, err := g.Post(tok, "/projects/" + strconv.FormatInt(r.RepoID, 10) + "/statuses/" + sha, buf)
+	resp, err := g.Post(tok, "/projects/"+strconv.FormatInt(r.RepoID, 10)+"/statuses/"+sha, buf)
 
 	if err != nil {
 		return errors.Err(err)

@@ -29,11 +29,11 @@ type App struct {
 	block *crypto.Block
 	apps  *oauth2.AppStore
 
-//	// Block is the block cipher to use for encrypting client secrets.
-//	Block *crypto.Block
-//
-//	// Apps is the app store to use for the deletion of OAuth apps.
-//	Apps  *oauth2.AppStore
+	//	// Block is the block cipher to use for encrypting client secrets.
+	//	Block *crypto.Block
+	//
+	//	// Apps is the app store to use for the deletion of OAuth apps.
+	//	Apps  *oauth2.AppStore
 }
 
 func NewApp(h web.Handler, block *crypto.Block) App {
@@ -97,7 +97,7 @@ func (h App) Index(w http.ResponseWriter, r *http.Request) {
 
 	p := &usertemplate.Settings{
 		BasePage: bp,
-		Section:  &oauth2template.AppIndex{
+		Section: &oauth2template.AppIndex{
 			BasePage: bp,
 			Apps:     aa,
 		},

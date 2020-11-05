@@ -32,7 +32,7 @@ type Router struct {
 
 	// Middleware is the middleware that is applied to any routes registered
 	// from this router.
-//	Middleware web.Middleware
+	//	Middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)

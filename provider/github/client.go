@@ -69,7 +69,7 @@ type PullRequestEvent struct {
 			User User
 			Repo Repo
 		}
-		Base    struct {
+		Base struct {
 			Ref  string
 			User User
 			Repo Repo
@@ -124,7 +124,7 @@ func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 		ClientSecret: clientSecret,
 		RedirectURL:  host + "/oauth/github",
 		Scopes:       []string{"admin:repo_hook", "read:org", "repo"},
-		Endpoint:     oauth2.Endpoint{
+		Endpoint: oauth2.Endpoint{
 			AuthURL:  url + "/login/oauth/authorize",
 			TokenURL: url + "/login/oauth/access_token",
 		},
@@ -142,7 +142,7 @@ func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 }
 
 func (g *Client) findHook(tok, name, url string) (int64, error) {
-	resp, err := g.Get(tok, "/repos/" + name + "/hooks")
+	resp, err := g.Get(tok, "/repos/"+name+"/hooks")
 
 	if err != nil {
 		return 0, errors.Err(err)
@@ -197,7 +197,7 @@ func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 
 // Repos implements the provider.Client interface.
 func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
-	resp, err := g.Get(tok, "/user/repos?sort=updated&page=" + strconv.FormatInt(page, 10))
+	resp, err := g.Get(tok, "/user/repos?sort=updated&page="+strconv.FormatInt(page, 10))
 
 	if err != nil {
 		return nil, database.Paginator{}, errors.Err(err)
@@ -206,7 +206,7 @@ func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return  nil, database.Paginator{}, errors.New("unexpected http status: " + resp.Status)
+		return nil, database.Paginator{}, errors.New("unexpected http status: " + resp.Status)
 	}
 
 	repos := make([]Repo, 0)
@@ -277,7 +277,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 
 		json.NewEncoder(buf).Encode(body)
 
-		resp, err := g.Post(tok, "/repos/" + r.Name + "/hooks", buf)
+		resp, err := g.Post(tok, "/repos/"+r.Name+"/hooks", buf)
 
 		if err != nil {
 			return errors.Err(err)
@@ -289,7 +289,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 			err := decodeError(resp.Body)
 
 			if err.Has("Hook already exists on this repository") {
-				hookId, err := g.findHook(tok, r.Name, g.Host + "/hook/github")
+				hookId, err := g.findHook(tok, r.Name, g.Host+"/hook/github")
 
 				if err != nil {
 					return errors.Err(err)
@@ -319,7 +319,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 		return nil
 	}
 
-	resp, err := g.Delete(tok, "/repos/" + r.Name + "/hooks/" + strconv.FormatInt(r.HookID.Int64, 10))
+	resp, err := g.Delete(tok, "/repos/"+r.Name+"/hooks/"+strconv.FormatInt(r.HookID.Int64, 10))
 
 	if err != nil {
 		return errors.Err(err)
@@ -352,7 +352,7 @@ func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 
 	json.NewEncoder(buf).Encode(body)
 
-	resp, err := g.Post(tok, "/repos/" + r.Name + "/statuses/" + sha, buf)
+	resp, err := g.Post(tok, "/repos/"+r.Name+"/statuses/"+sha, buf)
 
 	if err != nil {
 		return errors.Err(err)
@@ -374,7 +374,7 @@ func (e Error) Error() string {
 		for i, err := range e.Errors {
 			s += err["message"]
 
-			if i != len(e.Errors) - 1 {
+			if i != len(e.Errors)-1 {
 				s += ", "
 			}
 		}

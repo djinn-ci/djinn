@@ -25,9 +25,9 @@ type Token struct {
 
 	tokens *oauth2.TokenStore
 
-//	// Tokens is the token store used for updating, resetting, and deleting
-//	// any personal access tokens the user creates.
-//	Tokens *oauth2.TokenStore
+	//	// Tokens is the token store used for updating, resetting, and deleting
+	//	// any personal access tokens the user creates.
+	//	Tokens *oauth2.TokenStore
 }
 
 func NewToken(h web.Handler) Token {

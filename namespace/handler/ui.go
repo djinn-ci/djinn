@@ -36,7 +36,7 @@ type UI struct {
 }
 
 // InviteUI is the handler for handling UI requests made for sending and
-// receiving namespace invites. 
+// receiving namespace invites.
 type InviteUI struct {
 	Invite
 }
@@ -691,6 +691,6 @@ func (h CollaboratorUI) Destroy(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	sess.AddFlash(template.Success("Collaborator remove: " + mux.Vars(r)["collaborator"]), "alert")
+	sess.AddFlash(template.Success("Collaborator remove: "+mux.Vars(r)["collaborator"]), "alert")
 	h.RedirectBack(w, r)
 }

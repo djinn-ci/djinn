@@ -21,8 +21,8 @@ type RegisterForm struct {
 }
 
 type LoginForm struct {
-	Handle   string    `schema:"handle"`
-	Password string    `schema:"password"`
+	Handle      string `schema:"handle"`
+	Password    string `schema:"password"`
 	RedirectURI string `schema:"redirect_uri"`
 }
 

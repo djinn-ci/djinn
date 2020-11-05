@@ -15,9 +15,9 @@ type level uint8
 type Logger struct {
 	closer io.Closer
 
-	Debug  state
-	Info   state
-	Error  state
+	Debug state
+	Info  state
+	Error state
 }
 
 type state struct {
@@ -48,17 +48,17 @@ func New(wc io.WriteCloser) *Logger {
 
 	return &Logger{
 		closer: wc,
-		Debug:  state{
+		Debug: state{
 			logger: logger,
 			level:  defaultLevel,
 			actual: debug,
 		},
-		Info:   state{
+		Info: state{
 			logger: logger,
 			level:  defaultLevel,
 			actual: info,
 		},
-		Error:  state{
+		Error: state{
 			logger: logger,
 			level:  defaultLevel,
 			actual: err,

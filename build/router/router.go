@@ -141,7 +141,7 @@ func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
 // "/b/{username}/{build:[0-9]}" prefix of the given router. Each given gate
 // is applied to the registered routes, along with the given CSRF protection.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, gates ...web.Gate) {
-	build := handler.UI{Build:r.build}
+	build := handler.UI{Build: r.build}
 	tag := handler.TagUI{Tag: r.tag}
 	job := handler.JobUI{Job: r.job}
 

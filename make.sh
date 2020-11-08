@@ -74,7 +74,10 @@ build() {
 			exit 1
 		fi
 		set -x
-		GOOS="$GOOS" GOARCH="$GOARCH" go build -gcflags "-e" -ldflags "$LDFLAGS" -tags "$TAGS" -o bin/"$c" ./cmd/"$c"
+		GOOS="$GOOS" GOARCH="$GOARCH" go build -gcflags "-e" \
+			-ldflags "$LDFLAGS" \
+			-tags "$TAGS" \
+			-o bin/"$c" ./cmd/"$c"
 		set +x
 	done
 }

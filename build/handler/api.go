@@ -106,12 +106,16 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := build.NewStoreWithHasher(h.DB, h.hasher).Submit(h.queues[b.Manifest.Driver["type"]], web.BaseAddress(r), b); err != nil {
+	builds := build.NewStoreWithHasher(h.DB, h.hasher)
+	prd := h.producers[b.Manifest.Driver["type"]]
+	addr := web.BaseAddress(r)
+
+	if err := builds.Submit(r.Context(), prd, addr, b); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	web.JSON(w, b.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	web.JSON(w, b.JSON(addr+h.Prefix), http.StatusCreated)
 }
 
 // Show serves up the JSON response for the build in the given request. This

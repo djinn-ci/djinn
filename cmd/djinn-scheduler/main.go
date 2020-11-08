@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -69,13 +70,16 @@ func main() {
 		}
 	}()
 
+	ctx, cancel:= context.WithCancel(context.Background())
+	defer cancel()
+
 	c := make(chan os.Signal, 1)
 
 	signal.Notify(c, os.Interrupt)
 
 	t := time.NewTicker(time.Minute)
 
-	queues := cfg.Queues()
+	producers := cfg.Producers()
 
 loop:
 	for {
@@ -95,7 +99,7 @@ loop:
 				for batcher.Next() {
 					log.Debug.Println("scheduled", len(batcher.Batch()), "cron job(s)")
 
-					n, err := batcher.Invoke(queues)
+					n, err := batcher.Invoke(ctx, producers)
 
 					if err != nil {
 						log.Error.Println(err)
@@ -109,6 +113,7 @@ loop:
 				}
 			}()
 		case sig := <-c:
+			cancel()
 			log.Info.Println("signal:", sig, "received, shutting down")
 			break loop
 		}

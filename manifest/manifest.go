@@ -1,4 +1,4 @@
-package config
+package manifest
 
 import (
 	"bytes"
@@ -43,9 +43,7 @@ type Job struct {
 	Artifacts runner.Passthrough `yaml:",omitempty"`
 }
 
-// DecodeManifest takes the given io.Reader, and decodes its content into a
-// Manifest, which is then returned.
-func DecodeManifest(r io.Reader) (Manifest, error) {
+func Decode(r io.Reader) (Manifest, error) {
 	var m Manifest
 
 	if err := yaml.NewDecoder(r).Decode(&m); err != nil {
@@ -54,7 +52,7 @@ func DecodeManifest(r io.Reader) (Manifest, error) {
 	return m, nil
 }
 
-func UnmarshalManifest(b []byte) (Manifest, error) {
+func Unmarshal(b []byte) (Manifest, error) {
 	var m Manifest
 
 	err := yaml.Unmarshal(b, &m)
@@ -82,8 +80,7 @@ func (m *Manifest) Scan(val interface{}) error {
 		return nil
 	}
 
-	buf := bytes.NewBufferString(s)
-	dec := yaml.NewDecoder(buf)
+	dec := yaml.NewDecoder(strings.NewReader(s))
 
 	return errors.Err(dec.Decode(m))
 }
@@ -95,18 +92,6 @@ func (m *Manifest) String() string {
 		return ""
 	}
 	return strings.TrimSuffix(string(b), "\n")
-}
-
-func (m *Manifest) UnmarshalJSON(b []byte) error {
-	var s string
-
-	if err := json.Unmarshal(b, &s); err != nil {
-		return form.UnmarshalError{
-			Field: "manifest",
-			Err:   err,
-		}
-	}
-	return m.UnmarshalText([]byte(s))
 }
 
 func (m *Manifest) UnmarshalText(b []byte) error {
@@ -138,6 +123,18 @@ func (m *Manifest) UnmarshalText(b []byte) error {
 	m.Jobs = tmp.Jobs
 
 	return nil
+}
+
+func (m *Manifest) UnmarshalJSON(b []byte) error {
+	var s string
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		return form.UnmarshalError{
+			Field: "manifest",
+			Err:   err,
+		}
+	}
+	return m.UnmarshalText([]byte(s))
 }
 
 func (m *Manifest) Validate() error {

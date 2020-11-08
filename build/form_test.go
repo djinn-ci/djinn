@@ -3,7 +3,7 @@ package build
 import (
 	"testing"
 
-	"github.com/andrewpillar/djinn/config"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/errors"
 )
 
@@ -14,7 +14,7 @@ func Test_BuildForm(t *testing.T) {
 	}{
 		{
 			Form{
-				Manifest: config.Manifest{
+				Manifest: manifest.Manifest{
 					Driver: map[string]string{
 						"type":      "docker",
 						"image":     "golang",
@@ -26,7 +26,7 @@ func Test_BuildForm(t *testing.T) {
 		},
 		{
 			Form{
-				Manifest: config.Manifest{
+				Manifest: manifest.Manifest{
 					Driver: map[string]string{
 						"type": "docker",
 					},
@@ -36,7 +36,7 @@ func Test_BuildForm(t *testing.T) {
 		},
 		{
 			Form{
-				Manifest: config.Manifest{
+				Manifest: manifest.Manifest{
 					Driver: map[string]string{
 						"type":      "docker",
 						"workspace": "/go",

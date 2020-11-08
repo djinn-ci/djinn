@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 
@@ -34,15 +34,15 @@ type Schedule uint
 
 // Cron is the type that represents a cron job that has been created by the user.
 type Cron struct {
-	ID          int64           `db:"id"`
-	UserID      int64           `db:"user_id"`
-	NamespaceID sql.NullInt64   `db:"namespace_id"`
-	Name        string          `db:"name"`
-	Schedule    Schedule        `db:"schedule"`
-	Manifest    config.Manifest `db:"manifest"`
-	PrevRun     sql.NullTime    `db:"prev_run"`
-	NextRun     time.Time       `db:"next_run"`
-	CreatedAt   time.Time       `db:"created_at"`
+	ID          int64             `db:"id"`
+	UserID      int64             `db:"user_id"`
+	NamespaceID sql.NullInt64     `db:"namespace_id"`
+	Name        string            `db:"name"`
+	Schedule    Schedule          `db:"schedule"`
+	Manifest    manifest.Manifest `db:"manifest"`
+	PrevRun     sql.NullTime      `db:"prev_run"`
+	NextRun     time.Time         `db:"next_run"`
+	CreatedAt   time.Time         `db:"created_at"`
 
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
@@ -243,7 +243,7 @@ func (s *Store) New() *Cron {
 }
 
 // Create will create a new Cron with the given name, schedule, and manifest.
-func (s *Store) Create(name string, sched Schedule, m config.Manifest) (*Cron, error) {
+func (s *Store) Create(name string, sched Schedule, m manifest.Manifest) (*Cron, error) {
 	c := s.New()
 
 	c.Name = name
@@ -257,7 +257,7 @@ func (s *Store) Create(name string, sched Schedule, m config.Manifest) (*Cron, e
 
 // Update will update the name, schedule, and manifest for the cron with the
 // given id.
-func (s *Store) Update(id int64, name string, sched Schedule, m config.Manifest) error {
+func (s *Store) Update(id int64, name string, sched Schedule, m manifest.Manifest) error {
 	q := query.Update(
 		query.Table(table),
 		query.Set("name", name),

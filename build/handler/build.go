@@ -17,7 +17,7 @@ import (
 
 	"github.com/go-redis/redis"
 
-	"github.com/RichardKnop/machinery/v1"
+	"github.com/mcmathja/curlyq"
 )
 
 // Build is the base handler that provides shared logic for the UI and API
@@ -29,10 +29,10 @@ type Build struct {
 	loaders   *database.Loaders
 	redis     *redis.Client
 	hasher    *crypto.Hasher
-	queues    map[string]*machinery.Server
+	producers map[string]*curlyq.Producer
 }
 
-func New(h web.Handler, artifacts block.Store, redis *redis.Client, hasher *crypto.Hasher, queues map[string]*machinery.Server) Build {
+func New(h web.Handler, artifacts block.Store, redis *redis.Client, hasher *crypto.Hasher, producers map[string]*curlyq.Producer) Build {
 	loaders := database.NewLoaders()
 	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
@@ -46,7 +46,7 @@ func New(h web.Handler, artifacts block.Store, redis *redis.Client, hasher *cryp
 		loaders:   loaders,
 		redis:     redis,
 		hasher:    hasher,
-		queues:    queues,
+		producers: producers,
 	}
 }
 
@@ -177,7 +177,7 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	if _, ok := h.queues[f.Manifest.Driver["type"]]; !ok {
+	if _, ok := h.producers[f.Manifest.Driver["type"]]; !ok {
 		return nil, f, build.ErrDriver
 	}
 

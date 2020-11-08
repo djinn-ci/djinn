@@ -3,9 +3,11 @@
 package build
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/gob"
 	"encoding/hex"
 	"fmt"
 	"net/url"
@@ -13,11 +15,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/key"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/object"
 	"github.com/andrewpillar/djinn/runner"
@@ -32,23 +34,22 @@ import (
 
 	"github.com/lib/pq"
 
-	"github.com/RichardKnop/machinery/v1"
-	"github.com/RichardKnop/machinery/v1/tasks"
+	"github.com/mcmathja/curlyq"
 )
 
 // Build is the type that represents a build that has either run, or will be
 // run.
 type Build struct {
-	ID          int64           `db:"id"`
-	UserID      int64           `db:"user_id"`
-	NamespaceID sql.NullInt64   `db:"namespace_id"`
-	Manifest    config.Manifest `db:"manifest"`
-	Status      runner.Status   `db:"status"`
-	Output      sql.NullString  `db:"output"`
-	Secret      sql.NullString  `db:"secret"`
-	CreatedAt   time.Time       `db:"created_at"`
-	StartedAt   pq.NullTime     `db:"started_at"`
-	FinishedAt  pq.NullTime     `db:"finished_at"`
+	ID          int64             `db:"id"`
+	UserID      int64             `db:"user_id"`
+	NamespaceID sql.NullInt64     `db:"namespace_id"`
+	Manifest    manifest.Manifest `db:"manifest"`
+	Status      runner.Status     `db:"status"`
+	Output      sql.NullString    `db:"output"`
+	Secret      sql.NullString    `db:"secret"`
+	CreatedAt   time.Time         `db:"created_at"`
+	StartedAt   pq.NullTime       `db:"started_at"`
+	FinishedAt  pq.NullTime       `db:"finished_at"`
 
 	User      *user.User           `db:"-" json:"-"`
 	Namespace *namespace.Namespace `db:"-" json:"-"`
@@ -340,27 +341,6 @@ func (b *Build) Values() map[string]interface{} {
 	}
 }
 
-// Signature returns the underlying tasks.Signature that is used when
-// submitting the build to the queue server. This signature will simply
-// contain the ID of the current Build. Each signature is configured to
-// retry 3 times before finally failing.
-func (b *Build) Signature(host string) *tasks.Signature {
-	return &tasks.Signature{
-		Name:       "run_build",
-		RetryCount: 3,
-		Args: []tasks.Arg{
-			tasks.Arg{
-				Type:  "int64",
-				Value: b.ID,
-			},
-			tasks.Arg{
-				Type:  "string",
-				Value: host,
-			},
-		},
-	}
-}
-
 // Bind implements the database.Binder interface. This will only bind the model
 // if they are pointers to either user.User, namespace.Namespace, Trigger, Tag,
 // Stage, or Driver.
@@ -375,10 +355,10 @@ func (s *Store) Bind(mm ...database.Model) {
 	}
 }
 
-// Create takes the given config.Manifest, Trigger, and tags, and creates a new
-// Build model in the database. This will also create a Trigger, and tags once
-// the Build has been created in the database.
-func (s *Store) Create(m config.Manifest, t *Trigger, tags ...string) (*Build, error) {
+// Create takes the given manifest.Manifest, Trigger, and tags, and creates a
+// new Build model in the database. This will also create a Trigger, and tags
+// once the Build has been created in the database.
+func (s *Store) Create(m manifest.Manifest, t *Trigger, tags ...string) (*Build, error) {
 	secret := make([]byte, 16)
 
 	if _, err := rand.Read(secret); err != nil {
@@ -583,7 +563,8 @@ func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) e
 // Submit the given build to the givern queue server. This will also create all
 // of the related entities that belong to the newly submitted build, such as
 // keys, objects, variables, stages, jobs, and artifacts.
-func (s *Store) Submit(srv *machinery.Server, host string, b *Build) error {
+//func (s *Store) Submit(srv *machinery.Server, host string, b *Build) error {
+func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b *Build) error {
 	if _, err := NewDriverStore(s.DB, b).Create(b.Manifest.Driver); err != nil {
 		return errors.Err(err)
 	}
@@ -750,6 +731,20 @@ func (s *Store) Submit(srv *machinery.Server, host string, b *Build) error {
 		}
 	}
 
-	_, err = srv.SendTask(b.Signature(host))
+	var buf bytes.Buffer
+
+	enc := gob.NewEncoder(&buf)
+
+	if err := enc.Encode(host); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := enc.Encode(b); err != nil {
+		return errors.Err(err)
+	}
+
+	_, err = prd.PerformCtx(ctx, curlyq.Job{
+		Data: buf.Bytes(),
+	})
 	return errors.Err(err)
 }

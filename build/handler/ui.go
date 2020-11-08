@@ -142,13 +142,16 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := build.NewStoreWithHasher(h.DB, h.hasher).Submit(h.queues[b.Manifest.Driver["type"]], web.BaseAddress(r), b); err != nil {
+	builds := build.NewStoreWithHasher(h.DB, h.hasher)
+	prd := h.producers[b.Manifest.Driver["type"]]
+	addr := web.BaseAddress(r)
+
+	if err := builds.Submit(r.Context(), prd, addr, b); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to create build"), "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-
 	sess.AddFlash(template.Success("Build submitted: #"+strconv.FormatInt(b.ID, 10)), "alert")
 	h.Redirect(w, r, b.Endpoint())
 }

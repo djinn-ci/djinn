@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -12,9 +13,9 @@ import (
 	"sync"
 
 	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/provider/github"
@@ -55,7 +56,7 @@ type Hook struct {
 	providers *provider.Registry
 }
 
-type manifestDecoder func(io.Reader) (config.Manifest, error)
+type manifestDecoder func(io.Reader) (manifest.Manifest, error)
 
 func NewHook(b Build, block *crypto.Block, providers *provider.Registry) Hook {
 	return Hook{
@@ -68,27 +69,27 @@ func NewHook(b Build, block *crypto.Block, providers *provider.Registry) Hook {
 // decodeBase64JSONManifest is the decoded used for decoding manifest files
 // from the GitHub and GitLab API whereby the actual file contents if a base64
 // encoded string.
-func decodeBase64JSONManifest(r io.Reader) (config.Manifest, error) {
+func decodeBase64JSONManifest(r io.Reader) (manifest.Manifest, error) {
 	file := struct {
 		Encoding string
 		Content  string
 	}{}
 
 	if err := json.NewDecoder(r).Decode(&file); err != nil {
-		return config.Manifest{}, errors.Err(err)
+		return manifest.Manifest{}, errors.Err(err)
 	}
 
 	if file.Encoding != "base64" {
-		return config.Manifest{}, errors.New("unexpected file encoding: " + file.Encoding)
+		return manifest.Manifest{}, errors.New("unexpected file encoding: " + file.Encoding)
 	}
 
 	raw, err := base64.StdEncoding.DecodeString(file.Content)
 
 	if err != nil {
-		return config.Manifest{}, errors.Err(err)
+		return manifest.Manifest{}, errors.Err(err)
 	}
 
-	m, err := config.UnmarshalManifest([]byte(raw))
+	m, err := manifest.Unmarshal([]byte(raw))
 	return m, errors.Err(err)
 }
 
@@ -115,7 +116,7 @@ func getGitLabURL(rawurl, ref string) func(map[string]string) string {
 // execute is what will actual get the manifests, decode them, and then submit
 // them to the build queue. It uses the information provided in the given hook
 // data to determine the type of build being submitted.
-func (h Hook) execute(host, name string, data hookData, geturl func(map[string]string) string) error {
+func (h Hook) execute(ctx context.Context, host, name string, data hookData, geturl func(map[string]string) string) error {
 	h.Log.Debug.Println("data.userId =", data.userId)
 
 	u, p, err := h.getUserAndProvider(name, data.repoId)
@@ -168,7 +169,7 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 
 	h.Log.Debug.Println("submitting", len(mm), "build manifests")
 
-	bb, err := h.submitBuilds(mm, host, u, t)
+	bb, err := h.submitBuilds(ctx, mm, host, u, t)
 
 	if err != nil {
 		return errors.Err(err)
@@ -192,9 +193,9 @@ func (h Hook) execute(host, name string, data hookData, geturl func(map[string]s
 // this will be aggregated into errors.MultiError and returned. Any manifest
 // decoding errors that do occur does not stop the rest of the manifest urls
 // from being requested.
-func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) ([]config.Manifest, error) {
+func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) ([]manifest.Manifest, error) {
 	errs := make(chan error)
-	manifests := make(chan config.Manifest)
+	manifests := make(chan manifest.Manifest)
 
 	wg := &sync.WaitGroup{}
 
@@ -255,7 +256,7 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 		close(manifests)
 	}()
 
-	mm := make([]config.Manifest, 0, len(urls))
+	mm := make([]manifest.Manifest, 0, len(urls))
 	ee := make([]error, 0, len(urls))
 
 	for errs != nil && manifests != nil {
@@ -341,7 +342,7 @@ func (h Hook) getManifestURLs(tok, rawurl string, geturl func(map[string]string)
 
 // submitBuilds will create and submit a build for each manifest in the given
 // slice of manifests.
-func (h Hook) submitBuilds(mm []config.Manifest, host string, u *user.User, t *build.Trigger) ([]*build.Build, error) {
+func (h Hook) submitBuilds(ctx context.Context, mm []manifest.Manifest, host string, u *user.User, t *build.Trigger) ([]*build.Build, error) {
 	bb := make([]*build.Build, 0, len(mm))
 
 	for _, m := range mm {
@@ -356,9 +357,9 @@ func (h Hook) submitBuilds(mm []config.Manifest, host string, u *user.User, t *b
 	submitted := make([]*build.Build, 0, len(mm))
 
 	for _, b := range bb {
-		q := h.queues[b.Manifest.Driver["type"]]
+		prd := h.producers[b.Manifest.Driver["type"]]
 
-		if err := build.NewStoreWithHasher(h.DB, h.hasher).Submit(q, host, b); err != nil {
+		if err := build.NewStoreWithHasher(h.DB, h.hasher).Submit(ctx, prd, host, b); err != nil {
 			return nil, errors.Err(err)
 		}
 		submitted = append(submitted, b)
@@ -466,7 +467,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.execute(web.BaseAddress(r), "github", data, getGitHubURL)
+	err = h.execute(r.Context(), web.BaseAddress(r), "github", data, getGitHubURL)
 
 	if err != nil {
 		cause := errors.Cause(err)
@@ -586,7 +587,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.execute(web.BaseAddress(r), "gitlab", data, getGitLabURL(data.dirurl, data.ref))
+	err = h.execute(r.Context(), web.BaseAddress(r), "gitlab", data, getGitLabURL(data.dirurl, data.ref))
 
 	if err != nil {
 		if manifesterr, ok := err.(*errors.Slice); ok {

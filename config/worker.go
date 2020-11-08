@@ -18,34 +18,7 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/pelletier/go-toml"
-
-	"github.com/RichardKnop/machinery/v1"
-	"github.com/RichardKnop/machinery/v1/config"
 )
-
-type Worker struct {
-	pidfile *os.File
-
-	parallelism int
-	timeout     time.Duration
-
-	block *crypto.Block
-
-	db         *sqlx.DB
-	redis      *redis.Client
-	smtp       *smtp.Client
-	postmaster string
-
-	artifacts block.Store
-	objects   block.Store
-
-	log *log.Logger
-
-	queue *machinery.Server
-
-	drivers   *driver.Registry
-	providers *provider.Registry
-}
 
 type workerCfg struct {
 	Pidfile     string
@@ -67,6 +40,29 @@ type workerCfg struct {
 	Log logCfg
 
 	Providers []providerCfg
+}
+
+type Worker struct {
+	pidfile *os.File
+
+	queue       string
+	parallelism int
+	timeout     time.Duration
+
+	block *crypto.Block
+
+	db         *sqlx.DB
+	redis      *redis.Client
+	smtp       *smtp.Client
+	postmaster string
+
+	artifacts block.Store
+	objects   block.Store
+
+	log *log.Logger
+
+	drivers   *driver.Registry
+	providers *provider.Registry
 }
 
 func decodeWorker(r io.Reader) (workerCfg, error) {
@@ -155,24 +151,6 @@ func DecodeWorker(r io.Reader) (Worker, error) {
 		return w, errors.Err(err)
 	}
 
-	broker := "redis://"
-
-	if cfg.Redis.Password != "" {
-		broker += cfg.Redis.Password + "@"
-	}
-
-	broker += cfg.Redis.Addr
-
-	w.queue, err = machinery.NewServer(&config.Config{
-		Broker:        broker,
-		DefaultQueue:  cfg.Queue,
-		ResultBackend: broker,
-	})
-
-	if err != nil {
-		return w, err
-	}
-
 	w.smtp, err = connectsmtp(w.log, cfg.SMTP)
 
 	if err != nil {
@@ -238,6 +216,10 @@ func (cfg workerCfg) validate() error {
 
 func (w Worker) Pidfile() *os.File { return w.pidfile }
 
+func (w Worker) Parallelism() int { return w.parallelism }
+
+func (w Worker) Queue() string { return w.queue }
+
 func (w Worker) Timeout() time.Duration { return w.timeout }
 
 func (w Worker) DB() *sqlx.DB { return w.db }
@@ -253,10 +235,6 @@ func (w Worker) Objects() block.Store { return w.objects }
 func (w Worker) BlockCipher() *crypto.Block { return w.block }
 
 func (w Worker) Log() *log.Logger { return w.log }
-
-func (w Worker) Queue() *machinery.Server { return w.queue }
-
-func (w Worker) Parallelism() int { return w.parallelism }
 
 func (w Worker) Providers() *provider.Registry { return w.providers }
 

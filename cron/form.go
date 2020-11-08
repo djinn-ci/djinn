@@ -1,9 +1,9 @@
 package cron
 
 import (
-	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/namespace"
 
 	"github.com/andrewpillar/query"
@@ -14,11 +14,11 @@ import (
 type Form struct {
 	namespace.Resource
 
-	Crons    *Store          `schema:"-"`
-	Cron     *Cron           `schema:"-"`
-	Name     string          `schema:"name"`
-	Schedule Schedule        `schema:"schedule"`
-	Manifest config.Manifest `schema:"manifest"`
+	Crons    *Store            `schema:"-"`
+	Cron     *Cron             `schema:"-"`
+	Name     string            `schema:"name"`
+	Schedule Schedule          `schema:"schedule"`
+	Manifest manifest.Manifest `schema:"manifest"`
 }
 
 var _ form.Form = (*Form)(nil)

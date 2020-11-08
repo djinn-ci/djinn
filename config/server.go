@@ -21,12 +21,11 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
+	"github.com/mcmathja/curlyq"
+
 	"github.com/pelletier/go-toml"
 
 	"github.com/rbcervilla/redisstore"
-
-	"github.com/RichardKnop/machinery/v1"
-	"github.com/RichardKnop/machinery/v1/config"
 )
 
 // serverCfg is the representation of a TOML configuration file.
@@ -88,7 +87,7 @@ type Server struct {
 
 	log *log.Logger
 
-	queues map[string]*machinery.Server
+	producers map[string]*curlyq.Producer
 
 	providers *provider.Registry
 
@@ -205,27 +204,13 @@ func DecodeServer(r io.Reader) (Server, error) {
 		return s, errors.Err(err)
 	}
 
-	broker := "redis://"
-
-	if cfg.Redis.Password != "" {
-		broker += cfg.Redis.Password + "@"
-	}
-
-	broker += cfg.Redis.Addr
-
-	s.queues = make(map[string]*machinery.Server)
+	s.producers = make(map[string]*curlyq.Producer)
 
 	for _, d := range cfg.Drivers {
-		queue, err := machinery.NewServer(&config.Config{
-			Broker:        broker,
-			DefaultQueue:  d.Queue,
-			ResultBackend: broker,
+		s.producers[d.Type] = curlyq.NewProducer(&curlyq.ProducerOpts{
+			Client: s.redis,
+			Queue:  d.Queue,
 		})
-
-		if err != nil {
-			return s, errors.Err(err)
-		}
-		s.queues[d.Type] = queue
 	}
 
 	s.smtp, err = connectsmtp(s.log, cfg.SMTP)
@@ -367,6 +352,6 @@ func (s Server) Hasher() *crypto.Hasher { return s.hasher }
 
 func (s Server) Log() *log.Logger { return s.log }
 
-func (s Server) Queues() map[string]*machinery.Server { return s.queues }
+func (s Server) Producers() map[string]*curlyq.Producer { return s.producers }
 
 func (s Server) Providers() *provider.Registry { return s.providers }

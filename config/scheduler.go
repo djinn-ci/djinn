@@ -11,10 +11,9 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/pelletier/go-toml"
+	"github.com/mcmathja/curlyq"
 
-	"github.com/RichardKnop/machinery/v1"
-	"github.com/RichardKnop/machinery/v1/config"
+	"github.com/pelletier/go-toml"
 )
 
 type schedulerCfg struct {
@@ -36,7 +35,7 @@ type Scheduler struct {
 
 	log *log.Logger
 
-	queues map[string]*machinery.Server
+	producers map[string]*curlyq.Producer
 }
 
 func decodeScheduler(r io.Reader) (schedulerCfg, error) {
@@ -97,27 +96,13 @@ func DecodeScheduler(r io.Reader) (Scheduler, error) {
 		return s, errors.Err(err)
 	}
 
-	broker := "redis://"
-
-	if cfg.Redis.Password != "" {
-		broker += cfg.Redis.Password + "@"
-	}
-
-	broker += cfg.Redis.Addr
-
-	s.queues = make(map[string]*machinery.Server)
+	s.producers = make(map[string]*curlyq.Producer)
 
 	for _, d := range cfg.Drivers {
-		queue, err := machinery.NewServer(&config.Config{
-			Broker:        broker,
-			DefaultQueue:  d.Queue,
-			ResultBackend: broker,
+		s.producers[d.Type] = curlyq.NewProducer(&curlyq.ProducerOpts{
+			Client: s.redis,
+			Queue:  d.Queue,
 		})
-
-		if err != nil {
-			return s, errors.Err(err)
-		}
-		s.queues[d.Type] = queue
 	}
 	return s, nil
 }
@@ -145,4 +130,4 @@ func (s Scheduler) Redis() *redis.Client { return s.redis }
 
 func (s Scheduler) Log() *log.Logger { return s.log }
 
-func (s Scheduler) Queues() map[string]*machinery.Server { return s.queues }
+func (s Scheduler) Producers() map[string]*curlyq.Producer { return s.producers }

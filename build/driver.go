@@ -1,9 +1,7 @@
 package build
 
 import (
-	"bytes"
 	"database/sql"
-	"encoding/json"
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/driver"
@@ -16,10 +14,10 @@ import (
 
 // Driver is the type that represents the driver being used by a build.
 type Driver struct {
-	ID      int64       `db:"id"`
-	BuildID int64       `db:"build_id"`
-	Type    driver.Type `db:"type"`
-	Config  string      `db:"config"`
+	ID      int64         `db:"id"`
+	BuildID int64         `db:"build_id"`
+	Type    driver.Type   `db:"type"`
+	Config  driver.Config `db:"config"`
 
 	Build *Build `db:"-"`
 }
@@ -80,7 +78,7 @@ func (d *Driver) Primary() (string, int64) { return "id", d.ID }
 
 // IsZero implements the database.Model interface.
 func (d *Driver) IsZero() bool {
-	return d == nil || d.ID == 0 && d.BuildID == 0 && d.Type == driver.Type(0) && d.Config == ""
+	return d == nil || d.ID == 0 && d.BuildID == 0 && d.Type == driver.Type(0) && len(d.Config) == 0
 }
 
 // JSON implements the database.Model interface. This returns an empty map.
@@ -125,12 +123,8 @@ func (s *DriverStore) New() *Driver {
 
 // Create creates a new driver using the given configuration.
 func (s *DriverStore) Create(cfg map[string]string) (*Driver, error) {
-	buf := &bytes.Buffer{}
-
-	json.NewEncoder(buf).Encode(cfg)
-
 	d := s.New()
-	d.Config = buf.String()
+	d.Config = cfg
 
 	if err := d.Type.UnmarshalText([]byte(cfg["type"])); err != nil {
 		return d, errors.Err(err)

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/andrewpillar/djinn/config"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
 )
@@ -14,9 +14,9 @@ type tags []string
 // Form is the type that represents the input data for creating/submitting a
 // build.
 type Form struct {
-	Manifest config.Manifest `schema:"manifest" json:"manifest"`
-	Comment  string          `schema:"comment"  json:"comment"`
-	Tags     tags            `schema:"tags"     json:"tags"`
+	Manifest manifest.Manifest `schema:"manifest" json:"manifest"`
+	Comment  string            `schema:"comment"  json:"comment"`
+	Tags     tags              `schema:"tags"     json:"tags"`
 }
 
 // TagForm is the type that represents the input data for creating tags on a

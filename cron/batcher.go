@@ -1,6 +1,7 @@
 package cron
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/andrewpillar/djinn/build"
@@ -12,7 +13,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/RichardKnop/machinery/v1"
+	"github.com/mcmathja/curlyq"
 )
 
 // Batcher provides a way of retrieving batches of cron jobs that are ready
@@ -96,7 +97,7 @@ func (b *Batcher) Batch() []*Cron { return b.batch }
 func (b *Batcher) Err() error { return b.err }
 
 // Invoke will submit a build for each job in the current batch.
-func (b *Batcher) Invoke(queues map[string]*machinery.Server) (int, error) {
+func (b *Batcher) Invoke(ctx context.Context, produces map[string]*curlyq.Producer) (int, error) {
 	errs := make([]error, 0, len(b.batch))
 	n := 0
 
@@ -108,14 +109,14 @@ func (b *Batcher) Invoke(queues map[string]*machinery.Server) (int, error) {
 			continue
 		}
 
-		queue, ok := queues[bld.Manifest.Driver["type"]]
+		queue, ok := produces[bld.Manifest.Driver["type"]]
 
 		if !ok {
 			errs = append(errs, fmt.Errorf("invalid build driver: %v", bld.Manifest.Driver["type"]))
 			continue
 		}
 
-		if err := b.builds.Submit(queue, "djinn-scheduler", bld); err != nil {
+		if err := b.builds.Submit(ctx, queue, "djinn-scheduler", bld); err != nil {
 			errs = append(errs, fmt.Errorf("failed to submit build: %v", errors.Err(err)))
 			continue
 		}

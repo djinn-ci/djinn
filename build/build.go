@@ -560,9 +560,9 @@ func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) e
 	return nil
 }
 
-// Submit the given build to the givern queue server. This will also create all
-// of the related entities that belong to the newly submitted build, such as
-// keys, objects, variables, stages, jobs, and artifacts.
+// Submit the given build to the given producer. This will also create all of
+// the related entities that belong to the newly submitted build, such as keys,
+// objects, variables, stages, jobs, and artifacts.
 func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b *Build) error {
 	if _, err := NewDriverStore(s.DB, b).Create(b.Manifest.Driver); err != nil {
 		return errors.Err(err)

@@ -70,7 +70,7 @@ func main() {
 		}
 	}()
 
-	ctx, cancel:= context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	c := make(chan os.Signal, 1)

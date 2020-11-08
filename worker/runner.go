@@ -106,7 +106,7 @@ func (r *Runner) Init() error {
 	r.runner.Env = make([]string, 0, len(vv))
 
 	for _, v := range vv {
-		r.runner.Env = append(r.runner.Env, v.Key + "=" + v.Value)
+		r.runner.Env = append(r.runner.Env, v.Key+"="+v.Value)
 	}
 
 	kk, err := build.NewKeyStore(r.db, r.build).All()

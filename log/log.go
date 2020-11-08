@@ -61,7 +61,7 @@ func New(wc io.WriteCloser) *Logger {
 			level:  defaultLevel,
 			actual: info,
 		},
-		Warn:  state{
+		Warn: state{
 			logger: logger,
 			level:  defaultLevel,
 			actual: warn,

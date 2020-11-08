@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/form"
+	"github.com/andrewpillar/djinn/manifest"
 )
 
 type tags []string

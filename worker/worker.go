@@ -147,7 +147,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 			w.Providers,
 			r,
 			runner.Running,
-			host + b.Endpoint(),
+			host+b.Endpoint(),
 			t.Data["sha"],
 		)
 
@@ -194,7 +194,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 			w.Providers,
 			r,
 			status,
-			host + b.Endpoint(),
+			host+b.Endpoint(),
 			t.Data["sha"],
 		)
 

@@ -1,112 +1,49 @@
 package main
 
 import (
-	"flag"
+	"context"
 	"fmt"
-	"io"
 	"os"
+	"os/signal"
 
-	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/version"
+	"github.com/andrewpillar/djinn/workerutil"
 )
 
-var (
-	Version string
-	Build   string
-)
-
-func run(stdout, stderr io.Writer, args []string) error {
-	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
-
-	var (
-		showversion bool
-		configfile  string
-		driverfile  string
-	)
-
-	flags.BoolVar(&showversion, "version", false, "show the version and exit")
-	flags.StringVar(&configfile, "config", "djinn-worker.toml", "the config file to use")
-	flags.StringVar(&driverfile, "driver", "djinn-driver.toml", "the driver config to use")
-	flags.Parse(args[1:])
+func main() {
+	config, driver, showversion := workerutil.ParseFlags(os.Args)
 
 	if showversion {
-		fmt.Fprintf(stdout, "%s %s %s\n", args[0], Version, Build)
-		return nil
+		fmt.Printf("%s %s %s\n", os.Args[0], version.Tag, version.Ref)
+		return
 	}
 
-	fcfg, err := os.Open(configfile)
+	worker, cfg, close_, err := workerutil.Init(config, driver)
 
 	if err != nil {
-		return err
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
+		os.Exit(1)
 	}
-
-	defer fcfg.Close()
-
-	fdriver, err := os.Open(driverfile)
-
-	if err != nil {
-		return err
-	}
-
-	defer fdriver.Close()
-
-	cfg, err := config.DecodeWorker(fcfg)
-
-	if err != nil {
-		return err
-	}
-
-	drivers, driverconf, err := config.DecodeDriver(fdriver)
-
-	pidfile := cfg.Pidfile()
-
-	db := cfg.DB()
-	redis := cfg.Redis()
-	smtp, postmaster := cfg.SMTP()
 
 	log := cfg.Log()
 
-	defer db.Close()
-	defer redis.Close()
-	defer smtp.Close()
-	defer log.Close()
+	defer close_()
 
-	queue := cfg.Queue()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	w := worker{
-		db:         db,
-		redis:      redis,
-		block:      cfg.BlockCipher(),
-		log:        log,
-		driverconf: driverconf,
-		drivers:    drivers,
-		providers:  cfg.Providers(),
-		timeout:    cfg.Timeout(),
-		server:     queue,
-		placer:     cfg.Objects(),
-		collector:  cfg.Artifacts(),
-	}
-
-	w.smtp.client = smtp
-	w.smtp.from = postmaster
-
-	w.init(queue.GetConfig().DefaultQueue, cfg.Parallelism())
-
-	if err := w.worker.Launch(); err != nil {
-		return err
-	}
-
-	if pidfile != nil {
-		if err := os.RemoveAll(pidfile.Name()); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func main() {
-	if err := run(os.Stdout, os.Stderr, os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", errors.Cause(err))
+	if err := worker.Run(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
 		os.Exit(1)
 	}
+
+	c := make(chan os.Signal, 1)
+
+	signal.Notify(c, os.Interrupt)
+
+	sig := <-c
+
+	cancel()
+	log.Info.Println("signal:", sig, "received, shutting down")
 }

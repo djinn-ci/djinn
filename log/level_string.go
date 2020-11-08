@@ -10,12 +10,13 @@ func _() {
 	var x [1]struct{}
 	_ = x[debug-0]
 	_ = x[info-1]
-	_ = x[err-2]
+	_ = x[warn-2]
+	_ = x[err-3]
 }
 
-const _level_name = "DEBUGINFOERROR"
+const _level_name = "DEBUGINFOWARNERROR"
 
-var _level_index = [...]uint8{0, 5, 9, 14}
+var _level_index = [...]uint8{0, 5, 9, 13, 18}
 
 func (i level) String() string {
 	if i >= level(len(_level_index)-1) {

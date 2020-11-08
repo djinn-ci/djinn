@@ -17,6 +17,7 @@ type Logger struct {
 
 	Debug state
 	Info  state
+	Warn  state
 	Error state
 }
 
@@ -30,12 +31,14 @@ type state struct {
 const (
 	debug level = iota // DEBUG
 	info               // INFO
+	warn               // WARN
 	err                // ERROR
 )
 
 var levels = map[string]level{
 	"debug": debug,
 	"info":  info,
+	"warn":  warn,
 	"error": err,
 }
 
@@ -57,6 +60,11 @@ func New(wc io.WriteCloser) *Logger {
 			logger: logger,
 			level:  defaultLevel,
 			actual: info,
+		},
+		Warn:  state{
+			logger: logger,
+			level:  defaultLevel,
+			actual: warn,
 		},
 		Error: state{
 			logger: logger,
@@ -84,6 +92,7 @@ func (l *Logger) SetWriter(w io.WriteCloser) {
 	l.closer = w
 	l.Debug.logger = logger
 	l.Info.logger = logger
+	l.Warn.logger = logger
 	l.Error.logger = logger
 }
 

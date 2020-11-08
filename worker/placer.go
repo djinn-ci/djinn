@@ -1,4 +1,4 @@
-package main
+package worker
 
 import (
 	"io"
@@ -6,29 +6,22 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/runner"
-
-	"github.com/jmoiron/sqlx"
 )
 
-type placer struct {
-	db      *sqlx.DB
-	block   *crypto.Block
-	build   *build.Build
-	keycfg  string
-	keys    map[string][]byte
-	objects runner.Placer
-}
-
-// info implements the os.FileInfo interface so we can use it for returning
-// calls to Stat on keys and keycfg.
 type info struct {
 	name    string
 	size    int64
 	modTime time.Time
+}
+
+type placer struct {
+	block  *crypto.Block
+	keycfg []byte
+	keys   map[string][]byte
+	placer runner.Placer
 }
 
 var (
@@ -43,16 +36,9 @@ func (i *info) ModTime() time.Time { return i.modTime }
 func (i *info) IsDir() bool        { return false }
 func (i *info) Sys() interface{}   { return nil }
 
-// Place will write the contents of either the given object or key to the given
-// io.Writer. If the name is prefixed with "key:" then the underlying placer
-// will attempt to place the key by the given name, otherwise it will default
-// to placing an object. Once the object has been placed, the corresponding
-// build.Object model will be updated.
 func (p *placer) Place(name string, w io.Writer) (int64, error) {
-	var pl runner.Placer = build.NewObjectStoreWithPlacer(p.db, p.objects, p.build)
-
 	if name == "/root/.ssh/config" {
-		n, err := w.Write([]byte(p.keycfg))
+		n, err := w.Write(p.keycfg)
 		return int64(n), errors.Err(err)
 	}
 
@@ -73,16 +59,11 @@ func (p *placer) Place(name string, w io.Writer) (int64, error) {
 		return int64(n), errors.Err(err)
 	}
 
-	n, err := pl.Place(name, w)
+	n, err := p.placer.Place(name, w)
 	return int64(n), errors.Err(err)
 }
 
-// Stat will return the os.FileInfo for the given object or key. If the name is
-// prefixed with "key:", then the information regarding the SSH key will be
-// returned.
 func (p *placer) Stat(name string) (os.FileInfo, error) {
-	var pl runner.Placer = build.NewObjectStoreWithPlacer(p.db, p.objects, p.build)
-
 	if strings.HasPrefix(name, "keycfg:") {
 		return &info{
 			name:    "/root/.ssh/config",
@@ -91,7 +72,7 @@ func (p *placer) Stat(name string) (os.FileInfo, error) {
 		}, nil
 	}
 
-	if strings.HasPrefix("key:", name) {
+	if strings.HasPrefix(name, "key:") {
 		k, ok := p.keys[name]
 
 		if !ok {
@@ -104,6 +85,6 @@ func (p *placer) Stat(name string) (os.FileInfo, error) {
 		}, nil
 	}
 
-	info, err := pl.Stat(name)
+	info, err := p.placer.Stat(name)
 	return info, errors.Err(err)
 }

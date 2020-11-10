@@ -105,7 +105,7 @@ func (f Form) Validate() error {
 	if checkUnique {
 		n, err := f.Namespaces.Get(
 			database.Where(f.Namespaces.User, "user_id"),
-			query.Where("path", "=", f.Name),
+			query.Where("path", "=", query.Arg(f.Name)),
 		)
 
 		if err != nil {
@@ -152,7 +152,7 @@ func (f *InviteForm) Validate() error {
 		errs.Put("handle", errors.New("No such user"))
 	}
 
-	inviter, err := f.Users.Get(query.Where("username", "=", f.Owner))
+	inviter, err := f.Users.Get(query.Where("username", "=", query.Arg(f.Owner)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -169,7 +169,7 @@ func (f *InviteForm) Validate() error {
 	f.Inviter = inviter
 	f.Invitee = invitee
 
-	i, err := f.Invites.Get(query.Where("invitee_id", "=", invitee.ID))
+	i, err := f.Invites.Get(query.Where("invitee_id", "=", query.Arg(invitee.ID)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -179,7 +179,7 @@ func (f *InviteForm) Validate() error {
 		errs.Put("handle", errors.New("User already invited"))
 	}
 
-	c, err := f.Collaborators.Get(query.Where("user_id", "=", invitee.ID))
+	c, err := f.Collaborators.Get(query.Where("user_id", "=", query.Arg(invitee.ID)))
 
 	if err != nil {
 		return errors.Err(err)

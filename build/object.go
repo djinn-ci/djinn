@@ -94,10 +94,7 @@ func ObjectModel(oo []*Object) func(int) database.Model {
 // SelectObject returns SELECT query that will select the given column from the
 // build_objects table with the given query options applied.
 func SelectObject(col string, opts ...query.Option) query.Query {
-	return query.Select(append([]query.Option{
-		query.Columns(col),
-		query.From(objectTable),
-	}, opts...)...)
+	return query.Select(query.Columns(col), append([]query.Option{query.From(objectTable)}, opts...)...)
 }
 
 // Bind implements the database.Binder interface. This will only bind the models
@@ -272,7 +269,7 @@ func (s *ObjectStore) Bind(mm ...database.Model) {
 // callback. This method calls ObjectStore.All under the hood, so any bound
 // models will impact the models being loaded.
 func (s *ObjectStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	oo, err := s.All(query.Where(key, "IN", vals...))
+	oo, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -291,7 +288,7 @@ func (s *ObjectStore) getObjectToPlace(name string) (*Object, error) {
 		return nil, errors.New("cannot place object: nil placer")
 	}
 
-	o, err := s.Get(query.Where("source", "=", name))
+	o, err := s.Get(query.Where("source", "=", query.Arg(name)))
 
 	if err != nil {
 		return o, errors.Err(err)
@@ -301,7 +298,7 @@ func (s *ObjectStore) getObjectToPlace(name string) (*Object, error) {
 		return o, errors.New("cannot find object: " + name)
 	}
 
-	o.Object, err = object.NewStore(s.DB).Get(query.Where("id", "=", o.ObjectID))
+	o.Object, err = object.NewStore(s.DB).Get(query.Where("id", "=", query.Arg(o.ObjectID)))
 
 	if err != nil {
 		return o, errors.Err(err)
@@ -331,9 +328,9 @@ func (s *ObjectStore) Place(name string, w io.Writer) (int64, error) {
 	o.Placed = errPlace == nil
 
 	q := query.Update(
-		query.Table(objectTable),
-		query.Set("placed", o.Placed),
-		query.Where("id", "=", o.ID),
+		objectTable,
+		query.Set("placed", query.Arg(o.Placed)),
+		query.Where("id", "=", query.Arg(o.ID)),
 	)
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)

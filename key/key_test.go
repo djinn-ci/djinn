@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
@@ -26,12 +27,19 @@ type testQuery struct {
 	models []database.Model
 }
 
+type anyTime time.Time
+
 var keyCols = []string{
 	"user_id",
 	"namespace_id",
 	"name",
 	"key",
 	"config",
+}
+
+func (anyTime) Match(v driver.Value) bool {
+	_, ok := v.(time.Time)
+	return ok
 }
 
 func store(t *testing.T) (*Store, sqlmock.Sqlmock, func() error) {
@@ -153,8 +161,8 @@ func Test_StoreUpdate(t *testing.T) {
 	defer close_()
 
 	mock.ExpectExec(
-		"^UPDATE keys SET namespace_id = \\$1, config = \\$2, updated_at = NOW\\(\\) WHERE \\(id = \\$3\\)$",
-	).WithArgs(1, "", 10).WillReturnResult(sqlmock.NewResult(0, 1))
+		"^UPDATE keys SET namespace_id = \\$1, config = \\$2, updated_at = \\$3 WHERE \\(id = \\$4\\)$",
+	).WithArgs(1, "", anyTime{}, 10).WillReturnResult(sqlmock.NewResult(0, 1))
 
 	if err := store.Update(10, 1, ""); err != nil {
 		t.Errorf("unexpected Update error: %s\n", errors.Cause(err))

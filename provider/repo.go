@@ -186,7 +186,7 @@ func (s *RepoStore) Delete(ids ...int64) error {
 		vals = append(vals, id)
 	}
 
-	q := query.Delete(query.From(repoTable), query.Where("id", "IN", vals...))
+	q := query.Delete(repoTable, query.Where("id", "IN", query.List(vals...)))
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)

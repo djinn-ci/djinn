@@ -80,7 +80,7 @@ func (f AppForm) Validate() error {
 	}
 
 	if checkUnique {
-		a, err := f.Apps.Get(query.Where("name", "=", f.Name))
+		a, err := f.Apps.Get(query.Where("name", "=", query.Arg(f.Name)))
 
 		if err != nil {
 			return errors.Err(err)
@@ -164,7 +164,7 @@ func (f TokenForm) Validate() error {
 	}
 
 	if checkUnique {
-		t, err := f.Tokens.Get(query.Where("name", "=", f.Name))
+		t, err := f.Tokens.Get(query.Where("name", "=", query.Arg(f.Name)))
 
 		if err != nil {
 			return errors.Err(err)

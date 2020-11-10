@@ -41,7 +41,7 @@ func (h Namespace) loadParent(n *namespace.Namespace) error {
 		return nil
 	}
 
-	p, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", n.ParentID))
+	p, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(n.ParentID)))
 
 	if err != nil {
 		return nil
@@ -75,7 +75,7 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 	}
 
 	bb, err := build.NewStore(h.DB).All(
-		query.Where("namespace_id", "IN", database.MapKey("id", mm)...),
+		query.Where("namespace_id", "IN", query.List(database.MapKey("id", mm)...)),
 		query.OrderDesc("created_at"),
 	)
 

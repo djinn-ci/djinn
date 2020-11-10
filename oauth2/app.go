@@ -222,9 +222,9 @@ func (s *AppStore) Reset(id int64) error {
 	}
 
 	q := query.Update(
-		query.Table(appTable),
-		query.Set("client_secret", secret),
-		query.Where("id", "=", id),
+		appTable,
+		query.Set("client_secret", query.Arg(secret)),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)
@@ -235,12 +235,12 @@ func (s *AppStore) Reset(id int64) error {
 // homepage, and redirect properties in the database to what is given.
 func (s *AppStore) Update(id int64, name, description, homepage, redirect string) error {
 	q := query.Update(
-		query.Table(appTable),
-		query.Set("name", name),
-		query.Set("description", description),
-		query.Set("home_uri", homepage),
-		query.Set("redirect_uri", redirect),
-		query.Where("id", "=", id),
+		appTable,
+		query.Set("name", query.Arg(name)),
+		query.Set("description", query.Arg(description)),
+		query.Set("home_uri", query.Arg(homepage)),
+		query.Set("redirect_uri", query.Arg(redirect)),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -255,10 +255,7 @@ func (s *AppStore) Delete(ids ...int64) error {
 		vals = append(vals, id)
 	}
 
-	q := query.Delete(
-		query.From(appTable),
-		query.Where("id", "IN", vals...),
-	)
+	q := query.Delete(appTable, query.Where("id", "IN", query.List(vals...)))
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
@@ -321,7 +318,7 @@ func (s *AppStore) Auth(id, secret string) (*App, error) {
 		return nil, ErrAuth
 	}
 
-	a, err := s.Get(query.Where("client_id", "=", realId))
+	a, err := s.Get(query.Where("client_id", "=", query.Arg(realId)))
 
 	if err != nil {
 		return a, errors.Err(err)

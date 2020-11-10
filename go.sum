@@ -55,6 +55,8 @@ github.com/alicebob/miniredis v2.5.0+incompatible h1:yBHoLpsyjupjz3NL3MhKMVkR41j
 github.com/alicebob/miniredis v2.5.0+incompatible/go.mod h1:8HZjEj4yU0dwhYHky+DxYx+6BMjkBbe5ONFIF1MXffk=
 github.com/andrewpillar/query v0.0.0-20201104142708-71287600c790 h1:jSUVNADtBHIiGRsT+IfgPNENJObBq5na/uqffmHVFp8=
 github.com/andrewpillar/query v0.0.0-20201104142708-71287600c790/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
+github.com/andrewpillar/query v0.0.0-20201109182332-81f25b5b309b h1:H7q9olKhi/1yfkLL5QfbdZcY9ZIVNTgNBP1w5aUksu0=
+github.com/andrewpillar/query v0.0.0-20201109182332-81f25b5b309b/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=

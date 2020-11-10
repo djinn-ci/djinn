@@ -179,7 +179,7 @@ func (s *DriverStore) All(opts ...query.Option) ([]*Driver, error) {
 // load callback. This method calls DriverStore.All under the hood, so any
 // bound models will impact the models being loaded.
 func (s *DriverStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	dd, err := s.All(query.Where(key, "IN", vals...))
+	dd, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

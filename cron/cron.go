@@ -259,11 +259,11 @@ func (s *Store) Create(name string, sched Schedule, m manifest.Manifest) (*Cron,
 // given id.
 func (s *Store) Update(id int64, name string, sched Schedule, m manifest.Manifest) error {
 	q := query.Update(
-		query.Table(table),
-		query.Set("name", name),
-		query.Set("schedule", sched),
-		query.Set("manifest", m),
-		query.Set("next_run", sched.Next()),
+		table,
+		query.Set("name", query.Arg(name)),
+		query.Set("schedule", query.Arg(sched)),
+		query.Set("manifest", query.Arg(m)),
+		query.Set("next_run", query.Arg(sched.Next())),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -273,8 +273,8 @@ func (s *Store) Update(id int64, name string, sched Schedule, m manifest.Manifes
 // Delete a cron with the given id.
 func (s *Store) Delete(id int64) error {
 	q := query.Delete(
-		query.From(table),
-		query.Where("id", "=", id),
+		table,
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -309,8 +309,8 @@ func (s *Store) Invoke(c *Cron) (*build.Build, error) {
 	}
 
 	q := query.Update(
-		query.Table(table),
-		query.Set("next_run", c.NextRun),
+		table,
+		query.Set("next_run", query.Arg(c.NextRun)),
 	)
 
 	if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
@@ -421,7 +421,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Cron, database.
 // load callback. This method calls Store.All under the hood, so any bound
 // models will impact the models being loaded.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	cc, err := s.All(query.Where(key, "IN", vals...))
+	cc, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

@@ -54,7 +54,7 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		id, _ := strconv.ParseInt(mux.Vars(r)["repo"], 10, 64)
 
-		repo, err := repos.Get(query.Where("id", "=", id))
+		repo, err := repos.Get(query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
 			return r, false, errors.Err(err)

@@ -125,7 +125,7 @@ func (h Hook) execute(ctx context.Context, host, name string, data hookData, get
 		return errors.Err(err)
 	}
 
-	r, err := provider.NewRepoStore(h.DB, p).Get(query.Where("repo_id", "=", data.repoId))
+	r, err := provider.NewRepoStore(h.DB, p).Get(query.Where("repo_id", "=", query.Arg(data.repoId)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -284,21 +284,21 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 
 func (h Hook) getUserAndProvider(name string, repoId int64) (*user.User, *provider.Provider, error) {
 	r, err := provider.NewRepoStore(h.DB).Get(
-		query.Where("repo_id", "=", repoId),
-		query.Where("provider_name", "=", name),
+		query.Where("repo_id", "=", query.Arg(repoId)),
+		query.Where("provider_name", "=", query.Arg(name)),
 	)
 
 	if err != nil {
 		return nil, nil, errors.Err(err)
 	}
 
-	p, err := provider.NewStore(h.DB).Get(query.Where("id", "=", r.ProviderID))
+	p, err := provider.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(r.ProviderID)))
 
 	if err != nil {
 		return nil, nil, errors.Err(err)
 	}
 
-	u, err := h.Users.Get(query.Where("id", "=", p.UserID))
+	u, err := h.Users.Get(query.Where("id", "=", query.Arg(p.UserID)))
 	return u, p, errors.Err(err)
 }
 

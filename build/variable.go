@@ -217,7 +217,7 @@ func (s VariableStore) All(opts ...query.Option) ([]*Variable, error) {
 // load callback. This method calls StageStore.All under the hood, so any bound
 // models will impact the models being loaded.
 func (s VariableStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	vv, err := s.All(query.Where(key, "IN", vals...))
+	vv, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

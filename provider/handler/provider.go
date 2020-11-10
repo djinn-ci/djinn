@@ -36,7 +36,7 @@ func New(h web.Handler, block *crypto.Block, providers *provider.Registry) Provi
 }
 
 func (h Provider) disableHooks(p *provider.Provider) error {
-	rr, err := provider.NewRepoStore(h.DB, p).All(query.Where("enabled", "=", true))
+	rr, err := provider.NewRepoStore(h.DB, p).All(query.Where("enabled", "=", query.Arg(true)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -77,13 +77,13 @@ func (h Provider) disableHooks(p *provider.Provider) error {
 func (h Provider) lookupUser(name string, userId int64, email, username string) (*user.User, error) {
 	// Do we have a pre-existing user that is connected.
 	u, err := h.Users.Get(
-		query.WhereQuery("id", "=", provider.Select(
+		query.Where("id", "=", provider.Select(
 			"user_id",
-			query.Where("provider_user_id", "=", userId),
-			query.Where("name", "=", name),
-			query.Where("main_account", "=", true),
+			query.Where("provider_user_id", "=", query.Arg(userId)),
+			query.Where("name", "=", query.Arg(name)),
+			query.Where("main_account", "=", query.Arg(true)),
 		)),
-		query.Where("email", "=", email),
+		query.Where("email", "=", query.Arg(email)),
 	)
 
 	if err != nil {
@@ -97,12 +97,12 @@ func (h Provider) lookupUser(name string, userId int64, email, username string) 
 	// No pre-existing user, try and create a user on the fly if the email
 	// isn't taken.
 	u, err = h.Users.Get(
-		query.WhereQuery("id", "=", provider.Select(
+		query.Where("id", "=", provider.Select(
 			"user_id",
-			query.Where("name", "=", name),
-			query.Where("main_account", "=", true),
+			query.Where("name", "=", query.Arg(name)),
+			query.Where("main_account", "=", query.Arg(true)),
 		)),
-		query.Where("email", "=", email),
+		query.Where("email", "=", query.Arg(email)),
 	)
 
 	if err != nil {
@@ -231,7 +231,10 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 
 	providers := provider.NewStore(h.DB, u)
 
-	p, err := providers.Get(query.Where("name", "=", name), query.Where("main_account", "=", true))
+	p, err := providers.Get(
+		query.Where("name", "=", query.Arg(name)),
+		query.Where("main_account", "=", query.Arg(true)),
+	)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -258,7 +261,10 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	groups, err := providers.All(query.Where("name", "=", name), query.Where("main_account", "=", false))
+	groups, err := providers.All(
+		query.Where("name", "=", query.Arg(name)),
+		query.Where("main_account", "=", query.Arg(false)),
+	)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -321,7 +327,7 @@ func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 
 	providers := provider.NewStore(h.DB, u)
 
-	p, err := providers.Get(query.Where("name", "=", name))
+	p, err := providers.Get(query.Where("name", "=", query.Arg(name)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -349,7 +355,7 @@ func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pp, err := providers.All(query.Where("main_account", "=", false))
+	pp, err := providers.All(query.Where("main_account", "=", query.Arg(false)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

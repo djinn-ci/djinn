@@ -336,7 +336,7 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.Users.Get(query.Where("email", "=", f.Email))
+	u, err := h.Users.Get(query.Where("email", "=", query.Arg(f.Email)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

@@ -26,14 +26,6 @@ type Connection struct {
 
 	apps   *oauth2.AppStore
 	tokens *oauth2.TokenStore
-
-	//	// Apps is the store used for retrieving the original OAuth app that made
-	//	// the connection to the user's account.
-	//	Apps *oauth2.AppStore
-	//
-	//	// Tokens is the store used for retrieving the original access tokens used
-	//	// by the app for authenticating requests made to the API.
-	//	Tokens *oauth2.TokenStore
 }
 
 func NewConnection(h web.Handler) Connection {
@@ -51,7 +43,7 @@ func (h Connection) getToken(r *http.Request) (*oauth2.Token, error) {
 		return nil, errors.New("invalid hex encoding")
 	}
 
-	a, err := h.apps.Get(query.Where("client_id", "=", clientId))
+	a, err := h.apps.Get(query.Where("client_id", "=", query.Arg(clientId)))
 
 	if err != nil {
 		return nil, errors.Err(err)
@@ -61,7 +53,7 @@ func (h Connection) getToken(r *http.Request) (*oauth2.Token, error) {
 		return nil, errors.Err(err)
 	}
 
-	u, err := h.Users.Get(query.Where("id", "=", a.UserID))
+	u, err := h.Users.Get(query.Where("id", "=", query.Arg(a.UserID)))
 
 	if err != nil {
 		return nil, errors.Err(err)
@@ -83,7 +75,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	tt, err := oauth2.NewTokenStore(h.DB, u).All(query.WhereRaw("app_id", "IS NOT", "NULL"))
+	tt, err := oauth2.NewTokenStore(h.DB, u).All(query.Where("app_id", "IS NOT", query.Lit("NULL")))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -93,7 +85,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 
 	mm := database.ModelSlice(len(tt), oauth2.TokenModel(tt))
 
-	aa, err := h.apps.All(query.Where("id", "IN", database.MapKey("app_id", mm)...))
+	aa, err := h.apps.All(query.Where("id", "IN", query.List(database.MapKey("app_id", mm)...)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -101,7 +93,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uu, err := h.Users.All(query.Where("id", "IN", database.MapKey("user_id", mm)...))
+	uu, err := h.Users.All(query.Where("id", "IN", query.List(database.MapKey("user_id", mm)...)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

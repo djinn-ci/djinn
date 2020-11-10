@@ -228,7 +228,7 @@ func (s *ArtifactStore) Bind(mm ...database.Model) {
 // Load implements the database.Loader interface. Any models that are bound to
 // the ArtifactStore will be applied during querying.
 func (s *ArtifactStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	aa, err := s.All(query.Where(key, "IN", vals...))
+	aa, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -334,7 +334,7 @@ func (s *ArtifactStore) Collect(name string, r io.Reader) (int64, error) {
 		return 0, errors.New("cannot collect artifact: nil collector")
 	}
 
-	a, err := s.Get(query.Where("name", "=", name))
+	a, err := s.Get(query.Where("name", "=", query.Arg(name)))
 
 	if err != nil {
 		return 0, errors.Err(err)
@@ -359,11 +359,11 @@ func (s *ArtifactStore) Collect(name string, r io.Reader) (int64, error) {
 	}
 
 	q := query.Update(
-		query.Table(artifactTable),
-		query.Set("size", n),
-		query.Set("md5", md5.Sum(nil)),
-		query.Set("sha256", sha256.Sum(nil)),
-		query.Where("id", "=", a.ID),
+		artifactTable,
+		query.Set("size", query.Arg(n)),
+		query.Set("md5", query.Arg(md5.Sum(nil))),
+		query.Set("sha256", query.Arg(sha256.Sum(nil))),
+		query.Where("id", "=", query.Arg(a.ID)),
 	)
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)

@@ -73,10 +73,7 @@ func CollaboratorModel(cc []*Collaborator) func(int) database.Model {
 // namespace_collaborators table, with each given query.Option applied to the
 // returned query.
 func CollaboratorSelect(col string, opts ...query.Option) query.Query {
-	return query.Select(append([]query.Option{
-		query.Columns(col),
-		query.From(collaboratorTable),
-	}, opts...)...)
+	return query.Select(query.Columns(col), append([]query.Option{query.From(collaboratorTable)}, opts...)...)
 }
 
 // WhereCollaborator returns a query.Option that when applied to a query will
@@ -96,27 +93,27 @@ func WhereCollaborator(m database.Model) query.Option {
 		_, userId := m.Primary()
 
 		return query.Options(
-			query.WhereQuery("namespace_id", "IN",
+			query.Where("namespace_id", "IN",
 				query.Select(
 					query.Columns("id"),
 					query.From(table),
-					query.WhereQuery("root_id", "IN",
+					query.Where("root_id", "IN",
 						query.Union(
 							query.Select(
 								query.Columns("namespace_id"),
 								query.From(collaboratorTable),
-								query.Where("user_id", "=", userId),
+								query.Where("user_id", "=", query.Arg(userId)),
 							),
 							query.Select(
 								query.Columns("id"),
 								query.From(table),
-								query.Where("user_id", "=", userId),
+								query.Where("user_id", "=", query.Arg(userId)),
 							),
 						),
 					),
 				),
 			),
-			query.OrWhere("user_id", "=", userId),
+			query.OrWhere("user_id", "=", query.Arg(userId)),
 		)(q)
 	}
 }
@@ -210,15 +207,15 @@ func (s *CollaboratorStore) Delete(username string, chowns ...func(int64, int64)
 		return errors.New("nil bound namespace")
 	}
 
-	u, err := user.NewStore(s.DB).Get(query.Where("username", "=", username))
+	u, err := user.NewStore(s.DB).Get(query.Where("username", "=", query.Arg(username)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
 	q := query.Delete(
-		query.From(collaboratorTable),
-		query.WhereQuery("user_id", "=", user.Select("id", query.Where("username", "=", username))),
+		collaboratorTable,
+		query.Where("user_id", "=", user.Select("id", query.Where("username", "=", query.Arg(username)))),
 	)
 
 	if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
@@ -304,7 +301,7 @@ func (s *CollaboratorStore) Get(opts ...query.Option) (*Collaborator, error) {
 // load callback. This method calls CollaboratorStore.All under the hood, so any
 // bound models will impact the models being loaded.
 func (s *CollaboratorStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	cc, err := s.All(query.Where(key, "IN", vals...))
+	cc, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

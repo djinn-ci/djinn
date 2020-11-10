@@ -44,7 +44,7 @@ func NewBatcher(db *sqlx.DB, limit int64) *Batcher {
 // the batches in the table. If the end of the table is reached, or if an error
 // happens then false is returned.
 func (b *Batcher) Next() bool {
-	paginator, err := b.store.Paginate(b.paginator.Page, query.WhereRaw("NOW()", ">=", "next_run"))
+	paginator, err := b.store.Paginate(b.paginator.Page, query.Where("NOW()", ">=", query.Lit("next_run")))
 
 	if err != nil {
 		b.err = errors.Err(err)
@@ -52,7 +52,7 @@ func (b *Batcher) Next() bool {
 	}
 
 	cc, err := b.store.All(
-		query.WhereRaw("NOW()", ">=", "next_run"),
+		query.Where("NOW()", ">=", query.Lit("next_run")),
 		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)
@@ -68,7 +68,7 @@ func (b *Batcher) Next() bool {
 
 	mm := database.ModelSlice(len(cc), Model(cc))
 
-	uu, err := user.NewStore(b.store.DB).All(query.Where("id", "IN", database.MapKey("user_id", mm)...))
+	uu, err := user.NewStore(b.store.DB).All(query.Where("id", "IN", query.List(database.MapKey("user_id", mm)...)))
 
 	if err != nil {
 		b.err = errors.Err(err)

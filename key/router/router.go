@@ -42,7 +42,7 @@ func Gate(db *sqlx.DB) web.Gate {
 		)
 
 		ok, err := web.CanAccessResource(db, "key", r, func(id int64) (database.Model, error) {
-			k, err = keys.Get(query.Where("id", "=", id))
+			k, err = keys.Get(query.Where("id", "=", query.Arg(id)))
 			return k, errors.Err(err)
 		})
 

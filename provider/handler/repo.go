@@ -125,7 +125,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	opt := query.OrderAsc("name")
 
 	if name := r.URL.Query().Get("provider"); name != "" {
-		opt = query.Where("name", "=", name)
+		opt = query.Where("name", "=", query.Arg(name))
 	}
 
 	providers := provider.NewStore(h.DB, u)
@@ -168,7 +168,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	enabled, err := provider.NewRepoStore(h.DB, u, p).All(query.Where("enabled", "=", true))
+	enabled, err := provider.NewRepoStore(h.DB, u, p).All(query.Where("enabled", "=", query.Arg(true)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -176,7 +176,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pp, err := providers.All(query.Where("main_account", "=", true), query.OrderAsc("name"))
+	pp, err := providers.All(query.Where("main_account", "=", query.Arg(true)), query.OrderAsc("name"))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -232,7 +232,7 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", r.URL.Query().Get("provider")))
+	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", query.Arg(r.URL.Query().Get("provider"))))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -285,7 +285,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", f.Provider))
+	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", query.Arg(f.Provider)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -296,7 +296,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 	repos := provider.NewRepoStore(h.DB, u, p)
 
-	repo, err := repos.Get(query.Where("repo_id", "=", f.RepoID))
+	repo, err := repos.Get(query.Where("repo_id", "=", query.Arg(f.RepoID)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -345,7 +345,7 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := provider.NewStore(h.DB).Get(query.Where("id", "=", repo.ProviderID))
+	p, err := provider.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(repo.ProviderID)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

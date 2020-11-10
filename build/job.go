@@ -246,10 +246,10 @@ func (s *JobStore) Create(name, commands string) (*Job, error) {
 // Started marks the Job model with the given id as started in the database.
 func (s *JobStore) Started(id int64) error {
 	q := query.Update(
-		query.Table(jobTable),
-		query.Set("status", runner.Running),
-		query.Set("started_at", time.Now()),
-		query.Where("id", "=", id),
+		jobTable,
+		query.Set("status", query.Arg(runner.Running)),
+		query.Set("started_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -260,11 +260,11 @@ func (s *JobStore) Started(id int64) error {
 // with the given output and status.
 func (s *JobStore) Finished(id int64, output string, status runner.Status) error {
 	q := query.Update(
-		query.Table(jobTable),
-		query.Set("status", status),
-		query.Set("output", output),
-		query.Set("finished_at", time.Now()),
-		query.Where("id", "=", id),
+		jobTable,
+		query.Set("status", query.Arg(status)),
+		query.Set("output", query.Arg(output)),
+		query.Set("finished_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -337,7 +337,7 @@ func (s *JobStore) Index(vals url.Values, opts ...query.Option) ([]*Job, error) 
 // callback. This method calls JobStore.All under the hood, so any bound models
 // will impact the models being loaded.
 func (s *JobStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	jj, err := s.All(query.Where(key, "IN", vals...), query.OrderAsc("created_at"))
+	jj, err := s.All(query.Where(key, "IN", query.List(vals...)), query.OrderAsc("created_at"))
 
 	if err != nil {
 		return errors.Err(err)

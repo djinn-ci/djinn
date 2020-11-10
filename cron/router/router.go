@@ -43,7 +43,7 @@ func Gate(db *sqlx.DB) web.Gate {
 		)
 
 		ok, err := web.CanAccessResource(db, "cron", r, func(id int64) (database.Model, error) {
-			c, err = crons.Get(query.Where("id", "=", id))
+			c, err = crons.Get(query.Where("id", "=", query.Arg(id)))
 			return c, errors.Err(err)
 		})
 

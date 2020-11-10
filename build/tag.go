@@ -164,7 +164,7 @@ func (s *TagStore) Delete(ids ...int64) error {
 		vals = append(vals, id)
 	}
 
-	q := query.Delete(query.From(tagTable), query.Where("id", "IN", vals...))
+	q := query.Delete(tagTable, query.Where("id", "IN", query.List(vals...)))
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
@@ -248,7 +248,7 @@ func (s TagStore) Get(opts ...query.Option) (*Tag, error) {
 // callback. This method calls JobStore.All under the hood, so any bound models
 // will impact the models being loaded.
 func (s TagStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	tt, err := s.All(query.Where(key, "IN", vals...))
+	tt, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

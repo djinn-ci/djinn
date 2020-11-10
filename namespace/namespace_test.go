@@ -183,7 +183,7 @@ func Test_StoreGet(t *testing.T) {
 		},
 		{
 			"SELECT * FROM namespaces WHERE (root_id = (SELECT root_id FROM namespaces WHERE (id = $1)))",
-			[]query.Option{query.WhereQuery("root_id", "=", SelectRootID(1))},
+			[]query.Option{query.Where("root_id", "=", SelectRootID(1))},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1},
 			[]database.Model{},
@@ -191,8 +191,8 @@ func Test_StoreGet(t *testing.T) {
 		{
 			"SELECT * FROM namespaces WHERE (root_id = (SELECT root_id FROM namespaces WHERE (id = $1)) AND id = (SELECT root_id FROM namespaces WHERE (id = $2)))",
 			[]query.Option{
-				query.WhereQuery("root_id", "=", SelectRootID(1)),
-				query.WhereQuery("id", "=", SelectRootID(1)),
+				query.Where("root_id", "=", SelectRootID(1)),
+				query.Where("id", "=", SelectRootID(1)),
 			},
 			sqlmock.NewRows(namespaceCols),
 			[]driver.Value{1, 1},

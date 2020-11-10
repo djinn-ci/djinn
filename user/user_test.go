@@ -60,7 +60,7 @@ func Test_StoreAll(t *testing.T) {
 		},
 		{
 			"SELECT * FROM users WHERE (username = $1)",
-			[]query.Option{query.Where("username", "=", "freemang")},
+			[]query.Option{query.Where("username", "=", query.Arg("freemang"))},
 			sqlmock.NewRows(userCols),
 			[]driver.Value{"freemang"},
 			[]database.Model{},
@@ -97,7 +97,7 @@ func Test_StoreGet(t *testing.T) {
 		},
 		{
 			"SELECT * FROM users WHERE (username = $1)",
-			[]query.Option{query.Where("username", "=", "freemang")},
+			[]query.Option{query.Where("username", "=", query.Arg("freemang"))},
 			sqlmock.NewRows(userCols),
 			[]driver.Value{"freemang"},
 			[]database.Model{},

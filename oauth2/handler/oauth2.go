@@ -103,7 +103,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := h.apps.Get(query.Where("client_id", "=", b))
+	a, err := h.apps.Get(query.Where("client_id", "=", query.Arg(b)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -111,7 +111,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	author, err := h.Users.Get(query.Where("id", "=", a.UserID))
+	author, err := h.Users.Get(query.Where("id", "=", query.Arg(a.UserID)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -236,7 +236,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a, err := h.apps.Get(query.Where("client_id", "=", clientId))
+	a, err := h.apps.Get(query.Where("client_id", "=", query.Arg(clientId)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -330,7 +330,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	codes := oauth2.NewCodeStore(h.DB, a)
-	c, err := codes.Get(query.Where("code", "=", realCode))
+	c, err := codes.Get(query.Where("code", "=", query.Arg(realCode)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -348,7 +348,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	u, err := h.Users.Get(query.Where("id", "=", c.UserID))
+	u, err := h.Users.Get(query.Where("id", "=", query.Arg(c.UserID)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -419,7 +419,7 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	t, err := h.tokens.Get(query.Where("token", "=", b))
+	t, err := h.tokens.Get(query.Where("token", "=", query.Arg(b)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

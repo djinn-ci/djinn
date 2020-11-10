@@ -376,7 +376,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Object, databas
 // load callback. This method calls Store.All under the hood, so any
 // bound models will impact the models being loaded.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	oo, err := s.All(query.Where(key, "IN", vals...))
+	oo, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

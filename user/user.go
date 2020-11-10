@@ -73,10 +73,7 @@ func FromContext(ctx context.Context) (*User, bool) {
 // Select returns a query that selects the given column from the users table,
 // with each given query.Option applied to the returned query.
 func Select(col string, opts ...query.Option) query.Query {
-	return query.Select(append([]query.Option{
-		query.Columns(col),
-		query.From(table),
-	}, opts...)...)
+	return query.Select(query.Columns(col), append([]query.Option{query.From(table)}, opts...)...)
 }
 
 // WhereHandle returns a query.Option that when applied to a query will add two
@@ -84,8 +81,8 @@ func Select(col string, opts ...query.Option) query.Query {
 // the username column.
 func WhereHandle(handle string) query.Option {
 	return query.Options(
-		query.Where("email", "=", handle),
-		query.OrWhere("username", "=", handle),
+		query.Where("email", "=", query.Arg(handle)),
+		query.OrWhere("username", "=", query.Arg(handle)),
 	)
 }
 
@@ -165,8 +162,8 @@ func (s *Store) touchAccountToken(id int64, purpose string) ([]byte, error) {
 	q0 := query.Select(
 		query.Count("*"),
 		query.From(tokenTable),
-		query.Where("user_id", "=", id),
-		query.Where("purpose", "=", purpose),
+		query.Where("user_id", "=", query.Arg(id)),
+		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
 	if err := s.DB.QueryRow(q0.Build(), q0.Args()...).Scan(&count); err != nil {
@@ -179,16 +176,16 @@ func (s *Store) touchAccountToken(id int64, purpose string) ([]byte, error) {
 
 	if count == 0 {
 		q = query.Insert(
-			query.Into(tokenTable),
+			tokenTable,
 			query.Columns("user_id", "token", "purpose", "created_at", "expires_at"),
 			query.Values(id, tok, purpose, now, now.Add(time.Minute)),
 		)
 	} else {
 		q = query.Update(
-			query.Table(tokenTable),
-			query.Set("token", tok),
-			query.Set("purpose", purpose),
-			query.Set("expires_at", now.Add(time.Minute)),
+			tokenTable,
+			query.Set("token", query.Arg(tok)),
+			query.Set("purpose", query.Arg(purpose)),
+			query.Set("expires_at", query.Arg(now.Add(time.Minute))),
 		)
 	}
 
@@ -207,8 +204,8 @@ func (s *Store) flushAccountToken(tok []byte, purpose string) (int64, error) {
 	q := query.Select(
 		query.Columns("user_id", "expires_at"),
 		query.From(tokenTable),
-		query.Where("token", "=", tok),
-		query.Where("purpose", "=", purpose),
+		query.Where("token", "=", query.Arg(tok)),
+		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
 	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&id, &expiry); err != nil {
@@ -223,10 +220,10 @@ func (s *Store) flushAccountToken(tok []byte, purpose string) (int64, error) {
 	}
 
 	q1 := query.Delete(
-		query.From(tokenTable),
-		query.Where("user_id", "=", id),
-		query.Where("token", "=", tok),
-		query.Where("purpose", "=", purpose),
+		tokenTable,
+		query.Where("user_id", "=", query.Arg(id)),
+		query.Where("token", "=", query.Arg(tok)),
+		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
 	if _, err := s.DB.Exec(q1.Build(), q1.Args()...); err != nil {
@@ -259,7 +256,7 @@ func (s *Store) All(opts ...query.Option) ([]*User, error) {
 // of given vals. Each database is loaded individually via a call to the given
 // load callback.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	uu, err := s.All(query.Where(key, "IN", vals...))
+	uu, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -312,9 +309,9 @@ func (s *Store) Verify(tok []byte) error {
 	}
 
 	q := query.Update(
-		query.Table(table),
-		query.Set("verified", true),
-		query.Where("id", "=", id),
+		table,
+		query.Set("verified", query.Arg(true)),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)
@@ -326,10 +323,9 @@ func (s *Store) Verify(tok []byte) error {
 // updated, otherwise a new hash is generated for it.
 func (s *Store) Update(id int64, email string, cleanup bool, password []byte) error {
 	opts := []query.Option{
-		query.Table(table),
-		query.Set("email", email),
-		query.Set("cleanup", cleanup),
-		query.Set("updated_at", time.Now()),
+		query.Set("email", query.Arg(email)),
+		query.Set("cleanup", query.Arg(cleanup)),
+		query.Set("updated_at", query.Arg(time.Now())),
 	}
 
 	if password != nil {
@@ -339,11 +335,11 @@ func (s *Store) Update(id int64, email string, cleanup bool, password []byte) er
 			return errors.Err(err)
 		}
 
-		opts = append(opts, query.Set("password", hash))
+		opts = append(opts, query.Set("password", query.Arg(hash)))
 	}
-	opts = append(opts, query.Where("id", "=", id))
+	opts = append(opts, query.Where("id", "=", query.Arg(id)))
 
-	q := query.Update(opts...)
+	q := query.Update(table, opts...)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
@@ -352,7 +348,7 @@ func (s *Store) Update(id int64, email string, cleanup bool, password []byte) er
 // Delete the user with the given id. This will set the deleted_at field in the
 // table to the time at which this method was called.
 func (s *Store) Delete(id int64, password []byte) error {
-	u, err := s.Get(query.Where("id", "=", id), query.WhereRaw("deleted_at", "IS", "NULL"))
+	u, err := s.Get(query.Where("id", "=", query.Arg(id)), query.Where("deleted_at", "IS", query.Lit("NULL")))
 
 	if err != nil {
 		return errors.Err(err)
@@ -362,10 +358,7 @@ func (s *Store) Delete(id int64, password []byte) error {
 		return ErrAuth
 	}
 
-	q := query.Update(
-		query.Table(table),
-		query.Set("deleted_at", time.Now()),
-	)
+	q := query.Update(table, query.Set("deleted_at", query.Arg(time.Now())))
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
@@ -385,9 +378,9 @@ func (s *Store) UpdatePassword(tok, password []byte) error {
 	}
 
 	q := query.Update(
-		query.Table(table),
-		query.Set("password", hash),
-		query.Where("id", "=", id),
+		table,
+		query.Set("password", query.Arg(hash)),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)
@@ -414,7 +407,7 @@ func (s *Store) Get(opts ...query.Option) (*User, error) {
 // Auth looks up the user by the given handle, and checks that the given
 // password matches the hash in the database.
 func (s *Store) Auth(handle, password string) (*User, error) {
-	u, err := s.Get(WhereHandle(handle), query.WhereRaw("deleted_at", "IS", "NULL"))
+	u, err := s.Get(WhereHandle(handle), query.Where("deleted_at", "IS", query.Lit("NULL")))
 
 	if err != nil {
 		return nil, errors.Err(err)

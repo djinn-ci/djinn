@@ -273,7 +273,7 @@ func Search(col, pattern string) query.Option {
 		if pattern == "" {
 			return q
 		}
-		return query.Where("LOWER("+col+")", "LIKE", "%"+strings.ToLower(pattern)+"%")(q)
+		return query.Where("LOWER("+col+")", "LIKE", query.Arg("%"+strings.ToLower(pattern)+"%"))(q)
 	}
 }
 
@@ -310,7 +310,7 @@ func Where(m Model, args ...string) query.Option {
 		} else {
 			_, val = m.Primary()
 		}
-		return query.Where(col, "=", val)(q)
+		return query.Where(col, "=", query.Arg(val))(q)
 	}
 }
 
@@ -330,7 +330,7 @@ func OrWhere(m Model, args ...string) query.Option {
 		} else {
 			_, val = m.Primary()
 		}
-		return query.OrWhere(col, "=", val)(q)
+		return query.OrWhere(col, "=", query.Arg(val))(q)
 	}
 }
 
@@ -381,11 +381,10 @@ func (ls *Loaders) Copy() *Loaders {
 
 func (s Store) doSelect(fn selectFunc, i interface{}, table string, opts ...query.Option) error {
 	opts = append([]query.Option{
-		query.Columns("*"),
 		query.From(table),
 	}, opts...)
 
-	q := query.Select(opts...)
+	q := query.Select(query.Columns("*"), opts...)
 
 	err := fn(i, q.Build(), q.Args()...)
 
@@ -427,7 +426,7 @@ func (s Store) Create(table string, mm ...Model) error {
 		}
 
 		q := query.Insert(
-			query.Into(table),
+			table,
 			query.Columns(cols...),
 			query.Values(vals...),
 			query.Returning("id"),
@@ -445,9 +444,9 @@ func (s Store) Create(table string, mm ...Model) error {
 
 func (s Store) Chown(table string, from, to int64) error {
 	q := query.Update(
-		query.Table(table),
-		query.Set("user_id", to),
-		query.Where("user_id", "=", from),
+		table,
+		query.Set("user_id", query.Arg(to)),
+		query.Where("user_id", "=", query.Arg(from)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -461,18 +460,18 @@ func (s Store) Update(table string, mm ...Model) error {
 		modelVals := m.Values()
 		col, val := m.Primary()
 
-		opts := []query.Option{query.Table(table)}
+		opts := make([]query.Option, 0)
 
 		for k, v := range modelVals {
 			if k == col {
 				continue
 			}
-			opts = append(opts, query.Set(k, v))
+			opts = append(opts, query.Set(k, query.Arg(v)))
 		}
 
-		opts = append(opts, query.Where(col, "=", val))
+		opts = append(opts, query.Where(col, "=", query.Arg(val)))
 
-		q := query.Update(opts...)
+		q := query.Update(table, opts...)
 
 		if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
 			return errors.Err(err)
@@ -498,7 +497,7 @@ func (s Store) Delete(table string, mm ...Model) error {
 		ids = append(ids, val)
 	}
 
-	q := query.Delete(query.From(table), query.Where(col, "IN", ids...))
+	q := query.Delete(table, query.Where(col, "IN", query.List(ids...)))
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
@@ -519,11 +518,10 @@ func (s Store) Paginate(table string, page, limit int64, opts ...query.Option) (
 	}
 
 	opts = append([]query.Option{
-		query.Count("*"),
 		query.From(table),
 	}, opts...)
 
-	q := query.Select(opts...)
+	q := query.Select(query.Count("*"), opts...)
 
 	var count int64
 

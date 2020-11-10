@@ -112,7 +112,7 @@ func SelectRootID(id int64) query.Query {
 	return query.Select(
 		query.Columns("root_id"),
 		query.From(table),
-		query.Where("id", "=", id),
+		query.Where("id", "=", query.Arg(id)),
 	)
 }
 
@@ -128,12 +128,12 @@ func SharedWith(u *user.User) query.Option {
 		}
 
 		return query.Options(
-			query.Where("user_id", "=", u.ID),
-			query.OrWhereQuery("root_id", "IN",
+			query.Where("user_id", "=", query.Arg(u.ID)),
+			query.OrWhere("root_id", "IN",
 				query.Select(
 					query.Columns("namespace_id"),
 					query.From(collaboratorTable),
-					query.Where("user_id", "=", u.ID),
+					query.Where("user_id", "=", query.Arg(u.ID)),
 				),
 			),
 		)(q)
@@ -370,14 +370,14 @@ func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
 		parts := strings.Split((*path), "@")
 		(*path) = parts[0]
 
-		u, err = user.NewStore(s.DB).Get(query.Where("username", "=", parts[1]))
+		u, err = user.NewStore(s.DB).Get(query.Where("username", "=", query.Arg(parts[1])))
 
 		if err != nil {
 			return nil, errors.Err(err)
 		}
 	}
 
-	n, err := namespaces.Get(database.Where(u, "user_id"), query.Where("path", "=", path))
+	n, err := namespaces.Get(database.Where(u, "user_id"), query.Where("path", "=", query.Arg(path)))
 
 	if err != nil {
 		return n, errors.Err(err)
@@ -414,7 +414,7 @@ func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
 func (s *Store) Create(parent, name, description string, visibility Visibility) (*Namespace, error) {
 	p, err := s.Get(
 		database.Where(s.User, "user_id"),
-		query.Where("path", "=", parent),
+		query.Where("path", "=", query.Arg(parent)),
 	)
 
 	if err != nil {
@@ -459,9 +459,9 @@ func (s *Store) Create(parent, name, description string, visibility Visibility) 
 		}
 
 		q := query.Update(
-			query.Table(table),
-			query.Set("root_id", n.RootID),
-			query.Where("id", "=", n.ID),
+			table,
+			query.Set("root_id", query.Arg(n.RootID)),
+			query.Where("id", "=", query.Arg(n.ID)),
 		)
 		_, err := s.DB.Exec(q.Build(), q.Args()...)
 		return n, errors.Err(err)
@@ -474,10 +474,10 @@ func (s *Store) Create(parent, name, description string, visibility Visibility) 
 // is applied to all children.
 func (s *Store) Update(id int64, description string, visibility Visibility) error {
 	parent, err := s.Get(
-		query.WhereQuery("id", "=", query.Select(
+		query.Where("id", "=", query.Select(
 			query.Columns("parent_id"),
 			query.From(table),
-			query.Where("id", "=", id),
+			query.Where("id", "=", query.Arg(id)),
 		)),
 	)
 
@@ -489,9 +489,9 @@ func (s *Store) Update(id int64, description string, visibility Visibility) erro
 		visibility = parent.Visibility
 	} else {
 		q := query.Update(
-			query.Table(table),
-			query.Set("visibility", visibility),
-			query.Where("root_id", "=", id),
+			table,
+			query.Set("visibility", query.Arg(visibility)),
+			query.Where("root_id", "=", query.Arg(id)),
 		)
 
 		if _, err = s.DB.Exec(q.Build(), q.Args()...); err != nil {
@@ -500,10 +500,10 @@ func (s *Store) Update(id int64, description string, visibility Visibility) erro
 	}
 
 	q := query.Update(
-		query.Table(table),
-		query.Set("description", description),
-		query.Set("visibility", visibility),
-		query.Where("id", "=", id),
+		table,
+		query.Set("description", query.Arg(description)),
+		query.Set("visibility", query.Arg(visibility)),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)
@@ -519,10 +519,10 @@ func (s *Store) Delete(ids ...int64) error {
 	}
 
 	q := query.Delete(
-		query.From(table),
-		query.Where("id", "IN", vals...),
-		query.OrWhere("root_id", "IN", vals...),
-		query.OrWhere("parent_id", "IN", vals...),
+		table,
+		query.Where("id", "IN", query.List(vals...)),
+		query.OrWhere("root_id", "IN", query.List(vals...)),
+		query.OrWhere("parent_id", "IN", query.List(vals...)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -693,9 +693,9 @@ func (s *Store) GetByPath(path string) (*Namespace, error) {
 			}
 
 			q := query.Update(
-				query.Table(table),
-				query.Set("root_id", n.RootID),
-				query.Where("id", "=", n.ID),
+				table,
+				query.Set("root_id", query.Arg(n.RootID)),
+				query.Where("id", "=", query.Arg(n.ID)),
 			)
 
 			_, err = s.DB.Exec(q.Build(), q.Args()...)
@@ -712,7 +712,7 @@ func (s *Store) GetByPath(path string) (*Namespace, error) {
 // load callback. This method calls Store.All under the hood, so any
 // bound models will impact the models being loaded.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	nn, err := s.All(query.Where(key, "IN", vals...))
+	nn, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

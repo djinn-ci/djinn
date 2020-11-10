@@ -101,8 +101,8 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	if base == "builds" {
 		bb, paginator, err := build.NewStore(h.DB).Index(
 			r.URL.Query(),
-			query.WhereQuery(
-				"id", "IN", build.SelectObject("build_id", query.Where("object_id", "=", o.ID)),
+			query.Where(
+				"id", "IN", build.SelectObject("build_id", query.Where("object_id", "=", query.Arg(o.ID))),
 			),
 		)
 

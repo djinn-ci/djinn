@@ -143,11 +143,11 @@ func WhereSearch(search string) query.Option {
 		if search == "" {
 			return q
 		}
-		return query.WhereQuery("id", "IN",
+		return query.Where("id", "IN",
 			query.Select(
 				query.Columns("build_id"),
 				query.From(tagTable),
-				query.Where("name", "LIKE", "%"+search+"%"),
+				query.Where("name", "LIKE", query.Arg("%"+search+"%")),
 			),
 		)(q)
 	}
@@ -167,7 +167,7 @@ func WhereStatus(status string) query.Option {
 		if status == "passed" {
 			vals = append(vals, "passed_with_failures")
 		}
-		return query.Where("status", "IN", vals...)(q)
+		return query.Where("status", "IN", query.List(vals...))(q)
 	}
 }
 
@@ -179,11 +179,11 @@ func WhereTag(tag string) query.Option {
 		if tag == "" {
 			return q
 		}
-		return query.WhereQuery("id", "IN",
+		return query.Where("id", "IN",
 			query.Select(
 				query.Columns("build_id"),
 				query.From(tagTable),
-				query.Where("name", "=", tag),
+				query.Where("name", "=", query.Arg(tag)),
 			),
 		)(q)
 	}
@@ -405,10 +405,10 @@ func (s *Store) Create(m manifest.Manifest, t *Trigger, tags ...string) (*Build,
 // Started marks the build of the given id as started.
 func (s *Store) Started(id int64) error {
 	q := query.Update(
-		query.Table(table),
-		query.Set("status", runner.Running),
-		query.Set("started_at", time.Now()),
-		query.Where("id", "=", id),
+		table,
+		query.Set("status", query.Arg(runner.Running)),
+		query.Set("started_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -419,11 +419,11 @@ func (s *Store) Started(id int64) error {
 // the build and status to the given values.
 func (s *Store) Finished(id int64, output string, status runner.Status) error {
 	q := query.Update(
-		query.Table(table),
-		query.Set("status", status),
-		query.Set("output", output),
-		query.Set("finished_at", time.Now()),
-		query.Where("id", "=", id),
+		table,
+		query.Set("status", query.Arg(status)),
+		query.Set("output", query.Arg(output)),
+		query.Set("finished_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -546,7 +546,7 @@ func (s *Store) Get(opts ...query.Option) (*Build, error) {
 // load callback. This method calls Store.All under the hood, so any
 // bound models will impact the models being loaded.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	bb, err := s.All(query.Where(key, "IN", vals...))
+	bb, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -569,8 +569,8 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 	}
 
 	vv, err := variable.NewStore(s.DB).All(
-		query.Where("user_id", "=", b.UserID),
-		query.WhereRaw("namespace_id", "IS", "NULL"),
+		query.Where("user_id", "=", query.Arg(b.UserID)),
+		query.Where("namespace_id", "IS", query.Lit("NULL")),
 		database.OrWhere(b.Namespace, "namespace_id"),
 	)
 
@@ -593,8 +593,8 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 	}
 
 	kk, err := key.NewStore(s.DB).All(
-		query.Where("user_id", "=", b.UserID),
-		query.WhereRaw("namespace_id", "IS", "NULL"),
+		query.Where("user_id", "=", query.Arg(b.UserID)),
+		query.Where("namespace_id", "IS", query.Lit("NULL")),
 		database.OrWhere(b.Namespace, "namespace_id"),
 	)
 
@@ -614,9 +614,9 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 
 	if len(names) > 0 {
 		oo, err := object.NewStore(s.DB).All(
-			query.Where("name", "IN", names...),
-			query.Where("user_id", "=", b.UserID),
-			query.WhereRaw("namespace_id", "IS", "NULL"),
+			query.Where("name", "IN", query.List(names...)),
+			query.Where("user_id", "=", query.Arg(b.UserID)),
+			query.Where("namespace_id", "IS", query.Arg("NULL")),
 			database.OrWhere(b.Namespace, "namespace_id"),
 		)
 

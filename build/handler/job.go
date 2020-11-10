@@ -62,7 +62,7 @@ func (h Job) ShowWithRelations(r *http.Request) (*build.Job, error) {
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["job"], 10, 64)
 
-	j, err := build.NewJobStore(h.DB, b).Get(query.Where("id", "=", id))
+	j, err := build.NewJobStore(h.DB, b).Get(query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
 		return j, errors.Err(err)

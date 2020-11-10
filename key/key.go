@@ -253,14 +253,14 @@ func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(ta
 // the key, and the new config to use.
 func (s *Store) Update(id, namespaceId int64, config string) error {
 	q := query.Update(
-		query.Table(table),
-		query.Set("namespace_id", sql.NullInt64{
+		table,
+		query.Set("namespace_id", query.Arg(sql.NullInt64{
 			Int64: namespaceId,
 			Valid: namespaceId > 0,
-		}),
-		query.Set("config", config),
-		query.SetRaw("updated_at", "NOW()"),
-		query.Where("id", "=", id),
+		})),
+		query.Set("config", query.Arg(config)),
+		query.Set("updated_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -362,7 +362,7 @@ func (s *Store) Get(opts ...query.Option) (*Key, error) {
 // load callback. This method calls Store.All under the hood, so any
 // bound models will impact the models being loaded.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	kk, err := s.All(query.Where(key, "IN", vals...))
+	kk, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

@@ -24,10 +24,6 @@ type Token struct {
 	web.Handler
 
 	tokens *oauth2.TokenStore
-
-	//	// Tokens is the token store used for updating, resetting, and deleting
-	//	// any personal access tokens the user creates.
-	//	Tokens *oauth2.TokenStore
 }
 
 func NewToken(h web.Handler) Token {
@@ -48,7 +44,7 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tt, err := oauth2.NewTokenStore(h.DB, u).All(
-		query.WhereRaw("app_id", "IS", "NULL"),
+		query.Where("app_id", "IS", query.Lit("NULL")),
 		query.OrderDesc("created_at"),
 	)
 
@@ -306,7 +302,7 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 	if web.BasePath(r.URL.Path) == "revoke" {
 		tokens := oauth2.NewTokenStore(h.DB, u)
 
-		tt, err := tokens.All(query.WhereRaw("app_id", "IS", "NULL"))
+		tt, err := tokens.All(query.Where("app_id", "IS", query.Lit("NULL")))
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

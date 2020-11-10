@@ -103,8 +103,8 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	if web.BasePath(r.URL.Path) == "builds" {
 		bb, paginator, err := build.NewStore(h.DB).Index(
 			r.URL.Query(),
-			query.WhereQuery(
-				"id", "IN", cron.SelectBuild("build_id", query.Where("cron_id", "=", c.ID)),
+			query.Where(
+				"id", "IN", cron.SelectBuild("build_id", query.Where("cron_id", "=", query.Arg(c.ID))),
 			),
 		)
 

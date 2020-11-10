@@ -212,15 +212,15 @@ func (s *InviteStore) Get(opts ...query.Option) (*Invite, error) {
 // for the invited user. The namespace that the invite was for will be returned
 // upon success.
 func (s *InviteStore) Accept(id int64) (*Namespace, *user.User, *user.User, error) {
-	i, err := s.Get(query.Where("id", "=", id))
+	i, err := s.Get(query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
 		return nil, nil, nil, errors.Err(err)
 	}
 
 	uu, err := user.NewStore(s.DB).All(
-		query.Where("id", "=", i.InviterID),
-		query.OrWhere("id", "=", i.InviteeID),
+		query.Where("id", "=", query.Arg(i.InviterID)),
+		query.OrWhere("id", "=", query.Arg(i.InviteeID)),
 	)
 
 	var (
@@ -240,14 +240,14 @@ func (s *InviteStore) Accept(id int64) (*Namespace, *user.User, *user.User, erro
 		return nil, inviter, invitee, errors.Err(err)
 	}
 
-	n, err := NewStore(s.DB).Get(query.Where("id", "=", i.NamespaceID))
+	n, err := NewStore(s.DB).Get(query.Where("id", "=", query.Arg(i.NamespaceID)))
 
 	if err != nil {
 		return n, inviter, invitee, errors.Err(err)
 	}
 
 	if n.RootID.Int64 != n.ID {
-		n, err = NewStore(s.DB).Get(query.Where("id", "=", n.RootID))
+		n, err = NewStore(s.DB).Get(query.Where("id", "=", query.Arg(n.RootID)))
 
 		if err != nil {
 			return n, inviter, invitee, errors.Err(err)

@@ -55,8 +55,8 @@ type Runner struct {
 func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, string) (string, error) {
 	return func(arch, name string) (string, error) {
 		i, err := image.NewStore(r.db).Get(
-			query.Where("user_id", "=", b.UserID),
-			query.Where("name", "=", name),
+			query.Where("user_id", "=", query.Arg(b.UserID)),
+			query.Where("name", "=", query.Arg(name)),
 		)
 
 		if err != nil {
@@ -74,7 +74,7 @@ func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, strin
 func (r *Runner) updateJobs(status runner.Status) error {
 	jobs := build.NewJobStore(r.db, r.build)
 
-	jj, err := jobs.All(query.WhereRaw("finished_at", "IS", "NULL"))
+	jj, err := jobs.All(query.Where("finished_at", "IS", query.Lit("NULL")))
 
 	if err != nil {
 		return errors.Err(err)

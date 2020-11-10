@@ -236,7 +236,7 @@ func (s *KeyStore) Get(opts ...query.Option) (*Key, error) {
 // callback. This method calls KeyStore.All under the hood, so any bound models
 // will impact the models being loaded.
 func (s *KeyStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	kk, err := s.All(query.Where(key, "IN", vals...))
+	kk, err := s.All(query.Where(key, "IN", query.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -251,7 +251,7 @@ func (s *KeyStore) Load(key string, vals []interface{}, load database.LoaderFunc
 }
 
 func (s *KeyStore) getKeyToPlace(name string) (*Key, error) {
-	k, err := s.Get(query.Where("name", "=", name))
+	k, err := s.Get(query.Where("name", "=", query.Arg(name)))
 
 	if err != nil {
 		return nil, errors.Err(err)

@@ -152,8 +152,8 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 	bb, paginator, err := build.NewStore(h.DB).Index(
 		q,
-		query.WhereQuery(
-			"id", "IN", cron.SelectBuild("build_id", query.Where("cron_id", "=", c.ID)),
+		query.Where(
+			"id", "IN", cron.SelectBuild("build_id", query.Where("cron_id", "=", query.Arg(c.ID))),
 		),
 	)
 

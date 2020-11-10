@@ -57,10 +57,7 @@ func NewBuildStore(db *sqlx.DB, mm ...database.Model) *BuildStore {
 // SelectBuild returns a SELECT query that will select the given column from
 // the cron_builds table and apply the given query options.
 func SelectBuild(col string, opts ...query.Option) query.Query {
-	return query.Select(append([]query.Option{
-		query.Columns(col),
-		query.From(buildTable),
-	}, opts...)...)
+	return query.Select(query.Columns(col), append([]query.Option{query.From(buildTable)}, opts...)...)
 }
 
 // Bind implements the database.Binder interface. This will only bind the model

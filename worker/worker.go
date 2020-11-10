@@ -129,13 +129,13 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	p, err := provider.NewStore(w.DB).Get(query.Where("id", "=", t.ProviderID))
+	p, err := provider.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(t.ProviderID)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	r, err := provider.NewRepoStore(w.DB, p).Get(query.Where("id", "=", t.RepoID))
+	r, err := provider.NewRepoStore(w.DB, p).Get(query.Where("id", "=", query.Arg(t.RepoID)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -215,7 +215,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	users := user.NewStore(w.DB)
 
-	u, err := users.Get(query.Where("id", "=", b.UserID))
+	u, err := users.Get(query.Where("id", "=", query.Arg(b.UserID)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -227,9 +227,9 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	if b.NamespaceID.Valid {
 		uu, err := users.All(
-			query.WhereQuery("id", "IN",
+			query.Where("id", "IN",
 				namespace.CollaboratorSelect("user_id",
-					query.Where("namespace_id", "=", b.NamespaceID),
+					query.Where("namespace_id", "=", query.Arg(b.NamespaceID)),
 				),
 			),
 		)
@@ -253,7 +253,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	if status == runner.Failed {
 		j, err := build.NewJobStore(w.DB, b).Get(
-			query.Where("status", "=", runner.Failed),
+			query.Where("status", "=", query.Arg(runner.Failed)),
 			query.OrderDesc("finished_at"),
 		)
 

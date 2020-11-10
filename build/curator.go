@@ -35,7 +35,7 @@ func NewCurator(db *sqlx.DB, artifacts block.Store, limit int64) Curator {
 // limit. This will only do it for users who have "cleanup" enabled on their
 // account.
 func (c *Curator) Invoke() error {
-	uu, err := c.users.All(query.Where("cleanup", "=", true))
+	uu, err := c.users.All(query.Where("cleanup", "=", query.Arg(true)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -44,8 +44,8 @@ func (c *Curator) Invoke() error {
 	mm := database.ModelSlice(len(uu), user.Model(uu))
 
 	aa, err := c.store.All(
-		query.Where("size", ">", 0),
-		query.Where("user_id", "IN", database.MapKey("id", mm)...),
+		query.Where("size", ">", query.Arg(0)),
+		query.Where("user_id", "IN", query.List(database.MapKey("id", mm)...)),
 		query.OrderAsc("created_at"),
 	)
 

@@ -74,10 +74,7 @@ func Model(pp []*Provider) func(int) database.Model {
 // Select returns a query that selects the given column from the providers
 // table, with each given query.Option applied to the returned query.
 func Select(col string, opts ...query.Option) query.Query {
-	return query.Select(append([]query.Option{
-		query.Columns(col),
-		query.From(table),
-	}, opts...)...)
+	return query.Select(query.Columns(col), append([]query.Option{query.From(table)}, opts...)...)
 }
 
 // Bind implements the database.Binder interface. This will only bind the model
@@ -249,17 +246,17 @@ func (s *Store) Create(userId int64, name string, access, refresh []byte, main, 
 // the userId, name, tokens, and connected status to the given values.
 func (s *Store) Update(id, userId int64, name string, access, refresh []byte, main, connected bool) error {
 	q := query.Update(
-		query.Table(table),
-		query.Set("provider_user_id", sql.NullInt64{
+		table,
+		query.Set("provider_user_id", query.Arg(sql.NullInt64{
 			Int64: userId,
 			Valid: userId > 0,
-		}),
-		query.Set("name", name),
-		query.Set("access_token", access),
-		query.Set("refresh_token", refresh),
-		query.Set("connected", connected),
-		query.Set("main_account", main),
-		query.Where("id", "=", id),
+		})),
+		query.Set("name", query.Arg(name)),
+		query.Set("access_token", query.Arg(access)),
+		query.Set("refresh_token", query.Arg(refresh)),
+		query.Set("connected", query.Arg(connected)),
+		query.Set("main_account", query.Arg(main)),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)

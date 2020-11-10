@@ -83,10 +83,7 @@ func TokenModel(tt []*Token) func(int) database.Model {
 // SelectToken returns SELECT query that will select the given column from the
 // oauth_tokens table with the given query options applied.
 func SelectToken(col string, opts ...query.Option) query.Query {
-	return query.Select(append([]query.Option{
-		query.Columns(col),
-		query.From(tokenTable),
-	}, opts...)...)
+	return query.Select(query.Columns(col), append([]query.Option{query.From(tokenTable)}, opts...)...)
 }
 
 // Bind implements the database.Binder interface. This will only bind the model
@@ -277,9 +274,9 @@ func (s *TokenStore) Reset(id int64) error {
 	}
 
 	q := query.Update(
-		query.Table(tokenTable),
-		query.Set("token", token),
-		query.Where("id", "=", id),
+		tokenTable,
+		query.Set("token", query.Arg(token)),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -289,10 +286,10 @@ func (s *TokenStore) Reset(id int64) error {
 // Update updates a Token for the given id with the new name and scope.
 func (s *TokenStore) Update(id int64, name string, sc Scope) error {
 	q := query.Update(
-		query.Table(tokenTable),
-		query.Set("name", name),
-		query.Set("scope", sc),
-		query.Where("id", "=", id),
+		tokenTable,
+		query.Set("name", query.Arg(name)),
+		query.Set("scope", query.Arg(sc)),
+		query.Where("id", "=", query.Arg(id)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
@@ -301,10 +298,7 @@ func (s *TokenStore) Update(id int64, name string, sc Scope) error {
 
 // Revoke deletes all of the tokens for the given appId.
 func (s *TokenStore) Revoke(appId int64) error {
-	q := query.Delete(
-		query.From(tokenTable),
-		query.Where("app_id", "=", appId),
-	)
+	q := query.Delete(tokenTable, query.Where("app_id", "=", query.Arg(appId)))
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)

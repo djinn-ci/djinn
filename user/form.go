@@ -100,8 +100,8 @@ func (f RegisterForm) Validate() error {
 	}
 
 	u, err := f.Users.Get(
-		query.Where("email", "=", f.Email),
-		query.OrWhere("username", "=", f.Username),
+		query.Where("email", "=", query.Arg(f.Email)),
+		query.OrWhere("username", "=", query.Arg(f.Username)),
 	)
 
 	if err != nil {
@@ -199,7 +199,7 @@ func (f EmailForm) Validate() error {
 	}
 
 	if f.Email != f.User.Email {
-		u, err := f.Users.Get(query.Where("email", "=", f.Email))
+		u, err := f.Users.Get(query.Where("email", "=", query.Arg(f.Email)))
 
 		if err != nil {
 			return errors.Err(err)

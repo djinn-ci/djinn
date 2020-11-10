@@ -28,13 +28,6 @@ type Router struct {
 	app        handler.App
 	token      handler.Token
 	connection handler.Connection
-
-	//	// Block is the block cipher to use for encrypting client secrets.
-	//	Block *crypto.Block
-	//
-	//	// Middleware is the middleware that is applied to any routes registered
-	//	// from this router.
-	//	Middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)
@@ -52,7 +45,7 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		id, _ := strconv.ParseInt(mux.Vars(r)["token"], 10, 64)
 
-		t, err := oauth2.NewTokenStore(db, u).Get(query.Where("id", "=", id))
+		t, err := oauth2.NewTokenStore(db, u).Get(query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
 			return r, false, errors.Err(err)

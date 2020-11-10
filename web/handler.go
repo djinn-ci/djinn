@@ -94,7 +94,7 @@ func (h Handler) UserFromCookie(r *http.Request) (*user.User, bool, error) {
 		return nil, false, nil
 	}
 
-	u, err := h.Users.Get(query.Where("id", "=", id))
+	u, err := h.Users.Get(query.Where("id", "=", query.Arg(id)))
 
 	if u.DeletedAt.Valid {
 		return nil, false, nil
@@ -122,7 +122,7 @@ func (h Middleware) UserFromToken(r *http.Request) (*user.User, bool, error) {
 		return nil, false, errors.Err(err)
 	}
 
-	t, err := h.Tokens.Get(query.Where("token", "=", b))
+	t, err := h.Tokens.Get(query.Where("token", "=", query.Arg(b)))
 
 	if err != nil {
 		return nil, false, errors.Err(err)
@@ -132,7 +132,7 @@ func (h Middleware) UserFromToken(r *http.Request) (*user.User, bool, error) {
 		return nil, false, nil
 	}
 
-	u, err := h.Users.Get(query.Where("id", "=", t.UserID))
+	u, err := h.Users.Get(query.Where("id", "=", query.Arg(t.UserID)))
 
 	if u.DeletedAt.Valid {
 		return nil, false, nil

@@ -52,11 +52,11 @@ func (f Form) Validate() error {
 	}
 
 	opts := []query.Option{
-		query.Where("key", "=", f.Key),
+		query.Where("key", "=", query.Arg(f.Key)),
 	}
 
 	if f.Variables.Namespace.IsZero() {
-		opts = append(opts, query.WhereRaw("namespace_id", "IS", "NULL"))
+		opts = append(opts, query.Where("namespace_id", "IS", query.Lit("NULL")))
 	}
 
 	v, err := f.Variables.Get(opts...)

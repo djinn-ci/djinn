@@ -330,7 +330,7 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["tag"], 10, 64)
 
-	t, err := build.NewTagStore(h.DB, b).Get(query.Where("id", "=", id))
+	t, err := build.NewTagStore(h.DB, b).Get(query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

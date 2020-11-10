@@ -28,12 +28,6 @@ type App struct {
 
 	block *crypto.Block
 	apps  *oauth2.AppStore
-
-	//	// Block is the block cipher to use for encrypting client secrets.
-	//	Block *crypto.Block
-	//
-	//	// Apps is the app store to use for the deletion of OAuth apps.
-	//	Apps  *oauth2.AppStore
 }
 
 func NewApp(h web.Handler, block *crypto.Block) App {
@@ -57,7 +51,7 @@ func (h App) appFromRequest(r *http.Request) (*oauth2.App, error) {
 		return nil, database.ErrNotFound
 	}
 
-	a, err := oauth2.NewAppStore(h.DB, u).Get(query.Where("client_id", "=", clientId))
+	a, err := oauth2.NewAppStore(h.DB, u).Get(query.Where("client_id", "=", query.Arg(clientId)))
 
 	if err != nil {
 		return a, errors.Err(err)

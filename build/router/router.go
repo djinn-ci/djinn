@@ -67,7 +67,7 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		vars := mux.Vars(r)
 
-		owner, err := users.Get(query.Where("username", "=", vars["username"]))
+		owner, err := users.Get(query.Where("username", "=", query.Arg(vars["username"])))
 
 		if err != nil {
 			return r, false, errors.Err(err)
@@ -75,7 +75,7 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
-		b, err := build.NewStore(db, owner).Get(query.Where("id", "=", id))
+		b, err := build.NewStore(db, owner).Get(query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
 			return r, false, errors.Err(err)
@@ -92,8 +92,8 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		root, err := namespaces.Get(
-			query.WhereQuery("root_id", "=", namespace.SelectRootID(b.NamespaceID.Int64)),
-			query.WhereQuery("id", "=", namespace.SelectRootID(b.NamespaceID.Int64)),
+			query.Where("root_id", "=", namespace.SelectRootID(b.NamespaceID.Int64)),
+			query.Where("id", "=", namespace.SelectRootID(b.NamespaceID.Int64)),
 		)
 
 		if err != nil {

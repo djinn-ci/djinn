@@ -56,11 +56,11 @@ func (f *Form) Validate() error {
 	}
 
 	opts := []query.Option{
-		query.Where("name", "=", f.Name),
+		query.Where("name", "=", query.Arg(f.Name)),
 	}
 
 	if f.Images.Namespace.IsZero() {
-		opts = append(opts, query.WhereRaw("namespace_id", "IS", "NULL"))
+		opts = append(opts, query.Where("namespace_id", "IS", query.Lit("NULL")))
 	}
 
 	i, err := f.Images.Get(opts...)

@@ -92,7 +92,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 
 	path := r.URL.Query().Get("parent")
 
-	parent, err := namespace.NewStore(h.DB, u).Get(query.Where("path", "=", path))
+	parent, err := namespace.NewStore(h.DB, u).Get(query.Where("path", "=", query.Arg(path)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

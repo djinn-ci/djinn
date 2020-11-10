@@ -95,8 +95,8 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFu
 	}
 
 	root, err := namespace.NewStore(db).Get(
-		query.WhereQuery("root_id", "=", namespace.SelectRootID(namespaceId.Int64)),
-		query.WhereQuery("id", "=", namespace.SelectRootID(namespaceId.Int64)),
+		query.Where("root_id", "=", namespace.SelectRootID(namespaceId.Int64)),
+		query.Where("id", "=", namespace.SelectRootID(namespaceId.Int64)),
 	)
 
 	if err != nil {

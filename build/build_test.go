@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/runner"
 	"github.com/andrewpillar/djinn/user"
@@ -213,7 +213,7 @@ func Test_StoreCreate(t *testing.T) {
 
 	tests := []struct {
 		models   []database.Model
-		manifest config.Manifest
+		manifest manifest.Manifest
 		trigger  *Trigger
 		tags     []string
 		queries  []string
@@ -221,7 +221,7 @@ func Test_StoreCreate(t *testing.T) {
 	}{
 		{
 			[]database.Model{},
-			config.Manifest{Driver: map[string]string{"type": "qemu", "image": "centos/7"}},
+			manifest.Manifest{Driver: map[string]string{"type": "qemu", "image": "centos/7"}},
 			&Trigger{
 				Type: Manual,
 				Data: map[string]string{
@@ -245,7 +245,7 @@ func Test_StoreCreate(t *testing.T) {
 			[]database.Model{
 				&user.User{ID: 27},
 			},
-			config.Manifest{
+			manifest.Manifest{
 				Namespace: "example",
 				Driver:    map[string]string{"type": "qemu", "image": "centos/7"},
 			},

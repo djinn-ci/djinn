@@ -83,7 +83,7 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["artifact"], 10, 64)
 
-	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", id))
+	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

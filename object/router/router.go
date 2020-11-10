@@ -25,21 +25,6 @@ import (
 type Router struct {
 	middleware web.Middleware
 	object     handler.Object
-
-	//	// Middleware is the middleware that is applied to any routes registered
-	//	// from this router.
-	//	Middleware web.Middleware
-	//
-	//	// Hasher is the hashing mechanism to use when generating hashes for
-	//	// objects.
-	//	Hasher *crypto.Hasher
-	//
-	//	// BlockStore is the block store implementation to use for storing objects
-	//	// that are uploaded.
-	//	BlockStore block.Store
-	//
-	//	// Limit is the maximum limit applied to objects uploaded.
-	//	Limit int64
 }
 
 var _ server.Router = (*Router)(nil)
@@ -57,7 +42,7 @@ func Gate(db *sqlx.DB) web.Gate {
 		)
 
 		ok, err := web.CanAccessResource(db, "object", r, func(id int64) (database.Model, error) {
-			o, err = objects.Get(query.Where("id", "=", id))
+			o, err = objects.Get(query.Where("id", "=", query.Arg(id)))
 			return o, errors.Err(err)
 		})
 

@@ -29,10 +29,6 @@ type Router struct {
 	namespace    handler.Namespace
 	invite       handler.Invite
 	collaborator handler.Collaborator
-
-	// Middleware is the middleware that is applied to any routes registered
-	// from this router.
-	//	Middleware web.Middleware
 }
 
 var _ server.Router = (*Router)(nil)
@@ -90,7 +86,7 @@ func Gate(db *sqlx.DB) web.Gate {
 				_, ok = u.Permissions["invite:delete"]
 			}
 
-			i, err := namespace.NewInviteStore(db).Get(query.Where("id", "=", id))
+			i, err := namespace.NewInviteStore(db).Get(query.Where("id", "=", query.Arg(id)))
 
 			if err != nil {
 				return r, ok, errors.Err(err)
@@ -104,7 +100,7 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, ok, errors.Err(err)
 		}
 
-		owner, err := users.Get(query.Where("username", "=", vars["username"]))
+		owner, err := users.Get(query.Where("username", "=", query.Arg(vars["username"])))
 
 		if err != nil {
 			return r, false, errors.Err(err)
@@ -118,7 +114,7 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		n, err := namespace.NewStore(db, owner).Get(
 			database.Where(owner, "user_id"),
-			query.Where("path", "=", path),
+			query.Where("path", "=", query.Arg(path)),
 		)
 
 		if err != nil {
@@ -151,8 +147,8 @@ func Gate(db *sqlx.DB) web.Gate {
 		r = r.WithContext(context.WithValue(r.Context(), "namespace", n))
 
 		root, err := namespaces.Get(
-			query.WhereQuery("root_id", "=", namespace.SelectRootID(n.ID)),
-			query.WhereQuery("id", "=", namespace.SelectRootID(n.ID)),
+			query.Where("root_id", "=", namespace.SelectRootID(n.ID)),
+			query.Where("id", "=", namespace.SelectRootID(n.ID)),
 		)
 
 		if err != nil {

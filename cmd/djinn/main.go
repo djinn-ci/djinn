@@ -4,38 +4,26 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
 
 	"github.com/andrewpillar/djinn/block"
 	"github.com/andrewpillar/djinn/config"
-	"github.com/andrewpillar/djinn/driver"
-	"github.com/andrewpillar/djinn/driver/docker"
-	"github.com/andrewpillar/djinn/driver/qemu"
-	"github.com/andrewpillar/djinn/driver/ssh"
+	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/runner"
-
-	"github.com/pelletier/go-toml"
+	"github.com/andrewpillar/djinn/version"
 )
 
-var (
-	setupStage = "setup"
+var setupStage = "setup"
 
-	Build   string
-	Version string
+func exiterr(err error) {
+	fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+	os.Exit(1)
+}
 
-	driverInits = map[string]driver.Init{
-		"docker": docker.Init,
-		"ssh":    ssh.Init,
-		"qemu":   qemu.Init,
-	}
-)
-
-func run(stdout, stderr io.Writer, args []string) error {
-	flags := flag.NewFlagSet(args[0], flag.ExitOnError)
-
+func main() {
 	var (
 		showversion  bool
 		artifactsdir string
@@ -51,77 +39,69 @@ func run(stdout, stderr io.Writer, args []string) error {
 		cfgdir = "."
 	}
 
-	flags.BoolVar(&showversion, "version", false, "show the version and exit")
-	flags.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
-	flags.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
-	flags.StringVar(&manifestfile, "manifest", ".djinn.yml", "the manifest file to use")
-	flags.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.toml"), "the driver config to use")
-	flags.StringVar(&stage, "stage", "", "the stage to execute")
-	flags.Parse(args[1:])
+	fs := flag.CommandLine
+
+	fs.BoolVar(&showversion, "version", false, "show the version and exit")
+	fs.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
+	fs.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
+	fs.StringVar(&manifestfile, "manifest", ".djinn.yml", "the manifest file to use")
+	fs.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.toml"), "the driver config to use")
+	fs.StringVar(&stage, "stage", "", "the stage to execute")
+	fs.Parse(os.Args[1:])
 
 	if showversion {
-		fmt.Fprintf(stdout, "%s %s %s\n", args[0], Version, Build)
-		return nil
+		fmt.Printf("%s %s %s\n", os.Args[0], version.Tag, version.Ref)
+		return
 	}
 
-	mf, err := os.Open(manifestfile)
+	f1, err := os.Open(manifestfile)
 
 	if err != nil {
-		return err
+		exiterr(err)
 	}
 
-	defer mf.Close()
+	defer f1.Close()
 
-	manifest, err := config.DecodeManifest(mf)
+	m, err := manifest.Decode(f1)
 
 	if err != nil {
-		return err
+		exiterr(err)
 	}
 
-	if err := manifest.Validate(); err != nil {
-		return err
+	if err := m.Validate(); err != nil {
+		exiterr(errors.Cause(err))
 	}
 
-	df, err := os.Open(driverfile)
+	f2, err := os.Open(driverfile)
 
 	if err != nil {
-		return err
+		exiterr(err)
 	}
 
-	defer df.Close()
+	defer f2.Close()
 
-	tree, err := toml.LoadReader(df)
+	drivers, driverconf, err := config.DecodeDriver(f2)
 
 	if err != nil {
-		return err
-	}
-
-	if err := config.ValidateDrivers(driverfile, tree); err != nil {
-		return err
-	}
-
-	drivers := driver.NewRegistry()
-
-	for _, name := range tree.Keys() {
-		drivers.Register(name, driverInits[name])
+		exiterr(errors.Cause(err))
 	}
 
 	placer := block.NewFilesystem(objectsdir)
 
 	if err := placer.Init(); err != nil {
-		return err
+		exiterr(errors.Cause(err))
 	}
 
 	collector := block.NewFilesystem(artifactsdir)
 
 	if err := collector.Init(); err != nil {
-		return err
+		exiterr(errors.Cause(err))
 	}
 
 	r := runner.Runner{
 		Writer:    os.Stdout,
-		Env:       manifest.Env,
-		Objects:   manifest.Objects,
+		Env:       m.Env,
+		Objects:   m.Objects,
 		Placer:    placer,
 		Collector: collector,
 	}
@@ -131,7 +111,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 		CanFail: false,
 	}
 
-	for i, src := range manifest.Sources {
+	for i, src := range m.Sources {
 		name := fmt.Sprintf("clone.%d", i+1)
 
 		commands := []string{
@@ -154,10 +134,10 @@ func run(stdout, stderr io.Writer, args []string) error {
 
 	r.Add(setup)
 
-	for _, name := range manifest.Stages {
+	for _, name := range m.Stages {
 		canFail := false
 
-		for _, search := range manifest.AllowFailures {
+		for _, search := range m.AllowFailures {
 			if name == search {
 				canFail = true
 				break
@@ -175,7 +155,7 @@ func run(stdout, stderr io.Writer, args []string) error {
 	prev := ""
 	jobId := 1
 
-	for _, j := range manifest.Jobs {
+	for _, j := range m.Jobs {
 		stage, ok := stages[j.Stage]
 
 		if !ok {
@@ -215,34 +195,23 @@ func run(stdout, stderr io.Writer, args []string) error {
 		cancel()
 	}()
 
-	driverInit, err := drivers.Get(manifest.Driver["type"])
+	driverInit, err := drivers.Get(m.Driver["type"])
 
 	if err != nil {
-		return err
+		exiterr(err)
 	}
 
-	merged := make(map[string]interface{})
+	conf := make(map[string]interface{})
 
-	for _, key := range tree.Keys() {
-		tree := tree.Get(key).(*toml.Tree)
-
-		for k, v := range tree.ToMap() {
-			merged[k] = v
-		}
+	for k, v := range driverconf[m.Driver["type"]] {
+		conf[k] = v
 	}
 
-	for k, v := range manifest.Driver {
-		merged[k] = v
+	for k, v := range m.Driver {
+		conf[k] = v
 	}
 
-	d := driverInit(os.Stdout, merged)
-
-	return r.Run(ctx, d)
-}
-
-func main() {
-	if err := run(os.Stdout, os.Stderr, os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
+	if err := r.Run(ctx, driverInit(os.Stdout, conf)); err != nil {
+		exiterr(err)
 	}
 }

@@ -64,11 +64,11 @@ func TagModel(tt []*Tag) func(int) database.Model {
 // if they are pointers to either Build or user.User models.
 func (t *Tag) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			t.User = m.(*user.User)
+			t.User = v
 		case *Build:
-			t.Build = m.(*Build)
+			t.Build = v
 		}
 	}
 }
@@ -194,11 +194,11 @@ func (s TagStore) New() *Tag {
 // if they are pointers to either Build or user.User models.
 func (s *TagStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		}
 	}
 }

@@ -126,11 +126,11 @@ func LoadRelations(loaders *database.Loaders, cc ...*Cron) error {
 // if they are pointers to either user.User or namespace.Namespace.
 func (c *Cron) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			c.User = m.(*user.User)
+			c.User = v
 		case *namespace.Namespace:
-			c.Namespace = m.(*namespace.Namespace)
+			c.Namespace = v
 		}
 	}
 }
@@ -213,11 +213,11 @@ func (c *Cron) Values() map[string]interface{} {
 // if they are pointers to either user.User or namespace.Namespace.
 func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *namespace.Namespace:
-			s.Namespace = m.(*namespace.Namespace)
+			s.Namespace = v
 		}
 	}
 }

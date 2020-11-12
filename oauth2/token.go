@@ -90,11 +90,11 @@ func SelectToken(col string, opts ...query.Option) query.Query {
 // if it is a pointer to either a user.User model or an App model.
 func (t *Token) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			t.User = m.(*user.User)
+			t.User = v
 		case *App:
-			t.App = m.(*App)
+			t.App = v
 		}
 	}
 }
@@ -193,11 +193,11 @@ func (s *TokenStore) New() *Token {
 // if it is a pointer to either a user.User model or an App model.
 func (s *TokenStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *App:
-			s.App = m.(*App)
+			s.App = v
 		}
 	}
 }

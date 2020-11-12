@@ -121,11 +121,11 @@ func Model(oo []*Object) func(int) database.Model {
 // if they are pointers to either user.User or namespace.Namespace.
 func (o *Object) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			o.User = m.(*user.User)
+			o.User = v
 		case *namespace.Namespace:
-			o.Namespace = m.(*namespace.Namespace)
+			o.Namespace = v
 		}
 	}
 }
@@ -215,11 +215,11 @@ func (o *Object) Values() map[string]interface{} {
 // if they are pointers to either user.User or namespace.Namespace.
 func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *namespace.Namespace:
-			s.Namespace = m.(*namespace.Namespace)
+			s.Namespace = v
 		}
 	}
 }

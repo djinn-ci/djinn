@@ -74,11 +74,11 @@ func CodeModel(cc []*Code) func(int) database.Model {
 // if it is a pointer to either a user.User model or an App model.
 func (c *Code) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *App:
-			c.App = m.(*App)
+			c.App = v
 		case *user.User:
-			c.User = m.(*user.User)
+			c.User = v
 		}
 	}
 }
@@ -138,11 +138,11 @@ func (s *CodeStore) New() *Code {
 // if it is a pointer to either a user.User model or an App model.
 func (s *CodeStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *App:
-			s.App = m.(*App)
+			s.App = v
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		}
 	}
 }

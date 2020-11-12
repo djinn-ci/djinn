@@ -122,11 +122,11 @@ func WhereCollaborator(m database.Model) query.Option {
 // if they are pointers to either user.User, or namespace.Namespace models.
 func (c *Collaborator) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Namespace:
-			c.Namespace = m.(*Namespace)
+			c.Namespace = v
 		case *user.User:
-			c.User = m.(*user.User)
+			c.User = v
 		}
 	}
 }
@@ -182,11 +182,11 @@ func (c *Collaborator) Values() map[string]interface{} {
 // if they are pointers to either user.User, or namespace.Namespace models.
 func (s *CollaboratorStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Namespace:
-			s.Namespace = m.(*Namespace)
+			s.Namespace = v
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		}
 	}
 }

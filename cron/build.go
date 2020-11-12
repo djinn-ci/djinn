@@ -64,11 +64,11 @@ func SelectBuild(col string, opts ...query.Option) query.Query {
 // if they are pointers to either Cron or build.Build.
 func (s *BuildStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Cron:
-			s.Cron = m.(*Cron)
+			s.Cron = v
 		case *build.Build:
-			s.Build = m.(*build.Build)
+			s.Build = v
 		}
 	}
 }
@@ -77,11 +77,11 @@ func (s *BuildStore) Bind(mm ...database.Model) {
 // if they are pointers to either Cron or build.Build.
 func (b *Build) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Cron:
-			b.Cron = m.(*Cron)
+			b.Cron = v
 		case *build.Build:
-			b.Build = m.(*build.Build)
+			b.Build = v
 		}
 	}
 }

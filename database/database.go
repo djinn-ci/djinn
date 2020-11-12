@@ -130,11 +130,11 @@ func Connect(dsn string) (*sqlx.DB, error) {
 // the value was of int64. This assumes the given interface value is either
 // int64 or sql.NullInt64.
 func getInt64(val interface{}) (int64, bool) {
-	switch val.(type) {
+	switch v := val.(type) {
 	case int64:
-		return val.(int64), true
+		return v, true
 	case sql.NullInt64:
-		return val.(sql.NullInt64).Int64, true
+		return v.Int64, true
 	default:
 		return int64(0), false
 	}
@@ -256,11 +256,11 @@ func Scan(val interface{}) ([]byte, error) {
 		return []byte{}, errors.Err(err)
 	}
 
-	switch str.(type) {
+	switch v := str.(type) {
 	case string:
-		return []byte(str.(string)), nil
+		return []byte(v), nil
 	case []byte:
-		return str.([]byte), nil
+		return v, nil
 	default:
 		return []byte{}, errors.New("failed to Scan bytes - not a string or byte slice")
 	}

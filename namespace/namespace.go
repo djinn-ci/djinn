@@ -297,11 +297,11 @@ func (n *Namespace) LoadCollaborators(cc []*Collaborator) {
 // if they are pointers to either user.User, or namespace.Namespace models.
 func (n *Namespace) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			n.User = m.(*user.User)
+			n.User = v
 		case *Namespace:
-			n.Parent = m.(*Namespace)
+			n.Parent = v
 		}
 	}
 }
@@ -350,11 +350,11 @@ func (n *Namespace) Values() map[string]interface{} {
 // if they are pointers to either user.User, or namespace.Namespace models.
 func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *Namespace:
-			s.Namespace = m.(*Namespace)
+			s.Namespace = v
 		}
 	}
 }

@@ -73,13 +73,12 @@ func StageModel(ss []*Stage) func(int) database.Model {
 // if they are pointers to either Build or Stage.
 func (s *Stage) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		case *Job:
-			j := m.(*Job)
-			j.Build = s.Build
-			s.Jobs = append(s.Jobs, j)
+			v.Build = s.Build
+			s.Jobs = append(s.Jobs, v)
 		}
 	}
 }
@@ -174,9 +173,9 @@ func (s StageStore) New() *Stage {
 // if they are pointers to either Build or Stage.
 func (s *StageStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		}
 	}
 }

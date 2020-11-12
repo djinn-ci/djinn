@@ -162,9 +162,9 @@ func (d triggerData) Value() (driver.Value, error) { return driver.Value(d.Strin
 // if they are pointers to a Build model.
 func (t *Trigger) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			t.Build = m.(*Build)
+			t.Build = v
 		}
 	}
 }
@@ -290,9 +290,9 @@ func (t Trigger) String() string {
 // if they are pointers to a Build model.
 func (s *TriggerStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		}
 	}
 }

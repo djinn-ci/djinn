@@ -113,11 +113,11 @@ func Model(kk []*Key) func(int) database.Model {
 // if they are pointers to either user.User or namespace.Namespace.
 func (k *Key) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v:= m.(type) {
 		case *user.User:
-			k.User = m.(*user.User)
+			k.User = v
 		case *namespace.Namespace:
-			k.Namespace = m.(*namespace.Namespace)
+			k.Namespace = v
 		}
 	}
 }
@@ -213,11 +213,11 @@ func (s *Store) New() *Key {
 // if they are pointers to either user.User or namespace.Namespace.
 func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v:= m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *namespace.Namespace:
-			s.Namespace = m.(*namespace.Namespace)
+			s.Namespace = v
 		}
 	}
 }

@@ -7,24 +7,20 @@ sources:
 env:
 - LDFLAGS=-s -w
 stages:
-- test
+- integration
 - make
 jobs:
-- stage: test
+- stage: integration
   commands:
   - cd djinn
-  - go test -cover ./...
   - go test -v -tags "integration" ./integration
 - stage: make
   commands:
   - cd djinn
-  - ./make.sh runner
-  - ./make.sh scheduler
-  - ./make.sh server
-  - ./make.sh worker
-  - ./make.sh manif
+  - ./make.sh
   artifacts:
   - bin/djinn
+  - bin/djinn-curator
   - bin/djinn-scheduler
   - bin/djinn-server
   - bin/djinn-worker

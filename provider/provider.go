@@ -81,9 +81,9 @@ func Select(col string, opts ...query.Option) query.Query {
 // if it is a pointer to a user.User model.
 func (p *Provider) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			p.User = m.(*user.User)
+			p.User = v
 		}
 	}
 }
@@ -216,9 +216,9 @@ func (s *Store) New() *Provider {
 // if it is a pointer to a user.User model.
 func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		}
 	}
 }

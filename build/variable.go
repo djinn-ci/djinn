@@ -64,11 +64,11 @@ func VariableModel(vv []*Variable) func(int) database.Model {
 // if they are pointers to either a Build or variable.Variable model.
 func (v *Variable) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v1 := m.(type) {
 		case *Build:
-			v.Build = m.(*Build)
+			v.Build = v1
 		case *variable.Variable:
-			v.Variable = m.(*variable.Variable)
+			v.Variable = v1
 		}
 	}
 }
@@ -150,11 +150,11 @@ func (s VariableStore) New() *Variable {
 // if they are pointers to either Build or variable.Variable.
 func (s *VariableStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		case *variable.Variable:
-			s.Variable = m.(*variable.Variable)
+			s.Variable = v
 		}
 	}
 }

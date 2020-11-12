@@ -87,11 +87,11 @@ func RepoModel(rr []*Repo) func(int) database.Model {
 // if it is a pointer to either a user.User model or Provider model.
 func (r *Repo) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			r.User = m.(*user.User)
+			r.User = v
 		case *Provider:
-			r.Provider = m.(*Provider)
+			r.Provider = v
 		}
 	}
 }
@@ -196,11 +196,11 @@ func (s *RepoStore) Delete(ids ...int64) error {
 // if it is a pointer to either a user.User model or Provider model.
 func (s *RepoStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *Provider:
-			s.Provider = m.(*Provider)
+			s.Provider = v
 		}
 	}
 }

@@ -87,15 +87,14 @@ func LoadJobRelations(loaders *database.Loaders, jj ...*Job) error {
 // if they are pointers to either Build, Stage, or Artifact models.
 func (j *Job) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			j.Build = m.(*Build)
+			j.Build = v
 		case *Stage:
-			j.Stage = m.(*Stage)
+			j.Stage = v
 		case *Artifact:
-			a := m.(*Artifact)
-			a.Build = j.Build
-			j.Artifacts = append(j.Artifacts, a)
+			v.Build = j.Build
+			j.Artifacts = append(j.Artifacts, v)
 		}
 	}
 }
@@ -223,11 +222,11 @@ func (s *JobStore) New() *Job {
 // if they are pointers to either Build, Stage, or Artifact.
 func (s *JobStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		case *Stage:
-			s.Stage = m.(*Stage)
+			s.Stage = v
 		}
 	}
 }

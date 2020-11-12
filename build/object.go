@@ -101,11 +101,11 @@ func SelectObject(col string, opts ...query.Option) query.Query {
 // if they are pointers to either Build or object.Object.
 func (o *Object) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			o.Build = m.(*Build)
+			o.Build = v
 		case *object.Object:
-			o.Object = m.(*object.Object)
+			o.Object = v
 		}
 	}
 }
@@ -255,11 +255,11 @@ func (s *ObjectStore) Get(opts ...query.Option) (*Object, error) {
 // if they are pointers to either Build or object.Object.
 func (s *ObjectStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		case *object.Object:
-			s.Object = m.(*object.Object)
+			s.Object = v
 		}
 	}
 }

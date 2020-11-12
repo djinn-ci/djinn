@@ -114,11 +114,11 @@ func Model(ii []*Image) func(int) database.Model {
 // if they are pointers to either user.User or namespace.Namespace.
 func (i *Image) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			i.User = m.(*user.User)
+			i.User = v
 		case *namespace.Namespace:
-			i.Namespace = m.(*namespace.Namespace)
+			i.Namespace = v
 		}
 	}
 }
@@ -196,11 +196,11 @@ func (i *Image) Values() map[string]interface{} {
 // if they are pointers to either user.User or namespace.Namespace.
 func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *namespace.Namespace:
-			s.Namespace = m.(*namespace.Namespace)
+			s.Namespace = v
 		}
 	}
 }

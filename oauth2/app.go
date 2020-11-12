@@ -101,9 +101,9 @@ func AppModel(aa []*App) func(int) database.Model {
 // if it is a pointer to a user.User model.
 func (a *App) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			a.User = m.(*user.User)
+			a.User = v
 		}
 	}
 }
@@ -171,9 +171,9 @@ func (s *AppStore) New() *App {
 // if it is a pointer to a user.User model.
 func (s *AppStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		}
 	}
 }

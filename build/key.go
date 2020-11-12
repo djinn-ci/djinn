@@ -76,9 +76,9 @@ func KeyModel(kk []*Key) func(int) database.Model {
 // models if they are pointers to a Build model.
 func (k *Key) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			k.Build = m.(*Build)
+			k.Build = v
 		}
 	}
 }
@@ -160,9 +160,9 @@ func (s *KeyStore) New() *Key {
 // models if they are pointers to a Build model.
 func (s *KeyStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		}
 	}
 }

@@ -63,9 +63,9 @@ func DriverModel(dd []*Driver) func(int) database.Model {
 // if they are pointers to Build.
 func (d *Driver) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			d.Build = m.(*Build)
+			d.Build = v
 		}
 	}
 }
@@ -101,9 +101,9 @@ func (d *Driver) Values() map[string]interface{} {
 // if they are pointers to Build.
 func (s *DriverStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		}
 	}
 }

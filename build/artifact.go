@@ -106,13 +106,13 @@ func ArtifactModel(aa []*Artifact) func(int) database.Model {
 // if they are pointers to either Build or Job models.
 func (a *Artifact) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			a.Build = m.(*Build)
+			a.Build = v
 		case *Job:
-			a.Job = m.(*Job)
+			a.Job = v
 		case *user.User:
-			a.User = m.(*user.User)
+			a.User = v
 		}
 	}
 }
@@ -214,13 +214,13 @@ func (a *Artifact) Values() map[string]interface{} {
 // if they are pointers to either Build or Job models.
 func (s *ArtifactStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *Build:
-			s.Build = m.(*Build)
+			s.Build = v
 		case *Job:
-			s.Job = m.(*Job)
+			s.Job = v
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		}
 	}
 }

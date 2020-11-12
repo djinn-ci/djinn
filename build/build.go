@@ -211,21 +211,20 @@ func (b *Build) Kill(client *redis.Client) error {
 // Stage, or Driver.
 func (b *Build) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			b.User = m.(*user.User)
+			b.User = v
 		case *namespace.Namespace:
-			b.Namespace = m.(*namespace.Namespace)
+			b.Namespace = v
 		case *Trigger:
-			b.Trigger = m.(*Trigger)
+			b.Trigger = v
 		case *Tag:
-			b.Tags = append(b.Tags, m.(*Tag))
+			b.Tags = append(b.Tags, v)
 		case *Stage:
-			s := m.(*Stage)
-			s.Build = b
-			b.Stages = append(b.Stages, s)
+			v.Build = b
+			b.Stages = append(b.Stages, v)
 		case *Driver:
-			b.Driver = m.(*Driver)
+			b.Driver = v
 		}
 	}
 }
@@ -346,11 +345,11 @@ func (b *Build) Values() map[string]interface{} {
 // Stage, or Driver.
 func (s *Store) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *namespace.Namespace:
-			s.Namespace = m.(*namespace.Namespace)
+			s.Namespace = v
 		}
 	}
 }

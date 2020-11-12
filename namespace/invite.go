@@ -96,19 +96,17 @@ func InviteModel(ii []*Invite) func(int) database.Model {
 // or Invitee.
 func (i *Invite) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			u := m.(*user.User)
-
-			if u.ID == i.InviterID {
-				i.Inviter = u
+			if v.ID == i.InviterID {
+				i.Inviter = v
 			}
 
-			if u.ID == i.InviteeID {
-				i.Invitee = u
+			if v.ID == i.InviteeID {
+				i.Invitee = v
 			}
 		case *Namespace:
-			i.Namespace = m.(*Namespace)
+			i.Namespace = v
 		}
 	}
 }
@@ -306,11 +304,11 @@ func (s *InviteStore) New() *Invite {
 // if they are pointers to either user.User, or namespace.Namespace models.
 func (s *InviteStore) Bind(mm ...database.Model) {
 	for _, m := range mm {
-		switch m.(type) {
+		switch v := m.(type) {
 		case *user.User:
-			s.User = m.(*user.User)
+			s.User = v
 		case *Namespace:
-			s.Namespace = m.(*Namespace)
+			s.Namespace = v
 		}
 	}
 }

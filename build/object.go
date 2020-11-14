@@ -269,7 +269,7 @@ func (s *ObjectStore) Bind(mm ...database.Model) {
 // callback. This method calls ObjectStore.All under the hood, so any bound
 // models will impact the models being loaded.
 func (s *ObjectStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	oo, err := s.All(query.Where(key, "IN", query.List(vals...)))
+	oo, err := s.All(query.Where(key, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

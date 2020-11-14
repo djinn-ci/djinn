@@ -346,7 +346,7 @@ func (s TriggerStore) All(opts ...query.Option) ([]*Trigger, error) {
 // callback. This method calls StageStore.All under the hood, so any bound
 // models will impact the models being loaded.
 func (s TriggerStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	tt, err := s.All(query.Where(key, "IN", query.List(vals...)))
+	tt, err := s.All(query.Where(key, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

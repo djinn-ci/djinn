@@ -545,7 +545,7 @@ func (s *Store) Get(opts ...query.Option) (*Build, error) {
 // load callback. This method calls Store.All under the hood, so any
 // bound models will impact the models being loaded.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	bb, err := s.All(query.Where(key, "IN", query.List(vals...)))
+	bb, err := s.All(query.Where(key, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

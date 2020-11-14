@@ -248,7 +248,7 @@ func (s TagStore) Get(opts ...query.Option) (*Tag, error) {
 // callback. This method calls JobStore.All under the hood, so any bound models
 // will impact the models being loaded.
 func (s TagStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	tt, err := s.All(query.Where(key, "IN", query.List(vals...)))
+	tt, err := s.All(query.Where(key, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

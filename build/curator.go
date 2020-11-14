@@ -45,7 +45,7 @@ func (c *Curator) Invoke() error {
 
 	aa, err := c.store.All(
 		query.Where("size", ">", query.Arg(0)),
-		query.Where("user_id", "IN", query.List(database.MapKey("id", mm)...)),
+		query.Where("user_id", "IN", database.List(database.MapKey("id", mm)...)),
 		query.OrderAsc("created_at"),
 	)
 

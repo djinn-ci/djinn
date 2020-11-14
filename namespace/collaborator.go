@@ -301,7 +301,7 @@ func (s *CollaboratorStore) Get(opts ...query.Option) (*Collaborator, error) {
 // load callback. This method calls CollaboratorStore.All under the hood, so any
 // bound models will impact the models being loaded.
 func (s *CollaboratorStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	cc, err := s.All(query.Where(key, "IN", query.List(vals...)))
+	cc, err := s.All(query.Where(key, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

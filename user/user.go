@@ -256,7 +256,7 @@ func (s *Store) All(opts ...query.Option) ([]*User, error) {
 // of given vals. Each database is loaded individually via a call to the given
 // load callback.
 func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	uu, err := s.All(query.Where(key, "IN", query.List(vals...)))
+	uu, err := s.All(query.Where(key, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

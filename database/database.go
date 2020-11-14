@@ -266,6 +266,17 @@ func Scan(val interface{}) ([]byte, error) {
 	}
 }
 
+// List returns a query.Expr for a list of values. If the given list of values
+// is empty, then a query.List expression is simply returned, only containing
+// a single -1 in the list. This will allow for situations where queries that
+// use WHERE IN (...) to still build in a valid way.
+func List(vals ...interface{}) query.Expr {
+	if len(vals) == 0 {
+		return query.List(-1)
+	}
+	return query.List(vals...)
+}
+
 // Search returns a WHERE LIKE clause for the given column and pattern. If the
 // pattern is empty then no WHERE LIKE clause is returned.
 func Search(col, pattern string) query.Option {

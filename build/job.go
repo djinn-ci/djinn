@@ -336,7 +336,7 @@ func (s *JobStore) Index(vals url.Values, opts ...query.Option) ([]*Job, error) 
 // callback. This method calls JobStore.All under the hood, so any bound models
 // will impact the models being loaded.
 func (s *JobStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	jj, err := s.All(query.Where(key, "IN", query.List(vals...)), query.OrderAsc("created_at"))
+	jj, err := s.All(query.Where(key, "IN", database.List(vals...)), query.OrderAsc("created_at"))
 
 	if err != nil {
 		return errors.Err(err)

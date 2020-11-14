@@ -228,7 +228,7 @@ func (s *ArtifactStore) Bind(mm ...database.Model) {
 // Load implements the database.Loader interface. Any models that are bound to
 // the ArtifactStore will be applied during querying.
 func (s *ArtifactStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	aa, err := s.All(query.Where(key, "IN", query.List(vals...)))
+	aa, err := s.All(query.Where(key, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)

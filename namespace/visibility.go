@@ -7,7 +7,8 @@ import (
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
+
+	"github.com/andrewpillar/webutil"
 )
 
 // Visibility represents the visibility level of a Namespace, there are three
@@ -57,7 +58,7 @@ func (v *Visibility) Scan(val interface{}) error {
 
 // UnmarshalJSON takes the given byte slice, and attempts to unmarshal it to a
 // string from its JSON representation. This is then mapped to a known
-// Visibility. This will return form.UnmarshalError if any error occurs.
+// Visibility. This will return webutil.UnmarshalError if any error occurs.
 func (v *Visibility) UnmarshalJSON(b []byte) error {
 	var (
 		s  string
@@ -65,7 +66,7 @@ func (v *Visibility) UnmarshalJSON(b []byte) error {
 	)
 
 	if err := json.Unmarshal(b, &s); err != nil {
-		return form.UnmarshalError{
+		return webutil.UnmarshalError{
 			Field: "Visibility",
 			Err:   err,
 		}
@@ -74,7 +75,7 @@ func (v *Visibility) UnmarshalJSON(b []byte) error {
 	(*v), ok = visMap[s]
 
 	if !ok {
-		return form.UnmarshalError{
+		return webutil.UnmarshalError{
 			Field: "visibility",
 			Err:   errors.New("unknown visibility " + s),
 		}
@@ -84,7 +85,7 @@ func (v *Visibility) UnmarshalJSON(b []byte) error {
 
 // UnmarshalText takes the given byte slice, and attempts to map it to a known
 // Visibility. If it is a known Visibility, then that the current Visibility is
-// set to that, otherwise form.UnmarshalError is returned.
+// set to that, otherwise webutil.UnmarshalError is returned.
 func (v *Visibility) UnmarshalText(b []byte) error {
 	var ok bool
 
@@ -92,7 +93,7 @@ func (v *Visibility) UnmarshalText(b []byte) error {
 	(*v), ok = visMap[s]
 
 	if !ok {
-		return form.UnmarshalError{
+		return webutil.UnmarshalError{
 			Field: "visibility",
 			Err:   errors.New("unknown visibility " + s),
 		}

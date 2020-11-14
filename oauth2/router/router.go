@@ -14,6 +14,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
 
@@ -37,7 +38,7 @@ var _ server.Router = (*Router)(nil)
 // the current token, then it is set in the request's context.
 func Gate(db *sqlx.DB) web.Gate {
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
-		base := web.BasePath(r.URL.Path)
+		base := webutil.BasePath(r.URL.Path)
 
 		if base == "tokens" || base == "create" || base == "revoke" {
 			return r, !u.IsZero(), nil

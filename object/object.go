@@ -8,6 +8,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"io"
+	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
@@ -224,19 +225,30 @@ func (s *Store) Bind(mm ...database.Model) {
 	}
 }
 
-// Create creates a new object with the given name, hash, and type. The given
-// io.Reader is used to copy the contents of the object to the underlying
+// Create stores a new object with the given name, and hash. The given
+// io.ReadSeeker is used to determine the content type of the object being
+// stored, and used to copy the contents of the object to the underlying
 // block.Store. It is expected for the Store to have a block.Store set on it,
 // otherwise it will error.
-func (s *Store) Create(name, hash, typ string, r io.Reader) (*Object, error) {
+func (s *Store) Create(name, hash string, rs io.ReadSeeker) (*Object, error) {
 	if s.blockStore == nil {
 		return nil, errors.New("nil block store")
+	}
+
+	header := make([]byte, 512)
+
+	if _, err := rs.Read(header); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if _, err := rs.Seek(0, io.SeekStart); err != nil {
+		return nil, errors.Err(err)
 	}
 
 	md5 := md5.New()
 	sha256 := sha256.New()
 
-	tee := io.TeeReader(r, io.MultiWriter(md5, sha256))
+	tee := io.TeeReader(rs, io.MultiWriter(md5, sha256))
 
 	dst, err := s.blockStore.Create(hash)
 
@@ -255,7 +267,7 @@ func (s *Store) Create(name, hash, typ string, r io.Reader) (*Object, error) {
 	o := s.New()
 	o.Name = name
 	o.Hash = hash
-	o.Type = typ
+	o.Type = http.DetectContentType(header)
 	o.Size = size
 	o.MD5 = md5.Sum(nil)
 	o.SHA256 = sha256.Sum(nil)

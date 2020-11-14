@@ -10,13 +10,13 @@ import (
 	buildtemplate "github.com/andrewpillar/djinn/build/template"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/template"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -71,7 +71,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for submitting builds via the web frontend.
@@ -87,14 +87,14 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	p := &buildtemplate.Create{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Store validates the form submitted in the given request for submitting a
@@ -108,22 +108,22 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
 
 		switch cause {
 		case build.ErrDriver:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("manifest", cause)
 
 			sess.AddFlash(errs, "form_errors")
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("manifest", errors.New("Namespace name can only contain letters and numbers"))
 
 			sess.AddFlash(f.Fields(), "form_fields")
@@ -144,7 +144,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 
 	builds := build.NewStoreWithHasher(h.DB, h.hasher)
 	prd := h.producers[b.Manifest.Driver["type"]]
-	addr := web.BaseAddress(r)
+	addr := webutil.BaseAddress(r)
 
 	if err := builds.Submit(r.Context(), prd, addr, b); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -176,7 +176,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	base := web.BasePath(r.URL.Path)
+	base := webutil.BasePath(r.URL.Path)
 	csrfField := csrf.TemplateField(r)
 
 	p := &buildtemplate.Show{
@@ -196,11 +196,11 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		attr := parts[len(parts)-2]
 
 		if attr == "manifest" {
-			web.Text(w, b.Manifest.String(), http.StatusOK)
+			webutil.Text(w, b.Manifest.String(), http.StatusOK)
 			return
 		}
 		if attr == "output" {
-			web.Text(w, b.Output.String, http.StatusOK)
+			webutil.Text(w, b.Output.String, http.StatusOK)
 			return
 		}
 	case "objects":
@@ -288,7 +288,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Download will serve the contents of a build's artifact in the given request.
@@ -404,8 +404,8 @@ func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if web.BasePath(r.URL.Path) == "raw" {
-		web.Text(w, j.Output.String, http.StatusOK)
+	if webutil.BasePath(r.URL.Path) == "raw" {
+		webutil.Text(w, j.Output.String, http.StatusOK)
 		return
 	}
 
@@ -416,5 +416,5 @@ func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

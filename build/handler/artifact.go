@@ -12,6 +12,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
 )
@@ -55,7 +56,7 @@ func (h Artifact) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make([]interface{}, 0, len(aa))
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	for _, a := range aa {
 		json := a.JSON(addr)
@@ -63,7 +64,7 @@ func (h Artifact) Index(w http.ResponseWriter, r *http.Request) {
 
 		data = append(data, json)
 	}
-	web.JSON(w, data, http.StatusOK)
+	webutil.JSON(w, data, http.StatusOK)
 }
 
 // Show serves the JSON encoded data of the given build artifact for the build
@@ -95,5 +96,5 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Not found", http.StatusNotFound)
 		return
 	}
-	web.JSON(w, a.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, a.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
 }

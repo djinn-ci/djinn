@@ -8,8 +8,9 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/runner"
+
+	"github.com/andrewpillar/webutil"
 
 	"gopkg.in/yaml.v2"
 )
@@ -107,7 +108,7 @@ func (m *Manifest) UnmarshalText(b []byte) error {
 	}{}
 
 	if err := yaml.Unmarshal(b, &tmp); err != nil {
-		return form.UnmarshalError{
+		return webutil.UnmarshalError{
 			Field: "manifest",
 			Err:   err,
 		}
@@ -129,7 +130,7 @@ func (m *Manifest) UnmarshalJSON(b []byte) error {
 	var s string
 
 	if err := json.Unmarshal(b, &s); err != nil {
-		return form.UnmarshalError{
+		return webutil.UnmarshalError{
 			Field: "manifest",
 			Err:   err,
 		}

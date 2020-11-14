@@ -9,7 +9,6 @@ import (
 	"github.com/andrewpillar/djinn/build"
 	buildtemplate "github.com/andrewpillar/djinn/build/template"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/object"
 	objecttemplate "github.com/andrewpillar/djinn/object/template"
@@ -18,6 +17,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -61,7 +61,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating and uploading objects via the
@@ -80,13 +80,13 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	p := &objecttemplate.Create{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Store validates the form submitted in the given request for creating an
@@ -100,15 +100,15 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, &f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, &f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
 
 		switch cause {
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
 			sess.AddFlash(errs, "form_errors")
@@ -226,7 +226,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Destroy removes the object in the given request context from the database.

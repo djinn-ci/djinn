@@ -10,6 +10,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/andrewpillar/query v0.0.0-20201109182332-81f25b5b309b
+	github.com/andrewpillar/webutil v0.0.0-20201112225125-acf161db83db
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -19,9 +20,9 @@ require (
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/gorilla/csrf v1.6.2
 	github.com/gorilla/mux v1.7.4
-	github.com/gorilla/schema v1.1.0
+	github.com/gorilla/schema v1.2.0
 	github.com/gorilla/securecookie v1.1.1
-	github.com/gorilla/sessions v1.2.0
+	github.com/gorilla/sessions v1.2.1
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/lib/pq v1.3.0

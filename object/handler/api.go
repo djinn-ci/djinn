@@ -6,9 +6,10 @@ import (
 
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/andrewpillar/query"
 )
@@ -36,14 +37,14 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make([]interface{}, 0, len(oo))
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	for _, o := range oo {
 		data = append(data, o.JSON(addr))
 	}
 
 	w.Header().Set("Link", web.EncodeToLink(paginator, r))
-	web.JSON(w, data, http.StatusOK)
+	webutil.JSON(w, data, http.StatusOK)
 }
 
 // Store stores the object from the given request body. If any validation
@@ -55,20 +56,20 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.JSON(w, ferrs, http.StatusBadRequest)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
 			return
 		}
 
 		switch cause {
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
-			web.JSON(w, errs, http.StatusBadRequest)
+			webutil.JSON(w, errs, http.StatusBadRequest)
 			return
 		case namespace.ErrPermission:
-			web.JSON(w, map[string][]string{"namespace": []string{"Could not find namespace"}}, http.StatusBadRequest)
+			webutil.JSON(w, map[string][]string{"namespace": []string{"Could not find namespace"}}, http.StatusBadRequest)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -76,7 +77,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, o.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, o.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 // Show serves up the JSON response for the object in the given request. If the
@@ -86,7 +87,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 // returned. If there are multiple pages of builds then the paginator is
 // encoded into the Link response header.
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
-	base := web.BasePath(r.URL.Path)
+	base := webutil.BasePath(r.URL.Path)
 
 	o, err := h.ShowWithRelations(r)
 
@@ -96,7 +97,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	if base == "builds" {
 		bb, paginator, err := build.NewStore(h.DB).Index(
@@ -119,7 +120,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Link", web.EncodeToLink(paginator, r))
-		web.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, data, http.StatusOK)
 		return
 	}
 
@@ -141,7 +142,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		http.ServeContent(w, r, o.Name, o.CreatedAt, rec)
 		return
 	}
-	web.JSON(w, o.JSON(addr), http.StatusOK)
+	webutil.JSON(w, o.JSON(addr), http.StatusOK)
 }
 
 // Destroy removes the object in the given request context from the database and

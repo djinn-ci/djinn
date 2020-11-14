@@ -6,12 +6,12 @@ import (
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/cron"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 // API is the handler for handling API requests made for cron job creation,
@@ -45,14 +45,14 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make([]interface{}, 0, len(cc))
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	for _, c := range cc {
 		data = append(data, c.JSON(addr))
 	}
 
 	w.Header().Set("Link", web.EncodeToLink(paginator, r))
-	web.JSON(w, data, http.StatusOK)
+	webutil.JSON(w, data, http.StatusOK)
 }
 
 // Store stores and submits the cron job from the given request body. If any
@@ -64,20 +64,20 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.JSON(w, ferrs, http.StatusBadRequest)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
 			return
 		}
 
 		switch cause {
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
-			web.JSON(w, errs, http.StatusBadRequest)
+			webutil.JSON(w, errs, http.StatusBadRequest)
 			return
 		case namespace.ErrPermission:
-			web.JSON(w, map[string][]string{"namespace": []string{"Could not find namespace"}}, http.StatusBadRequest)
+			webutil.JSON(w, map[string][]string{"namespace": []string{"Could not find namespace"}}, http.StatusBadRequest)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -85,7 +85,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, c.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, c.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 // Show serves up the JSON response for the cron job in the given request. If
@@ -100,7 +100,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if web.BasePath(r.URL.Path) == "builds" {
+	if webutil.BasePath(r.URL.Path) == "builds" {
 		bb, paginator, err := build.NewStore(h.DB).Index(
 			r.URL.Query(),
 			query.Where(
@@ -115,17 +115,17 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		data := make([]interface{}, 0, len(bb))
-		addr := web.BaseAddress(r) + h.Prefix
+		addr := webutil.BaseAddress(r) + h.Prefix
 
 		for _, b := range bb {
 			data = append(data, b.JSON(addr))
 		}
 
 		w.Header().Set("Link", web.EncodeToLink(paginator, r))
-		web.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, data, http.StatusOK)
 		return
 	}
-	web.JSON(w, c.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, c.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 // Update applies the changes in the given request body to the existing cron
@@ -138,17 +138,17 @@ func (h API) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.JSON(w, ferrs, http.StatusBadRequest)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
 			return
 		}
 
 		switch cause {
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
-			web.JSON(w, errs, http.StatusBadRequest)
+			webutil.JSON(w, errs, http.StatusBadRequest)
 			return
 		case namespace.ErrPermission:
 			web.JSONError(w, "Unprocessable entity", http.StatusUnprocessableEntity)
@@ -159,7 +159,7 @@ func (h API) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, c.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, c.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 // Destroy removes the cron job in the given request context from the database.

@@ -6,11 +6,12 @@ import (
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
 )
@@ -85,7 +86,7 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 	f.Users = h.Users
 	f.Owner = mux.Vars(r)["username"]
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 
@@ -100,7 +101,7 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 			From:    h.SMTP.From,
 			To:      []string{f.Invitee.Email},
 			Subject: fmt.Sprintf("Djinn - %s invited you to %s", f.Inviter.Username, n.Path),
-			Body:    fmt.Sprintf(inviteMail, f.Inviter.Username, n.Path, web.BaseAddress(r)),
+			Body:    fmt.Sprintf(inviteMail, f.Inviter.Username, n.Path, webutil.BaseAddress(r)),
 		}
 
 		return i, f, errors.Err(m.Send(h.SMTP.Client))

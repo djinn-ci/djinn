@@ -5,8 +5,9 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/manifest"
+
+	"github.com/andrewpillar/webutil"
 )
 
 type tags []string
@@ -26,8 +27,8 @@ type TagForm struct {
 }
 
 var (
-	_ form.Form = (*Form)(nil)
-	_ form.Form = (*TagForm)(nil)
+	_ webutil.Form = (*Form)(nil)
+	_ webutil.Form = (*TagForm)(nil)
 )
 
 // UnmarshalJSON parses the byte slice into a slice of strings.
@@ -84,13 +85,13 @@ func (f Form) Fields() map[string]string {
 // Validate checks to see if there is a manifest, and if that manifest has the
 // bare minimum for a build to be submitted.
 func (f Form) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Manifest.String() == "{}" {
-		errs.Put("manifest", form.ErrFieldRequired("Build manifest"))
+		errs.Put("manifest", webutil.ErrFieldRequired("Build manifest"))
 	}
 	if err := f.Manifest.Validate(); err != nil {
-		errs.Put("manifest", form.ErrFieldInvalid("Build manifest", err.Error()))
+		errs.Put("manifest", webutil.ErrField("Build manifest", err))
 	}
 	return errs.Err()
 }

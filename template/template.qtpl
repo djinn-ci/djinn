@@ -4,9 +4,10 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/user"
+
+	"github.com/andrewpillar/webutil"
 )
 %}
 
@@ -28,7 +29,7 @@ type BasePage struct {
 
 type Form struct {
 	CSRF   string
-	Errors form.Errors
+	Errors *webutil.Errors
 	Fields map[string]string
 }
 

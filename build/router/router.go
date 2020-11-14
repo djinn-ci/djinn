@@ -15,6 +15,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
 
@@ -54,7 +55,7 @@ func Gate(db *sqlx.DB) web.Gate {
 			_, ok = u.Permissions["build:delete"]
 		}
 
-		base := web.BasePath(r.URL.Path)
+		base := webutil.BasePath(r.URL.Path)
 
 		// Are we creating a build or viewing a list of builds.
 		if base == "/" || base == "create" || base == "builds" {

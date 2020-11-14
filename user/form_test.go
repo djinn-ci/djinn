@@ -5,7 +5,8 @@ import (
 	"testing"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
+
+	"github.com/andrewpillar/webutil"
 )
 
 func Test_RegisterForm(t *testing.T) {
@@ -111,15 +112,15 @@ func Test_RegisterForm(t *testing.T) {
 					continue
 				}
 
-				ferrs, ok := err.(form.Errors)
+				ferrs, ok := err.(*webutil.Errors)
 
 				if !ok {
-					t.Fatalf("test[%d] - expected error to be form.Errors, it was '%s'\n", i, errors.Cause(err))
+					t.Fatalf("test[%d] - expected error to be *webutil.Errors, it was '%s'\n", i, errors.Cause(err))
 				}
 
 				for _, err := range test.errs {
-					if _, ok := ferrs[err]; !ok {
-						t.Errorf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
+					if _, ok := (*ferrs)[err]; !ok {
+						t.Errorf("test[%d] - expected field '%s' to be in *webutil.Errors\n", i, err)
 					}
 				}
 				continue
@@ -164,15 +165,15 @@ func Test_LoginForm(t *testing.T) {
 					continue
 				}
 
-				ferrs, ok := err.(form.Errors)
+				ferrs, ok := err.(*webutil.Errors)
 
 				if !ok {
-					t.Fatalf("test[%d] - expected error to be form.Errors it was '%s'\n", i, errors.Cause(err))
+					t.Fatalf("test[%d] - expected error to be *webutil.Errors it was '%s'\n", i, errors.Cause(err))
 				}
 
 				for _, err := range test.errs {
-					if _, ok := ferrs[err]; !ok {
-						t.Errorf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
+					if _, ok := (*ferrs)[err]; !ok {
+						t.Errorf("test[%d] - expected field '%s' to be in *webutil.Errors\n", i, err)
 					}
 				}
 				continue
@@ -285,15 +286,15 @@ func Test_EmailForm(t *testing.T) {
 					continue
 				}
 
-				ferrs, ok := err.(form.Errors)
+				ferrs, ok := err.(*webutil.Errors)
 
 				if !ok {
-					t.Fatalf("expected error to be form.Errors, it was not\n%s\n", errors.Cause(err))
+					t.Fatalf("expected error to be *webutil.Errors, it was not\n%s\n", errors.Cause(err))
 				}
 
 				for _, err := range test.errs {
-					if _, ok := ferrs[err]; !ok {
-						t.Fatalf("expected field '%s' to be in form.Errors, it was not\n", err)
+					if _, ok := (*ferrs)[err]; !ok {
+						t.Fatalf("expected field '%s' to be in *webutil.Errors, it was not\n", err)
 					}
 				}
 				continue

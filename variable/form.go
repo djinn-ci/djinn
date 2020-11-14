@@ -4,10 +4,10 @@ import (
 	"regexp"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 // Form is the type that represents input data for creating a new variable.
@@ -20,7 +20,7 @@ type Form struct {
 }
 
 var (
-	_ form.Form = (*Form)(nil)
+	_ webutil.Form = (*Form)(nil)
 
 	revar = regexp.MustCompile("^[\\D]+[a-zA-Z0-9_]+$")
 )
@@ -41,14 +41,14 @@ func (f Form) Fields() map[string]string {
 // uniqueness check is done on the Name for the current Namespace. Another check
 // is also done to check the presence of the Value field.
 func (f Form) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if err := f.Resource.BindNamespace(f.Variables); err != nil {
 		return errors.Err(err)
 	}
 
 	if f.Key == "" {
-		errs.Put("key", form.ErrFieldRequired("Key"))
+		errs.Put("key", webutil.ErrFieldRequired("Key"))
 	}
 
 	opts := []query.Option{
@@ -66,15 +66,15 @@ func (f Form) Validate() error {
 	}
 
 	if !v.IsZero() {
-		errs.Put("key", form.ErrFieldExists("Key"))
+		errs.Put("key", webutil.ErrFieldExists("Key"))
 	}
 
 	if !revar.Match([]byte(f.Key)) {
-		errs.Put("key", form.ErrFieldInvalid("Key", "invalid variable key"))
+		errs.Put("key", webutil.ErrField("Key", errors.New("invalid variable key")))
 	}
 
 	if f.Value == "" {
-		errs.Put("value", form.ErrFieldRequired("Value"))
+		errs.Put("value", webutil.ErrFieldRequired("Value"))
 	}
 	return errs.Err()
 }

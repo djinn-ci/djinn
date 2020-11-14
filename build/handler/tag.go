@@ -7,10 +7,11 @@ import (
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
 )
@@ -56,7 +57,7 @@ func (h Tag) StoreModel(r *http.Request) ([]*build.Tag, error) {
 
 	f := &build.TagForm{}
 
-	if err := form.Unmarshal(f, r); err != nil {
+	if err := webutil.Unmarshal(f, r); err != nil {
 		return nil, errors.Err(err)
 	}
 

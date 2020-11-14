@@ -9,11 +9,12 @@ import (
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/object"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 )
 
 // Object is the base handler that provides shared logic for the UI and API
@@ -90,11 +91,7 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 
 	objects := object.NewStoreWithBlockStore(h.DB, h.store, u)
 
-	f.File = form.File{
-		Writer:  w,
-		Request: r,
-		Limit:   h.limit,
-	}
+	f.File = webutil.NewFile("file", h.limit, w, r)
 	f.Resource = namespace.Resource{
 		User:       u,
 		Namespaces: namespace.NewStore(h.DB, u),
@@ -107,7 +104,7 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		f.Resource.Namespace = q.Get("namespace")
 		f.Name = q.Get("name")
 	} else {
-		if err := form.Unmarshal(&f, r); err != nil {
+		if err := webutil.Unmarshal(&f, r); err != nil {
 			return nil, f, errors.Err(err)
 		}
 	}
@@ -122,7 +119,7 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		return nil, f, errors.Err(err)
 	}
 
-	o, err := objects.Create(f.Name, hash, f.MIMEType, f.File)
+	o, err := objects.Create(f.Name, hash, f.File)
 	return o, f, errors.Err(err)
 }
 

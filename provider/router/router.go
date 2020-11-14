@@ -16,6 +16,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
 
@@ -46,7 +47,7 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 
 	return func(u *user.User, r *http.Request) (*http.Request, bool, error) {
-		base := web.BasePath(r.URL.Path)
+		base := webutil.BasePath(r.URL.Path)
 
 		if _, ok := onlyAuth[base]; ok {
 			return r, !u.IsZero(), nil

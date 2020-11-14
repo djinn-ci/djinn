@@ -9,11 +9,12 @@ import (
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/image"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 )
 
 // Image is the base handler that provides shared logic for the UI and API
@@ -89,11 +90,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 
 	images := image.NewStoreWithBlockStore(h.DB, h.store, u)
 
-	f.File = form.File{
-		Writer:  w,
-		Request: r,
-		Limit:   h.limit,
-	}
+	f.File = webutil.NewFile("file", h.limit, w, r)
 	f.Resource = namespace.Resource{
 		User:       u,
 		Namespaces: namespace.NewStore(h.DB, u),
@@ -106,7 +103,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		f.Resource.Namespace = q.Get("namespace")
 		f.Name = q.Get("name")
 	} else {
-		if err := form.Unmarshal(&f, r); err != nil {
+		if err := webutil.Unmarshal(&f, r); err != nil {
 			return nil, f, errors.Err(err)
 		}
 	}

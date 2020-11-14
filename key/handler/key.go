@@ -6,11 +6,12 @@ import (
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/key"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 )
 
 // Key is the base handler that provides shared logic for the UI and API
@@ -87,7 +88,7 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 	}
 	f.Keys = keys
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 
@@ -148,7 +149,7 @@ func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 	f.Key = k
 	f.Keys = keys
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return k, f, errors.Err(err)
 	}
 

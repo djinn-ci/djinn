@@ -10,7 +10,6 @@ import (
 
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/oauth2"
 	oauth2template "github.com/andrewpillar/djinn/oauth2/template"
 	"github.com/andrewpillar/djinn/template"
@@ -18,6 +17,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 )
@@ -28,14 +28,6 @@ type Oauth2 struct {
 
 	apps   *oauth2.AppStore
 	tokens *oauth2.TokenStore
-
-	//	// Apps is the app store to use for retrieving the OAuth app that is being
-	//	// used to request access to a user's account.
-	//	Apps *oauth2.AppStore
-	//
-	//	// Tokens is the token store to use for updating the scopes of a
-	//	// pre-existing token, or for deleting a token.
-	//	Tokens *oauth2.TokenStore
 }
 
 func New(h web.Handler, block *crypto.Block) Oauth2 {
@@ -170,8 +162,8 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 	p := &oauth2template.Auth{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 		User:        u,
 		Author:      author,
@@ -182,7 +174,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		Scope:       scope,
 	}
 	save(r, w)
-	web.HTML(w, template.Render(p), http.StatusOK)
+	webutil.HTML(w, template.Render(p), http.StatusOK)
 }
 
 // Auth will either serve up the OAuth login page on a GET request, or process
@@ -209,11 +201,11 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 
 	f := &oauth2.AuthorizeForm{}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -227,7 +219,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 	clientId, err := hex.DecodeString(f.ClientID)
 
 	if err != nil {
-		errs := form.NewErrors()
+		errs := webutil.NewErrors()
 		errs.Put("client_id", err)
 
 		sess.AddFlash(errs, "form_errors")
@@ -264,7 +256,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("handle", user.ErrAuth)
 			errs.Put("password", user.ErrAuth)
 
@@ -395,7 +387,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-		web.JSON(w, body, http.StatusOK)
+		webutil.JSON(w, body, http.StatusOK)
 		return
 	}
 
@@ -404,7 +396,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	for k, v := range body {
 		vals[k] = append([]string(nil), v)
 	}
-	web.Text(w, vals.Encode(), http.StatusOK)
+	webutil.Text(w, vals.Encode(), http.StatusOK)
 }
 
 // Revoke revokes the OAuth token in the given request header.

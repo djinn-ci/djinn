@@ -16,6 +16,7 @@ import (
 	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
 
@@ -63,7 +64,7 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFu
 		return false, nil
 	}
 
-	base := BasePath(r.URL.Path)
+	base := webutil.BasePath(r.URL.Path)
 
 	if base == "/" || base == "create" || base == name || base == name+"s" {
 		return ok, nil
@@ -205,7 +206,7 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 				JSONError(w, "Not found", http.StatusNotFound)
 				return
 			}
-			h.Redirect(w, r, "/login?redirect_uri="+url.PathEscape(BaseAddress(r)+r.URL.String()))
+			h.Redirect(w, r, "/login?redirect_uri="+url.PathEscape(webutil.BaseAddress(r)+r.URL.String()))
 			return
 		}
 

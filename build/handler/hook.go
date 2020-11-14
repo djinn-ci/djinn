@@ -22,9 +22,9 @@ import (
 	"github.com/andrewpillar/djinn/provider/gitlab"
 	"github.com/andrewpillar/djinn/runner"
 	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 var (
@@ -396,7 +396,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
+		webutil.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -404,7 +404,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
+		webutil.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -414,7 +414,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 
 	switch event {
 	case "ping":
-		web.Text(w, "pong\n", http.StatusOK)
+		webutil.Text(w, "pong\n", http.StatusOK)
 		return
 	case "push":
 		data.typ = build.Push
@@ -467,23 +467,23 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.execute(r.Context(), web.BaseAddress(r), "github", data, getGitHubURL)
+	err = h.execute(r.Context(), webutil.BaseAddress(r), "github", data, getGitHubURL)
 
 	if err != nil {
 		cause := errors.Cause(err)
 
 		if manifesterr, ok := cause.(*errors.Slice); ok {
 			h.Log.Debug.Println("found some invalid manifests, responding with 202 Accepted")
-			web.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
+			webutil.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
 			return
 		}
 
 		if cause == namespace.ErrName {
-			web.Text(w, invalidNamespaceName, http.StatusBadRequest)
+			webutil.Text(w, invalidNamespaceName, http.StatusBadRequest)
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.Text(w, cause.Error(), http.StatusInternalServerError)
+		webutil.Text(w, cause.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -518,7 +518,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
+		webutil.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -532,7 +532,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
+		webutil.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
 		return
 	}
 
@@ -587,23 +587,23 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = h.execute(r.Context(), web.BaseAddress(r), "gitlab", data, getGitLabURL(data.dirurl, data.ref))
+	err = h.execute(r.Context(), webutil.BaseAddress(r), "gitlab", data, getGitLabURL(data.dirurl, data.ref))
 
 	if err != nil {
 		if manifesterr, ok := err.(*errors.Slice); ok {
 			h.Log.Debug.Println("found some invalid manifests, responding with 202 Accepted")
-			web.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
+			webutil.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
 			return
 		}
 
 		cause := errors.Cause(err)
 
 		if cause == namespace.ErrName {
-			web.Text(w, invalidNamespaceName, http.StatusBadRequest)
+			webutil.Text(w, invalidNamespaceName, http.StatusBadRequest)
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.Text(w, cause.Error(), http.StatusInternalServerError)
+		webutil.Text(w, cause.Error(), http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

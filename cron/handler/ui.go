@@ -9,13 +9,13 @@ import (
 	"github.com/andrewpillar/djinn/cron"
 	crontemplate "github.com/andrewpillar/djinn/cron/template"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/template"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 )
@@ -61,7 +61,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating cron jobs via the web frontend.
@@ -79,13 +79,13 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 	p := &crontemplate.Form{
 		Form: template.Form{
 			CSRF:   csrf,
-			Fields: web.FormFields(sess),
-			Errors: web.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Store validates the form submitted in the given request for creating a cron
@@ -99,15 +99,15 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
 
 		switch cause {
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
 			sess.AddFlash(errs, "form_errors")
@@ -190,7 +190,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Edit serves the HTML response for editing the cron job in the given request
@@ -215,14 +215,14 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 	p := &crontemplate.Form{
 		Form: template.Form{
 			CSRF:   string(csrf),
-			Fields: web.FormFields(sess),
-			Errors: web.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
 		},
 		Cron: c,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Update validates the form submitted in the given request for updating a cron
@@ -236,15 +236,15 @@ func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
 
 		switch cause {
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
 			sess.AddFlash(errs, "form_errors")

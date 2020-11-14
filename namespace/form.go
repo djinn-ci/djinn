@@ -5,10 +5,10 @@ import (
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 // Form is the type that represents input data for creating a new Namespace.
@@ -41,8 +41,8 @@ type InviteForm struct {
 }
 
 var (
-	_ form.Form = (*Form)(nil)
-	_ form.Form = (*InviteForm)(nil)
+	_ webutil.Form = (*Form)(nil)
+	_ webutil.Form = (*InviteForm)(nil)
 )
 
 // Fields returns a map of the Name and Description fields in the Namespace
@@ -61,7 +61,7 @@ func (f Form) Fields() map[string]string {
 // edited). The description field is checked to see if it is less than 255
 // characters in length, if present.
 func (f Form) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Namespace != nil {
 		if f.Name == "" {
@@ -78,15 +78,15 @@ func (f Form) Validate() error {
 	}
 
 	if f.Name == "" {
-		errs.Put("name", form.ErrFieldRequired("Name"))
+		errs.Put("name", webutil.ErrFieldRequired("Name"))
 	}
 
 	if len(f.Name) < 3 || len(f.Name) > 32 {
-		errs.Put("name", form.ErrFieldInvalid("Name", "must be between 3 and 32 characters in length"))
+		errs.Put("name", webutil.ErrField("Name", errors.New("must be between 3 and 32 characters in length")))
 	}
 
 	if !rename.Match([]byte(f.Name)) {
-		errs.Put("name", form.ErrFieldInvalid("Name", "can only contain letters and numbers"))
+		errs.Put("name", webutil.ErrField("Name", errors.New("can only contain letters and numbers")))
 	}
 
 	checkUnique := true
@@ -113,12 +113,12 @@ func (f Form) Validate() error {
 		}
 
 		if !n.IsZero() {
-			errs.Put("name", form.ErrFieldExists("Name"))
+			errs.Put("name", webutil.ErrFieldExists("Name"))
 		}
 	}
 
 	if len(f.Description) > 255 {
-		errs.Put("description", form.ErrFieldInvalid("Description", "must be shorter than 255 characters in length"))
+		errs.Put("description", webutil.ErrField("Description", errors.New("must be shorter than 255 characters in length")))
 	}
 	return errs.Err()
 }
@@ -136,10 +136,10 @@ func (f *InviteForm) Fields() map[string]string {
 // all of these checks pass, then the User being invited is set as the Invitee
 // field on the InviteForm.
 func (f *InviteForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Handle == "" {
-		errs.Put("handle", form.ErrFieldRequired("Username"))
+		errs.Put("handle", webutil.ErrFieldRequired("Username"))
 	}
 
 	invitee, err := f.Users.Get(user.WhereHandle(f.Handle))

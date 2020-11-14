@@ -10,7 +10,6 @@ import (
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/template"
@@ -19,6 +18,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 )
@@ -64,23 +64,23 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 		p := &usertemplate.Register{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
-				Errors: web.FormErrors(sess),
-				Fields: web.FormFields(sess),
+				Errors: webutil.FormErrors(sess),
+				Fields: webutil.FormFields(sess),
 			},
 			Alert: web.Alert(sess),
 		}
 		save(r, w)
-		web.HTML(w, template.Render(p), http.StatusOK)
+		webutil.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
 	f := &user.RegisterForm{Users: h.Users}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -104,7 +104,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 		From:    h.SMTP.From,
 		To:      []string{u.Email},
 		Subject: "Djinn - Verify email",
-		Body:    fmt.Sprintf(verifyMail, web.BaseAddress(r), hex.EncodeToString(tok)),
+		Body:    fmt.Sprintf(verifyMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
 	}
 
 	if err := m.Send(h.SMTP.Client); err != nil {
@@ -161,25 +161,25 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		p := &usertemplate.Login{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
-				Errors: web.FormErrors(sess),
-				Fields: web.FormFields(sess),
+				Errors: webutil.FormErrors(sess),
+				Fields: webutil.FormFields(sess),
 			},
 			Alert:       web.Alert(sess),
 			RedirectURI: r.URL.Query().Get("redirect_uri"),
 			Providers:   pp,
 		}
 		save(r, w)
-		web.HTML(w, template.Render(p), http.StatusOK)
+		webutil.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
 	f := &user.LoginForm{}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -202,7 +202,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		errs := form.NewErrors()
+		errs := webutil.NewErrors()
 		errs.Put("handle", user.ErrAuth)
 		errs.Put("password", user.ErrAuth)
 
@@ -250,24 +250,24 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 		p := &usertemplate.NewPassword{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
-				Errors: web.FormErrors(sess),
-				Fields: web.FormFields(sess),
+				Errors: webutil.FormErrors(sess),
+				Fields: webutil.FormFields(sess),
 			},
 			Token: r.URL.Query().Get("token"),
 			Alert: web.Alert(sess),
 		}
 		save(r, w)
-		web.HTML(w, template.Render(p), http.StatusOK)
+		webutil.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
 	f := &user.NewPasswordForm{}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -309,23 +309,23 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 		p := &usertemplate.PasswordReset{
 			Form: template.Form{
 				CSRF:   string(csrf.TemplateField(r)),
-				Errors: web.FormErrors(sess),
-				Fields: web.FormFields(sess),
+				Errors: webutil.FormErrors(sess),
+				Fields: webutil.FormFields(sess),
 			},
 			Alert: web.Alert(sess),
 		}
 		save(r, w)
-		web.HTML(w, template.Render(p), http.StatusOK)
+		webutil.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
 
 	f := &user.PasswordResetForm{}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -364,7 +364,7 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 		From:    h.SMTP.From,
 		To:      []string{u.Email},
 		Subject: "Djinn - Password reset request",
-		Body:    fmt.Sprintf(resetMail, web.BaseAddress(r), hex.EncodeToString(tok)),
+		Body:    fmt.Sprintf(resetMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
 	}
 
 	if err := m.Send(h.SMTP.Client); err != nil {
@@ -439,8 +439,8 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		},
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 		Providers: make([]*provider.Provider, 0, len(clis)),
 	}
@@ -451,7 +451,7 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Verify will either send a verification email to the user, or verify the
@@ -482,7 +482,7 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 			From:    h.SMTP.From,
 			To:      []string{u.Email},
 			Subject: "Djinn - Verify email",
-			Body:    fmt.Sprintf(verifyMail, web.BaseAddress(r), hex.EncodeToString(tok)),
+			Body:    fmt.Sprintf(verifyMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
 		}
 
 		if err := m.Send(h.SMTP.Client); err != nil {
@@ -583,11 +583,11 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 		Users: h.Users,
 	}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -627,11 +627,11 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 		Users: h.Users,
 	}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -666,11 +666,11 @@ func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	f := &user.DeleteForm{}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -703,10 +703,10 @@ func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 		cause := errors.Cause(err)
 
 		if cause == user.ErrAuth {
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("delete_password", errors.New("Invalid password"))
 
-			web.FlashFormWithErrors(sess, f, errs)
+			webutil.FlashFormWithErrors(sess, f, errs)
 			h.RedirectBack(w, r)
 			return
 		}

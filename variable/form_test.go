@@ -6,9 +6,10 @@ import (
 	"testing"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/DATA-DOG/go-sqlmock"
 
@@ -123,15 +124,15 @@ func Test_FormValidate(t *testing.T) {
 			if test.shouldError {
 				cause := errors.Cause(err)
 
-				ferrs, ok := cause.(form.Errors)
+				ferrs, ok := cause.(*webutil.Errors)
 
 				if !ok {
-					t.Fatalf("test[%d] - expected error to be form.Errors, is was '%s'\n", i, cause)
+					t.Fatalf("test[%d] - expected error to be *webutil.Errors, is was '%s'\n", i, cause)
 				}
 
 				for _, err := range test.errs {
-					if _, ok := ferrs[err]; !ok {
-						t.Errorf("test[%d] - expected '%s' to be in form.Errors\n", i, err)
+					if _, ok := (*ferrs)[err]; !ok {
+						t.Errorf("test[%d] - expected '%s' to be in *webutil.Errors\n", i, err)
 					}
 				}
 				continue

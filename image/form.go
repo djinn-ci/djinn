@@ -2,29 +2,30 @@ package image
 
 import (
 	"bytes"
+	"io"
 	"regexp"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 // Form is the type that represents input data for uploading a new driver image.
 type Form struct {
 	namespace.Resource
-	form.File `schema:"-"`
+	*webutil.File
 
 	Images *Store `schema:"-"`
 	Name   string `schema:"name"`
 }
 
 var (
-	_ form.Form = (*Form)(nil)
+	_ webutil.Form = (*Form)(nil)
 
 	rename = regexp.MustCompile("^[a-zA-Z0-9_\\-]+$")
-	magic  = []byte{0x51, 0x46, 0x49, 0xFB}
+	magic  = []byte{0x51, 0x46, 0x49, 0xFB} // QCOW file format magic number
 )
 
 // Fields returns a map containing the namespace, and name fields from the
@@ -41,18 +42,18 @@ func (f *Form) Fields() map[string]string {
 // sure it is a valid QCOW2 image file. It does this by checking the first
 // four bytes of the file match the ASCII magic number for QCOW2.
 func (f *Form) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if err := f.Resource.BindNamespace(f.Images); err != nil {
 		return errors.Err(err)
 	}
 
 	if f.Name == "" {
-		errs.Put("name", form.ErrFieldRequired("Name"))
+		errs.Put("name", webutil.ErrFieldRequired("Name"))
 	}
 
 	if !rename.Match([]byte(f.Name)) {
-		errs.Put("name", form.ErrFieldInvalid("Name", "can only contain letters, numbers, and dashes"))
+		errs.Put("name", webutil.ErrField("Name", errors.New("can only contain letters, numbers, and dashes")))
 	}
 
 	opts := []query.Option{
@@ -70,16 +71,12 @@ func (f *Form) Validate() error {
 	}
 
 	if !i.IsZero() {
-		errs.Put("name", form.ErrFieldExists("Name"))
+		errs.Put("name", webutil.ErrFieldExists("Name"))
 	}
 
 	if err := f.File.Validate(); err != nil {
-		if ferrs, ok := err.(form.Errors); ok {
-			for k, v := range ferrs {
-				for _, err := range v {
-					errs.Put(k, errors.New(err))
-				}
-			}
+		if ferrs, ok := err.(*webutil.Errors); ok {
+			errs.Merge(ferrs)
 			return errs.Err()
 		}
 		return errors.Err(err)
@@ -93,10 +90,9 @@ func (f *Form) Validate() error {
 		}
 
 		if !bytes.Equal(buf, magic) {
-			errs.Put("file", form.ErrFieldInvalid("File", "not a valid QCOW file format"))
+			errs.Put("file", webutil.ErrField("File", errors.New("not a valid QCOW file format")))
 		}
-
-		f.File.Seek(0, 0)
+		f.File.Seek(0, io.SeekStart)
 	}
 	return errs.Err()
 }

@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/image"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 )
 
 // API is the handler for handling API requests made for image creation,
@@ -35,14 +36,14 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make([]interface{}, 0, len(ii))
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	for _, i := range ii {
 		data = append(data, i.JSON(addr))
 	}
 
 	w.Header().Set("Link", web.EncodeToLink(paginator, r))
-	web.JSON(w, data, http.StatusOK)
+	webutil.JSON(w, data, http.StatusOK)
 }
 
 // Store stores the image from the given request body. If any validation
@@ -54,8 +55,8 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.JSON(w, ferrs, http.StatusBadRequest)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
 			return
 		}
 
@@ -66,13 +67,13 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 
 		switch cause {
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
-			web.JSON(w, errs, http.StatusBadRequest)
+			webutil.JSON(w, errs, http.StatusBadRequest)
 			return
 		case namespace.ErrPermission:
-			web.JSON(w, map[string][]string{"namespace": []string{"Could not find namespace"}}, http.StatusBadRequest)
+			webutil.JSON(w, map[string][]string{"namespace": []string{"Could not find namespace"}}, http.StatusBadRequest)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -80,7 +81,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, i.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, i.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 // Show serves up the JSON response for the image in the given request. If the
@@ -116,7 +117,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 	}
-	web.JSON(w, i.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, i.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 // Destroy removes the image in the given request context from the database and

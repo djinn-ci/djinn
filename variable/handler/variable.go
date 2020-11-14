@@ -5,11 +5,12 @@ import (
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/variable"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 )
 
 // Variable is the base handler that provides shared logic for the UI and API
@@ -86,7 +87,7 @@ func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form
 	}
 	f.Variables = variables
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

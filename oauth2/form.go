@@ -5,9 +5,9 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 // AppForm if the type that represents input data for creating a new App.
@@ -43,9 +43,9 @@ type TokenForm struct {
 }
 
 var (
-	_ form.Form = (*AppForm)(nil)
-	_ form.Form = (*AuthorizeForm)(nil)
-	_ form.Form = (*TokenForm)(nil)
+	_ webutil.Form = (*AppForm)(nil)
+	_ webutil.Form = (*AuthorizeForm)(nil)
+	_ webutil.Form = (*TokenForm)(nil)
 )
 
 // Fields returns a map of the name, description, homepage_uri, and
@@ -65,10 +65,10 @@ func (f AppForm) Fields() map[string]string {
 // Homepage, and Redirect URIs are checked for presence too, and if they are
 // valid URLs.
 func (f AppForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Name == "" {
-		errs.Put("name", form.ErrFieldRequired("Name"))
+		errs.Put("name", webutil.ErrFieldRequired("Name"))
 	}
 
 	checkUnique := true
@@ -87,24 +87,24 @@ func (f AppForm) Validate() error {
 		}
 
 		if !a.IsZero() {
-			errs.Put("name", form.ErrFieldExists("Name"))
+			errs.Put("name", webutil.ErrFieldExists("Name"))
 		}
 	}
 
 	if f.HomepageURI == "" {
-		errs.Put("homepage_uri", form.ErrFieldRequired("Homepage URI"))
+		errs.Put("homepage_uri", webutil.ErrFieldRequired("Homepage URI"))
 	}
 
 	if _, err := url.Parse(f.HomepageURI); err != nil {
-		errs.Put("homepage_uri", form.ErrFieldInvalid("Homepage URI", err.Error()))
+		errs.Put("homepage_uri", webutil.ErrField("Homepage URI", err))
 	}
 
 	if f.RedirectURI == "" {
-		errs.Put("redirect_uri", form.ErrFieldRequired("Redirect URI"))
+		errs.Put("redirect_uri", webutil.ErrFieldRequired("Redirect URI"))
 	}
 
 	if _, err := url.Parse(f.RedirectURI); err != nil {
-		errs.Put("redirect_uri", form.ErrFieldInvalid("Redirect URI", err.Error()))
+		errs.Put("redirect_uri", webutil.ErrField("Redirect URI", err))
 	}
 	return errs.Err()
 }
@@ -124,14 +124,14 @@ func (f AuthorizeForm) Validate() error {
 		return nil
 	}
 
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Handle == "" {
-		errs.Put("handle", form.ErrFieldRequired("Email or username"))
+		errs.Put("handle", webutil.ErrFieldRequired("Email or username"))
 	}
 
 	if f.Password == "" {
-		errs.Put("password", form.ErrFieldRequired("Password"))
+		errs.Put("password", webutil.ErrFieldRequired("Password"))
 	}
 	return errs.Err()
 }
@@ -149,10 +149,10 @@ func (f TokenForm) Fields() map[string]string {
 // unique. This uniquess check is skipped if a Token is set on the form, and
 // Name field matches that.
 func (f TokenForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Name == "" {
-		errs.Put("name", form.ErrFieldRequired("Name"))
+		errs.Put("name", webutil.ErrFieldRequired("Name"))
 	}
 
 	checkUnique := true
@@ -171,7 +171,7 @@ func (f TokenForm) Validate() error {
 		}
 
 		if !t.IsZero() {
-			errs.Put("name", form.ErrFieldExists("Name"))
+			errs.Put("name", webutil.ErrFieldExists("Name"))
 		}
 	}
 	return errs.Err()

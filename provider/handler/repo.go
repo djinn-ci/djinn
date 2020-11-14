@@ -12,7 +12,6 @@ import (
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/provider"
 	providertemplate "github.com/andrewpillar/djinn/provider/template"
 	"github.com/andrewpillar/djinn/template"
@@ -20,6 +19,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 
@@ -219,7 +219,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(pg, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Update will reload all of the provider repos in the cache.
@@ -278,7 +278,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 	f := &provider.RepoForm{}
 
-	if err := form.Unmarshal(f, r); err != nil {
+	if err := webutil.Unmarshal(f, r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)

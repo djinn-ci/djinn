@@ -8,10 +8,11 @@ import (
 	"github.com/andrewpillar/djinn/cron"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 )
 
 // Cron is the base handler that provides shared logic for the UI and API
@@ -83,7 +84,7 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 	}
 	f.Crons = crons
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 
@@ -141,7 +142,7 @@ func (h Cron) UpdateModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
 	f.Cron = c
 	f.Crons = crons
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

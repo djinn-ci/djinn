@@ -8,7 +8,6 @@ import (
 	buildtemplate "github.com/andrewpillar/djinn/build/template"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/image"
 	imagetemplate "github.com/andrewpillar/djinn/image/template"
 	"github.com/andrewpillar/djinn/key"
@@ -24,6 +23,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -77,7 +77,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating namespaces via the web frontend.
@@ -115,8 +115,8 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	p := &namespacetemplate.Form{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 	}
 
@@ -126,7 +126,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Store validates the form submitted in the given request for creating a
@@ -140,8 +140,8 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -202,7 +202,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	base := web.BasePath(r.URL.Path)
+	base := webutil.BasePath(r.URL.Path)
 	csrfField := string(csrf.TemplateField(r))
 
 	bp := template.BasePage{
@@ -389,7 +389,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Edit serves the HTML response for editing the namespace in the given request
@@ -420,14 +420,14 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 	p := &namespacetemplate.Form{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 		Namespace: n,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Update validates the form submitted in the given request for updating a
@@ -442,8 +442,8 @@ func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -520,8 +520,8 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 	inviteIndex := &namespacetemplate.InviteIndex{
 		Form: template.Form{
 			CSRF:   string(csrf.TemplateField(r)),
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 		CSRF:      csrf.TemplateField(r),
 		Namespace: n,
@@ -542,7 +542,7 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Store validates the form submitted in the given request for sending an
@@ -553,8 +553,8 @@ func (h InviteUI) Store(w http.ResponseWriter, r *http.Request) {
 	if _, f, err := h.StoreModel(r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, &f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, &f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -666,7 +666,7 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Destroy removes the given namespace collaborator in the request from the

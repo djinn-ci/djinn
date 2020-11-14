@@ -6,7 +6,6 @@ import (
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/image"
 	"github.com/andrewpillar/djinn/key"
 	"github.com/andrewpillar/djinn/namespace"
@@ -14,6 +13,8 @@ import (
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/variable"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 )
 
 // API is the handler for handling API requests made for namespace creation,
@@ -65,14 +66,14 @@ func (h API) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make([]interface{}, 0, len(nn))
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	for _, n := range nn {
 		data = append(data, n.JSON(addr))
 	}
 
 	w.Header().Set("Link", web.EncodeToLink(paginator, r))
-	web.JSON(w, data, http.StatusOK)
+	webutil.JSON(w, data, http.StatusOK)
 }
 
 // Store stores the namespace from the given request body. If any validation
@@ -84,8 +85,8 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.JSON(w, ferrs, http.StatusBadRequest)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
 			return
 		}
 
@@ -94,7 +95,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			web.JSONError(w, cause.Error(), http.StatusUnprocessableEntity)
 			return
 		case database.ErrNotFound:
-			web.JSON(w, map[string][]string{"parent": []string{"Could not find parent"}}, http.StatusBadRequest)
+			webutil.JSON(w, map[string][]string{"parent": []string{"Could not find parent"}}, http.StatusBadRequest)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -102,7 +103,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	web.JSON(w, n.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, n.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 // Show serves up the JSON response for the namespace in the given request. This
@@ -130,8 +131,8 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	base := web.BasePath(r.URL.Path)
-	addr := web.BaseAddress(r) + h.Prefix
+	base := webutil.BasePath(r.URL.Path)
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	switch base {
 	case "builds":
@@ -172,7 +173,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Link", web.EncodeToLink(paginator, r))
-		web.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, data, http.StatusOK)
 		return
 	case "namespaces":
 		nn, paginator, err := h.IndexWithRelations(namespace.NewStore(h.DB, n), q)
@@ -190,7 +191,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Link", web.EncodeToLink(paginator, r))
-		web.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, data, http.StatusOK)
 		return
 	case "images":
 		ii, paginator, err := image.NewStore(h.DB, n).Index(q)
@@ -214,7 +215,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Link", web.EncodeToLink(paginator, r))
-		web.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, data, http.StatusOK)
 		return
 	case "objects":
 		oo, paginator, err := object.NewStore(h.DB, n).Index(q)
@@ -238,7 +239,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Link", web.EncodeToLink(paginator, r))
-		web.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, data, http.StatusOK)
 		return
 	case "variables":
 		vv, paginator, err := variable.NewStore(h.DB, n).Index(q)
@@ -265,7 +266,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Link", web.EncodeToLink(paginator, r))
-		web.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, data, http.StatusOK)
 		return
 	case "keys":
 		kk, paginator, err := key.NewStore(h.DB, n).Index(q)
@@ -292,10 +293,10 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		w.Header().Set("Link", web.EncodeToLink(paginator, r))
-		web.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, data, http.StatusOK)
 		return
 	default:
-		web.JSON(w, n.JSON(addr), http.StatusOK)
+		webutil.JSON(w, n.JSON(addr), http.StatusOK)
 		return
 	}
 }
@@ -310,15 +311,15 @@ func (h API) Update(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.JSON(w, ferrs, http.StatusBadRequest)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	web.JSON(w, n.JSON(web.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, n.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 // Destroy removes the namespace in the given request context from the database.
@@ -361,12 +362,12 @@ func (h InviteAPI) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make([]interface{}, 0, len(ii))
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	for _, i := range ii {
 		data = append(data, i.JSON(addr))
 	}
-	web.JSON(w, data, http.StatusOK)
+	webutil.JSON(w, data, http.StatusOK)
 }
 
 // Store stores and submits the invite from the given request body. If any
@@ -378,8 +379,8 @@ func (h InviteAPI) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.JSON(w, ferrs, http.StatusBadRequest)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
 			return
 		}
 
@@ -396,7 +397,7 @@ func (h InviteAPI) Store(w http.ResponseWriter, r *http.Request) {
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return
 	}
-	web.JSON(w, i.JSON(web.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, i.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 // Update will accept the invite in the given request context. This will send
@@ -416,14 +417,14 @@ func (h InviteAPI) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	data := map[string]interface{}{
 		"namespace": n.JSON(addr),
 		"inviter":   inviter.JSON(addr),
 		"invitee":   invitee.JSON(addr),
 	}
-	web.JSON(w, data, http.StatusOK)
+	webutil.JSON(w, data, http.StatusOK)
 }
 
 // Destroy removes the invite in the given request context from the database.
@@ -464,12 +465,12 @@ func (h CollaboratorAPI) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := make([]interface{}, 0, len(cc))
-	addr := web.BaseAddress(r) + h.Prefix
+	addr := webutil.BaseAddress(r) + h.Prefix
 
 	for _, c := range cc {
 		data = append(data, c.JSON(addr))
 	}
-	web.JSON(w, data, http.StatusOK)
+	webutil.JSON(w, data, http.StatusOK)
 }
 
 // Destroy removes the collaborator in the given request context from the
@@ -477,7 +478,10 @@ func (h CollaboratorAPI) Index(w http.ResponseWriter, r *http.Request) {
 func (h CollaboratorAPI) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
 		if err == namespace.ErrDeleteSelf {
-			web.JSON(w, map[string][]string{"collaborator": []string{"You cannot remove yourself from the namespace"}}, http.StatusBadRequest)
+			body := map[string][]string{
+				"collaborator": []string{"You canno remove yourself from the namespace"},
+			}
+			webutil.JSON(w, body, http.StatusBadRequest)
 			return
 		}
 

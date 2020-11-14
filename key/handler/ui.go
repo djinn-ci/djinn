@@ -4,12 +4,13 @@ import (
 	"net/http"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	keytemplate "github.com/andrewpillar/djinn/key/template"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/template"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 )
@@ -53,7 +54,7 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating SSH keys via the web frontend.
@@ -71,13 +72,13 @@ func (h Key) Create(w http.ResponseWriter, r *http.Request) {
 	p := &keytemplate.Form{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Store validates the form submitted in the given request for creating a key.
@@ -91,15 +92,15 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
 
 		switch cause {
 		case namespace.ErrName:
-			errs := form.NewErrors()
+			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
 			sess.AddFlash(errs, "form_errors")
@@ -145,14 +146,14 @@ func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 	p := &keytemplate.Form{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: web.FormErrors(sess),
-			Fields: web.FormFields(sess),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
 		},
 		Key: k,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Update validates the form submitted in the given request for updating a key.
@@ -164,8 +165,8 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 	k, f, err := h.UpdateModel(r)
 
 	if err != nil {
-		if ferrs, ok := err.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := err.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}

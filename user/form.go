@@ -4,9 +4,9 @@ import (
 	"regexp"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -58,13 +58,13 @@ type DeleteForm struct {
 }
 
 var (
-	_ form.Form = (*RegisterForm)(nil)
-	_ form.Form = (*LoginForm)(nil)
-	_ form.Form = (*EmailForm)(nil)
-	_ form.Form = (*PasswordForm)(nil)
-	_ form.Form = (*PasswordResetForm)(nil)
-	_ form.Form = (*NewPasswordForm)(nil)
-	_ form.Form = (*DeleteForm)(nil)
+	_ webutil.Form = (*RegisterForm)(nil)
+	_ webutil.Form = (*LoginForm)(nil)
+	_ webutil.Form = (*EmailForm)(nil)
+	_ webutil.Form = (*PasswordForm)(nil)
+	_ webutil.Form = (*PasswordResetForm)(nil)
+	_ webutil.Form = (*NewPasswordForm)(nil)
+	_ webutil.Form = (*DeleteForm)(nil)
 
 	reEmail           = regexp.MustCompile("@")
 	reAlphaNumDotDash = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
@@ -85,18 +85,18 @@ func (f RegisterForm) Fields() map[string]string {
 // letters, numbers, dashes, and dots. The Password field is checked for
 // presence, and length. It should be between 6 and 60 characters.
 func (f RegisterForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Email == "" {
-		errs.Put("email", form.ErrFieldRequired("Email"))
+		errs.Put("email", webutil.ErrFieldRequired("Email"))
 	}
 
 	if len(f.Email) > 254 {
-		errs.Put("email", form.ErrFieldInvalid("Email", "must be less than 254 characters"))
+		errs.Put("email", webutil.ErrField("Email", errors.New("must be less than 254 characters")))
 	}
 
 	if !reEmail.Match([]byte(f.Email)) {
-		errs.Put("email", form.ErrFieldInvalid("Email", ""))
+		errs.Put("email", webutil.ErrField("Email", errors.New("is invalid")))
 	}
 
 	u, err := f.Users.Get(
@@ -110,41 +110,41 @@ func (f RegisterForm) Validate() error {
 
 	if !u.IsZero() {
 		if f.Email == u.Email {
-			errs.Put("email", form.ErrFieldExists("Email"))
+			errs.Put("email", webutil.ErrFieldExists("Email"))
 		}
 
 		if f.Username == u.Username {
-			errs.Put("username", form.ErrFieldExists("Username"))
+			errs.Put("username", webutil.ErrFieldExists("Username"))
 		}
 	}
 
 	if f.Username == "" {
-		errs.Put("username", form.ErrFieldRequired("Username"))
+		errs.Put("username", webutil.ErrFieldRequired("Username"))
 	}
 
 	if len(f.Username) < 3 || len(f.Username) > 64 {
-		errs.Put("username", form.ErrFieldInvalid("Username", "must be between 3 and 32 characters in length"))
+		errs.Put("username", webutil.ErrField("Username", errors.New("must be between 3 and 32 characters in length")))
 	}
 
 	if !reAlphaNumDotDash.Match([]byte(f.Username)) {
-		errs.Put("username", form.ErrFieldInvalid("Username", "can only contain letters, numbers, dashes, and dots"))
+		errs.Put("username", webutil.ErrField("Username", errors.New("can only contain letters, numbers, dashes, and dots")))
 	}
 
 	if f.Password == "" {
-		errs.Put("password", form.ErrFieldRequired("Password"))
+		errs.Put("password", webutil.ErrFieldRequired("Password"))
 	}
 
 	if len(f.Password) < 6 || len(f.Password) > 60 {
-		errs.Put("password", form.ErrFieldInvalid("Password", "must be between 6 and 60 characters in length"))
+		errs.Put("password", webutil.ErrField("Password", errors.New("must be between 6 and 60 characters in length")))
 	}
 
 	if f.VerifyPassword == "" {
-		errs.Put("verify_password", form.ErrFieldRequired("Verify password"))
+		errs.Put("verify_password", webutil.ErrFieldRequired("Verify password"))
 	}
 
 	if f.Password != f.VerifyPassword {
-		errs.Put("password", form.ErrFieldInvalid("Password", "does not match"))
-		errs.Put("verify_password", form.ErrFieldInvalid("Verify Password", "does not match"))
+		errs.Put("password", webutil.ErrField("Password", errors.New("does not match")))
+		errs.Put("verify_password", webutil.ErrField("Verify Password", errors.New("does not match")))
 	}
 	return errs.Err()
 }
@@ -160,14 +160,14 @@ func (f LoginForm) Fields() map[string]string {
 // Validate checks to see if the current LoginForm has a present Handle, and
 // Password field.
 func (f LoginForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Handle == "" {
-		errs.Put("handle", form.ErrFieldRequired("Email or username"))
+		errs.Put("handle", webutil.ErrFieldRequired("Email or username"))
 	}
 
 	if f.Password == "" {
-		errs.Put("password", form.ErrFieldRequired("Password"))
+		errs.Put("password", webutil.ErrFieldRequired("Password"))
 	}
 	return errs.Err()
 }
@@ -184,18 +184,18 @@ func (f EmailForm) Fields() map[string]string {
 // Password field is checked for presence, then compared against the one in the
 // database for authentication.
 func (f EmailForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Email == "" {
-		errs.Put("email", form.ErrFieldRequired("Email"))
+		errs.Put("email", webutil.ErrFieldRequired("Email"))
 	}
 
 	if len(f.Email) > 254 {
-		errs.Put("email", form.ErrFieldInvalid("Email", "must be less than 254 characters"))
+		errs.Put("email", webutil.ErrField("Email", errors.New("must be less than 254 characters")))
 	}
 
 	if !reEmail.Match([]byte(f.Email)) {
-		errs.Put("email", form.ErrFieldInvalid("Email"))
+		errs.Put("email", webutil.ErrField("Email", errors.New("is invalid")))
 	}
 
 	if f.Email != f.User.Email {
@@ -206,12 +206,12 @@ func (f EmailForm) Validate() error {
 		}
 
 		if u.Email == f.Email {
-			errs.Put("email", form.ErrFieldExists("Email"))
+			errs.Put("email", webutil.ErrFieldExists("Email"))
 		}
 	}
 
 	if f.VerifyPassword == "" {
-		errs.Put("email_verify_password", form.ErrFieldRequired("Password"))
+		errs.Put("email_verify_password", webutil.ErrFieldRequired("Password"))
 	}
 
 	if err := bcrypt.CompareHashAndPassword(f.User.Password, []byte(f.VerifyPassword)); err != nil {
@@ -227,10 +227,10 @@ func (PasswordForm) Fields() map[string]string { return map[string]string{} }
 // old, new, and current password fields, as well as if the current password
 // is valid based on what is in the database.
 func (f PasswordForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.OldPassword == "" {
-		errs.Put("old_password", form.ErrFieldRequired("Old password"))
+		errs.Put("old_password", webutil.ErrFieldRequired("Old password"))
 	}
 
 	if err := bcrypt.CompareHashAndPassword(f.User.Password, []byte(f.OldPassword)); err != nil {
@@ -238,20 +238,20 @@ func (f PasswordForm) Validate() error {
 	}
 
 	if f.NewPassword == "" {
-		errs.Put("new_password", form.ErrFieldRequired("New password"))
+		errs.Put("new_password", webutil.ErrFieldRequired("New password"))
 	}
 
 	if len(f.NewPassword) < 6 || len(f.NewPassword) > 60 {
-		errs.Put("new_password", form.ErrFieldInvalid("Password", "must be between 6 ans 60 characters in length"))
+		errs.Put("new_password", webutil.ErrField("Password", errors.New("must be between 6 ans 60 characters in length")))
 	}
 
 	if f.VerifyPassword == "" {
-		errs.Put("pass_verify_password", form.ErrFieldRequired("Password"))
+		errs.Put("pass_verify_password", webutil.ErrFieldRequired("Password"))
 	}
 
 	if f.NewPassword != f.VerifyPassword {
-		errs.Put("new_password", form.ErrFieldInvalid("Password", "does not match"))
-		errs.Put("pass_verify_password", form.ErrFieldInvalid("Password", "does not match"))
+		errs.Put("new_password", webutil.ErrField("Password", errors.New("does not match")))
+		errs.Put("pass_verify_password", webutil.ErrField("Password", errors.New("does not match")))
 	}
 	return errs.Err()
 }
@@ -263,18 +263,18 @@ func (f PasswordResetForm) Fields() map[string]string {
 }
 
 func (f PasswordResetForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Email == "" {
-		errs.Put("email", form.ErrFieldRequired("Email"))
+		errs.Put("email", webutil.ErrFieldRequired("Email"))
 	}
 
 	if len(f.Email) > 254 {
-		errs.Put("email", form.ErrFieldInvalid("Email", "must be less than 254 characters"))
+		errs.Put("email", webutil.ErrField("Email", errors.New("must be less than 254 characters")))
 	}
 
 	if !reEmail.Match([]byte(f.Email)) {
-		errs.Put("email", form.ErrFieldInvalid("Email", ""))
+		errs.Put("email", webutil.ErrField("Email", errors.New("is invalid")))
 	}
 	return errs.Err()
 }
@@ -282,23 +282,23 @@ func (f PasswordResetForm) Validate() error {
 func (f NewPasswordForm) Fields() map[string]string { return map[string]string{} }
 
 func (f NewPasswordForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Password == "" {
-		errs.Put("password", form.ErrFieldRequired("New password"))
+		errs.Put("password", webutil.ErrFieldRequired("New password"))
 	}
 
 	if len(f.Password) < 6 || len(f.Password) > 60 {
-		errs.Put("password", form.ErrFieldInvalid("Password", "must be between 6 ans 60 characters in length"))
+		errs.Put("password", webutil.ErrField("Password", errors.New("must be between 6 ans 60 characters in length")))
 	}
 
 	if f.VerifyPassword == "" {
-		errs.Put("verify_password", form.ErrFieldRequired("Password"))
+		errs.Put("verify_password", webutil.ErrFieldRequired("Password"))
 	}
 
 	if f.Password != f.VerifyPassword {
-		errs.Put("password", form.ErrFieldInvalid("Password", "does not match"))
-		errs.Put("verify_password", form.ErrFieldInvalid("Password", "does not match"))
+		errs.Put("password", webutil.ErrField("Password", errors.New("does not match")))
+		errs.Put("verify_password", webutil.ErrField("Password", errors.New("does not match")))
 	}
 	return errs.Err()
 }
@@ -306,10 +306,10 @@ func (f NewPasswordForm) Validate() error {
 func (f DeleteForm) Fields() map[string]string { return map[string]string{} }
 
 func (f DeleteForm) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if f.Password == "" {
-		errs.Put("delete_password", form.ErrFieldRequired("Password"))
+		errs.Put("delete_password", webutil.ErrFieldRequired("Password"))
 	}
 	return errs.Err()
 }

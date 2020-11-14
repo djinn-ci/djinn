@@ -8,12 +8,13 @@ import (
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/object"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/variable"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/go-redis/redis"
 
@@ -173,7 +174,7 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 		return nil, f, errors.New("failed to get user from request context")
 	}
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

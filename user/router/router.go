@@ -9,6 +9,8 @@ import (
 	"github.com/andrewpillar/djinn/user/handler"
 	"github.com/andrewpillar/djinn/web"
 
+	"github.com/andrewpillar/webutil"
+
 	"github.com/gorilla/mux"
 )
 
@@ -57,7 +59,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/user", func(w http.ResponseWriter, r *http.Request) {
 		u, _ := user.FromContext(r.Context())
-		web.JSON(w, u.JSON(web.BaseAddress(r)+"/"+prefix), http.StatusOK)
+		webutil.JSON(w, u.JSON(webutil.BaseAddress(r)+"/"+prefix), http.StatusOK)
 	})
 	auth.Use(r.middleware.Auth)
 }

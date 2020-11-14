@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/oauth2"
 	oauth2template "github.com/andrewpillar/djinn/oauth2/template"
 	"github.com/andrewpillar/djinn/template"
@@ -14,6 +13,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 )
@@ -81,7 +81,7 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating a new personal access token.
@@ -95,12 +95,12 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	csrfField := string(csrf.TemplateField(r))
-	f := web.FormFields(sess)
+	f := webutil.FormFields(sess)
 
 	section := &oauth2template.TokenForm{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: web.FormErrors(sess),
+			Errors: webutil.FormErrors(sess),
 			Fields: f,
 		},
 		Scopes: make(map[string]struct{}),
@@ -121,7 +121,7 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Store validates the form submitted in the given request for creating a
@@ -144,11 +144,11 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 		Tokens: tokens,
 	}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -198,14 +198,14 @@ func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get token from request context")
 	}
 
-	f := web.FormFields(sess)
+	f := webutil.FormFields(sess)
 
 	csrfField := string(csrf.TemplateField(r))
 
 	p := &oauth2template.TokenForm{
 		Form: template.Form{
 			CSRF:   csrfField,
-			Errors: web.FormErrors(sess),
+			Errors: webutil.FormErrors(sess),
 			Fields: f,
 		},
 		Token:  t,
@@ -213,7 +213,7 @@ func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Update validates the form submitted in the given request for updating token.
@@ -237,7 +237,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get token from request context")
 	}
 
-	if web.BasePath(r.URL.Path) == "regenerate" {
+	if webutil.BasePath(r.URL.Path) == "regenerate" {
 		if err := h.tokens.Reset(t.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Danger("Failed to update token"), "alert")
@@ -258,11 +258,11 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 		Token:  t,
 	}
 
-	if err := form.UnmarshalAndValidate(f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(f, r); err != nil {
 		cause := errors.Cause(err)
 
-		if ferrs, ok := cause.(form.Errors); ok {
-			web.FlashFormWithErrors(sess, f, ferrs)
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
 			h.RedirectBack(w, r)
 			return
 		}
@@ -299,7 +299,7 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	if web.BasePath(r.URL.Path) == "revoke" {
+	if webutil.BasePath(r.URL.Path) == "revoke" {
 		tokens := oauth2.NewTokenStore(h.DB, u)
 
 		tt, err := tokens.All(query.Where("app_id", "IS", query.Lit("NULL")))

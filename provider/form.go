@@ -1,6 +1,6 @@
 package provider
 
-import "github.com/andrewpillar/djinn/form"
+import "github.com/andrewpillar/webutil"
 
 // Form is the type that represents the input data for enabling/disabling a
 // repository on a Git hosting provider.
@@ -11,7 +11,7 @@ type RepoForm struct {
 	Href     string `schema:"href"`
 }
 
-var _ form.Form = (*RepoForm)(nil)
+var _ webutil.Form = (*RepoForm)(nil)
 
 // Fields implements the form.Form interface. This will always return an empty
 // map.

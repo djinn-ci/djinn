@@ -7,12 +7,12 @@ import (
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 // Namespace is the base handler that provides shared logic for the UI and API
@@ -119,7 +119,7 @@ func (h Namespace) StoreModel(r *http.Request) (*namespace.Namespace, namespace.
 
 	f.Namespaces = namespaces
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 
@@ -154,7 +154,7 @@ func (h Namespace) UpdateModel(r *http.Request) (*namespace.Namespace, namespace
 
 	f.Namespace = n
 
-	if err := form.UnmarshalAndValidate(&f, r); err != nil {
+	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

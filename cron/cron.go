@@ -14,12 +14,12 @@ import (
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -457,14 +457,14 @@ func (s *Schedule) Next() time.Time {
 
 // UnmarshalText takes the given byte slice, and attempts to map it to a known
 // Schedule. If it is a known Schedule, then that the current Schedule is
-// set to that, otherwise form.UnmarshalError is returned.
+// set to that, otherwise webutil.UnmarshalError is returned.
 func (s *Schedule) UnmarshalText(b []byte) error {
 	var ok bool
 
 	(*s), ok = schedules[string(b)]
 
 	if !ok {
-		return form.UnmarshalError{
+		return webutil.UnmarshalError{
 			Field: "schedule",
 			Err:   errors.New("unknown schedule: " + string(b)),
 		}

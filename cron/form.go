@@ -2,11 +2,11 @@ package cron
 
 import (
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/namespace"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 // Form is the type that represents input data for creating and editing a cron
@@ -21,7 +21,7 @@ type Form struct {
 	Manifest manifest.Manifest `schema:"manifest"`
 }
 
-var _ form.Form = (*Form)(nil)
+var _ webutil.Form = (*Form)(nil)
 
 // Fields returns a map of fields for the current Form. This map will contain
 // the Namespace, Name, Schedule, and Manifest fields of the current form.
@@ -45,7 +45,7 @@ func (f Form) Fields() map[string]string {
 // uniqueness check of that field. The present oft he Manifest field is then
 // checked, followed by a validation of that manifest.
 func (f Form) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if err := f.Resource.BindNamespace(f.Crons); err != nil {
 		return errors.Err(err)
@@ -66,7 +66,7 @@ func (f Form) Validate() error {
 	}
 
 	if f.Name == "" {
-		errs.Put("name", form.ErrFieldRequired("Name"))
+		errs.Put("name", webutil.ErrFieldRequired("Name"))
 	}
 
 	checkUnique := true
@@ -91,16 +91,16 @@ func (f Form) Validate() error {
 		}
 
 		if !c.IsZero() {
-			errs.Put("name", form.ErrFieldExists("Name"))
+			errs.Put("name", webutil.ErrFieldExists("Name"))
 		}
 	}
 
 	if f.Manifest.String() == "{}" {
-		errs.Put("manifest", form.ErrFieldRequired("Manifest"))
+		errs.Put("manifest", webutil.ErrFieldRequired("Manifest"))
 	}
 
 	if err := f.Manifest.Validate(); err != nil {
-		errs.Put("manifest", form.ErrFieldInvalid("Build manifest", err.Error()))
+		errs.Put("manifest", webutil.ErrField("Build manifest", err))
 	}
 	return errs.Err()
 }

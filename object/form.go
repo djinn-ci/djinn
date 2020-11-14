@@ -4,23 +4,23 @@ import (
 	"regexp"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 )
 
 // Form is the type that represents input data for uploading a new object.
 type Form struct {
 	namespace.Resource
-	form.File `schema:"-"`
+	*webutil.File
 
 	Objects *Store `schema:"-"`
 	Name    string `schema:"name"`
 }
 
 var (
-	_ form.Form = (*Form)(nil)
+	_ webutil.Form = (*Form)(nil)
 
 	rename = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
 )
@@ -39,18 +39,18 @@ func (f Form) Fields() map[string]string {
 // validity check for that Name (is only letters, numbers, dashes, and dots). A
 // uniqueness check on the Name is then done for the current Namespace.
 func (f *Form) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if err := f.Resource.BindNamespace(f.Objects); err != nil {
 		return errors.Err(err)
 	}
 
 	if f.Name == "" {
-		errs.Put("name", form.ErrFieldRequired("Name"))
+		errs.Put("name", webutil.ErrFieldRequired("Name"))
 	}
 
 	if !rename.Match([]byte(f.Name)) {
-		errs.Put("name", form.ErrFieldInvalid("Name", "can only contain letters, numbers, dashes, and dots"))
+		errs.Put("name", webutil.ErrField("Name", errors.New("can only contain letters, numbers, dashes, and dots")))
 	}
 
 	opts := []query.Option{
@@ -68,21 +68,16 @@ func (f *Form) Validate() error {
 	}
 
 	if !o.IsZero() {
-		errs.Put("name", form.ErrFieldExists("Name"))
+		errs.Put("name", webutil.ErrFieldExists("Name"))
 	}
 
 	if err := f.File.Validate(); err != nil {
-		ferrs, ok := err.(form.Errors)
+		ferrs, ok := err.(*webutil.Errors)
 
 		if !ok {
 			return errors.Err(err)
 		}
-
-		for k, v := range ferrs {
-			for _, err := range v {
-				errs.Put(k, errors.New(err))
-			}
-		}
+		errs.Merge(ferrs)
 	}
 	return errs.Err()
 }

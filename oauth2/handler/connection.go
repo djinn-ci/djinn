@@ -14,6 +14,7 @@ import (
 	"github.com/andrewpillar/djinn/web"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -131,7 +132,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Show serves the HTML response detailing an individual connected app.
@@ -172,7 +173,7 @@ func (h Connection) Show(w http.ResponseWriter, r *http.Request) {
 		Token: t,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
-	web.HTML(w, template.Render(d), http.StatusOK)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Destroy will delete the connection from the user's account. This will delete

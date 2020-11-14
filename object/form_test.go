@@ -15,9 +15,10 @@ import (
 	"time"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/DATA-DOG/go-sqlmock"
 
@@ -167,23 +168,20 @@ func Test_FormValidate(t *testing.T) {
 
 		r, w := spoofFile(t)
 
-		test.form.File = form.File{
-			Writer:  w,
-			Request: r,
-		}
+		test.form.File = webutil.NewFile("file", 0, w, r)
 
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {
 				cause := errors.Cause(err)
 
-				ferrs, ok := cause.(form.Errors)
+				ferrs, ok := cause.(*webutil.Errors)
 
 				if !ok {
 					t.Fatalf("test[%d] - expected error to be form.Errors, is was '%s'\n", i, cause)
 				}
 
 				for _, err := range test.errs {
-					if _, ok := ferrs[err]; !ok {
+					if _, ok := (*ferrs)[err]; !ok {
 						t.Errorf("test[%d] - expected field '%s' to be in form.Errors\n", i, err)
 					}
 				}

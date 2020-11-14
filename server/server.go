@@ -9,10 +9,11 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/log"
 	"github.com/andrewpillar/djinn/template"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
 )
@@ -101,7 +102,7 @@ func (s *UI) Init() {
 		panic("initializing ui server with nil router")
 	}
 
-	gob.Register(form.NewErrors())
+	gob.Register(webutil.NewErrors())
 	gob.Register(template.Alert{})
 	gob.Register(make(map[string]string))
 }

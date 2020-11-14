@@ -2,10 +2,10 @@ package key
 
 import (
 	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/form"
 	"github.com/andrewpillar/djinn/namespace"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -21,7 +21,7 @@ type Form struct {
 	Config     string `schema:"config" json:"config"`
 }
 
-var _ form.Form = (*Form)(nil)
+var _ webutil.Form = (*Form)(nil)
 
 // Fields returns a map containing the namespace, name, key, and config fields
 // from the original Form.
@@ -38,14 +38,14 @@ func (f Form) Fields() map[string]string {
 // unique to the namespace it is being added to or, to the user adding the key.
 // It then checks to see if the key itself is a valid SSH private key.
 func (f Form) Validate() error {
-	errs := form.NewErrors()
+	errs := webutil.NewErrors()
 
 	if err := f.Resource.BindNamespace(f.Keys); err != nil {
 		return errors.Err(err)
 	}
 
 	if f.Name == "" && f.Key == nil {
-		errs.Put("name", form.ErrFieldRequired("Name"))
+		errs.Put("name", webutil.ErrFieldRequired("Name"))
 	}
 
 	checkUnique := true
@@ -72,17 +72,17 @@ func (f Form) Validate() error {
 		}
 
 		if !k.IsZero() {
-			errs.Put("name", form.ErrFieldExists("Name"))
+			errs.Put("name", webutil.ErrFieldExists("Name"))
 		}
 	}
 
 	if f.PrivateKey == "" && f.Key == nil {
-		errs.Put("key", form.ErrFieldRequired("Key"))
+		errs.Put("key", webutil.ErrFieldRequired("Key"))
 	}
 
 	if f.Key == nil {
 		if _, err := ssh.ParsePrivateKey([]byte(f.PrivateKey)); err != nil {
-			errs.Put("key", form.ErrFieldInvalid("Key", err.Error()))
+			errs.Put("key", webutil.ErrField("Key", err))
 		}
 	}
 	return errs.Err()

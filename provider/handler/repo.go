@@ -40,6 +40,7 @@ var cacheKey = "repos-%s-%v-%v"
 
 func NewRepo(h web.Handler, redis *redis.Client, block *crypto.Block, providers *provider.Registry) Repo {
 	return Repo{
+		Handler:   h,
 		redis:     redis,
 		block:     block,
 		providers: providers,

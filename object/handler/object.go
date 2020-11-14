@@ -36,6 +36,7 @@ func New(h web.Handler, hasher *crypto.Hasher, store block.Store, limit int64) O
 	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
 	return Object{
+		Handler: h,
 		loaders: loaders,
 		hasher:  hasher,
 		store:   store,

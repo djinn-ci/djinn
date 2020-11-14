@@ -30,6 +30,7 @@ type Provider struct {
 
 func New(h web.Handler, block *crypto.Block, providers *provider.Registry) Provider {
 	return Provider{
+		Handler:   h,
 		block:     block,
 		providers: providers,
 	}

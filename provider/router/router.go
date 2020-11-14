@@ -78,8 +78,9 @@ func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
 	providers := cfg.Providers()
 
 	return &Router{
-		provider: handler.New(h, block, providers),
-		repo:     handler.NewRepo(h, cfg.Redis(), block, providers),
+		middleware: mw,
+		provider:   handler.New(h, block, providers),
+		repo:       handler.NewRepo(h, cfg.Redis(), block, providers),
 	}
 }
 

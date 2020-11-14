@@ -75,7 +75,7 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 	}
 
 	bb, err := build.NewStore(h.DB).All(
-		query.Where("namespace_id", "IN", query.List(database.MapKey("id", mm)...)),
+		query.Where("namespace_id", "IN", database.List(database.MapKey("id", mm)...)),
 		query.OrderDesc("created_at"),
 	)
 

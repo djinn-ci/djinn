@@ -57,6 +57,8 @@ github.com/andrewpillar/query v0.0.0-20201104142708-71287600c790 h1:jSUVNADtBHIi
 github.com/andrewpillar/query v0.0.0-20201104142708-71287600c790/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
 github.com/andrewpillar/query v0.0.0-20201109182332-81f25b5b309b h1:H7q9olKhi/1yfkLL5QfbdZcY9ZIVNTgNBP1w5aUksu0=
 github.com/andrewpillar/query v0.0.0-20201109182332-81f25b5b309b/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
+github.com/andrewpillar/query v0.0.0-20201114150338-b673d3a589b8 h1:7/nql7LoQrIL1TplQcn5FNJwlf71vBQvFxwXxPsGlTQ=
+github.com/andrewpillar/query v0.0.0-20201114150338-b673d3a589b8/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
 github.com/andrewpillar/webutil v0.0.0-20201112225125-acf161db83db h1:3Utq42DZGYlmcZCPXDzjUh/v7Lt/5NajomiLo8fi5rg=
 github.com/andrewpillar/webutil v0.0.0-20201112225125-acf161db83db/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=

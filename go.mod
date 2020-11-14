@@ -9,7 +9,7 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.4.1
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/andrewpillar/query v0.0.0-20201109182332-81f25b5b309b
+	github.com/andrewpillar/query v0.0.0-20201114150338-b673d3a589b8
 	github.com/andrewpillar/webutil v0.0.0-20201112225125-acf161db83db
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1

@@ -106,22 +106,16 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	data := bytes.NewBuffer(job.Data)
 
-	var (
-		host string
-		b0   build.Build
-	)
+	var payload build.Payload
 
-	dec := gob.NewDecoder(data)
-
-	if err := dec.Decode(&host); err != nil {
+	if err := gob.NewDecoder(data).Decode(&payload); err != nil {
 		return errors.Err(err)
 	}
 
-	if err := dec.Decode(&b0); err != nil {
-		return errors.Err(err)
+	b := &build.Build{
+		ID:   payload.BuildID,
+		User: &payload.User,
 	}
-
-	b := &b0
 
 	t, err := build.NewTriggerStore(w.DB, b).Get()
 

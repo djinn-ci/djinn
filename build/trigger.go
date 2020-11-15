@@ -31,7 +31,7 @@ type Trigger struct {
 	Data       triggerData   `db:"data"`
 	CreatedAt  time.Time     `db:"created_at"`
 
-	Build *Build `db:"-"`
+	Build *Build `db:"-" gob:"-"`
 }
 
 // TriggerStore is the type for creating and modifying Trigger models in the

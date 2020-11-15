@@ -59,6 +59,15 @@ type Build struct {
 	Stages    []*Stage             `db:"-" json:"-"`
 }
 
+// Payload is how the build is put onto the queue. This struct will be encoded
+// via encoding/gob, and submitted to Redis.
+type Payload struct {
+	Host        string        // Host is the server hostname the build was submitted to
+	BuildID     int64         // BuildID is the ID of the build
+	NamespaceID sql.NullInt64 // NamespaceID the ID of the build's namespace
+	User        user.User     // User is the user who submitted the build
+}
+
 // Store is the type for creating and modifying Build models in the database.
 // The Store type can have an underlying hasher.Hasher that is used for
 // generating artifact hashes.
@@ -615,7 +624,7 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 		oo, err := object.NewStore(s.DB).All(
 			query.Where("name", "IN", query.List(names...)),
 			query.Where("user_id", "=", query.Arg(b.UserID)),
-			query.Where("namespace_id", "IS", query.Arg("NULL")),
+			query.Where("namespace_id", "IS", query.Lit("NULL")),
 			database.OrWhere(b.Namespace, "namespace_id"),
 		)
 
@@ -731,13 +740,14 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 
 	var buf bytes.Buffer
 
-	enc := gob.NewEncoder(&buf)
-
-	if err := enc.Encode(host); err != nil {
-		return errors.Err(err)
+	payload := Payload{
+		Host:        host,
+		BuildID:     b.ID,
+		NamespaceID: b.NamespaceID,
+		User:        *b.User,
 	}
 
-	if err := enc.Encode(b); err != nil {
+	if err := gob.NewEncoder(&buf).Encode(payload); err != nil {
 		return errors.Err(err)
 	}
 

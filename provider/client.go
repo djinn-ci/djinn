@@ -104,6 +104,7 @@ type User struct {
 var (
 	ErrInvalidSignature = errors.New("invalid signature")
 	ErrStateMismatch    = errors.New("state mismatch")
+	ErrLocalhost        = errors.New("cannot use localhost for webhook URL")
 
 	StatusDescriptions = map[runner.Status]string{
 		runner.Queued:             "Build is queued.",

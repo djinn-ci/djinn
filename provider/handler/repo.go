@@ -313,6 +313,13 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := p.ToggleRepo(h.block, h.providers, repo); err != nil {
+		cause := errors.Cause(err)
+
+		if cause == provider.ErrLocalhost {
+			sess.AddFlash(template.Danger("Failed to enabled repository hooks: " + cause.Error()), "alert")
+			h.RedirectBack(w, r)
+			return
+		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
 		h.RedirectBack(w, r)

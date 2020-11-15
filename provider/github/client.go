@@ -288,6 +288,10 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 		if resp.StatusCode != http.StatusCreated {
 			err := decodeError(resp.Body)
 
+			if resp.StatusCode == http.StatusUnprocessableEntity {
+				return provider.ErrLocalhost
+			}
+
 			if err.Has("Hook already exists on this repository") {
 				hookId, err := g.findHook(tok, r.Name, g.Host+"/hook/github")
 
@@ -302,7 +306,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 				r.Enabled = r.HookID.Valid
 				return nil
 			}
-			return errors.Err(decodeError(resp.Body))
+			return errors.Err(err)
 		}
 
 		hook := struct {

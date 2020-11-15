@@ -62,10 +62,8 @@ type Build struct {
 // Payload is how the build is put onto the queue. This struct will be encoded
 // via encoding/gob, and submitted to Redis.
 type Payload struct {
-	Host        string        // Host is the server hostname the build was submitted to
-	BuildID     int64         // BuildID is the ID of the build
-	NamespaceID sql.NullInt64 // NamespaceID the ID of the build's namespace
-	User        user.User     // User is the user who submitted the build
+	Host        string // Host is the server hostname the build was submitted to
+	BuildID     int64  // BuildID is the ID of the build
 }
 
 // Store is the type for creating and modifying Build models in the database.
@@ -741,10 +739,8 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 	var buf bytes.Buffer
 
 	payload := Payload{
-		Host:        host,
-		BuildID:     b.ID,
-		NamespaceID: b.NamespaceID,
-		User:        *b.User,
+		Host:    host,
+		BuildID: b.ID,
 	}
 
 	if err := gob.NewEncoder(&buf).Encode(payload); err != nil {
@@ -752,7 +748,8 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 	}
 
 	_, err = prd.PerformCtx(ctx, curlyq.Job{
-		Data: buf.Bytes(),
+		Data:    buf.Bytes(),
+		Attempt: 3,
 	})
 	return errors.Err(err)
 }

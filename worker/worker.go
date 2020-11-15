@@ -112,9 +112,16 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	b := &build.Build{
-		ID:   payload.BuildID,
-		User: &payload.User,
+	b, err := build.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(payload.BuildID)))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	b.User, err = user.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.UserID)))
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
 	t, err := build.NewTriggerStore(w.DB, b).Get()
@@ -141,7 +148,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 			w.Providers,
 			r,
 			runner.Running,
-			host+b.Endpoint(),
+			payload.Host+b.Endpoint(),
 			t.Data["sha"],
 		)
 
@@ -188,7 +195,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 			w.Providers,
 			r,
 			status,
-			host+b.Endpoint(),
+			payload.Host+b.Endpoint(),
 			t.Data["sha"],
 		)
 
@@ -266,7 +273,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		buf.WriteString(subj + "\n\n")
 	}
 
-	fmt.Fprintf(&buf, "Build: %s/%s\n\n", host, b.Endpoint())
+	fmt.Fprintf(&buf, "Build: %s/%s\n\n", payload.Host, b.Endpoint())
 	buf.WriteString("-----\n")
 	buf.WriteString(t.String())
 	buf.WriteString("-----\n")
@@ -286,7 +293,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 // Run begins the worker for handling builds.
 func (w *Worker) Run(ctx context.Context) error {
-	gob.Register(build.Build{})
+	gob.Register(build.Payload{})
 
 	consumer := curlyq.NewConsumer(&curlyq.ConsumerOpts{
 		Queue:                w.Queue,

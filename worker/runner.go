@@ -173,7 +173,7 @@ func (r *Runner) Init() error {
 	for _, j := range jj {
 		stage := stages[j.StageID]
 
-		r.jobs[stage.Name+stage.Name] = j
+		r.jobs[stage.Name+j.Name] = j
 		r.bufs[j.ID] = &bytes.Buffer{}
 
 		stage.Add(j.Job(io.MultiWriter(r.buf, r.bufs[j.ID])))

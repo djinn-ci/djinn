@@ -127,6 +127,9 @@ func DecodeWorker(r io.Reader) (Worker, error) {
 
 	w.log.Info.Println("logging initiliazed, writing to", cfg.Log.File)
 
+	w.queue = cfg.Queue
+	w.parallelism = cfg.Parallelism
+
 	w.timeout, err = time.ParseDuration(cfg.Timeout)
 
 	if err != nil {

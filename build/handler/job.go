@@ -27,6 +27,7 @@ func NewJob(h web.Handler) Job {
 	loaders := database.NewLoaders()
 	loaders.Put("build_stage", build.NewStageStore(h.DB))
 	loaders.Put("build_artifact", build.NewArtifactStore(h.DB))
+	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
 	return Job{
 		Handler: h,

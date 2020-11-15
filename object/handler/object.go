@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/andrewpillar/djinn/block"
@@ -114,6 +115,14 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		return nil, f, errors.Err(err)
 	}
 
+	defer func() {
+		// File was written to disk because it was too big for memory, so make
+		// sure it is removed to free up space.
+		if v, ok := f.File.File.(*os.File); ok {
+			os.RemoveAll(v.Name())
+		}
+	}()
+
 	hash, err := h.hasher.HashNow()
 
 	if err != nil {
@@ -157,5 +166,5 @@ func (h Object) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get object from context")
 	}
-	return errors.Err(object.NewStore(h.DB).Delete(o.ID, o.Hash))
+	return errors.Err(object.NewStoreWithBlockStore(h.DB, h.store).Delete(o.ID, o.Hash))
 }

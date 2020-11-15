@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/andrewpillar/djinn/block"
@@ -111,6 +112,14 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 	if err := f.Validate(); err != nil {
 		return nil, f, errors.Err(err)
 	}
+
+	defer func() {
+		// File was written to disk because it was too big for memory, so make
+		// sure it is removed to free up space.
+		if v, ok := f.File.File.(*os.File); ok {
+			os.RemoveAll(v.Name())
+		}
+	}()
 
 	hash, err := h.hasher.HashNow()
 

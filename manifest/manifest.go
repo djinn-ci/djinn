@@ -166,3 +166,56 @@ func (m Manifest) Value() (driver.Value, error) {
 	yaml.NewEncoder(&buf).Encode(&m)
 	return driver.Value(buf.String()), nil
 }
+
+func (s Source) MarshalYAML() (interface{}, error) {
+	parts := strings.Split(s.URL, "/")
+
+	ref := "master"
+	dir := parts[len(parts)-1]
+
+	if s.Ref != "" {
+		ref = s.Ref
+	}
+
+	if s.Dir != "" {
+		dir = s.Dir
+	}
+	return s.URL + " " + ref + " => " + dir, nil
+}
+
+// UnmarshalYAML unmarshals the YAML for a source URL. Source URLs can be in
+// the format of:
+//
+//   [url] [ref] => [dir]
+//
+// This will correctly unmarshal the given string, and parse it accordingly. The ref, and dir
+// parts of the string are optional. If not specified the ref will be master, and the dir will be
+// the base of the url.
+func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var str string
+
+	if err := unmarshal(&str); err != nil {
+		return err
+	}
+
+	s.Ref = "master"
+
+	parts := strings.Split(str, "=>")
+
+	if len(parts) > 1 {
+		s.Dir = parts[1]
+	}
+
+	parts = strings.Split(strings.TrimPrefix(strings.TrimSuffix(parts[0], " "), " "), " ")
+
+	if len(parts) > 1 {
+		s.Ref = parts[1]
+	}
+
+	s.URL = parts[0]
+
+	urlParts := strings.Split(s.URL, "/")
+
+	s.Dir = urlParts[len(urlParts)-1]
+	return nil
+}

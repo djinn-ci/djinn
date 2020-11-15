@@ -28,6 +28,10 @@ import (
 	"github.com/rbcervilla/redisstore"
 )
 
+type serverLogger struct {
+	log *log.Logger
+}
+
 // serverCfg is the representation of a TOML configuration file.
 type serverCfg struct {
 	Host    string
@@ -93,6 +97,8 @@ type Server struct {
 
 	Crypto Crypto
 }
+
+var _ curlyq.Logger = (*serverLogger)(nil)
 
 func decodeServer(r io.Reader) (serverCfg, error) {
 	var cfg serverCfg
@@ -210,6 +216,7 @@ func DecodeServer(r io.Reader) (Server, error) {
 		s.producers[d.Type] = curlyq.NewProducer(&curlyq.ProducerOpts{
 			Client: s.redis,
 			Queue:  d.Queue,
+			Logger: serverLogger{log: s.log},
 		})
 	}
 
@@ -327,6 +334,11 @@ func (cfg serverCfg) validate() error {
 	}
 	return nil
 }
+
+func (l serverLogger) Debug(v ...interface{}) { l.log.Debug.Println(v...) }
+func (l serverLogger) Info(v ...interface{})  { l.log.Info.Println(v...) }
+func (l serverLogger) Warn(v ...interface{})  { l.log.Warn.Println(v...) }
+func (l serverLogger) Error(v ...interface{}) { l.log.Error.Println(v...) }
 
 func (s Server) Pidfile() *os.File { return s.pidfile }
 

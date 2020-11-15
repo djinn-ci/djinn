@@ -32,8 +32,6 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	"github.com/lib/pq"
-
 	"github.com/mcmathja/curlyq"
 )
 
@@ -48,8 +46,8 @@ type Build struct {
 	Output      sql.NullString    `db:"output"`
 	Secret      sql.NullString    `db:"secret"`
 	CreatedAt   time.Time         `db:"created_at"`
-	StartedAt   pq.NullTime       `db:"started_at"`
-	FinishedAt  pq.NullTime       `db:"finished_at"`
+	StartedAt   sql.NullTime      `db:"started_at"`
+	FinishedAt  sql.NullTime      `db:"finished_at"`
 
 	User      *user.User           `db:"-" json:"-"`
 	Namespace *namespace.Namespace `db:"-" json:"-"`

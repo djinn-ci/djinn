@@ -10,6 +10,8 @@ import (
 
 	"github.com/andrewpillar/query"
 
+	_ "github.com/jackc/pgx/v4/stdlib"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -114,7 +116,7 @@ var ErrNotFound = errors.New("not found")
 // the given dsn. Once the connection is open a subsequent Ping is made to the
 // database to check the connectivity.
 func Connect(dsn string) (*sqlx.DB, error) {
-	db, err := sqlx.Open("postgres", dsn)
+	db, err := sqlx.Open("pgx", dsn)
 
 	if err != nil {
 		return nil, errors.Err(err)

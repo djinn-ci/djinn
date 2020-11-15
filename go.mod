@@ -20,12 +20,11 @@ require (
 	github.com/golang/protobuf v1.4.3 // indirect
 	github.com/gorilla/csrf v1.6.2
 	github.com/gorilla/mux v1.7.4
-	github.com/gorilla/schema v1.2.0
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.1
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4
+	github.com/jackc/pgx/v4 v4.9.2
 	github.com/jmoiron/sqlx v1.2.0
-	github.com/lib/pq v1.3.0
 	github.com/mcmathja/curlyq v0.4.0
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect

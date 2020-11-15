@@ -23,8 +23,6 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/lib/pq"
 )
 
 // Object is the type that represents an object that has been uploaded by a user.
@@ -39,7 +37,7 @@ type Object struct {
 	MD5         []byte        `db:"md5"`
 	SHA256      []byte        `db:"sha256"`
 	CreatedAt   time.Time     `db:"created_at"`
-	DeletedAt   pq.NullTime   `db:"deleted_at"`
+	DeletedAt   sql.NullTime  `db:"deleted_at"`
 
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`

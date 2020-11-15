@@ -11,8 +11,6 @@ import (
 
 	"github.com/andrewpillar/query"
 
-	"github.com/lib/pq"
-
 	"github.com/jmoiron/sqlx"
 )
 
@@ -24,8 +22,8 @@ type Stage struct {
 	CanFail    bool          `db:"can_fail"`
 	Status     runner.Status `db:"status"`
 	CreatedAt  time.Time     `db:"created_at"`
-	StartedAt  pq.NullTime   `db:"started_at"`
-	FinishedAt pq.NullTime   `db:"finished_at"`
+	StartedAt  sql.NullTime  `db:"started_at"`
+	FinishedAt sql.NullTime  `db:"finished_at"`
 
 	Build *Build `db:"-"`
 	Jobs  []*Job `db:"-"`

@@ -5,11 +5,16 @@ driver:
 sources:
 - https://github.com/andrewpillar/djinn.git => djinn
 env:
+- PGPASSWORD=secret
 - LDFLAGS=-s -w
 stages:
+- setup
 - integration
 - make
 jobs:
+- stage: setup
+  commands:
+  - psql -U djinn -h localhost -d djinn -f djinn/schema.sql
 - stage: integration
   commands:
   - cd djinn

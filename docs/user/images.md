@@ -31,7 +31,7 @@ image creation then it will be created on the fly.
 ### Preparing a QEMU image
 
 First create create a new image file using the `qemu-img` command with the
-format of `qcow2. We recommend keeping the size of this image smaller than 10GB.
+format of `qcow2`. We recommend keeping the size of this image smaller than 20GB.
 
     $ qemu-img create -f qcow2 my-image.qcow2 10G
 

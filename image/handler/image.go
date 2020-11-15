@@ -153,5 +153,5 @@ func (h Image) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get image from context")
 	}
-	return errors.Err(image.NewStore(h.DB).Delete(i.ID, i.Driver, i.Hash))
+	return errors.Err(image.NewStoreWithBlockStore(h.DB, h.store).Delete(i.ID, i.Driver, i.Hash))
 }

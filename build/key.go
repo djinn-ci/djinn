@@ -178,6 +178,7 @@ func (s *KeyStore) Copy(kk ...*key.Key) ([]*Key, error) {
 			Int64: k.ID,
 			Valid: true,
 		}
+		bk.Name = k.Name
 		bk.Key = k.Key
 		bk.Config = k.Config
 		bk.Location = "/root/.ssh/" + k.Name

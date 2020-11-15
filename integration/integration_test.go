@@ -244,6 +244,10 @@ func newClient(server *httptest.Server) client {
 }
 
 func TestMain(m *testing.M) {
+	if err := os.MkdirAll(filepath.Join(os.TempDir(), "qemu")); err != nil {
+		fatalf("failed to create qemu tempdir: %s\n", err)
+	}
+
 	args := []string{
 		"djinn-server",
 		"-config",

@@ -19,24 +19,19 @@ func main() {
 		return
 	}
 
-	worker, cfg, close_, err := workerutil.Init(config, driver)
+	w, _, close_, err := workerutil.Init(config, driver)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
 		os.Exit(1)
 	}
 
-	log := cfg.Log()
-
 	defer close_()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if err := worker.Run(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
-		os.Exit(1)
-	}
+	workerutil.Start(ctx, w)
 
 	c := make(chan os.Signal, 1)
 
@@ -45,5 +40,5 @@ func main() {
 	sig := <-c
 
 	cancel()
-	log.Info.Println("signal:", sig, "received, shutting down")
+	w.Log.Info.Println("signal:", sig, "received, shutting down")
 }

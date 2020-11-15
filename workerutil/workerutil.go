@@ -1,6 +1,7 @@
 package workerutil
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -95,4 +96,12 @@ func Init(workerPath, driverPath string) (*worker.Worker, config.Worker, func(),
 		Placer:      cfg.Objects(),
 		Collector:   cfg.Artifacts(),
 	}, cfg, close_, nil
+}
+
+func Start(ctx context.Context, w *worker.Worker) {
+	go func() {
+		if err := w.Run(ctx); err != nil {
+			w.Log.Error.Println(errors.Cause(err))
+		}
+	}()
 }

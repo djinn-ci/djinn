@@ -1,3 +1,4 @@
+// Invoked via "go run main.go" from make.sh.
 package main
 
 import (

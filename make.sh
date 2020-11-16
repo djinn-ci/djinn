@@ -2,8 +2,10 @@
 
 set -e
 
+module="$(head -1 go.mod | awk '{ print $2 }')"
+
 LIBS="netgo osusergo"
-BUILD="-X=version.Ref=$(git rev-parse HEAD)"
+BUILD="$(go run version.go $module)"
 
 if [ -z "$LDFLAGS" ]; then
 	LDFLAGS="$BUILD"

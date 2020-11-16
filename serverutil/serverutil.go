@@ -12,7 +12,10 @@ import (
 	"github.com/andrewpillar/djinn/oauth2"
 	"github.com/andrewpillar/djinn/server"
 	"github.com/andrewpillar/djinn/user"
+	"github.com/andrewpillar/djinn/version"
 	"github.com/andrewpillar/djinn/web"
+
+	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/securecookie"
@@ -143,6 +146,21 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 		}
 		web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
 	})
+
+	srv.Router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			body:= map[string]string{
+				"version": version.Tag,
+				"ref": version.Ref,
+				"os": version.Os,
+				"arch": version.Arch,
+			}
+
+			webutil.JSON(w, body, http.StatusOK)
+			return
+		}
+		webutil.Text(w, fmt.Sprintf("%s %s %s/%s", version.Tag, version.Ref, version.Os, version.Arch), http.StatusOK)
+	}).Methods("GET")
 
 	h := web.Handler{
 		DB:           db,

@@ -50,7 +50,7 @@ func main() {
 	fs.Parse(os.Args[1:])
 
 	if showversion {
-		fmt.Printf("%s %s %s\n", os.Args[0], version.Tag, version.Ref)
+		fmt.Printf("%s %s %s %s/%s\n", os.Args[0], version.Tag, version.Ref, version.Os, version.Arch)
 		return
 	}
 

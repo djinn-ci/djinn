@@ -76,7 +76,7 @@ func Test_Object(t *testing.T) {
 	for i, req := range reqs {
 		resp := client.do(t, req)
 
-		if i == len(reqs) - 1 {
+		if i == len(reqs)-1 {
 			if err := json.NewDecoder(resp.Body).Decode(&o0); err != nil {
 				t.Fatal(err)
 			}

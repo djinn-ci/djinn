@@ -316,7 +316,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		cause := errors.Cause(err)
 
 		if cause == provider.ErrLocalhost {
-			sess.AddFlash(template.Danger("Failed to enabled repository hooks: " + cause.Error()), "alert")
+			sess.AddFlash(template.Danger("Failed to enabled repository hooks: "+cause.Error()), "alert")
 			h.RedirectBack(w, r)
 			return
 		}

@@ -60,8 +60,8 @@ type Build struct {
 // Payload is how the build is put onto the queue. This struct will be encoded
 // via encoding/gob, and submitted to Redis.
 type Payload struct {
-	Host        string // Host is the server hostname the build was submitted to
-	BuildID     int64  // BuildID is the ID of the build
+	Host    string // Host is the server hostname the build was submitted to
+	BuildID int64  // BuildID is the ID of the build
 }
 
 // Store is the type for creating and modifying Build models in the database.

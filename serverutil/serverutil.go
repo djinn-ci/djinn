@@ -195,7 +195,7 @@ func RegisterRoutesWithGates(cfg config.Server, api, ui bool, srv *server.Server
 	if ui {
 		uisrv := server.UI{
 			Server: srv,
-			CSRF:   csrf.Protect(
+			CSRF: csrf.Protect(
 				cfg.Crypto.Auth,
 				csrf.RequestHeader("X-CSRF-Token"),
 				csrf.FieldName("csrf_token"),

@@ -235,7 +235,7 @@ func (r *Runner) DriverBuffer() *bytes.Buffer {
 // status of the runner upon completion, along with any errors that may occur.
 // If an underyling error does occur then the returned status will always be
 // runner.Failed.
-func (r *Runner) Run(ctx context.Context, d *build.Driver) (runner.Status, error) {
+func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner.Status, error) {
 	if !r.initialized {
 		return runner.Failed, errors.New("runner not initialized")
 	}
@@ -250,10 +250,13 @@ func (r *Runner) Run(ctx context.Context, d *build.Driver) (runner.Status, error
 		fmt.Fprintf(r.buf, "killing build...\n")
 
 		if err := builds.Finished(r.build.ID, r.buf.String(), runner.Killed); err != nil {
+			r.log.Error.Println(jobId, "failed to mark build as finished", err)
 			return runner.Killed, errors.Err(err)
 		}
 
 		err := r.updateJobs(runner.Killed)
+
+		r.log.Error.Println(jobId, "failed to update build jobs", err)
 
 		return runner.Killed, errors.Err(err)
 	}
@@ -300,13 +303,20 @@ func (r *Runner) Run(ctx context.Context, d *build.Driver) (runner.Status, error
 	})
 
 	if err := builds.Started(r.build.ID); err != nil {
+		r.log.Error.Println(jobId, "failed to mark build as started", err)
 		return runner.Failed, errors.Err(err)
 	}
 
 	r.runner.Run(ctx, driver)
 
 	if err := builds.Finished(r.build.ID, r.buf.String(), r.runner.Status); err != nil {
+		r.log.Error.Println(jobId, "failed to mark build as finished", err)
 		return r.runner.Status, errors.Err(err)
 	}
-	return r.runner.Status, errors.Err(r.updateJobs(r.runner.Status))
+
+	if err := r.updateJobs(r.runner.Status); err != nil {
+		r.log.Error.Println(jobId, "failed to update build jobs", err)
+		return r.runner.Status, errors.Err(err)
+	}
+	return r.runner.Status, nil
 }

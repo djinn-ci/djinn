@@ -165,15 +165,15 @@ func (s *Server) Serve() error {
 func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
-			if err := recover(); err != nil {
+			if v := recover(); v != nil {
 				errh := web.HTMLError
 
 				if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 					errh = web.JSONError
 				}
 
-				if e, ok := err.(error); ok {
-					s.Log.Error.Println(r.Method, r.URL, e.Error())
+				if err, ok := v.(error); ok {
+					s.Log.Error.Println(r.Method, r.URL, err)
 				}
 
 				s.Log.Error.Println(r.Method, r.URL, string(debug.Stack()))

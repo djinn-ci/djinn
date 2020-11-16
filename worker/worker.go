@@ -8,6 +8,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"net/smtp"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -98,6 +99,15 @@ func (l workerLogger) Warn(v ...interface{})  { l.log.Warn.Println(v...) }
 func (l workerLogger) Error(v ...interface{}) { l.log.Error.Println(v...) }
 
 func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
+	defer func() {
+		if v := recover(); v != nil {
+			if err, ok := v.(error); ok {
+				w.Log.Error.Println(err)
+			}
+			w.Log.Error.Println(string(debug.Stack()))
+		}
+	}()
+
 	if err := ctx.Err(); err != nil {
 		return errors.Err(err)
 	}
@@ -183,7 +193,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	status, err := run.Run(ctx, d)
+	status, err := run.Run(ctx, job.ID, d)
 
 	if err != nil {
 		return errors.Err(err)

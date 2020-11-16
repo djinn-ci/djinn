@@ -16,9 +16,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/andrewpillar/djinn/block"
 	"github.com/andrewpillar/djinn/oauth2"
 	"github.com/andrewpillar/djinn/serverutil"
 	"github.com/andrewpillar/djinn/user"
+
+	"github.com/jmoiron/sqlx"
 )
 
 type client struct {
@@ -47,6 +50,10 @@ var (
 	keyRWD       *oauth2.Token // key:read,write,delete
 
 	server *httptest.Server
+	db     *sqlx.DB
+
+	imageStore  block.Store
+	objectStore block.Store
 )
 
 func checkResponseJSONLen(l int) func(*testing.T, string, *http.Request, *http.Response) {
@@ -244,7 +251,7 @@ func newClient(server *httptest.Server) client {
 }
 
 func TestMain(m *testing.M) {
-	if err := os.MkdirAll(filepath.Join(os.TempDir(), "qemu")); err != nil {
+	if err := os.MkdirAll(filepath.Join(os.TempDir(), "qemu"), os.FileMode(0755)); err != nil {
 		fatalf("failed to create qemu tempdir: %s\n", err)
 	}
 
@@ -264,7 +271,10 @@ func TestMain(m *testing.M) {
 
 	defer close_()
 
-	db := cfg.DB()
+	db = cfg.DB()
+
+	imageStore = cfg.Images().Store
+	objectStore = cfg.Objects().Store
 
 	users := user.NewStore(db)
 

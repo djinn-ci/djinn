@@ -3,8 +3,15 @@
 package integration
 
 import (
+	"encoding/json"
 	"net/http"
+	"net/url"
+	"path/filepath"
 	"testing"
+
+	"github.com/andrewpillar/djinn/image"
+
+	"github.com/andrewpillar/query"
 )
 
 func Test_Image(t *testing.T) {
@@ -62,8 +69,31 @@ func Test_Image(t *testing.T) {
 		},
 	}
 
-	for _, req := range reqs {
-		client.do(t, req)
+	var i0 struct {
+		ID  int64
+		URL string
+	}
+
+	for i, req := range reqs {
+		resp := client.do(t, req)
+
+		if i == len(reqs) - 1 {
+			if err := json.NewDecoder(resp.Body).Decode(&i0); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+
+	i, err := image.NewStore(db).Get(query.Where("id", "=", query.Arg(i0.ID)))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(i.Driver.String(), i.Hash)
+
+	if _, err := imageStore.Stat(path); err != nil {
+		t.Fatalf("failed to stat image file %s: %s\n", path, err)
 	}
 
 	client.do(t, request{
@@ -85,4 +115,18 @@ func Test_Image(t *testing.T) {
 		code:        http.StatusOK,
 		check:       checkResponseJSONLen(0),
 	})
+
+	url, _ := url.Parse(i0.URL)
+
+	client.do(t, request{
+		name:   "delete image 'djinn'",
+		method: "DELETE",
+		uri:    url.Path,
+		token:  myTok,
+		code:   http.StatusNoContent,
+	})
+
+	if _, err := imageStore.Stat(path); err == nil {
+		t.Fatalf("expected imageStore.Stat(%q) to fail, it did not\n", path)
+	}
 }

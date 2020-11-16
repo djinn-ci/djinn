@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"runtime"
 	"strings"
 )
 
@@ -36,15 +35,10 @@ func main() {
 
 	module := os.Args[1]
 
-	ref := git("rev-parse", "HEAD")
-	tag := git("rev-parse", "--abbrev-ref", "HEAD")
+	build := git("rev-parse", "--abbrev-ref", "HEAD")
 
-	if !strings.HasPrefix(tag, "v") {
-		tag = fmt.Sprintf("devel %s", git("log", "-n", "1", "--format=format: +%h %cd", "HEAD"))
+	if !strings.HasPrefix(build, "v") {
+		build = fmt.Sprintf("devel %s", git("log", "-n", "1", "--format=format: +%h %cd", "HEAD"))
 	}
-
-	fmt.Printf("-X '%s/version.Ref=%s' ", module, ref)
-	fmt.Printf("-X '%s/version.Tag=%s' ", module, tag)
-	fmt.Printf("-X '%s/version.Os=%s' ", module, runtime.GOOS)
-	fmt.Printf("-X '%s/version.Arch=%s'", module, runtime.GOARCH)
+	fmt.Printf("-X '%s/version.Build=%s'", module, build)
 }

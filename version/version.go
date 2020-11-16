@@ -3,9 +3,6 @@
 // via the -ldflags with -X.
 package version
 
-var (
-	Ref  string // Ref is the output of "git rev-parse HEAD"
-	Tag  string // Tag is the current tag of the git repository
-	Os   string // Os is the output of "go env GOOS"
-	Arch string // Arch is the output of "go env GOARCH"
-)
+// Build is the build information fo the built Go binaries. The value of this
+// will depend on whether or not this will built from a release branch or not.
+var Build string

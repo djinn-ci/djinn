@@ -149,17 +149,10 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 
 	srv.Router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-			body:= map[string]string{
-				"version": version.Tag,
-				"ref": version.Ref,
-				"os": version.Os,
-				"arch": version.Arch,
-			}
-
-			webutil.JSON(w, body, http.StatusOK)
+			webutil.JSON(w, map[string]string{"build": version.Build}, http.StatusOK)
 			return
 		}
-		webutil.Text(w, fmt.Sprintf("%s %s %s/%s", version.Tag, version.Ref, version.Os, version.Arch), http.StatusOK)
+		webutil.Text(w, version.Build, http.StatusOK)
 	}).Methods("GET")
 
 	h := web.Handler{

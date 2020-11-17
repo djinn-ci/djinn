@@ -1,4 +1,4 @@
-// Invoked via "go run main.go" from make.sh.
+// Invoked via "go run version.go" from make.sh.
 package main
 
 import (

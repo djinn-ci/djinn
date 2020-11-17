@@ -140,12 +140,12 @@ CREATE TABLE objects (
 );
 
 CREATE TABLE variables (
-	id            SERIAL PRIMARY KEY,
-	user_id       INT NOT NULL REFERENCES users(id),
-	namespace_id  INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
-	key           VARCHAR NOT NULL,
-	value         VARCHAR NOT NULL,
-	created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+	id           SERIAL PRIMARY KEY,
+	user_id      INT NOT NULL REFERENCES users(id),
+	namespace_id INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
+	key          VARCHAR NOT NULL,
+	value        VARCHAR NOT NULL,
+	created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE keys (
@@ -205,13 +205,13 @@ CREATE TABLE build_jobs (
 );
 
 CREATE TABLE build_objects (
-	id          SERIAL PRIMARY KEY,
-	build_id    INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
-	object_id   INT NULL REFERENCES objects(id) ON DELETE SET NULL,
-	source      VARCHAR NOT NULL,
-	name        VARCHAR NOT NULL,
-	placed      BOOLEAN NOT NULL DEFAULT FALSE,
-	created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+	id         SERIAL PRIMARY KEY,
+	build_id   INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
+	object_id  INT NULL REFERENCES objects(id) ON DELETE SET NULL,
+	source     VARCHAR NOT NULL,
+	name       VARCHAR NOT NULL,
+	placed     BOOLEAN NOT NULL DEFAULT FALSE,
+	created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE build_artifacts (
@@ -229,18 +229,18 @@ CREATE TABLE build_artifacts (
 );
 
 CREATE TABLE build_variables (
-	id            SERIAL PRIMARY KEY,
-	build_id      INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
-	variable_id   INT NULL REFERENCES variables(id) ON DELETE SET NULL,
-	key           VARCHAR NOT NULL,
-	value         VARCHAR NOT NULL
+	id          SERIAL PRIMARY KEY,
+	build_id    INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
+	variable_id INT NULL REFERENCES variables(id) ON DELETE SET NULL,
+	key         VARCHAR NOT NULL,
+	value       VARCHAR NOT NULL
 );
 
 CREATE TABLE build_drivers (
-	id         SERIAL PRIMARY KEY,
-	build_id   INT NOT NULL REFERENCES builds(id) ON DELETE cascade,
-	type       driver_type NOT NULL,
-	config     JSON NOT NULL
+	id       SERIAL PRIMARY KEY,
+	build_id INT NOT NULL REFERENCES builds(id) ON DELETE cascade,
+	type     driver_type NOT NULL,
+	config   JSON NOT NULL
 );
 
 CREATE TABLE build_triggers (
@@ -255,13 +255,13 @@ CREATE TABLE build_triggers (
 );
 
 CREATE TABLE build_keys (
-	id         SERIAL PRIMARY KEY,
-	build_id   INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
-	key_id     INT NULL REFERENCES keys(id) ON DELETE SET NULL,
-	name       VARCHAR NOT NULL,
-	key        BYTEA NOT NULL,
-	config     TEXT NOT NULL,
-	location   VARCHAR NOT NULL
+	id       SERIAL PRIMARY KEY,
+	build_id INT NOT NULL REFERENCES builds(id) ON DELETE CASCADE,
+	key_id   INT NULL REFERENCES keys(id) ON DELETE SET NULL,
+	name     VARCHAR NOT NULL,
+	key      BYTEA NOT NULL,
+	config   TEXT NOT NULL,
+	location VARCHAR NOT NULL
 );
 
 CREATE TABLE cron (
@@ -298,7 +298,7 @@ CREATE TABLE oauth_apps (
 CREATE TABLE oauth_codes (
 	id         SERIAL PRIMARY KEY,
 	user_id    INT NOT NULL REFERENCES users(id),
-	app_id        INT NOT NULL REFERENCES oauth_apps(id),
+	app_id     INT NOT NULL REFERENCES oauth_apps(id),
 	code       BYTEA NOT NULL UNIQUE,
 	scope      BYTEA NOT NULL,
 	expires_at TIMESTAMP NOT NULL

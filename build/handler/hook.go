@@ -212,7 +212,7 @@ func (h Hook) loadManifests(decode manifestDecoder, tok string, urls []string) (
 				Method: "GET",
 				URL:    url,
 				Header: http.Header(map[string][]string{
-					"Authorization": []string{"Bearer " + tok},
+					"Authorization": {"Bearer " + tok},
 				}),
 			})
 
@@ -313,7 +313,7 @@ func (h Hook) getManifestURLs(tok, rawurl string, geturl func(map[string]string)
 		Method: "GET",
 		URL:    url,
 		Header: http.Header(map[string][]string{
-			"Authorization": []string{"Bearer " + tok},
+			"Authorization": {"Bearer " + tok},
 		}),
 	})
 

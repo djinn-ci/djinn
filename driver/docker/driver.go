@@ -144,7 +144,7 @@ func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 	hostCfg := &container.HostConfig{
 		Mounts: []mount.Mount{
-			mount.Mount{Type: mount.TypeVolume, Source: d.volume.Name, Target: d.Workspace},
+			{Type: mount.TypeVolume, Source: d.volume.Name, Target: d.Workspace},
 		},
 	}
 	cfg := &container.Config{
@@ -340,7 +340,7 @@ func (d *Driver) placeObjects(objs runner.Passthrough, p runner.Placer) error {
 
 	hostCfg := &container.HostConfig{
 		Mounts: []mount.Mount{
-			mount.Mount{
+			{
 				Type:   mount.TypeVolume,
 				Source: d.volume.Name,
 				Target: d.Workspace,

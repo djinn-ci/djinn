@@ -64,7 +64,7 @@ func Test_StoreIndex(t *testing.T) {
 	}
 
 	vals := []url.Values{
-		url.Values(map[string][]string{"search": []string{"blackmesa"}}),
+		url.Values(map[string][]string{"search": {"blackmesa"}}),
 	}
 
 	for i, test := range tests {

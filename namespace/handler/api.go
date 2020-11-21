@@ -95,7 +95,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			web.JSONError(w, cause.Error(), http.StatusUnprocessableEntity)
 			return
 		case database.ErrNotFound:
-			webutil.JSON(w, map[string][]string{"parent": []string{"Could not find parent"}}, http.StatusBadRequest)
+			webutil.JSON(w, map[string][]string{"parent": {"Could not find parent"}}, http.StatusBadRequest)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -479,7 +479,7 @@ func (h CollaboratorAPI) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
 		if err == namespace.ErrDeleteSelf {
 			body := map[string][]string{
-				"collaborator": []string{"You canno remove yourself from the namespace"},
+				"collaborator": {"You canno remove yourself from the namespace"},
 			}
 			webutil.JSON(w, body, http.StatusBadRequest)
 			return

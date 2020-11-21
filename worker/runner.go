@@ -300,6 +300,15 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 		j := r.jobs[job.Stage+job.Name]
 
 		if err := jobs.Started(j.ID); err != nil {
+			r.log.Error.Println("failed to handle job start", j.ID, errors.Err(err))
+		}
+	})
+
+	r.runner.HandleJobComplete(func(job runner.Job) {
+		j := r.jobs[job.Stage+job.Name]
+		buf := r.bufs[j.ID]
+
+		if err := jobs.Finished(j.ID, buf.String(), job.Status); err != nil {
 			r.log.Error.Println("failed to handle job finish", j.ID, errors.Err(err))
 		}
 	})

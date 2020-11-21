@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/smtp"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/andrewpillar/djinn/block"
@@ -129,6 +130,14 @@ func DecodeWorker(r io.Reader) (Worker, error) {
 
 	w.queue = cfg.Queue
 	w.parallelism = cfg.Parallelism
+
+	if w.parallelism == 0 {
+		w.parallelism = runtime.NumCPU()
+	}
+
+	if cfg.Timeout == "" {
+		cfg.Timeout = "30m"
+	}
 
 	w.timeout, err = time.ParseDuration(cfg.Timeout)
 

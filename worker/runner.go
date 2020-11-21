@@ -115,7 +115,9 @@ func (r *Runner) Init() error {
 		return errors.Err(err)
 	}
 
-	var keycfg bytes.Buffer
+	keycfg := bytes.NewBufferString(`StrictHostKeyChecking no
+UserKnownHostsFile /dev/null
+`)
 
 	r.keys = make(map[string][]byte)
 

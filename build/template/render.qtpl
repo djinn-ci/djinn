@@ -71,7 +71,11 @@ import (
 					{% for _, a := range aa %}
 						<tr>
 							<td><span class="code">{%s a.Source %}</span></td>
-							<td><a href="{%s a.Endpoint("download", a.Name) %}">{%s a.Name %}</a></td>
+							{% if a.DeletedAt.Valid %}
+								<td><a title="Artifact deleted"><strike>{%s a.Name %}</strike></a></td>
+							{% else %}
+								<td><a href="{%s a.Endpoint("download", a.Name) %}">{%s a.Name %}</a></td>
+							{% endif %}
 							<td>{%s template.RenderSize(a.Size.Int64) %}</td>
 							<td>
 								<div>

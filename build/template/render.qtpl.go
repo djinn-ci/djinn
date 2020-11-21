@@ -209,88 +209,104 @@ func StreamRenderArtifactTable(qw422016 *qt422016.Writer, aa []*build.Artifact, 
 //line build/template/render.qtpl:73
 				qw422016.E().S(a.Source)
 //line build/template/render.qtpl:73
-				qw422016.N().S(`</span></td> <td><a href="`)
+				qw422016.N().S(`</span></td> `)
 //line build/template/render.qtpl:74
-				qw422016.E().S(a.Endpoint("download", a.Name))
+				if a.DeletedAt.Valid {
 //line build/template/render.qtpl:74
-				qw422016.N().S(`">`)
-//line build/template/render.qtpl:74
-				qw422016.E().S(a.Name)
-//line build/template/render.qtpl:74
-				qw422016.N().S(`</a></td> <td>`)
+					qw422016.N().S(` <td><a title="Artifact deleted"><strike>`)
 //line build/template/render.qtpl:75
+					qw422016.E().S(a.Name)
+//line build/template/render.qtpl:75
+					qw422016.N().S(`</strike></a></td> `)
+//line build/template/render.qtpl:76
+				} else {
+//line build/template/render.qtpl:76
+					qw422016.N().S(` <td><a href="`)
+//line build/template/render.qtpl:77
+					qw422016.E().S(a.Endpoint("download", a.Name))
+//line build/template/render.qtpl:77
+					qw422016.N().S(`">`)
+//line build/template/render.qtpl:77
+					qw422016.E().S(a.Name)
+//line build/template/render.qtpl:77
+					qw422016.N().S(`</a></td> `)
+//line build/template/render.qtpl:78
+				}
+//line build/template/render.qtpl:78
+				qw422016.N().S(` <td>`)
+//line build/template/render.qtpl:79
 				qw422016.E().S(template.RenderSize(a.Size.Int64))
-//line build/template/render.qtpl:75
+//line build/template/render.qtpl:79
 				qw422016.N().S(`</td> <td> <div> <strong>MD5</strong> <span class="code"> `)
-//line build/template/render.qtpl:80
+//line build/template/render.qtpl:84
 				if len(a.MD5) == 0 {
-//line build/template/render.qtpl:80
+//line build/template/render.qtpl:84
 					qw422016.N().S(` -- `)
-//line build/template/render.qtpl:82
+//line build/template/render.qtpl:86
 				} else {
-//line build/template/render.qtpl:82
+//line build/template/render.qtpl:86
 					qw422016.N().S(` `)
-//line build/template/render.qtpl:83
+//line build/template/render.qtpl:87
 					qw422016.E().S(fmt.Sprintf("%x", a.MD5))
-//line build/template/render.qtpl:83
+//line build/template/render.qtpl:87
 					qw422016.N().S(` `)
-//line build/template/render.qtpl:84
+//line build/template/render.qtpl:88
 				}
-//line build/template/render.qtpl:84
+//line build/template/render.qtpl:88
 				qw422016.N().S(` </span> </div> <div> <strong>SHA256</strong> <span class="code"> `)
-//line build/template/render.qtpl:90
+//line build/template/render.qtpl:94
 				if len(a.SHA256) == 0 {
-//line build/template/render.qtpl:90
+//line build/template/render.qtpl:94
 					qw422016.N().S(` -- `)
-//line build/template/render.qtpl:92
+//line build/template/render.qtpl:96
 				} else {
-//line build/template/render.qtpl:92
+//line build/template/render.qtpl:96
 					qw422016.N().S(` `)
-//line build/template/render.qtpl:93
+//line build/template/render.qtpl:97
 					qw422016.E().S(fmt.Sprintf("%x", a.SHA256))
-//line build/template/render.qtpl:93
+//line build/template/render.qtpl:97
 					qw422016.N().S(` `)
-//line build/template/render.qtpl:94
+//line build/template/render.qtpl:98
 				}
-//line build/template/render.qtpl:94
+//line build/template/render.qtpl:98
 				qw422016.N().S(` </span> </div> </td> </tr> `)
-//line build/template/render.qtpl:99
+//line build/template/render.qtpl:103
 			}
-//line build/template/render.qtpl:99
+//line build/template/render.qtpl:103
 			qw422016.N().S(` </tbody> </table> `)
-//line build/template/render.qtpl:102
+//line build/template/render.qtpl:106
 		}
-//line build/template/render.qtpl:102
+//line build/template/render.qtpl:106
 		qw422016.N().S(` `)
-//line build/template/render.qtpl:103
+//line build/template/render.qtpl:107
 	}
-//line build/template/render.qtpl:103
+//line build/template/render.qtpl:107
 	qw422016.N().S(` `)
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 }
 
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 func WriteRenderArtifactTable(qq422016 qtio422016.Writer, aa []*build.Artifact, uri, search string) {
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 	StreamRenderArtifactTable(qw422016, aa, uri, search)
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 }
 
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 func RenderArtifactTable(aa []*build.Artifact, uri, search string) string {
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 	WriteRenderArtifactTable(qb422016, aa, uri, search)
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 	qs422016 := string(qb422016.B)
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 	return qs422016
-//line build/template/render.qtpl:104
+//line build/template/render.qtpl:108
 }

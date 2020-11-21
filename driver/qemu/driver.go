@@ -202,7 +202,7 @@ func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 		return errors.New("cannot create driver with nil io.Writer")
 	}
 
-	fmt.Fprintf(q.Writer, "Running with Driver driver...\n")
+	fmt.Fprintf(q.Writer, "Running with Driver qemu...\n")
 	fmt.Fprintf(q.Writer, "Creating machine with arch %s...\n", q.Arch)
 
 	fmt.Fprintf(q.Writer, "Booting machine with image %s...\n", q.Image)

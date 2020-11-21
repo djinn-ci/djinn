@@ -80,7 +80,7 @@ func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 		return errors.New("cannot create driver with nil io.Writer")
 	}
 
-	fmt.Fprintf(d.Writer, "Running with Driver driver...\n")
+	fmt.Fprintf(d.Writer, "Running with Driver docker...\n")
 
 	d.client, err = client.NewClientWithOpts(
 		client.WithHost(d.Host),

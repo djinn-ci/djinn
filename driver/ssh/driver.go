@@ -80,7 +80,7 @@ func (s *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 		return errors.New("cannot create driver with nil io.Writer")
 	}
 
-	fmt.Fprintf(s.Writer, "Running with Driver driver...\n")
+	fmt.Fprintf(s.Writer, "Running with Driver ssh...\n")
 
 	ticker := time.NewTicker(time.Second)
 	after := time.After(s.Timeout)

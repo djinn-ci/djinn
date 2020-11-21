@@ -128,7 +128,13 @@ help_() {
 }
 
 manif() {
-	sha256sum bin/* | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
+	cd bin
+
+	[ -f sum.manif ] && rm sum.manif
+
+	sha256sum * | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
+
+	cd - > /dev/null
 }
 
 case "$1" in

@@ -44,6 +44,11 @@ type Job struct {
 	Artifacts runner.Passthrough `yaml:",omitempty"`
 }
 
+func base(s string) string {
+	parts := strings.Split(s, "/")
+	return parts[len(parts)-1]
+}
+
 func Decode(r io.Reader) (Manifest, error) {
 	var m Manifest
 
@@ -168,10 +173,8 @@ func (m Manifest) Value() (driver.Value, error) {
 }
 
 func (s Source) MarshalYAML() (interface{}, error) {
-	parts := strings.Split(s.URL, "/")
-
 	ref := "master"
-	dir := parts[len(parts)-1]
+	dir := base(s.URL)
 
 	if s.Ref != "" {
 		ref = s.Ref
@@ -198,24 +201,35 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
+	i := strings.Index(str, " ")
+
+	if i < 0 {
+		i = len(str)
+	}
+
+	s.URL = str[:i]
 	s.Ref = "master"
+	s.Dir = base(s.URL)
 
-	parts := strings.Split(str, "=>")
+	tmp := make([]rune, 0, len(str[i:]))
 
-	if len(parts) > 1 {
-		s.Dir = parts[1]
+	for _, r := range str[i:] {
+		if r == ' ' {
+			continue
+		}
+		tmp = append(tmp, r)
 	}
 
-	parts = strings.Split(strings.TrimPrefix(strings.TrimSuffix(parts[0], " "), " "), " ")
+	str = string(tmp)
 
-	if len(parts) > 1 {
-		s.Ref = parts[1]
+	i = strings.Index(str, "=>")
+
+	if i >= 0 {
+		s.Dir = str[i+2:]
+		str = str[:i]
 	}
-
-	s.URL = parts[0]
-
-	urlParts := strings.Split(s.URL, "/")
-
-	s.Dir = urlParts[len(urlParts)-1]
+	if len(str) > 0 {
+		s.Ref = str
+	}
 	return nil
 }

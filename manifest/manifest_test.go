@@ -22,7 +22,6 @@ func unmarshal(s string) func(interface{}) error {
 func Test_ManifestSource(t *testing.T) {
 	var s Source
 
-
 	tests := []struct {
 		source      string
 		expectedURL string

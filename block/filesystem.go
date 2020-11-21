@@ -91,7 +91,7 @@ func (fs *Filesystem) Collect(name string, r io.Reader) (int64, error) {
 
 	if err != nil {
 		if errors.Cause(err) == ErrWriteLimit {
-			return 0, nil
+			return n, nil
 		}
 	}
 	return n, errors.Err(err)

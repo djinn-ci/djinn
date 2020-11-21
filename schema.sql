@@ -225,7 +225,8 @@ CREATE TABLE build_artifacts (
 	size       INT NULL,
 	md5        BYTEA NULL,
 	sha256     BYTEA NULL,
-	created_at TIMESTAMP NOT NULL DEFAULT NOW()
+	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+	deleted_at TIMESTAMP NULL DEFAULT NULL
 );
 
 CREATE TABLE build_variables (

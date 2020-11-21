@@ -13,6 +13,7 @@ node_modules/
 ./worker.toml
 ./server.toml
 ./scheduler.toml
+djinn-curator.toml
 djinn-driver.toml
 djinn-worker.toml
 djinn-server.toml

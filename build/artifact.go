@@ -34,6 +34,7 @@ type Artifact struct {
 	MD5       []byte        `db:"md5"`
 	SHA256    []byte        `db:"sha256"`
 	CreatedAt time.Time     `db:"created_at"`
+	DeletedAt sql.NullTime  `db:"deleted_at"`
 
 	Build *Build     `db:"-"`
 	Job   *Job       `db:"-"`
@@ -153,6 +154,7 @@ func (a *Artifact) JSON(addr string) map[string]interface{} {
 		"md5":        nil,
 		"sha256":     nil,
 		"created_at": a.CreatedAt.Format(time.RFC3339),
+		"deleted_at": nil,
 		"url":        addr + a.Endpoint(),
 	}
 
@@ -165,6 +167,10 @@ func (a *Artifact) JSON(addr string) map[string]interface{} {
 	}
 	if len(a.SHA256) > 0 {
 		json["sha256"] = fmt.Sprintf("%x", a.SHA256)
+	}
+
+	if a.DeletedAt.Valid {
+		json["deleted_at"] = a.DeletedAt.Time.Format(time.RFC3339)
 	}
 
 	for name, m := range map[string]database.Model{
@@ -254,6 +260,25 @@ func (s *ArtifactStore) Create(hash, src, dst string) (*Artifact, error) {
 
 	err := s.Store.Create(artifactTable, a)
 	return a, errors.Err(err)
+}
+
+// Deleted marks all of the artifacts in the given list of ids as deleted. This
+// will set the deleted_at column to the result of time.Now when this is called.
+func (s *ArtifactStore) Deleted(ids ...int64) error {
+	vals := make([]interface{}, 0, len(ids))
+
+	for _, id := range ids {
+		vals = append(vals, id)
+	}
+
+	q := query.Update(
+		artifactTable,
+		query.Set("deleted_at", query.Arg(time.Now())),
+		query.Where("id", "IN", query.List(vals)),
+	)
+
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	return errors.Err(err)
 }
 
 // New returns a new Artifact binding any non-nil models to it from the current

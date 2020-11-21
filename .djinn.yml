@@ -24,9 +24,9 @@ jobs:
   - cd djinn
   - ./make.sh
   artifacts:
-  - bin/djinn
-  - bin/djinn-curator
-  - bin/djinn-scheduler
-  - bin/djinn-server
-  - bin/djinn-worker
-  - sum.manif
+  - djinn/bin/djinn
+  - djinn/bin/djinn-curator
+  - djinn/bin/djinn-scheduler
+  - djinn/bin/djinn-server
+  - djinn/bin/djinn-worker
+  - djinn/bin/sum.manif

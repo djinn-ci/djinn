@@ -119,7 +119,7 @@ func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
 //line build/template/index.qtpl:57
 				qw422016.N().S(`">#`)
 //line build/template/index.qtpl:57
-				qw422016.E().V(b.ID)
+				qw422016.E().V(b.Number)
 //line build/template/index.qtpl:57
 				if b.Trigger.Comment != "" {
 //line build/template/index.qtpl:57

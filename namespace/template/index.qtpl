@@ -58,7 +58,7 @@ type Index struct {
 							<td class="muted">
 								{% if n.Build != nil %}
 									<a href="{%s n.Build.Endpoint() %}">
-										#{%v b.ID %} {%s b.Trigger.CommentTitle() %}
+										#{%v b.Number %} {%s b.Trigger.CommentTitle() %}
 									</a>
 								{% else %}
 									--

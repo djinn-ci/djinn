@@ -179,7 +179,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 	{% if !p.Build.Namespace.IsZero() %}
 		<a href="{%s p.Build.Namespace.Endpoint() %}">{%s p.Build.Namespace.Name %}</a> /
 	{% endif %}
-	Build #{%v p.Build.ID %}
+	Build #{%v p.Build.Number %}
 {% endfunc %}
 
 {% func (p *Show) Actions() %}

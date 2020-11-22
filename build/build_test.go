@@ -231,11 +231,13 @@ func Test_StoreCreate(t *testing.T) {
 			},
 			[]string{"centos/7"},
 			[]string{
+				"^SELECT number FROM builds WHERE (.+)$",
 				"^INSERT INTO builds (.+) VALUES (.+)$",
 				"^INSERT INTO build_triggers (.+) VALUES (.+)$",
 				"^INSERT INTO build_tags (.+) VALUES (.+)$",
 			},
 			[]*sqlmock.Rows{
+				sqlmock.NewRows([]string{"number"}).AddRow(0),
 				sqlmock.NewRows([]string{"id"}).AddRow(10),
 				sqlmock.NewRows([]string{"id"}).AddRow(10),
 				sqlmock.NewRows([]string{"id"}).AddRow(10),
@@ -260,6 +262,7 @@ func Test_StoreCreate(t *testing.T) {
 			[]string{
 				"^SELECT \\* FROM namespaces WHERE \\(user_id = \\$1 AND path = \\$2\\)$",
 				"^SELECT \\* FROM namespace_collaborators WHERE \\(namespace_id = \\$1\\)$",
+				"^SELECT number FROM builds WHERE (.+)$",
 				"^INSERT INTO builds (.+) VALUES (.+)$",
 				"^INSERT INTO build_triggers (.+) VALUES (.+)$",
 				"^INSERT INTO build_tags (.+) VALUES (.+)$",
@@ -267,6 +270,7 @@ func Test_StoreCreate(t *testing.T) {
 			[]*sqlmock.Rows{
 				sqlmock.NewRows([]string{"id", "user_id"}).AddRow(13, 27),
 				sqlmock.NewRows([]string{"id"}).AddRow(13),
+				sqlmock.NewRows([]string{"number"}).AddRow(0),
 				sqlmock.NewRows([]string{"id"}).AddRow(10),
 				sqlmock.NewRows([]string{"id"}).AddRow(10),
 				sqlmock.NewRows([]string{"id"}).AddRow(10),

@@ -524,7 +524,7 @@ func (p *Show) StreamHeader(qw422016 *qt422016.Writer) {
 //line build/template/show.qtpl:181
 	qw422016.N().S(` Build #`)
 //line build/template/show.qtpl:182
-	qw422016.E().V(p.Build.ID)
+	qw422016.E().V(p.Build.Number)
 //line build/template/show.qtpl:182
 	qw422016.N().S(` `)
 //line build/template/show.qtpl:183

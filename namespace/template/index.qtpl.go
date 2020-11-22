@@ -134,7 +134,7 @@ func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/index.qtpl:60
 					qw422016.N().S(`"> #`)
 //line namespace/template/index.qtpl:61
-					qw422016.E().V(b.ID)
+					qw422016.E().V(b.Number)
 //line namespace/template/index.qtpl:61
 					qw422016.N().S(` `)
 //line namespace/template/index.qtpl:61

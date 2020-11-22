@@ -40,7 +40,7 @@ func (f Form) Fields() map[string]string {
 func (f Form) Validate() error {
 	errs := webutil.NewErrors()
 
-	if err := f.Resource.BindNamespace(f.Keys); err != nil {
+	if err := f.Resource.Resolve(f.Keys); err != nil {
 		return errors.Err(err)
 	}
 

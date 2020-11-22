@@ -41,6 +41,7 @@ type Build struct {
 	ID          int64             `db:"id"`
 	UserID      int64             `db:"user_id"`
 	NamespaceID sql.NullInt64     `db:"namespace_id"`
+	Number      int64             `db:"number"`
 	Manifest    manifest.Manifest `db:"manifest"`
 	Status      runner.Status     `db:"status"`
 	Output      sql.NullString    `db:"output"`
@@ -244,7 +245,7 @@ func (b *Build) Endpoint(uri ...string) string {
 		return ""
 	}
 
-	endpoint := fmt.Sprintf("/b/%s/%v", b.User.Username, b.ID)
+	endpoint := fmt.Sprintf("/b/%s/%v", b.User.Username, b.Number)
 
 	if len(uri) > 0 {
 		return fmt.Sprintf("%s/%s", endpoint, strings.Join(uri, "/"))
@@ -281,6 +282,7 @@ func (b *Build) JSON(addr string) map[string]interface{} {
 		"id":            b.ID,
 		"user_id":       b.UserID,
 		"namespace_id":  nil,
+		"number":        b.Number,
 		"manifest":      b.Manifest.String(),
 		"status":        b.Status.String(),
 		"output":        nil,
@@ -336,6 +338,7 @@ func (b *Build) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      b.UserID,
 		"namespace_id": b.NamespaceID,
+		"number":       b.Number,
 		"manifest":     b.Manifest,
 		"status":       b.Status,
 		"output":       b.Output,
@@ -384,11 +387,28 @@ func (s *Store) Create(m manifest.Manifest, t *Trigger, tags ...string) (*Build,
 		}
 
 		b.Namespace = n
+		b.UserID = n.UserID
 		b.NamespaceID = sql.NullInt64{
 			Int64: n.ID,
 			Valid: true,
 		}
 	}
+
+	q := query.Select(
+		query.Columns("number"),
+		query.From(table),
+		query.Where("user_id", "=", query.Arg(b.UserID)),
+		query.OrderDesc("created_at"),
+		query.Limit(1),
+	)
+
+	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&b.Number); err != nil {
+		if err != sql.ErrNoRows {
+			return nil, errors.Err(err)
+		}
+	}
+
+	b.Number++
 
 	if err := s.Store.Create(table, b); err != nil {
 		return b, errors.Err(err)

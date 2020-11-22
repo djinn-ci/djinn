@@ -140,14 +140,10 @@ func SharedWith(u *user.User) query.Option {
 	}
 }
 
-// BindNamespace will get the Namespace by the path specified in the Namespace
-// field of the Resource struct. It will then check to see if the Resource User
-// specified via the User field can access the returned Namespace. If the User
-// has access, then the Namespace is bound to the given database.Binder. If the
-// User does not have access to the Namespace then ErrPermission is returned.
-// If the Namespace field is empty, then this method does nothing, and returns
-// nil.
-func (r Resource) BindNamespace(b database.Binder) error {
+// Resolve will get the namespace and namespace owner for the current resource.
+// It will bind the namespace to the given database.Binder, and set the User
+// field in the resource to the owner of that namespace.
+func (r *Resource) Resolve(b database.Binder) error {
 	if r.Namespace == "" {
 		return nil
 	}
@@ -162,7 +158,9 @@ func (r Resource) BindNamespace(b database.Binder) error {
 		return ErrPermission
 	}
 
+	r.User = n.User
 	b.Bind(n)
+
 	return nil
 }
 
@@ -405,6 +403,7 @@ func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
 	if !n.CanAdd(s.User) {
 		return nil, ErrPermission
 	}
+	s.User = u
 	return n, nil
 }
 

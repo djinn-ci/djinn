@@ -163,6 +163,7 @@ CREATE TABLE builds (
 	id           SERIAL PRIMARY KEY,
 	user_id      INT NOT NULL REFERENCES users(id),
 	namespace_id INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
+	number       INT NOT NULL,
 	manifest     TEXT NOT NULL,
 	status       status DEFAULT 'queued',
 	output       TEXT NULL,

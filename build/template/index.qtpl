@@ -54,7 +54,7 @@ type Index struct {
 					{% for _, b := range p.Builds %}
 						<tr>
 							<td>{%= template.RenderStatus(b.Status) %}</td>
-							<td><a href="{%s b.Endpoint() %}">#{%v b.ID %}{% if b.Trigger.Comment != "" %} - {%s b.Trigger.CommentTitle() %}{% endif %}</a></td>
+							<td><a href="{%s b.Endpoint() %}">#{%v b.Number %}{% if b.Trigger.Comment != "" %} - {%s b.Trigger.CommentTitle() %}{% endif %}</a></td>
 							<td>
 								{% if b.Namespace != nil %}
 									<a href="{%s b.Namespace.Endpoint() %}">{%v b.Namespace.Values()["path"] %}</a>

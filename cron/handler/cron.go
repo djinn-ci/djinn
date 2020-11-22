@@ -79,7 +79,7 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 	crons := cron.NewStore(h.DB, u)
 
 	f.Resource = namespace.Resource{
-		User:       u,
+		Author:     u,
 		Namespaces: namespace.NewStore(h.DB, u),
 	}
 	f.Crons = crons
@@ -88,7 +88,7 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	c, err := crons.Create(f.Name, f.Schedule, f.Manifest)
+	c, err := crons.Create(f.Author.ID, f.Name, f.Schedule, f.Manifest)
 	return c, f, errors.Err(err)
 }
 

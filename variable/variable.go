@@ -24,6 +24,7 @@ import (
 type Variable struct {
 	ID          int64         `db:"id"`
 	UserID      int64         `db:"user_id"`
+	AuthorID    int64         `db:"author_id"`
 	NamespaceID sql.NullInt64 `db:"namespace_id"`
 	Key         string        `db:"key"`
 	Value       string        `db:"value"`
@@ -167,6 +168,7 @@ func (v *Variable) JSON(addr string) map[string]interface{} {
 func (v *Variable) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      v.UserID,
+		"author_id":    v.AuthorID,
 		"namespace_id": v.NamespaceID,
 		"key":          v.Key,
 		"value":        v.Value,
@@ -187,8 +189,9 @@ func (s *Store) Bind(mm ...database.Model) {
 }
 
 // Create creates a new Variable model with the given key and value.
-func (s *Store) Create(key, val string) (*Variable, error) {
+func (s *Store) Create(authorId int64, key, val string) (*Variable, error) {
 	v := s.New()
+	v.AuthorID = authorId
 	v.Key = key
 	v.Value = val
 	v.CreatedAt = time.Now()

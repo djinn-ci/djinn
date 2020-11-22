@@ -82,7 +82,7 @@ func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form
 	variables := variable.NewStore(h.DB, u)
 
 	f.Resource = namespace.Resource{
-		User:       u,
+		Author:     u,
 		Namespaces: namespace.NewStore(h.DB, u),
 	}
 	f.Variables = variables
@@ -91,7 +91,7 @@ func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form
 		return nil, f, errors.Err(err)
 	}
 
-	v, err := variables.Create(f.Key, f.Value)
+	v, err := variables.Create(f.Author.ID, f.Key, f.Value)
 	return v, f, errors.Err(err)
 }
 

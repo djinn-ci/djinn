@@ -118,6 +118,7 @@ CREATE TABLE provider_repos (
 CREATE TABLE images (
 	id           SERIAL PRIMARY KEY,
 	user_id      INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+	author_id    INT NOT NULL REFERENCES users(id),
 	namespace_id INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
 	driver       driver_type NOT NULL,
 	hash         VARCHAR NOT NULL UNIQUE,
@@ -128,6 +129,7 @@ CREATE TABLE images (
 CREATE TABLE objects (
 	id           SERIAL PRIMARY KEY,
 	user_id      INT NOT NULL REFERENCES users(id),
+	author_id    INT NOT NULL REFERENCES users(id),
 	namespace_id INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
 	hash         VARCHAR NOT NULL UNIQUE,
 	name         VARCHAR NOT NULL,
@@ -142,6 +144,7 @@ CREATE TABLE objects (
 CREATE TABLE variables (
 	id           SERIAL PRIMARY KEY,
 	user_id      INT NOT NULL REFERENCES users(id),
+	author_id    INT NOT NULL REFERENCES users(id),
 	namespace_id INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
 	key          VARCHAR NOT NULL,
 	value        VARCHAR NOT NULL,
@@ -151,6 +154,7 @@ CREATE TABLE variables (
 CREATE TABLE keys (
 	id           SERIAL PRIMARY KEY,
 	user_id      INT NOT NULL REFERENCES users(id),
+	author_id    INT NOT NULL REFERENCES users(id),
 	namespace_id INT NULL REFERENCES namespaces(id) ON DELETE SET NULL,
 	name         VARCHAR NOT NULL,
 	key          BYTEA NOT NULL,
@@ -269,6 +273,7 @@ CREATE TABLE build_keys (
 CREATE TABLE cron (
 	id           SERIAL PRIMARY KEY,
 	user_id      INT NOT NULL REFERENCES users(id),
+	author_id    INT NOT NULL REFERENCES users(id),
 	namespace_id INT NULL REFERENCES namespaces(id),
 	name         VARCHAR NOT NULL,
 	schedule     schedule NOT NULL,
@@ -311,7 +316,7 @@ CREATE TABLE oauth_tokens (
 	user_id    INT NOT NULL REFERENCES users(id),
 	app_id     INT NULL REFERENCES oauth_apps(id) ON DELETE CASCADE,
 	name       VARCHAR NULL,
-	token      BYTEA NOT NULL,
+	token      BYTEA NOT NULL UNIQUE,
 	scope      BYTEA NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	updated_at TIMESTAMP NOT NULL DEFAULT NOW()

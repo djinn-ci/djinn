@@ -95,7 +95,7 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 
 	f.File = webutil.NewFile("file", h.limit, w, r)
 	f.Resource = namespace.Resource{
-		User:       u,
+		Author:     u,
 		Namespaces: namespace.NewStore(h.DB, u),
 	}
 	f.Objects = objects
@@ -129,7 +129,7 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		return nil, f, errors.Err(err)
 	}
 
-	o, err := objects.Create(f.Name, hash, f.File)
+	o, err := objects.Create(f.Author.ID, f.Name, hash, f.File)
 	return o, f, errors.Err(err)
 }
 

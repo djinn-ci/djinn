@@ -25,6 +25,7 @@ import (
 type Key struct {
 	ID          int64         `db:"id"`
 	UserID      int64         `db:"user_id"`
+	AuthorID    int64         `db:"author_id"`
 	NamespaceID sql.NullInt64 `db:"namespace_id"`
 	Name        string        `db:"name"`
 	Key         []byte        `db:"key"`
@@ -182,6 +183,7 @@ func (k *Key) JSON(addr string) map[string]interface{} {
 func (k *Key) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      k.UserID,
+		"author_id":    k.AuthorID,
 		"namespace_id": k.NamespaceID,
 		"name":         k.Name,
 		"key":          k.Key,
@@ -226,7 +228,7 @@ func (s *Store) Bind(mm ...database.Model) {
 // should be the contents of the key itself, this will be encrypted with the
 // underlying crypto.Block that is set on the Store. If no crypto.Block is set
 // on the Store then this will error.
-func (s *Store) Create(name, key, config string) (*Key, error) {
+func (s *Store) Create(authorId int64, name, key, config string) (*Key, error) {
 	if s.block == nil {
 		return nil, errors.New("nil block cipher")
 	}
@@ -238,6 +240,7 @@ func (s *Store) Create(name, key, config string) (*Key, error) {
 	}
 
 	k := s.New()
+	k.AuthorID = authorId
 	k.Name = strings.Replace(name, " ", "_", -1)
 	k.Key = b
 	k.Config = config

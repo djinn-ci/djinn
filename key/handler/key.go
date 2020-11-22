@@ -83,7 +83,7 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 	keys := key.NewStoreWithBlock(h.DB, h.block, u)
 
 	f.Resource = namespace.Resource{
-		User:       u,
+		Author:     u,
 		Namespaces: namespace.NewStore(h.DB, u),
 	}
 	f.Keys = keys
@@ -92,7 +92,7 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	k, err := keys.Create(f.Name, f.PrivateKey, f.Config)
+	k, err := keys.Create(f.Author.ID, f.Name, f.PrivateKey, f.Config)
 	return k, f, errors.Err(err)
 }
 
@@ -143,7 +143,7 @@ func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 	keys := key.NewStore(h.DB, u)
 
 	f.Resource = namespace.Resource{
-		User:       u,
+		Author:     u,
 		Namespaces: namespace.NewStore(h.DB, u),
 	}
 	f.Key = k

@@ -29,6 +29,7 @@ import (
 type Object struct {
 	ID          int64         `db:"id"`
 	UserID      int64         `db:"user_id"`
+	AuthorID    int64         `db:"author_id"`
 	NamespaceID sql.NullInt64 `db:"namespace_id"`
 	Hash        string        `db:"hash"`
 	Name        string        `db:"name"`
@@ -199,6 +200,7 @@ func (o *Object) JSON(addr string) map[string]interface{} {
 func (o *Object) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      o.UserID,
+		"author_id":    o.AuthorID,
 		"namespace_id": o.NamespaceID,
 		"hash":         o.Hash,
 		"name":         o.Name,
@@ -228,7 +230,7 @@ func (s *Store) Bind(mm ...database.Model) {
 // stored, and used to copy the contents of the object to the underlying
 // block.Store. It is expected for the Store to have a block.Store set on it,
 // otherwise it will error.
-func (s *Store) Create(name, hash string, rs io.ReadSeeker) (*Object, error) {
+func (s *Store) Create(authorId int64, name, hash string, rs io.ReadSeeker) (*Object, error) {
 	if s.blockStore == nil {
 		return nil, errors.New("nil block store")
 	}
@@ -263,6 +265,7 @@ func (s *Store) Create(name, hash string, rs io.ReadSeeker) (*Object, error) {
 	}
 
 	o := s.New()
+	o.AuthorID = authorId
 	o.Name = name
 	o.Hash = hash
 	o.Type = http.DetectContentType(header)

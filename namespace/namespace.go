@@ -43,9 +43,8 @@ type Namespace struct {
 // Resource is the type that represents a model that can exist within a
 // Namespace, such as an object, image, variable, or key.
 type Resource struct {
-	// User is the authenticated User modifying/creating the resource in the
-	// Namespace.
-	User *user.User `schema:"-"`
+	Owner  *user.User `schema:"-"` // Owner is who the resource belongs to once authored
+	Author *user.User `schema:"-"` // Author is the original author of the resource
 
 	Namespaces *Store `schema:"-"`
 	Namespace  string `schema:"namespace"`
@@ -141,8 +140,8 @@ func SharedWith(u *user.User) query.Option {
 }
 
 // Resolve will get the namespace and namespace owner for the current resource.
-// It will bind the namespace to the given database.Binder, and set the User
-// field in the resource to the owner of that namespace.
+// This will bind the namespace and namespace owner to the given
+// database.Binder.
 func (r *Resource) Resolve(b database.Binder) error {
 	if r.Namespace == "" {
 		return nil
@@ -154,13 +153,11 @@ func (r *Resource) Resolve(b database.Binder) error {
 		return errors.Err(err)
 	}
 
-	if n.Collaborators != nil && !n.CanAdd(r.User) {
+	if n.Collaborators != nil && !n.CanAdd(r.Author) {
 		return ErrPermission
 	}
 
-	r.User = n.User
-	b.Bind(n)
-
+	b.Bind(n, n.User)
 	return nil
 }
 
@@ -403,6 +400,8 @@ func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
 	if !n.CanAdd(s.User) {
 		return nil, ErrPermission
 	}
+
+	n.User = u
 	s.User = u
 	return n, nil
 }

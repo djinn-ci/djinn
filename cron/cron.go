@@ -36,6 +36,7 @@ type Schedule uint
 type Cron struct {
 	ID          int64             `db:"id"`
 	UserID      int64             `db:"user_id"`
+	AuthorID    int64             `db:"author_id"`
 	NamespaceID sql.NullInt64     `db:"namespace_id"`
 	Name        string            `db:"name"`
 	Schedule    Schedule          `db:"schedule"`
@@ -201,6 +202,7 @@ func (c *Cron) Endpoint(uri ...string) string {
 func (c *Cron) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      c.UserID,
+		"author_id":    c.AuthorID,
 		"namespace_id": c.NamespaceID,
 		"name":         c.Name,
 		"schedule":     c.Schedule,
@@ -243,9 +245,10 @@ func (s *Store) New() *Cron {
 }
 
 // Create will create a new Cron with the given name, schedule, and manifest.
-func (s *Store) Create(name string, sched Schedule, m manifest.Manifest) (*Cron, error) {
+func (s *Store) Create(authorId int64, name string, sched Schedule, m manifest.Manifest) (*Cron, error) {
 	c := s.New()
 
+	c.AuthorID = authorId
 	c.Name = name
 	c.Schedule = sched
 	c.Manifest = m

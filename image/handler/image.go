@@ -93,7 +93,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 
 	f.File = webutil.NewFile("file", h.limit, w, r)
 	f.Resource = namespace.Resource{
-		User:       u,
+		Author:     u,
 		Namespaces: namespace.NewStore(h.DB, u),
 	}
 	f.Images = images
@@ -127,7 +127,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		return nil, f, errors.Err(err)
 	}
 
-	i, err := images.Create(hash, f.Name, driver.QEMU, f.File)
+	i, err := images.Create(f.Author.ID, hash, f.Name, driver.QEMU, f.File)
 	return i, f, errors.Err(err)
 }
 

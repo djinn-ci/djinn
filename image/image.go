@@ -27,6 +27,7 @@ import (
 type Image struct {
 	ID          int64         `db:"id"`
 	UserID      int64         `db:"user_id"`
+	AuthorID    int64         `db:"author_id"`
 	NamespaceID sql.NullInt64 `db:"namespace_id"`
 	Driver      driver.Type   `db:"driver"`
 	Hash        string        `db:"hash"`
@@ -184,6 +185,7 @@ func (i *Image) Endpoint(uri ...string) string {
 func (i *Image) Values() map[string]interface{} {
 	return map[string]interface{}{
 		"user_id":      i.UserID,
+		"author_id":    i.AuthorID,
 		"namespace_id": i.NamespaceID,
 		"driver":       i.Driver,
 		"hash":         i.Hash,
@@ -209,7 +211,7 @@ func (s *Store) Bind(mm ...database.Model) {
 // The given io.Reader is used to copy the contents of the image to the
 // underlying block.Store. It is expected for the Store to have a block.Store
 // set on it, otherwise it will error.
-func (s *Store) Create(hash, name string, t driver.Type, r io.Reader) (*Image, error) {
+func (s *Store) Create(authorId int64, hash, name string, t driver.Type, r io.Reader) (*Image, error) {
 	if s.blockStore == nil {
 		return nil, errors.New("nil block store")
 	}
@@ -227,6 +229,7 @@ func (s *Store) Create(hash, name string, t driver.Type, r io.Reader) (*Image, e
 	}
 
 	i := s.New()
+	i.AuthorID = authorId
 	i.Driver = t
 	i.Hash = hash
 	i.Name = name

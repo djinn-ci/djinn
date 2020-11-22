@@ -283,7 +283,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		buf.WriteString(subj + "\n\n")
 	}
 
-	fmt.Fprintf(&buf, "Build: %s/%s\n\n", payload.Host, b.Endpoint())
+	fmt.Fprintf(&buf, "Build: %s%s\n\n", payload.Host, b.Endpoint())
 	buf.WriteString("-----\n")
 	buf.WriteString(t.String())
 	buf.WriteString("-----\n")

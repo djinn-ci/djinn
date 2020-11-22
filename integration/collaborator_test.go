@@ -106,7 +106,7 @@ func Test_CollaboratorCRUD(t *testing.T) {
 	})
 
 	variableResp1 := client.do(t, request{
-		name:        "attempt to create variable in conclave@me namespace as 'you'",
+		name:        "create variable in conclave@me namespace as 'you'",
 		method:      "POST",
 		uri:         "/api/variables",
 		token:       yourTok,

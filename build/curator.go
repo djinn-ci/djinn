@@ -54,7 +54,7 @@ func (c *Curator) Invoke(log *log.Logger) error {
 	aa, err := c.store.All(
 		query.Where("size", ">", query.Arg(0)),
 		query.Where("user_id", "IN", database.List(database.MapKey("id", mm)...)),
-		query.Where("deleted_at", "IS NOT", query.Lit("NULL")),
+		query.Where("deleted_at", "IS", query.Lit("NULL")),
 		query.OrderAsc("created_at"),
 	)
 
@@ -76,6 +76,7 @@ func (c *Curator) Invoke(log *log.Logger) error {
 				hash:     a.Hash,
 			})
 		}
+		sums[a.UserID] = sum
 	}
 
 	for _, records := range curated {

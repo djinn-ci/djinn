@@ -265,6 +265,10 @@ func (s *ArtifactStore) Create(hash, src, dst string) (*Artifact, error) {
 // Deleted marks all of the artifacts in the given list of ids as deleted. This
 // will set the deleted_at column to the result of time.Now when this is called.
 func (s *ArtifactStore) Deleted(ids ...int64) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
 	vals := make([]interface{}, 0, len(ids))
 
 	for _, id := range ids {
@@ -274,7 +278,7 @@ func (s *ArtifactStore) Deleted(ids ...int64) error {
 	q := query.Update(
 		artifactTable,
 		query.Set("deleted_at", query.Arg(time.Now())),
-		query.Where("id", "IN", query.List(vals)),
+		query.Where("id", "IN", query.List(vals...)),
 	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)

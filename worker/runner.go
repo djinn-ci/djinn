@@ -54,8 +54,18 @@ type Runner struct {
 
 func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, string) (string, error) {
 	return func(arch, name string) (string, error) {
+		col := "user_id"
+		arg := query.Arg(b.UserID)
+
+		// Build was submitted to a namespace so only use custom images in the
+		// build's namespace.
+		if b.NamespaceID.Valid {
+			col = "namespace_id"
+			arg = query.Arg(b.NamespaceID)
+		}
+
 		i, err := image.NewStore(r.db).Get(
-			query.Where("user_id", "=", query.Arg(b.UserID)),
+			query.Where(col, "=", arg),
 			query.Where("name", "=", query.Arg(name)),
 		)
 

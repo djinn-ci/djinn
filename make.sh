@@ -164,7 +164,7 @@ case "$1" in
 	clean)
 		rm -f bin/*
 		find . -name "*.log" -exec rm -f {} \;
-		go clean -x -cache -testcache
+		go clean -cache -testcache
 		;;
 	manif)
 		manif

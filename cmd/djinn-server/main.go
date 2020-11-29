@@ -8,12 +8,15 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/serverutil"
 	"github.com/andrewpillar/djinn/version"
 )
 
 func main() {
+	crypto.CheckCSPRNG()
+
 	api, config, ui, showversion := serverutil.ParseFlags(os.Args)
 
 	if showversion {

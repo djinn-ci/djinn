@@ -7,12 +7,15 @@ import (
 	"os/signal"
 	"runtime"
 
+	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/version"
 	"github.com/andrewpillar/djinn/workerutil"
 )
 
 func main() {
+	crypto.CheckCSPRNG()
+
 	config, driver, showversion := workerutil.ParseFlags(os.Args)
 
 	if showversion {

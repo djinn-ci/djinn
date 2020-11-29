@@ -46,6 +46,16 @@ type Block struct {
 	gcm cipher.AEAD
 }
 
+// CheckCSPRNG will see if it's possible to generate a cryptographically secure
+// pseudorandom number. If not then this will panic.
+func CheckCSPRNG() {
+	b := make([]byte, 1)
+
+	if _, err := rand.Read(b); err != nil {
+		panic("csprng not available: " + err.Error())
+	}
+}
+
 // NewBlock returns a new block for encrypting and authenticating payloads
 // of data. The given password and salt are used to generate a key for
 // encryption.

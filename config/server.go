@@ -183,7 +183,7 @@ func DecodeServer(r io.Reader) (Server, error) {
 
 	s.log.Info.Println("logging initiliazed, writing to", cfg.Log.File)
 
-	s.block, err = crypto.NewBlock([]byte(cfg.Crypto.Block))
+	s.block, err = crypto.NewBlock([]byte(cfg.Crypto.Block), []byte(cfg.Crypto.Salt))
 
 	if err != nil {
 		return s, errors.Err(err)

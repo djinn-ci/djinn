@@ -108,7 +108,7 @@ func Test_AppStoreCreate(t *testing.T) {
 	store, mock, close_ := appStore(t)
 	defer close_()
 
-	block, err := crypto.NewBlock([]byte("some-supersecret"))
+	block, err := crypto.NewBlock([]byte("some-supersecret"), []byte("some-salt"))
 
 	if err != nil {
 		t.Fatal(errors.Cause(err))

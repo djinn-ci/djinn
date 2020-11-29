@@ -145,7 +145,7 @@ func DecodeWorker(r io.Reader) (Worker, error) {
 		return w, errors.Err(err)
 	}
 
-	w.block, err = crypto.NewBlock([]byte(cfg.Crypto.Block))
+	w.block, err = crypto.NewBlock([]byte(cfg.Crypto.Block), []byte(cfg.Crypto.Salt))
 
 	if err != nil {
 		return w, errors.Err(err)

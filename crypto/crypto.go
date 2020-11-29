@@ -11,11 +11,14 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
 	"time"
 
 	"github.com/andrewpillar/djinn/errors"
 
 	"github.com/speps/go-hashids"
+
+	"golang.org/x/crypto/pbkdf2"
 )
 
 const alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -43,10 +46,12 @@ type Block struct {
 	gcm cipher.AEAD
 }
 
-// NewBlock returns a new block cipher for authenticating and encrypting
-// payloads of data using the given key. The given key should either be 16, 24
-// or 32 bytes in length to use AES-128, AES-192, or AES-256 respectively.
-func NewBlock(key []byte) (*Block, error) {
+// NewBlock returns a new block for encrypting and authenticating payloads
+// of data. The given password and salt are used to generate a key for
+// encryption.
+func NewBlock(password, salt []byte) (*Block, error) {
+	key := pbkdf2.Key(password, salt, 4096, 32, sha256.New)
+
 	ciph, err := aes.NewCipher(key)
 
 	if err != nil {

@@ -30,6 +30,7 @@ type Variable struct {
 	Value       string        `db:"value"`
 	CreatedAt   time.Time     `db:"created_at"`
 
+	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
 }
@@ -58,6 +59,7 @@ var (
 
 	table     = "variables"
 	relations = map[string]database.RelationFunc{
+		"author":    database.Relation("author_id", "id"),
 		"user":      database.Relation("user_id", "id"),
 		"namespace": database.Relation("namespace_id", "id"),
 	}
@@ -100,7 +102,11 @@ func (v *Variable) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch v1 := m.(type) {
 		case *user.User:
-			v.User = v1
+			v.Author = v1
+
+			if v.UserID == v1.ID {
+				v.User = v1
+			}
 		case *namespace.Namespace:
 			v.Namespace = v1
 		}
@@ -153,6 +159,7 @@ func (v *Variable) JSON(addr string) map[string]interface{} {
 	}
 
 	for name, m := range map[string]database.Model{
+		"author":    v.Author,
 		"user":      v.User,
 		"namespace": v.Namespace,
 	} {

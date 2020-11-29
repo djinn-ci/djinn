@@ -25,6 +25,7 @@ type Key struct {
 
 func New(h web.Handler, block *crypto.Block) Key {
 	loaders := database.NewLoaders()
+	loaders.Put("author", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
 
 	return Key{

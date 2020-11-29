@@ -76,7 +76,7 @@ func Test_FormValidate(t *testing.T) {
 		{
 			Form{
 				Resource: namespace.Resource{
-					User:       &user.User{ID: 10},
+					Author:     &user.User{ID: 10},
 					Namespaces: namespaceStore,
 					Namespace:  "aperture",
 				},
@@ -90,7 +90,7 @@ func Test_FormValidate(t *testing.T) {
 	}
 
 	for i, test := range tests {
-		uniqueQuery := "SELECT * FROM variables WHERE (key = $1 AND namespace_id IS NULL)"
+		uniqueQuery := "SELECT \\* FROM variables WHERE \\(key = \\$1 AND namespace_id IS NULL\\)"
 		uniqueArgs := []driver.Value{test.form.Key}
 
 		if test.form.Namespace != "" {
@@ -100,8 +100,8 @@ func Test_FormValidate(t *testing.T) {
 				userId      int64 = 10
 			)
 
-			uniqueQuery = "SELECT * FROM variables WHERE (namespace_id = $1 AND key = $2)"
-			uniqueArgs = []driver.Value{namespaceId, test.form.Key}
+			uniqueQuery = "SELECT \\* FROM variables WHERE \\((.+)\\)"
+			uniqueArgs = []driver.Value{userId, userId, userId, namespaceId, test.form.Key}
 
 			namespaceMock.ExpectQuery(
 				regexp.QuoteMeta("SELECT * FROM namespaces WHERE (user_id = $1 AND path = $2)"),
@@ -116,9 +116,7 @@ func Test_FormValidate(t *testing.T) {
 			)
 		}
 
-		variableMock.ExpectQuery(
-			regexp.QuoteMeta(uniqueQuery),
-		).WithArgs(uniqueArgs...).WillReturnRows(sqlmock.NewRows(variableCols))
+		variableMock.ExpectQuery(uniqueQuery).WithArgs(uniqueArgs...).WillReturnRows(sqlmock.NewRows(variableCols))
 
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {

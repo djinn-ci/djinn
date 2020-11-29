@@ -206,7 +206,7 @@ func Test_StoreCreate(t *testing.T) {
 		"^INSERT INTO objects \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 
-	if _, err := store.Create("some-script", "1a2b3c4d", bytes.NewReader([]byte("#!/bin/sh"))); err != nil {
+	if _, err := store.Create(1, "some-script", "1a2b3c4d", bytes.NewReader([]byte("#!/bin/sh"))); err != nil {
 		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }

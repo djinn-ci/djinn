@@ -40,6 +40,7 @@ type Object struct {
 	CreatedAt   time.Time     `db:"created_at"`
 	DeletedAt   sql.NullTime  `db:"deleted_at"`
 
+	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
 }
@@ -72,6 +73,7 @@ var (
 
 	table     = "objects"
 	relations = map[string]database.RelationFunc{
+		"author":    database.Relation("author_id", "id"),
 		"user":      database.Relation("user_id", "id"),
 		"namespace": database.Relation("namespace_id", "id"),
 	}
@@ -123,7 +125,11 @@ func (o *Object) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch v := m.(type) {
 		case *user.User:
-			o.User = v
+			o.Author = v
+
+			if o.UserID == v.ID {
+				o.User = v
+			}
 		case *namespace.Namespace:
 			o.Namespace = v
 		}
@@ -184,6 +190,7 @@ func (o *Object) JSON(addr string) map[string]interface{} {
 	}
 
 	for name, m := range map[string]database.Model{
+		"author":    o.Author,
 		"user":      o.User,
 		"namespace": o.Namespace,
 	} {

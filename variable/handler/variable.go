@@ -23,6 +23,7 @@ type Variable struct {
 
 func New(h web.Handler) Variable {
 	loaders := database.NewLoaders()
+	loaders.Put("author", h.Users)
 	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
 

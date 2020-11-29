@@ -32,6 +32,7 @@ type Image struct {
 func New(h web.Handler, hasher *crypto.Hasher, store block.Store, limit int64) Image {
 	loaders := database.NewLoaders()
 	loaders.Put("user", h.Users)
+	loaders.Put("author", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
 
 	return Image{

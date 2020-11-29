@@ -199,7 +199,7 @@ func Test_StoreCreate(t *testing.T) {
 		"^INSERT INTO variables \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
 	).WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(10))
 
-	if _, err := store.Create("PGADDR", "host=localhost port=5432"); err != nil {
+	if _, err := store.Create(1, "PGADDR", "host=localhost port=5432"); err != nil {
 		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }

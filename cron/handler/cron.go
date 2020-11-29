@@ -26,6 +26,7 @@ type Cron struct {
 func New(h web.Handler) Cron {
 	loaders := database.NewLoaders()
 	loaders.Put("user", h.Users)
+	loaders.Put("author", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
 	loaders.Put("build_tag", build.NewTagStore(h.DB))
 	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))

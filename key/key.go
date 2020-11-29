@@ -33,6 +33,7 @@ type Key struct {
 	CreatedAt   time.Time     `db:"created_at"`
 	UpdatedAt   time.Time     `db:"updated_at"`
 
+	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
 }
@@ -65,6 +66,7 @@ var (
 
 	table     = "keys"
 	relations = map[string]database.RelationFunc{
+		"author":    database.Relation("author_id", "id"),
 		"user":      database.Relation("user_id", "id"),
 		"namespace": database.Relation("namespace_id", "id"),
 	}
@@ -116,7 +118,11 @@ func (k *Key) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch v := m.(type) {
 		case *user.User:
-			k.User = v
+			k.Author = v
+
+			if k.UserID == v.ID {
+				k.User = v
+			}
 		case *namespace.Namespace:
 			k.Namespace = v
 		}
@@ -168,6 +174,7 @@ func (k *Key) JSON(addr string) map[string]interface{} {
 	}
 
 	for name, m := range map[string]database.Model{
+		"author":    k.Author,
 		"user":      k.User,
 		"namespace": k.Namespace,
 	} {

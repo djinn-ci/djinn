@@ -31,6 +31,7 @@ type Object struct {
 
 func New(h web.Handler, hasher *crypto.Hasher, store block.Store, limit int64) Object {
 	loaders := database.NewLoaders()
+	loaders.Put("author", h.Users)
 	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
 	loaders.Put("build_tag", build.NewTagStore(h.DB))

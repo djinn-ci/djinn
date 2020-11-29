@@ -140,7 +140,7 @@ func Test_StoreCreate(t *testing.T) {
 		"^INSERT INTO images \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id$",
 	).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(10))
 
-	if _, err := store.Create("1a2b3c4d", "dev", driver.QEMU, bytes.NewBufferString("some image")); err != nil {
+	if _, err := store.Create(1, "1a2b3c4d", "dev", driver.QEMU, bytes.NewBufferString("some image")); err != nil {
 		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }

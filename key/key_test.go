@@ -151,7 +151,7 @@ func Test_StoreCreate(t *testing.T) {
 		"^INSERT INTO keys \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id$",
 	).WillReturnRows(mock.NewRows([]string{"id"}).AddRow(10))
 
-	if _, err := store.Create("id_rsa", "=AAAAAA", ""); err != nil {
+	if _, err := store.Create(1, "id_rsa", "=AAAAAA", ""); err != nil {
 		t.Errorf("unexpected Create error: %s\n", errors.Cause(err))
 	}
 }

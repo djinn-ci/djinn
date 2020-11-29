@@ -45,6 +45,7 @@ type Cron struct {
 	NextRun     time.Time         `db:"next_run"`
 	CreatedAt   time.Time         `db:"created_at"`
 
+	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
 }
@@ -82,6 +83,7 @@ var (
 	table     = "cron"
 	relations = map[string]database.RelationFunc{
 		"namespace": database.Relation("namespace_id", "id"),
+		"author":    database.Relation("author_id", "id"),
 		"user":      database.Relation("user_id", "id"),
 	}
 
@@ -129,7 +131,11 @@ func (c *Cron) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch v := m.(type) {
 		case *user.User:
-			c.User = v
+			c.Author = v
+
+			if c.UserID == v.ID {
+				c.User = v
+			}
 		case *namespace.Namespace:
 			c.Namespace = v
 		}
@@ -177,6 +183,7 @@ func (c *Cron) JSON(addr string) map[string]interface{} {
 	}
 
 	for name, m := range map[string]database.Model{
+		"author":    c.Author,
 		"user":      c.User,
 		"namespace": c.Namespace,
 	} {

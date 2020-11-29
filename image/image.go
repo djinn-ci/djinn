@@ -34,6 +34,7 @@ type Image struct {
 	Name        string        `db:"name"`
 	CreatedAt   time.Time     `db:"created_at"`
 
+	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
 }
@@ -66,6 +67,7 @@ var (
 
 	table     = "images"
 	relations = map[string]database.RelationFunc{
+		"author":    database.Relation("author_id", "id"),
 		"user":      database.Relation("user_id", "id"),
 		"namespace": database.Relation("namespace_id", "id"),
 	}
@@ -117,7 +119,11 @@ func (i *Image) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch v := m.(type) {
 		case *user.User:
-			i.User = v
+			i.Author = v
+
+			if i.UserID == v.ID {
+				i.User = v
+			}
 		case *namespace.Namespace:
 			i.Namespace = v
 		}
@@ -160,6 +166,7 @@ func (i *Image) JSON(addr string) map[string]interface{} {
 	}
 
 	for name, m := range map[string]database.Model{
+		"author":    i.Author,
 		"user":      i.User,
 		"namespace": i.Namespace,
 	} {

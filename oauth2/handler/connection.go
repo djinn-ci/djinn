@@ -86,7 +86,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 
 	mm := database.ModelSlice(len(tt), oauth2.TokenModel(tt))
 
-	aa, err := h.apps.All(query.Where("id", "IN", query.List(database.MapKey("app_id", mm)...)))
+	aa, err := h.apps.All(query.Where("id", "IN", database.List(database.MapKey("app_id", mm)...)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -94,7 +94,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uu, err := h.Users.All(query.Where("id", "IN", query.List(database.MapKey("user_id", mm)...)))
+	uu, err := h.Users.All(query.Where("id", "IN", database.List(database.MapKey("user_id", mm)...)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

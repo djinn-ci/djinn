@@ -28,7 +28,8 @@ type Token struct {
 
 func NewToken(h web.Handler) Token {
 	return Token{
-		tokens: oauth2.NewTokenStore(h.DB),
+		Handler: h,
+		tokens:  oauth2.NewTokenStore(h.DB),
 	}
 }
 

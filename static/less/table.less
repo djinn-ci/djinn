@@ -16,11 +16,27 @@
 		}
 	}
 
+	td.success {
+		color: @green;
+
+		svg {
+			fill: @green;
+		}
+	}
+
 	td.warning {
 		color: @orange;
 
 		svg {
 			fill: @orange;
+		}
+	}
+
+	td.error {
+		color: @red;
+
+		svg {
+			fill: @red;
 		}
 	}
 
@@ -30,6 +46,10 @@
 		text-align: left;
 		color: rgba(0, 0, 0, 0.5);
 		font-weight: normal;
+	}
+
+	th.align-right {
+		text-align: right;
 	}
 
 	tr {

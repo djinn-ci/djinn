@@ -98,7 +98,7 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	csrfField := string(csrf.TemplateField(r))
 	f := webutil.FormFields(sess)
 
-	section := &oauth2template.TokenForm{
+	p := &oauth2template.TokenForm{
 		Form: template.Form{
 			CSRF:   csrfField,
 			Errors: webutil.FormErrors(sess),
@@ -110,14 +110,7 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	scope := strings.Split(f["scope"], " ")
 
 	for _, sc := range scope {
-		section.Scopes[sc] = struct{}{}
-	}
-
-	p := &usertemplate.Settings{
-		BasePage: template.BasePage{
-			URL: r.URL,
-		},
-		Section: section,
+		p.Scopes[sc] = struct{}{}
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)

@@ -134,31 +134,23 @@ func (q *Driver) runCmd() error {
 
 		bin := fmt.Sprintf("qemu-system-%s", q.Arch)
 		arg := []string{
-			"-enable-kvm",
 			"-daemonize",
-			"-display",
-			"none",
-			"-pidfile",
-			pidfile.Name(),
-			"-smp",
-			strconv.FormatInt(q.CPUs, 10),
-			"-m",
-			strconv.FormatInt(q.Memory, 10),
-			"-net",
-			"nic,model=virtio",
-			"-net",
-			"user,hostfwd=tcp:" + hostfwd + "-:22",
-			"-drive",
-			"file=" + disk + ",media=disk,snapshot=on,if=virtio",
+			"-display", "none",
+			"-pidfile", pidfile.Name(),
+			"-smp", strconv.FormatInt(q.CPUs, 10),
+			"-m", strconv.FormatInt(q.Memory, 10),
+			"-net", "nic,model=virtio",
+			"-net", "user,hostfwd=tcp:" + hostfwd + "-:22",
+			"-drive", "file=" + disk + ",media=disk,snapshot=on,if=virtio",
 		}
 
 		cmd := exec.Command(bin, arg...)
 
-		buf := &bytes.Buffer{}
+		var buf bytes.Buffer
 
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = q.Writer
-		cmd.Stderr = buf
+		cmd.Stderr = &buf
 
 		if err := cmd.Run(); err != nil {
 			pidfile.Close()

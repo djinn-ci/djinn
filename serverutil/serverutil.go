@@ -181,7 +181,7 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 	srv.AddRouter("object", objectrouter.New(cfg, h, mw))
 	srv.AddRouter("provider", providerrouter.New(cfg, h, mw))
 	srv.AddRouter("variable", variablerouter.New(cfg, h, mw))
-	srv.Init()
+	srv.Init(h.SaveMiddleware)
 
 	return srv, cfg, close_, nil
 }

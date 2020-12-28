@@ -60,6 +60,16 @@ func (h *Handler) RedirectBack(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, r.Header.Get("Referer"))
 }
 
+// SaveMiddleware will save any data put in the session before serving the next
+// request.
+func (h *Handler) SaveMiddleware(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, save := h.Session(r)
+		save(r, w)
+		handler.ServeHTTP(w, r)
+	})
+}
+
 // Session returns the session for the current request, and a callback for
 // saving the returned session.
 func (h *Handler) Session(r *http.Request) (*sessions.Session, func(*http.Request, http.ResponseWriter)) {

@@ -18,6 +18,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+type MiddlewareFunc func(http.Handler) http.Handler
+
 // Router defines how a router should be implemented to be used for the Server.
 // It is perfectly valid for the RegisterUI or RegisterAPI methods to be simple
 // stubs to statisfy the interface is a Router doesn't need to expose either via
@@ -137,11 +139,20 @@ func (s *API) Register(name string, gates ...web.Gate) {
 	}
 }
 
-func (s *Server) Init() {
+// Init will initialize the server, and apply the given list of middleware
+// functions to all of the routes added to the server.
+func (s *Server) Init(middleware ...MiddlewareFunc) {
 	if s.Router == nil {
 		panic("initializing server with nil router")
 	}
-	s.Server.Handler = s.recoverHandler(spoofHandler(s.Router))
+
+	var handler http.Handler = s.Router
+
+	for _, mw := range middleware {
+		handler = mw(handler)
+	}
+
+	s.Server.Handler = s.recoverHandler(spoofHandler(handler))
 }
 
 // AddRouter adds the given router to the server with the given name. If the

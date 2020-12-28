@@ -36,7 +36,7 @@ func NewToken(h web.Handler) Token {
 // Index serves the HTML response detailing the list of personal access tokens
 // created for the current user.
 func (h Token) Index(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -81,13 +81,12 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating a new personal access token.
 func (h Token) Create(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -114,7 +113,6 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -186,7 +184,7 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 
 // Edit serves the HTML response for editing a personal access token.
 func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -214,7 +212,6 @@ func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 		Scopes: t.Permissions(),
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

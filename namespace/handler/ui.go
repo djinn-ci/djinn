@@ -49,7 +49,7 @@ type CollaboratorUI struct {
 
 // Index serves the HTML response detailing the list of namespaces.
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -76,13 +76,12 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating namespaces via the web frontend.
 func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -125,7 +124,6 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -189,7 +187,7 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(ctx)
 
@@ -405,14 +403,13 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Edit serves the HTML response for editing the namespace in the given request
 // context.
 func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -443,7 +440,6 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 		Namespace: n,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -515,7 +511,7 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(ctx)
 
@@ -574,7 +570,6 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 	csrfField := string(csrf.TemplateField(r))
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -676,9 +671,9 @@ func (h InviteUI) Destroy(w http.ResponseWriter, r *http.Request) {
 
 // Index serves the HTML response detailing the list of namespace collaborators.
 func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	sess, _ := h.Session(r)
 
-	sess, save := h.Session(r)
+	ctx := r.Context()
 
 	u, ok := user.FromContext(ctx)
 
@@ -726,7 +721,6 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

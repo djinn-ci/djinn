@@ -58,7 +58,7 @@ func New(h web.Handler, registry *provider.Registry) User {
 // sent for the account to be verified, and the user will be redirect to the
 // login page.
 func (h User) Register(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	if r.Method == "GET" {
 		p := &usertemplate.Register{
@@ -69,7 +69,6 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 			},
 			Alert: web.Alert(sess),
 		}
-		save(r, w)
 		webutil.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
@@ -149,7 +148,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 // will attempt to authenticate the user. On successful authentication the user
 // is set in the session, and redirected to the main dashboard.
 func (h User) Login(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	if r.Method == "GET" {
 		clis := h.registry.All()
@@ -183,7 +182,6 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 			RedirectURI: r.URL.Query().Get("redirect_uri"),
 			Providers:   pp,
 		}
-		save(r, w)
 		webutil.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
@@ -268,7 +266,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 // user specified for their account, if the token given to them via email
 // is valid.
 func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	if r.Method == "GET" {
 		p := &usertemplate.NewPassword{
@@ -280,7 +278,6 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 			Token: r.URL.Query().Get("token"),
 			Alert: web.Alert(sess),
 		}
-		save(r, w)
 		webutil.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
@@ -335,7 +332,7 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 // resetting the password when they cannot otherwise provide meaningful
 // authentication. The token that is generated expires after a minute.
 func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	if r.Method == "GET" {
 		p := &usertemplate.PasswordReset{
@@ -346,7 +343,6 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 			},
 			Alert: web.Alert(sess),
 		}
-		save(r, w)
 		webutil.HTML(w, template.Render(p), http.StatusOK)
 		return
 	}
@@ -471,7 +467,7 @@ func (h User) GetProviders(u *user.User) ([]*provider.Provider, error) {
 // Settings will serve the HTML response showing the settings page for managing
 // a user's account.
 func (h User) Settings(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -501,7 +497,6 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

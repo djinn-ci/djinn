@@ -115,7 +115,7 @@ func (h Repo) loadRepos(p *provider.Provider, page int64) ([]*provider.Repo, dat
 // the cache, if the cache is empty then the API is hit, and the cache stores
 // the response for 1 hour.
 func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -219,7 +219,6 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		Providers: pp,
 	}
 	d := template.NewDashboard(pg, r.URL, u, web.Alert(sess), csrfField)
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

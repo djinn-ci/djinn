@@ -23,7 +23,7 @@ type UI struct {
 
 // Index serves the HTML response detailing the list of SSH keys.
 func (h Key) Index(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -53,13 +53,12 @@ func (h Key) Index(w http.ResponseWriter, r *http.Request) {
 		Keys:      kk,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating SSH keys via the web frontend.
 func (h Key) Create(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -77,7 +76,6 @@ func (h Key) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -137,7 +135,7 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 // Edit serves the HTML response for editing the key in the given request
 // context.
 func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -164,7 +162,6 @@ func (h Key) Edit(w http.ResponseWriter, r *http.Request) {
 		Key: k,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

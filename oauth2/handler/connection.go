@@ -68,7 +68,7 @@ func (h Connection) getToken(r *http.Request) (*oauth2.Token, error) {
 
 // Index serves the HTML response detailing the list of connected apps.
 func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -131,7 +131,6 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

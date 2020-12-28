@@ -75,7 +75,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 
 // Create serves the HTML response for submitting builds via the web frontend.
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -90,9 +90,7 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 			Fields: webutil.FormFields(sess),
 		},
 	}
-
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -176,7 +174,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 // request. This serves different responses based on the base path of the
 // request URL.
 func (h UI) Show(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -303,7 +301,6 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -419,7 +416,7 @@ func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 // of the URL path is "/raw", then a "text/plain" response is served with the
 // output of the job.
 func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -451,6 +448,5 @@ func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

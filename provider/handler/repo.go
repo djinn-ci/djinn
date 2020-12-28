@@ -237,7 +237,11 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to refresh repository cache"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to refresh repository cache",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -252,18 +256,31 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to refresh repository cache"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to refresh repository cache",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := h.cachePut(p.Name, u.ID, rr, paginator); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to refresh repository cache"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to refresh repository cache",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Successfully reloaded repository cache"), "alert")
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Successfully reloaded repository cache",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -281,7 +298,11 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := webutil.Unmarshal(f, r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to enable repository hooks",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -290,7 +311,11 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to enable repository hooks",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -301,7 +326,11 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to enable repository hooks",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -316,24 +345,40 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		cause := errors.Cause(err)
 
 		if cause == provider.ErrLocalhost {
-			sess.AddFlash(template.Danger("Failed to enabled repository hooks: "+cause.Error()), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to enable repository hooks: "+cause.Error(),
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to enable repository hooks",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := repos.Touch(repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to enable repository hooks"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to enable repository hooks",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Success("Repository hooks enabled"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Repository hooks enabled",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -348,7 +393,11 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if !repo.Enabled {
-		sess.AddFlash(template.Success("Repository hooks disabled"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "Repository hooks disabled",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -357,24 +406,41 @@ func (h Repo) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to disable repository hooks",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := p.ToggleRepo(h.block, h.providers, repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to disable repository hooks",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := provider.NewRepoStore(h.DB).Update(repo); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to disable repository hooks"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to disable repository hooks",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Repository hooks disabled"), "alert")
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Repository hooks disabled",
+	}, "alert")
 	h.RedirectBack(w, r)
 }

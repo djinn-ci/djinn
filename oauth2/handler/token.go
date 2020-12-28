@@ -148,7 +148,11 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create token"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to create token",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -167,7 +171,11 @@ func (h Token) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create token"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to create token",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -234,13 +242,21 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 	if webutil.BasePath(r.URL.Path) == "regenerate" {
 		if err := h.tokens.Reset(t.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to update token"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to update token",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 
 		sess.AddFlash(t.ID, "token_id")
-		sess.AddFlash(template.Success("Token has been updated: "+t.Name), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "Token has been updated: "+t.Name,
+		}, "alert")
 		h.Redirect(w, r, "/settings/tokens")
 		return
 	}
@@ -262,7 +278,11 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update token"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update token",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -271,13 +291,21 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.tokens.Update(t.ID, f.Name, sc); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update token"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update token",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	sess.AddFlash(t.ID, "token_id")
-	sess.AddFlash(template.Success("Token has been updated: "+t.Name), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Token has been updated: "+t.Name,
+	}, "alert")
 	h.Redirect(w, r, "/settings/tokens")
 }
 
@@ -300,7 +328,11 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to revoke tokens"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to revoke token",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
@@ -313,7 +345,11 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 
 		if err := tokens.Delete(ids...); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to revoke tokens"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to revoke tokens",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
@@ -329,7 +365,11 @@ func (h Token) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.tokens.Delete(t.ID); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to revoke token"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to revoke token",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}

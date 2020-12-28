@@ -114,18 +114,30 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danger("Failed to create cron: could not add to namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message:  "Failed to create cron: could not add to namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create cron"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message:  "Failed to create cron",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Cron has been added: "+c.Name+" it will next trigger on "+c.NextRun.Format("Mon, 2 Jan 15:04 2006")), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Cron job has been added: " + c.Name + " it will next trigger on" + c.NextRun.Format("Mon, 2 Jan 15:04 2006"),
+	}, "alert")
 	h.Redirect(w, r, "/cron")
 }
 
@@ -251,18 +263,30 @@ func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danger("Failed to create cron: could not add to namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create cron job: could not add to namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create cron"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create cron job",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Cron has been updated"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Cron job has been updated",
+	}, "alert")
 	h.Redirect(w, r, c.Endpoint())
 }
 
@@ -274,11 +298,20 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete cron job"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete cron job",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Deleted cron job"), "alert")
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Deleted cron job",
+	}, "alert")
 
 	if matched, _ := regexp.Match("/cron/[0-9]+", []byte(r.Header.Get("Referer"))); matched {
 		h.Redirect(w, r, "/cron")

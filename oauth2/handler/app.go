@@ -153,7 +153,11 @@ func (h App) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create app"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to create app",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -162,12 +166,20 @@ func (h App) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create app"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to create app",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Success("Created OAuth App "+a.Name), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Created OAuth app "+a.Name,
+	}, "alert")
 	h.Redirect(w, r, "/settings/apps")
 }
 
@@ -236,7 +248,11 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update app"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update app",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -246,12 +262,20 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 	if base == "revoke" {
 		if err := oauth2.NewTokenStore(h.DB).Revoke(a.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to revoke tokens"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to revoke tokens",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 
-		sess.AddFlash(template.Success("App tokens revoked"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "App tokens revoked",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -259,12 +283,20 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 	if base == "reset" {
 		if err := oauth2.NewAppStoreWithBlock(h.DB, h.block).Reset(a.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to reset secret"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to reset secret",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 
-		sess.AddFlash(template.Success("App client secret reset"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "App client secret reset",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -290,18 +322,30 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update app"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update app",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := h.apps.Update(a.ID, f.Name, f.Description, f.HomepageURI, f.RedirectURI); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update app"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update app",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Success("App changes have been saved"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "App changes have been saved",
+	}, "alert")
 	h.Redirect(w, r, a.Endpoint())
 }

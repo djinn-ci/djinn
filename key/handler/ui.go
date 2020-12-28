@@ -107,18 +107,30 @@ func (h Key) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danger("Failed to create key: could not add to namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create key: could not add to namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create key"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create key",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Key has been added: "+k.Name), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Key has been added: " + k.Name,
+	}, "alert")
 	h.Redirect(w, r, "/keys")
 }
 
@@ -172,7 +184,11 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if errors.Cause(err) == namespace.ErrPermission {
-			sess.AddFlash(template.Danger("Failed to update key: could not add to namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to update key: could not add to namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
@@ -181,7 +197,11 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.AddFlash(template.Success("Key has been updated: "+k.Name), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Key has been updated: "+k.Name,
+	}, "alert")
 	h.Redirect(w, r, "/keys")
 }
 
@@ -192,10 +212,18 @@ func (h Key) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete key"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete key",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Key has been deleted"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Key has been deleted",
+	}, "alert")
 	h.RedirectBack(w, r)
 }

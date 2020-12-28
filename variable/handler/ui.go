@@ -106,18 +106,30 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danger("Failed to create variable: could not add to namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:    template.Danger,
+				Close:    true,
+				Message: "Failed to create variable: could not add to namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create variable"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:    template.Danger,
+				Close:    true,
+				Message: "Failed to create variable",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Variable has been added: "+v.Key), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Variable has been added: "+v.Key,
+	}, "alert")
 	h.Redirect(w, r, "/variables")
 }
 
@@ -128,10 +140,18 @@ func (h Variable) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete variable"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete variable",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Variable has been deleted"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Variable has been deleted",
+	}, "alert")
 	h.RedirectBack(w, r)
 }

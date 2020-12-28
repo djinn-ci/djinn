@@ -115,18 +115,30 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danger("Failed to create object: could not add to namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create object: could not add to namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create object"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create object",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Object has been added: "+o.Name), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Object has been added: " + o.Name,
+	}, "alert")
 	h.Redirect(w, r, "/objects")
 }
 
@@ -238,13 +250,21 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
 		if !os.IsNotExist(errors.Cause(err)) {
 			h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to delete object"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to delete object",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Object has been deleted"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Object has been deleted",
+	}, "alert")
 
 	if matched, _ := regexp.Match("/objects/[0-9]+", []byte(r.Header.Get("Referer"))); matched {
 		h.Redirect(w, r, "/objects")

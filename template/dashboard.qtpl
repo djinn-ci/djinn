@@ -45,16 +45,18 @@ type baseDashboard struct {
 }
 
 type Alert struct {
-	Level   level
+	Level   Level
+	Close   bool
+	HTML    bool
 	Message string
 }
 
-type level uint8
+type Level uint8
 
 const (
-	success level = iota
-	warn
-	danger
+	Success Level = iota
+	Warn
+	Danger
 )
 
 var (
@@ -76,49 +78,32 @@ func NewDashboard(d Dashboard, url *url.URL, u *user.User, a Alert, csrf string)
 	}
 }
 
-func Danger(msg string) Alert {
-	return Alert{
-		Level:   danger,
-		Message: msg,
-	}
-}
-
-func Success(msg string) Alert {
-	return Alert{
-		Level:   success,
-		Message: msg,
-	}
-}
-
-func Warn(msg string) Alert {
-	return Alert{
-		Level:   warn,
-		Message: msg,
-	}
-}
-
-func (a Alert) IsZero() bool { return a.Level == level(0) && a.Message == "" }
-
-func (l level) String() string {
+func (l Level) String() string {
 	switch l {
-	case success:
+	case Success:
 		return "success"
-	case warn:
+	case Warn:
 		return "warn"
-	case danger:
+	case Danger:
 		return "danger"
 	default:
-		return ""
+		return "Level(0)"
 	}
 }
 %}
 
 {% collapsespace %}
 {% func RenderAlert(a Alert, url string) %}
-	{% if !a.IsZero() %}
+	{% if a.Message != "" %}
 		<div class="alert alert-{%s a.Level.String() %}">
-			<div class="alert-message">{%s a.Message %}</div>
-			{% if url != "" %}
+			<div class="alert-message">
+				{% if a.HTML %}
+					{%s= a.Message %}
+				{% else %}
+					{%s a.Message %}
+				{% endif %}
+			</div>
+			{% if a.Close %}
 				<a href="{%s url %}" class="alert-close">{% cat "../static/svg/close.svg" %}</a>
 			{% endif %}
 		</div>

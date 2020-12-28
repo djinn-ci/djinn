@@ -104,7 +104,11 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if patherr, ok := cause.(*os.PathError); ok {
-			sess.AddFlash(template.Danger(patherr.Error()), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: patherr.Error(),
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
@@ -118,18 +122,30 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danger("Failed to create image: could not add to namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create image: could not add to namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create image"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create image",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Image has been added: "+i.Name), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Image has been added: " + i.Name,
+	}, "alert")
 	h.Redirect(w, r, "/images")
 }
 
@@ -175,12 +191,21 @@ func (h Image) Destroy(w http.ResponseWriter, r *http.Request) {
 		if !os.IsNotExist(errors.Cause(err)) {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		}
-		sess.AddFlash(template.Danger("Failed to delete image"), "alert")
+
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete image",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Success("Image has been deleted"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Image has been deleted",
+	}, "alert")
 
 	if matched, _ := regexp.Match("/images/[0-9]+", []byte(r.Header.Get("Referer"))); matched {
 		h.Redirect(w, r, "/images")

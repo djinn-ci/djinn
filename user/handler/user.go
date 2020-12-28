@@ -86,7 +86,10 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Message: "Failed to create account",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -95,7 +98,10 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Message: "Failed to create account",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -109,7 +115,10 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 
 	if err := m.Send(h.SMTP.Client); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Message: "Failed to create account",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -119,12 +128,18 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	for name := range h.registry.All() {
 		if _, err := providers.Create(0, name, nil, nil, true, false); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create account"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Message: "Failed to create account",
+			}, "alert")
 			return
 		}
 	}
 
-	sess.AddFlash(template.Warn("A verification link has been sent to your email, use this to verify your account"))
+	sess.AddFlash(template.Alert{
+		Level:   template.Warn,
+		Message: "A verification link has been sent to your email, use this to verify your accont",
+	}, "alert")
 	h.Redirect(w, r, "/login")
 }
 
@@ -185,7 +200,10 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Unexpected error occurred during authentication"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Message: "Unexpected error occurred during authentication",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -197,7 +215,10 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 
 		if cause != user.ErrAuth {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Unexpected error occurred during authentication"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Message: "Unexpected error occurred during authentication",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
@@ -218,7 +239,10 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Unexpected error occurred during authentication"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Message: "Unexpected error occurred during authentication",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -281,7 +305,11 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 	tok, err := hex.DecodeString(f.Token)
 
 	if err != nil {
-		sess.AddFlash(template.Danger("Invalid token"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Invalid token",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -293,7 +321,11 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sess.AddFlash(template.Success("Password updated"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Password updated",
+	}, "alert")
 	h.Redirect(w, r, "/login")
 }
 
@@ -346,7 +378,11 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if u.IsZero() {
-		sess.AddFlash(template.Success("Password reset instructions sent"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "Password reset instructions sent",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -373,7 +409,11 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Password reset instructions sent"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Password reset instructions sent",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -388,28 +428,16 @@ func (h User) Logout(w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/")
 }
 
-// Settings will serve the HTML response showing the settings page for managing
-// a user's account.
-func (h User) Settings(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	u, ok := user.FromContext(r.Context())
-
-	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
-	}
-
+func (h User) GetProviders(u *user.User) ([]*provider.Provider, error) {
 	m := make(map[string]*provider.Provider)
 
-	pp, err := provider.NewStore(h.DB, u).All(query.OrderAsc("name"))
+	pp0, err := provider.NewStore(h.DB, u).All(query.OrderAsc("name"))
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
+		return nil, errors.Err(err)
 	}
 
-	for _, p := range pp {
+	for _, p := range pp0 {
 		m[p.Name] = p
 	}
 
@@ -425,12 +453,39 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 				Name:    name,
 				AuthURL: cli.AuthURL(),
 			}
-		} else {
-			m[name].AuthURL = cli.AuthURL()
+			continue
 		}
+		m[name].AuthURL = cli.AuthURL()
 	}
 
 	sort.Strings(order)
+
+	pp := make([]*provider.Provider, 0, len(clis))
+
+	for _, name := range order {
+		pp = append(pp, m[name])
+	}
+	return pp, nil
+}
+
+// Settings will serve the HTML response showing the settings page for managing
+// a user's account.
+func (h User) Settings(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	u, ok := user.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
+	}
+
+	pp, err := h.GetProviders(u)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
 
 	p := &usertemplate.Settings{
 		BasePage: template.BasePage{
@@ -442,17 +497,14 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
-		Providers: make([]*provider.Provider, 0, len(clis)),
-	}
-
-	for _, name := range order {
-		p.Providers = append(p.Providers, m[name])
+		Providers: pp,
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
+
 
 // Verify will either send a verification email to the user, or verify the
 // user's account. If the tok query parameter is in the current request then
@@ -473,7 +525,11 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to send verification email"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to send verification email",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
@@ -494,13 +550,21 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 			}
 
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to send verification email"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to send verification email",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 
 	resp:
-		sess.AddFlash(template.Success("Verification email sent to: "+u.Email), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "Verification email sent to: "+u.Email,
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -509,13 +573,21 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if errors.Cause(err) == user.ErrTokenExpired {
-			sess.AddFlash(template.Danger("Token expired, resend verification email"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Token expired, resend verification email",
+			}, "alert")
 			h.Redirect(w, r, "/settings")
 			return
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to verify account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to verify account",
+		}, "alert")
 		h.Redirect(w, r, "/settings")
 		return
 	}
@@ -529,12 +601,20 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to verify account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to verify account",
+		}, "alert")
 		h.Redirect(w, r, "/settings")
 		return
 	}
 
-	sess.AddFlash(template.Success("Account has been verified"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Account has been verified",
+	}, "alert")
 	h.Redirect(w, r, "/settings")
 }
 
@@ -544,7 +624,11 @@ func (h User) Cleanup(w http.ResponseWriter, r *http.Request) {
 
 	if err := r.ParseForm(); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to save changes"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to save changes",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -559,12 +643,20 @@ func (h User) Cleanup(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Users.Update(u.ID, u.Email, cleanup, nil); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to save changes"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to save changes",
+		}, "alert")
 		h.Redirect(w, r, "/settings")
 		return
 	}
 
-	sess.AddFlash(template.Success("Changes have been saved"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Changes have been saved",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -593,7 +685,11 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update email"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "Failed to update email",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -603,12 +699,20 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Users.Update(u.ID, f.Email, u.Cleanup, []byte(f.VerifyPassword)); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "Failed to update email",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Success("Email has been updated"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Email has been updated",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -637,19 +741,31 @@ func (h User) Password(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update password"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update password",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := h.Users.Update(u.ID, u.Email, u.Cleanup, []byte(f.NewPassword)); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update password"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update password",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Success("Password has been updated"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Password has been updated",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -676,7 +792,11 @@ func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete account",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -687,14 +807,22 @@ func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete account",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := providers.Delete(pp...); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete account",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -712,7 +840,11 @@ func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete account",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -726,7 +858,11 @@ func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := m.Send(h.SMTP.Client); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to delete account"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete account",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -737,6 +873,10 @@ func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Unix(0, 0),
 	})
-	sess.AddFlash(template.Success("Account deleted"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Account deleted",
+	}, "alert")
 	h.Redirect(w, r, "/")
 }

@@ -40,7 +40,7 @@ type TagUI struct {
 
 // Index serves the HTML response detailing the list of builds.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+	sess, _ := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -70,7 +70,6 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Tag:       q.Get("tag"),
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
-	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -131,12 +130,20 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		case namespace.ErrPermission:
-			sess.AddFlash(template.Danger("Failed to create build: could not add to namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create build: could not add to namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create build"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create build",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
@@ -148,11 +155,20 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 
 	if err := builds.Submit(r.Context(), prd, addr, b); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to create build"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to create build",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Build submitted: #"+strconv.FormatInt(b.ID, 10)), "alert")
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Build submitted: #" + strconv.FormatInt(b.Number, 10),
+	}, "alert")
 	h.Redirect(w, r, b.Endpoint())
 }
 
@@ -340,11 +356,19 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.Kill(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to kill build"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to kill build",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Build killed"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Build killed",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -356,7 +380,11 @@ func (h TagUI) Store(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := h.StoreModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to tag build"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to tag build",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
@@ -371,11 +399,19 @@ func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to tag build"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to delete tag",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
-	sess.AddFlash(template.Success("Tag has been deleted"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Tag has been deleted",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 

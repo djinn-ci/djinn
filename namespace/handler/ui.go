@@ -148,21 +148,38 @@ func (h Namespace) Store(w http.ResponseWriter, r *http.Request) {
 
 		switch cause {
 		case namespace.ErrDepth:
-			sess.AddFlash(template.Danger(strings.Title(cause.Error())), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: strings.Title(cause.Error()),
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		case database.ErrNotFound:
-			sess.AddFlash(template.Danger("Failed to create namespace: could not find parent"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create namespace: could not find parent",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to create namespace"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to create namespace",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
-	sess.AddFlash(template.Success("Namespace '"+n.Name+"' created"), "alert")
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Namespace created: " + n.Name,
+	}, "alert")
 	h.Redirect(w, r, n.Endpoint())
 }
 
@@ -448,12 +465,20 @@ func (h UI) Update(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Danger("Failed to update namespace"), "alert")
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update namespace",
+		}, "alert")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	sess.AddFlash(template.Success("Namespace changes saved"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Namespace changes saved",
+	}, "alert")
 	h.Redirect(w, r, n.Endpoint())
 }
 
@@ -468,13 +493,21 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "no namespace in request context")
 	}
 
-	alert := template.Success("Namespace has been deleted: " + n.Path)
-
 	if err := h.DeleteModel(r); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert = template.Danger("Failed to delete namespace")
+		sess.AddFlash(template.Alert{
+			Level:   template.Success,
+			Close:   true,
+			Message: "Failed to delete namespace",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
 	}
-	sess.AddFlash(alert, "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Namespace has been deleted: " + n.Path,
+	}, "alert")
 	h.Redirect(w, r, "/namespaces")
 }
 
@@ -564,10 +597,20 @@ func (h InviteUI) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to send invite",
+		}, "alert")
 		h.RedirectBack(w, r)
+		return
 	}
 
-	sess.AddFlash(template.Success("Invite sent"), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Invite sent",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -578,26 +621,33 @@ func (h InviteUI) Update(w http.ResponseWriter, r *http.Request) {
 
 	n, _, _, err := h.Accept(r)
 
-	alert := template.Success("Your are now a collaborator in: " + n.Name)
-
 	if err != nil {
 		if errors.Cause(err) == database.ErrNotFound {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert = template.Danger("Failed to accept invite")
+
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to accept invite",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
 	}
 
-	sess.AddFlash(alert, "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "You are now a collaborator in: " + n.Name,
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
 // Destroy will delete the invite in the request's context from the database.
 func (h InviteUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
-
-	alert := template.Success("Invite rejected")
 
 	if err := h.DeleteModel(r); err != nil {
 		if err == database.ErrNotFound {
@@ -606,10 +656,21 @@ func (h InviteUI) Destroy(w http.ResponseWriter, r *http.Request) {
 		}
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert = template.Danger("Failed to reject invite")
+
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to reject invite",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
 	}
 
-	sess.AddFlash(alert, "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Invite rejected",
+	}, "alert")
 	h.RedirectBack(w, r)
 }
 
@@ -680,17 +741,29 @@ func (h CollaboratorUI) Destroy(w http.ResponseWriter, r *http.Request) {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		case namespace.ErrDeleteSelf:
-			sess.AddFlash(template.Danger("You cannot remove yourself"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "You cannot remove yourself",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		default:
 			h.Log.Error.Println(r.URL, r.Method, errors.Err(err))
-			sess.AddFlash(template.Danger("Failed to remove collaborator"), "alert")
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Failed to remove collaborator",
+			}, "alert")
 			h.RedirectBack(w, r)
 			return
 		}
 	}
 
-	sess.AddFlash(template.Success("Collaborator remove: "+mux.Vars(r)["collaborator"]), "alert")
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Collaborator remove: " + mux.Vars(r)["collaborator"],
+	}, "alert")
 	h.RedirectBack(w, r)
 }

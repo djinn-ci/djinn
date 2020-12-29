@@ -40,7 +40,7 @@ type TagUI struct {
 
 // Index serves the HTML response detailing the list of builds.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -70,6 +70,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Tag:       q.Get("tag"),
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

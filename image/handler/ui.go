@@ -28,7 +28,7 @@ type UI struct {
 
 // Index serves the HTML response detailing the list of images.
 func (h Image) Index(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -57,13 +57,14 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 		Search:    r.URL.Query().Get("search"),
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating and uploading images via the
 // web frontend.
 func (h Image) Create(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -81,6 +82,7 @@ func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

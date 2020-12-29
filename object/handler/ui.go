@@ -31,7 +31,7 @@ type UI struct {
 
 // Index serves the HTML response detailing the list of objects.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -60,13 +60,14 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Search:    r.URL.Query().Get("search"),
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating and uploading objects via the
 // web frontend.
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -84,6 +85,7 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -144,8 +146,6 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 // request. If the penultimate part of the request URL path is "download" then
 // the object content is sent in the response body.
 func (h UI) Show(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
-
 	ctx := r.Context()
 
 	parts := strings.Split(r.URL.Path, "/")
@@ -179,6 +179,8 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		http.ServeContent(w, r, o.Name, o.CreatedAt, rec)
 		return
 	}
+
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(ctx)
 
@@ -235,6 +237,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

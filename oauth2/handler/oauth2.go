@@ -60,7 +60,7 @@ func (h Oauth2) getClientCredentialsAndCode(r *http.Request) (string, string, st
 }
 
 func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, _, err := h.UserFromCookie(r)
 
@@ -173,6 +173,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		State:       state,
 		Scope:       scope,
 	}
+	save(r, w)
 	webutil.HTML(w, template.Render(p), http.StatusOK)
 }
 

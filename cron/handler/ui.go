@@ -28,7 +28,7 @@ type UI struct {
 
 // Index serves the HTML response detailing the list of cron jobs.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -60,18 +60,19 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating cron jobs via the web frontend.
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
-
 	u, ok := user.FromContext(r.Context())
 
 	if !ok {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
+
+	sess, save := h.Session(r)
 
 	csrf := string(csrf.TemplateField(r))
 
@@ -83,6 +84,7 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -142,7 +144,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 // Show serves the HTML response for viewing an individual cron job in the given
 // request.
 func (h UI) Show(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -199,13 +201,14 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Edit serves the HTML response for editing the cron job in the given request
 // context.
 func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -230,6 +233,7 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 		Cron: c,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

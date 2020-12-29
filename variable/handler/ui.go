@@ -23,7 +23,7 @@ type UI struct {
 
 // Index serves the HTML response detailing the list of variables.
 func (h UI) Index(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -52,18 +52,19 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Variables: vv,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating variables via the web frontend.
 func (h UI) Create(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
-
 	u, ok := user.FromContext(r.Context())
 
 	if !ok {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
+
+	sess, save := h.Session(r)
 
 	csrfField := string(csrf.TemplateField(r))
 
@@ -75,6 +76,7 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

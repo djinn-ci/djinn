@@ -66,7 +66,7 @@ func (h App) appFromRequest(r *http.Request) (*oauth2.App, error) {
 // Index serves the HTML response detailing the list of OAuth apps for the
 // current user.
 func (h App) Index(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -97,12 +97,13 @@ func (h App) Index(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
 // Create serves the HTML response for creating a new OAuth app.
 func (h App) Create(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -120,6 +121,7 @@ func (h App) Create(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
@@ -184,7 +186,7 @@ func (h App) Store(w http.ResponseWriter, r *http.Request) {
 // Show serves the individual HTML response for viewing an individual OAuth
 // app.
 func (h App) Show(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	sess, save := h.Session(r)
 
 	u, ok := user.FromContext(r.Context())
 
@@ -225,6 +227,7 @@ func (h App) Show(w http.ResponseWriter, r *http.Request) {
 		App: a,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

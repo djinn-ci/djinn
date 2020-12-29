@@ -61,7 +61,7 @@ func (h *Handler) RedirectBack(w http.ResponseWriter, r *http.Request) {
 }
 
 // SaveMiddleware will save any data put in the session before serving the next
-// request.
+// request. Useful if any session data is flashed from within a gate.
 func (h *Handler) SaveMiddleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, save := h.Session(r)

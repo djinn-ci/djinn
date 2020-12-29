@@ -3,20 +3,25 @@
 set -e
 
 module="$(head -1 go.mod | awk '{ print $2 }')"
+version="$(git rev-parse --abbrev-ref HEAD)"
 
-LIBS="netgo osusergo"
-BUILD="$(go run version.go $module)"
+if ! echo "$version" | grep -qE "^v"; then
+	version="devel $(git log -n 1 --format='format: +%h %cd' HEAD)"
+fi
+
+default_tags="netgo osusergo"
+default_ldflags=$(printf -- "-X '%s/version.Build=%s'" "$module" "$version")
 
 if [ -z "$LDFLAGS" ]; then
-	LDFLAGS="$BUILD"
+	LDFLAGS="$default_ldflags"
 else
-	LDFLAGS="$LDFLAGS $BUILD"
+	LDFLAGS="$LDFLAGS $default_ldflags"
 fi
 
 if [ -z "$TAGS" ]; then
-	TAGS="$LIBS"
+	TAGS="$default_tags"
 else
-	TAGS="$TAGS $LIBS"
+	TAGS="$TAGS $default_tags"
 fi
 
 for bin in $(grep -vE "^#" make.dep | awk '{ print $1 }'); do

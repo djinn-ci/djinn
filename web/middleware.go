@@ -116,7 +116,7 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFu
 
 // Get the currently authenticated user from the request. Check for token
 // auth first, then fallback to cookie.
-func (h Middleware) userFromRequest(w http.ResponseWriter, r *http.Request) (*user.User, bool, error) {
+func (h Middleware) UserFromRequest(w http.ResponseWriter, r *http.Request) (*user.User, bool, error) {
 	if _, ok := r.Header["Authorization"]; ok {
 		u, ok, err := h.UserFromToken(r)
 
@@ -160,7 +160,7 @@ func (h Middleware) Guest(next http.Handler) http.Handler {
 			errh = JSONError
 		}
 
-		_, ok, err := h.userFromRequest(w, r)
+		_, ok, err := h.UserFromRequest(w, r)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -193,7 +193,7 @@ func (h Middleware) Auth(next http.Handler) http.Handler {
 			errh = JSONError
 		}
 
-		u, ok, err := h.userFromRequest(w, r)
+		u, ok, err := h.UserFromRequest(w, r)
 
 		if err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -228,7 +228,7 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 				errh = JSONError
 			}
 
-			u, ok, err := h.userFromRequest(w, r)
+			u, ok, err := h.UserFromRequest(w, r)
 
 			if !ok {
 				u = &user.User{}

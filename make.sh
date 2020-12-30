@@ -137,7 +137,7 @@ manif() {
 
 	[ -f sum.manif ] && rm sum.manif
 
-	sha256sum * | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
+	sha256sum djinn* | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
 
 	cd - > /dev/null
 }

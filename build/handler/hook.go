@@ -403,8 +403,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 	body, err := cli.VerifyRequest(r.Body, r.Header.Get("X-Hub-Signature"))
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		webutil.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
+		webutil.Text(w, errors.Cause(err).Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -531,8 +530,7 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 	body, err := cli.VerifyRequest(r.Body, r.Header.Get("X-Gitlab-Token"))
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		webutil.Text(w, errors.Cause(err).Error(), http.StatusInternalServerError)
+		webutil.Text(w, errors.Cause(err).Error(), http.StatusBadRequest)
 		return
 	}
 

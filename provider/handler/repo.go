@@ -58,7 +58,17 @@ func (h Repo) cachePut(name string, id int64, rr []*provider.Repo, paginator dat
 	rr1 := make([]*provider.Repo, 0, len(rr))
 
 	for _, r := range rr {
-		rr1 = append(rr1, r)
+		rr1 = append(rr1, &provider.Repo{
+			ID:           r.ID,
+			UserID:       r.UserID,
+			ProviderID:   r.ProviderID,
+			HookID:       r.HookID,
+			RepoID:       r.RepoID,
+			ProviderName: r.ProviderName,
+			Enabled:      r.Enabled,
+			Name:         r.Name,
+			Href:         r.Href,
+		})
 	}
 
 	if err := enc.Encode(rr1); err != nil {

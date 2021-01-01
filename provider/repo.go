@@ -27,8 +27,8 @@ type Repo struct {
 	Name         string        `db:"name"`
 	Href         string        `db:"href"`
 
-	User     *user.User `db:"-"`
-	Provider *Provider  `db:"-"`
+	User     *user.User `db:"-" gob:"-"`
+	Provider *Provider  `db:"-" gob:"-"`
 }
 
 // RepoStore is the type for creating and modifying Repo models in the database.

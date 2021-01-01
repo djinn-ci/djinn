@@ -48,19 +48,17 @@ func NewRepo(h web.Handler, redis *redis.Client, block *crypto.Block, providers 
 }
 
 func (h Repo) cachePut(name string, id int64, rr []*provider.Repo, paginator database.Paginator) error {
-	var err error
+	var (
+		buf bytes.Buffer
+		err error
+	)
 
-	buf := bytes.Buffer{}
 	enc := gob.NewEncoder(&buf)
 
 	rr1 := make([]*provider.Repo, 0, len(rr))
 
 	for _, r := range rr {
-		r1 := (*r)
-		r1.User = nil
-		r1.Provider = nil
-
-		rr1 = append(rr1, &r1)
+		rr1 = append(rr1, r)
 	}
 
 	if err := enc.Encode(rr1); err != nil {
@@ -123,20 +121,27 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	opt := query.OrderAsc("name")
-
-	if name := r.URL.Query().Get("provider"); name != "" {
-		opt = query.Where("name", "=", query.Arg(name))
-	}
-
 	providers := provider.NewStore(h.DB, u)
 
-	p, err := providers.Get(opt)
+	var (
+		// Default provider if not given in the URL query will be the first
+		// we find lexically in the database that is also the primary account
+		// for the user.
+		p   *provider.Provider
+		err error
+	)
 
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
+	if name := r.URL.Query().Get("provider"); name != "" {
+		p, err = providers.Get(
+			query.Where("name", "=", query.Arg(name)),
+			query.Where("main_account", "=", query.Arg(true)),
+			query.OrderAsc("name"),
+		)
+	} else {
+		p, err = providers.Get(
+			query.Where("main_account", "=", query.Arg(true)),
+			query.OrderAsc("name"),
+		)
 	}
 
 	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
@@ -169,14 +174,6 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	enabled, err := provider.NewRepoStore(h.DB, u, p).All(query.Where("enabled", "=", query.Arg(true)))
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
 	pp, err := providers.All(query.Where("main_account", "=", query.Arg(true)), query.OrderAsc("name"))
 
 	if err != nil {
@@ -185,10 +182,12 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	providersLookup := make(map[int64]*provider.Provider)
+	enabled, err := provider.NewRepoStore(h.DB, u, p).All(query.Where("enabled", "=", query.Arg(true)))
 
-	for _, p := range pp {
-		providersLookup[p.ID] = p
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	enabledLookup := make(map[int64]int64)
@@ -202,7 +201,6 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 			r.ID = id
 			r.Enabled = true
 		}
-		r.Provider = providersLookup[r.ProviderID]
 	}
 
 	csrfField := string(csrf.TemplateField(r))

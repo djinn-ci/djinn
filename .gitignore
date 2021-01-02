@@ -18,8 +18,3 @@ djinn-driver.toml
 djinn-worker.toml
 djinn-server.toml
 djinn-scheduler.toml
-djinn
-djinn-curator
-djinn-scheduler
-djinn-server
-djinn-worker

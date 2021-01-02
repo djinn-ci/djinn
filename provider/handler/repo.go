@@ -109,7 +109,7 @@ func (h Repo) cacheGet(name string, id, page int64) ([]*provider.Repo, database.
 	return rr, paginator, errors.Err(err)
 }
 
-func (h Repo) loadRepos(u *user.User, name string, page int64) ([]*provider.Repo, *provider.Provider, []*provider.Provider, database.Paginator, error) {
+func (h Repo) loadRepos(u *user.User, name string, page int64, reload bool) ([]*provider.Repo, *provider.Provider, []*provider.Provider, database.Paginator, error) {
 	var paginator database.Paginator
 
 	pp, err := provider.NewStore(h.DB, u).All(query.OrderAsc("name"))
@@ -141,7 +141,7 @@ func (h Repo) loadRepos(u *user.User, name string, page int64) ([]*provider.Repo
 
 	rr, paginator, err := h.cacheGet(p.Name, u.ID, page)
 
-	if len(rr) == 0 {
+	if len(rr) == 0 || reload {
 		rr, paginator, err = p.Repos(h.block, h.providers, page)
 
 		if err != nil {
@@ -203,7 +203,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	rr, p, pp, paginator, err := h.loadRepos(u, q.Get("name"), page)
+	rr, p, pp, paginator, err := h.loadRepos(u, q.Get("name"), page, false)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -247,7 +247,7 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	if _, _, _, _, err := h.loadRepos(u, q.Get("provider"), page); err != nil {
+	if _, _, _, _, err := h.loadRepos(u, q.Get("provider"), page, true); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Alert{
 			Level:   template.Danger,

@@ -139,6 +139,8 @@ func (h Repo) loadRepos(u *user.User, name string, page int64, reload bool) ([]*
 		}
 	}
 
+	name = p.Name
+
 	rr, paginator, err := h.cacheGet(p.Name, u.ID, page)
 
 	if len(rr) == 0 || reload {

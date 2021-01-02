@@ -217,9 +217,10 @@ func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 
 	for _, r := range repos {
 		rr = append(rr, &provider.Repo{
-			RepoID: r.ID,
-			Name:   r.FullName,
-			Href:   r.HTMLURL,
+			ProviderUserID: r.Owner.ID,
+			RepoID:         r.ID,
+			Name:           r.FullName,
+			Href:           r.HTMLURL,
 		})
 	}
 
@@ -331,7 +332,7 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusNoContent {
 		return decodeError(resp.Body)
 	}
 

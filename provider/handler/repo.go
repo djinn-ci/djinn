@@ -59,15 +59,15 @@ func (h Repo) cachePut(name string, id int64, rr []*provider.Repo, paginator dat
 
 	for _, r := range rr {
 		rr1 = append(rr1, &provider.Repo{
-			ID:           r.ID,
-			UserID:       r.UserID,
-			ProviderID:   r.ProviderID,
-			HookID:       r.HookID,
-			RepoID:       r.RepoID,
-			ProviderName: r.ProviderName,
-			Enabled:      r.Enabled,
-			Name:         r.Name,
-			Href:         r.Href,
+			ID:             r.ID,
+			UserID:         r.UserID,
+			ProviderID:     r.ProviderID,
+			ProviderUserID: r.ProviderUserID,
+			HookID:         r.HookID,
+			RepoID:         r.RepoID,
+			Enabled:        r.Enabled,
+			Name:           r.Name,
+			Href:           r.Href,
 		})
 	}
 
@@ -109,13 +109,77 @@ func (h Repo) cacheGet(name string, id, page int64) ([]*provider.Repo, database.
 	return rr, paginator, errors.Err(err)
 }
 
-func (h Repo) loadRepos(p *provider.Provider, page int64) ([]*provider.Repo, database.Paginator, error) {
-	if !p.Connected {
-		return []*provider.Repo{}, database.Paginator{}, nil
+func (h Repo) loadRepos(u *user.User, name string, page int64) ([]*provider.Repo, *provider.Provider, []*provider.Provider, database.Paginator, error) {
+	var paginator database.Paginator
+
+	pp, err := provider.NewStore(h.DB, u).All(query.OrderAsc("name"))
+
+	if err != nil {
+		return nil, nil, nil, paginator, errors.Err(err)
 	}
 
-	rr, paginator, err := p.Repos(h.block, h.providers, page)
-	return rr, paginator, errors.Err(err)
+	accounts := make([]*provider.Provider, 0, len(pp))
+	providerLookup := make(map[string]*provider.Provider)
+
+	for _, p := range pp {
+		if p.MainAccount {
+			accounts = append(accounts, p)
+		}
+		providerLookup[p.Name + strconv.FormatInt(p.ProviderUserID.Int64, 10)] = p
+	}
+
+	p := accounts[0]
+
+	if name != "" {
+		for _, acc := range accounts {
+			if acc.Name == name {
+				p = acc
+				break
+			}
+		}
+	}
+
+	rr, paginator, err := h.cacheGet(p.Name, u.ID, page)
+
+	if len(rr) == 0 {
+		rr, paginator, err = p.Repos(h.block, h.providers, page)
+
+		if err != nil {
+			return nil, nil, nil, paginator, errors.Err(err)
+		}
+
+		if err := h.cachePut(name, u.ID, rr, paginator); err != nil {
+			return nil, nil, nil, paginator, errors.Err(err)
+		}
+	}
+
+	for _, r := range rr {
+		r.Provider = providerLookup[p.Name + strconv.FormatInt(r.ProviderUserID, 10)]
+		r.ProviderID = r.Provider.ID
+	}
+
+	enabled, err := provider.NewRepoStore(h.DB, u).All(query.Where("enabled", "=", query.Arg(true)))
+
+	if err != nil {
+		return nil, nil, nil, paginator, errors.Err(err)
+	}
+
+	enabledLookup := make(map[int64]map[int64]int64)
+
+	for _, r := range enabled {
+		if _, ok := enabledLookup[r.ProviderID]; !ok {
+			enabledLookup[r.ProviderID] = make(map[int64]int64)
+		}
+		enabledLookup[r.ProviderID][r.RepoID] = r.ID
+	}
+
+	for _, r := range rr {
+		if id, ok := enabledLookup[r.ProviderID][r.RepoID]; ok {
+			r.ID = id
+			r.Enabled = true
+		}
+	}
+	return rr, p, accounts, paginator, nil
 }
 
 // Index serves the HTML response detailing the repositories retrieved from the
@@ -131,86 +195,20 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	providers := provider.NewStore(h.DB, u)
+	q := r.URL.Query()
 
-	var (
-		// Default provider if not given in the URL query will be the first
-		// we find lexically in the database that is also the primary account
-		// for the user.
-		p   *provider.Provider
-		err error
-	)
-
-	if name := r.URL.Query().Get("provider"); name != "" {
-		p, err = providers.Get(
-			query.Where("name", "=", query.Arg(name)),
-			query.Where("main_account", "=", query.Arg(true)),
-			query.OrderAsc("name"),
-		)
-	} else {
-		p, err = providers.Get(
-			query.Where("main_account", "=", query.Arg(true)),
-			query.OrderAsc("name"),
-		)
-	}
-
-	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+	page, err := strconv.ParseInt(q.Get("page"), 10, 64)
 
 	if err != nil {
 		page = 1
 	}
 
-	rr, paginator, err := h.cacheGet(p.Name, u.ID, page)
+	rr, p, pp, paginator, err := h.loadRepos(u, q.Get("name"), page)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
-	}
-
-	if len(rr) == 0 {
-		rr, paginator, err = h.loadRepos(p, page)
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-
-		if err := h.cachePut(p.Name, u.ID, rr, paginator); err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-			return
-		}
-	}
-
-	pp, err := providers.All(query.Where("main_account", "=", query.Arg(true)), query.OrderAsc("name"))
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	enabled, err := provider.NewRepoStore(h.DB, u, p).All(query.Where("enabled", "=", query.Arg(true)))
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-
-	enabledLookup := make(map[int64]int64)
-
-	for _, r := range enabled {
-		enabledLookup[r.RepoID] = r.ID
-	}
-
-	for _, r := range rr {
-		if id, ok := enabledLookup[r.RepoID]; ok {
-			r.ID = id
-			r.Enabled = true
-		}
 	}
 
 	csrfField := string(csrf.TemplateField(r))
@@ -241,39 +239,15 @@ func (h Repo) Update(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", query.Arg(r.URL.Query().Get("provider"))))
+	q := r.URL.Query()
 
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Alert{
-			Level:   template.Danger,
-			Close:   true,
-			Message: "Failed to refresh repository cache",
-		}, "alert")
-		h.RedirectBack(w, r)
-		return
-	}
-
-	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+	page, err := strconv.ParseInt(q.Get("page"), 10, 64)
 
 	if err != nil {
 		page = 1
 	}
 
-	rr, paginator, err := h.loadRepos(p, page)
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Alert{
-			Level:   template.Danger,
-			Close:   true,
-			Message: "Failed to refresh repository cache",
-		}, "alert")
-		h.RedirectBack(w, r)
-		return
-	}
-
-	if err := h.cachePut(p.Name, u.ID, rr, paginator); err != nil {
+	if _, _, _, _, err := h.loadRepos(u, q.Get("provider"), page); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Alert{
 			Level:   template.Danger,
@@ -315,7 +289,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, err := provider.NewStore(h.DB, u).Get(query.Where("name", "=", query.Arg(f.Provider)))
+	p, err := provider.NewStore(h.DB, u).Get(query.Where("id", "=", query.Arg(f.ProviderID)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -344,8 +318,8 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if repo.IsZero() {
+		repo.ProviderID = f.ProviderID
 		repo.RepoID = f.RepoID
-		repo.ProviderName = f.Provider
 		repo.Name = f.Name
 	}
 

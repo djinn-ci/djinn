@@ -5,10 +5,10 @@ import "github.com/andrewpillar/webutil"
 // Form is the type that represents the input data for enabling/disabling a
 // repository on a Git hosting provider.
 type RepoForm struct {
-	RepoID   int64  `schema:"repo_id"`
-	Provider string `schema:"provider"`
-	Name     string `schema:"name"`
-	Href     string `schema:"href"`
+	ProviderID int64  `schema:"provider_id"`
+	RepoID     int64  `schema:"repo_id"`
+	Name       string `schema:"name"`
+	Href       string `schema:"href"`
 }
 
 var _ webutil.Form = (*RepoForm)(nil)

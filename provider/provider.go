@@ -170,9 +170,7 @@ func (p *Provider) SetCommitStatus(block *crypto.Block, reg *Registry, r *Repo, 
 // Repos get's the repositories from the current provider's API endpoint. The
 // given crypto.Block is used to decrypt the access token that is used to
 // authenticate against the API. The given page is used to get the repositories
-// on that given page. This will also set the current Provider as the Repo's
-// Provider. This won't be 100% accurate if the Repo belongs to an org and the
-// current provider is for a user account and not an org account.
+// on that given page.
 func (p *Provider) Repos(block *crypto.Block, reg *Registry, page int64) ([]*Repo, database.Paginator, error) {
 	paginator := database.Paginator{}
 
@@ -196,7 +194,6 @@ func (p *Provider) Repos(block *crypto.Block, reg *Registry, page int64) ([]*Rep
 
 	for i := range rr {
 		rr[i].UserID = p.UserID
-		rr[i].Provider = p
 	}
 	return rr, paginator, nil
 }

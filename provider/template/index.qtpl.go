@@ -235,13 +235,13 @@ func (p *RepoIndex) StreamBody(qw422016 *qt422016.Writer) {
 //line provider/template/index.qtpl:87
 			if !r.Enabled {
 //line provider/template/index.qtpl:87
-				qw422016.N().S(` <form method="POST" action="/repos/enable"> <input type="hidden" name="repo_id" value="`)
+				qw422016.N().S(` <form method="POST" action="/repos/enable"> <input type="hidden" name="provider_id" value="`)
 //line provider/template/index.qtpl:89
-				qw422016.E().V(r.RepoID)
+				qw422016.E().V(r.ProviderID)
 //line provider/template/index.qtpl:89
-				qw422016.N().S(`"> <input type="hidden" name="provider" value="`)
+				qw422016.N().S(`"> <input type="hidden" name="repo_id" value="`)
 //line provider/template/index.qtpl:90
-				qw422016.E().S(r.Provider.Name)
+				qw422016.E().V(r.RepoID)
 //line provider/template/index.qtpl:90
 				qw422016.N().S(`"> <input type="hidden" name="name" value="`)
 //line provider/template/index.qtpl:91

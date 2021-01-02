@@ -27,10 +27,13 @@ type Client struct {
 }
 
 type Repo struct {
-	ID     int64
-	Name   string `json:"path_with_namespace"`
-	URL    string
-	WebURL string `json:"web_url"`
+	ID        int64
+	Name      string `json:"path_with_namespace"`
+	URL       string
+	WebURL    string `json:"web_url"`
+	Namespace struct {
+		ID int64
+	}
 }
 
 type PushEvent struct {
@@ -150,9 +153,10 @@ func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 
 	for _, r := range repos {
 		rr = append(rr, &provider.Repo{
-			RepoID: r.ID,
-			Name:   r.Name,
-			Href:   r.WebURL,
+			ProviderUserID: r.Namespace.ID,
+			RepoID:         r.ID,
+			Name:           r.Name,
+			Href:           r.WebURL,
 		})
 	}
 

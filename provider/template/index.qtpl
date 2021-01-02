@@ -86,8 +86,8 @@ var providerNames = map[string]string{
 							<td class="align-right">
 								{% if !r.Enabled %}
 									<form method="POST" action="/repos/enable">
+										<input type="hidden" name="provider_id" value="{%v r.ProviderID %}">
 										<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
-										<input type="hidden" name="provider" value="{%s r.Provider.Name %}">
 										<input type="hidden" name="name" value="{%s r.Name %}">
 										<input type="hidden" name="href" value="{%s r.Href %}">
 								{% else %}

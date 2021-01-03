@@ -33,7 +33,7 @@ auth  = "1a2b3c4d5e6f7g8h1a2b3c4d5e6f7g8h"
 [database]
 addr     = "localhost:5432"
 name     = "djinn"
-username = "djinn"
+username = "djinn-server"
 password = "secret"
 
 [redis]

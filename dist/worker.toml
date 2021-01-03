@@ -38,8 +38,8 @@ password = "1a2b3c4d"
 
 [database]
 addr     = "localhost:5432"
-name     = "djinn-worker"
-username = "djinn"
+name     = "djinn"
+username = "djinn-worker"
 password = "secret"
 
 [redis]

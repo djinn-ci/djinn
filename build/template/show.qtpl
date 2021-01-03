@@ -69,7 +69,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 			{% case build.Push %}
 				committed <a target="_blank" href="{%s b.Trigger.Data["url"] %}">{%s b.Trigger.Data["sha"][:7] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span>
 			{% case build.Pull %}
-				{%s b.Trigger.Data["action"] %} pull request <a target="_blank" href="{%s b.Trigger.Data["url"] %}">#{%s b.Trigger.Data["id"] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span> with <span class="code">{%s b.Trigger.Data["sha"][:7] %}</span>
+				{%s b.Trigger.Data["action"] %} pull request <a target="_blank" href="{%s b.Trigger.Data["url"] %}">#{%s b.Trigger.Data["id"] %}</a> to <span class="code">{%s b.Trigger.Data["ref"] %}</span> with commit <span class="code">{%s b.Trigger.Data["sha"][:7] %}</span>
 			{% endswitch %}
 			{%= renderTimestamp(b.CreatedAt) %}
 		</div>

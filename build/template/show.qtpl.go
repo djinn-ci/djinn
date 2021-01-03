@@ -195,7 +195,7 @@ func StreamRenderTrigger(qw422016 *qt422016.Writer, b *build.Build) {
 //line build/template/show.qtpl:72
 		qw422016.E().S(b.Trigger.Data["ref"])
 //line build/template/show.qtpl:72
-		qw422016.N().S(`</span> with <span class="code">`)
+		qw422016.N().S(`</span> with commit <span class="code">`)
 //line build/template/show.qtpl:72
 		qw422016.E().S(b.Trigger.Data["sha"][:7])
 //line build/template/show.qtpl:72

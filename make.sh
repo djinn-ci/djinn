@@ -101,6 +101,10 @@ help_() {
 				printf "  %s\n" "$c"
 			done
 			;;
+		build)
+			printf "build one of the Go programs in cmd\n"
+			printf "usage: make.sh build <dir>\n"
+			;;
 		runner)
 			printf "compile the offline runner\n"
 			printf "usage: make.sh runner\n"
@@ -127,7 +131,7 @@ help_() {
 			;;
 		*)
 			printf "build the server and offline runner\n"
-			printf "usage: make.sh [clean|css|dev|manif|runner|server|ui|worker]\n"
+			printf "usage: make.sh [build|clean|css|dev|manif|runner|server|ui|worker]\n"
 			;;
 	esac
 }
@@ -146,6 +150,10 @@ case "$1" in
 	ui)
 		shift 1
 		ui "$1"
+		;;
+	build)
+		shift 1
+		build "$1"
 		;;
 	runner)
 		build djinn

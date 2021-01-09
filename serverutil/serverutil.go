@@ -132,7 +132,10 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 	srv := cfg.Server()
 
 	srv.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		accept := r.Header.Get("Accept")
+		contentType := r.Header.Get("Content-Type")
+
+		if strings.HasPrefix(accept, "application/json") || strings.HasPrefix(accept, contentType) {
 			web.JSONError(w, "Not found", http.StatusNotFound)
 			return
 		}
@@ -140,7 +143,10 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 	})
 
 	srv.Router.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		accept := r.Header.Get("Accept")
+		contentType := r.Header.Get("Content-Type")
+
+		if strings.HasPrefix(accept, "application/json") || strings.HasPrefix(accept, contentType) {
 			web.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}

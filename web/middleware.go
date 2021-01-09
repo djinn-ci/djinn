@@ -222,7 +222,7 @@ func (h Middleware) Gate(gates ...Gate) mux.MiddlewareFunc {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var errh errorHandler = HTMLError
 
-			json := strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
+			json := strings.HasPrefix(r.Header.Get("Accept"), "application/json")
 
 			if json {
 				errh = JSONError

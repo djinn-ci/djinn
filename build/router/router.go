@@ -89,7 +89,7 @@ func Gate(db *sqlx.DB) web.Gate {
 		r = r.WithContext(context.WithValue(r.Context(), "build", b))
 
 		if !b.NamespaceID.Valid {
-			return r, ok && u.ID == b.UserID, nil
+			return r, ok && owner.ID == u.ID, nil
 		}
 
 		root, err := namespaces.Get(

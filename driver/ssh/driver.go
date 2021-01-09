@@ -148,6 +148,9 @@ func (s *Driver) Execute(j *runner.Job, c runner.Collector) {
 	cli, err := sftp.NewClient(s.client)
 
 	if err != nil {
+		if err == io.EOF {
+			err = errors.New("EOF: make sure Subsystem in sshd_config on the image is configured correctly")
+		}
 		j.Failed(err)
 		return
 	}

@@ -187,7 +187,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	d, err := build.NewDriverStore(w.DB).Get()
+	d, err := build.NewDriverStore(w.DB, b).Get()
 
 	if err != nil {
 		return errors.Err(err)

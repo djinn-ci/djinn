@@ -208,7 +208,6 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	s.URL = str[:i]
-	s.Ref = "master"
 	s.Dir = base(s.URL)
 
 	tmp := make([]rune, 0, len(str[i:]))

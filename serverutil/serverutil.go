@@ -65,6 +65,7 @@ var (
 		"image":     imagerouter.Gate,
 		"key":       keyrouter.Gate,
 		"namespace": namespacerouter.Gate,
+		"oauth2":    oauth2router.Gate,
 		"object":    objectrouter.Gate,
 		"provider":  providerrouter.Gate,
 		"variable":  variablerouter.Gate,

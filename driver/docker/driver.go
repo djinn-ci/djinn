@@ -256,6 +256,8 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 	}
 
 	for src, dst := range j.Artifacts.Values {
+		src = d.Workspace + "/" + src
+
 		fmt.Fprintf(j.Writer, "Collecting artifact %s => %s\n", src, dst)
 
 		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, src)

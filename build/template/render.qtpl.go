@@ -211,7 +211,7 @@ func StreamRenderArtifactTable(qw422016 *qt422016.Writer, aa []*build.Artifact, 
 //line build/template/render.qtpl:73
 				qw422016.N().S(`</span></td> `)
 //line build/template/render.qtpl:74
-				if a.DeletedAt.Valid {
+				if a.DeletedAt.Valid || a.MD5 == nil && a.SHA256 == nil {
 //line build/template/render.qtpl:74
 					qw422016.N().S(` <td><a title="Artifact deleted"><strike>`)
 //line build/template/render.qtpl:75

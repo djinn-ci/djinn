@@ -386,7 +386,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		"scope":        t.Scope.String(),
 	}
 
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+	if strings.HasPrefix(r.Header.Get("Accept"), "application/json") {
 		webutil.JSON(w, body, http.StatusOK)
 		return
 	}

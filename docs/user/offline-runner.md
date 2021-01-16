@@ -66,6 +66,14 @@ created.
 
 ### Docker
 
+The Docker driver is configured in the `[docker]` block of the `driver.toml`
+configuration file. Detailed below are the different properties for this block,
+
+* `host` -  The host of the running docker daemon, can be a path to a Unix
+socket.
+
+* `version` - The version of the Docker API you wish to use.
+
 ### QEMU
 
 The QEMU driver is configured in the `[qemu]` block of the `driver.toml`
@@ -80,10 +88,9 @@ execution.
 * `memory` - The amount of memory in bytes for a QEMU machine that is created
 for execution.
 
-The directory specified in `disks` must have a sub-directory called `_base`,
-within here should be another sub-directory for each architecture, in each of
-these exist the disk images to use. For example assume a manifest declares the
-following,
+The directory specified in `disks` must have a another sub-directory for each
+architecture, in each of these exist the disk images to use. For example assume
+a manifest declares the following,
 
     driver:
       type: qemu
@@ -91,4 +98,4 @@ following,
 
 then Djinn will look for the following disk image,
 
-    /home/me/.config/djinn/images/qemu/_base/x86_64/centos/8
+    /home/me/.config/djinn/images/qemu/x86_64/centos/8

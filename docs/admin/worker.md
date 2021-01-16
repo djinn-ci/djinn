@@ -52,11 +52,6 @@ properties for this file,
 The worker also requires a `driver.toml` file to be configured, see details
 on how to do this [here](/user/offline-runner#configuring-drivers).
 
->**Note:** Under the hood the worker uses
-[RichardKnop/machinery](https://github.com/RichardKnop/machinery) as its work
-queue mechanism. This will write additional information about the builds being
-processed to `stdout`.
-
 ### General Configuration
 
 * `webserver` - This is the address of the web server that serves Djinn CI. This
@@ -112,6 +107,13 @@ server.
 be one of: `file`.
 
 * `images.path` - The location of where custom image files are stored.
+
+The directory specified in `images.path` must have a another sub-directory for
+each supported driver. Within each of these directories should be a `_base`
+directory to contain the base images to support.
+
+For the QEMU driver within the `_base` directory should be another sub-directory
+for each architecture. Within each of these should be the QEMU images to use.
 
 ### Artifacts
 

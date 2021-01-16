@@ -14,4 +14,5 @@ pull request.
 
 For this webhook to work you will need to add a `.djinn.yml` file to the root
 of the repository, or add a `.djinn` directory to the root of the repository
-containing the build manifests you wish to submit.
+containing the build manifests you wish to submit. Each YAML file in this
+directory must be suffixed with the `.yml` extension.

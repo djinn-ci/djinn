@@ -98,7 +98,7 @@ func getGitHubURL(m map[string]string) string {
 		return ""
 	}
 
-	if strings.HasSuffix(m["name"], ".yml") || strings.HasSuffix(m["name"], ".yaml") {
+	if strings.HasSuffix(m["name"], ".yml") {
 		return m["url"]
 	}
 	return ""
@@ -110,7 +110,7 @@ func getGitLabURL(rawurl, ref string) func(map[string]string) string {
 			return ""
 		}
 
-		if strings.HasSuffix(m["path"], ".yml") || strings.HasSuffix(m["path"], ".yaml") {
+		if strings.HasSuffix(m["path"], ".yml") {
 			return rawurl + "/repository/files/" + url.QueryEscape(m["path"]) + "?ref=" + ref
 		}
 		return ""

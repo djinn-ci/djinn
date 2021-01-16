@@ -1,4 +1,4 @@
-[Prev](/user/builds) - [Next](/user/cron)
+[Prev](/user/builds) - [Next](/user/repos)
 
 # Namespaces
 

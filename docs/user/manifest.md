@@ -24,10 +24,10 @@ they are required.
 
 **Required:** No
 
-Specify the namespace to submit the build to. If the given namespace does not
-exist then it will be created on the fly, and have the visibility of it set to
-`private` by default. You can use the `<path>@<user>` notation to submit a build
-to a namespace that you are a collaborator in.
+Specify the [namespace](/user/namespace) to submit the build to. If the given
+namespace does not exist then it will be created on the fly, and have the
+visibility of it set to `private` by default. You can use the `<path>@<user>`
+notation to submit a build to a namespace that you are a collaborator in.
 
 **Standalone namespace**
 
@@ -103,7 +103,7 @@ Specify the list of source code repositories to clone into the build
 environment. Any repository URL recognized by `git clone` can be used here,
 
     sources:
-    - https://github.com/andrewpillar/mdsrv.git
+    - https://github.com/andrewpillar/mdsrv
     - git@github.com:andrewpillar/mgrt.git
 
 The destination name of the repository to clone can be set via the `=>`
@@ -116,8 +116,6 @@ the ref to checkout once cloned can be specified at the end of the URL.
 
     sources:
     - https://github.com/andrewpillar/mdsrv.git v1.0.0 => mdsrv
-
-If no ref is specified then `master` is used as the default ref to checkout.
 
 The sources in the manifest will be collated into a single job of the build
 when the build is submitted. This means if any of the sources fail to clone then
@@ -190,33 +188,32 @@ to demonstrate its structure,
     namespace: djinn
     driver:
       type: qemu
-      image: centos/7
-    env:
-    - PGADDR=host=localhost port=5432 dbname=djinn user=djinn password=secret sslmode=disable
-    - RDADDR=localhost:6379
-    - LDFLAGS=-s -w
-    objects:
-    - server.crt
-    - server.key
+      image: djinn-dev
     sources:
-    - https://github.com/djinn-ci/djinn.git => djinn
+    - https://github.com/andrewpillar/djinn.git => djinn
+    env:
+    - PGPASSWORD=secret
+    - LDFLAGS=-s -w
     stages:
-    - test
+    - setup
+    - integration
     - make
     jobs:
-    - stage: test
+    - stage: setup
+      commands:
+      - psql -U djinn -h localhost -d djinn -f djinn/schema.sql
+    - stage: integration
       commands:
       - cd djinn
-      - go test -cover ./...
-      - go test -tags "integration" ./integration
+      - go test -v -tags "integration" ./integration
     - stage: make
       commands:
       - cd djinn
-      - ./make.sh runner
-      - ./make.sh server
-      - ./make.sh worker
+      - ./make.sh
       artifacts:
-      - integration/server.log
-      - djinn.out
-      - djinn-server.out
-      - djinn-worker.out
+      - djinn/bin/djinn
+      - djinn/bin/djinn-curator
+      - djinn/bin/djinn-scheduler
+      - djinn/bin/djinn-server
+      - djinn/bin/djinn-worker
+      - djinn/bin/sum.manif

@@ -11,4 +11,4 @@ fi
 
 dir="$(dirname $(realpath "$0"))"
 
-mdsrv -dir "$dir" -assets "$dir"/assets -tmpl "$dir"/document.tmpl
+mdsrv -dir "$dir" -assets "$dir"/assets -tmpl "$dir"/document.tmpl -var host=https://localhost:8443 -var apihost=https://localhost:8443/api

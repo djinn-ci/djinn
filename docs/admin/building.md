@@ -2,7 +2,7 @@
 
 # Building
 
-To build Djinn you will need to install the following dependencies,
+To build Djinn CI you will need to install the following dependencies,
 
 * `go`- https://golang.org/dl
 * `yarn` - https://yarnpkg.com/getting-started/install
@@ -17,7 +17,7 @@ Once the build dependencies are installed clone the repository,
 
 once cloned, change into the directory and run the `make.sh` script. This will
 execute all of the tests, compile the LESS and templates, then build the
-scheduler, server, the worker, and the offline runner.
+curator, scheduler, server, the worker, and the offline runner.
 
     $ ./make.sh
 

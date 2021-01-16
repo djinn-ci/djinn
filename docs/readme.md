@@ -1,5 +1,24 @@
 # Documentation
 
+Djinn CI is a continuous integration system for automating builds of a program's
+source code, its features include:
+
+* Running builds inside of Docker containers and Linux VMs
+* Cron jobs for repeatable builds
+* Namespaces for organizing builds, and their resources
+* Custom Linux VM build images
+* Integration with GitHub and GitLab for build triggers on pushes and
+pull requests
+* Support for multi-repository builds
+* Build artifacts - collect files from the build environment
+* Build objects - place files into the build environment
+
+**Tutorial**
+
+Get started with Djinn CI, learn how to submit your first build, organize
+resources into namespaces, and setup integration with external providers,
+[read more...](/tutorial)
+
 **User Documentation**
 
 Learn about the build server at a high level, and how to use it to run your

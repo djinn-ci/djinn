@@ -1,13 +1,13 @@
-[Prev](/user/the-basics) - [Next](/user/namespaces)
+[Prev](/user) - [Next](/user/namespaces)
 
 # Builds
 
-Builds are an arbitrary collection of jobs grouped into stages that are
-executed via a specified driver. Builds can have objects placed into
-the build environment, and artifacts collected from it.
+Builds are described via a build [manifest](/user/manifest). These detail the
+driver to use for execution, the code sources to pull in, the objects to place,
+the stages and their respective jobs to execute, and the artifacts to collect.
 
 * [Statuses](#statuses)
-* [Pseudo jobs](#pseudo-jobs)
+* [Builtin jobs](#builtin-jobs)
 * [The order of build execution](#the-order-of-build-execution)
   * [Driver creation](#driver-creation)
   * [Object placement](#object-placement)
@@ -30,11 +30,12 @@ Detailed below are the different statuses that a build can be marked as.
 | Killed               | The build was killed.                                         |
 | Timed Out            | The build took too long to execute.                           |
 
-## Pseudo jobs
+## Builtin jobs
 
-When a build is submitted a handful of pseudo jobs will be added to the build.
-These aren't jobs with actual commands that are executed, they instead exist
-to capture the output of driver creation, source cloning and object placement.
+When a build is submitted, a handful of jobs will be added to that build. The
+first job added would be the driver creation job, that simply exists to capture
+the output of driver creation. A job is added to the build for each source that
+is defined in the build manifest.
 
 ## The order of build execution
 

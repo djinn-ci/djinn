@@ -38,7 +38,7 @@ each value is a string.
 ## Available drivers
 
 Detailed below are the different drivers that are available to use for builds.
-Depending on how your Djinn server is configured, will depend on the drivers
+Depending on how your Djinn Server is configured, will depend on the drivers
 that are available for execution.
 
 ### Docker
@@ -66,7 +66,7 @@ user.
 Listed below are the properties required for the QEMU driver,
 
 * `driver.image` - this is the QCOW2 image file to use when booting a new
-virtual machine for build execution. Depending on how your Djinn server
+virtual machine for build execution. Depending on how your Djinn Server
 is configured will depend on the base images that are available.
 
 ### SSH
@@ -78,5 +78,5 @@ configured address. This will try and connect to the specified server as the
 
 Listed below are the properties required for the SSH driver,
 
-* `driver.address` - this is the address of the server that Djinn should
+* `driver.address` - this is the address of the server that Djinn CI should
 connect to for build execution.

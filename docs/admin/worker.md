@@ -192,7 +192,7 @@ will be `djinn-driver.toml`.
 
 ## Configuring the Worker Daemon
 
-The `dist` directory contains files for running the Djinn worker as a daemon
+The `dist` directory contains files for running the Djinn Worker as a daemon
 on Linux systems that use systemd and SysVinit for daemon management. Use
 whichever suits your needs, and modify accordingly.
 

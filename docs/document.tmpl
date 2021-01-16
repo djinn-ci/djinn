@@ -4,29 +4,34 @@
 		<meta charset="utf-8">
 		<link rel="stylesheet" href="/assets/main.css"/>
 		{{if eq .Title "Readme"}}
-			<title>Djinn Docs</title>
+			<title>Djinn CI Docs</title>
 		{{else}}
-			<title>Djinn Docs - {{ .Title }}</title>
+			<title>Djinn CI Docs - {{ .Title }}</title>
 		{{end}}
 	</head>
 	<body>
 		<div class="doc-content">
+			{{if eq .Path "/api" "/api/builds" "/api/cron" "/api/images" "/api/invites" "/api/keys" "/api/namespaces" "/api/oauth" "/api/objects" "/api/user" "/api/variables"}}
+			<div class="api-wrap">
+			{{else}}
 			<div class="doc-wrap">
+			{{end}}
 				<div class="markdown">{{ .Document }}</div>
 			</div>
 		</div>
 		<div class="sidebar">
 			<div class="sidebar-header">
-				<h2>Djinn Docs</h2>
+				<h2>Djinn CI Docs</h2>
 			</div>
 			<ul class="sidebar-nav">
-				<li><a href="/" {{if eq .Path "/"}}class="active"{{end}}>Documentation Home</a></li>
+				<li><a href="{{index .Vars "host"}}">Djinn CI</a></li>
+				<li><a href="/" {{if eq .Path "/"}}class="active"{{end}}>Home</a></li>
+				<li><a href="/tutorial" {{if eq .Path "/tutorial"}}class="active"{{end}}>Tutorial</a></li>
 				<li class="sidebar-nav-header">USER</li>
 				<li><a href="/user" {{if eq .Path "/user"}}class="active"{{end}}>Overview</a></li>
-				<li><a href="/user/introduction" {{if eq .Path "/user/introduction"}}class="active"{{end}}>Introduction</a></li>
-				<li><a href="/user/the-basics" {{if eq .Path "/user/the-basics"}}class="active"{{end}}>The Basics</a></li>
 				<li><a href="/user/builds" {{if eq .Path "/user/builds"}}class="active"{{end}}>Builds</a></li>
 				<li><a href="/user/namespaces" {{if eq .Path "/user/namespaces"}}class="active"{{end}}>Namespaces</a></li>
+				<li><a href="/user/repos" {{if eq .Path "/user/repos"}}class="active"{{end}}>Repos</a></li>
 				<li><a href="/user/cron" {{if eq .Path "/user/cron"}}class="active"{{end}}>Cron</a></li>
 				<li><a href="/user/drivers" {{if eq .Path "/user/drivers"}}class="active"{{end}}>Drivers</a></li>
 				<li><a href="/user/manifest" {{if eq .Path "/user/manifest"}}class="active"{{end}}>Manifest</a></li>
@@ -45,6 +50,7 @@
 				<li><a href="/api/namespaces" {{if eq .Path "/api/namespaces"}}class="active"{{end}}>Namespaces</a></li>
 				<li><a href="/api/oauth" {{if eq .Path "/api/oauth"}}class="active"{{end}}>OAuth</a></li>
 				<li><a href="/api/objects" {{if eq .Path "/api/objects"}}class="active"{{end}}>Objects</a></li>
+				<li><a href="/api/user" {{if eq .Path "/api/user"}}class="active"{{end}}>User</a></li>
 				<li><a href="/api/variables" {{if eq .Path "/api/variables"}}class="active"{{end}}>Variables</a></li>
 				<li class="sidebar-nav-header">ADMIN</li>
 				<li><a href="/admin" {{if eq .Path "/admin"}}class="active"{{end}}>Overview</a></li>

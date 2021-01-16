@@ -2,6 +2,7 @@
 
 # Cron
 
+* [The cron job object](#the-cron-job-object)
 * [List cron jobs for the authenticated user](#list-cron-jobs-for-the-authenticated-user)
 * [Create a cron job for the authenticated user](#create-a-cron-job-for-the-authenticated-user)
 * [Get an individual cron job](#get-an-individual-cron-job)
@@ -9,43 +10,82 @@
 * [Update a cron job](#update-a-cron-job)
 * [Delete a cron job](#delete-a-cron-job)
 
-## List cron jobs for the authenticated user
+## The cron job object
 
-This will get the cron jobs for the currently authenticated user. This
-requires the explicit `cron:read` permission.
+<div class="api-section">
+<div class="api-doc">
 
-### Request
+**Attributes**
 
-    GET /cron
+---
 
-**Query Parameters**
+**`id`** `int` - Unique identifier for the cron job.
 
-| Name     | Type     | Required  | Description                                    |
-|----------|----------|-----------|------------------------------------------------|
-| `search` | `string` | N         | Get the crons with names like the given value. |
+---
 
-**Examples**
+**`author_id`** `int` - ID of the user who created the cron job.
 
-    $ curl -X GET \
-           -H "Content-Type: application/json" \
-           -H "Authorization: Bearer 1a2b3c4d5f" \
-           https://api.djinn-ci.com/cron
+---
 
+**`user_id`** `int` - ID of the user the cron job belongs to.
 
-    $ curl -X GET \
-           -H "Content-Type: application/json" \
-           -H "Authorization: Bearer 1a2b3c4d5f" \
-           https://api.djinn-ci.com/cron?search=dail
+---
 
-### Response
+**`namespace_id`** `int` `nullable` - ID of the namespace the cron job belongs
+to if any.
 
-    200 OK
-    Content-Length: 1140
-    Content-Type: application/json; charset=utf-8
-    Link: <https://api.djinn-ci.com/cron?page=1>; rel="prev",
-          <https://api.djinn-ci.com/cron?page=3>; rel="next"
-    [{
+---
+
+**`name`** `string` - The name of the cron job.
+
+---
+
+**`schedule`** `enum` - The schedule of the cron job, one of `daily`, `weekly`,
+`monthly`.
+
+---
+
+**`manifest`** `string` - The build manifest the cron should submit on its
+interval.
+
+---
+
+**`next_run`** `timestamp` - The RFC3339 formatted string at which the cron job
+will next run.
+
+---
+
+**`created_at`** `timestamp` - The RFC3339 formatted string at which the cron
+job was created.
+
+---
+
+**`url`** `string` - The API URL to the cron job object itself.
+
+---
+
+**`author`** `object` `nullable` - The [user](/api/user#the-user-object) who
+authored the cron job, if any.
+
+---
+
+**`user`** `object` `nullable` - The [user](/api/user#the-user-object) of the
+cron job, if any.
+
+---
+
+**`namespace`** `object` `nullable` - The
+[namespace](/api/namespaces#the-namespace-object) the cron job belongs to, if
+any.
+
+</div>
+<div class="api-example">
+
+**Object**
+
+    {
         "id": 2,
+        "author_id": 1,
         "user_id": 1,
         "namespace_id": null,
         "name": "Nightly",
@@ -53,36 +93,104 @@ requires the explicit `cron:read` permission.
         "manifest": "driver:\n  image: centos/7\n  type: qemu",
         "next_run": "2006-01-03T00:00:00Z",
         "created_at": "2006-01-02T15:04:05Z",
-        "url": "https://api.djinn-ci.com/cron/2",
+        "url": "{{index .Vars "apihost"}}/cron/2",
         "user": {
           "id": 1,
           "email": "me@example.com",
           "username": "me",
           "created_at": "2006-01-02T15:04:05Z"
         }
-    }]
+    }
 
+</div>
+</div>
+
+## List cron jobs for the authenticated user
+
+<div class="api-section">
+<div class="api-doc">
+
+This will get the cron jobs for the currently authenticated user. This
+requires the explicit `cron:read` permission.
+
+**Parameters**
+
+---
+
+**`search`** `string` - Get the cron jobs with names like the given value.
+
+**Returns**
+
+Returns a list of [cron job objects](/api/cron#the-cron-job-object). The list
+will be paginated to 25 cron jobs per page and will be ordered by the most
+recently created cron job first. If the cron jobs were paginated, then the
+pagination information will be in the response header `Link` like so,
+
+    Link: <{{index .Vars "apihost"}}/cron?page=1>; rel="prev",
+          <{{index .Vars "apihost"}}/cron?page=3>; rel="next"
+
+</div>
+<div class="api-example">
+
+**Request**
+
+    GET /cron
+
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           {{index .Vars "apihost"}}/cron
+
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           {{index .Vars "apihost"}}/cron?search=dail
+
+</div>
+</div>
 
 ## Create a cron job for the authenticated user
+
+<div class="api-section">
+<div class="api-doc">
 
 This will create a cron job for the currently authenticated user. This requires
 the explicit `cron:write` permission.
 
-### Request
+**Parameters**
+
+---
+
+**`namespace`** `string` - The name of the namespace to put the cron job in.
+
+---
+
+**`name`** `string` - The name of the cron job.
+
+---
+
+**`schedule`** `enum` *optional* - The cron job's schedule, must be one of
+`daily`, `weekly`, `monthly`. Defaults to `daily` if not given.
+
+---
+
+**`manifest`** `string` - The manifest to use for the cron job.
+
+**Returns**
+
+Returns the [cron job](/api/cron#the-cron-job-object). It returns an
+[error](/api#errors) if any of the parameters are invalid, or if an internal
+error occurs.
+
+</div>
+<div class="api-example">
+
+**Request**
 
     POST /cron
-
-
-**Body**
-
-| Name        | Type     | Required | Description                                                           |
-|-------------|----------|----------|-----------------------------------------------------------------------|
-| `namespace` | `string` | N        | The name of the namespace to put the cron job in.                     |
-| `name`      | `string` | Y        | The name of the cron job.                                             |
-| `schedule`  | `string` | N        | The cron job's schedule, must be one of `daily`, `weekly`, `monthly`. |
-| `manifest`  | `string` | Y        | The manifest to use for the cron job.                                 |
-
->**Note:** If `schedule` is not given then the schedule will be set to `daily`.
 
 **Examples**
 
@@ -90,203 +198,132 @@ the explicit `cron:write` permission.
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
            -d '{"name": "Daily", "manifest": "driver:\n  image: centos/7\n  type: qemu"}' \
-           https://api.djinn-ci.com/cron
+           {{index .Vars "apihost"}}/cron
 
-    200 OK
-    Content-Length: 1140
-    Content-Type: application/json; charset=utf-8
-    {
-        "id": 3,
-        "user_id": 1,
-        "namespace_id": null,
-        "name": "Daily",
-        "schedule": "daily",
-        "manifest": "driver:\n  image: centos/7\n  type: qemu",
-        "next_run": "2006-01-03T00:00:00Z",
-        "created_at": "2006-01-02T15:04:05Z",
-        "url": "https://api.djinn-ci.com/cron/3",
-        "user": {
-          "id": 1,
-          "email": "me@example.com",
-          "username": "me",
-          "created_at": "2006-01-02T15:04:05Z"
-        }
-    }
+</div>
+</div>
 
 ## Get an individual cron job
+
+<div class="api-section">
+<div class="api-doc">
 
 This will get the given cron job. This requires the explicit `cron:read`
 permission.
 
-### Request
+**Returns**
+
+Returns the [cron job](/api/cron#the-cron-job-object).
+
+</div>
+<div class="api-example">
+
+**Request**
 
     GET /cron/:cron
-
-**URI Parameters**
-
-| Name   | Type  | Required  | Description             |
-|--------|-------|-----------|-------------------------|
-| `cron` | `int` | Y         | The id of the cron job. |
 
 **Examples**
 
     $ curl -X GET \
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
-           https://api.djinn-ci.com/cron/1
+           {{index .Vars "apihost"}}/cron/1
 
-### Response
-
-    200 OK
-    Content-Length: 1140
-    Content-Type: application/json; charset=utf-8
-    {
-        "id": 2,
-        "user_id": 1,
-        "namespace_id": null,
-        "name": "Nightly",
-        "schedule": "daily",
-        "manifest": "driver:\n  image: centos/7\n  type: qemu",
-        "next_run": "2006-01-03T00:00:00Z",
-        "created_at": "2006-01-02T15:04:05Z",
-        "url": "https://api.djinn-ci.com/cron/2",
-        "user": {
-          "id": 1,
-          "email": "me@example.com",
-          "username": "me",
-          "created_at": "2006-01-02T15:04:05Z"
-        }
-    }
+</div>
+</div>
 
 ## Get a cron job's builds
+
+<div class="api-section">
+<div class="api-doc">
 
 This will get the given cron job's builds. This requires the explicit
 `cron:read` permission.
 
-### Request
+**Parameters**
+
+---
+
+**`tag`** `string` *optional* - Get the builds with the given tag name.
+
+---
+
+**`search`** `string` *optional* - Get the builds with tags like the given value.
+
+---
+
+**`status`** `string` *optional* - Get the builds with the given status.
+
+**Returns**
+
+Returns a list of [builds](/api/builds#the-build-object) that were submitted
+from the given cron. The list will be paginated to 25 builds per page and will
+be ordered by the most recently submitted builds first. If the builds were
+paginated, then the pagination information will be in the response header
+`Link` like so,
+
+    Link: <{{index .Vars "apihost"}}/builds?page=1>; rel="prev",
+          <{{index .Vars "apihost"}}/builds?page=3>; rel="next"
+
+</div>
+<div class="api-example">
+
+**Request**
 
     GET /cron/:cron/builds
-
-**URI Parameters**
-
-| Name   | Type  | Required  | Description             |
-|--------|-------|-----------|-------------------------|
-| `cron` | `int` | Y         | The id of the cron job. |
-
-**Query Parameters**
-
-| Name     | Type     | Required | Description                                    |
-|----------|----------|----------|------------------------------------------------|
-| `tag`    | `string` | N        | Get the builds with the given tag name.        |
-| `search` | `string` | N        | Get the builds with tags like the given value. |
-| `status` | `string` | N        | Get the builds with the given status.          |
 
 **Examples**
 
     $ curl -X GET \
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
-           https://api.djinn-ci.com/cron/1/builds
+           {{index .Vars "apihost"}}/cron/1/builds
 
 
     $ curl -X GET \
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
-           https://api.djinn-ci.com/cron/1/builds?search=go&status=finished
+           {{index .Vars "apihost"}}/cron/1/builds?search=go&status=finished
 
-### Response
-
-    200 OK
-    Content-Length: 1721
-    Content-Type: application/json; charset=utf-8
-    Link: <https://api.djinn-ci.com/cron/1/builds?page=1>; rel="prev",
-          <https://api.djinn-ci.com/cron/1/builds?page=3>; rel="next"
-    [{
-        "id": 3,
-        "user_id": 1,
-        "namespace_id": 3,
-        "manifest": "namespace: djinn\ndriver:\n  image: centos/7\n  type: qemu\nenv:\n- LOCALE=en_GB.UTF-8\nobjects:\n- data => data\nstages:\n- clean\njobs:\n- stage: clean\n  commands:\n  - tr -d '0-9' data > data.cleaned\n  artifacts:\n  - data.cleaned => data.cleaned",
-        "status": "queued",
-        "output": null,
-        "created_at": "2006-01-02T15:04:05Z",
-        "started_at": null,
-        "finished_at": null,
-        "url": "https://api.djinn-ci.com/b/me/3",
-        "objects_url": "https://api.djinn-ci.com/b/me/3/objects",
-        "variables_url": "https://api.djinn-ci.com/b/me/3/variables",
-        "jobs_url": "https://api.djinn-ci.com/b/me/3/jobs",
-        "artifacts_url": "https://api.djinn-ci.com/b/me/3/artifacts",
-        "tags_url": "https://api.djinn-ci.com/b/me/3/tags",
-        "user": {
-            "id": 1,
-            "email": "me@example.com",
-            "username": "me",
-            "created_at": "2006-01-02T15:04:05Z"
-        },
-        "namespace": {
-            "id": 3,
-            "user_id": 1,
-            "root_id": 3,
-            "parent_id": null,
-            "name": "djinn",
-            "path": "djinn",
-            "description": "",
-            "visibility": "private",
-            "created_at": "2006-01-02T15:04:05Z",
-            "url": "https://api.djinn-ci.com/n/me/djinn",
-            "builds_url": "https://api.djinn-ci.com/n/me/djinn/-/builds",
-            "namespaces_url": "https://api.djinn-ci.com/n/me/djinn/-/namespaces",
-            "images_url": "https://api.djinn-ci.com/n/me/djinn/-/images",
-            "objects_url": "https://api.djinn-ci.com/n/me/djinn/-/objects",
-            "variables_url": "https://api.djinn-ci.com/n/me/djinn/-/variables",
-            "keys_url": "https://api.djinn-ci.com/n/me/djinn/-/keys",
-            "collaborators_url": "https://api.djinn-ci.com/n/me/djinn/-/collaborators",
-            "user": {
-                "id": 1,
-                "email": "me@example.com",
-                "username": "me",
-                "created_at": "2006-01-02T15:04:05Z"
-            }
-        },
-        "trigger": {
-            "type": "schedule",
-            "comment": "Scheduled build, next run 2006-01-03T00:00:00Z",
-            "data": {
-                "email": "me@example.com",
-                "username": "me"
-            }
-        },
-        "tags": [
-            "anon",
-            "golang"
-        ]
-    }]
+</div>
+</div>
 
 ## Update a cron job
+
+<div class="api-section">
+<div class="api-doc">
 
 This will update the given cron job. This requires the explicit `cron:write`
 permission.
 
-### Request
+**Parameters**
+
+---
+
+**`name`** `string` *optional* - The name of the cron job.
+
+---
+
+**`schedule`** `enum` *optional* - The cron job's schedule, must be one of
+`daily`, `weekly`, `monthly`. Defaults to `daily` if not given.
+
+---
+
+**`manifest`** `string` *optional* - The manifest to use for the cron job.
+
+>**Note**: If no parameters are sent in the request body then nothing happens
+to the cron job.
+
+**Returns**
+
+Returns the updated [cron job](/api/cron#the-cron-job-object).
+
+</div>
+<div class="api-example">
+
+**Request**
 
     PATCH /cron/:cron
-
-**URI Parameters**
-
-| Name   | Type  | Required  | Description             |
-|--------|-------|-----------|-------------------------|
-| `cron` | `int` | Y         | The id of the cron job. |
-
-**Body**
-
->**Note:** All body parameters in this request are optional. If no body is sent
-then the cron job is not updated.
-
-| Name        | Type     | Required | Description                                                           |
-|-------------|----------|----------|-----------------------------------------------------------------------|
-| `name`      | `string` | N        | The name of the cron job.                                             |
-| `schedule`  | `string` | N        | The cron job's schedule, must be one of `daily`, `weekly`, `monthly`. |
-| `manifest`  | `string` | N        | The manifest to use for the cron job.                                 |
 
 **Examples**
 
@@ -294,47 +331,36 @@ then the cron job is not updated.
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
            -d '{"name": "Daily build"}'\
-           https://api.djinn-ci.com/cron/1
+           {{index .Vars "apihost"}}/cron/1
 
-### Response
-
-    200 OK
-    Content-Length: 1140
-    Content-Type: application/json; charset=utf-8
-    {
-      "id": 2,
-      "user_id": 1,
-      "namespace_id": null,
-      "name": "Daily",
-      "schedule": "daily",
-      "manifest": "driver:\n  image: centos/7\n  type: qemu",
-      "next_run": "2006-01-03T00:00:00Z",
-      "created_at": "2006-01-02T15:04:05Z",
-      "url": "https://api.djinn-ci.com/cron/1"
-    }
+</div>
+</div>
 
 ## Delete a cron job
+
+<div class="api-section">
+<div class="api-doc">
 
 This will delete the given cron job. This requires the explicit `cron:delete`
 permission.
 
-### Request
+**Returns**
+
+This returns no content in the response body.
+
+</div>
+<div class="api-example">
+
+**Request**
 
     DELETE /cron/:cron
-
-**URI Parameters**
-
-| Name   | Type  | Required  | Description             |
-|--------|-------|-----------|-------------------------|
-| `cron` | `int` | Y         | The id of the cron job. |
 
 **Examples**
 
     $ curl -X DELETE \
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
-           https://api.djinn-ci.com/cron/1
+           {{index .Vars "apihost"}}/cron/1
 
-### Response
-
-    204 No Content
+</div>
+</div>

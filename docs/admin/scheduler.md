@@ -54,7 +54,7 @@ be one of: `debug`, `info`, or `error`.
 
 ### Drivers
 
-The `[[drivers]]` table specifies the drivers that are provided by Djinn for
+The `[[drivers]]` table specifies the drivers that are provided by Djinn CI for
 executing builds. This expects the `type` of driver available, and the `queue`
 to place the builds on. It is valid for different driver types to be placed on
 to the same queue.

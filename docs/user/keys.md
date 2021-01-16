@@ -2,13 +2,14 @@
 
 # Keys
 
-SSH keys can be uploaded to Djinn to be used in the build environment. These
+SSH keys can be uploaded to Djinn CI to be used in the build environment. These
 will be added to the build environment after driver creation. Each SSH key that
 is uploaded is encrypted, and can have custom SSH configuration along side it.
-With this you will be able to clone from private repositories. If you are
-concerned about the security of adding keys to the build environment, then it
-is recommended you create a separate key that is used for cloning repositories
-only.
+With this you will be able to clone from private repositories.
+
+>**Note:** If you are concerned about the security of adding keys to the build
+environment, then it is recommended you create a separate key that is used for
+cloning repositories only.
 
 * [Creating a key](#creating-a-key)
 * [Using a key](#using-a-key)

@@ -4,11 +4,11 @@
 
 An image is what is used by the Docker and QEMU drivers to setup the build
 environment for build execution. A user can upload custom images to use for
-their builds. Right now Djinn only supports the uploading of QEMU driver
+their builds. Right now Djinn CI only supports the uploading of QEMU driver
 images.
 
 >**Note:** Since the Docker driver uses Docker Hub to download images, you can
-specify any image for this driver to use, and as long as the Djinn server can
+specify any image for this driver to use, and as long as the Djinn Server can
 talk to the Docker Hub, that image will be downloaded and used.
 
 * [Creating an image](#creating-an-image)
@@ -36,7 +36,7 @@ format of `qcow2`. We recommend keeping the size of this image smaller than 20GB
     $ qemu-img create -f qcow2 my-image.qcow2 10G
 
 With this image created you can now install an operating system of your choice,
-and prepare it for use in Djinn as a custom image.
+and prepare it for use in Djinn CI as a custom image.
 
     $ qemu-system-x86_64 -sdl \
         -m 4096 \
@@ -45,15 +45,15 @@ and prepare it for use in Djinn as a custom image.
         -drive file=my-image.qcow2,media=disk,if=virtio
 
 Once the operating has been installed we can go about configuring the image for
-use. The QEMU driver in Djinn uses a passwordless `root` user to connect to the
-machine to perform jobs, so we need to ensure that the `root` user has no
+use. The QEMU driver in Djinn CI uses a passwordless `root` user to connect to
+the machine to perform jobs, so we need to ensure that the `root` user has no
 password.
 
-    $ passwd -d
+    $ passwd -d root
 
 Next, we need to configure the SSH server to allow for a root login, and to
 allow password authentication. Below is the typical SSH configuration used
-by the base images provided by Djinn.
+by the base images provided by Djinn CI.
 
     # Authentication:
     PermitRootLogin yes
@@ -65,15 +65,14 @@ by the base images provided by Djinn.
     # Change to no to disable s/key passwords
     ChallengeResponseAuthentication no
     GSSAPICleanupCredentials no
-    UsePAM yes
+    UsePAM no
     
     # Accept locale-related environment variables
     AcceptEnv *
     
     PermitUserEnvironment yes
     
-    # override default of no subsystems
-    Subsystem       sftp    /usr/libexec/openssh/sftp-server
+    Subsystem  sftp  internal-sftp 
 
 ## Using a custom image
 

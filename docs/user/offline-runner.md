@@ -2,7 +2,7 @@
 
 # Offline Runner
 
-Djinn can be used to run your builds offline without having to submit them to
+Djinn CI can be used to run your builds offline without having to submit them to
 the build server. This does require having to configure the necessary drivers
 on your machine however.
 
@@ -51,7 +51,7 @@ On Windows the path used will be, `%AppData%/djinn`.
 >**Note:** The same driver configuration used for the offline runner is used
 for the worker too.
 
-Each driver supported by Djinn is configured in its own block in the
+Each driver supported by Djinn CI is configured in its own block in the
 `driver.toml` file, for example to configure the QEMU driver you would do the
 following,
 

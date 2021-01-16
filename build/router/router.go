@@ -74,6 +74,10 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, false, errors.Err(err)
 		}
 
+		if owner.IsZero() {
+			return r, false, nil
+		}
+
 		id, _ := strconv.ParseInt(vars["build"], 10, 64)
 
 		b, err := build.NewStore(db, owner).Get(query.Where("number", "=", query.Arg(id)))

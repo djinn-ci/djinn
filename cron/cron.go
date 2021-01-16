@@ -168,6 +168,7 @@ func (c *Cron) IsZero() bool {
 func (c *Cron) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":           c.ID,
+		"author_id":    c.AuthorID,
 		"user_id":      c.UserID,
 		"namespace_id": nil,
 		"name":         c.Name,

@@ -174,6 +174,7 @@ func (o *Object) IsZero() bool {
 func (o *Object) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":           o.ID,
+		"author_id":    o.AuthorID,
 		"user_id":      o.UserID,
 		"namespace_id": nil,
 		"name":         o.Name,

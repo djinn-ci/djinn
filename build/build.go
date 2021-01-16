@@ -286,6 +286,7 @@ func (b *Build) JSON(addr string) map[string]interface{} {
 		"manifest":      b.Manifest.String(),
 		"status":        b.Status.String(),
 		"output":        nil,
+		"tags":          []string{},
 		"created_at":    b.CreatedAt.Format(time.RFC3339),
 		"started_at":    nil,
 		"finished_at":   nil,

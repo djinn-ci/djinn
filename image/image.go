@@ -154,6 +154,7 @@ func (i *Image) IsZero() bool {
 func (i *Image) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":           i.ID,
+		"author_id":    i.AuthorID,
 		"user_id":      i.UserID,
 		"namespace_id": nil,
 		"name":         i.Name,

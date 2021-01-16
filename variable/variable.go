@@ -146,6 +146,7 @@ func (v *Variable) IsZero() bool {
 func (v *Variable) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":           v.ID,
+		"author_id":    v.AuthorID,
 		"user_id":      v.UserID,
 		"namespace_id": nil,
 		"key":          v.Key,

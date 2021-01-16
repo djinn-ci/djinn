@@ -160,6 +160,7 @@ func (k *Key) IsZero() bool {
 func (k *Key) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
 		"id":           k.ID,
+		"author_id":    k.AuthorID,
 		"user_id":      k.UserID,
 		"namespace_id": nil,
 		"name":         k.Name,

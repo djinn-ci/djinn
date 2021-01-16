@@ -109,7 +109,11 @@ func getGitLabURL(rawurl, ref string) func(map[string]string) string {
 		if m["type"] == "tree" {
 			return ""
 		}
-		return rawurl + "/repository/files/" + url.QueryEscape(m["path"]) + "?ref=" + ref
+
+		if strings.HasSuffix(m["path"], ".yml") || strings.HasSuffix(m["path"], ".yaml") {
+			return rawurl + "/repository/files/" + url.QueryEscape(m["path"]) + "?ref=" + ref
+		}
+		return ""
 	}
 }
 

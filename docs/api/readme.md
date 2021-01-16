@@ -31,7 +31,7 @@ by the server itself, or generated as part of the OAuth authorization flow
 for an application.
 
 For more details on the OAuth authorization flow see
-[Authorizing an OAuth app](/api/oauth#authorizing-oauth-apps).
+[Authorizing an OAuth app](/api/oauth#authorizing-an-oauth-app).
 
 The amount of access a user has to the API is dictate by the scopes of the
 bearer token. For more information about token scopes see

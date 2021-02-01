@@ -165,9 +165,9 @@ func Test_FormValidate(t *testing.T) {
 
 		imageMock.ExpectQuery(uniqueQuery).WithArgs(uniqueArgs...).WillReturnRows(sqlmock.NewRows(imageCols))
 
-		r, w := spoofFile(t, test.magic)
+		r, _ := spoofFile(t, test.magic)
 
-		test.form.File = webutil.NewFile("file", 0, w, r)
+		test.form.File = webutil.NewFile("file", 0, r)
 
 		if err := test.form.Validate(); err != nil {
 			if test.shouldError {

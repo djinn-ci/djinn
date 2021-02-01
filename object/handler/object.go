@@ -94,7 +94,7 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 
 	objects := object.NewStoreWithBlockStore(h.DB, h.store, u)
 
-	f.File = webutil.NewFile("file", h.limit, w, r)
+	f.File = webutil.NewFile("file", h.limit, r)
 	f.Resource = namespace.Resource{
 		Author:     u,
 		Namespaces: namespace.NewStore(h.DB, u),

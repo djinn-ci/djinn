@@ -7,12 +7,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/oauth2"
 	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
@@ -25,8 +23,6 @@ import (
 
 type Middleware struct {
 	Handler
-
-	Tokens *oauth2.TokenStore
 }
 
 type databaseFunc func(int64) (database.Model, error)
@@ -112,40 +108,6 @@ func CanAccessResource(db *sqlx.DB, name string, r *http.Request, get databaseFu
 
 	root.LoadCollaborators(cc)
 	return root.AccessibleBy(u), nil
-}
-
-// Get the currently authenticated user from the request. Check for token
-// auth first, then fallback to cookie.
-func (h Middleware) UserFromRequest(w http.ResponseWriter, r *http.Request) (*user.User, bool, error) {
-	if _, ok := r.Header["Authorization"]; ok {
-		u, ok, err := h.UserFromToken(r)
-
-		if err != nil {
-			return nil, ok, errors.Err(err)
-		}
-		return u, ok, nil
-	}
-
-	u, ok, err := h.UserFromCookie(r)
-
-	if err != nil {
-		cause := errors.Cause(err)
-
-		if !strings.Contains(cause.Error(), "expired timestamp") {
-			return nil, false, errors.Err(err)
-		}
-
-		c := &http.Cookie{
-			Name:     "user",
-			HttpOnly: true,
-			Path:     "/",
-			Expires:  time.Unix(0, 0),
-		}
-
-		http.SetCookie(w, c)
-		return nil, false, nil
-	}
-	return u, ok, nil
 }
 
 // Guest redirects the user back to the homepage if they're already

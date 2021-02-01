@@ -6,6 +6,7 @@ import (
 	"net/smtp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
@@ -42,6 +43,10 @@ type Handler struct {
 	// Users is a pointer to the user.Store. This would typically be used for
 	// getting the currently authenticated user from the database.
 	Users *user.Store
+
+	// Tokens is a pointer to the oauth2.TokenStore. This is used for retrieving
+	// the current user from the authorization token in the request, if any.
+	Tokens *oauth2.TokenStore
 
 	// SecureCookie is what is used to encrypt the data we store inside the
 	// request cookies.
@@ -82,6 +87,40 @@ func (h *Handler) Session(r *http.Request) (*sessions.Session, func(*http.Reques
 	}
 }
 
+// Get the currently authenticated user from the request. Check for token
+// auth first, then fallback to cookie.
+func (h Handler) UserFromRequest(w http.ResponseWriter, r *http.Request) (*user.User, bool, error) {
+	if _, ok := r.Header["Authorization"]; ok {
+		u, ok, err := h.UserFromToken(r)
+
+		if err != nil {
+			return nil, ok, errors.Err(err)
+		}
+		return u, ok, nil
+	}
+
+	u, ok, err := h.UserFromCookie(r)
+
+	if err != nil {
+		cause := errors.Cause(err)
+
+		if !strings.Contains(cause.Error(), "expired timestamp") {
+			return nil, false, errors.Err(err)
+		}
+
+		c := &http.Cookie{
+			Name:     "user",
+			HttpOnly: true,
+			Path:     "/",
+			Expires:  time.Unix(0, 0),
+		}
+
+		http.SetCookie(w, c)
+		return nil, false, nil
+	}
+	return u, ok, nil
+}
+
 func (h Handler) UserFromCookie(r *http.Request) (*user.User, bool, error) {
 	c, err := r.Cookie("user")
 
@@ -118,7 +157,7 @@ func (h Handler) UserFromCookie(r *http.Request) (*user.User, bool, error) {
 	return u, !u.IsZero(), errors.Err(err)
 }
 
-func (h Middleware) UserFromToken(r *http.Request) (*user.User, bool, error) {
+func (h Handler) UserFromToken(r *http.Request) (*user.User, bool, error) {
 	prefix := "Bearer "
 	tok := r.Header.Get("Authorization")
 

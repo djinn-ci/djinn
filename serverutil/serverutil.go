@@ -168,6 +168,7 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 		Store:        cfg.SessionStore(),
 		SecureCookie: securecookie.New(cfg.Crypto.Hash, cfg.Crypto.Block),
 		Users:        user.NewStore(db),
+		Tokens:       oauth2.NewTokenStore(db),
 	}
 
 	h.SMTP.Client = smtp
@@ -175,7 +176,6 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 
 	mw := web.Middleware{
 		Handler: h,
-		Tokens:  oauth2.NewTokenStore(db),
 	}
 
 	srv.AddRouter("auth", userrouter.New(cfg, h, mw))

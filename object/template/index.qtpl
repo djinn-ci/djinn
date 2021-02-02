@@ -19,7 +19,7 @@ type Index struct {
 
 {% collapsespace %}
 {% func (p *Index) Title() %}
-	Objects - Djinn
+	Objects - Djinn CI
 {% endfunc %}
 
 {% func (p *Index) Body() %}

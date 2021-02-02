@@ -21,7 +21,7 @@ type Show struct {
 
 {% collapsespace %}
 {% func (p *Show) Title() %}
-	Cron Jobs - {%s p.Cron.Name %} - Djinn
+	Cron Jobs - {%s p.Cron.Name %} - Djinn CI
 {% endfunc %}
 
 {% func (p *Show) Body() %}

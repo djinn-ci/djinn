@@ -267,7 +267,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 //line template/dashboard.qtpl:130
 	p.Dashboard.StreamBody(qw422016)
 //line template/dashboard.qtpl:130
-	qw422016.N().S(`</div> </div> </div> <div class="sidebar"> <div class="sidebar-header"> <div class="logo"><div class="left"></div><div class="right"></div></div> <h2>Djinn</h2> </div> `)
+	qw422016.N().S(`</div> </div> </div> <div class="sidebar"> <div class="sidebar-header"> <div class="logo"><div class="left"></div><div class="right"></div></div> <h2>Djinn CI</h2> </div> `)
 //line template/dashboard.qtpl:138
 	if p.User.IsZero() {
 //line template/dashboard.qtpl:138

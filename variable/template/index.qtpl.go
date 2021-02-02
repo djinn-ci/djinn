@@ -37,7 +37,7 @@ type Index struct {
 //line variable/template/index.qtpl:21
 func (p *Index) StreamTitle(qw422016 *qt422016.Writer) {
 //line variable/template/index.qtpl:21
-	qw422016.N().S(` Variables - Djinn `)
+	qw422016.N().S(` Variables - Djinn CI `)
 //line variable/template/index.qtpl:23
 }
 

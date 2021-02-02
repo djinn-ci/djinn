@@ -84,11 +84,11 @@ func (p *Form) StreamTitle(qw422016 *qt422016.Writer) {
 //line cron/template/form.qtpl:65
 	if p.Cron == nil {
 //line cron/template/form.qtpl:65
-		qw422016.N().S(` Create Cron Job - Djinn `)
+		qw422016.N().S(` Create Cron Job - Djinn CI `)
 //line cron/template/form.qtpl:67
 	} else {
 //line cron/template/form.qtpl:67
-		qw422016.N().S(` Edit Cron Job - Djinn `)
+		qw422016.N().S(` Edit Cron Job - Djinn CI `)
 //line cron/template/form.qtpl:69
 	}
 //line cron/template/form.qtpl:69

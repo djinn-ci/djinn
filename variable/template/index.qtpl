@@ -19,7 +19,7 @@ type Index struct {
 
 {% collapsespace %}
 {% func (p *Index) Title() %}
-	Variables - Djinn
+	Variables - Djinn CI
 {% endfunc %}
 
 {% func (p *Index) Header() %}

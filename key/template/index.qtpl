@@ -19,7 +19,7 @@ type Index struct {
 
 {% collapsespace %}
 {% func (p *Index) Title() %}
-	SSH Keys - Djinn
+	SSH Keys - Djinn CI
 {% endfunc %}
 
 {% func (p *Index) Body() %}

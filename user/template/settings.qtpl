@@ -17,7 +17,7 @@ type Settings struct {
 
 {% collapsespace %}
 {% func (p *Settings) Title() %}
-	Settings{% if p.Section != nil %} - {%= p.Section.Title() %}{% endif %} - Djinn
+	Settings{% if p.Section != nil %} - {%= p.Section.Title() %}{% endif %} - Djinn CI
 {% endfunc %}
 
 {% func (p *Settings) renderProvider(prv *provider.Provider) %}

@@ -37,7 +37,7 @@ type Index struct {
 //line key/template/index.qtpl:21
 func (p *Index) StreamTitle(qw422016 *qt422016.Writer) {
 //line key/template/index.qtpl:21
-	qw422016.N().S(` SSH Keys - Djinn `)
+	qw422016.N().S(` SSH Keys - Djinn CI `)
 //line key/template/index.qtpl:23
 }
 

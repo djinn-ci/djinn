@@ -272,7 +272,7 @@ func (p *Show) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/show.qtpl:88
 		p.Section.StreamTitle(qw422016)
 //line build/template/show.qtpl:88
-		qw422016.N().S(` `)
+		qw422016.N().S(` - Djinn CI `)
 //line build/template/show.qtpl:89
 	} else {
 //line build/template/show.qtpl:89
@@ -284,7 +284,7 @@ func (p *Show) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/show.qtpl:90
 		qw422016.E().S(p.Build.Trigger.CommentTitle())
 //line build/template/show.qtpl:90
-		qw422016.N().S(` - Djinn `)
+		qw422016.N().S(` - Djinn CI `)
 //line build/template/show.qtpl:91
 	}
 //line build/template/show.qtpl:91

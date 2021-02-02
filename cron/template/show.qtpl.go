@@ -43,7 +43,7 @@ func (p *Show) StreamTitle(qw422016 *qt422016.Writer) {
 //line cron/template/show.qtpl:24
 	qw422016.E().S(p.Cron.Name)
 //line cron/template/show.qtpl:24
-	qw422016.N().S(` - Djinn `)
+	qw422016.N().S(` - Djinn CI `)
 //line cron/template/show.qtpl:25
 }
 

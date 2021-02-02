@@ -41,7 +41,7 @@ var providerNames = map[string]string{
 //line user/template/login.qtpl:25
 func (p *Login) StreamTitle(qw422016 *qt422016.Writer) {
 //line user/template/login.qtpl:25
-	qw422016.N().S(` Login - Djinn `)
+	qw422016.N().S(` Login - Djinn CI `)
 //line user/template/login.qtpl:27
 }
 
@@ -111,7 +111,7 @@ func (p *Login) Footer() string {
 //line user/template/login.qtpl:33
 func (p *Login) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/login.qtpl:33
-	qw422016.N().S(` <div class="auth-page"> <div class="auth-form"> <div class="auth-header"> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> <h1>Login to Djinn</h1> `)
+	qw422016.N().S(` <div class="auth-page"> <div class="auth-form"> <div class="auth-header"> <div class="brand"> <div class="left"></div> <div class="right"></div> </div> <h1>Login to Djinn CI</h1> `)
 //line user/template/login.qtpl:42
 	template.StreamRenderAlert(qw422016, p.Alert, "")
 //line user/template/login.qtpl:42

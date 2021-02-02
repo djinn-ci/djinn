@@ -18,7 +18,7 @@ type Show struct {
 
 {% collapsespace %}
 {% func (p *Show) Title() %}
-	{%s p.Namespace.Path %} - {%= p.Section.Title() %}
+	{%s p.Namespace.Path %} - {%= p.Section.Title() %} - Djinn CI
 {% endfunc %}
 
 {% func (p *Show) Body() %}

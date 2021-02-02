@@ -102,11 +102,11 @@ func (p *Form) StreamTitle(qw422016 *qt422016.Writer) {
 //line namespace/template/form.qtpl:83
 	if p.Namespace == nil {
 //line namespace/template/form.qtpl:83
-		qw422016.N().S(` Create Namespace - Djinn `)
+		qw422016.N().S(` Create Namespace - Djinn CI `)
 //line namespace/template/form.qtpl:85
 	} else {
 //line namespace/template/form.qtpl:85
-		qw422016.N().S(` Edit Namespace - Djinn `)
+		qw422016.N().S(` Edit Namespace - Djinn CI `)
 //line namespace/template/form.qtpl:87
 	}
 //line namespace/template/form.qtpl:87

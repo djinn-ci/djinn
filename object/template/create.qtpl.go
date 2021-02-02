@@ -29,7 +29,7 @@ type Create struct {
 //line object/template/create.qtpl:11
 func (p *Create) StreamTitle(qw422016 *qt422016.Writer) {
 //line object/template/create.qtpl:11
-	qw422016.N().S(` Create Object - Djinn `)
+	qw422016.N().S(` Create Object - Djinn CI `)
 //line object/template/create.qtpl:13
 }
 

@@ -85,9 +85,9 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 
 {% func (p *Show) Title() %}
 	{% if p.Section != nil %}
-		{%= p.Section.Title() %}
+		{%= p.Section.Title() %} - Djinn CI
 	{% else %}
-		Build #{%v p.Build.ID %} {%s p.Build.Trigger.CommentTitle() %} - Djinn
+		Build #{%v p.Build.ID %} {%s p.Build.Trigger.CommentTitle() %} - Djinn CI
 	{% endif %}
 {% endfunc %}
 

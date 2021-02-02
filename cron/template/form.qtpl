@@ -63,9 +63,9 @@ func (p *Form) checked(sched cron.Schedule) string {
 {% collapsespace %}
 {% func (p *Form) Title() %}
 	{% if p.Cron == nil %}
-		Create Cron Job - Djinn
+		Create Cron Job - Djinn CI
 	{% else %}
-		Edit Cron Job - Djinn
+		Edit Cron Job - Djinn CI
 	{% endif %}
 {% endfunc %}
 

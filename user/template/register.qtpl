@@ -13,7 +13,7 @@ type Register struct {
 
 {% collapsespace %}
 {% func (p *Register) Title() %}
-	Register - Djinn
+	Register - Djinn CI
 {% endfunc %}
 
 {% func (p *Register) Footer() %}
@@ -28,7 +28,7 @@ type Register struct {
 					<div class="left"></div>
 					<div class="right"></div>
 				</div>
-				<h1>Signup to Djinn</h1>
+				<h1>Signup to Djinn CI</h1>
 				{%= template.RenderAlert(p.Alert, "") %}
 			</div>
 			<form method="POST" action="/register">

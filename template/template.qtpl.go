@@ -283,7 +283,7 @@ func (f Form) Error(field string) string {
 //line template/template.qtpl:107
 func (p *BasePage) StreamTitle(qw422016 *qt422016.Writer) {
 //line template/template.qtpl:107
-	qw422016.N().S(` Djinn `)
+	qw422016.N().S(` Djinn CI `)
 //line template/template.qtpl:107
 }
 

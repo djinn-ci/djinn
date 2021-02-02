@@ -45,7 +45,7 @@ func (p *Settings) StreamTitle(qw422016 *qt422016.Writer) {
 //line user/template/settings.qtpl:20
 	}
 //line user/template/settings.qtpl:20
-	qw422016.N().S(` - Djinn `)
+	qw422016.N().S(` - Djinn CI `)
 //line user/template/settings.qtpl:21
 }
 

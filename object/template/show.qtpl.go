@@ -41,7 +41,7 @@ func (p *Show) StreamTitle(qw422016 *qt422016.Writer) {
 //line object/template/show.qtpl:22
 	qw422016.E().S(p.Object.Name)
 //line object/template/show.qtpl:22
-	qw422016.N().S(` - Djinn `)
+	qw422016.N().S(` - Djinn CI `)
 //line object/template/show.qtpl:23
 }
 

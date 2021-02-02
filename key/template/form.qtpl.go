@@ -45,11 +45,11 @@ func (p *Form) StreamTitle(qw422016 *qt422016.Writer) {
 //line key/template/form.qtpl:26
 	if p.Key == nil {
 //line key/template/form.qtpl:26
-		qw422016.N().S(` Create Key - Djinn `)
+		qw422016.N().S(` Create Key - Djinn CI `)
 //line key/template/form.qtpl:28
 	} else {
 //line key/template/form.qtpl:28
-		qw422016.N().S(` Edit Key - Djinn `)
+		qw422016.N().S(` Edit Key - Djinn CI `)
 //line key/template/form.qtpl:30
 	}
 //line key/template/form.qtpl:30

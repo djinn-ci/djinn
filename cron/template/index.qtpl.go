@@ -40,7 +40,7 @@ type Index struct {
 //line cron/template/index.qtpl:24
 func (p *Index) StreamTitle(qw422016 *qt422016.Writer) {
 //line cron/template/index.qtpl:24
-	qw422016.N().S(` Cron Jobs - Djinn `)
+	qw422016.N().S(` Cron Jobs - Djinn CI `)
 //line cron/template/index.qtpl:26
 }
 

@@ -23,7 +23,7 @@ func main() {
 	)
 
 	fs := flag.CommandLine
-	fs.Int64Var(&limit, "limit", 2<<30, "the limit in bytes after which old artifacts should be removed")
+	fs.Int64Var(&limit, "limit", 1<<30, "the limit in bytes after which old artifacts should be removed")
 	fs.StringVar(&configfile, "config", "djinn-curator.toml", "the config file to use")
 	fs.BoolVar(&showversion, "version", false, "show the version and exit")
 	fs.Parse(os.Args[1:])

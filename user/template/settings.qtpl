@@ -85,7 +85,7 @@ type Settings struct {
 							{% endif %}
 							<strong>Cleanup artifacts</strong>
 							{% cat "../../static/svg/bin.svg" %}
-							<div class="form-desc">Clean up old artifacts that exceed 2GB of storage in total</div>
+							<div class="form-desc">Clean up old artifacts that exceed 1GB of storage in total</div>
 						</label>
 					</div>
 					<div class="form-field">

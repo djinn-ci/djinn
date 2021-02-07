@@ -1,10 +1,16 @@
 # Architecture
 
+This document details the architecture for Djinn CI. This will cover everything
+from a high-level overview as to how the overall system fits together, to the
+layout of the source codes files, and the various entrypoints for the different
+components of the system.
+
 * [30,000ft view](#30000ft-view)
   * [Server](#server)
   * [Worker](#worker)
   * [Scheduler](#scheduler)
   * [Curator](#curator)
+* [Entrypoints](#entrypoints)
 * [Code overview](#code-overview)
   * [Assets](#assets)
 * [Code map](#code-map)
@@ -80,7 +86,7 @@ collecting build artifacts. Below is a diagram demonstrating this.
 
 The server provides two interfaces to interacting with the CI system, a REST
 API and an HTML web view. Through this interface you can submit build
-manifests, create cron jobs, and hook into external services to automatic
+manifests, create cron jobs, and hook into external services for automated
 builds. Each build that is created will be submitted onto the queue for
 processing via the worker. Information about the build (artifacts, objects,
 variables, keys, etc.) are stored in the database upon build creation.
@@ -107,6 +113,49 @@ The curator will poll the database for any artifacts that are old and exceed
 the storage space of 1GB. Any artifact that does exceed this threshold will
 be removed from the file store. This will only clean up artifacts if a user has
 this configured via their account settings.
+
+## Entrypoints
+
+Detailed below are the entrypoints for each component. This briefly details the
+codepaths that are taken to get the component started and ready for execution.
+
+**`djinn-server`**
+
+From `cmd/djinn-server/main.go` a call to `serverutil.ParseFlags` is made, this
+will parse the flags given to the `djinn-server` binary and returns the result
+of these flags. The path to the configuration file to use is then given to
+`serverutil.Init`, from here the configuration is fully initialized and used to
+register the different entity routers against the underlying HTTP server. Some
+additional handlers are also registered for handling 404 and 405 responses.
+Once the routes have been registered the server is returned along with a
+function for cleaning up the resources being used by the server. We then begin
+serving requests and wait til a cancellation signal is received.
+
+**`djinn-worker`**
+
+From `cmd/djinn-worker/main.go` a call to `workerutil.ParseFlags` is made, this
+will parse the flags given to the `djinn-worker` binary and returns the result
+of these flags. The path to the configuration and driver file to use are then
+given to `workerutil.Init`, from here the configuration for the worker and
+driver's are fully initialized. We return the fully configuration
+`worker.Worker`, this is then passed to `workerutil.Start` which starts the
+worker in a goroutine. We then wait til a cancellation signal is received.
+
+**`djinn-scheduler`**
+
+From `cmd/djinn-scheduler/main.go` we parse the program's flags, and
+initialize configuration for the scheduler. A ticker is then created that
+ticks on a 1 minute interval. Every time this interval passes we load in the
+cron jobs to be scheduled via the `cron.Batcher` and have them invoked. We then
+do this continuously until a cancellation signal is received.
+
+**`djinn-curator`**
+
+From `cmd/djinn-curator/main.go` we parse the program's flags, and initialize
+configuration for the curator. A ticker is then created that ticks on a 1
+minute interval. Every time this interval passes we load in the old artifacts
+to clear our via the `build.Curator` and delete them from disk. We then do this
+continuously until a cancellation signal is received.
 
 ## Code overview
 

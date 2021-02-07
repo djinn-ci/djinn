@@ -20,8 +20,6 @@ func unmarshal(s string) func(interface{}) error {
 }
 
 func Test_ManifestSource(t *testing.T) {
-	var s Source
-
 	tests := []struct {
 		source      string
 		expectedURL string
@@ -31,7 +29,7 @@ func Test_ManifestSource(t *testing.T) {
 		{
 			"https://github.com/git/git",
 			"https://github.com/git/git",
-			"master",
+			"",
 			"git",
 		},
 		{
@@ -49,12 +47,14 @@ func Test_ManifestSource(t *testing.T) {
 		{
 			"https://github.com/git/git => git-build",
 			"https://github.com/git/git",
-			"master",
+			"",
 			"git-build",
 		},
 	}
 
 	for i, test := range tests {
+		var s Source
+
 		if err := s.UnmarshalYAML(unmarshal(test.source)); err != nil {
 			t.Fatal(err)
 		}

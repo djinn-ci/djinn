@@ -3,6 +3,7 @@ import (
 	"net/url"
 	"regexp"
 	"strconv"
+	"html/template"
 
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/user"
@@ -28,7 +29,7 @@ type BasePage struct {
 }
 
 type Form struct {
-	CSRF   string
+	CSRF   template.HTML
 	Errors *webutil.Errors
 	Fields map[string]string
 }

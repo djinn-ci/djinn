@@ -1,6 +1,7 @@
 {%
 import (
 	"net/url"
+	"html/template"
 
 	"github.com/andrewpillar/djinn/user"
 )
@@ -41,7 +42,7 @@ type baseDashboard struct {
 	alert Alert
 	URL   *url.URL
 	User  *user.User
-	CSRF  string
+	CSRF  template.HTML
 }
 
 type Alert struct {
@@ -68,7 +69,7 @@ var (
 	RepositoriesURI = "\\/repos\\/?"
 )
 
-func NewDashboard(d Dashboard, url *url.URL, u *user.User, a Alert, csrf string) *baseDashboard {
+func NewDashboard(d Dashboard, url *url.URL, u *user.User, a Alert, csrf template.HTML) *baseDashboard {
 	return &baseDashboard{
 		Dashboard: d,
 		alert:     a,
@@ -196,7 +197,7 @@ func (l Level) String() string {
 					{% endif %}
 					<li>
 						<form method="POST" action="/logout">
-							{%s= p.CSRF %}
+							{%v= p.CSRF %}
 							<button title="Logout" type="submit">{% cat "../static/svg/logout.svg" %}<span>Logout</span></button>
 						</form>
 					</li>

@@ -59,7 +59,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Search:    q.Get("search"),
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -74,7 +74,7 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 
 	sess, save := h.Session(r)
 
-	csrf := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &crontemplate.Form{
 		Form: template.Form{
@@ -200,7 +200,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 			Tag:       q.Get("tag"),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -226,13 +226,13 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 
 	p := &crontemplate.Form{
 		Form: template.Form{
-			CSRF:   string(csrf),
+			CSRF:   csrf,
 			Fields: webutil.FormFields(sess),
 			Errors: webutil.FormErrors(sess),
 		},
 		Cron: c,
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

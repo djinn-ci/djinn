@@ -33,7 +33,7 @@ type Settings struct {
 		</a>
 	{% else %}
 		<form method="POST" action="/oauth/{%s prv.Name %}" class="inline-block">
-			{%s= p.CSRF %}
+			{%v= p.CSRF %}
 			<input type="hidden" name="_method" value="DELETE"/>
 			<button type="submit" class="provider-btn provider-{%s prv.Name %}">
 				{% switch prv.Name %}
@@ -57,7 +57,7 @@ type Settings struct {
 				{% if !p.User.Verified %}
 					<form method="POST" action="/settings/verify">
 						<h2>Verify account</h2>
-						{%s= p.CSRF %}
+						{%v= p.CSRF %}
 						<div class="form-field">
 							<button type="submit" class="btn btn-primary">Send verification email</button>
 						</div>
@@ -74,7 +74,7 @@ type Settings struct {
 				{% endif %}
 				<div class="separator"></div>
 				<form method="POST" action="/settings/cleanup">
-					{%s= p.CSRF %}
+					{%v= p.CSRF %}
 					<input type="hidden" name="_method" value="PATCH"/>
 					<div class="form-field">
 						<label class="form-option">
@@ -95,7 +95,7 @@ type Settings struct {
 				<div class="separator"></div>
 				<form method="POST" action="/settings/email">
 					<h2>Change email</h2>
-					{%s= p.CSRF %}
+					{%v= p.CSRF %}
 					<input type="hidden" name="_method" value="PATCH"/>
 					<div class="form-field">
 						<label class="label" for="email">Email</label>
@@ -115,7 +115,7 @@ type Settings struct {
 				<form method="POST" action="/settings/password">
 					<h2>Change password</h2>
 					<input type="hidden" name="_method" value="PATCH"/>
-					{%s= p.CSRF %}
+					{%v= p.CSRF %}
 					<div class="form-field">
 						<label class="label" for="old_password">Old Password</label>
 						<input class="form-text" type="password" id="old_password" name="old_password" autocomplete="off"/>
@@ -138,7 +138,7 @@ type Settings struct {
 				<div class="separator"></div>
 				<form method="POST" action="/settings/delete">
 					<h2>Delete account</h2>
-					{%s= p.CSRF %}
+					{%v= p.CSRF %}
 					<div class="form-field">
 						<label class="label" for="delete_password">Verify Password</label>
 						<input class="form-text" type="password" id="delete_password" name="delete_password" autocomplete="off"/>

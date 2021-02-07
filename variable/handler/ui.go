@@ -39,19 +39,19 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &variabletemplate.Index{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
 		},
-		CSRF:      csrfField,
+		CSRF:      csrf,
 		Search:    r.URL.Query().Get("search"),
 		Paginator: paginator,
 		Variables: vv,
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -66,16 +66,16 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 
 	sess, save := h.Session(r)
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &variabletemplate.Create{
 		Form: template.Form{
-			CSRF:   csrfField,
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

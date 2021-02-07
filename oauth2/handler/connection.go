@@ -130,7 +130,7 @@ func (h Connection) Index(w http.ResponseWriter, r *http.Request) {
 			Tokens:   tt,
 		},
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf.TemplateField(r))
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -172,7 +172,7 @@ func (h Connection) Show(w http.ResponseWriter, r *http.Request) {
 		CSRF:  csrf,
 		Token: t,
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 

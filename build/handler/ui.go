@@ -69,7 +69,7 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		Status:    q.Get("status"),
 		Tag:       q.Get("tag"),
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf.TemplateField(r))
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -84,15 +84,17 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
+	csrf := csrf.TemplateField(r)
+
 	p := &buildtemplate.Create{
 		Form: template.Form{
-			CSRF:   string(csrf.TemplateField(r)),
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -194,7 +196,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	base := webutil.BasePath(r.URL.Path)
-	csrfField := csrf.TemplateField(r)
+	csrf := csrf.TemplateField(r)
 
 	p := &buildtemplate.Show{
 		BasePage: template.BasePage{
@@ -202,7 +204,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 			User: u,
 		},
 		Build: b,
-		CSRF:  string(csrf.TemplateField(r)),
+		CSRF:  csrf,
 	}
 
 	switch base {
@@ -296,14 +298,14 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		p.Section = &buildtemplate.Tags{
-			CSRF:  string(csrfField),
+			CSRF:  csrf,
 			User:  u,
 			Build: b,
 			Tags:  tt,
 		}
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -451,7 +453,7 @@ func (h JobUI) Show(w http.ResponseWriter, r *http.Request) {
 		Job:      j,
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf.TemplateField(r))
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

@@ -1,6 +1,7 @@
 {%
 import (
 	"fmt"
+	htmltemplate "html/template"
 	"net/url"
 
 	"github.com/andrewpillar/djinn/build"
@@ -51,7 +52,7 @@ type Keys struct {
 type Tags struct {
 	section
 
-	CSRF  string
+	CSRF  htmltemplate.HTML
 	User  *user.User
 	Build *build.Build
 	Tags  []*build.Tag
@@ -228,7 +229,7 @@ type Tags struct {
 		{% if !p.User.IsZero() %}
 			<div class="panel-header panel-body">
 				<form method="POST" action="{%s p.Build.Endpoint("tags") %}">
-					{%s= p.CSRF %}
+					{%v= p.CSRF %}
 					<div class="form-field form-field-inline">
 						<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
 						<button type="submit" class="btn btn-primary">Tag</button>
@@ -255,7 +256,7 @@ type Tags struct {
 							<td class="align-right">
 								{% if !p.User.IsZero() %}
 									<form method="POST" action="{%s t.Endpoint() %}">
-										{%s= p.CSRF %}
+										{%v= p.CSRF %}
 										<input type="hidden" name="_method" value="DELETE">
 										<button type="submit" class="btn btn-danger">Delete</button>
 									</form>

@@ -130,7 +130,7 @@ func (p *Settings) streamrenderProvider(qw422016 *qt422016.Writer, prv *provider
 //line user/template/settings.qtpl:35
 		qw422016.N().S(`" class="inline-block"> `)
 //line user/template/settings.qtpl:36
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line user/template/settings.qtpl:36
 		qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="provider-btn provider-`)
 //line user/template/settings.qtpl:38
@@ -221,7 +221,7 @@ func (p *Settings) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/settings.qtpl:57
 			qw422016.N().S(` <form method="POST" action="/settings/verify"> <h2>Verify account</h2> `)
 //line user/template/settings.qtpl:60
-			qw422016.N().S(p.CSRF)
+			qw422016.N().V(p.CSRF)
 //line user/template/settings.qtpl:60
 			qw422016.N().S(` <div class="form-field"> <button type="submit" class="btn btn-primary">Send verification email</button> </div> </form> <div class="separator"></div> `)
 //line user/template/settings.qtpl:66
@@ -249,7 +249,7 @@ func (p *Settings) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/settings.qtpl:74
 		qw422016.N().S(` <div class="separator"></div> <form method="POST" action="/settings/cleanup"> `)
 //line user/template/settings.qtpl:77
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line user/template/settings.qtpl:77
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <div class="form-field"> <label class="form-option"> `)
 //line user/template/settings.qtpl:81
@@ -274,7 +274,7 @@ func (p *Settings) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/settings.qtpl:87
 		qw422016.N().S(` <div class="form-desc">Clean up old artifacts that exceed 1GB of storage in total</div> </label> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> <div class="separator"></div> <form method="POST" action="/settings/email"> <h2>Change email</h2> `)
 //line user/template/settings.qtpl:98
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line user/template/settings.qtpl:98
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <div class="form-field"> <label class="label" for="email">Email</label> <input class="form-text" type="text" id="email" name="email" value="`)
 //line user/template/settings.qtpl:102
@@ -290,7 +290,7 @@ func (p *Settings) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/settings.qtpl:108
 		qw422016.N().S(` </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> <div class="separator"></div> <form method="POST" action="/settings/password"> <h2>Change password</h2> <input type="hidden" name="_method" value="PATCH"/> `)
 //line user/template/settings.qtpl:118
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line user/template/settings.qtpl:118
 		qw422016.N().S(` <div class="form-field"> <label class="label" for="old_password">Old Password</label> <input class="form-text" type="password" id="old_password" name="old_password" autocomplete="off"/> `)
 //line user/template/settings.qtpl:122
@@ -306,7 +306,7 @@ func (p *Settings) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/settings.qtpl:132
 		qw422016.N().S(` </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> <div class="separator"></div> <form method="POST" action="/settings/delete"> <h2>Delete account</h2> `)
 //line user/template/settings.qtpl:141
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line user/template/settings.qtpl:141
 		qw422016.N().S(` <div class="form-field"> <label class="label" for="delete_password">Verify Password</label> <input class="form-text" type="password" id="delete_password" name="delete_password" autocomplete="off"/> `)
 //line user/template/settings.qtpl:145

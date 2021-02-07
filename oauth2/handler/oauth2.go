@@ -161,7 +161,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 
 	p := &oauth2template.Auth{
 		Form: template.Form{
-			CSRF:   string(csrf.TemplateField(r)),
+			CSRF:   csrf.TemplateField(r),
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},

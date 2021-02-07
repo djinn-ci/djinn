@@ -66,7 +66,7 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 		t.Token = nil
 	}
 
-	csrfField := csrf.TemplateField(r)
+	csrf := csrf.TemplateField(r)
 
 	bp := template.BasePage{
 		URL:  r.URL,
@@ -76,11 +76,11 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 	p := &usertemplate.Settings{
 		BasePage: bp,
 		Section: &oauth2template.TokenIndex{
-			CSRF:   csrfField,
+			CSRF:   csrf,
 			Tokens: tt,
 		},
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -95,12 +95,12 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 	f := webutil.FormFields(sess)
 
 	p := &oauth2template.TokenForm{
 		Form: template.Form{
-			CSRF:   csrfField,
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: f,
 		},
@@ -113,7 +113,7 @@ func (h Token) Create(w http.ResponseWriter, r *http.Request) {
 		p.Scopes[sc] = struct{}{}
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -202,18 +202,18 @@ func (h Token) Edit(w http.ResponseWriter, r *http.Request) {
 
 	f := webutil.FormFields(sess)
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &oauth2template.TokenForm{
 		Form: template.Form{
-			CSRF:   csrfField,
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: f,
 		},
 		Token:  t,
 		Scopes: t.Permissions(),
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

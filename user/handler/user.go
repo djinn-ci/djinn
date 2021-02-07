@@ -63,7 +63,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &usertemplate.Register{
 			Form: template.Form{
-				CSRF:   string(csrf.TemplateField(r)),
+				CSRF:   csrf.TemplateField(r),
 				Errors: webutil.FormErrors(sess),
 				Fields: webutil.FormFields(sess),
 			},
@@ -175,7 +175,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 
 		p := &usertemplate.Login{
 			Form: template.Form{
-				CSRF:   string(csrf.TemplateField(r)),
+				CSRF:   csrf.TemplateField(r),
 				Errors: webutil.FormErrors(sess),
 				Fields: webutil.FormFields(sess),
 			},
@@ -273,7 +273,7 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &usertemplate.NewPassword{
 			Form: template.Form{
-				CSRF:   string(csrf.TemplateField(r)),
+				CSRF:   csrf.TemplateField(r),
 				Errors: webutil.FormErrors(sess),
 				Fields: webutil.FormFields(sess),
 			},
@@ -340,7 +340,7 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		p := &usertemplate.PasswordReset{
 			Form: template.Form{
-				CSRF:   string(csrf.TemplateField(r)),
+				CSRF:   csrf.TemplateField(r),
 				Errors: webutil.FormErrors(sess),
 				Fields: webutil.FormFields(sess),
 			},
@@ -487,20 +487,22 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	csrf := csrf.TemplateField(r)
+
 	p := &usertemplate.Settings{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
 		},
 		Form: template.Form{
-			CSRF:   string(csrf.TemplateField(r)),
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
 		Providers: pp,
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

@@ -1,6 +1,7 @@
 {%
 import (
 	"fmt"
+	htmltemplate "html/template"
 
 	"github.com/andrewpillar/djinn/object"
 	"github.com/andrewpillar/djinn/template"
@@ -11,7 +12,7 @@ import (
 type Show struct {
 	template.BasePage
 
-	CSRF    string
+	CSRF    htmltemplate.HTML
 	Object  *object.Object
 	Section template.Section
 }
@@ -63,7 +64,7 @@ type Show struct {
 	{% if p.User.ID == p.Object.UserID %}
 		<li>
 			<form method="POST" action="{%s p.Object.Endpoint() %}">
-				{%s= string(p.CSRF) %}
+				{%v= p.CSRF %}
 				<input type="hidden" name="_method" value="DELETE"/>
 				<button type="submit" class="btn btn-danger">Delete</button>
 			</form>

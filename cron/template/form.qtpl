@@ -73,7 +73,7 @@ func (p *Form) checked(sched cron.Schedule) string {
 	<div class="panel">
 		<div class="panel-body slim">
 			<form method="POST" action="{%s p.action() %}">
-				{%s= p.CSRF %}
+				{%v= p.CSRF %}
 				{% if p.Cron != nil %}
 					<input type="hidden" name="_method" value="PATCH"/>
 				{% endif %}

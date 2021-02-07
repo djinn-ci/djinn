@@ -91,24 +91,24 @@ func (p *AppForm) field(field string) string {
 					<strong>Client Secret</strong><br/><code><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientSecret) %}</span></code></br>
 				</div>
 				<form method="POST" action="{%s p.App.Endpoint("revoke") %}" class="inline-block">
-					{%s= p.CSRF %}
+					{%v= p.CSRF %}
 					<input type="hidden" name="_method" value="PATCH"/>
 					<div class="form-field-inline">
 						<button type="submit" class="btn btn-danger">Revoke Tokens</button>
 					</div>
 				</form>
 				<form method="POST" action="{%s p.App.Endpoint("reset") %}" class="inline-block">
-					{%s= p.CSRF %}
+					{%v= p.CSRF %}
 					<input type="hidden" name="_method" value="PATCH"/>
 					<button type="submit" class="btn btn-danger">Reset Secret</button>
 				</form>
 			</div>
 			<form class="panel-body slim" method="POST" action="{%s p.App.Endpoint() %}">
-				{%s= p.CSRF %}
+				{%v= p.CSRF %}
 				<input type="hidden" name="_method" value="PATCH"/>
 		{% else %}
 			<form class="panel-body slim" method="POST" action="/settings/apps">
-				{%s= p.CSRF %}
+				{%v= p.CSRF %}
 		{% endif %}
 			<div class="form-field">
 				<label class="label" for="name">Name</label>
@@ -164,7 +164,7 @@ func (p *AppForm) field(field string) string {
 		{% if p.Token != nil %}
 			<form method="POST" action="{%s p.Token.Endpoint("regenerate") %}" class="panel-body slim mb-10">
 				<input type="hidden" name="_method" value="PATCH"/>
-				{%s= p.CSRF %}
+				{%v= p.CSRF %}
 				<button type="submit" class="btn btn-danger right">Regenerate</button>
 			</form>
 			<form class="panel-body slim" method="POST" action="{%s p.Token.Endpoint() %}">
@@ -172,7 +172,7 @@ func (p *AppForm) field(field string) string {
 		{% else %}
 			<form class="panel-body slim" method="POST" action="/settings/tokens">
 		{% endif %}
-			{%s= p.CSRF %}
+			{%v= p.CSRF %}
 			<div class="form-field">
 				<label class="label" for="name">Name</label>
 				<input type="text" class="form-text" id="name" name="name" value="{%s p.field("name") %}" autocomplete="off"/>

@@ -41,7 +41,7 @@ type Auth struct {
 				<h1>Authorize {%s p.Name %}</h1>
 			</div>
 			<form method="POST" action="/login/oauth/authorize">
-				{%s= p.CSRF %}
+				{%v= p.CSRF %}
 				<input type="hidden" name="client_id" value="{%s p.ClientID %}"/>
 				<input type="hidden" name="redirect_uri" value="{%s p.RedirectURI %}"/>
 				<input type="hidden" name="scope" value="{%s p.Scope.String() %}"/>

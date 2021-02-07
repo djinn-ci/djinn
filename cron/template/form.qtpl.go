@@ -131,7 +131,7 @@ func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
 //line cron/template/form.qtpl:75
 	qw422016.N().S(`"> `)
 //line cron/template/form.qtpl:76
-	qw422016.N().S(p.CSRF)
+	qw422016.N().V(p.CSRF)
 //line cron/template/form.qtpl:76
 	qw422016.N().S(` `)
 //line cron/template/form.qtpl:77

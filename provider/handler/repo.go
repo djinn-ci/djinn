@@ -213,20 +213,20 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	pg := &providertemplate.RepoIndex{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
 		},
-		CSRF:      csrfField,
+		CSRF:      csrf,
 		Paginator: paginator,
 		Repos:     rr,
 		Provider:  p,
 		Providers: pp,
 	}
-	d := template.NewDashboard(pg, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(pg, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

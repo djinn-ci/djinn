@@ -44,19 +44,19 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &imagetemplate.Index{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
 		},
-		CSRF:      csrfField,
+		CSRF:      csrf,
 		Paginator: paginator,
 		Images:    ii,
 		Search:    r.URL.Query().Get("search"),
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -72,16 +72,16 @@ func (h Image) Create(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &imagetemplate.Create{
 		Form: template.Form{
-			CSRF:   csrfField,
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

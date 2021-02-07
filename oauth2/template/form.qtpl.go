@@ -159,7 +159,7 @@ func (p *AppForm) StreamBody(qw422016 *qt422016.Writer) {
 //line oauth2/template/form.qtpl:93
 		qw422016.N().S(`" class="inline-block"> `)
 //line oauth2/template/form.qtpl:94
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line oauth2/template/form.qtpl:94
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <div class="form-field-inline"> <button type="submit" class="btn btn-danger">Revoke Tokens</button> </div> </form> <form method="POST" action="`)
 //line oauth2/template/form.qtpl:100
@@ -167,7 +167,7 @@ func (p *AppForm) StreamBody(qw422016 *qt422016.Writer) {
 //line oauth2/template/form.qtpl:100
 		qw422016.N().S(`" class="inline-block"> `)
 //line oauth2/template/form.qtpl:101
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line oauth2/template/form.qtpl:101
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <button type="submit" class="btn btn-danger">Reset Secret</button> </form> </div> <form class="panel-body slim" method="POST" action="`)
 //line oauth2/template/form.qtpl:106
@@ -175,7 +175,7 @@ func (p *AppForm) StreamBody(qw422016 *qt422016.Writer) {
 //line oauth2/template/form.qtpl:106
 		qw422016.N().S(`"> `)
 //line oauth2/template/form.qtpl:107
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line oauth2/template/form.qtpl:107
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> `)
 //line oauth2/template/form.qtpl:109
@@ -183,7 +183,7 @@ func (p *AppForm) StreamBody(qw422016 *qt422016.Writer) {
 //line oauth2/template/form.qtpl:109
 		qw422016.N().S(` <form class="panel-body slim" method="POST" action="/settings/apps"> `)
 //line oauth2/template/form.qtpl:111
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line oauth2/template/form.qtpl:111
 		qw422016.N().S(` `)
 //line oauth2/template/form.qtpl:112
@@ -440,7 +440,7 @@ func (p *TokenForm) StreamBody(qw422016 *qt422016.Writer) {
 //line oauth2/template/form.qtpl:165
 		qw422016.N().S(`" class="panel-body slim mb-10"> <input type="hidden" name="_method" value="PATCH"/> `)
 //line oauth2/template/form.qtpl:167
-		qw422016.N().S(p.CSRF)
+		qw422016.N().V(p.CSRF)
 //line oauth2/template/form.qtpl:167
 		qw422016.N().S(` <button type="submit" class="btn btn-danger right">Regenerate</button> </form> <form class="panel-body slim" method="POST" action="`)
 //line oauth2/template/form.qtpl:170
@@ -456,7 +456,7 @@ func (p *TokenForm) StreamBody(qw422016 *qt422016.Writer) {
 //line oauth2/template/form.qtpl:174
 	qw422016.N().S(` `)
 //line oauth2/template/form.qtpl:175
-	qw422016.N().S(p.CSRF)
+	qw422016.N().V(p.CSRF)
 //line oauth2/template/form.qtpl:175
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Name</label> <input type="text" class="form-text" id="name" name="name" value="`)
 //line oauth2/template/form.qtpl:178

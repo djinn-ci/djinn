@@ -47,19 +47,19 @@ func (h UI) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &objecttemplate.Index{
 		BasePage: template.BasePage{
 			URL:  r.URL,
 			User: u,
 		},
-		CSRF:      csrfField,
+		CSRF:      csrf,
 		Paginator: paginator,
 		Objects:   oo,
 		Search:    r.URL.Query().Get("search"),
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -75,16 +75,16 @@ func (h UI) Create(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &objecttemplate.Create{
 		Form: template.Form{
-			CSRF:   csrfField,
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -217,7 +217,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 
 	q := r.URL.Query()
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	bp := template.BasePage{
 		URL:  r.URL,
@@ -225,7 +225,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 	}
 	p := &objecttemplate.Show{
 		BasePage: bp,
-		CSRF:     csrfField,
+		CSRF:     csrf,
 		Object:   o,
 		Section: &buildtemplate.Index{
 			BasePage:  bp,
@@ -236,7 +236,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 			Tag:       q.Get("tag"),
 		},
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

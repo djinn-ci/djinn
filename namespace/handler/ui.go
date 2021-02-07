@@ -75,7 +75,7 @@ func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 		Search:     r.URL.Query().Get("search"),
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf.TemplateField(r))
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -110,11 +110,11 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &namespacetemplate.Form{
 		Form: template.Form{
-			CSRF:   csrfField,
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
@@ -124,7 +124,7 @@ func (h Namespace) Create(w http.ResponseWriter, r *http.Request) {
 		p.Parent = parent
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrfField))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -220,7 +220,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
 	base := webutil.BasePath(r.URL.Path)
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	bp := template.BasePage{
 		URL:  r.URL,
@@ -259,7 +259,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p.Section = &imagetemplate.Index{
 			BasePage:  bp,
-			CSRF:      csrfField,
+			CSRF:      csrf,
 			Paginator: paginator,
 			Images:    ii,
 			Search:    q.Get("search"),
@@ -275,7 +275,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p.Section = &objecttemplate.Index{
 			BasePage:  bp,
-			CSRF:      csrfField,
+			CSRF:      csrf,
 			Paginator: paginator,
 			Objects:   oo,
 			Search:    q.Get("search"),
@@ -291,7 +291,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p.Section = &variabletemplate.Index{
 			BasePage:  bp,
-			CSRF:      csrfField,
+			CSRF:      csrf,
 			Paginator: paginator,
 			Variables: vv,
 			Search:    q.Get("search"),
@@ -307,7 +307,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p.Section = &keytemplate.Index{
 			BasePage:  bp,
-			CSRF:      csrfField,
+			CSRF:      csrf,
 			Paginator: paginator,
 			Keys:      kk,
 			Search:    q.Get("search"),
@@ -329,7 +329,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p.Section = &namespacetemplate.InviteIndex{
 			BasePage:  bp,
-			CSRF:      csrf.TemplateField(r),
+			CSRF:      csrf,
 			Namespace: n,
 			Invites:   ii,
 		}
@@ -358,7 +358,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 
 		p.Section = &namespacetemplate.CollaboratorIndex{
 			BasePage:      bp,
-			CSRF:          csrf.TemplateField(r),
+			CSRF:          csrf,
 			Namespace:     n,
 			Collaborators: cc,
 		}
@@ -404,7 +404,7 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -432,17 +432,17 @@ func (h UI) Edit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	csrfField := string(csrf.TemplateField(r))
+	csrf := csrf.TemplateField(r)
 
 	p := &namespacetemplate.Form{
 		Form: template.Form{
-			CSRF:   csrfField,
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
 		Namespace: n,
 	}
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -550,13 +550,15 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 		User: u,
 	}
 
+	csrf := csrf.TemplateField(r)
+
 	inviteIndex := &namespacetemplate.InviteIndex{
 		Form: template.Form{
-			CSRF:   string(csrf.TemplateField(r)),
+			CSRF:   csrf,
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
-		CSRF:      csrf.TemplateField(r),
+		CSRF:      csrf,
 		Namespace: n,
 		Invites:   ii,
 	}
@@ -571,9 +573,7 @@ func (h InviteUI) Index(w http.ResponseWriter, r *http.Request) {
 		p = inviteIndex
 	}
 
-	csrfField := string(csrf.TemplateField(r))
-
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrfField)
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
@@ -710,6 +710,8 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	csrf := csrf.TemplateField(r)
+
 	bp := template.BasePage{
 		URL:  r.URL,
 		User: u,
@@ -719,13 +721,13 @@ func (h CollaboratorUI) Index(w http.ResponseWriter, r *http.Request) {
 		Namespace: n,
 		Section: &namespacetemplate.CollaboratorIndex{
 			BasePage:      bp,
-			CSRF:          csrf.TemplateField(r),
+			CSRF:          csrf,
 			Namespace:     n,
 			Collaborators: cc,
 		},
 	}
 
-	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), string(csrf.TemplateField(r)))
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

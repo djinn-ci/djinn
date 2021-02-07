@@ -116,7 +116,7 @@ func (p *Auth) StreamBody(qw422016 *qt422016.Writer) {
 //line oauth2/template/auth.qtpl:41
 	qw422016.N().S(`</h1> </div> <form method="POST" action="/login/oauth/authorize"> `)
 //line oauth2/template/auth.qtpl:44
-	qw422016.N().S(p.CSRF)
+	qw422016.N().V(p.CSRF)
 //line oauth2/template/auth.qtpl:44
 	qw422016.N().S(` <input type="hidden" name="client_id" value="`)
 //line oauth2/template/auth.qtpl:45

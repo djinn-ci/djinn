@@ -1,5 +1,7 @@
 {%
 import (
+	htmltemplate "html/template"
+
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/template"
@@ -10,7 +12,7 @@ import (
 type RepoIndex struct {
 	template.BasePage
 
-	CSRF      string
+	CSRF      htmltemplate.HTML
 	Paginator database.Paginator
 	Repos     []*provider.Repo
 	Provider  *provider.Provider
@@ -94,7 +96,7 @@ var providerNames = map[string]string{
 									<form method="POST" action="/repos/disable/{%v r.ID %}">
 										<input type="hidden" name="_method" value="DELETE"/>
 								{% endif %}
-									{%s= p.CSRF %}
+									{%v= p.CSRF %}
 								{% if !r.Enabled %}
 									<button type="submit" class="btn btn-primary" {% if !r.Provider.Connected %}disabled="true"{% endif %}>Enable</button>
 								{% else %}
@@ -114,7 +116,7 @@ var providerNames = map[string]string{
 {% func (p *RepoIndex) Actions() %}
 	{% if len(p.Providers) > 0 %}
 		<form method="POST" action="/repos/reload?provider={%s p.Provider.Name %}&page={%v p.Paginator.Page %}">
-			{%s= p.CSRF %}
+			{%v= p.CSRF %}
 			<input type="hidden" name="_method" value="PATCH">
 			<button type="submit" class="btn btn-primary">Reload</button>
 		</form>

@@ -1,5 +1,6 @@
 {%
 import (
+	htmltemplate "html/template"
 	"time"
 
 	"github.com/andrewpillar/djinn/build"
@@ -16,7 +17,7 @@ type Show struct {
 	template.Section
 
 	Build *build.Build
-	CSRF  string
+	CSRF  htmltemplate.HTML
 }
 
 
@@ -186,7 +187,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 	{% if p.User.ID == p.Build.UserID && p.Build.Status == runner.Running %}
 	<li>
 		<form method="POST" action="{%s p.Build.Endpoint() %}">
-			{%s= string(p.CSRF) %}
+			{%v= p.CSRF %}
 			<input type="hidden" name="_method" value="DELETE">
 			<button type="submit" class="btn btn-danger">Kill</button>
 		</form>

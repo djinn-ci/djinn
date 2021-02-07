@@ -1,5 +1,7 @@
 {%
 import (
+	htmltemplate "html/template"
+
 	"github.com/andrewpillar/djinn/image"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/template"
@@ -10,7 +12,7 @@ import (
 type Index struct {
 	template.BasePage
 
-	CSRF      string
+	CSRF      htmltemplate.HTML
 	Paginator database.Paginator
 	Images    []*image.Image
 	Search    string
@@ -61,7 +63,7 @@ type Index struct {
 									<a class="btn btn-primary" href="{%s i.Endpoint("download", i.Name) %}">Download</a>
 									{% if p.User.ID == i.UserID || i.Namespace != nil && i.Namespace.UserID == p.User.ID %}
 										<form method="POST" action="{%s i.Endpoint() %}">
-											{%s= string(p.CSRF) %}
+											{%v= p.CSRF %}
 											<input type="hidden" name="_method" value="DELETE"/>
 											<button type="submit" class="btn btn-danger">Delete</button>
 										</form>

@@ -1,5 +1,7 @@
 {%
 import (
+	htmltemplate "html/template"
+
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/object"
 	"github.com/andrewpillar/djinn/template"
@@ -10,7 +12,7 @@ import (
 type Index struct {
 	template.BasePage
 
-	CSRF      string
+	CSRF      htmltemplate.HTML
 	Paginator database.Paginator
 	Objects   []*object.Object
 	Search    string
@@ -63,7 +65,7 @@ type Index struct {
 								<td class="align-right">
 									{% if p.User.ID == o.UserID || o.Namespace != nil && o.Namespace.UserID == p.User.ID %}
 										<form method="POST" action="{%s o.Endpoint() %}">
-											{%s= string(p.CSRF) %}
+											{%v= p.CSRF %}
 											<input type="hidden" name="_method" value="DELETE"/>
 											<button type="submit" class="btn btn-danger">Delete</button>
 										</form>

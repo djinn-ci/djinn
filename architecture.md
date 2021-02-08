@@ -20,6 +20,7 @@ components of the system.
   * [database](#database)
   * [driver](#driver)
   * [errors](#errors)
+  * [fs](#fs)
   * [integration](#integration)
   * [log](#log)
   * [mail](#mail)
@@ -237,6 +238,12 @@ implementation.
 `errors` provides utility functions for error reporting. The function
 `errors.Err` is heavily used for providing additional stacktracing to errors
 that are raised.
+
+### fs
+
+`fs` provides the `Store` interface for storing and retrieving data in a
+filesystem. This also provides a mechanism of limiting the amounts of data that
+can be stored.
 
 ### integration
 

@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/oauth2"
 	"github.com/andrewpillar/djinn/serverutil"
 	"github.com/andrewpillar/djinn/user"
@@ -52,8 +52,8 @@ var (
 	server *httptest.Server
 	db     *sqlx.DB
 
-	imageStore  block.Store
-	objectStore block.Store
+	imageStore  fs.Store
+	objectStore fs.Store
 )
 
 func checkResponseJSONLen(l int) func(*testing.T, string, *http.Request, *http.Response) {

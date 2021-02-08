@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/config"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/manifest"
@@ -40,15 +40,15 @@ func main() {
 		cfgdir = "."
 	}
 
-	fs := flag.CommandLine
+	flag := flag.CommandLine
 
-	fs.BoolVar(&showversion, "version", false, "show the version and exit")
-	fs.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
-	fs.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
-	fs.StringVar(&manifestfile, "manifest", ".djinn.yml", "the manifest file to use")
-	fs.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.toml"), "the driver config to use")
-	fs.StringVar(&stage, "stage", "", "the stage to execute")
-	fs.Parse(os.Args[1:])
+	flag.BoolVar(&showversion, "version", false, "show the version and exit")
+	flag.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
+	flag.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
+	flag.StringVar(&manifestfile, "manifest", ".djinn.yml", "the manifest file to use")
+	flag.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.toml"), "the driver config to use")
+	flag.StringVar(&stage, "stage", "", "the stage to execute")
+	flag.Parse(os.Args[1:])
 
 	if showversion {
 		fmt.Printf("%s %s %s/%s\n", os.Args[0], version.Build, runtime.GOOS, runtime.GOARCH)
@@ -87,13 +87,13 @@ func main() {
 		exiterr(errors.Cause(err))
 	}
 
-	placer := block.NewFilesystem(objectsdir)
+	placer := fs.NewFilesystem(objectsdir)
 
 	if err := placer.Init(); err != nil {
 		exiterr(errors.Cause(err))
 	}
 
-	collector := block.NewFilesystem(artifactsdir)
+	collector := fs.NewFilesystem(artifactsdir)
 
 	if err := collector.Init(); err != nil {
 		exiterr(errors.Cause(err))

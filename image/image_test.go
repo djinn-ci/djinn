@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/errors"
@@ -134,7 +134,7 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	store.blockStore = block.NewNull()
+	store.blockStore = fs.NewNull()
 
 	mock.ExpectQuery(
 		"^INSERT INTO images \\([\\w+, ]+\\) VALUES \\([\\$\\d+, ]+\\) RETURNING id$",
@@ -149,7 +149,7 @@ func Test_StoreDelete(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	store.blockStore = block.NewNull()
+	store.blockStore = fs.NewNull()
 
 	mock.ExpectExec(
 		"^DELETE FROM images WHERE \\(id IN \\(\\$1\\)\\)$",

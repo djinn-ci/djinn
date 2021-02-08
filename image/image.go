@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/errors"
@@ -40,12 +40,12 @@ type Image struct {
 }
 
 // Store is the type for creating and modifying Image models in the
-// database. The Store type can have an underlying block.Store implementation
+// database. The Store type can have an underlying fs.Store implementation
 // that is used for storing the contents of an image.
 type Store struct {
 	database.Store
 
-	blockStore block.Store
+	blockStore fs.Store
 
 	// User is the bound user.User model. If not nil this will bind the
 	// user.User model to any Image models that are created. If not nil this
@@ -84,9 +84,9 @@ func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 }
 
 // NewStoreWithBlockStore is functionally the same as NewStore, however it sets
-// the block.Store to use on the returned Store. This will allow for an image
+// the fs.Store to use on the returned Store. This will allow for an image
 // file to be stored.
-func NewStoreWithBlockStore(db *sqlx.DB, blockStore block.Store, mm ...database.Model) *Store {
+func NewStoreWithBlockStore(db *sqlx.DB, blockStore fs.Store, mm ...database.Model) *Store {
 	s := NewStore(db, mm...)
 	s.blockStore = blockStore
 	return s
@@ -217,7 +217,7 @@ func (s *Store) Bind(mm ...database.Model) {
 
 // Create creates a new image with the given name for the given driver.Type.
 // The given io.Reader is used to copy the contents of the image to the
-// underlying block.Store. It is expected for the Store to have a block.Store
+// underlying fs.Store. It is expected for the Store to have a fs.Store
 // set on it, otherwise it will error.
 func (s *Store) Create(authorId int64, hash, name string, t driver.Type, r io.Reader) (*Image, error) {
 	if s.blockStore == nil {
@@ -250,7 +250,7 @@ func (s *Store) Create(authorId int64, hash, name string, t driver.Type, r io.Re
 func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(table, from, to)) }
 
 // Delete deletes the given Image from the database, and removes the underlying
-// image file. It is expected for the Store to have a block.Store set on it,
+// image file. It is expected for the Store to have a fs.Store set on it,
 // otherwise it will error.
 func (s *Store) Delete(id int64, t driver.Type, hash string) error {
 	if s.blockStore == nil {

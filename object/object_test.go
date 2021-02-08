@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/namespace"
@@ -200,7 +200,7 @@ func Test_StoreCreate(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	store.blockStore = block.NewNull()
+	store.blockStore = fs.NewNull()
 
 	mock.ExpectQuery(
 		"^INSERT INTO objects \\((.+)\\) VALUES \\((.+)\\) RETURNING id$",
@@ -215,7 +215,7 @@ func Test_StoreDelete(t *testing.T) {
 	store, mock, close_ := store(t)
 	defer close_()
 
-	store.blockStore = block.NewNull()
+	store.blockStore = fs.NewNull()
 
 	mock.ExpectExec(
 		"^DELETE FROM objects WHERE \\(id IN \\((.+)\\)\\)$",

@@ -5,7 +5,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/driver"
@@ -25,11 +25,11 @@ type Image struct {
 
 	loaders *database.Loaders
 	hasher  *crypto.Hasher
-	store   block.Store
+	store   fs.Store
 	limit   int64
 }
 
-func New(h web.Handler, hasher *crypto.Hasher, store block.Store, limit int64) Image {
+func New(h web.Handler, hasher *crypto.Hasher, store fs.Store, limit int64) Image {
 	loaders := database.NewLoaders()
 	loaders.Put("user", h.Users)
 	loaders.Put("author", h.Users)

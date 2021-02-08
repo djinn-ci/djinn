@@ -7,7 +7,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
@@ -80,9 +80,9 @@ type Crypto struct {
 }
 
 var (
-	blockstores = map[string]func(string, int64) block.Store{
-		"file": func(dsn string, limit int64) block.Store {
-			return block.NewFilesystemWithLimit(dsn, limit)
+	blockstores = map[string]func(string, int64) fs.Store{
+		"file": func(dsn string, limit int64) fs.Store {
+			return fs.NewFilesystemWithLimit(dsn, limit)
 		},
 	}
 

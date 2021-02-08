@@ -4,7 +4,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
 
@@ -27,7 +27,7 @@ type Curator struct {
 
 	db *sqlx.DB
 
-	artifacts block.Store
+	artifacts fs.Store
 
 	log *log.Logger
 }
@@ -111,6 +111,6 @@ func (c Curator) Pidfile() *os.File { return c.pidfile }
 
 func (c Curator) DB() *sqlx.DB { return c.db }
 
-func (c Curator) Artifacts() block.Store { return c.artifacts }
+func (c Curator) Artifacts() fs.Store { return c.artifacts }
 
 func (c Curator) Log() *log.Logger { return c.log }

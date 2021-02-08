@@ -1,4 +1,4 @@
-package block
+package fs
 
 import (
 	"io"

@@ -1,7 +1,7 @@
 package build
 
 import (
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
@@ -21,7 +21,7 @@ type curationRecord struct {
 // the configured limit.
 type Curator struct {
 	limit     int64
-	artifacts block.Store
+	artifacts fs.Store
 	store     *ArtifactStore
 	users     *user.Store
 }
@@ -30,7 +30,7 @@ var ErrCuration = errors.New("artifact curation failed")
 
 // NewCurator creates a new curator for cleaning up old artifacts from the
 // given block store.
-func NewCurator(db *sqlx.DB, artifacts block.Store, limit int64) Curator {
+func NewCurator(db *sqlx.DB, artifacts fs.Store, limit int64) Curator {
 	return Curator{
 		limit:     limit,
 		artifacts: artifacts,

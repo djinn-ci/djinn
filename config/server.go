@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
@@ -66,7 +66,7 @@ type serverCfg struct {
 
 type Store struct {
 	Limit int64
-	Store block.Store
+	Store fs.Store
 }
 
 // Server contains the necessary resources that the server needs for running.

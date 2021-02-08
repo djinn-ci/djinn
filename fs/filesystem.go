@@ -1,4 +1,4 @@
-package block
+package fs
 
 import (
 	"io"
@@ -66,7 +66,7 @@ func (fs *Filesystem) checkDir() error {
 	}
 
 	if !info.IsDir() {
-		return errors.New("block.fs.checkDir: not a directory")
+		return errors.New("block.Filesystem.checkDir: not a directory")
 	}
 	return nil
 }

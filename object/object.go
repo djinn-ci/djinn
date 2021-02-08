@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/namespace"
@@ -46,12 +46,12 @@ type Object struct {
 }
 
 // Store is the type for creating and modifying Object models in the database.
-// The Store type can have an underlying block.Store implementation that is used
+// The Store type can have an underlying fs.Store implementation that is used
 // for storing the contents of an object.
 type Store struct {
 	database.Store
 
-	blockStore block.Store
+	blockStore fs.Store
 
 	// User is the bound user.User model. If not nil this will bind the
 	// user.User model to any Object models that are created. If not nil this
@@ -90,9 +90,9 @@ func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 }
 
 // NewStoreWithBlockStore is functionally the same as NewStore, however it sets
-// the block.Store to use on the returned Store. This will allow f or an object
+// the fs.Store to use on the returned Store. This will allow f or an object
 // file to be stored.
-func NewStoreWithBlockStore(db *sqlx.DB, blockStore block.Store, mm ...database.Model) *Store {
+func NewStoreWithBlockStore(db *sqlx.DB, blockStore fs.Store, mm ...database.Model) *Store {
 	s := NewStore(db, mm...)
 	s.blockStore = blockStore
 	return s
@@ -236,7 +236,7 @@ func (s *Store) Bind(mm ...database.Model) {
 // Create stores a new object with the given name, and hash. The given
 // io.ReadSeeker is used to determine the content type of the object being
 // stored, and used to copy the contents of the object to the underlying
-// block.Store. It is expected for the Store to have a block.Store set on it,
+// fs.Store. It is expected for the Store to have a fs.Store set on it,
 // otherwise it will error.
 func (s *Store) Create(authorId int64, name, hash string, rs io.ReadSeeker) (*Object, error) {
 	if s.blockStore == nil {
@@ -289,7 +289,7 @@ func (s *Store) Create(authorId int64, name, hash string, rs io.ReadSeeker) (*Ob
 func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(table, from, to)) }
 
 // Delete deletes the object from the database of the given id. The given hash
-// is used to remove the object from the underlying block.Store.
+// is used to remove the object from the underlying fs.Store.
 func (s *Store) Delete(id int64, hash string) error {
 	if s.blockStore == nil {
 		return errors.New("nil block store")

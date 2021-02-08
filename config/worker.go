@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/errors"
@@ -57,8 +57,8 @@ type Worker struct {
 	smtp       *smtp.Client
 	postmaster string
 
-	artifacts block.Store
-	objects   block.Store
+	artifacts fs.Store
+	objects   fs.Store
 
 	log *log.Logger
 
@@ -240,9 +240,9 @@ func (w Worker) Redis() *redis.Client { return w.redis }
 
 func (w Worker) SMTP() (*smtp.Client, string) { return w.smtp, w.postmaster }
 
-func (w Worker) Artifacts() block.Store { return w.artifacts }
+func (w Worker) Artifacts() fs.Store { return w.artifacts }
 
-func (w Worker) Objects() block.Store { return w.objects }
+func (w Worker) Objects() fs.Store { return w.objects }
 
 func (w Worker) BlockCipher() *crypto.Block { return w.block }
 

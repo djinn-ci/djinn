@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/andrewpillar/djinn/block"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
@@ -26,14 +26,14 @@ import (
 type Build struct {
 	web.Handler
 
-	artifacts block.Store
+	artifacts fs.Store
 	loaders   *database.Loaders
 	redis     *redis.Client
 	hasher    *crypto.Hasher
 	producers map[string]*curlyq.Producer
 }
 
-func New(h web.Handler, artifacts block.Store, redis *redis.Client, hasher *crypto.Hasher, producers map[string]*curlyq.Producer) Build {
+func New(h web.Handler, artifacts fs.Store, redis *redis.Client, hasher *crypto.Hasher, producers map[string]*curlyq.Producer) Build {
 	loaders := database.NewLoaders()
 	loaders.Put("user", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))

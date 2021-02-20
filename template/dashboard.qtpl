@@ -64,7 +64,7 @@ var (
 	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
 	CronURI         = "\\/cron\\/?"
 	InvitesURI      =  "\\/invites\\/?"
-	BuildsURI       = "(^\\/$|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
+	BuildsURI       = "(^\\/builds\\/?|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
 	SettingsURI     = "\\/settings\\/?"
 	RepositoriesURI = "\\/repos\\/?"
 )
@@ -149,9 +149,9 @@ func (l Level) String() string {
 				<ul class="sidebar-nav">
 					<li class="sidebar-nav-header">MANAGE</li>
 					{% if Match(p.URL.Path, BuildsURI) %}
-						<li><a title="Builds" href="/" class="active">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
+						<li><a title="Builds" href="/builds" class="active">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
 					{% else %}
-						<li><a title="Builds" href="/">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
+						<li><a title="Builds" href="/builds">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
 					{% endif %}
 					{% if Match(p.URL.Path, NamespacesURI) %}
 						<li><a title="Namespaces" href="/namespaces" class="active">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>

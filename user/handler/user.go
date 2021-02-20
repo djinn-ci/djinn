@@ -52,6 +52,26 @@ func New(h web.Handler, registry *provider.Registry) User {
 	}
 }
 
+// Home is the handler for the "/" route. This will either redirect to the
+// login page, or the builds overview depending on whether or not the user
+// is logged in.
+func (h User) Home(w http.ResponseWriter, r *http.Request) {
+	_, ok, err := h.UserFromRequest(w, r)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if !ok {
+		h.Redirect(w, r, "/login")
+		return
+	}
+	h.Redirect(w, r, "/builds")
+}
+
 // Register will serve the HTML response for registering an account on a GET
 // request. On a POST request it will validate the user's account being created
 // and attempt to create a new user. On successful registration an email will be
@@ -247,7 +267,7 @@ func (h User) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uri := "/"
+	uri := "/builds"
 
 	if uri1 := f.RedirectURI; uri1 != "" {
 		uri = f.RedirectURI
@@ -425,7 +445,7 @@ func (h User) Logout(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		Expires:  time.Unix(0, 0),
 	})
-	h.Redirect(w, r, "/")
+	h.Redirect(w, r, "/login")
 }
 
 func (h User) GetProviders(u *user.User) ([]*provider.Provider, error) {

@@ -40,7 +40,7 @@ type Create struct {
 {% endfunc %}
 
 {% func (p *Create) Header() %}
-	<a href="/" class="back">{% cat "../../static/svg/back.svg" %}</a> Submit Build
+	<a href="/builds" class="back">{% cat "../../static/svg/back.svg" %}</a> Submit Build
 {% endfunc %}
 
 {% func (p *Create) Actions() %}{% endfunc %}

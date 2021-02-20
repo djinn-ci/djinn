@@ -155,7 +155,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	hookRouter.HandleFunc("/gitlab", r.hook.GitLab).Methods("POST")
 
 	auth := mux.PathPrefix("/").Subrouter()
-	auth.HandleFunc("/", build.Index).Methods("GET")
+	auth.HandleFunc("/builds", build.Index).Methods("GET")
 	auth.HandleFunc("/builds/create", build.Create).Methods("GET")
 	auth.HandleFunc("/builds", build.Store).Methods("POST")
 	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)

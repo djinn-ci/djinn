@@ -35,6 +35,8 @@ func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
 // CSRF protection. None of the given gates are applied to any of the
 // registered routes.
 func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handler, _ ...web.Gate) {
+	mux.HandleFunc("/", r.user.Home).Methods("GET")
+
 	guest := mux.PathPrefix("/").Subrouter()
 	guest.HandleFunc("/register", r.user.Register).Methods("GET", "POST")
 	guest.HandleFunc("/login", r.user.Login).Methods("GET", "POST")

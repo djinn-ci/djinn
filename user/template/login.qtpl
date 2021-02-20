@@ -34,9 +34,10 @@ var providerNames = map[string]string{
 	<div class="auth-page">
 		<div class="auth-form">
 			<div class="auth-header">
-				<div class="brand">
-					<div class="left"></div>
-					<div class="right"></div>
+				<div class="logo">
+					<div class="handle"></div>
+					<div class="lid"></div>
+					<div class="lantern"></div>
 				</div>
 				<h1>Login to Djinn CI</h1>
 				{%= template.RenderAlert(p.Alert, "") %}

@@ -6,11 +6,11 @@ replace github.com/docker/docker => github.com/docker/engine v0.0.0-201811061931
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/DATA-DOG/go-sqlmock v1.4.1
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/andrewpillar/query v0.0.0-20201114150338-b673d3a589b8
-	github.com/andrewpillar/webutil v0.0.0-20201115220625-071704fad46d
+	github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4
+	github.com/andrewpillar/webutil v0.0.0-20210130170620-bc75ec163f74
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect

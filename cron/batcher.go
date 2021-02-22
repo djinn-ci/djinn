@@ -7,6 +7,7 @@ import (
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/user"
 
 	"github.com/andrewpillar/query"
@@ -97,11 +98,31 @@ func (b *Batcher) Batch() []*Cron { return b.batch }
 func (b *Batcher) Err() error { return b.err }
 
 // Invoke will submit a build for each job in the current batch.
-func (b *Batcher) Invoke(ctx context.Context, produces map[string]*curlyq.Producer) (int, error) {
+func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Producer) (int, error) {
+	namespaces := namespace.NewStore(b.store.DB)
+	users := user.NewStore(b.store.DB)
+
 	errs := make([]error, 0, len(b.batch))
 	n := 0
 
 	for _, c := range b.batch {
+		if c.NamespaceID.Valid {
+			n, err := namespaces.Get(query.Where("id", "=", query.Arg(c.NamespaceID.Int64)))
+
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to get namespace: %v", errors.Err(err)))
+				continue
+			}
+
+			u, err := users.Get(query.Where("user_id", "=", query.Arg(n.UserID)))
+
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to get namespace owner: %v", errors.Err(err)))
+				continue
+			}
+			c.Manifest.Namespace = n.Path + "@" + u.Username
+		}
+
 		bld, err := b.store.Invoke(c)
 
 		if err != nil {
@@ -109,7 +130,7 @@ func (b *Batcher) Invoke(ctx context.Context, produces map[string]*curlyq.Produc
 			continue
 		}
 
-		queue, ok := produces[bld.Manifest.Driver["type"]]
+		queue, ok := producers[bld.Manifest.Driver["type"]]
 
 		if !ok {
 			errs = append(errs, fmt.Errorf("invalid build driver: %v", bld.Manifest.Driver["type"]))

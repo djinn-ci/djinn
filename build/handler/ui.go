@@ -126,7 +126,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		case namespace.ErrName:
 			errs := webutil.NewErrors()
-			errs.Put("manifest", errors.New("Namespace name can only contain letters and numbers"))
+			errs.Put("manifest", cause)
 
 			sess.AddFlash(f.Fields(), "form_fields")
 			sess.AddFlash(errs, "form_errors")

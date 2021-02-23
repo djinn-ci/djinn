@@ -47,11 +47,6 @@ func (p *Form) field(field string) string {
 		}
 
 		switch field {
-		case "namespace":
-			if p.Cron.Namespace != nil {
-				return p.Cron.Namespace.Name
-			}
-			return ""
 		case "name":
 			return p.Cron.Name
 		case "manifest":
@@ -77,279 +72,267 @@ func (p *Form) checked(sched cron.Schedule) string {
 	return ""
 }
 
-//line cron/template/form.qtpl:64
+//line cron/template/form.qtpl:59
 func (p *Form) StreamTitle(qw422016 *qt422016.Writer) {
+//line cron/template/form.qtpl:59
+	qw422016.N().S(` `)
+//line cron/template/form.qtpl:60
+	if p.Cron == nil {
+//line cron/template/form.qtpl:60
+		qw422016.N().S(` Create Cron Job - Djinn CI `)
+//line cron/template/form.qtpl:62
+	} else {
+//line cron/template/form.qtpl:62
+		qw422016.N().S(` Edit Cron Job - Djinn CI `)
+//line cron/template/form.qtpl:64
+	}
 //line cron/template/form.qtpl:64
 	qw422016.N().S(` `)
 //line cron/template/form.qtpl:65
-	if p.Cron == nil {
+}
+
 //line cron/template/form.qtpl:65
-		qw422016.N().S(` Create Cron Job - Djinn CI `)
-//line cron/template/form.qtpl:67
-	} else {
-//line cron/template/form.qtpl:67
-		qw422016.N().S(` Edit Cron Job - Djinn CI `)
-//line cron/template/form.qtpl:69
-	}
-//line cron/template/form.qtpl:69
-	qw422016.N().S(` `)
-//line cron/template/form.qtpl:70
-}
-
-//line cron/template/form.qtpl:70
 func (p *Form) WriteTitle(qq422016 qtio422016.Writer) {
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 	p.StreamTitle(qw422016)
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 	qt422016.ReleaseWriter(qw422016)
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 }
 
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 func (p *Form) Title() string {
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 	qb422016 := qt422016.AcquireByteBuffer()
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 	p.WriteTitle(qb422016)
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 	qs422016 := string(qb422016.B)
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 	qt422016.ReleaseByteBuffer(qb422016)
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 	return qs422016
-//line cron/template/form.qtpl:70
+//line cron/template/form.qtpl:65
 }
 
-//line cron/template/form.qtpl:72
+//line cron/template/form.qtpl:67
 func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
-//line cron/template/form.qtpl:72
+//line cron/template/form.qtpl:67
 	qw422016.N().S(` <div class="panel"> <div class="panel-body slim"> <form method="POST" action="`)
-//line cron/template/form.qtpl:75
+//line cron/template/form.qtpl:70
 	qw422016.E().S(p.action())
-//line cron/template/form.qtpl:75
+//line cron/template/form.qtpl:70
 	qw422016.N().S(`"> `)
-//line cron/template/form.qtpl:76
+//line cron/template/form.qtpl:71
 	qw422016.N().V(p.CSRF)
-//line cron/template/form.qtpl:76
+//line cron/template/form.qtpl:71
 	qw422016.N().S(` `)
-//line cron/template/form.qtpl:77
+//line cron/template/form.qtpl:72
 	if p.Cron != nil {
-//line cron/template/form.qtpl:77
+//line cron/template/form.qtpl:72
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> `)
-//line cron/template/form.qtpl:79
+//line cron/template/form.qtpl:74
 	}
-//line cron/template/form.qtpl:79
-	qw422016.N().S(` `)
-//line cron/template/form.qtpl:80
-	if p.Cron == nil {
-//line cron/template/form.qtpl:80
-		qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> <input class="form-text" type="text" id="namespace" name="namespace" value="`)
-//line cron/template/form.qtpl:83
-		qw422016.E().S(p.field("namespace"))
-//line cron/template/form.qtpl:83
-		qw422016.N().S(`" autocomplete="off"/> </div> `)
-//line cron/template/form.qtpl:85
-	}
-//line cron/template/form.qtpl:85
+//line cron/template/form.qtpl:74
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Name</label> <input class="form-text" type="text" id="name" name="name" value="`)
-//line cron/template/form.qtpl:88
+//line cron/template/form.qtpl:77
 	qw422016.E().S(p.field("name"))
-//line cron/template/form.qtpl:88
+//line cron/template/form.qtpl:77
 	qw422016.N().S(`" autocomplete="off"/> `)
-//line cron/template/form.qtpl:89
+//line cron/template/form.qtpl:78
 	p.StreamError(qw422016, "name")
-//line cron/template/form.qtpl:89
+//line cron/template/form.qtpl:78
 	qw422016.N().S(` </div> <div class="form-field"> <label class="form-option"> <input class="form-selector" type="radio" name="schedule" value="daily" `)
-//line cron/template/form.qtpl:93
+//line cron/template/form.qtpl:82
 	qw422016.E().S(p.checked(cron.Daily))
-//line cron/template/form.qtpl:93
+//line cron/template/form.qtpl:82
 	qw422016.N().S(`/> <strong>Daily</strong> <span class="form-desc"> - Run the build at the start of each day</span> </label> <label class="form-option"> <input class="form-selector" type="radio" name="schedule" value="weekyl" `)
-//line cron/template/form.qtpl:98
+//line cron/template/form.qtpl:87
 	qw422016.E().S(p.checked(cron.Weekly))
-//line cron/template/form.qtpl:98
+//line cron/template/form.qtpl:87
 	qw422016.N().S(`/> <strong>Weekly</strong> <span class="form-desc"> - Run the build at the start of each week</span> </label> <label class="form-option"> <input class="form-selector" type="radio" name="schedule" value="daily" `)
-//line cron/template/form.qtpl:103
+//line cron/template/form.qtpl:92
 	qw422016.E().S(p.checked(cron.Monthly))
-//line cron/template/form.qtpl:103
-	qw422016.N().S(`/> <strong>Monthly</strong> <span class="form-desc"> - Run the build at the start of each month</span> </label> </div> <div class="form-field"> <label class="label" for="manifest">Manifest</label> <textarea class="form-text form-code" id="manifest" name="manifest">`)
-//line cron/template/form.qtpl:110
+//line cron/template/form.qtpl:92
+	qw422016.N().S(`/> <strong>Monthly</strong> <span class="form-desc"> - Run the build at the start of each month</span> </label> </div> <div class="form-field"> </div> <div class="form-field"> <label class="label" for="manifest">Manifest</label> <textarea class="form-text form-code" id="manifest" name="manifest">`)
+//line cron/template/form.qtpl:101
 	qw422016.E().S(p.field("manifest"))
-//line cron/template/form.qtpl:110
+//line cron/template/form.qtpl:101
 	qw422016.N().S(`</textarea> `)
-//line cron/template/form.qtpl:111
+//line cron/template/form.qtpl:102
 	p.StreamError(qw422016, "manifest")
-//line cron/template/form.qtpl:111
+//line cron/template/form.qtpl:102
 	qw422016.N().S(` </div> <div class="form-field"> `)
-//line cron/template/form.qtpl:114
+//line cron/template/form.qtpl:105
 	if p.Cron != nil {
-//line cron/template/form.qtpl:114
+//line cron/template/form.qtpl:105
 		qw422016.N().S(` <button type="submit" class="btn btn-primary">Save</button> `)
-//line cron/template/form.qtpl:116
+//line cron/template/form.qtpl:107
 	} else {
-//line cron/template/form.qtpl:116
+//line cron/template/form.qtpl:107
 		qw422016.N().S(` <button type="submit" class="btn btn-primary">Create</button> `)
-//line cron/template/form.qtpl:118
+//line cron/template/form.qtpl:109
 	}
-//line cron/template/form.qtpl:118
+//line cron/template/form.qtpl:109
 	qw422016.N().S(` </div> </form> </div> </div> `)
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 }
 
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 func (p *Form) WriteBody(qq422016 qtio422016.Writer) {
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 	p.StreamBody(qw422016)
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 	qt422016.ReleaseWriter(qw422016)
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 }
 
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 func (p *Form) Body() string {
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 	qb422016 := qt422016.AcquireByteBuffer()
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 	p.WriteBody(qb422016)
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 	qs422016 := string(qb422016.B)
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 	qt422016.ReleaseByteBuffer(qb422016)
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 	return qs422016
-//line cron/template/form.qtpl:123
+//line cron/template/form.qtpl:114
 }
 
-//line cron/template/form.qtpl:125
+//line cron/template/form.qtpl:116
 func (p *Form) StreamHeader(qw422016 *qt422016.Writer) {
-//line cron/template/form.qtpl:125
+//line cron/template/form.qtpl:116
 	qw422016.N().S(` `)
-//line cron/template/form.qtpl:126
+//line cron/template/form.qtpl:117
 	if p.Cron != nil {
-//line cron/template/form.qtpl:126
+//line cron/template/form.qtpl:117
 		qw422016.N().S(` <a class="back" href="`)
-//line cron/template/form.qtpl:127
+//line cron/template/form.qtpl:118
 		qw422016.E().S(p.Cron.Endpoint())
-//line cron/template/form.qtpl:127
+//line cron/template/form.qtpl:118
 		qw422016.N().S(`">`)
-//line cron/template/form.qtpl:127
+//line cron/template/form.qtpl:118
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-//line cron/template/form.qtpl:127
+//line cron/template/form.qtpl:118
 		qw422016.N().S(`</a> `)
-//line cron/template/form.qtpl:128
+//line cron/template/form.qtpl:119
 		qw422016.E().S(p.Cron.Name)
-//line cron/template/form.qtpl:128
+//line cron/template/form.qtpl:119
 		qw422016.N().S(` - Edit `)
-//line cron/template/form.qtpl:129
+//line cron/template/form.qtpl:120
 	} else {
-//line cron/template/form.qtpl:129
+//line cron/template/form.qtpl:120
 		qw422016.N().S(` <a class="back" href="/cron">`)
-//line cron/template/form.qtpl:130
+//line cron/template/form.qtpl:121
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-//line cron/template/form.qtpl:130
+//line cron/template/form.qtpl:121
 		qw422016.N().S(`</a> Create Cron Job `)
-//line cron/template/form.qtpl:131
+//line cron/template/form.qtpl:122
 	}
-//line cron/template/form.qtpl:131
+//line cron/template/form.qtpl:122
 	qw422016.N().S(` `)
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 }
 
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 func (p *Form) WriteHeader(qq422016 qtio422016.Writer) {
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 	p.StreamHeader(qw422016)
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 	qt422016.ReleaseWriter(qw422016)
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 }
 
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 func (p *Form) Header() string {
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 	qb422016 := qt422016.AcquireByteBuffer()
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 	p.WriteHeader(qb422016)
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 	qs422016 := string(qb422016.B)
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 	qt422016.ReleaseByteBuffer(qb422016)
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 	return qs422016
-//line cron/template/form.qtpl:132
+//line cron/template/form.qtpl:123
 }
 
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 func (p *Form) StreamActions(qw422016 *qt422016.Writer) {
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 }
 
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 func (p *Form) WriteActions(qq422016 qtio422016.Writer) {
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 	p.StreamActions(qw422016)
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 	qt422016.ReleaseWriter(qw422016)
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 }
 
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 func (p *Form) Actions() string {
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 	qb422016 := qt422016.AcquireByteBuffer()
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 	p.WriteActions(qb422016)
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 	qs422016 := string(qb422016.B)
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 	qt422016.ReleaseByteBuffer(qb422016)
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 	return qs422016
-//line cron/template/form.qtpl:134
+//line cron/template/form.qtpl:125
 }
 
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 func (p *Form) StreamNavigation(qw422016 *qt422016.Writer) {
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 }
 
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 func (p *Form) WriteNavigation(qq422016 qtio422016.Writer) {
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 	p.StreamNavigation(qw422016)
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 	qt422016.ReleaseWriter(qw422016)
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 }
 
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 func (p *Form) Navigation() string {
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 	qb422016 := qt422016.AcquireByteBuffer()
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 	p.WriteNavigation(qb422016)
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 	qs422016 := string(qb422016.B)
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 	qt422016.ReleaseByteBuffer(qb422016)
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 	return qs422016
-//line cron/template/form.qtpl:135
+//line cron/template/form.qtpl:126
 }

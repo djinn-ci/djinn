@@ -29,11 +29,6 @@ func (p *Form) field(field string) string {
 		}
 
 		switch field {
-		case "namespace":
-			if p.Cron.Namespace != nil {
-				return p.Cron.Namespace.Name
-			}
-			return ""
 		case "name":
 			return p.Cron.Name
 		case "manifest":
@@ -77,12 +72,6 @@ func (p *Form) checked(sched cron.Schedule) string {
 				{% if p.Cron != nil %}
 					<input type="hidden" name="_method" value="PATCH"/>
 				{% endif %}
-				{% if p.Cron == nil %}
-					<div class="form-field">
-						<label class="label" for="namespace">Namespace <small>(optional)</small></label>
-						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.field("namespace") %}" autocomplete="off"/>
-					</div>
-				{% endif %}
 				<div class="form-field">
 					<label class="label" for="name">Name</label>
 					<input class="form-text" type="text" id="name" name="name" value="{%s p.field("name") %}" autocomplete="off"/>
@@ -104,6 +93,8 @@ func (p *Form) checked(sched cron.Schedule) string {
 						<strong>Monthly</strong>
 						<span class="form-desc"> - Run the build at the start of each month</span>
 					</label>
+				</div>
+				<div class="form-field">
 				</div>
 				<div class="form-field">
 					<label class="label" for="manifest">Manifest</label>

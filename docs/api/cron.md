@@ -164,10 +164,6 @@ the explicit `cron:write` permission.
 
 ---
 
-**`namespace`** `string` - The name of the namespace to put the cron job in.
-
----
-
 **`name`** `string` - The name of the cron job.
 
 ---

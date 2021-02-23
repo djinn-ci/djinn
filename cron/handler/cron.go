@@ -79,17 +79,13 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 
 	crons := cron.NewStore(h.DB, u)
 
-	f.Resource = namespace.Resource{
-		Author:     u,
-		Namespaces: namespace.NewStore(h.DB, u),
-	}
 	f.Crons = crons
 
 	if err := webutil.UnmarshalAndValidate(&f, r); err != nil {
 		return nil, f, errors.Err(err)
 	}
 
-	c, err := crons.Create(f.Author.ID, f.Name, f.Schedule, f.Manifest)
+	c, err := crons.Create(u.ID, f.Name, f.Schedule, f.Manifest)
 	return c, f, errors.Err(err)
 }
 

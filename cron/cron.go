@@ -262,6 +262,21 @@ func (s *Store) Create(authorId int64, name string, sched Schedule, m manifest.M
 	c.Manifest = m
 	c.NextRun = sched.Next()
 
+	if m.Namespace != "" {
+		n, err := namespace.NewStore(s.DB, c.User).GetByPath(m.Namespace)
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+
+		c.Namespace = n
+		c.UserID = n.UserID
+		c.NamespaceID = sql.NullInt64{
+			Int64: n.ID,
+			Valid: true,
+		}
+	}
+
 	err := s.Store.Create(table, c)
 	return c, errors.Err(err)
 }

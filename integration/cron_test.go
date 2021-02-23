@@ -64,7 +64,7 @@ func Test_Cron(t *testing.T) {
 		uri:         "/api/cron",
 		token:       myTok,
 		contentType: "application/json",
-		body:        jsonBody(map[string]string{"namespace": "spacecron@you"}),
+		body:        jsonBody(map[string]string{"manifest": "namespace: spacecron@you"}),
 		code:        http.StatusBadRequest,
 		check:       checkFormErrors("namespace", "Could not find namespace"),
 	})
@@ -77,7 +77,7 @@ func Test_Cron(t *testing.T) {
 		uri:         "/api/cron",
 		token:       myTok,
 		contentType: "application/json",
-		body:        jsonBody(map[string]string{"namespace": "cronspace", "name": "Nightly", "manifest": manifest}),
+		body:        jsonBody(map[string]string{"name": "Nightly", "manifest": manifest}),
 		code:        http.StatusCreated,
 	})
 

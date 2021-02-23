@@ -110,6 +110,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
 
+			sess.AddFlash(f.Fields(), "form_fields")
 			sess.AddFlash(errs, "form_errors")
 			h.RedirectBack(w, r)
 			return

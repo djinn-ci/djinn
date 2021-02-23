@@ -3,7 +3,6 @@ package cron
 import (
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/manifest"
-	"github.com/andrewpillar/djinn/namespace"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
@@ -12,8 +11,6 @@ import (
 // Form is the type that represents input data for creating and editing a cron
 // job.
 type Form struct {
-	namespace.Resource
-
 	Crons    *Store            `schema:"-"`
 	Cron     *Cron             `schema:"-"`
 	Name     string            `schema:"name"`
@@ -33,7 +30,6 @@ func (f Form) Fields() map[string]string {
 	}
 
 	return map[string]string{
-		"namespace": f.Namespace,
 		"name":      f.Name,
 		"schedule":  f.Schedule.String(),
 		"manifest":  manifest,
@@ -46,10 +42,6 @@ func (f Form) Fields() map[string]string {
 // checked, followed by a validation of that manifest.
 func (f Form) Validate() error {
 	errs := webutil.NewErrors()
-
-	if err := f.Resource.Resolve(f.Crons); err != nil {
-		return errors.Err(err)
-	}
 
 	if f.Cron != nil {
 		if f.Name == "" {

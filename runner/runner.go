@@ -180,17 +180,17 @@ func (r *Runner) Remove(stages ...string) {
 // used to handle cancellation of the Runner, as well as cancellation of the
 // underlying Driver during creation. If the Runner fails the errRunFailed will
 // be returned.
-func (r *Runner) Run(c context.Context, d Driver) error {
+func (r *Runner) Run(ctx context.Context, d Driver) error {
 	defer d.Destroy()
 
-	ct, cancel := context.WithTimeout(c, createTimeout)
+	ctx1, cancel := context.WithTimeout(ctx, createTimeout)
 	defer cancel()
 
 	if r.handleDriverCreate != nil {
 		r.handleDriverCreate()
 	}
 
-	if err := d.Create(ct, r.Env, r.Objects, r.Placer); err != nil {
+	if err := d.Create(ctx1, r.Env, r.Objects, r.Placer); err != nil {
 		cause := errors.Cause(err)
 
 		fmt.Fprintf(d, "%s\n", cause.Error())
@@ -218,10 +218,10 @@ func (r *Runner) Run(c context.Context, d Driver) error {
 	}()
 
 	select {
-	case <-c.Done():
+	case <-ctx.Done():
 		r.printLastJobStatus()
 
-		err := c.Err()
+		err := ctx.Err()
 
 		r.Status = contextStatuses[err]
 		return err

@@ -272,7 +272,7 @@ func (p *Settings) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 //line user/template/settings.qtpl:87
-		qw422016.N().S(` <div class="form-desc">Clean up old artifacts that exceed 1GB of storage in total</div> </label> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> <div class="separator"></div> <form method="POST" action="/settings/email"> <h2>Change email</h2> `)
+		qw422016.N().S(` <div class="form-desc">Clean up old artifacts</div> </label> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Update</button> </div> </form> <div class="separator"></div> <form method="POST" action="/settings/email"> <h2>Change email</h2> `)
 //line user/template/settings.qtpl:98
 		qw422016.N().V(p.CSRF)
 //line user/template/settings.qtpl:98

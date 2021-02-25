@@ -27,6 +27,8 @@ import (
 // worker. This will handle updating the state of the build and its jobs in
 // the database whilst the build runs.
 type Runner struct {
+	runner.Runner
+
 	initialized bool // if the underlying runner has been fully initialized
 
 	db *sqlx.DB
@@ -36,7 +38,6 @@ type Runner struct {
 
 	build *build.Build
 
-	runner    runner.Runner
 	placer    runner.Placer
 	collector runner.Collector
 
@@ -113,10 +114,10 @@ func (r *Runner) Init() error {
 		return errors.Err(err)
 	}
 
-	r.runner.Env = make([]string, 0, len(vv))
+	r.Runner.Env = make([]string, 0, len(vv))
 
 	for _, v := range vv {
-		r.runner.Env = append(r.runner.Env, v.Key+"="+v.Value)
+		r.Runner.Env = append(r.Runner.Env, v.Key+"="+v.Value)
 	}
 
 	kk, err := build.NewKeyStore(r.db, r.build).All()
@@ -135,13 +136,13 @@ UserKnownHostsFile /dev/null
 		r.keys["key:"+k.Name] = k.Key
 
 		keycfg.WriteString(k.Config)
-		r.runner.Objects.Set("key:"+k.Name, "/root/.ssh/"+k.Name)
+		r.Runner.Objects.Set("key:"+k.Name, "/root/.ssh/"+k.Name)
 	}
 
 	r.keycfg = keycfg.String()
 
 	if len(kk) > 0 {
-		r.runner.Objects.Set("/root/.ssh/config", "/root/.ssh/config")
+		r.Runner.Objects.Set("/root/.ssh/config", "/root/.ssh/config")
 	}
 
 	oo, err := build.NewObjectStore(r.db, r.build).All()
@@ -151,7 +152,7 @@ UserKnownHostsFile /dev/null
 	}
 
 	for _, o := range oo {
-		r.runner.Objects.Set(o.Source, o.Name)
+		r.Runner.Objects.Set(o.Source, o.Name)
 	}
 
 	ss, err := build.NewStageStore(r.db, r.build).All(query.OrderAsc("created_at"))
@@ -192,12 +193,12 @@ UserKnownHostsFile /dev/null
 	}
 
 	for _, s := range ss {
-		r.runner.Add(stages[s.ID])
+		r.Runner.Add(stages[s.ID])
 	}
 
-	r.runner.Writer = r.buf
-	r.runner.Placer = r.Placer()
-	r.runner.Collector = r.Collector()
+	r.Runner.Writer = r.buf
+	r.Runner.Placer = r.Placer()
+	r.Runner.Collector = r.Collector()
 
 	r.initialized = true
 
@@ -294,7 +295,7 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 		q.Realpath = r.qemuRealpath(r.build, config["disks"].(string))
 	}
 
-	r.runner.HandleDriverCreate(func() {
+	r.Runner.HandleDriverCreate(func() {
 		j := r.DriverJob()
 
 		if err := jobs.Started(j.ID); err != nil {
@@ -302,7 +303,7 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 		}
 	})
 
-	r.runner.HandleJobStart(func(job runner.Job) {
+	r.Runner.HandleJobStart(func(job runner.Job) {
 		if job.Name == "create driver" {
 			return
 		}
@@ -314,7 +315,7 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 		}
 	})
 
-	r.runner.HandleJobComplete(func(job runner.Job) {
+	r.Runner.HandleJobComplete(func(job runner.Job) {
 		j := r.jobs[job.Stage+job.Name]
 		buf := r.bufs[j.ID]
 
@@ -328,16 +329,16 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 		return runner.Failed, errors.Err(err)
 	}
 
-	r.runner.Run(ctx, driver)
+	r.Runner.Run(ctx, driver)
 
-	if err := builds.Finished(r.build.ID, r.buf.String(), r.runner.Status); err != nil {
+	if err := builds.Finished(r.build.ID, r.buf.String(), r.Runner.Status); err != nil {
 		r.log.Error.Println(jobId, "failed to mark build as finished", err)
-		return r.runner.Status, errors.Err(err)
+		return r.Runner.Status, errors.Err(err)
 	}
 
-	if err := r.updateJobs(r.runner.Status); err != nil {
+	if err := r.updateJobs(r.Runner.Status); err != nil {
 		r.log.Error.Println(jobId, "failed to update build jobs", err)
-		return r.runner.Status, errors.Err(err)
+		return r.Runner.Status, errors.Err(err)
 	}
-	return r.runner.Status, nil
+	return r.Runner.Status, nil
 }

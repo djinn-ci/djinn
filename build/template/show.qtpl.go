@@ -279,7 +279,7 @@ func (p *Show) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/show.qtpl:90
 		qw422016.N().S(` Build #`)
 //line build/template/show.qtpl:91
-		qw422016.E().V(p.Build.ID)
+		qw422016.E().V(p.Build.Number)
 //line build/template/show.qtpl:91
 		qw422016.N().S(` `)
 //line build/template/show.qtpl:91

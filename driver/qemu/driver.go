@@ -134,6 +134,7 @@ func (q *Driver) runCmd() error {
 
 		bin := fmt.Sprintf("qemu-system-%s", q.Arch)
 		arg := []string{
+			"-enable-kvm",
 			"-daemonize",
 			"-display", "none",
 			"-pidfile", pidfile.Name(),

@@ -177,7 +177,7 @@ func (q *Driver) runCmd() error {
 		Addr:     net.JoinHostPort("127.0.0.1", strconv.FormatInt(q.port, 10)),
 		User:     "root",
 		Password: "",
-		Timeout:  time.Duration(time.Second * 60),
+		Timeout:  time.Duration(time.Minute * 5),
 	}
 	return nil
 }

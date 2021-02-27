@@ -5,6 +5,8 @@ import (
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/template"
+
+	"github.com/hako/durafmt"
 )
 %}
 
@@ -78,7 +80,7 @@ type Index struct {
 								{% if !b.FinishedAt.Valid || !b.StartedAt.Valid %}
 									<span class="muted">--</span>
 								{% else %}
-									{%v b.FinishedAt.Time.Sub(b.StartedAt.Time) %}
+									{%v durafmt.Parse(b.FinishedAt.Time.Sub(b.StartedAt.Time)).LimitFirstN(1) %}
 								{% endif %}
 							</td>
 							<td class="align-right">

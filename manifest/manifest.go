@@ -173,17 +173,16 @@ func (m Manifest) Value() (driver.Value, error) {
 }
 
 func (s Source) MarshalYAML() (interface{}, error) {
-	ref := "master"
-	dir := base(s.URL)
+	source := s.URL
 
 	if s.Ref != "" {
-		ref = s.Ref
+		source += " " + s.Ref
 	}
 
 	if s.Dir != "" {
-		dir = s.Dir
+		source += " => " + s.Dir
 	}
-	return s.URL + " " + ref + " => " + dir, nil
+	return source, nil
 }
 
 // UnmarshalYAML unmarshals the YAML for a source URL. Source URLs can be in
@@ -208,7 +207,7 @@ func (s *Source) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	s.URL = str[:i]
-	s.Dir = base(s.URL)
+	s.Dir = strings.TrimSuffix(base(s.URL), ".git")
 
 	tmp := make([]rune, 0, len(str[i:]))
 

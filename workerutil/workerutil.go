@@ -104,5 +104,5 @@ func Start(ctx context.Context, w *worker.Worker) {
 			w.Log.Error.Println(errors.Cause(err))
 		}
 	}()
-	w.Log.Info.Println(os.Args[0], "worker running with", w.Parallelism, "parallelism")
+	w.Log.Info.Println(os.Args[0], "running with", w.Parallelism, "parallelism")
 }

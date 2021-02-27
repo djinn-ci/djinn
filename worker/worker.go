@@ -310,6 +310,7 @@ func (w *Worker) Run(ctx context.Context) error {
 		Client:               w.Redis,
 		Logger:               workerLogger{log: w.Log},
 		ProcessorConcurrency: w.Parallelism,
+		JobMaxAttempts:       1,
 	})
 	return errors.Err(consumer.ConsumeCtx(ctx, w.handle))
 }

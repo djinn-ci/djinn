@@ -66,7 +66,6 @@ func Test_Cron(t *testing.T) {
 		contentType: "application/json",
 		body:        jsonBody(map[string]string{"manifest": "namespace: spacecron@you"}),
 		code:        http.StatusBadRequest,
-		check:       checkFormErrors("namespace", "Could not find namespace"),
 	})
 
 	manifest := "namespace: cronspace\ndriver:\n  type: qemu\n  image: centos/7"

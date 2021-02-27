@@ -770,8 +770,7 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 	}
 
 	_, err = prd.PerformCtx(ctx, curlyq.Job{
-		Data:    buf.Bytes(),
-		Attempt: 3,
+		Data: buf.Bytes(),
 	})
 	return errors.Err(err)
 }

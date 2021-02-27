@@ -267,10 +267,9 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 			return runner.Killed, errors.Err(err)
 		}
 
-		err := r.updateJobs(runner.Killed)
-
-		r.log.Error.Println(jobId, "failed to update build jobs", err)
-
+		if err := r.updateJobs(runner.Killed); err != nil {
+			r.log.Error.Println(jobId, "failed to update build jobs", err)
+		}
 		return runner.Killed, errors.Err(err)
 	}
 

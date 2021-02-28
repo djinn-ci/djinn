@@ -3,7 +3,7 @@ driver:
   type: qemu
   image: djinn-dev
 sources:
-- https://github.com/andrewpillar/djinn.git => djinn
+- https://github.com/andrewpillar/djinn.git
 env:
 - PGPASSWORD=secret
 - LDFLAGS=-s -w

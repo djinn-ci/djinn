@@ -219,11 +219,11 @@ func (r *Runner) Run(ctx context.Context, d Driver) error {
 
 	select {
 	case <-ctx.Done():
-		r.printLastJobStatus()
-
 		err := ctx.Err()
 
 		r.Status = contextStatuses[err]
+
+		r.printLastJobStatus()
 		return err
 	case <-done:
 		if r.Status == Failed {

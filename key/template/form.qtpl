@@ -41,9 +41,9 @@ func (p *Form) Action() string {
 				<div class="form-field">
 					<label class="label" for="namespace">Namespace <small>(optional)</small></label>
 					{% if p.Key != nil && p.Key.Namespace != nil %}
-						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Key.Namespace.Name %}"/>
+						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Key.Namespace.Name %}" autocomplete="off"/>
 					{% else %}
-						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Fields["namespace"] %}"/>
+						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Fields["namespace"] %}" autocomplete="off"/>
 					{% endif %}
 				</div>
 				{% if p.Key == nil %}

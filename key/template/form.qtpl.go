@@ -110,7 +110,7 @@ func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
 //line key/template/form.qtpl:44
 		qw422016.E().S(p.Key.Namespace.Name)
 //line key/template/form.qtpl:44
-		qw422016.N().S(`"/> `)
+		qw422016.N().S(`" autocomplete="off"/> `)
 //line key/template/form.qtpl:45
 	} else {
 //line key/template/form.qtpl:45
@@ -118,7 +118,7 @@ func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
 //line key/template/form.qtpl:46
 		qw422016.E().S(p.Fields["namespace"])
 //line key/template/form.qtpl:46
-		qw422016.N().S(`"/> `)
+		qw422016.N().S(`" autocomplete="off"/> `)
 //line key/template/form.qtpl:47
 	}
 //line key/template/form.qtpl:47

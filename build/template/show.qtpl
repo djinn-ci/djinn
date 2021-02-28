@@ -299,7 +299,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 			<div class="panel">
 				<div class="panel-header"><h3>Artifacts</h3></div>
 				{% if len(p.Job.Artifacts) > 0 %}
-					{%= RenderArtifactTable(p.Job.Artifacts, p.URL.Path, "") %}
+					{%= RenderArtifactTable(p.Job.Artifacts, p.URL.Path, "", false) %}
 				{% else %}
 					<div class="panel-message muted">No artifacts have been collected from this job.</div>
 				{% endif %}

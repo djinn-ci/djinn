@@ -881,7 +881,7 @@ func (p *Job) StreamBody(qw422016 *qt422016.Writer) {
 //line build/template/show.qtpl:301
 		qw422016.N().S(` `)
 //line build/template/show.qtpl:302
-		StreamRenderArtifactTable(qw422016, p.Job.Artifacts, p.URL.Path, "")
+		StreamRenderArtifactTable(qw422016, p.Job.Artifacts, p.URL.Path, "", false)
 //line build/template/show.qtpl:302
 		qw422016.N().S(` `)
 //line build/template/show.qtpl:303

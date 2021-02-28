@@ -460,7 +460,7 @@ func (p *Artifacts) StreamBody(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:159
 	qw422016.N().S(` <div class="panel">`)
 //line build/template/section.qtpl:160
-	StreamRenderArtifactTable(qw422016, p.Artifacts, p.URL.Path, p.Search)
+	StreamRenderArtifactTable(qw422016, p.Artifacts, p.URL.Path, p.Search, true)
 //line build/template/section.qtpl:160
 	qw422016.N().S(`</div> `)
 //line build/template/section.qtpl:161

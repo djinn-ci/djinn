@@ -157,7 +157,7 @@ type Tags struct {
 {% endfunc %}
 
 {% func (p *Artifacts) Body() %}
-	<div class="panel">{%= RenderArtifactTable(p.Artifacts, p.URL.Path, p.Search) %}</div>
+	<div class="panel">{%= RenderArtifactTable(p.Artifacts, p.URL.Path, p.Search, true) %}</div>
 {% endfunc %}
 
 {% func (p *Variables) Title() %}

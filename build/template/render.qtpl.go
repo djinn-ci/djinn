@@ -179,7 +179,7 @@ func RenderStatusNav(uri, status string) string {
 }
 
 //line build/template/render.qtpl:53
-func StreamRenderArtifactTable(qw422016 *qt422016.Writer, aa []*build.Artifact, uri, search string) {
+func StreamRenderArtifactTable(qw422016 *qt422016.Writer, aa []*build.Artifact, uri, search string, showSearch bool) {
 //line build/template/render.qtpl:53
 	qw422016.N().S(` `)
 //line build/template/render.qtpl:54
@@ -189,27 +189,31 @@ func StreamRenderArtifactTable(qw422016 *qt422016.Writer, aa []*build.Artifact, 
 //line build/template/render.qtpl:56
 	} else {
 //line build/template/render.qtpl:56
-		qw422016.N().S(` <div class="panel-header">`)
+		qw422016.N().S(` `)
 //line build/template/render.qtpl:57
-		template.StreamRenderSearch(qw422016, uri, search, "Find an artifact...")
+		if showSearch {
 //line build/template/render.qtpl:57
-		qw422016.N().S(`</div> `)
+			qw422016.N().S(` <div class="panel-header">`)
 //line build/template/render.qtpl:58
+			template.StreamRenderSearch(qw422016, uri, search, "Find an artifact...")
+//line build/template/render.qtpl:58
+			qw422016.N().S(`</div> `)
+//line build/template/render.qtpl:59
+		}
+//line build/template/render.qtpl:59
+		qw422016.N().S(` `)
+//line build/template/render.qtpl:60
 		if len(aa) == 0 && search != "" {
-//line build/template/render.qtpl:58
+//line build/template/render.qtpl:60
 			qw422016.N().S(` <div class="panel-message muted">No results found.</div> `)
-//line build/template/render.qtpl:60
+//line build/template/render.qtpl:62
 		} else {
-//line build/template/render.qtpl:60
-			qw422016.N().S(` <table class="table"> <thead> <tr> <th>SOURCE</th> <th>NAME</th> <th>SIZE</th> <th>HASHES</th> </tr> </thead> <tbody> `)
-//line build/template/render.qtpl:71
+//line build/template/render.qtpl:62
+			qw422016.N().S(` <table class="table"> <thead> <tr> <th>NAME</th> <th>SIZE</th> <th>HASHES</th> </tr> </thead> <tbody> `)
+//line build/template/render.qtpl:72
 			for _, a := range aa {
-//line build/template/render.qtpl:71
-				qw422016.N().S(` <tr> <td><span class="code">`)
-//line build/template/render.qtpl:73
-				qw422016.E().S(a.Source)
-//line build/template/render.qtpl:73
-				qw422016.N().S(`</span></td> `)
+//line build/template/render.qtpl:72
+				qw422016.N().S(` <tr> `)
 //line build/template/render.qtpl:74
 				if a.DeletedAt.Valid || a.MD5 == nil && a.SHA256 == nil {
 //line build/template/render.qtpl:74
@@ -286,22 +290,22 @@ func StreamRenderArtifactTable(qw422016 *qt422016.Writer, aa []*build.Artifact, 
 }
 
 //line build/template/render.qtpl:108
-func WriteRenderArtifactTable(qq422016 qtio422016.Writer, aa []*build.Artifact, uri, search string) {
+func WriteRenderArtifactTable(qq422016 qtio422016.Writer, aa []*build.Artifact, uri, search string, showSearch bool) {
 //line build/template/render.qtpl:108
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line build/template/render.qtpl:108
-	StreamRenderArtifactTable(qw422016, aa, uri, search)
+	StreamRenderArtifactTable(qw422016, aa, uri, search, showSearch)
 //line build/template/render.qtpl:108
 	qt422016.ReleaseWriter(qw422016)
 //line build/template/render.qtpl:108
 }
 
 //line build/template/render.qtpl:108
-func RenderArtifactTable(aa []*build.Artifact, uri, search string) string {
+func RenderArtifactTable(aa []*build.Artifact, uri, search string, showSearch bool) string {
 //line build/template/render.qtpl:108
 	qb422016 := qt422016.AcquireByteBuffer()
 //line build/template/render.qtpl:108
-	WriteRenderArtifactTable(qb422016, aa, uri, search)
+	WriteRenderArtifactTable(qb422016, aa, uri, search, showSearch)
 //line build/template/render.qtpl:108
 	qs422016 := string(qb422016.B)
 //line build/template/render.qtpl:108

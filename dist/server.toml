@@ -4,6 +4,23 @@
 # webhooks.
 host = "https://localhost:8443"
 
+# List the drivers that you want to support on the Djinn CI server. Each driver
+# will be submitted onto its own queue for processing. The queues used for
+# processing will be in the format of "builds_driver", where driver is the name
+# of the driver being used for that build, for example "builds_docker" or
+# "builds_qemu-x86_64".
+drivers = [
+	"docker",
+	"qemu-x86_64",
+]
+
+# When set to true share_queue will place every build onto the same queue
+# regardless of the driver being used for that build. This is beneficial for
+# simpler deployments where you want a single worker deployed for executing
+# builds with multiple drivers. The "builds" queue will be used for executing
+# the build when this option is set.
+share_queue = true
+
 # The address to serve on.
 [net]
 listen = "localhost:8443"
@@ -69,17 +86,6 @@ limit = 5000000
 [log]
 level = "info"
 file  = "/var/log/djinn/server.log"
-
-# Configure the drivers you want to support on the Djinn server. Each build
-# for a specific driver can be placed on an individual queue, or they can be
-# placed on the same queue.
-[[drivers]]
-type  = "qemu"
-queue = "builds"
-
-[[drivers]]
-type  = "docker"
-queue = "builds"
 
 # Configure the Git providers you want to support integrations with. Each
 # provider listed below will allow users to either login using their respective

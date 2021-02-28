@@ -267,22 +267,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	subj := fmt.Sprintf("Djinn - Build #%d %s", b.ID, adj)
 
 	if status == runner.Failed {
-		j, err := build.NewJobStore(w.DB, b).Get(
-			query.Where("status", "=", query.Arg(runner.Failed)),
-			query.OrderDesc("finished_at"),
-		)
-
-		if err != nil {
-			return errors.Err(err)
-		}
-		fmt.Fprintf(&buf, "Job %s failed in build #%d failed\n\n", j.Name, b.ID)
-
-		parts := strings.Split(j.Output.String, "\n")
-
-		if len(parts) >= 15 {
-			parts = parts[len(parts)-15:]
-		}
-		output = strings.Join(parts, "\n")
+		output = run.Tail()
 	} else {
 		buf.WriteString(subj + "\n\n")
 	}

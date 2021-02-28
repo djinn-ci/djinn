@@ -244,6 +244,16 @@ func (r *Runner) DriverBuffer() *bytes.Buffer {
 	return nil
 }
 
+// Tail returns the last 15 lines of what was written to the runner's buffer.
+func (r *Runner) Tail() string {
+	parts := strings.Split(r.buf.String(), "\n")
+
+	if len(parts) >= 15 {
+		parts = parts[len(parts)-15:]
+	}
+	return strings.Join(parts, "\n")
+}
+
 // Run runs the build with the given driver. This will return the underlying
 // status of the runner upon completion, along with any errors that may occur.
 // If an underyling error does occur then the returned status will always be

@@ -277,6 +277,9 @@ func (s *ArtifactStore) Deleted(ids ...int64) error {
 
 	q := query.Update(
 		artifactTable,
+		query.Set("size", query.Arg(0)),
+		query.Set("md5", query.Arg(nil)),
+		query.Set("sha256", query.Arg(nil)),
 		query.Set("deleted_at", query.Arg(time.Now())),
 		query.Where("id", "IN", query.List(vals...)),
 	)

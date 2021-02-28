@@ -128,6 +128,10 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
+	if b.FinishedAt.Valid {
+		return nil
+	}
+
 	b.User, err = user.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.UserID)))
 
 	if err != nil {

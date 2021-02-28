@@ -216,7 +216,7 @@ func StreamRenderTrigger(qw422016 *qt422016.Writer, b *build.Build) {
 //line build/template/show.qtpl:79
 		for _, t := range b.Tags {
 //line build/template/show.qtpl:79
-			qw422016.N().S(` <a href="/?tag=`)
+			qw422016.N().S(` <a href="/builds?tag=`)
 //line build/template/show.qtpl:80
 			qw422016.E().S(t.Name)
 //line build/template/show.qtpl:80

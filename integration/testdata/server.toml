@@ -4,6 +4,13 @@
 # webhooks.
 host = "https://localhost:8080"
 
+drivers = [
+	"docker",
+	"qemu-x86_64",
+]
+
+share_queue = true
+
 [net]
 listen = "localhost:8080"
 
@@ -45,14 +52,3 @@ limit = 5000000
 [log]
 level = "debug"
 file  = "testdata/server.log"
-
-# Configure the drivers you want to support on the Djinn server. Each build
-# for a specific driver can be placed on an individual queue, or they can be
-# placed on the same queue.
-[[drivers]]
-type  = "qemu"
-queue = "builds"
-
-[[drivers]]
-type  = "docker"
-queue = "builds"

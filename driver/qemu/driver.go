@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -48,6 +49,10 @@ var (
 	_ runner.Driver = (*Driver)(nil)
 
 	tcpMaxPort int64 = 65535
+
+	archLookup = map[string]string{
+		"x86_64": "amd64",
+	}
 )
 
 // Init initializes a new Driver driver using the given io.Writer, and
@@ -108,6 +113,23 @@ func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
 			return path, nil
 		},
 	}
+}
+
+// GetExpectedArch returns the QEMU arch that would be expected for the GOARCH.
+func GetExpectedArch() string {
+	for k, v := range archLookup {
+		if v == runtime.GOARCH {
+			return k
+		}
+	}
+	return ""
+}
+
+// MatchesGOARCH checks to see if the given QEMU arch matches the GOARCH. This
+// is used by the worker to make sure that virtualization with KVM would be
+// possible on the platform the worker is being run on.
+func MatchesGOARCH(arch string) bool {
+	return archLookup[arch] == runtime.GOARCH
 }
 
 func (q *Driver) runCmd() error {

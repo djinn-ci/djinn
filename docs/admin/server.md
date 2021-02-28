@@ -10,6 +10,7 @@ so there is no need to worry about where assets will exist on disk.
 * [External Dependencies](#external-dependencies)
 * [Configuring the Server](#configuring-the-server)
   * [Network](#network)
+  * [Drivers](#drivers)
   * [Crypto](#crypto)
   * [Database](#database)
   * [Redis](#redis)
@@ -17,7 +18,6 @@ so there is no need to worry about where assets will exist on disk.
   * [Artifacts](#artifacts)
   * [Objects](#objects)
   * [Logging](#logging)
-  * [Drivers](#drivers)
   * [Providers](#providers)
 * [Example Server Configuration](#example-server-configuration)
 * [Running the Server](#running-the-server)
@@ -51,6 +51,14 @@ latter.
 TLS.
 
 * `net.ssl.key` - The key to use if you want the server to serve over TLS.
+
+### Drivers
+
+* `drivers` - List the drivers that you want to support on the Djinn CI server.
+Each driver will be submitted onto its own queue for processing. The queues
+used for processing will be in the format of `builds_driver`, where driver is
+the name of the driver being used for that build, for example `builds_docker`
+or `builds_qemu-x86_64`.
 
 ### Crypto
 
@@ -110,19 +118,6 @@ server. Set to `0` for unlimited.
 be one of: `debug`, `info`, or `error`.
 
 * `log.file` - The file to write logs to, defaults to `/dev/stdout`.
-
-### Drivers
-
-The `[[drivers]]` table specifies the drivers that are provided by Djinn CI for
-executing builds. This expects the `type` of driver available, and the `queue`
-to place the builds on. It is valid for different driver types to be placed on
-to the same queue.
-
-* `drivers.type` - The type of driver to support on the server. Must be one of:
-`docker`, `qemu`, or `ssh`.
-
-* `drivers.queue` - The name of the queue that builds for the given driver should
-be submitted to.
 
 ### Providers
 

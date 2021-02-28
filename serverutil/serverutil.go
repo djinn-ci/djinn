@@ -130,6 +130,10 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 		}
 	}
 
+	for driver := range cfg.Producers() {
+		log.Info.Println("enabled build driver", driver)
+	}
+
 	srv := cfg.Server()
 
 	srv.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

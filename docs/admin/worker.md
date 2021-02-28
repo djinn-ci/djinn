@@ -54,13 +54,13 @@ on how to do this [here](/user/offline-runner#configuring-drivers).
 
 ### General Configuration
 
-* `webserver` - This is the address of the web server that serves Djinn CI. This
-will be used for any links in emails.
-
 * `parallelism` - This specifies the parallelism to use when running multiple
 builds at one. Set this to `0` to use the number of CPU cores available.
 
-* `queue` - This specifies the queue that builds should be popped off.
+* `driver` - The driver we want to use when executing builds with the worker.
+To use all drivers then set to `*`. For the `qemu` driver the arch must match
+the host arch. For example, if running on `amd64` and you want to use the qemu
+driver then you must specify `qemu-x86_64`.
 
 * `timeout` - This specifies the duration after which builds should be killed.
 Valid time units are `ns`, `us`, `ms`, `s`, `m`, and `h`.

@@ -107,7 +107,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 	}
 
 	builds := build.NewStoreWithHasher(h.DB, h.hasher)
-	prd := h.producers[b.Manifest.Driver["type"]]
+	prd, _ := h.getDriverQueue(b.Manifest)
 	addr := webutil.BaseAddress(r)
 
 	if err := builds.Submit(r.Context(), prd, addr, b); err != nil {

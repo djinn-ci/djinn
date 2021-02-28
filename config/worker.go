@@ -5,11 +5,13 @@ import (
 	"net/smtp"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/driver"
+	"github.com/andrewpillar/djinn/driver/qemu"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
 	"github.com/andrewpillar/djinn/provider"
@@ -24,7 +26,7 @@ import (
 type workerCfg struct {
 	Pidfile     string
 	Parallelism int
-	Queue       string
+	Driver      string
 	Timeout     string
 
 	Crypto cryptoCfg
@@ -46,6 +48,7 @@ type workerCfg struct {
 type Worker struct {
 	pidfile *os.File
 
+	drivers     []string
 	queue       string
 	parallelism int
 	timeout     time.Duration
@@ -62,7 +65,6 @@ type Worker struct {
 
 	log *log.Logger
 
-	drivers   *driver.Registry
 	providers *provider.Registry
 }
 
@@ -128,7 +130,40 @@ func DecodeWorker(r io.Reader) (Worker, error) {
 
 	w.log.Info.Println("logging initiliazed, writing to", cfg.Log.File)
 
-	w.queue = cfg.Queue
+	w.drivers = make([]string, 0)
+
+	queue := defaultBuildQueue + "_" + cfg.Driver
+
+	if cfg.Driver == "*" {
+		queue = defaultBuildQueue
+
+		for _, driver := range driver.All {
+			if driver == "qemu" {
+				driver += "-" + qemu.GetExpectedArch()
+			}
+			w.drivers = append(w.drivers, driver)
+		}
+	} else {
+		w.drivers = append(w.drivers, cfg.Driver)
+	}
+
+	if strings.HasPrefix(cfg.Driver, "qemu") {
+		parts := strings.SplitN(cfg.Driver, "-", 2)
+
+		if len(parts) == 1 {
+			return w, errors.New("qemu driver does not specify arch")
+		}
+
+		if len(parts) > 1 {
+			if !qemu.MatchesGOARCH(parts[1]) {
+				arch := qemu.GetExpectedArch()
+
+				return w, errors.New("qemu driver should be 'qemu-" + arch + "' when running on " + runtime.GOARCH)
+			}
+		}
+	}
+
+	w.queue = queue
 	w.parallelism = cfg.Parallelism
 
 	if w.parallelism == 0 {
@@ -196,8 +231,8 @@ func DecodeWorker(r io.Reader) (Worker, error) {
 }
 
 func (cfg workerCfg) validate() error {
-	if cfg.Queue == "" {
-		return errors.New("missing queue name")
+	if cfg.Driver == "" {
+		return errors.New("missing driver")
 	}
 
 	if len(cfg.Crypto.Block) != 16 && len(cfg.Crypto.Block) != 24 && len(cfg.Crypto.Block) != 32 {
@@ -230,6 +265,8 @@ func (w Worker) Pidfile() *os.File { return w.pidfile }
 
 func (w Worker) Parallelism() int { return w.parallelism }
 
+func (w Worker) Drivers() []string { return w.drivers }
+
 func (w Worker) Queue() string { return w.queue }
 
 func (w Worker) Timeout() time.Duration { return w.timeout }
@@ -249,5 +286,3 @@ func (w Worker) BlockCipher() *crypto.Block { return w.block }
 func (w Worker) Log() *log.Logger { return w.log }
 
 func (w Worker) Providers() *provider.Registry { return w.providers }
-
-func (w Worker) Drivers() *driver.Registry { return w.drivers }

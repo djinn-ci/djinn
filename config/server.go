@@ -37,6 +37,9 @@ type serverCfg struct {
 	Host    string
 	Pidfile string
 
+	Drivers    []string
+	ShareQueue bool `toml:"share_queue"`
+
 	Net struct {
 		Listen string
 
@@ -58,8 +61,6 @@ type serverCfg struct {
 	Objects   storageCfg
 
 	Log logCfg
-
-	Drivers []driverCfg
 
 	Providers []providerCfg
 }
@@ -98,7 +99,11 @@ type Server struct {
 	Crypto Crypto
 }
 
-var _ curlyq.Logger = (*serverLogger)(nil)
+var (
+	_ curlyq.Logger = (*serverLogger)(nil)
+
+	defaultBuildQueue = "builds"
+)
 
 func decodeServer(r io.Reader) (serverCfg, error) {
 	var cfg serverCfg
@@ -212,10 +217,16 @@ func DecodeServer(r io.Reader) (Server, error) {
 
 	s.producers = make(map[string]*curlyq.Producer)
 
-	for _, d := range cfg.Drivers {
-		s.producers[d.Type] = curlyq.NewProducer(&curlyq.ProducerOpts{
+	for _, driver := range cfg.Drivers {
+		queue := defaultBuildQueue + "_" + driver
+
+		if cfg.ShareQueue {
+			queue = defaultBuildQueue
+		}
+
+		s.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
 			Client: s.redis,
-			Queue:  d.Queue,
+			Queue:  queue,
 			Logger: serverLogger{log: s.log},
 		})
 	}

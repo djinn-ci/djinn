@@ -8,6 +8,7 @@ import (
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/manifest"
 	"github.com/andrewpillar/djinn/namespace"
 	"github.com/andrewpillar/djinn/object"
 	"github.com/andrewpillar/djinn/user"
@@ -49,6 +50,23 @@ func New(h web.Handler, artifacts fs.Store, redis *redis.Client, hasher *crypto.
 		hasher:    hasher,
 		producers: producers,
 	}
+}
+
+// getDriverQueue returns the queue that the given manifest should be submitted
+// to. The qemu driver type is modified here to include the arch that the build
+// should be run on. Right now this is hardcoded to "x86_64", but in the future
+// when we want to support other architectures, this information will be pulled
+// from the manifest.
+func (h Build) getDriverQueue(m manifest.Manifest) (*curlyq.Producer, bool) {
+	typ := m.Driver["type"]
+
+	if typ == "qemu" {
+		arch := "x86_64"
+		typ += "-" + arch
+	}
+
+	prd, ok := h.producers[typ]
+	return prd, ok
 }
 
 func (h Build) objectsWithRelations(b *build.Build) ([]*build.Object, error) {
@@ -178,7 +196,7 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	if _, ok := h.producers[f.Manifest.Driver["type"]]; !ok {
+	if _, ok := h.getDriverQueue(f.Manifest); !ok {
 		return nil, f, build.ErrDriver
 	}
 

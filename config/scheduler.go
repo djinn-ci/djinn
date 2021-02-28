@@ -19,12 +19,13 @@ import (
 type schedulerCfg struct {
 	Pidfile string
 
+	Drivers    []string
+	ShareQueue bool `toml:"share_queue"`
+
 	Database databaseCfg
 	Redis    redisCfg
 
 	Log logCfg
-
-	Drivers []driverCfg
 }
 
 type Scheduler struct {
@@ -98,10 +99,17 @@ func DecodeScheduler(r io.Reader) (Scheduler, error) {
 
 	s.producers = make(map[string]*curlyq.Producer)
 
-	for _, d := range cfg.Drivers {
-		s.producers[d.Type] = curlyq.NewProducer(&curlyq.ProducerOpts{
+	for _, driver := range cfg.Drivers {
+		queue := defaultBuildQueue + "_" + driver
+
+		if cfg.ShareQueue {
+			queue = defaultBuildQueue
+		}
+
+		s.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
 			Client: s.redis,
-			Queue:  d.Queue,
+			Queue:  queue,
+			Logger: serverLogger{log: s.log},
 		})
 	}
 	return s, nil

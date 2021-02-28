@@ -253,6 +253,12 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 		return runner.Failed, errors.New("runner not initialized")
 	}
 
+	// Make sure we don't try and rerun any already completed builds.
+	if r.build.FinishedAt.Valid {
+		r.log.Debug.Println("build", r.build.ID, "already ran, ignoring")
+		return r.build.Status, nil
+	}
+
 	builds := build.NewStore(r.db)
 	jobs := build.NewJobStore(r.db)
 

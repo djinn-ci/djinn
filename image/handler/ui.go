@@ -165,7 +165,15 @@ func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rec, err := h.store.Open(filepath.Join(i.Driver.String(), i.Hash))
+	store, err := h.store.Partition(i.UserID)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	rec, err := store.Open(filepath.Join(i.Driver.String(), i.Hash))
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {

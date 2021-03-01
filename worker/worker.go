@@ -16,6 +16,7 @@ import (
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/log"
 	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/namespace"
@@ -78,8 +79,8 @@ type Worker struct {
 	// request hook.
 	Providers *provider.Registry
 
-	Placer    runner.Placer    // Placer is the implementation used for placing build objects.
-	Collector runner.Collector // Collector is the implementation used for collecting artifacts.
+	Objects   fs.Store // The fs.Store from where we place build objects.
+	Artifacts fs.Store // The fs.Store to where we collect build artifacts.
 }
 
 var (
@@ -311,8 +312,8 @@ func (w *Worker) Runner(b *build.Build) *Runner {
 		block:     w.Block,
 		log:       w.Log,
 		build:     b,
-		placer:    w.Placer,
-		collector: w.Collector,
+		objects:   w.Objects,
+		artifacts: w.Artifacts,
 		drivers:   w.Drivers,
 		config:    w.Config,
 		buf:       &bytes.Buffer{},

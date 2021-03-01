@@ -162,7 +162,15 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		rec, err := h.store.Open(o.Hash)
+		store, err := h.store.Partition(o.UserID)
+
+		if err != nil {
+			h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		rec, err := store.Open(o.Hash)
 
 		if err != nil {
 			if os.IsNotExist(errors.Cause(err)) {

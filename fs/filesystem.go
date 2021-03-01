@@ -4,6 +4,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/andrewpillar/djinn/errors"
 )
@@ -136,6 +137,17 @@ func (fs *Filesystem) Place(name string, w io.Writer) (int64, error) {
 // Init checks to see if the location in the filesystem is a directory and
 // can be accessed.
 func (fs *Filesystem) Init() error { return errors.Err(fs.checkDir()) }
+
+// Partition will create a new directory in the current Filesystem with the
+// given number and returns it as a new Filesystem Store.
+func (fs *Filesystem) Partition(number int64) (Store, error) {
+	path := fs.realpath(strconv.FormatInt(number, 10))
+
+	if err := os.MkdirAll(path, os.FileMode(0755)); err != nil {
+		return nil, errors.Err(err)
+	}
+	return NewFilesystemWithLimit(path, fs.l), nil
+}
 
 // Create will create a new file on the filesystem in the configured directory,
 // and return a Record for that file.

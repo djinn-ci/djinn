@@ -54,6 +54,11 @@ type Store interface {
 	// Records of data.
 	Init() error
 
+	// Partition retrieves a partition in the current Store and returns it. If
+	// the given partition does not exist, then one should be created and then
+	// returned.
+	Partition(int64) (Store, error)
+
 	// Create creates a new Record in the store with the given name. If a Record
 	// of any given name already exists then ErrRecordExists should be returned.
 	Create(string) (Record, error)

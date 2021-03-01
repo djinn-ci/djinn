@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/djinn/build"
@@ -14,6 +15,7 @@ import (
 	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/driver/qemu"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/image"
 	"github.com/andrewpillar/djinn/log"
 	"github.com/andrewpillar/djinn/runner"
@@ -38,8 +40,8 @@ type Runner struct {
 
 	build *build.Build
 
-	placer    runner.Placer
-	collector runner.Collector
+	objects   fs.Store
+	artifacts fs.Store
 
 	drivers *driver.Registry
 	config  map[string]map[string]interface{}
@@ -78,7 +80,7 @@ func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, strin
 			name = filepath.Join(strings.Split(name, "/")...)
 			return filepath.Join(diskdir, "_base", arch, name), nil
 		}
-		return filepath.Join(diskdir, i.Hash), nil
+		return filepath.Join(diskdir, strconv.FormatInt(i.UserID, 10), i.Hash), nil
 	}
 }
 
@@ -196,9 +198,21 @@ UserKnownHostsFile /dev/null
 		r.Runner.Add(stages[s.ID])
 	}
 
+	placer, err := r.Placer()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	collector, err := r.Collector()
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
 	r.Runner.Writer = r.buf
-	r.Runner.Placer = r.Placer()
-	r.Runner.Collector = r.Collector()
+	r.Runner.Placer = placer
+	r.Runner.Collector = collector
 
 	r.initialized = true
 
@@ -207,19 +221,30 @@ UserKnownHostsFile /dev/null
 
 // Collector returns the configured runner.Collector implementation to use for
 // collecting build artifacts.
-func (r *Runner) Collector() runner.Collector {
-	return build.NewArtifactStoreWithCollector(r.db, r.collector, r.build)
+func (r *Runner) Collector() (runner.Collector, error) {
+	store, err := r.artifacts.Partition(r.build.UserID)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return build.NewArtifactStoreWithCollector(r.db, store, r.build), nil
 }
 
 // Placer returns the configured runner.Placer implementation to use for
 // placing build objects and keys into a build.
-func (r *Runner) Placer() runner.Placer {
+func (r *Runner) Placer() (runner.Placer, error) {
+	store, err := r.objects.Partition(r.build.UserID)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
 	return &placer{
 		block:  r.block,
 		keycfg: []byte(r.keycfg),
 		keys:   r.keys,
-		placer: build.NewObjectStoreWithPlacer(r.db, r.placer, r.build),
-	}
+		placer: build.NewObjectStoreWithPlacer(r.db, store, r.build),
+	}, nil
 }
 
 // DriverJob returns the build pseudo-job that was added to the build for

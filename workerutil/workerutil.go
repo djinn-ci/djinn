@@ -99,8 +99,8 @@ func Init(workerPath, driverPath string) (*worker.Worker, config.Worker, func(),
 		Config:      driverCfg,
 		Drivers:     drivers,
 		Providers:   cfg.Providers(),
-		Placer:      cfg.Objects(),
-		Collector:   cfg.Artifacts(),
+		Objects:     cfg.Objects(),
+		Artifacts:   cfg.Artifacts(),
 	}, cfg, close_, nil
 }
 

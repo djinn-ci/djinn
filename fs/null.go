@@ -54,6 +54,8 @@ func (nl *Null) Stat(_ string) (os.FileInfo, error) { return &nullRecord{w: iout
 // Init does nothing.
 func (nl *Null) Init() error { return nil }
 
+func (nl *Null) Partition(_ int64) (Store, error) { return nl, nil }
+
 // Create returns a new null Record that will write everything to
 // ioutil.Discard.
 func (nl *Null) Create(_ string) (Record, error) { return &nullRecord{w: ioutil.Discard}, nil }

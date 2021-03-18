@@ -51,7 +51,7 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+func New(cfg *config.Server, h web.Handler, mw web.Middleware) *Router {
 	return &Router{
 		middleware: mw,
 		key:        handler.New(h, cfg.BlockCipher()),

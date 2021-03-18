@@ -28,7 +28,6 @@ require (
 	github.com/mcmathja/curlyq v0.4.0
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.1 // indirect
-	github.com/pelletier/go-toml v1.6.0
 	github.com/pkg/sftp v1.10.1
 	github.com/rbcervilla/redisstore v1.1.0
 	github.com/speps/go-hashids v2.0.0+incompatible

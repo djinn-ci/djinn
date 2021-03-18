@@ -17,12 +17,23 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andrewpillar/djinn/driver"
 	driverssh "github.com/andrewpillar/djinn/driver/ssh"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/runner"
 )
 
 type realpathFunc func(string, string) (string, error)
+
+// Config is the struct used for initializing a new QEMU driver for build
+// execution.
+type Config struct {
+	Arch   string // The architecture to use for virtualization.
+	CPUs   int64  // The number of CPUs for the virtual machine.
+	Memory int64  // The amount of memory in bytes for the virtual machine.
+	Disks  string // The location to look for disk images.
+	Image  string // The QCOW2 image to boot the virtual machine with.
+}
 
 // Driver provides an implementation of the runner.Driver interface for running
 // jobs within a QEMU virtual machine. Under the hood this makes use of the
@@ -47,6 +58,7 @@ type Driver struct {
 
 var (
 	_ runner.Driver = (*Driver)(nil)
+	_ driver.Config = (*Config)(nil)
 
 	tcpMaxPort int64 = 65535
 
@@ -55,64 +67,16 @@ var (
 	}
 )
 
-// Init initializes a new Driver driver using the given io.Writer, and
-// configuration map. Detailed below are the values, types, and default values
-// that are used in the configuration map.
-//
-// CPUs - The number of CPUs to use for the Driver machine is specified via the
-// "cpus" field in the map. This is expected to be an int64, by default it will
-// be 1.
-//
-// Memory - The amount of memory to give the Driver machine is specified via the
-// "memory" filed in the map. This is expected to be an int64, by default will
-// be 2048.
-//
-// Disks - The directory to look in when looking up the location of the QCOW2
-// images. This is expected to be a string, by default it will be ".".
-//
-// Image - The image to use when booting up the Driver machine, it is expected to
-// be a string, there is no default value.
-func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
-	cpus, ok := cfg["cpus"].(int64)
-
-	if !ok {
-		cpus = 1
-	}
-
-	memory, ok := cfg["memory"].(int64)
-
-	if !ok {
-		memory = 2048
-	}
-
-	dir, ok := cfg["disks"].(string)
-
-	if !ok {
-		dir = "."
-	}
-
-	image, _ := cfg["image"].(string)
-
-	return &Driver{
+// Init initializes a new driver for QEMU using the given io.Writer, and
+// applying the given driver.Config.
+func Init(w io.Writer, cfg driver.Config) runner.Driver {
+	d := &Driver{
 		port:   2222,
 		Writer: w,
-		Arch:   "x86_64",
-		CPUs:   cpus,
-		Memory: memory,
-		Image:  image,
-		Realpath: func(arch, image string) (string, error) {
-			path := filepath.Join(dir, arch, filepath.Join(strings.Split(image, "/")...))
-			info, err := os.Stat(path)
-
-			if err != nil {
-				return "", err
-			}
-			if info.IsDir() {
-				return "", errors.New("image is not a file")
-			}
-			return path, nil
-		},
 	}
+
+	cfg.Apply(d)
+	return d
 }
 
 // GetExpectedArch returns the QEMU arch that would be expected for the GOARCH.
@@ -130,6 +94,37 @@ func GetExpectedArch() string {
 // possible on the platform the worker is being run on.
 func MatchesGOARCH(arch string) bool {
 	return archLookup[arch] == runtime.GOARCH
+}
+
+func (cfg *Config) Merge(m map[string]string) {
+	cfg.Image = m["image"]
+	cfg.Arch = "x86_64"
+}
+
+func (cfg *Config) Apply(d runner.Driver) {
+	v, ok := d.(*Driver)
+
+	if !ok {
+		return
+	}
+
+	v.Arch = cfg.Arch
+	v.CPUs = cfg.CPUs
+	v.Memory = cfg.Memory
+	v.Image = cfg.Image
+	v.Realpath = func(arch, image string) (string, error) {
+		path := filepath.Join(cfg.Disks, arch, filepath.Join(strings.Split(image, "/")...))
+
+		info, err := os.Stat(path)
+
+		if err != nil {
+			return "", err
+		}
+		if info.IsDir() {
+			return "", errors.New("image is not a file")
+		}
+		return path, nil
+	}
 }
 
 func (q *Driver) runCmd() error {

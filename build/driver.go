@@ -6,6 +6,7 @@ import (
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/manifest"
 
 	"github.com/andrewpillar/query"
 
@@ -14,10 +15,10 @@ import (
 
 // Driver is the type that represents the driver being used by a build.
 type Driver struct {
-	ID      int64         `db:"id"`
-	BuildID int64         `db:"build_id"`
-	Type    driver.Type   `db:"type"`
-	Config  driver.Config `db:"config"`
+	ID      int64           `db:"id"`
+	BuildID int64           `db:"build_id"`
+	Type    driver.Type     `db:"type"`
+	Config  manifest.Driver `db:"config"`
 
 	Build *Build `db:"-"`
 }

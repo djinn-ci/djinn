@@ -27,8 +27,8 @@ func ParseFlags(args []string) (string, string, bool) {
 	return config, driver, version
 }
 
-func Init(workerPath, driverPath string) (*worker.Worker, config.Worker, func(), error) {
-	var cfg config.Worker
+func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func(), error) {
+	var cfg *config.Worker
 
 	f1, err := os.Open(workerPath)
 
@@ -38,7 +38,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, config.Worker, func(),
 
 	defer f1.Close()
 
-	cfg, err = config.DecodeWorker(f1)
+	cfg, err = config.DecodeWorker(f1.Name(), f1)
 
 	if err != nil {
 		return nil, cfg, nil, errors.Err(err)
@@ -80,7 +80,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, config.Worker, func(),
 
 	defer f2.Close()
 
-	drivers, driverCfg, err := config.DecodeDriver(f2)
+	drivers, driverCfg, err := config.DecodeDriver(f2.Name(), f2)
 
 	if err != nil {
 		return nil, cfg, nil, errors.Err(err)

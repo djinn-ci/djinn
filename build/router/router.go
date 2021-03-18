@@ -116,7 +116,7 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+func New(cfg *config.Server, h web.Handler, mw web.Middleware) *Router {
 	build := handler.New(h, cfg.Artifacts().Store, cfg.Redis(), cfg.Hasher(), cfg.Producers())
 
 	return &Router{

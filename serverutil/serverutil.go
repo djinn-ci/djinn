@@ -91,8 +91,8 @@ func ParseFlags(args []string) (bool, string, bool, bool) {
 	return api, config, ui, version
 }
 
-func Init(path string) (*server.Server, config.Server, func(), error) {
-	var cfg config.Server
+func Init(path string) (*server.Server, *config.Server, func(), error) {
+	var cfg *config.Server
 
 	f, err := os.Open(path)
 
@@ -102,7 +102,7 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 
 	defer f.Close()
 
-	cfg, err = config.DecodeServer(f)
+	cfg, err = config.DecodeServer(f.Name(), f)
 
 	if err != nil {
 		return nil, cfg, nil, errors.Err(err)
@@ -197,7 +197,7 @@ func Init(path string) (*server.Server, config.Server, func(), error) {
 	return srv, cfg, close_, nil
 }
 
-func RegisterRoutes(cfg config.Server, api, ui bool, srv *server.Server) {
+func RegisterRoutes(cfg *config.Server, api, ui bool, srv *server.Server) {
 	gates := make(map[string][]web.Gate)
 
 	for name, fn := range DefaultGates {
@@ -208,7 +208,7 @@ func RegisterRoutes(cfg config.Server, api, ui bool, srv *server.Server) {
 	RegisterRoutesWithGates(cfg, api, ui, srv, gates)
 }
 
-func RegisterRoutesWithGates(cfg config.Server, api, ui bool, srv *server.Server, gates map[string][]web.Gate) {
+func RegisterRoutesWithGates(cfg *config.Server, api, ui bool, srv *server.Server, gates map[string][]web.Gate) {
 	if !api && !ui {
 		api = true
 		ui = true

@@ -42,7 +42,7 @@ func main() {
 
 	defer f.Close()
 
-	cfg, err := config.DecodeCurator(f)
+	cfg, err := config.DecodeCurator(f.Name(), f)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))

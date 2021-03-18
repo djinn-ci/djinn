@@ -1,10 +1,12 @@
 package config
 
 import (
+	"fmt"
 	"io"
 	"net/smtp"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -19,8 +21,6 @@ import (
 	"github.com/go-redis/redis"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/pelletier/go-toml"
 )
 
 type workerCfg struct {
@@ -29,24 +29,23 @@ type workerCfg struct {
 	Driver      string
 	Timeout     string
 
-	Crypto cryptoCfg
+	Log logCfg
+
+	Crypto Crypto
 
 	SMTP smtpCfg
 
 	Database databaseCfg
 	Redis    redisCfg
 
-	Images    storageCfg
-	Artifacts storageCfg
-	Objects   storageCfg
-
-	Log logCfg
-
-	Providers []providerCfg
+	Stores    map[string]storeCfg
+	Providers map[string]providerCfg
 }
 
 type Worker struct {
 	pidfile *os.File
+
+	log *log.Logger
 
 	drivers     []string
 	queue       string
@@ -63,226 +62,239 @@ type Worker struct {
 	artifacts fs.Store
 	objects   fs.Store
 
-	log *log.Logger
-
 	providers *provider.Registry
 }
 
-func decodeWorker(r io.Reader) (workerCfg, error) {
-	var cfg workerCfg
-
-	if err := toml.NewDecoder(r).Decode(&cfg); err != nil {
-		return cfg, errors.Err(err)
+func DecodeWorker(name string, r io.Reader) (*Worker, error) {
+	errh := func(name string, line, col int, msg string) {
+		fmt.Fprintf(os.Stderr, "%s,%d:%d - %s\n", name, line, col, msg)
 	}
 
-	if cfg.Timeout == "" {
-		cfg.Timeout = "30m"
+	p := newParser(name, r, errh)
+
+	nodes := p.parse()
+
+	if err := p.err(); err != nil {
+		return nil, err
 	}
 
-	if cfg.Images.Type == "" {
-		cfg.Images.Type = "file"
+	var cfg0 workerCfg
+
+	for _, n := range nodes {
+		if err := cfg0.put(n); err != nil {
+			return nil, err
+		}
 	}
 
-	if cfg.Artifacts.Type == "" {
-		cfg.Artifacts.Type = "file"
-	}
+	var err error
 
-	if cfg.Objects.Type == "" {
-		cfg.Objects.Type = "file"
-	}
-
-	if cfg.Log.Level == "" {
-		cfg.Log.Level = "INFO"
-	}
-
-	if cfg.Log.File == "" {
-		cfg.Log.File = "/dev/stdout"
-	}
-	return cfg, errors.Err(cfg.validate())
-}
-
-func DecodeWorker(r io.Reader) (Worker, error) {
-	var w Worker
-
-	cfg, err := decodeWorker(r)
+	cfg := &Worker{}
+	cfg.pidfile, err = mkpidfile(cfg0.Pidfile)
 
 	if err != nil {
-		return w, errors.Err(err)
+		return nil, err
 	}
 
-	w.pidfile, err = mkpidfile(cfg.Pidfile)
+	cfg.log = log.New(os.Stdout)
+	cfg.log.SetLevel(cfg0.Log.Level)
 
-	if err != nil {
-		return w, errors.Err(err)
-	}
-
-	w.log = log.New(os.Stdout)
-	w.log.SetLevel(cfg.Log.Level)
-
-	if cfg.Log.File != "/dev/stdout" {
-		f, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+	if cfg0.Log.File != "/dev/stdout" {
+		f, err := os.OpenFile(cfg0.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 
 		if err != nil {
-			return w, errors.Err(err)
+			return nil, err
 		}
-		w.log.SetWriter(f)
+		cfg.log.SetWriter(f)
 	}
 
-	w.log.Info.Println("logging initiliazed, writing to", cfg.Log.File)
+	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
 
-	w.drivers = make([]string, 0)
+	cfg.drivers = make([]string, 0)
 
-	queue := defaultBuildQueue + "_" + cfg.Driver
+	queue := defaultBuildQueue + "_" + cfg0.Driver
 
-	if cfg.Driver == "*" {
+	if cfg0.Driver == "*" {
 		queue = defaultBuildQueue
 
 		for _, driver := range driver.All {
 			if driver == "qemu" {
 				driver += "-" + qemu.GetExpectedArch()
 			}
-			w.drivers = append(w.drivers, driver)
+			cfg.drivers = append(cfg.drivers, driver)
 		}
 	} else {
-		w.drivers = append(w.drivers, cfg.Driver)
+		cfg.drivers = append(cfg.drivers, cfg0.Driver)
 	}
 
-	if strings.HasPrefix(cfg.Driver, "qemu") {
-		parts := strings.SplitN(cfg.Driver, "-", 2)
+	if strings.HasPrefix(cfg0.Driver, "qemu") {
+		parts := strings.SplitN(cfg0.Driver, "-", 2)
 
 		if len(parts) == 1 {
-			return w, errors.New("qemu driver does not specify arch")
+			return nil, errors.New("qemu driver does not specify arch")
 		}
 
 		if len(parts) > 1 {
 			if !qemu.MatchesGOARCH(parts[1]) {
 				arch := qemu.GetExpectedArch()
-
-				return w, errors.New("qemu driver should be 'qemu-" + arch + "' when running on " + runtime.GOARCH)
+				return nil, errors.New("qemu driver should be 'qemu-" + arch + "' when running on " + runtime.GOARCH)
 			}
 		}
 	}
 
-	w.queue = queue
-	w.parallelism = cfg.Parallelism
+	cfg.queue = queue
+	cfg.parallelism = cfg0.Parallelism
 
-	if w.parallelism == 0 {
-		w.parallelism = runtime.NumCPU()
-	}
-
-	if cfg.Timeout == "" {
-		cfg.Timeout = "30m"
-	}
-
-	w.timeout, err = time.ParseDuration(cfg.Timeout)
+	cfg.timeout, err = time.ParseDuration(cfg0.Timeout)
 
 	if err != nil {
-		return w, errors.Err(err)
+		return nil, err
 	}
 
-	w.block, err = crypto.NewBlock([]byte(cfg.Crypto.Block), []byte(cfg.Crypto.Salt))
+	cfg.block, err = crypto.NewBlock(cfg0.Crypto.Block, cfg0.Crypto.Salt)
 
 	if err != nil {
-		return w, errors.Err(err)
+		return nil, err
 	}
 
-	w.db, err = connectdb(w.log, cfg.Database)
+	cfg.db, err = connectdb(cfg.log, cfg0.Database)
 
 	if err != nil {
-		return w, errors.Err(err)
+		return nil, err
 	}
 
-	w.redis, err = connectredis(w.log, cfg.Redis)
+	cfg.redis, err = connectredis(cfg.log, cfg0.Redis)
 
 	if err != nil {
-		return w, errors.Err(err)
+		return nil, err
 	}
 
-	w.smtp, err = connectsmtp(w.log, cfg.SMTP)
+	cfg.smtp, err = connectsmtp(cfg.log, cfg0.SMTP)
 
 	if err != nil {
-		return w, errors.Err(err)
+		return nil, err
 	}
 
-	w.postmaster = cfg.SMTP.Admin
+	cfg.postmaster = cfg0.SMTP.Admin
 
-	w.objects = blockstores[cfg.Objects.Type](cfg.Objects.Path, cfg.Objects.Limit)
-	w.artifacts = blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit)
+	store, ok := cfg0.Stores["artifacts"]
 
-	if err := w.objects.Init(); err != nil {
-		return w, err
+	if !ok {
+		return nil, errors.New("artifact store not configured")
 	}
 
-	if err := w.artifacts.Init(); err != nil {
-		return w, err
+	cfg.artifacts = blockstores[store.Type](store.Path, store.Limit)
+
+	store, ok = cfg0.Stores["objects"]
+
+	if !ok {
+		return nil, errors.New("object store not configured")
 	}
 
-	w.providers = provider.NewRegistry()
+	cfg.objects = blockstores[store.Type](store.Path, store.Limit)
 
-	for _, p := range cfg.Providers {
-		fn, ok := providerFactories[p.Name]
+	if err := cfg.artifacts.Init(); err != nil {
+		return nil, err
+	}
+	if err := cfg.objects.Init(); err != nil {
+		return nil, err
+	}
+
+	cfg.providers = provider.NewRegistry()
+
+	for name, prv := range cfg0.Providers {
+		fn, ok := providerFactories[name]
 
 		if !ok {
-			return w, errors.New("unknown provider: " + p.Name)
+			return nil, errors.New("unknown provider: " + name)
 		}
-		w.providers.Register(p.Name, fn("", p.Endpoint, p.Secret, p.ClientID, p.ClientSecret))
+		cfg.providers.Register(name, fn("", prv.Endpoint, prv.Secret, prv.ClientID, prv.ClientSecret))
 	}
-	return w, nil
+	return cfg, nil
 }
 
-func (cfg workerCfg) validate() error {
-	if cfg.Driver == "" {
-		return errors.New("missing driver")
-	}
+func (w *workerCfg) put(n *node) error {
+	switch n.name {
+	case "pidfile":
+		if n.lit != stringLit {
+			return n.err("pidfile must be a string")
+		}
+		w.Pidfile = n.value
+	case "parallelism":
+		if n.lit != numberLit {
+			return n.err("parallelism must be an integer")
+		}
 
-	if len(cfg.Crypto.Block) != 16 && len(cfg.Crypto.Block) != 24 && len(cfg.Crypto.Block) != 32 {
-		return errors.New("invalid block key, must be either 16, 24, or 32 bytes in length")
-	}
+		i, err := strconv.ParseInt(n.value, 10, 64)
 
-	if err := cfg.Database.validate(); err != nil {
-		return err
-	}
+		if err != nil {
+			return n.err("parallelism is not a valid integer")
+		}
 
-	if cfg.Redis.Addr == "" {
-		return errors.New("missing redis address")
-	}
+		if i == 0 {
+			i = int64(runtime.NumCPU())
+		}
+		w.Parallelism = int(i)
+	case "driver":
+		if n.lit != stringLit {
+			return n.err("driver must be a string")
+		}
+		w.Driver = n.value
+	case "timeout":
+		if n.lit != stringLit {
+			return n.err("timeout must be a duration string")
+		}
 
-	if err := cfg.SMTP.validate(); err != nil {
-		return err
-	}
+		if n.value == "" {
+			n.value = "30m"
+		}
+		w.Timeout = n.value
+	case "log":
+		return w.Log.put(n)
+	case "crypto":
+		return w.Crypto.put(n)
+	case "smtp":
+		return w.SMTP.put(n)
+	case "database":
+		return w.Database.put(n)
+	case "redis":
+		return w.Redis.put(n)
+	case "store":
+		var cfg storeCfg
 
-	if cfg.Artifacts.Path == "" {
-		return errors.New("missing artifacts storage path")
-	}
+		if err := cfg.put(n); err != nil {
+			return err
+		}
 
-	if cfg.Objects.Path == "" {
-		return errors.New("missing objects storage path")
+		if w.Stores == nil {
+			w.Stores = make(map[string]storeCfg)
+		}
+		w.Stores[n.label] = cfg
+	case "provider":
+		var cfg providerCfg
+
+		if w.Providers == nil {
+			w.Providers = make(map[string]providerCfg)
+		}
+		if err := cfg.put(n); err != nil {
+			return err
+		}
+		w.Providers[n.label] = cfg
+	default:
+		return n.err("unknown configuration parameter: " + n.name)
 	}
 	return nil
 }
 
-func (w Worker) Pidfile() *os.File { return w.pidfile }
-
-func (w Worker) Parallelism() int { return w.parallelism }
-
-func (w Worker) Drivers() []string { return w.drivers }
-
-func (w Worker) Queue() string { return w.queue }
-
-func (w Worker) Timeout() time.Duration { return w.timeout }
-
-func (w Worker) DB() *sqlx.DB { return w.db }
-
-func (w Worker) Redis() *redis.Client { return w.redis }
-
-func (w Worker) SMTP() (*smtp.Client, string) { return w.smtp, w.postmaster }
-
-func (w Worker) Artifacts() fs.Store { return w.artifacts }
-
-func (w Worker) Objects() fs.Store { return w.objects }
-
-func (w Worker) BlockCipher() *crypto.Block { return w.block }
-
-func (w Worker) Log() *log.Logger { return w.log }
-
-func (w Worker) Providers() *provider.Registry { return w.providers }
+func (w *Worker) Pidfile() *os.File { return w.pidfile }
+func (w *Worker) Parallelism() int { return w.parallelism }
+func (w *Worker) Drivers() []string { return w.drivers }
+func (w *Worker) Queue() string { return w.queue }
+func (w *Worker) Timeout() time.Duration { return w.timeout }
+func (w *Worker) DB() *sqlx.DB { return w.db }
+func (w *Worker) Redis() *redis.Client { return w.redis }
+func (w *Worker) SMTP() (*smtp.Client, string) { return w.smtp, w.postmaster }
+func (w *Worker) Artifacts() fs.Store { return w.artifacts }
+func (w *Worker) Objects() fs.Store { return w.objects }
+func (w *Worker) BlockCipher() *crypto.Block { return w.block }
+func (w *Worker) Log() *log.Logger { return w.log }
+func (w *Worker) Providers() *provider.Registry { return w.providers }

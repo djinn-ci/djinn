@@ -68,7 +68,7 @@ type Worker struct {
 	// Config is the global driver configuration values. This will store
 	// information about the various drivers, such as where the QEMU images are
 	// stored, or the Docker API version to use.
-	Config map[string]map[string]interface{}
+	Config map[string]driver.Config
 
 	// Drivers is the registry containg the driver implementations the worker
 	// can use for running builds.

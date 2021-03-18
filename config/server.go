@@ -1,15 +1,16 @@
 package config
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/smtp"
 	"net/url"
 	"os"
 
-	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/log"
 	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/server"
@@ -23,46 +24,44 @@ import (
 
 	"github.com/mcmathja/curlyq"
 
-	"github.com/pelletier/go-toml"
-
 	"github.com/rbcervilla/redisstore"
 )
 
-type serverLogger struct {
-	log *log.Logger
+type providerCfg struct {
+	Secret       string
+	Endpoint     string
+	ClientID     string
+	ClientSecret string
 }
 
-// serverCfg is the representation of a TOML configuration file.
 type serverCfg struct {
 	Host    string
 	Pidfile string
 
+	Log logCfg
+
 	Drivers    []string
-	ShareQueue bool `toml:"share_queue"`
+	ShareQueue bool
 
 	Net struct {
 		Listen string
 
-		SSL struct {
-			Cert string
-			Key  string
-		}
+		SSL sslCfg
 	}
 
-	Crypto cryptoCfg
+	Crypto Crypto
 
 	SMTP smtpCfg
 
 	Database databaseCfg
 	Redis    redisCfg
 
-	Images    storageCfg
-	Artifacts storageCfg
-	Objects   storageCfg
+	Stores    map[string]storeCfg
+	Providers map[string]providerCfg
+}
 
-	Log logCfg
-
-	Providers []providerCfg
+type serverLogger struct {
+	log *log.Logger
 }
 
 type Store struct {
@@ -70,10 +69,10 @@ type Store struct {
 	Store fs.Store
 }
 
-// Server contains the necessary resources that the server needs for running.
-// These are unmarshalled from a TOML configuration file.
 type Server struct {
 	pidfile *os.File
+
+	log *log.Logger
 
 	srv *server.Server
 
@@ -90,8 +89,6 @@ type Server struct {
 	artifacts Store
 	objects   Store
 
-	log *log.Logger
-
 	producers map[string]*curlyq.Producer
 
 	providers *provider.Registry
@@ -105,243 +102,284 @@ var (
 	defaultBuildQueue = "builds"
 )
 
-func decodeServer(r io.Reader) (serverCfg, error) {
-	var cfg serverCfg
-
-	if err := toml.NewDecoder(r).Decode(&cfg); err != nil {
-		return cfg, errors.Err(err)
+func DecodeServer(name string, r io.Reader) (*Server, error) {
+	errh := func(name string, line, col int, msg string) {
+		fmt.Fprintf(os.Stderr, "%s,%d:%d - %s\n", name, line, col, msg)
 	}
 
-	hostname, err := os.Hostname()
+	p := newParser(name, r, errh)
 
-	if err != nil {
-		hostname = "localhost"
+	nodes := p.parse()
+
+	if err := p.err(); err != nil {
+		return nil, err
 	}
 
-	if cfg.Host == "" {
-		cfg.Host = hostname
-	}
+	var cfg0 serverCfg
 
-	if cfg.Net.Listen == "" {
-		cfg.Net.Listen = "8080"
-
-		if cfg.Net.SSL.Cert != "" && cfg.Net.SSL.Key != "" {
-			cfg.Net.Listen = "8443"
+	for _, n := range nodes {
+		if err := cfg0.put(n); err != nil {
+			return nil, err
 		}
 	}
 
-	if cfg.Images.Type == "" {
-		cfg.Images.Type = "file"
-	}
+	var err error
 
-	if cfg.Artifacts.Type == "" {
-		cfg.Artifacts.Type = "file"
-	}
-
-	if cfg.Objects.Type == "" {
-		cfg.Objects.Type = "file"
-	}
-
-	if cfg.Log.Level == "" {
-		cfg.Log.Level = "INFO"
-	}
-
-	if cfg.Log.File == "" {
-		cfg.Log.File = "/dev/stdout"
-	}
-	return cfg, errors.Err(cfg.validate())
-}
-
-func DecodeServer(r io.Reader) (Server, error) {
-	var s Server
-
-	cfg, err := decodeServer(r)
+	cfg := &Server{}
+	cfg.pidfile, err = mkpidfile(cfg0.Pidfile)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	s.pidfile, err = mkpidfile(cfg.Pidfile)
+	cfg.Crypto = cfg0.Crypto
+	cfg.log = log.New(os.Stdout)
+	cfg.log.SetLevel(cfg0.Log.Level)
 
-	if err != nil {
-		return s, errors.Err(err)
-	}
-
-	s.Crypto = Crypto{
-		Hash:  []byte(cfg.Crypto.Hash),
-		Block: []byte(cfg.Crypto.Block),
-		Salt:  []byte(cfg.Crypto.Salt),
-		Auth:  []byte(cfg.Crypto.Auth),
-	}
-
-	s.log = log.New(os.Stdout)
-	s.log.SetLevel(cfg.Log.Level)
-
-	if cfg.Log.File != "/dev/stdout" {
-		f, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+	if cfg0.Log.File != "/dev/stdout" {
+		f, err := os.OpenFile(cfg0.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 
 		if err != nil {
-			return s, errors.Err(err)
+			return nil, err
 		}
-		s.log.SetWriter(f)
+		cfg.log.SetWriter(f)
 	}
 
-	s.log.Info.Println("logging initiliazed, writing to", cfg.Log.File)
+	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
 
-	s.block, err = crypto.NewBlock([]byte(cfg.Crypto.Block), []byte(cfg.Crypto.Salt))
+	cfg.block, err = crypto.NewBlock(cfg.Crypto.Block, cfg.Crypto.Salt)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	s.hasher = &crypto.Hasher{
-		Salt:   cfg.Crypto.Salt,
+	cfg.hasher = &crypto.Hasher{
+		Salt:   string(cfg.Crypto.Salt),
 		Length: 8,
 	}
 
-	if err := s.hasher.Init(); err != nil {
-		return s, errors.Err(err)
+	if err := cfg.hasher.Init(); err != nil {
+		return nil, err
 	}
 
-	s.db, err = connectdb(s.log, cfg.Database)
+	cfg.db, err = connectdb(cfg.log, cfg0.Database)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	s.redis, err = connectredis(s.log, cfg.Redis)
+	cfg.redis, err = connectredis(cfg.log, cfg0.Redis)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	s.producers = make(map[string]*curlyq.Producer)
+	cfg.producers = make(map[string]*curlyq.Producer)
 
-	for _, driver := range cfg.Drivers {
+	for _, driver := range cfg0.Drivers {
 		queue := defaultBuildQueue + "_" + driver
 
-		if cfg.ShareQueue {
+		if cfg0.ShareQueue {
 			queue = defaultBuildQueue
 		}
 
-		s.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
-			Client: s.redis,
+		cfg.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
+			Client: cfg.redis,
 			Queue:  queue,
-			Logger: serverLogger{log: s.log},
+			Logger: serverLogger{log: cfg.log},
 		})
 	}
 
-	s.smtp, err = connectsmtp(s.log, cfg.SMTP)
+	cfg.smtp, err = connectsmtp(cfg.log, cfg0.SMTP)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	s.postmaster = cfg.SMTP.Admin
+	cfg.postmaster = cfg0.SMTP.Admin
 
-	s.images = Store{
-		Limit: cfg.Images.Limit,
-		Store: blockstores[cfg.Images.Type](cfg.Images.Path, cfg.Images.Limit),
+	store, ok := cfg0.Stores["images"]
+
+	if !ok {
+		return nil, errors.New("image store not configured")
 	}
 
-	s.artifacts = Store{
-		Limit: cfg.Artifacts.Limit,
-		Store: blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, cfg.Artifacts.Limit),
+	cfg.images = Store{
+		Limit: store.Limit,
+		Store: blockstores[store.Type](store.Path, store.Limit),
 	}
 
-	s.objects = Store{
-		Limit: cfg.Objects.Limit,
-		Store: blockstores[cfg.Objects.Type](cfg.Objects.Path, cfg.Objects.Limit),
+	store, ok = cfg0.Stores["artifacts"]
+
+	if !ok {
+		return nil, errors.New("artifact store not configured")
 	}
 
-	if s.images.Store.Init(); err != nil {
-		return s, errors.Err(err)
+	cfg.artifacts = Store{
+		Limit: store.Limit,
+		Store: blockstores[store.Type](store.Path, store.Limit),
 	}
 
-	if s.artifacts.Store.Init(); err != nil {
-		return s, errors.Err(err)
+	store, ok = cfg0.Stores["objects"]
+
+	if !ok {
+		return nil, errors.New("object store not configured")
 	}
 
-	if s.objects.Store.Init(); err != nil {
-		return s, errors.Err(err)
+	cfg.objects = Store{
+		Limit: store.Limit,
+		Store: blockstores[store.Type](store.Path, store.Limit),
 	}
 
-	s.providers = provider.NewRegistry()
+	if err := cfg.images.Store.Init(); err != nil {
+		return nil, err
+	}
+	if err := cfg.artifacts.Store.Init(); err != nil {
+		return nil, err
+	}
+	if err := cfg.objects.Store.Init(); err != nil {
+		return nil, err
+	}
 
-	for _, p := range cfg.Providers {
-		fn, ok := providerFactories[p.Name]
+	cfg.providers = provider.NewRegistry()
+
+	for name, prv := range cfg0.Providers {
+		fn, ok := providerFactories[name]
 
 		if !ok {
-			return s, errors.New("unknown provider: " + p.Name)
+			return nil, errors.New("unknown provider: " + name)
 		}
-		s.providers.Register(p.Name, fn(cfg.Host, p.Endpoint, p.Secret, p.ClientID, p.ClientSecret))
+		cfg.providers.Register(name, fn(cfg0.Host, prv.Endpoint, prv.Secret, prv.ClientID, prv.ClientSecret))
 	}
 
-	redisstore, err := redisstore.NewRedisStore(s.redis)
+	redisstore, err := redisstore.NewRedisStore(cfg.redis)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	url, err := url.Parse(cfg.Host)
+	url, err := url.Parse(cfg0.Host)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, errors.New("invalid host url")
 	}
 
 	redisstore.KeyPrefix("session_")
-	redisstore.KeyGen(func() (string, error) { return cfg.Crypto.Block, nil })
+	redisstore.KeyGen(func() (string, error) {
+		return string(cfg.Crypto.Block), nil
+	})
 	redisstore.Options(sessions.Options{
 		Path:   "/",
 		Domain: url.Hostname(),
-		MaxAge: 86400 * 60,
+		MaxAge: 86400*60,
 	})
 
-	s.session = redisstore
-
-	s.srv = &server.Server{
+	cfg.session = redisstore
+	cfg.srv = &server.Server{
 		Server: &http.Server{
-			Addr: cfg.Net.Listen,
+			Addr: cfg0.Net.Listen,
 		},
-		Log:    s.log,
+		Log:    cfg.log,
 		Router: mux.NewRouter(),
-		Cert:   cfg.Net.SSL.Cert,
-		Key:    cfg.Net.SSL.Key,
+		Cert:   cfg0.Net.SSL.Cert,
+		Key:    cfg0.Net.SSL.Key,
 	}
-	return s, nil
+	return cfg, nil
 }
 
-func (cfg serverCfg) validate() error {
-	if err := cfg.Crypto.validate(); err != nil {
-		return err
-	}
+func (s *serverCfg) put(n *node) error {
+	switch n.name {
+	case "host":
+		if n.lit != stringLit {
+			return n.err("host must be a string")
+		}
+		s.Host = n.value
+	case "pidfile":
+		if n.lit != stringLit {
+			return n.err("pidfile must be a string")
+		}
+		s.Pidfile = n.value
+	case "log":
+		return s.Log.put(n)
+	case "drivers":
+		if n.list == nil {
+			return n.err("drivers must be an array")
+		}
 
-	if err := cfg.Database.validate(); err != nil {
-		return err
-	}
+		var walkerr error
 
-	if cfg.Redis.Addr == "" {
-		return errors.New("missing redis address")
-	}
+		n.list.walk(func(n *node) {
+			if n.lit != stringLit {
+				walkerr = n.err("drivers must be an array of strings")
+				return
+			}
+			s.Drivers = append(s.Drivers, n.value)
+		})
 
-	if err := cfg.SMTP.validate(); err != nil {
-		return err
-	}
+		if walkerr != nil {
+			return walkerr
+		}
+	case "share_queue":
+		if n.lit != boolLit {
+			return n.err("share_queue must be a boolean")
+		}
 
-	if cfg.Images.Path == "" {
-		return errors.New("missing images storage path")
-	}
+		if n.value == "true" {
+			s.ShareQueue = true
+			return nil
+		}
+		s.ShareQueue = false
+	case "net":
+		if n.body == nil {
+			return n.err("net must be a configuration block")
+		}
 
-	if cfg.Artifacts.Path == "" {
-		return errors.New("missing artifacts storage path")
-	}
+		var walkerr error
 
-	if cfg.Objects.Path == "" {
-		return errors.New("missing objects storage path")
-	}
+		n.body.walk(func(n *node) {
+			switch n.name {
+			case "listen":
+				s.Net.Listen = n.value
+			case "ssl":
+				s.Net.SSL.put(n)
+			case "cert", "key":
+				return
+			default:
+				walkerr = n.err("unknown net configuration parameter: " + n.name)
+			}
+		})
+		return walkerr
+	case "crypto":
+		return s.Crypto.put(n)
+	case "smtp":
+		return s.SMTP.put(n)
+	case "database":
+		return s.Database.put(n)
+	case "redis":
+		return s.Redis.put(n)
+	case "store":
+		var cfg storeCfg
 
-	if len(cfg.Drivers) == 0 {
-		return errors.New("no build drivers configured")
+		if err := cfg.put(n); err != nil {
+			return err
+		}
+
+		if s.Stores == nil {
+			s.Stores = make(map[string]storeCfg)
+		}
+		s.Stores[n.label] = cfg
+	case "provider":
+		var cfg providerCfg
+
+		if s.Providers == nil {
+			s.Providers = make(map[string]providerCfg)
+		}
+		if err := cfg.put(n); err != nil {
+			return err
+		}
+		s.Providers[n.label] = cfg
+	default:
+		return n.err("unknown configuration parameter: " + n.name)
 	}
 	return nil
 }
@@ -351,30 +389,17 @@ func (l serverLogger) Info(v ...interface{})  { l.log.Info.Println(v...) }
 func (l serverLogger) Warn(v ...interface{})  { l.log.Warn.Println(v...) }
 func (l serverLogger) Error(v ...interface{}) { l.log.Error.Println(v...) }
 
-func (s Server) Pidfile() *os.File { return s.pidfile }
-
-func (s Server) Server() *server.Server { return s.srv }
-
-func (s Server) DB() *sqlx.DB { return s.db }
-
-func (s Server) Redis() *redis.Client { return s.redis }
-
-func (s Server) SMTP() (*smtp.Client, string) { return s.smtp, s.postmaster }
-
-func (s Server) SessionStore() sessions.Store { return s.session }
-
-func (s Server) Images() Store { return s.images }
-
-func (s Server) Artifacts() Store { return s.artifacts }
-
-func (s Server) Objects() Store { return s.objects }
-
-func (s Server) BlockCipher() *crypto.Block { return s.block }
-
-func (s Server) Hasher() *crypto.Hasher { return s.hasher }
-
-func (s Server) Log() *log.Logger { return s.log }
-
-func (s Server) Producers() map[string]*curlyq.Producer { return s.producers }
-
-func (s Server) Providers() *provider.Registry { return s.providers }
+func (s *Server) Pidfile() *os.File { return s.pidfile }
+func (s *Server) Server() *server.Server { return s.srv }
+func (s *Server) DB() *sqlx.DB { return s.db }
+func (s *Server) Redis() *redis.Client { return s.redis }
+func (s *Server) SMTP() (*smtp.Client, string) { return s.smtp, s.postmaster }
+func (s *Server) SessionStore() sessions.Store { return s.session }
+func (s *Server) Images() Store { return s.images }
+func (s *Server) Artifacts() Store { return s.artifacts }
+func (s *Server) Objects() Store { return s.objects }
+func (s *Server) BlockCipher() *crypto.Block { return s.block }
+func (s *Server) Hasher() *crypto.Hasher { return s.hasher }
+func (s *Server) Log() *log.Logger { return s.log }
+func (s *Server) Producers() map[string]*curlyq.Producer { return s.producers }
+func (s *Server) Providers() *provider.Registry { return s.providers }

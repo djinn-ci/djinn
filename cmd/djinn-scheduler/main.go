@@ -44,7 +44,7 @@ func main() {
 
 	defer f.Close()
 
-	cfg, err := config.DecodeScheduler(f)
+	cfg, err := config.DecodeScheduler(f.Name(), f)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))

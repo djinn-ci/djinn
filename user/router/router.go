@@ -23,7 +23,7 @@ type Router struct {
 
 var _ server.Router = (*Router)(nil)
 
-func New(cfg config.Server, h web.Handler, mw web.Middleware) *Router {
+func New(cfg *config.Server, h web.Handler, mw web.Middleware) *Router {
 	return &Router{
 		middleware: mw,
 		user:       handler.New(h, cfg.Providers()),

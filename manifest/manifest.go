@@ -2,11 +2,13 @@ package manifest
 
 import (
 	"bytes"
+	"database/sql"
 	"database/sql/driver"
 	"encoding/json"
 	"io"
 	"strings"
 
+	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/runner"
 
@@ -15,12 +17,15 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+// Driver is used for the driver block in the manifest YAML.
+type Driver map[string]string
+
 // Manifest is the type that represents a manifest for a build. This details the
 // driver to use, variables to set, objects to place, VCS repositories to clone
 // and the actual commands to run and in what order.
 type Manifest struct {
 	Namespace     string             `yaml:",omitempty"`
-	Driver        map[string]string  `yaml:",omitempty"`
+	Driver        Driver             `yaml:",omitempty"`
 	Env           []string           `yaml:",omitempty"`
 	Objects       runner.Passthrough `yaml:",omitempty"`
 	Sources       []Source           `yaml:",omitempty"`
@@ -44,6 +49,11 @@ type Job struct {
 	Artifacts runner.Passthrough `yaml:",omitempty"`
 }
 
+var (
+	_ sql.Scanner   = (*Driver)(nil)
+	_ driver.Valuer = (*Driver)(nil)
+)
+
 func base(s string) string {
 	parts := strings.Split(s, "/")
 	return parts[len(parts)-1]
@@ -63,6 +73,30 @@ func Unmarshal(b []byte) (Manifest, error) {
 
 	err := yaml.Unmarshal(b, &m)
 	return m, errors.Err(err)
+}
+
+func (d Driver) Value() (driver.Value, error) { return driver.Value(d.String()), nil }
+
+func (d *Driver) Scan(val interface{}) error {
+	b, err := database.Scan(val)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if len(b) == 0 {
+		return nil
+	}
+
+	buf := bytes.NewBuffer(b)
+
+	return errors.Err(json.NewDecoder(buf).Decode(d))
+}
+
+func (d *Driver) String() string {
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(d)
+	return buf.String()
 }
 
 func (m *Manifest) Scan(val interface{}) error {

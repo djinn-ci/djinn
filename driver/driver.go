@@ -4,21 +4,28 @@ package driver
 
 import (
 	"bytes"
-	"database/sql"
-	"database/sql/driver"
-	"encoding/json"
 	"fmt"
 	"io"
 	"sync"
 
-	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/runner"
 )
 
+type Config interface {
+	// Apply applies the current configuration to the given Driver. This should
+	// configure the Driver ready for build execution.
+	Apply(d runner.Driver)
+
+	// Merge in the given driver configuration from a build manifest. This would
+	// be used to set things such as the image to use, if the driver utilises
+	// images.
+	Merge(m map[string]string)
+}
+
 // Init is the function for fully initializing a driver with the given
 // io.Writer, and configuration passed in via the map.
-type Init func(io.Writer, map[string]interface{}) runner.Driver
+type Init func(io.Writer, Config) runner.Driver
 
 // Registry is a struct that holds the different Init functions for initializing
 // a driver.
@@ -27,14 +34,7 @@ type Registry struct {
 	drivers   map[string]Init
 }
 
-type Config map[string]string
-
-var (
-	_ sql.Scanner   = (*Config)(nil)
-	_ driver.Valuer = (*Config)(nil)
-
-	preamble = "#!/bin/sh\nexec 2>&1\nset -ex\n\n"
-)
+var preamble = "#!/bin/sh\nexec 2>&1\nset -ex\n\n"
 
 // CreateScript returns a bytes.Buffer that contains a concatenation of the
 // given runner.Job commands into a shell script. Each shell script is
@@ -58,30 +58,6 @@ func NewRegistry() *Registry {
 		driversMU: sync.RWMutex{},
 		drivers:   make(map[string]Init),
 	}
-}
-
-func (c Config) Value() (driver.Value, error) { return driver.Value(c.String()), nil }
-
-func (c *Config) Scan(val interface{}) error {
-	b, err := database.Scan(val)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if len(b) == 0 {
-		return nil
-	}
-
-	buf := bytes.NewBuffer(b)
-
-	return errors.Err(json.NewDecoder(buf).Decode(c))
-}
-
-func (c *Config) String() string {
-	var buf bytes.Buffer
-	json.NewEncoder(&buf).Encode(c)
-	return buf.String()
 }
 
 // Register registers a driver Init function for the driver of the given name.

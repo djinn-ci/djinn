@@ -1,10 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"io"
 	"os"
 
-	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
 
 	"github.com/go-redis/redis"
@@ -12,20 +12,18 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	"github.com/mcmathja/curlyq"
-
-	"github.com/pelletier/go-toml"
 )
 
 type schedulerCfg struct {
 	Pidfile string
 
+	Log logCfg
+
 	Drivers    []string
-	ShareQueue bool `toml:"share_queue"`
+	ShareQueue bool
 
 	Database databaseCfg
 	Redis    redisCfg
-
-	Log logCfg
 }
 
 type Scheduler struct {
@@ -39,103 +37,129 @@ type Scheduler struct {
 	producers map[string]*curlyq.Producer
 }
 
-func decodeScheduler(r io.Reader) (schedulerCfg, error) {
-	var cfg schedulerCfg
-
-	if err := toml.NewDecoder(r).Decode(&cfg); err != nil {
-		return cfg, errors.Err(err)
+func DecodeScheduler(name string, r io.Reader) (*Scheduler, error) {
+	errh := func(name string, line, col int, msg string) {
+		fmt.Fprintf(os.Stderr, "%s,%d:%d - %s\n", name, line, col, msg)
 	}
 
-	if cfg.Log.Level == "" {
-		cfg.Log.Level = "INFO"
+	p := newParser(name, r, errh)
+
+	nodes := p.parse()
+
+	if err := p.err(); err != nil {
+		return nil, err
 	}
 
-	if cfg.Log.File == "" {
-		cfg.Log.File = "/dev/stdout"
+	var cfg0 schedulerCfg
+
+	for _, n := range nodes {
+		if err := cfg0.put(n); err != nil {
+			return nil, err
+		}
 	}
-	return cfg, errors.Err(cfg.validate())
-}
 
-func DecodeScheduler(r io.Reader) (Scheduler, error) {
-	var s Scheduler
+	var err error
 
-	cfg, err := decodeScheduler(r)
+	cfg := &Scheduler{}
+	cfg.pidfile, err = mkpidfile(cfg0.Pidfile)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	s.pidfile, err = mkpidfile(cfg.Pidfile)
+	cfg.log = log.New(os.Stdout)
+	cfg.log.SetLevel(cfg0.Log.Level)
 
-	if err != nil {
-		return s, errors.Err(err)
-	}
-
-	s.log = log.New(os.Stdout)
-	s.log.SetLevel(cfg.Log.Level)
-
-	if cfg.Log.File != "/dev/stdout" {
-		f, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+	if cfg0.Log.File != "/dev/stdout" {
+		f, err := os.OpenFile(cfg0.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 
 		if err != nil {
-			return s, errors.Err(err)
+			return nil, err
 		}
-		s.log.SetWriter(f)
+		cfg.log.SetWriter(f)
 	}
 
-	s.log.Info.Println("logging initiliazed, writing to", cfg.Log.File)
+	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
 
-	s.db, err = connectdb(s.log, cfg.Database)
+	cfg.db, err = connectdb(cfg.log, cfg0.Database)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	s.redis, err = connectredis(s.log, cfg.Redis)
+	cfg.redis, err = connectredis(cfg.log, cfg0.Redis)
 
 	if err != nil {
-		return s, errors.Err(err)
+		return nil, err
 	}
 
-	s.producers = make(map[string]*curlyq.Producer)
+	cfg.producers = make(map[string]*curlyq.Producer)
 
-	for _, driver := range cfg.Drivers {
+	for _, driver := range cfg0.Drivers {
 		queue := defaultBuildQueue + "_" + driver
 
-		if cfg.ShareQueue {
+		if cfg0.ShareQueue {
 			queue = defaultBuildQueue
 		}
 
-		s.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
-			Client: s.redis,
+		cfg.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
+			Client: cfg.redis,
 			Queue:  queue,
-			Logger: serverLogger{log: s.log},
+			Logger: serverLogger{log: cfg.log},
 		})
 	}
-	return s, nil
+	return cfg, nil
 }
 
-func (cfg schedulerCfg) validate() error {
-	if err := cfg.Database.validate(); err != nil {
-		return err
-	}
+func (s *schedulerCfg) put(n *node) error {
+	switch n.name {
+	case "pidfile":
+		if n.lit != stringLit {
+			return n.err("pidfile must be a string")
+		}
+		s.Pidfile = n.value
+	case "log":
+		return s.Log.put(n)
+	case "drivers":
+		if n.list == nil {
+			return n.err("drivers must be an array")
+		}
 
-	if cfg.Redis.Addr == "" {
-		return errors.New("missing redis address")
-	}
+		var walkerr error
 
-	if len(cfg.Drivers) == 0 {
-		return errors.New("no build drivers configured")
+		n.list.walk(func(n *node) {
+			if n.lit != stringLit {
+				walkerr = n.err("drivers must be an array of strings")
+				return
+			}
+			s.Drivers = append(s.Drivers, n.value)
+		})
+
+		if walkerr != nil {
+			return walkerr
+		}
+	case "share_queue":
+		if n.lit != boolLit {
+			return n.err("share_queue must be a boolean")
+		}
+
+		if n.value == "true" {
+			s.ShareQueue = true
+			return nil
+		}
+		s.ShareQueue = false
+	case "database":
+		return s.Database.put(n)
+	case "redis":
+		return s.Redis.put(n)
+	default:
+		return n.err("unknown configuration parameter: " + n.name)
 	}
 	return nil
 }
 
-func (s Scheduler) Pidfile() *os.File { return s.pidfile }
-
-func (s Scheduler) DB() *sqlx.DB { return s.db }
-
-func (s Scheduler) Redis() *redis.Client { return s.redis }
-
-func (s Scheduler) Log() *log.Logger { return s.log }
-
-func (s Scheduler) Producers() map[string]*curlyq.Producer { return s.producers }
+func (s *Scheduler) Pidfile() *os.File { return s.pidfile }
+func (s *Scheduler) DB() *sqlx.DB { return s.db }
+func (s *Scheduler) Redis() *redis.Client { return s.redis }
+func (s *Scheduler) Log() *log.Logger { return s.log }
+func (s *Scheduler) Producers() map[string]*curlyq.Producer { return s.producers }

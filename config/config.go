@@ -21,9 +21,28 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type driverCfg struct {
-	Type  string
-	Queue string
+type databaseCfg struct {
+	Addr     string
+	Name     string
+	Username string
+	Password string
+}
+
+type Crypto struct {
+	Hash  []byte
+	Block []byte
+	Salt  []byte
+	Auth  []byte
+}
+
+type logCfg struct {
+	Level string
+	File  string
+}
+
+type redisCfg struct {
+	Addr     string
+	Password string
 }
 
 type smtpCfg struct {
@@ -34,49 +53,9 @@ type smtpCfg struct {
 	Password string
 }
 
-type cryptoCfg struct {
-	Hash  string
-	Block string
-	Salt  string
-	Auth  string
-}
-
-type databaseCfg struct {
-	Addr     string
-	Name     string
-	Username string
-	Password string
-}
-
-type redisCfg struct {
-	Addr     string
-	Password string
-}
-
-type logCfg struct {
-	Level string
-	File  string
-}
-
-type storageCfg struct {
-	Type  string
-	Path  string
-	Limit int64
-}
-
-type providerCfg struct {
-	Name         string
-	Secret       string
-	Endpoint     string
-	ClientID     string `toml:"client_id"`
-	ClientSecret string `toml:"client_secret"`
-}
-
-type Crypto struct {
-	Hash  []byte
-	Block []byte
-	Salt  []byte
-	Auth  []byte
+type sslCfg struct {
+	Cert string
+	Key  string
 }
 
 var (
@@ -183,47 +162,260 @@ func mkpidfile(path string) (*os.File, error) {
 	return pidfile, nil
 }
 
-func (cfg databaseCfg) validate() error {
-	if cfg.Addr == "" {
-		return errors.New("missing database address")
+func (cfg *providerCfg) put(n *node) error {
+	if n.body == nil {
+		return n.err("provider must be a configuration block")
+	}
+	if n.label == "" {
+		return n.err("unlabeled provider")
 	}
 
-	if cfg.Name == "" {
-		return errors.New("missing database name")
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		switch n.name {
+		case "secret":
+			cfg.Secret = n.value
+		case "endpoint":
+			cfg.Endpoint = n.value
+		case "client_id":
+			cfg.ClientID = n.value
+		case "client_secret":
+			cfg.ClientSecret = n.value
+		default:
+			walkerr = n.err("unknown provider configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
+}
+
+func (cfg *sslCfg) put(n *node) error {
+	if n.body == nil {
+		return n.err("ssl mut be a configuration block")
 	}
 
-	if cfg.Username == "" {
-		return errors.New("missing database username")
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		if n.body != nil {
+			walkerr = n.err("unexpected configuration block")
+			return
+		}
+		if n.list != nil {
+			walkerr = n.err("unexpected array")
+			return
+		}
+
+		switch n.name {
+		case "cert":
+			cfg.Cert = n.value
+		case "key":
+			cfg.Key = n.value
+		default:
+			walkerr = n.err("unknown ssl configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
+}
+
+type storeCfg struct {
+	Type  string
+	Path  string
+	Limit int64
+}
+
+func (cfg *Crypto) put(n *node) error {
+	if n.body == nil {
+		return n.err("crypto must be a configuration block")
 	}
 
-	if cfg.Password == "" {
-		return errors.New("missing database password")
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		if n.body != nil {
+			walkerr = n.err("unexpected configuration block")
+			return
+		}
+		if n.list != nil {
+			walkerr = n.err("unexpected array")
+			return
+		}
+
+		switch n.name {
+		case "hash":
+			cfg.Hash = []byte(n.value)
+		case "block":
+			cfg.Block = []byte(n.value)
+		case "salt":
+			cfg.Salt = []byte(n.value)
+		case "auth":
+			cfg.Auth = []byte(n.value)
+		default:
+			walkerr = n.err("unknown crypto configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
+}
+
+func (cfg *logCfg) put(n *node) error {
+	levels := map[string]struct{}{
+		"debug": {},
+		"info":  {},
+		"warn":  {},
+		"error": {},
 	}
+
+	if n.label == "" {
+		return n.err("log level not set")
+	}
+
+	if _, ok := levels[n.label]; !ok {
+		return n.err("unknown log level: " + n.label)
+	}
+
+	cfg.Level = n.label
+	cfg.File = n.value
 	return nil
 }
 
-func (cfg smtpCfg) validate() error {
-	if cfg.Addr == "" {
-		return errors.New("missing smtp address")
+func (cfg *databaseCfg) put(n *node) error {
+	if n.body == nil {
+		return n.err("database must be a configuration block")
 	}
 
-	if cfg.Admin == "" {
-		return errors.New("missing smtp admin email")
-	}
-	return nil
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		if n.body != nil {
+			walkerr = n.err("unexpected configuration block")
+			return
+		}
+		if n.list != nil {
+			walkerr = n.err("unexpected array")
+			return
+		}
+
+		switch n.name {
+		case "addr":
+			cfg.Addr = n.value
+		case "name":
+			cfg.Name = n.value
+		case "username":
+			cfg.Username = n.value
+		case "password":
+			cfg.Password = n.value
+		default:
+			walkerr = n.err("unknown database configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
 }
 
-func (cfg cryptoCfg) validate() error {
-	if len(cfg.Hash) < 32 || len(cfg.Hash) > 64 {
-		return errors.New("invalid hash key length, must be between 32 and 64 bytes")
+func (cfg *smtpCfg) put(n *node) error {
+	if n.body == nil {
+		return n.err("smtp must be a configuration block")
 	}
 
-	if len(cfg.Block) != 16 && len(cfg.Block) != 24 && len(cfg.Block) != 32 {
-		return errors.New("invalid block key, must be either 16, 24, or 32 bytes in length")
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		if n.body != nil {
+			walkerr = n.err("unexpected configuration block")
+			return
+		}
+		if n.list != nil {
+			walkerr = n.err("unexpected array")
+			return
+		}
+
+		switch n.name {
+		case "addr":
+			cfg.Addr = n.value
+		case "ca":
+			cfg.CA = n.value
+		case "admin":
+			cfg.Admin = n.value
+		case "username":
+			cfg.Username = n.value
+		case "password":
+			cfg.Password = n.value
+		default:
+			walkerr = n.err("unknown smtp configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
+}
+
+func (cfg *redisCfg) put(n *node) error {
+	if n.body == nil {
+		return n.err("redis must be a configuration block")
 	}
 
-	if len(cfg.Auth) != 32 {
-		return errors.New("invalid auth key, mustb e 32 bytes")
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		if n.body != nil {
+			walkerr = n.err("unexpected configuration block")
+			return
+		}
+		if n.list != nil {
+			walkerr = n.err("unexpected array")
+			return
+		}
+
+		switch n.name {
+		case "addr":
+			cfg.Addr = n.value
+		case "password":
+			cfg.Password = n.value
+		default:
+			walkerr = n.err("unknown redis configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
+}
+
+func (cfg *storeCfg) put(n *node) error {
+	if n.body == nil {
+		return n.err("store must be a configuration block")
 	}
-	return nil
+	if n.label == "" {
+		return n.err("unlabeled store")
+	}
+
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		if n.body != nil {
+			walkerr = n.err("unexpected configuration block")
+			return
+		}
+		if n.list != nil {
+			walkerr = n.err("unexpected array")
+			return
+		}
+
+		switch n.name {
+		case "type":
+			cfg.Type = n.value
+		case "path":
+			cfg.Path = n.value
+		case "limit":
+			if n.lit != numberLit {
+				walkerr = n.err("store limit is not a valid integer")
+				return
+			}
+
+			i, err := strconv.ParseInt(n.value, 10, 64)
+
+			if err != nil {
+				walkerr = n.err("store limit is not a valid integer")
+				return
+			}
+			cfg.Limit = i
+		default:
+			walkerr = n.err("unknown store configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
 }

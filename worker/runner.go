@@ -44,7 +44,10 @@ type Runner struct {
 	artifacts fs.Store
 
 	drivers *driver.Registry
-	config  map[string]map[string]interface{}
+
+	// config is the map of global driver configurations read in from the
+	// djinn-driver.cfg fille when the worker started.
+	config  map[string]driver.Config
 
 	keycfg string            // the .ssh/config to place in to a build
 	keys   map[string][]byte // the encrypted private keys to place in to a build
@@ -308,25 +311,19 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 		return runner.Killed, errors.Err(err)
 	}
 
-	// Merge global driver configuration with manifest driver configuration for
-	// driver initialization.
-	config := make(map[string]interface{})
+	// Merge in the driver configuration from the build manifest.
+	cfg := r.config[d.Config["type"]]
+	cfg.Merge(d.Config)
 
-	for k, v := range d.Config {
-		config[k] = v
-	}
-
-	for k, v := range r.config[d.Config["type"]] {
-		config[k] = v
-	}
-
-	driver := init(io.MultiWriter(r.buf, r.DriverBuffer()), config)
+	driver := init(io.MultiWriter(r.buf, r.DriverBuffer()), cfg)
 
 	if q, ok := driver.(*qemu.Driver); ok {
+		qemucfg := cfg.(*qemu.Config)
+
 		// If using the qemu driver then make sure we resolve user uploaded
-		// images correctly.
+		// images correctly, and that we sanitize the image name.
 		q.Image = strings.Replace(q.Image, "..", "", -1)
-		q.Realpath = r.qemuRealpath(r.build, config["disks"].(string))
+		q.Realpath = r.qemuRealpath(r.build, qemucfg.Disks)
 	}
 
 	r.Runner.HandleDriverCreate(func() {

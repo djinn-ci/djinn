@@ -23,7 +23,14 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 )
 
-var _ runner.Driver = (*Driver)(nil)
+// Config is the struct used for initializing a new Docker driver for build
+// execution.
+type Config struct {
+	Host      string // The host running the Docker daemon.
+	Version   string // The version of the Docker API.
+	Image     string // The container image to use.
+	Workspace string // The workspace in the container to mount the volume to.
+}
 
 // Driver provides an implementation of the runner.Dirver interface for running
 // jobs within a Docker container.
@@ -44,29 +51,38 @@ type Driver struct {
 	Workspace string
 }
 
-// Init initializes a new Driver driver using the given io.Writer, and
-// configuration map. Detailed below are the values, types, and default values
-// that are used in the configuration map.
-//
-// Image - The image to use for the container, this is expected to be a string,
-// there is no default value.
-//
-// Workspace - The location to mount the volume to, this is expected to be a string,
-// there is no default value.
-func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
-	host, _ := cfg["host"].(string)
-	version, _ := cfg["version"].(string)
+var (
+	_ runner.Driver = (*Driver)(nil)
+	_ driver.Config = (*Config)(nil)
+)
 
-	image, _ := cfg["image"].(string)
-	workspace, _ := cfg["workspace"].(string)
-
-	return &Driver{
-		Writer:    w,
-		Host:      host,
-		Version:   version,
-		Image:     image,
-		Workspace: workspace,
+// Init initializes a new driver for Docker using the given io.Writer, and
+// applying the given driver.Config.
+func Init(w io.Writer, cfg driver.Config) runner.Driver {
+	d := &Driver{
+		Writer: w,
 	}
+
+	cfg.Apply(d)
+	return d
+}
+
+func (cfg *Config) Apply(d runner.Driver) {
+	v, ok := d.(*Driver)
+
+	if !ok {
+		return
+	}
+
+	v.Host = cfg.Host
+	v.Version = cfg.Version
+	v.Image = cfg.Image
+	v.Workspace = cfg.Workspace
+}
+
+func (cfg *Config) Merge(m map[string]string) {
+	cfg.Image = m["image"]
+	cfg.Workspace = m["workspace"]
 }
 
 // Create will create a volume, and pull down the configured image. The client

@@ -81,7 +81,7 @@ func main() {
 
 	defer f2.Close()
 
-	drivers, driverconf, err := config.DecodeDriver(f2)
+	drivers, driverconf, err := config.DecodeDriver(f2.Name(), f2)
 
 	if err != nil {
 		exiterr(errors.Cause(err))
@@ -205,17 +205,10 @@ func main() {
 		exiterr(err)
 	}
 
-	conf := make(map[string]interface{})
+	cfg := driverconf[m.Driver["type"]]
+	cfg.Merge(m.Driver)
 
-	for k, v := range driverconf[m.Driver["type"]] {
-		conf[k] = v
-	}
-
-	for k, v := range m.Driver {
-		conf[k] = v
-	}
-
-	if err := r.Run(ctx, driverInit(os.Stdout, conf)); err != nil {
+	if err := r.Run(ctx, driverInit(os.Stdout, cfg)); err != nil {
 		exiterr(err)
 	}
 }

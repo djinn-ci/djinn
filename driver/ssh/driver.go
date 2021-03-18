@@ -18,6 +18,13 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+type Config struct {
+	Addr     string
+	User     string
+	Password string
+	Timeout  time.Duration
+}
+
 // Driver provides an implementation of the runner.Driver interface for SSH
 // connections.
 type Driver struct {
@@ -32,44 +39,36 @@ type Driver struct {
 	Timeout  time.Duration // Timeout is the duration for connection timeouts.
 }
 
-var _ runner.Driver = (*Driver)(nil)
+var (
+	_ runner.Driver = (*Driver)(nil)
+	_ driver.Config  = (*Config)(nil)
+)
 
-// Init initializes a new Driver driver using the given io.Writer, and
-// configuration map. Detailed below are the values, types, and default values
-// that are used in the configuration map.
-//
-// Timeout - The timeout for the Driver driver is specified via the "timeout"
-// field. It is expected for this to be an int64 for the timeout in seconds. The
-// default value is 60.
-//
-// Address - The address for the Driver driver is specified via the "address"
-// field. It is expected for this to be a string, there is no default value
-// for this.
-func Init(w io.Writer, cfg map[string]interface{}) runner.Driver {
-	user, ok := cfg["user"].(string)
+func (cfg *Config) Merge(m map[string]string) {
+	cfg.Addr = m["addr"]
+}
+
+func (cfg *Config) Apply(d runner.Driver) {
+	v, ok := d.(*Driver)
 
 	if !ok {
-		user = "root"
+		return
 	}
 
-	// Leave empty if we have nothing.
-	password, _ := cfg["password"].(string)
+	v.User = cfg.User
+	v.Password = cfg.Password
+	v.Timeout = cfg.Timeout
+}
 
-	timeout, ok := cfg["timeout"].(int64)
-
-	if !ok {
-		timeout = 60
+// Init initializes a new driver for SSH using the given io.Writer, and
+// applying the given driver.Config.
+func Init(w io.Writer, cfg driver.Config) runner.Driver {
+	d := &Driver{
+		Writer: w,
 	}
 
-	addr, _ := cfg["address"].(string)
-
-	return &Driver{
-		Writer:   w,
-		Addr:     addr,
-		User:     user,
-		Password: password,
-		Timeout:  time.Duration(time.Second * time.Duration(timeout)),
-	}
+	cfg.Apply(d)
+	return d
 }
 
 // Create opens up the Driver connection to the remote machine as configured via a

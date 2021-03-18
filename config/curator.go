@@ -1,116 +1,129 @@
 package config
 
 import (
+	"fmt"
 	"io"
 	"os"
 
-	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/errors"
+	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/log"
 
 	"github.com/jmoiron/sqlx"
-
-	"github.com/pelletier/go-toml"
 )
 
 type curatorCfg struct {
 	Pidfile string
 
-	Database  databaseCfg
-	Artifacts storageCfg
-
 	Log logCfg
+
+	Database  databaseCfg
+	Stores    map[string]storeCfg
 }
 
 type Curator struct {
 	pidfile *os.File
 
+	log *log.Logger
+
 	db *sqlx.DB
 
 	artifacts fs.Store
-
-	log *log.Logger
 }
 
-func decodeCurator(r io.Reader) (curatorCfg, error) {
-	var cfg curatorCfg
-
-	if err := toml.NewDecoder(r).Decode(&cfg); err != nil {
-		return cfg, errors.Err(err)
+func DecodeCurator(name string, r io.Reader) (*Curator, error) {
+	errh := func(name string, line, col int, msg string) {
+		fmt.Fprintf(os.Stderr, "%s,%d:%d - %s\n", name, line, col, msg)
 	}
 
-	if cfg.Artifacts.Type == "" {
-		cfg.Artifacts.Type = "file"
+	p := newParser(name, r, errh)
+
+	nodes := p.parse()
+
+	if err := p.err(); err != nil {
+		return nil, err
 	}
 
-	if cfg.Log.Level == "" {
-		cfg.Log.Level = "INFO"
+	var cfg0 curatorCfg
+
+	for _, n := range nodes {
+		if err := cfg0.put(n); err != nil {
+			return nil, err
+		}
 	}
 
-	if cfg.Log.File == "" {
-		cfg.Log.File = "/dev/stdout"
-	}
-	return cfg, errors.Err(cfg.validate())
-}
+	var err error
 
-func DecodeCurator(r io.Reader) (Curator, error) {
-	var c Curator
-
-	cfg, err := decodeCurator(r)
+	cfg := &Curator{}
+	cfg.pidfile, err = mkpidfile(cfg0.Pidfile)
 
 	if err != nil {
-		return c, errors.Err(err)
+		return nil, err
 	}
 
-	c.pidfile, err = mkpidfile(cfg.Pidfile)
+	cfg.log = log.New(os.Stdout)
+	cfg.log.SetLevel(cfg0.Log.Level)
 
-	if err != nil {
-		return c, errors.Err(err)
-	}
-
-	c.log = log.New(os.Stdout)
-	c.log.SetLevel(cfg.Log.Level)
-
-	if cfg.Log.File != "/dev/stdout" {
-		f, err := os.OpenFile(cfg.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0660)
+	if cfg0.Log.File != "/dev/stdout" {
+		f, err := os.OpenFile(cfg0.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
 
 		if err != nil {
-			return c, errors.Err(err)
+			return nil, err
 		}
-		c.log.SetWriter(f)
+		cfg.log.SetWriter(f)
 	}
 
-	c.log.Info.Println("logging initiliazed, writing to", cfg.Log.File)
+	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
 
-	c.db, err = connectdb(c.log, cfg.Database)
+	cfg.db, err = connectdb(cfg.log, cfg0.Database)
 
 	if err != nil {
-		return c, errors.Err(err)
+		return nil, err
 	}
 
-	c.artifacts = blockstores[cfg.Artifacts.Type](cfg.Artifacts.Path, 0)
+	store, ok := cfg0.Stores["artifacts"]
 
-	if c.artifacts.Init(); err != nil {
-		return c, errors.Err(err)
+	if !ok {
+		return nil, errors.New("artifact store not configured")
 	}
-	return c, nil
+
+	cfg.artifacts = blockstores[store.Type](store.Path, store.Limit)
+
+	if err := cfg.artifacts.Init(); err != nil {
+		return nil, err
+	}
+	return cfg, nil
 }
 
-func (cfg curatorCfg) validate() error {
-	if err := cfg.Database.validate(); err != nil {
-		return err
-	}
+func (c *curatorCfg) put(n *node) error {
+	switch n.name {
+	case "pidfile":
+		if n.lit != stringLit {
+			return n.err("pidfile must be a string")
+		}
+		c.Pidfile = n.value
+	case "log":
+		return c.Log.put(n)
+	case "database":
+		return c.Database.put(n)
+	case "store":
+		var cfg storeCfg
 
-	if cfg.Artifacts.Path == "" {
-		return errors.New("missing artifacts storage path")
+		if err := cfg.put(n); err != nil {
+			return err
+		}
+
+		if c.Stores == nil {
+			c.Stores = make(map[string]storeCfg)
+		}
+		c.Stores[n.label] = cfg
+	default:
+		return n.err("unknown configuration parameter: " + n.name)
 	}
 	return nil
 }
 
-func (c Curator) Pidfile() *os.File { return c.pidfile }
-
-func (c Curator) DB() *sqlx.DB { return c.db }
-
-func (c Curator) Artifacts() fs.Store { return c.artifacts }
-
-func (c Curator) Log() *log.Logger { return c.log }
+func (c *Curator) Pidfile() *os.File { return c.pidfile }
+func (c *Curator) DB() *sqlx.DB { return c.db }
+func (c *Curator) Artifacts() fs.Store { return c.artifacts }
+func (c *Curator) Log() *log.Logger { return c.log }

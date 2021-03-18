@@ -258,7 +258,7 @@ func TestMain(m *testing.M) {
 	args := []string{
 		"djinn-server",
 		"-config",
-		filepath.Join("testdata", "server.toml"),
+		filepath.Join("testdata", "server.cfg"),
 	}
 
 	api, config, ui, _ := serverutil.ParseFlags(args)

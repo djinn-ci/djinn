@@ -21,7 +21,15 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+type sslCfg struct {
+	CA   string
+	Cert string
+	Key  string
+}
+
 type databaseCfg struct {
+	SSL sslCfg
+
 	Addr     string
 	Name     string
 	Username string
@@ -53,11 +61,6 @@ type smtpCfg struct {
 	Password string
 }
 
-type sslCfg struct {
-	Cert string
-	Key  string
-}
-
 var (
 	blockstores = map[string]func(string, int64) fs.Store{
 		"file": func(dsn string, limit int64) fs.Store {
@@ -82,13 +85,26 @@ func connectdb(log *log.Logger, cfg databaseCfg) (*sqlx.DB, error) {
 		return nil, errors.Err(err)
 	}
 
+	sslmode := "disable"
+	sslconf := ""
+	sslcert := cfg.SSL.Cert
+	sslkey := cfg.SSL.Key
+	sslrootcert := cfg.SSL.CA
+
+	if sslcert != "" && sslkey != "" && sslrootcert != "" {
+		sslmode = "verify-full"
+		sslconf = fmt.Sprintf("sslcert=%s sslkey=%s sslrootcert=%s", sslcert, sslkey, sslrootcert)
+	}
+
 	dsn := fmt.Sprintf(
-		"host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+		"host=%s port=%s dbname=%s user=%s password=%s sslmode=%s %s",
 		host,
 		port,
 		cfg.Name,
 		cfg.Username,
 		cfg.Password,
+		sslmode,
+		sslconf,
 	)
 
 	log.Debug.Println("connecting to postgresql database with:", dsn)
@@ -189,35 +205,6 @@ func (cfg *providerCfg) put(n *node) error {
 	return walkerr
 }
 
-func (cfg *sslCfg) put(n *node) error {
-	if n.body == nil {
-		return n.err("ssl mut be a configuration block")
-	}
-
-	var walkerr error
-
-	n.body.walk(func(n *node) {
-		if n.body != nil {
-			walkerr = n.err("unexpected configuration block")
-			return
-		}
-		if n.list != nil {
-			walkerr = n.err("unexpected array")
-			return
-		}
-
-		switch n.name {
-		case "cert":
-			cfg.Cert = n.value
-		case "key":
-			cfg.Key = n.value
-		default:
-			walkerr = n.err("unknown ssl configuration parameter: " + n.name)
-		}
-	})
-	return walkerr
-}
-
 type storeCfg struct {
 	Type  string
 	Path  string
@@ -278,6 +265,37 @@ func (cfg *logCfg) put(n *node) error {
 	return nil
 }
 
+func (cfg *sslCfg) put(n *node) error {
+	if n.body == nil {
+		return n.err("ssl must be a configuration block")
+	}
+
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		if n.body != nil {
+			walkerr = n.err("unexpected configuration block")
+			return
+		}
+		if n.list != nil {
+			walkerr = n.err("unexpected array")
+			return
+		}
+
+		switch n.name {
+		case "ca":
+			cfg.CA = n.value
+		case "cert":
+			cfg.Cert = n.value
+		case "key":
+			cfg.Key = n.value
+		default:
+			walkerr = n.err("unknown ssl configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
+}
+
 func (cfg *databaseCfg) put(n *node) error {
 	if n.body == nil {
 		return n.err("database must be a configuration block")
@@ -304,6 +322,10 @@ func (cfg *databaseCfg) put(n *node) error {
 			cfg.Username = n.value
 		case "password":
 			cfg.Password = n.value
+		case "ssl":
+			walkerr = cfg.SSL.put(n)
+		case "ca", "cert", "key":
+			return
 		default:
 			walkerr = n.err("unknown database configuration parameter: " + n.name)
 		}

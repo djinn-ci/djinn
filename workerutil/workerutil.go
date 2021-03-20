@@ -19,8 +19,8 @@ func ParseFlags(args []string) (string, string, bool) {
 	)
 
 	fs := flag.NewFlagSet(args[0], flag.ExitOnError)
-	fs.StringVar(&config, "config", "djinn-worker.toml", "the config file to use")
-	fs.StringVar(&driver, "driver", "djinn-driver.toml", "the driver config to use")
+	fs.StringVar(&config, "config", "djinn-worker.conf", "the config file to use")
+	fs.StringVar(&driver, "driver", "djinn-driver.conf", "the driver config to use")
 	fs.BoolVar(&version, "version", false, "show the version and exit")
 	fs.Parse(args[1:])
 

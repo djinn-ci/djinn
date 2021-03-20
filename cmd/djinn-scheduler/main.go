@@ -26,7 +26,7 @@ func main() {
 	fs := flag.CommandLine
 
 	fs.Int64Var(&batchsize, "batch", 1000, "the number of jobs in a single batch")
-	fs.StringVar(&configfile, "config", "djinn-scheduler.toml", "the config file to use")
+	fs.StringVar(&configfile, "config", "djinn-scheduler.conf", "the config file to use")
 	fs.BoolVar(&showversion, "version", false, "show the version and exit")
 	fs.Parse(os.Args[1:])
 

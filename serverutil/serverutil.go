@@ -83,7 +83,7 @@ func ParseFlags(args []string) (bool, string, bool, bool) {
 	fs := flag.NewFlagSet(args[0], flag.ExitOnError)
 
 	fs.BoolVar(&api, "api", false, "serve only the api endpoints")
-	fs.StringVar(&config, "config", "djinn-server.toml", "the config file to use")
+	fs.StringVar(&config, "config", "djinn-server.conf", "the config file to use")
 	fs.BoolVar(&ui, "ui", false, "serve only the ui endpoints")
 	fs.BoolVar(&version, "version", false, "show the version and exit")
 	fs.Parse(args[1:])

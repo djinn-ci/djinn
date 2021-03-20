@@ -46,7 +46,7 @@ func main() {
 	flag.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
 	flag.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
 	flag.StringVar(&manifestfile, "manifest", ".djinn.yml", "the manifest file to use")
-	flag.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.toml"), "the driver config to use")
+	flag.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.conf"), "the driver config to use")
 	flag.StringVar(&stage, "stage", "", "the stage to execute")
 	flag.Parse(os.Args[1:])
 

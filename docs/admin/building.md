@@ -1,8 +1,9 @@
-[Prev](/admin) - [Next](/admin/curator)
+[Prev](/admin) - [Next](/admin/configuration)
 
 # Building
 
-To build Djinn CI you will need to install the following dependencies,
+To build the Djinn CI components you will need to install the following
+dependencies,
 
 * `go`- https://golang.org/dl
 * `yarn` - https://yarnpkg.com/getting-started/install

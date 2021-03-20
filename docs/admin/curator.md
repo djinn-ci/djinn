@@ -1,4 +1,4 @@
-[Prev](/admin/building) - [Next](/admin/scheduler)
+[Prev](/admin/configuration) - [Next](/admin/scheduler)
 
 # Curator
 
@@ -8,9 +8,6 @@ artifacts that exceed the configured limit of the curator.
 
 * [External Dependencies](#external-dependencies)
 * [Configuring the Curator](#configuring-the-curator)
-  * [Database](#database)
-  * [Artifacts](#artifacts)
-  * [Logging](#logging)
 * [Example Curator Configuration](#example-server-configuration)
 * [Running the Curator](#running-the-curator)
 * [Configuring the Curator Daemon](#configuring-the-curator-daemon)
@@ -26,49 +23,54 @@ to start and run,
 
 ## Configuring the Curator
 
-The curator is configured via a `curator.toml` file, detailed below are the
-properties for this file.
+Detailed below are the [configuration](/admin/configuration) directives used by
+the curator.
 
-### Database
+* **`database`** `{...}`
 
-* `database.addr` - The address of the PostgreSQL server to connect to.
+Provides connection information to the PostgreSQL database. Below are the
+directives used by the `database` block directive.
 
-* `database.name` - The name of the database to use.
+* **`addr`** `string` - The address of the PostgreSQL server to connect to.
 
-* `databse.username` - The name of the database user.
+* **`name`** `string` - The name of the database to use.
 
-* `database.password` - The password of the database user.
+* **`username`** `string` - The name of the database user.
 
-### Artifacts
+* **`password`** `string` - The password of the database user.
 
-* `artifacts.type` - The type of store to use for storing artifacts. Must be one
-of: `file`.
+* **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
 
-* `artifacts.path` - The location of where artifacts are stored.
+  * **`ca`** `string` - Path to the CA root to use.
+  * **`cert`** `string` - Path to the certificate to use.
+  * **`key`** `string` - Path to the key to use.
 
-### Logging
+* **`store`** `identifier` `{...}`
 
-* `log.level` - The level of logging to use whilst the server is running. Must
-be one of: `debug`, `info`, or `error`.
+The location where the build artifacts are stored. The `identifier` must be
+`artifacts`.
 
-* `log.file` - The file to write logs to, defaults to `/dev/stdout`.
+* **`type`** `string` - The type of store to use, must be `file`.
+* **`path`** `string` - The location of the artifacts.
 
 ## Example Curator Configuration
 
-    [database]
-    addr     = "localhost:5432"
-    name     = "djinn"
-    username = "djinn"
-    password = "secret"
-    
-    # Where the artifacts to clean are stored.
-    [artifacts]
-    type = "file"
-    path = "/var/lib/djinn/artifacts"
-    
-    [log]
-    level = "debug"
-    file  = "/dev/stdout"
+    pidfile "/var/run/djinn/curator.pid"
+
+    log info "/var/log/djinn/curator.log"
+
+    database {
+        addr "localhost:5432"
+        name "djinn"
+
+        username "djinn-curator"
+        password "secret"
+    }
+
+    store artifacts {
+        type "file"
+        path "/var/lib/djinn/artifacts"
+    }
 
 ## Running the Curator
 
@@ -76,10 +78,10 @@ To run the curator simply invoke the `djinn-curator` binary. There are only two
 flags that can be given to the `djinn-curator` binary,
 
 * `-config` - This specifies the configuration file to use, by default this
-will be `djinn-curator.toml`.
+will be `djinn-curator.conf`.
 
 * `-limit` - This specifies the limit in bytes to use for clearing up
-artifacts, by default this will be set to "1GB".
+artifacts, by default this will be set to `1073741824` (1GB).
 
 ## Configuring the Curator Daemon
 

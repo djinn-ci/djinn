@@ -9,16 +9,6 @@ so there is no need to worry about where assets will exist on disk.
 
 * [External Dependencies](#external-dependencies)
 * [Configuring the Server](#configuring-the-server)
-  * [Network](#network)
-  * [Drivers](#drivers)
-  * [Crypto](#crypto)
-  * [Database](#database)
-  * [Redis](#redis)
-  * [Images](#images)
-  * [Artifacts](#artifacts)
-  * [Objects](#objects)
-  * [Logging](#logging)
-  * [Providers](#providers)
 * [Example Server Configuration](#example-server-configuration)
 * [Running the Server](#running-the-server)
 * [Configuring the Server Daemon](#configuring-the-server-daemon)
@@ -35,164 +25,222 @@ start and run,
 
 ## Configuring the Server
 
-The server is configured via a `server.toml` file, detailed below are the
-properties for this file,
+Detailed below are the [configuration](/admin/configuration) directives used by
+the server.
 
-* `host` - the host on which the server will be running on, this will be used
-for OAuth redirects and setting the endpoint to which the webhooks are sent.
-This can be either an IP address or a FQDN, though it is recommend to be the
-latter.
+* **`host`** `string`
 
-### Network
+The host on which the server will be running on, this will be used for OAuth
+redirects and setting the endpoint to which the webhooks are sent. This can be
+either an IP address or a FQDN, though it is recommend to be the latter.
 
-* `net.listen` - The address that should be used to serve over.
+* **`drivers`** `[...]`
 
-* `net.ssl.cert` - The certificate to use if you want the server to serve over
-TLS.
+The list of drivers you want to support on the server for the builds submitted.
+This should match what is in the
+[scheduler configuration](/admin/scheduler#configuring-the-scheduler). This
+should only contain string literals.
 
-* `net.ssl.key` - The key to use if you want the server to serve over TLS.
+* **`share_queue`** `bool`
 
-### Drivers
+Whether or not the builds should be put onto the same queue, or on a queue per
+driver.
 
-* `drivers` - List the drivers that you want to support on the Djinn CI server.
-Each driver will be submitted onto its own queue for processing. The queues
-used for processing will be in the format of `builds_driver`, where driver is
-the name of the driver being used for that build, for example `builds_docker`
-or `builds_qemu-x86_64`.
+* **`net`** `{...}`
 
-### Crypto
+Configuration details about how the server should be served over the network.
 
-* `crypto.hash` - The hash key to use for authenticating encrypted cookie
-values via HMAC. This must be either 32, or 64 characters in length.
+* **`listen`** `string` - The address that should be used to serve over.
 
-* `crypto.block` - The key to use for the block cipher that is used for
-encrypting values. This must be either 16, 24, or 32 characters in length. This
-should match what is configured for the worker.
+* **`ssl`** `{...}` - The SSL block directive if you want to seve over TLS.
 
-* `crypto.salt` - The salt to use when generating secure unique hashes.
+  * **`cert`** `string` - The path to the certificate to use.
+  * **`key`** `string` - The path to the key to use.
 
-* `cypto.auth` - The key to use to protect against CSRF attacks. This must be 32
-characters long.
+* **`crypto`** `{...}`
 
-### Database
+Configuration settings for the cryptography used throughout the server for
+encrypting data, generating hard to guess secrets, and protecting against CSRF
+attacks.
 
-* `database.addr` - The address of the PostgreSQL server to connect to.
+* **`hash`** `string` -  The hash key is used to authenticate values using
+HMAC. This must be either 32, or 64 characters in length.
 
-* `database.name` - The name of the database to use.
+* **`block`** `string` - The block key is required for encrypting data. This
+must be either, 16, 24, or 32 characters in length.
 
-* `databse.username` - The name of the database user.
+* **`salt`** `string` -  Salt is used for generating hard to guess secrets,
+and for generating the final key that is used for encrypting data.
 
-* `database.password` - The password of the database user.
+* **`auth`** `string` -  The key to use to protect against CSRF attacks. This
+must be 32 characters in length.
 
-### Redis
+* **`database`** `{...}`
 
-* `redis.addr` - The address of the Redis server to connect to.
+Provides connection information to the PostgreSQL database. Below are the
+directives used by the `database` block directive.
 
-### Images
+* **`addr`** `string` - The address of the PostgreSQL server to connect to.
 
-* `images.type` - The type of store to use for storing custom image files. Must
-be one of: `file`.
+* **`name`** `string` - The name of the database to use.
 
-* `images.path` - The location of where custom image files are stored.
+* **`username`** `string` - The name of the database user.
 
-### Artifacts
+* **`password`** `string` - The password of the database user.
 
-* `artifacts.type` - The type of store to use for storing artifacts. Must be one
-of: `file`.
+* **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
 
-* `artifacts.path` - The location of where artifacts are stored.
+  * **`ca`** `string` - Path to the CA root to use.
+  * **`cert`** `string` - Path to the certificate to use.
+  * **`key`** `string` - Path to the key to use.
 
-### Objects
+* **`redis`** `{...}`
 
-* `objects.type` - The type of store to use for storing objects. Must be one of:
-`file`.
+Provides connection information to the Redis database. Below are the directives
+used by the `redis` block directive.
 
-* `objects.path` - The location of where to store objects to place into builds.
+* **`addr`** `string` - The address of the Redis server to connect to.
 
-* `objects.limit` - The maximum size of objects that can be uploaded to the
-server. Set to `0` for unlimited.
+* **`password`** `string` - The password used if the Redis server is
+password protected.
 
-### Logging
+* **`smtp`** `{...}`
 
-* `log.level` - The level of logging to use whilst the server is running. Must
-be one of: `debug`, `info`, or `error`.
+Provides connection information to an SMTP server to sending emails. Below are
+the directives used by the `smtp` block directive.
 
-* `log.file` - The file to write logs to, defaults to `/dev/stdout`.
+* **`addr`** `string` - The address of the SMTP server.
 
-### Providers
+* **`ca`** `string` - If connecting via TLS, then the path to the file that
+contains a set of root certificate authorities.
 
-* `providers.name` - The name of a Git provider to support integration to. Must
-be one of: `github` or `gitlab`.
+* **`admin`** `string` - The email address to be used in the `From` field of
+mails that are sent.
 
-* `providers.secret` - The secret used to authenticated incoming webhooks from
-the provider.
+* **`username`** `string` - The username for authentication.
 
-* `providers.client_id` - The `client_id` of the provider being integrated with.
+* **`password`** `string` - The password for authentication.
 
-* `providers.client_secret` - The `client_secret` of the provider being
+* **`store`** `identifier` `{...}`
+
+Configuration directives for each of the file stores the server uses. There must
+be a store configured for each `artifacts`, `images`, and `objects`.
+
+Detailed below are the value directives used within a `store` block directive.
+
+* **`type`** `string` - The type of the store to use for the files being
+accessed. Must be `file`.
+
+* **`path`** `string` - The location of where the files are.
+
+* **`limit`** `int` - The maximum size of files being uploaded. This will only
+be applied to objects being uploaded to the server.
+
+* **`provider`** `identifier` `{...}`
+
+Configuration directives for each 3rd party provider you want the server to
+integrate with. The `identifier` would be one of the supported providers
+detailed below,
+
+* `github`
+* `gitlab`
+
+Detailed below are the value directives used within a `provider` block
+directive.
+
+* **`secret`** `string` - The secret used to authenticate incoming webhooks
+from the provider.
+
+* **`client_id`** `string` - The `client_id` of the provider being integrated
+with.
+
+* **`client_secret`** `string` - The `client_secret` of the provider being
 integrated with.
 
 ## Example server configuration
 
-An example `server.toml` file can be found in the `dist` directory of the
+An example `server.conf` file can be found in the `dist` directory of the
 source repository.
 
-    host = "https://localhost:8443"
+    pidfile "/var/run/djinn/server.pid"
 
-    [net]
-    listen = "localhost:8443"
+    log info "/var/log/djinn/curator.log"
 
-    [net.ssl]
-    cert = "/var/lib/ssl/server.crt"
-    key  = "/var/lib/ssl/server.key"
+    host "https://djinn-ci.com"
 
-    [crypto]
-    hash  = "..."
-    block = "..."
-    salt  = "..."
-    auth  = "..."
+    drivers [
+        "docker",
+        "qemu-x86_64",
+    ]
 
-    [database]
-    addr     = "localhost:5432"
-    name     = "djinn"
-    username = "djinn"
-    password = "secret"
+    net {
+        listen ":443"
 
-    [redis]
-    addr = "localhost:6379"
+        ssl {
+            cert "/var/lib/ssl/server.crt"
+            key  "/var/lib/ssl/server.key"
+        }
+    }
 
-    [images]
-    type = "file"
-    path = "/var/lib/djinn/images"
+    crypto {
+        hash  "1a2b3c4d5e6f7g8h1a2b3c4d5e6f7g8h"
+        block "1a2b3c4d5e6f7g8h"
+        salt  "1a2b3c4d5e6f7g8h"
+        auth  "1a2b3c4d5e6f7g8h1a2b3c4d5e6f7g8h"
+    }
 
-    [artifacts]
-    type = "file"
-    path = "/var/lib/djinn/artifacts"
+    database {
+        addr "localhost:5432"
+        name "djinn"
 
-    [objects]
-    type  = "file"
-    path  = "/var/lib/djinn/objects"
-    limit = 5000000
+        username "djinn-server"
+        password "secret"
+    }
 
-    [log]
-    level = "info"
-    file  = "/var/log/djinn/server.log"
+    redis {
+        addr "localhost:6379"
+    }
 
-    [[drivers]]
-    type  = "qemu"
-    queue = "builds"
+    smtp {
+        addr "smtp.example.com:587"
 
-    [[providers]]
-    name          = "github"
-    secret        = "..."
-    client_id     = "..."
-    client_secret = "..."
+        ca "/etc/ssl/cert.pem"
 
-    [[providers]]
-    name          = "gitlab"
-    secret        = "..."
-    client_id     = "..."
-    client_secret = "..."
+        admin "no-reply@djinn-ci.com"
+
+        username "postmaster@example.com"
+        password "secret"
+    }
+
+    store artifacts {
+        type "file"
+        path "/var/lib/djinn/artifacts"
+    }
+
+    store images {
+        type "file"
+        path "/var/lib/djinn/images"
+    }
+
+    store objects {
+        type  "file"
+        path  "/var/lib/djinn/objects"
+        limit 5242880 
+    }
+
+    provider github {
+        secret "123456"
+
+        client_id     "..."
+        client_secret "..."
+    }
+
+    provider gitlab {
+        secret "123456"
+
+        client_id     "..."
+        client_secret "..."
+    }
 
 ## Running the Server
 
@@ -200,7 +248,7 @@ To run the server simply invoke the `djinn-server` binary. There are three flags
 that can be given to the `djinn-server` binary.
 
 * `-config` - This specifies the configuration file to use, by default
-this will be `djinn-server.toml`.
+this will be `djinn-server.conf`.
 
 * `-api` - This tells the server to only serve the [REST API](/api) endpoints.
 
@@ -212,15 +260,15 @@ the `/api` prefix,
 
 **Serving both the UI and API**
 
-    $ djinn-server -config /etc/djinn/server.toml
+    $ djinn-server -config /etc/djinn/server.conf
 
 **Serving just the API**
 
-    $ djinn-server -config /etc/djinn/server.toml -api
+    $ djinn-server -config /etc/djinn/server.conf -api
 
 **Serving just the UI**
 
-    $ djinn-server -config /etc/djinn/server.toml -ui
+    $ djinn-server -config /etc/djinn/server.conf -ui
 
 ## Configuring the Server Daemon
 

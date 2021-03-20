@@ -27,20 +27,20 @@ location that will make it accessible via your `PATH`.
 
 ## Configuration Locations
 
-For the offline runner, driver configuration sits in the `driver.toml` file. By
+For the offline runner, driver configuration sits in the `driver.conf` file. By
 default this is expected to be in the user config directory. Detailed below is
 where the file will be found on the different operating systems,
 
 **Unix**
 
 If non-empty then `$XDG_CONFIG_HOME` is used, and the fullpath would be
-`$XDG_CONFIG_HOME/djinn/driver.toml`. Otherwise it will use
-`~/.config/djinn/driver.toml`.
+`$XDG_CONFIG_HOME/djinn/driver.conf`. Otherwise it will use
+`~/.config/djinn/driver.conf`.
 
 **Darwin**
 
 On Darwin the path used will be,
-`$HOME/Library/Application Support/djinn/driver.toml`.
+`$HOME/Library/Application Support/djinn/driver.conf`.
 
 **Windows**
 
@@ -51,42 +51,51 @@ On Windows the path used will be, `%AppData%/djinn`.
 >**Note:** The same driver configuration used for the offline runner is used
 for the worker too.
 
-Each driver supported by Djinn CI is configured in its own block in the
-`driver.toml` file, for example to configure the QEMU driver you would do the
+Each driver supported by Djinn CI is configured in its own block directive in
+the `driver.conf` file like so,
+
+    driver <name> {
+        ...
+    }
+
+where `<name>` is the name of the driver being configured, followed by a list
+of value directives. For example to configure the QEMU driver you would do the
 following,
 
-    [qemu]
-    disks   = "/home/me/.config/djinn/images/qemu"
-    cpus    = 1
-    memory  = 2048
+    driver qemu {
+        disks  "/home/me/.config/djinn/images/qemu"
+        cpus   1
+        memory 2048
+    }
 
 the above configuration would set the location of the QEMU disk images to use,
 the number of CPUs, and the amount of memory for each machine that will be
 created.
 
+For a completed example of a `driver.conf` file see the `dist` directory of the
+source repository.
+
 ### Docker
 
-The Docker driver is configured in the `[docker]` block of the `driver.toml`
-configuration file. Detailed below are the different properties for this block,
+Detailed below are the value directives used by the Docker driver.
 
-* `host` -  The host of the running docker daemon, can be a path to a Unix
-socket.
+* **`host`** `string` - The host of the running Docker daemon, can be a path
+to a Unix socket.
 
-* `version` - The version of the Docker API you wish to use.
+* **`version`** `string` - The version of the Docker API you wish to use.
 
 ### QEMU
 
-The QEMU driver is configured in the `[qemu]` block of the `driver.toml`
-configuration file. Detailed below are the different properties for this block,
+Detailed below are the value directives used by the QEMU driver.
 
-* `disks` - The location on the filesystem to look for the QEMU disk images to
-use.
+* **`disks`** `string` - The location on the filesystem to look for the QEMU
+disk images to use.
 
-* `cpus` - The number of CPUs to use for a QEMU machine that is created for
-execution.
+* **`cpus`** `int` - The number of CPUs to use for a QEMU machine that is
+created for execution.
 
-* `memory` - The amount of memory in bytes for a QEMU machine that is created
-for execution.
+* **`memory`** `int` - The amount of memory in bytes for a QEMU machine that
+is created for execution.
 
 The directory specified in `disks` must have a another sub-directory for each
 architecture, in each of these exist the disk images to use. For example assume
@@ -96,6 +105,6 @@ a manifest declares the following,
       type: qemu
       image: centos/8
 
-then Djinn will look for the following disk image,
+then the offline runner will look for the following disk image,
 
     /home/me/.config/djinn/images/qemu/x86_64/centos/8

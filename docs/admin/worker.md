@@ -10,15 +10,6 @@ depending on the drivers you want to make available.
 * [External Dependencies](#external-dependencies)
   * [Driver Dependencies](#driver-dependencies)
 * [Configuring the Worker](#configuring-the-worker)
-  * [General Configuration](#general-configuration)
-  * [Crypto](#crypto)
-  * [SMTP](#smtp)
-  * [Database](#database)
-  * [Redis](#redis)
-  * [Images](#images)
-  * [Artifacts](#artifacts)
-  * [Objects](#objects)
-  * [Logging](#logging)
 * [Example Worker Configuration](#example-worker-configuration)
 * [Running the Worker](#running-the-worker)
 * [Configuring the Worker Daemon](#configuring-the-worker-daemon)
@@ -46,139 +37,194 @@ to execute a build via that driver.
 
 ## Configuring the worker
 
-The server is configured via a `worker.toml` file, detailed below are the
-properties for this file,
+Detailed below are the [configuration](/admin/configuration) directives used by
+the worker. The worker also requires a `driver.conf` file to be configured, see
+details on how to do this [here](/user/offline-runner#configuring-drivers).
 
-The worker also requires a `driver.toml` file to be configured, see details
-on how to do this [here](/user/offline-runner#configuring-drivers).
+* **`parallelism`** `int`
 
-### General Configuration
+This specifies the parallelism to use when running multiple builds at one. Set
+this to `0` to use the number of CPU cores available.
 
-* `parallelism` - This specifies the parallelism to use when running multiple
-builds at one. Set this to `0` to use the number of CPU cores available.
+* **`driver`** `string`
 
-* `driver` - The driver we want to use when executing builds with the worker.
-To use all drivers then set to `*`. For the `qemu` driver the arch must match
-the host arch. For example, if running on `amd64` and you want to use the qemu
-driver then you must specify `qemu-x86_64`.
+The driver we want to use when executing builds with the worker. To use all
+drivers then set to `*`. For the `qemu` driver the arch must match the host
+arch. For example, if running on amd64 and you want to use the qemu driver then
+you must specify `qemu-x86_64`.
 
-* `timeout` - This specifies the duration after which builds should be killed.
-Valid time units are `ns`, `us`, `ms`, `s`, `m`, and `h`.
+* **`timeout`** `string`
 
-### Crypto
+The duration after which builds should be killed. Valid time units are `ns`,
+`us`, `ms`, `s`, `m`, `h`.
 
-* `crypto.block` - The key to use for the block cipher that is used for
-encrypting values. This must be either 16, 24, or 32 characters in length. This
-should match what is configured for the server.
+* **`crypto`** `{...}`
 
-### SMTP
+Configuration settings for decrypting of data. The value directives used here
+should match what was put in the
+[server configuration](/admin/server#configuring-the-server).
 
-* `smtp.addr` - The address of the SMTP server to use for sending mail.
+* **`block`** `string` - The block key is required for encrypting data. This
+must be either, 16, 24, or 32 characters in length.
 
-* `smtp.ca` - The path to the CA root chain that should be used, if you want to
-invoke the `STARTTLS` command on the SMTP server.
+* **`salt`** `string` -  Salt is used for generating hard to guess secrets,
+and for generating the final key that is used for encrypting data.
 
-* `smtp.admin` - The postmaster's email. This will be used in the `From` field
-in any mail that is sent via the SMTP server.
+* **`database`** `{...}`
 
-* `smtp.username` - The username of the account to authenticate with on the SMTP
-server.
+Provides connection information to the PostgreSQL database. Below are the
+directives used by the `database` block directive.
 
-* `smtp.password` - The password of the account to authenticate with on the SMTP
-server.
+* **`addr`** `string` - The address of the PostgreSQL server to connect to.
 
-### Database
+* **`name`** `string` - The name of the database to use.
 
-* `database.addr` - The address of the PostgreSQL server to connect to.
+* **`username`** `string` - The name of the database user.
 
-* `database.name` - The name of the database to use.
+* **`password`** `string` - The password of the database user.
 
-* `databse.username` - The name of the database user.
+* **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
 
-* `database.password` - The password of the database user.
+  * **`ca`** `string` - Path to the CA root to use.
+  * **`cert`** `string` - Path to the certificate to use.
+  * **`key`** `string` - Path to the key to use.
 
-### Redis
+* **`redis`** `{...}`
 
-* `redis.addr` - The address of the Redis server to connect to.
+Provides connection information to the Redis database. Below are the directives
+used by the `redis` block directive.
 
-### Images
+* **`addr`** `string` - The address of the Redis server to connect to.
 
-* `images.type` - The type of store to use for storing custom image files. Must
-be one of: `file`.
+* **`password`** `string` - The password used if the Redis server is
+password protected.
 
-* `images.path` - The location of where custom image files are stored.
+* **`smtp`** `{...}`
 
-The directory specified in `images.path` must have a another sub-directory for
-each supported driver. Within each of these directories should be a `_base`
-directory to contain the base images to support.
+Provides connection information to an SMTP server to sending emails. Below are
+the directives used by the `smtp` block directive.
 
-For the QEMU driver within the `_base` directory should be another sub-directory
-for each architecture. Within each of these should be the QEMU images to use.
+* **`addr`** `string` - The address of the SMTP server.
 
-### Artifacts
+* **`ca`** `string` - If connecting via TLS, then the path to the file that
+contains a set of root certificate authorities.
 
-* `artifacts.type` - The type of store to use for storing artifacts. Must be one
-of: `file`.
+* **`admin`** `string` - The email address to be used in the `From` field of
+mails that are sent.
 
-* `artifacts.path` - The location of where artifacts are stored.
+* **`username`** `string` - The username for authentication.
 
-* `artifacts.limit` - The maximum size of artifacts to collect from a build
-environment. This will cut off collection of an individual artifact at the given
-amount in bytes. Set to `0` for unlimited.
+* **`password`** `string` - The password for authentication.
 
-### Objects
+* **`store`** `identifier` `{...}`
 
-* `objects.type` - The type of store to use for storing objects. Must be one of:
-`file`.
+Configuration directives for each of the file stores the worker uses. There must
+be a store configured for each `artifacts`, `images`, and `objects`.
 
-* `objects.path` - The location of where to store objects to place into builds.
+Detailed below are the value directives used within a `store` block directive.
 
-### Logging
+* **`type`** `string` - The type of the store to use for the files being
+accessed. Must be `file`.
 
-* `log.level` - The level of logging to use whilst the server is running. Must
-be one of: `debug`, `info`, or `error`.
+* **`path`** `string` - The location of where the files are.
 
-* `log.file` - The file to write logs to, defaults to `/dev/stdout`.
+* **`limit`** `int` - The maximum size of files being uploaded. This will only
+be applied to artifacts collected from builds.
+
+* **`provider`** `identifier` `{...}`
+
+Configuration directives for each 3rd party provider we integrate with. These
+are used to handle updating commit statuses if a build was triggered via
+a pull request. The `identifier` would be one of the supported providers
+detailed below,
+
+* `github`
+* `gitlab`
+
+Detailed below are the value directives used within a `provider` block
+directive.
+
+* **`secret`** `string` - The secret used to authenticate incoming webhooks
+from the provider.
+
+* **`client_id`** `string` - The `client_id` of the provider being integrated
+with.
+
+* **`client_secret`** `string` - The `client_secret` of the provider being
+integrated with.
 
 ## Example Worker Configuration
 
-An example `worker.toml` file can be found in the `dist` directory of the
+An example `worker.conf` file can be found in the `dist` directory of the
 source repository.
 
-    parallelism = 0
+    pidfile "/var/run/djinn/worker.pid"
 
-    queue = "builds"
+    log info "/var/log/djinn/worker.log"
 
-    timeout = "30m"
+    parallelism 0
 
-    [crypto]
-    block = "..."
+    driver "*"
 
-    [database]
-    addr     = "localhost:5432"
-    name     = "djinn"
-    username = "djinn-worker"
-    password = "secret"
+    timeout "30m"
 
-    [redis]
-    addr = "localhost:6379"
+    crypto {
+        block "1a2b3c4d5e6f7g8h"
+        salt  "1a2b3c4d5e6f7g8h"
+    }
 
-    [images]
-    type = "file"
-    path = "/var/lib/djinn/images"
+    database {
+        addr "localhost:5432"
+        name "djinn"
 
-    [artifacts]
-    type  = "file"
-    path  = "/var/lib/djinn/artifacts"
-    limit = 5000000
+        username "djinn-worker"
+        password "secret"
+    }
 
-    [objects]
-    type = "file"
-    path = "/var/lib/djinn/objects"
+    redis {
+        addr "localhost:6379"
+    }
 
-    [log]
-    level = "info"
-    file  = "/var/log/djinn/worker.log"
+    smtp {
+        addr "smtp.example.com:587"
+
+        ca "/etc/ssl/cert.pem"
+
+        admin "no-reply@djinn-ci.com"
+
+        username "postmaster@example.com"
+        password "secret"
+    }
+
+    store artifacts {
+        type  "file"
+        path  "/var/lib/djinn/artifacts"
+        limit 52428800
+    }
+
+    store images {
+        type "file"
+        path "/var/lib/djinn/images"
+    }
+
+    store objects {
+        type "file"
+        path "/var/lib/djinn/objects"
+    }
+
+    provider github {
+        secret "123456"
+
+        client_id     "..."
+        client_secret "..."
+    }
+
+    provider gitlab {
+        secret "123456"
+
+        client_id     "..."
+        client_secret "..."
+    }
 
 ## Running the Worker
 
@@ -186,11 +232,11 @@ To run the worker simply invoke the `djinn-worker` binary. There are two flags
 that can be given to the `djinn-worker` binary.
 
 * `-config` - This specifies the configuration file to use, by default
-this will be `djinn-worker.toml`.
+this will be `djinn-worker.conf`.
 
 * `-driver` - This specifies the driver configuration file to use, for
 configuring the drivers you want to support on your server, by default this
-will be `djinn-driver.toml`.
+will be `djinn-driver.conf`.
 
 ## Configuring the Worker Daemon
 

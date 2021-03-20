@@ -8,10 +8,6 @@ cron jobs in batches of 1000 that are ready to be invoked.
 
 * [External Dependencies](#external-dependencies)
 * [Configuring the Scheduler](#configuring-the-scheduler)
-  * [Database](#database)
-  * [Redis](#redis)
-  * [Logging](#logging)
-  * [Drivers](#drivers)
 * [Example Scheduler Configuration](#example-server-configuration)
 * [Running the Scheduler](#running-the-scheduler)
 * [Configuring the Scheduler Daemon](#configuring-the-scheduler-daemon)
@@ -28,70 +24,69 @@ to start and run,
 
 ## Configuring the Scheduler
 
-The scheduler is configured via a `scheduler.toml` file, detailed below are the
-properties for this file,
+Detailed below are the [configuration](/admin/configuration) directives used by
+the scheduler.
 
-### Database
+* **`drivers`** `[...]`
 
-* `database.addr` - The address of the PostgreSQL server to connect to.
+The list of drivers supported on the server. This should match what is in the
+[server configuration](/admin/server#configuring-the-server). This should only
+contain string literals.
 
-* `database.name` - The name of the database to use.
+* **`database`** `{...}`
 
-* `databse.username` - The name of the database user.
+Provides connection information to the PostgreSQL database. Below are the
+directives used by the `database` block directive.
 
-* `database.password` - The password of the database user.
+* **`addr`** `string` - The address of the PostgreSQL server to connect to.
 
-### Redis
+* **`name`** `string` - The name of the database to use.
 
-* `redis.addr` - The address of the Redis server to connect to.
+* **`username`** `string` - The name of the database user.
 
-### Logging
+* **`password`** `string` - The password of the database user.
 
-* `log.level` - The level of logging to use whilst the server is running. Must
-be one of: `debug`, `info`, or `error`.
+* **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
 
-* `log.file` - The file to write logs to, defaults to `/dev/stdout`.
+  * **`ca`** `string` - Path to the CA root to use.
+  * **`cert`** `string` - Path to the certificate to use.
+  * **`key`** `string` - Path to the key to use.
 
-### Drivers
+* **`redis`** `{...}`
 
-The `[[drivers]]` table specifies the drivers that are provided by Djinn CI for
-executing builds. This expects the `type` of driver available, and the `queue`
-to place the builds on. It is valid for different driver types to be placed on
-to the same queue.
+Provides connection information to the Redis database. Below are the directives
+used by the `redis` block directive.
 
-* `drivers.type` - The type of driver to support on the server. Must be one of:
-`docker`, `qemu`, or `ssh`. This should match what is being used by the
-[server](/admin/server#drivers).
+* **`addr`** `string` - The address of the Redis server to connect to.
 
-* `drivers.queue` - The name of the queue that builds for the given driver should
-be submitted to. This should match what is being used by the
-[server](/admin/server#drivers).
+* **`password`** `string` - The password used if the Redis server is
+password protected.
 
 ## Example Scheduler Configuration
 
-An example `scheduler.toml` file can be found in the `dist` directory of the
+An example `scheduler.conf` file can be found in the `dist` directory of the
 source repository.
 
-    [database]
-    addr     = "localhost:5432"
-    name     = "djinn"
-    username = "djinn"
-    password = "secret"
+    pidfile "/var/run/djinn/scheduler.pid"
     
-    [redis]
-    addr = "localhost:6379"
+    log info "/var/log/djinn/scheduler.log"
     
-    [log]
-    level = "debug"
-    file  = "/dev/stdout"
+    drivers [
+        "docker",
+        "qemu-x86_64",
+    ]
     
-    [[drivers]]
-    type  = "qemu"
-    queue = "builds"
+    database {
+        addr "localhost:5432"
+        name "djinn"
     
-    [[drivers]]
-    type  = "docker"
-    queue = "builds"
+        username "djinn-scheduler"
+        password "secret"
+    }
+    
+    redis {
+        addr "localhost:6379"
+    }
 
 ## Running the Scheduler
 
@@ -99,7 +94,7 @@ To run the scheduler simply invoke the `djinn-scheduler` binary. There is only
 one flag that can be given to the `djinn-scheduler` binary.
 
 * `-config` - This specifies the configuration file to use, by default this
-will be `djinn-scheduler.toml`.
+will be `djinn-scheduler.conf`.
 
 ## Configuring the Scheduler Daemon
 

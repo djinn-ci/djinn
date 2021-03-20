@@ -8,8 +8,8 @@ After=network-online.target
 Type=simple
 User=djinn-scheduler
 Group=djinn
-PIDFile=/run/djinn/scheduler.pid
-ExecStart=/usr/bin/djinn-scheduler -config /etc/djinn/scheduler.toml
+PIDFile=/var/run/djinn/scheduler.pid
+ExecStart=/usr/bin/djinn-scheduler -config /etc/djinn/scheduler.conf
 KillMode=mixed
 KillSignal=SIGINT
 

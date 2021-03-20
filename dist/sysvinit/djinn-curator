@@ -9,7 +9,7 @@ GROUP="djinn"
 BIN="/usr/bin/djinn-curator"
 
 PIDFILE="/var/run/$NAME.pid"
-OPTS="-config /etc/djinn/curator.toml"
+OPTS="-config /etc/djinn/curator.conf"
 
 start() {
 	if [ -f "$PIDFILE" ]; then

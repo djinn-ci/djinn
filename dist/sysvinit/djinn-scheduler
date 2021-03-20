@@ -9,7 +9,7 @@ GROUP="djinn"
 BIN="/usr/bin/djinn-scheduler"
 
 PIDFILE="/var/run/$NAME.pid"
-OPTS="-config /etc/djinn/scheduler.toml"
+OPTS="-config /etc/djinn/scheduler.conf"
 
 start() {
 	if [ -f "$PIDFILE" ]; then

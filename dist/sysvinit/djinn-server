@@ -9,7 +9,7 @@ GROUP="djinn"
 BIN="/usr/bin/djinn-server"
 
 PIDFILE="/var/run/$NAME.pid"
-OPTS="-config /etc/djinn/server.toml"
+OPTS="-config /etc/djinn/server.conf"
 
 start() {
 	if [ -f "$PIDFILE" ]; then

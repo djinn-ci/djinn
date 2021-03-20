@@ -9,7 +9,7 @@ GROUP="djinn"
 BIN="/usr/bin/djinn-worker"
 
 PIDFILE="/var/run/$NAME.pid"
-OPTS="-config /etc/djinn/worker.toml -driver /etc/djinn/driver.toml"
+OPTS="-config /etc/djinn/worker.conf -driver /etc/djinn/driver.conf"
 
 start() {
 	if [ -f "$PIDFILE" ]; then

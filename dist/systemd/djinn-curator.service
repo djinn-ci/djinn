@@ -8,8 +8,8 @@ After=network-online.target
 Type=simple
 User=djinn-curator
 Group=djinn
-PIDFile=/run/djinn/curator.pid
-ExecStart=/usr/bin/djinn-curator -config /etc/djinn/curator.toml
+PIDFile=/var/run/djinn/curator.pid
+ExecStart=/usr/bin/djinn-curator -config /etc/djinn/curator.conf
 KillMode=mixed
 KillSignal=SIGINT
 

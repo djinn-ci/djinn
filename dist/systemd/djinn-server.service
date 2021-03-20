@@ -8,8 +8,8 @@ After=network-online.target
 Type=simple
 User=djinn-server
 Group=djinn
-PIDFile=/run/djinn/server.pid
-ExecStart=/usr/bin/djinn-server -config /etc/djinn/server.toml
+PIDFile=/var/run/djinn/server.pid
+ExecStart=/usr/bin/djinn-server -config /etc/djinn/server.conf
 KillMode=mixed
 KillSignal=SIGINT
 

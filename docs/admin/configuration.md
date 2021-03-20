@@ -23,8 +23,8 @@ Extended Backus-Naur Form:
 
     directive = array_directive | block_directive | value_directive .
 
-All of the configuration files used do share the following configuration
-directives,
+All of the configuration files used, with the exception of `driver.conf`, share
+the following configuration directives,
 
 * **`pidfile`** `string`
 

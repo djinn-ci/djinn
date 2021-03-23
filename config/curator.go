@@ -65,7 +65,7 @@ func DecodeCurator(name string, r io.Reader) (*Curator, error) {
 	cfg.log.SetLevel(cfg0.Log.Level)
 
 	if cfg0.Log.File != "/dev/stdout" {
-		f, err := os.OpenFile(cfg0.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0600)
+		f, err := os.OpenFile(cfg0.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
 
 		if err != nil {
 			return nil, err

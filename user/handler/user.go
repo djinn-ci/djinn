@@ -136,8 +136,8 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	if err := m.Send(h.SMTP.Client); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Alert{
-			Level:   template.Danger,
-			Message: "Failed to create account",
+			Level:   template.Warn,
+			Message: "Account created, but unable to send verification email",
 		}, "alert")
 		h.RedirectBack(w, r)
 		return

@@ -7,6 +7,12 @@ type Error struct {
 	Code    int
 	Message string
 }
+
+type InternalError struct {
+	Error
+
+	Stack string
+}
 %}
 
 {% collapsespace %}
@@ -22,6 +28,15 @@ type Error struct {
 	<div class="error">
 		<h1>{%v p.Code %}</h1>
 		<h2>{%s p.Message %}</h2>
+	</div>
+{% endfunc %}
+
+{% func (p *InternalError) Body() %}
+	<div class="error">
+		<h1>{%v p.Code %}</h1>
+		<h2>{%s p.Message %}</h2>
+		<br/><br/>
+		<pre>{%s p.Stack %}</pre>
 	</div>
 {% endfunc %}
 {% endcollapsespace %}

@@ -3,6 +3,8 @@
 package server
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/gob"
 	"net/http"
 	"runtime/debug"
@@ -69,6 +71,28 @@ type UI struct {
 	// CSRF defines the middleware function to use for protecting form submissions
 	// from CSRF attacks.
 	CSRF func(http.Handler) http.Handler
+}
+
+// encodeStack returns the base64 encoded string of the formatted stack trace
+// for the goroutine that called it. The base64 encoded string has each line
+// folded at 47 characters in length for formatting. This is used from the
+// recover handler to gracefully display fatal internal errors for reporting.
+func encodeStack() string {
+	base64 := base64.StdEncoding.EncodeToString(debug.Stack())
+
+	var buf bytes.Buffer
+
+	prev := 0
+
+	for i := range base64 {
+		if i % 47 == 0 {
+			buf.WriteString(base64[prev:i] + "\n")
+			prev = i
+			continue
+		}
+	}
+	buf.WriteString(base64[prev:] + "\n")
+	return buf.String()
 }
 
 func spoofHandler(h http.Handler) http.HandlerFunc {
@@ -177,18 +201,25 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if v := recover(); v != nil {
-				errh := web.HTMLError
+				if strings.HasPrefix(r.Header.Get("Accept"), "application/json") ||
+					strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+					data := map[string]string{
+						"message": "Something went wrong",
+						"stack": encodeStack(),
+					}
 
-				if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
-					errh = web.JSONError
+					webutil.JSON(w, data, http.StatusInternalServerError)
+					return
 				}
 
-				if err, ok := v.(error); ok {
-					s.Log.Error.Println(r.Method, r.URL, err)
+				p := &template.InternalError{
+					Error: template.Error{
+						Code:    http.StatusInternalServerError,
+						Message: "Something went wrong, when submitting an issue please include the following",
+					},
+					Stack: encodeStack(),
 				}
-
-				s.Log.Error.Println(r.Method, r.URL, string(debug.Stack()))
-				errh(w, "Something went wrong", http.StatusInternalServerError)
+				webutil.HTML(w, template.Render(p), p.Code)
 			}
 		}()
 		h.ServeHTTP(w, r)

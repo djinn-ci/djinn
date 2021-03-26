@@ -215,7 +215,7 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 				p := &template.InternalError{
 					Error: template.Error{
 						Code:    http.StatusInternalServerError,
-						Message: "Something went wrong, when submitting an issue please include the following",
+						Message: "Fatal error, when submitting an issue please include the following",
 					},
 					Stack: encodeStack(),
 				}

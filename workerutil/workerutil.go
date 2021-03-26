@@ -67,10 +67,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 	}
 
 	log.Info.Println("consuming from queue:", cfg.Queue())
-
-	for _, driver := range cfg.Drivers() {
-		log.Info.Println("enabled build driver", driver)
-	}
+	log.Info.Println("enabled build driver", cfg.Driver())
 
 	f2, err := os.Open(driverPath)
 

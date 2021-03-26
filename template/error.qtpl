@@ -26,15 +26,29 @@ type InternalError struct {
 
 {% func (p *Error) Body() %}
 	<div class="error">
+		<div class="logo">
+			<div class="handle"></div>
+			<div class="lid"></div>
+			<div class="lantern"></div>
+		</div>
 		<h1>{%v p.Code %}</h1>
 		<h2>{%s p.Message %}</h2>
+		<br/>
+		<a href="/">Back</a>
 	</div>
 {% endfunc %}
 
 {% func (p *InternalError) Body() %}
 	<div class="error">
+		<div class="logo">
+			<div class="handle"></div>
+			<div class="lid"></div>
+			<div class="lantern"></div>
+		</div>
 		<h1>{%v p.Code %}</h1>
 		<h2>{%s p.Message %}</h2>
+		<br/>
+		<a href="/">Back</a>
 		<br/><br/>
 		<pre>{%s p.Stack %}</pre>
 	</div>

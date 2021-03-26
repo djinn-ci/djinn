@@ -69,7 +69,7 @@ func (p *Error) StreamFooter(qw422016 *qt422016.Writer) {
 //line template/error.qtpl:23
 	qw422016.N().S(` <style type="text/css">`)
 //line template/error.qtpl:24
-	qw422016.N().S(`*{margin:0;padding:0}body{font-family:sans-serif;font-size:14px;background:#383e51;color:#fff}h1,h2{font-weight:400}.error{margin:0 auto;margin-top:150px;max-width:400px;padding:20px;text-align:center}.error h2{margin-top:20px}pre{text-align:left}`)
+	qw422016.N().S(`*{margin:0;padding:0}a{color:#66c9ff;cursor:pointer;text-decoration:none}body{font-family:sans-serif;font-size:14px;background:#383e51;color:#fff}h1,h2{font-weight:400}.error{margin:0 auto;margin-top:250px;max-width:400px;padding:20px;text-align:center}.error .logo{margin:0 auto;margin-bottom:20px;width:0}.error .logo .handle{margin-left:-20px;border-style:solid;border-width:5px 0 12px 10px;border-color:transparent transparent transparent #fff}.error .logo .lid{margin-bottom:-30px;margin-left:5px;border-style:solid;border-width:5px 0 12px 10px;border-color:transparent transparent transparent #fff}.error .logo .lantern{margin-left:-25px;border-style:solid;border-width:25px 25px 75px 0;border-color:transparent #fff transparent transparent}.error h2{margin-top:20px}pre{text-align:left}`)
 //line template/error.qtpl:24
 	qw422016.N().S(`</style> `)
 //line template/error.qtpl:25
@@ -104,85 +104,85 @@ func (p *Error) Footer() string {
 //line template/error.qtpl:27
 func (p *Error) StreamBody(qw422016 *qt422016.Writer) {
 //line template/error.qtpl:27
-	qw422016.N().S(` <div class="error"> <h1>`)
-//line template/error.qtpl:29
+	qw422016.N().S(` <div class="error"> <div class="logo"> <div class="handle"></div> <div class="lid"></div> <div class="lantern"></div> </div> <h1>`)
+//line template/error.qtpl:34
 	qw422016.E().V(p.Code)
-//line template/error.qtpl:29
+//line template/error.qtpl:34
 	qw422016.N().S(`</h1> <h2>`)
-//line template/error.qtpl:30
+//line template/error.qtpl:35
 	qw422016.E().S(p.Message)
-//line template/error.qtpl:30
-	qw422016.N().S(`</h2> </div> `)
-//line template/error.qtpl:32
+//line template/error.qtpl:35
+	qw422016.N().S(`</h2> <br/> <a href="/">Back</a> </div> `)
+//line template/error.qtpl:39
 }
 
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 func (p *Error) WriteBody(qq422016 qtio422016.Writer) {
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 	p.StreamBody(qw422016)
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 	qt422016.ReleaseWriter(qw422016)
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 }
 
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 func (p *Error) Body() string {
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 	p.WriteBody(qb422016)
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 	qs422016 := string(qb422016.B)
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 	return qs422016
-//line template/error.qtpl:32
+//line template/error.qtpl:39
 }
 
-//line template/error.qtpl:34
+//line template/error.qtpl:41
 func (p *InternalError) StreamBody(qw422016 *qt422016.Writer) {
-//line template/error.qtpl:34
-	qw422016.N().S(` <div class="error"> <h1>`)
-//line template/error.qtpl:36
+//line template/error.qtpl:41
+	qw422016.N().S(` <div class="error"> <div class="logo"> <div class="handle"></div> <div class="lid"></div> <div class="lantern"></div> </div> <h1>`)
+//line template/error.qtpl:48
 	qw422016.E().V(p.Code)
-//line template/error.qtpl:36
+//line template/error.qtpl:48
 	qw422016.N().S(`</h1> <h2>`)
-//line template/error.qtpl:37
+//line template/error.qtpl:49
 	qw422016.E().S(p.Message)
-//line template/error.qtpl:37
-	qw422016.N().S(`</h2> <br/><br/> <pre>`)
-//line template/error.qtpl:39
+//line template/error.qtpl:49
+	qw422016.N().S(`</h2> <br/> <a href="/">Back</a> <br/><br/> <pre>`)
+//line template/error.qtpl:53
 	qw422016.E().S(p.Stack)
-//line template/error.qtpl:39
+//line template/error.qtpl:53
 	qw422016.N().S(`</pre> </div> `)
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 }
 
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 func (p *InternalError) WriteBody(qq422016 qtio422016.Writer) {
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 	p.StreamBody(qw422016)
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 	qt422016.ReleaseWriter(qw422016)
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 }
 
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 func (p *InternalError) Body() string {
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 	p.WriteBody(qb422016)
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 	qs422016 := string(qb422016.B)
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 	return qs422016
-//line template/error.qtpl:41
+//line template/error.qtpl:55
 }

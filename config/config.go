@@ -61,6 +61,14 @@ type smtpCfg struct {
 	Password string
 }
 
+type storeCfg struct {
+	name string
+
+	Type  string
+	Path  string
+	Limit int64
+}
+
 var (
 	blockstores = map[string]func(string, int64) fs.Store{
 		"file": func(dsn string, limit int64) fs.Store {
@@ -178,39 +186,6 @@ func mkpidfile(path string) (*os.File, error) {
 	return pidfile, nil
 }
 
-func (cfg *providerCfg) put(n *node) error {
-	if n.body == nil {
-		return n.err("provider must be a configuration block")
-	}
-	if n.label == "" {
-		return n.err("unlabeled provider")
-	}
-
-	var walkerr error
-
-	n.body.walk(func(n *node) {
-		switch n.name {
-		case "secret":
-			cfg.Secret = n.value
-		case "endpoint":
-			cfg.Endpoint = n.value
-		case "client_id":
-			cfg.ClientID = n.value
-		case "client_secret":
-			cfg.ClientSecret = n.value
-		default:
-			walkerr = n.err("unknown provider configuration parameter: " + n.name)
-		}
-	})
-	return walkerr
-}
-
-type storeCfg struct {
-	Type  string
-	Path  string
-	Limit int64
-}
-
 func (cfg *Crypto) put(n *node) error {
 	if n.body == nil {
 		return n.err("crypto must be a configuration block")
@@ -241,7 +216,28 @@ func (cfg *Crypto) put(n *node) error {
 			walkerr = n.err("unknown crypto configuration parameter: " + n.name)
 		}
 	})
-	return walkerr
+
+	if walkerr != nil {
+		return walkerr
+	}
+	return cfg.validate()
+}
+
+func (cfg *Crypto) validate() error {
+	if len(cfg.Hash) != 32 && len(cfg.Hash) != 64 {
+		println(len(cfg.Hash))
+		return errors.New("crypto hash must be 32 or 64 characters in length")
+	}
+	if len(cfg.Block) != 16 && len(cfg.Block) != 24 && len(cfg.Block) != 32 {
+		return errors.New("crypto block must be 16, 24, or 32 characters in length")
+	}
+	if len(cfg.Salt) == 0 {
+		return errors.New("crypto salt is required")
+	}
+	if len(cfg.Auth) != 32 {
+		return errors.New("crypto auth must be 32 characters in length")
+	}
+	return nil
 }
 
 func (cfg *logCfg) put(n *node) error {
@@ -258,6 +254,13 @@ func (cfg *logCfg) put(n *node) error {
 
 	if _, ok := levels[n.label]; !ok {
 		return n.err("unknown log level: " + n.label)
+	}
+
+	if n.label == "" {
+		n.label = "info"
+	}
+	if n.value == "" {
+		n.value = os.Stdout.Name()
 	}
 
 	cfg.Level = n.label
@@ -330,7 +333,32 @@ func (cfg *databaseCfg) put(n *node) error {
 			walkerr = n.err("unknown database configuration parameter: " + n.name)
 		}
 	})
-	return walkerr
+
+	if walkerr != nil {
+		return walkerr
+	}
+	return cfg.validate()
+}
+
+func (cfg *databaseCfg) validate() error {
+	if cfg.Addr == "" {
+		return errors.New("database address not configured")
+	}
+
+	if _, _, err := net.SplitHostPort(cfg.Addr); err != nil {
+		return err
+	}
+
+	if cfg.Name == "" {
+		return errors.New("database name not configured")
+	}
+	if cfg.Username == "" {
+		return errors.New("database username not configured")
+	}
+	if cfg.Password == "" {
+		return errors.New("database user password not configured")
+	}
+	return nil
 }
 
 func (cfg *smtpCfg) put(n *node) error {
@@ -365,7 +393,22 @@ func (cfg *smtpCfg) put(n *node) error {
 			walkerr = n.err("unknown smtp configuration parameter: " + n.name)
 		}
 	})
-	return walkerr
+
+	if walkerr != nil {
+		return walkerr
+	}
+	return cfg.validate()
+}
+
+func (cfg *smtpCfg) validate() error {
+	if cfg.Addr == "" {
+		return errors.New("smtp address not configured")
+	}
+
+	if cfg.Admin == "" {
+		return errors.New("smtp admin email not configured")
+	}
+	return nil
 }
 
 func (cfg *redisCfg) put(n *node) error {
@@ -397,6 +440,13 @@ func (cfg *redisCfg) put(n *node) error {
 	return walkerr
 }
 
+func (cfg *redisCfg) validate() error {
+	if cfg.Addr == "" {
+		return errors.New("redis address not configured")
+	}
+	return nil
+}
+
 func (cfg *storeCfg) put(n *node) error {
 	if n.body == nil {
 		return n.err("store must be a configuration block")
@@ -404,6 +454,8 @@ func (cfg *storeCfg) put(n *node) error {
 	if n.label == "" {
 		return n.err("unlabeled store")
 	}
+
+	cfg.name = n.label
 
 	var walkerr error
 
@@ -439,5 +491,16 @@ func (cfg *storeCfg) put(n *node) error {
 			walkerr = n.err("unknown store configuration parameter: " + n.name)
 		}
 	})
-	return walkerr
+
+	if walkerr != nil {
+		return walkerr
+	}
+	return cfg.validate()
+}
+
+func (cfg *storeCfg) validate() error {
+	if cfg.Type == "" {
+		return errors.New(cfg.name + " store type not configured")
+	}
+	return nil
 }

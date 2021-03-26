@@ -18,8 +18,6 @@ drivers [
 	"qemu-x86_64",
 ]
 
-share_queue true
-
 net {
 	listen "localhost:8080"
 

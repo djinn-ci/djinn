@@ -7,12 +7,10 @@ import (
 	"os"
 	"runtime"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/driver/qemu"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
@@ -47,7 +45,7 @@ type Worker struct {
 
 	log *log.Logger
 
-	drivers     []string
+	driver      string
 	queue       string
 	parallelism int
 	timeout     time.Duration
@@ -109,39 +107,13 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 
 	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
 
-	cfg.drivers = make([]string, 0)
+	cfg.driver = cfg0.Driver
 
-	queue := defaultBuildQueue + "_" + cfg0.Driver
-
-	if cfg0.Driver == "*" {
-		queue = defaultBuildQueue
-
-		for _, driver := range driver.All {
-			if driver == "qemu" {
-				driver += "-" + qemu.GetExpectedArch()
-			}
-			cfg.drivers = append(cfg.drivers, driver)
-		}
-	} else {
-		cfg.drivers = append(cfg.drivers, cfg0.Driver)
+	if cfg.driver == "qemu" {
+		cfg.driver += "-" + qemu.GetExpectedArch()
 	}
 
-	if strings.HasPrefix(cfg0.Driver, "qemu") {
-		parts := strings.SplitN(cfg0.Driver, "-", 2)
-
-		if len(parts) == 1 {
-			return nil, errors.New("qemu driver does not specify arch")
-		}
-
-		if len(parts) > 1 {
-			if !qemu.MatchesGOARCH(parts[1]) {
-				arch := qemu.GetExpectedArch()
-				return nil, errors.New("qemu driver should be 'qemu-" + arch + "' when running on " + runtime.GOARCH)
-			}
-		}
-	}
-
-	cfg.queue = queue
+	cfg.queue = defaultBuildQueue + "_" + cfg.driver
 	cfg.parallelism = cfg0.Parallelism
 
 	cfg.timeout, err = time.ParseDuration(cfg0.Timeout)
@@ -251,7 +223,18 @@ func (w *workerCfg) put(n *node) error {
 	case "log":
 		return w.Log.put(n)
 	case "crypto":
-		return w.Crypto.put(n)
+		// These values are not needed by the worker itself, but necessary to
+		// pass validation, so spoof for now.
+		w.Crypto.Hash = []byte("00000000000000000000000000000000")
+		w.Crypto.Auth = []byte("00000000000000000000000000000000")
+
+		if err :=  w.Crypto.put(n); err != nil {
+			return err
+		}
+
+		w.Crypto.Hash = nil
+		w.Crypto.Auth = nil
+		return nil
 	case "smtp":
 		return w.SMTP.put(n)
 	case "database":
@@ -287,7 +270,7 @@ func (w *workerCfg) put(n *node) error {
 
 func (w *Worker) Pidfile() *os.File { return w.pidfile }
 func (w *Worker) Parallelism() int { return w.parallelism }
-func (w *Worker) Drivers() []string { return w.drivers }
+func (w *Worker) Driver() string { return w.driver }
 func (w *Worker) Queue() string { return w.queue }
 func (w *Worker) Timeout() time.Duration { return w.timeout }
 func (w *Worker) DB() *sqlx.DB { return w.db }

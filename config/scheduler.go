@@ -19,8 +19,7 @@ type schedulerCfg struct {
 
 	Log logCfg
 
-	Drivers    []string
-	ShareQueue bool
+	Drivers []string
 
 	Database databaseCfg
 	Redis    redisCfg
@@ -98,10 +97,6 @@ func DecodeScheduler(name string, r io.Reader) (*Scheduler, error) {
 	for _, driver := range cfg0.Drivers {
 		queue := defaultBuildQueue + "_" + driver
 
-		if cfg0.ShareQueue {
-			queue = defaultBuildQueue
-		}
-
 		cfg.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
 			Client: cfg.redis,
 			Queue:  queue,
@@ -138,16 +133,6 @@ func (s *schedulerCfg) put(n *node) error {
 		if walkerr != nil {
 			return walkerr
 		}
-	case "share_queue":
-		if n.lit != boolLit {
-			return n.err("share_queue must be a boolean")
-		}
-
-		if n.value == "true" {
-			s.ShareQueue = true
-			return nil
-		}
-		s.ShareQueue = false
 	case "database":
 		return s.Database.put(n)
 	case "redis":

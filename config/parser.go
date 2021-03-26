@@ -239,6 +239,15 @@ func (p *parser) parse() []*node {
 			p.next()
 			continue
 		}
+
+		if name == "provider" {
+			nodes = append(nodes, &node{
+				pos:   p.pos,
+				label: label,
+				name:  name,
+			})
+			continue
+		}
 		p.syntaxError()
 		p.next()
 	}

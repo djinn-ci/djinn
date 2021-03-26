@@ -28,6 +28,8 @@ import (
 )
 
 type providerCfg struct {
+	name string
+
 	Secret       string
 	Endpoint     string
 	ClientID     string
@@ -40,8 +42,7 @@ type serverCfg struct {
 
 	Log logCfg
 
-	Drivers    []string
-	ShareQueue bool
+	Drivers []string
 
 	Net struct {
 		Listen string
@@ -179,10 +180,6 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 	for _, driver := range cfg0.Drivers {
 		queue := defaultBuildQueue + "_" + driver
 
-		if cfg0.ShareQueue {
-			queue = defaultBuildQueue
-		}
-
 		cfg.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
 			Client: cfg.redis,
 			Queue:  queue,
@@ -287,6 +284,49 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 	return cfg, nil
 }
 
+func (cfg *providerCfg) put(n *node) error {
+	if n.label == "" {
+		return n.err("unlabeled provider")
+	}
+
+	if n.body == nil {
+		return nil
+	}
+
+	cfg.name = n.label
+
+	var walkerr error
+
+	n.body.walk(func(n *node) {
+		switch n.name {
+		case "secret":
+			cfg.Secret = n.value
+		case "endpoint":
+			cfg.Endpoint = n.value
+		case "client_id":
+			cfg.ClientID = n.value
+		case "client_secret":
+			cfg.ClientSecret = n.value
+		default:
+			walkerr = n.err("unknown provider configuration parameter: " + n.name)
+		}
+	})
+	return walkerr
+}
+
+func (cfg *providerCfg) validate() error {
+	if cfg.Secret == "" {
+		return errors.New(cfg.name + " provider secret not configured")
+	}
+	if cfg.ClientID == "" {
+		return errors.New(cfg.name + " provider client_id not configured")
+	}
+	if cfg.ClientSecret == "" {
+		return errors.New(cfg.name + " provider client_secret not configured")
+	}
+	return nil
+}
+
 func (s *serverCfg) put(n *node) error {
 	switch n.name {
 	case "host":
@@ -319,16 +359,6 @@ func (s *serverCfg) put(n *node) error {
 		if walkerr != nil {
 			return walkerr
 		}
-	case "share_queue":
-		if n.lit != boolLit {
-			return n.err("share_queue must be a boolean")
-		}
-
-		if n.value == "true" {
-			s.ShareQueue = true
-			return nil
-		}
-		s.ShareQueue = false
 	case "net":
 		if n.body == nil {
 			return n.err("net must be a configuration block")
@@ -348,7 +378,15 @@ func (s *serverCfg) put(n *node) error {
 				walkerr = n.err("unknown net configuration parameter: " + n.name)
 			}
 		})
-		return walkerr
+
+		if walkerr != nil {
+			return walkerr
+		}
+
+		if s.Net.Listen == "" {
+			return errors.New("net listen address not configured")
+		}
+		return nil
 	case "crypto":
 		return s.Crypto.put(n)
 	case "smtp":
@@ -378,6 +416,8 @@ func (s *serverCfg) put(n *node) error {
 			return err
 		}
 		s.Providers[n.label] = cfg
+
+		return cfg.validate()
 	default:
 		return n.err("unknown configuration parameter: " + n.name)
 	}

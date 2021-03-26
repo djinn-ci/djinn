@@ -140,7 +140,7 @@ func Init(path string) (*server.Server, *config.Server, func(), error) {
 		accept := r.Header.Get("Accept")
 		contentType := r.Header.Get("Content-Type")
 
-		if strings.HasPrefix(accept, "application/json") || strings.HasPrefix(accept, contentType) {
+		if strings.HasPrefix(accept, "application/json") || strings.HasPrefix(contentType, "application/json") {
 			web.JSONError(w, "Not found", http.StatusNotFound)
 			return
 		}

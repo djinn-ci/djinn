@@ -205,12 +205,21 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
+	var connected bool
+
 	rr, p, pp, paginator, err := h.loadRepos(u, q.Get("name"), page, false)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
+	}
+
+	for _, p := range pp {
+		if p.Connected {
+			connected = true
+			break
+		}
 	}
 
 	csrf := csrf.TemplateField(r)
@@ -222,6 +231,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		},
 		CSRF:      csrf,
 		Paginator: paginator,
+		Connected: connected,
 		Repos:     rr,
 		Provider:  p,
 		Providers: pp,

@@ -174,6 +174,10 @@ func (p *Provider) SetCommitStatus(block *crypto.Block, reg *Registry, r *Repo, 
 func (p *Provider) Repos(block *crypto.Block, reg *Registry, page int64) ([]*Repo, database.Paginator, error) {
 	paginator := database.Paginator{}
 
+	if !p.Connected {
+		return nil, paginator, nil
+	}
+
 	cli, err := reg.Get(p.Name)
 
 	if err != nil {

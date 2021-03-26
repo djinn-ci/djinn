@@ -12,8 +12,8 @@ Extended Backus-Naur Form:
     identifier = letter { letter | digit } .
 
     bool_literal   = "true" | "false" .
-    number_literal = [ digit ] .
-    string_literal = `"` [ unicode_char ] `"` .
+    number_literal = { digit } .
+    string_literal = `"` { unicode_char } `"` .
 
     literal = bool_literal | string_literal | number_literal .
 

@@ -41,11 +41,6 @@ This should match what is in the
 [scheduler configuration](/admin/scheduler#configuring-the-scheduler). This
 should only contain string literals.
 
-* **`share_queue`** `bool`
-
-Whether or not the builds should be put onto the same queue, or on a queue per
-driver.
-
 * **`net`** `{...}`
 
 Configuration details about how the server should be served over the network.

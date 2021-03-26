@@ -141,17 +141,8 @@ detailed below,
 * `github`
 * `gitlab`
 
-Detailed below are the value directives used within a `provider` block
-directive.
-
-* **`secret`** `string` - The secret used to authenticate incoming webhooks
-from the provider.
-
-* **`client_id`** `string` - The `client_id` of the provider being integrated
-with.
-
-* **`client_secret`** `string` - The `client_secret` of the provider being
-integrated with.
+unline in the `server.conf` file, we do not need to specify the client ID or
+secret for the configured providers.
 
 ## Example Worker Configuration
 
@@ -164,9 +155,12 @@ source repository.
 
     parallelism 0
 
-    driver "*"
+    driver "qemu"
 
     timeout "30m"
+
+    provider github
+    provider gitlab
 
     crypto {
         block "1a2b3c4d5e6f7g8h"
@@ -210,20 +204,6 @@ source repository.
     store objects {
         type "file"
         path "/var/lib/djinn/objects"
-    }
-
-    provider github {
-        secret "123456"
-
-        client_id     "..."
-        client_secret "..."
-    }
-
-    provider gitlab {
-        secret "123456"
-
-        client_id     "..."
-        client_secret "..."
     }
 
 ## Running the Worker

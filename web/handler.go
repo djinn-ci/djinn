@@ -90,6 +90,12 @@ func (h *Handler) Session(r *http.Request) (*sessions.Session, func(*http.Reques
 // Get the currently authenticated user from the request. Check for token
 // auth first, then fallback to cookie.
 func (h Handler) UserFromRequest(w http.ResponseWriter, r *http.Request) (*user.User, bool, error) {
+	// Djinn might be deployed behind basic authentication, if so we want to skip
+	// ahead and try and retrieve the user from the request cookie.
+	if _, _, ok := r.BasicAuth(); ok {
+		goto cookie
+	}
+
 	if _, ok := r.Header["Authorization"]; ok {
 		u, ok, err := h.UserFromToken(r)
 
@@ -99,6 +105,7 @@ func (h Handler) UserFromRequest(w http.ResponseWriter, r *http.Request) (*user.
 		return u, ok, nil
 	}
 
+cookie:
 	u, ok, err := h.UserFromCookie(r)
 
 	if err != nil {

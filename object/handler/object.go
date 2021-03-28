@@ -173,5 +173,11 @@ func (h Object) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get object from context")
 	}
-	return errors.Err(object.NewStoreWithBlockStore(h.DB, h.store).Delete(o.ID, o.Hash))
+
+	store, err := h.store.Partition(o.UserID)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+	return errors.Err(object.NewStoreWithBlockStore(h.DB, store).Delete(o.ID, o.Hash))
 }

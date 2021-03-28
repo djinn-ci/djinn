@@ -73,6 +73,8 @@ func (cfg *driverCfg) put(n *node) error {
 	case "docker":
 		var walkerr error
 
+		cfg.docker = &docker.Config{}
+
 		n.body.walk(func(n *node) {
 			switch n.name {
 			case "host":
@@ -94,6 +96,8 @@ func (cfg *driverCfg) put(n *node) error {
 		return walkerr
 	case "ssh":
 		var walkerr error
+
+		cfg.ssh = &ssh.Config{}
 
 		n.body.walk(func(n *node) {
 			switch n.name {
@@ -123,6 +127,8 @@ func (cfg *driverCfg) put(n *node) error {
 		return walkerr
 	case "qemu":
 		var walkerr error
+
+		cfg.qemu = &qemu.Config{}
 
 		n.body.walk(func(n *node) {
 			switch n.name {

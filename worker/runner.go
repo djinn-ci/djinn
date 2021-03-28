@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/andrewpillar/djinn/build"
@@ -83,7 +82,7 @@ func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, strin
 			name = filepath.Join(strings.Split(name, "/")...)
 			return filepath.Join(diskdir, "_base", arch, name), nil
 		}
-		return filepath.Join(diskdir, strconv.FormatInt(i.UserID, 10), i.Hash), nil
+		return filepath.Join(diskdir, i.Hash), nil
 	}
 }
 

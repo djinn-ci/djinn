@@ -2,7 +2,10 @@ package image
 
 import (
 	"bytes"
+	"compress/bzip2"
 	"io"
+	"io/ioutil"
+	"os"
 	"regexp"
 
 	"github.com/andrewpillar/djinn/errors"
@@ -25,7 +28,8 @@ var (
 	_ webutil.Form = (*Form)(nil)
 
 	rename = regexp.MustCompile("^[a-zA-Z0-9_\\-]+$")
-	magic  = []byte{0x51, 0x46, 0x49, 0xFB} // QCOW file format magic number
+
+	qcow = []byte{0x51, 0x46, 0x49, 0xFB} // QCOW magic number
 )
 
 // Fields returns a map containing the namespace, and name fields from the
@@ -83,16 +87,65 @@ func (f *Form) Validate() error {
 	}
 
 	if f.File.File != nil {
+		if err := f.extractIfBzip(); err != nil {
+			return errors.Err(err)
+		}
+
 		buf := make([]byte, 4, 4)
 
 		if _, err := f.File.Read(buf); err != nil {
 			return errors.Err(err)
 		}
 
-		if !bytes.Equal(buf, magic) {
+		if !bytes.Equal(buf, qcow) {
 			errs.Put("file", webutil.ErrField("File", errors.New("not a valid QCOW file format")))
 		}
 		f.File.Seek(0, io.SeekStart)
 	}
 	return errs.Err()
+}
+
+// extractIfBzip will check to see if the current uploaded file has been bzip2
+// compressed. If it has been, then it will be decompressed, and the underlying
+// multipart file will be replaced with the newly decrompressed file.
+func (f *Form) extractIfBzip() error {
+	// bzip2 magic number
+	bzh := []byte("BZh")
+
+	buf := make([]byte, 3, 3)
+
+	if _, err := f.File.Read(buf); err != nil {
+		return errors.Err(err)
+	}
+
+	f.File.File.Seek(0, io.SeekStart)
+
+	// Not bzip, do nothing.
+	if !bytes.Equal(buf, bzh) {
+		return nil
+	}
+
+	tmp, err := ioutil.TempFile("", "bzip-raw")
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	bzip2 := bzip2.NewReader(f.File)
+
+	if _, err := io.Copy(tmp, bzip2); err != nil {
+		return errors.Err(err)
+	}
+
+	f.File.Close()
+
+	if v, ok := f.File.File.(*os.File); ok {
+		if err := os.Remove(v.Name()); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	tmp.Seek(0, io.SeekStart)
+	f.File.File = tmp
+	return nil
 }

@@ -90,13 +90,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		return nil, f, errors.New("no user in request context")
 	}
 
-	store, err := h.store.Partition(u.ID)
-
-	if err != nil {
-		return nil, f, errors.Err(err)
-	}
-
-	images := image.NewStoreWithBlockStore(h.DB, store, u)
+	images := image.NewStoreWithBlockStore(h.DB, h.store, u)
 
 	f.File = webutil.NewFile("file", h.limit, r)
 	f.Resource = namespace.Resource{

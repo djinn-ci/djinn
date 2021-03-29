@@ -174,7 +174,7 @@ func mkpidfile(path string) (*os.File, error) {
 		return nil, nil
 	}
 
-	pidfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0660)
+	pidfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0644)
 
 	if err != nil {
 		return nil, errors.Err(err)

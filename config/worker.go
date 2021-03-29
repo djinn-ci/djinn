@@ -116,6 +116,10 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 	cfg.queue = defaultBuildQueue + "_" + cfg.driver
 	cfg.parallelism = cfg0.Parallelism
 
+	if cfg.parallelism == 0 {
+		cfg.parallelism = int(runtime.NumCPU())
+	}
+
 	cfg.timeout, err = time.ParseDuration(cfg0.Timeout)
 
 	if err != nil {
@@ -200,10 +204,6 @@ func (w *workerCfg) put(n *node) error {
 
 		if err != nil {
 			return n.err("parallelism is not a valid integer")
-		}
-
-		if i == 0 {
-			i = int64(runtime.NumCPU())
 		}
 		w.Parallelism = int(i)
 	case "driver":

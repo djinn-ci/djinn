@@ -263,7 +263,7 @@ func (b *Build) SetPrimary(id int64) { b.ID = id }
 func (b *Build) IsZero() bool {
 	return b == nil || b.ID == 0 &&
 		!b.NamespaceID.Valid &&
-		b.Manifest.String() == "" &&
+		b.Manifest.String() == "{}" &&
 		b.Status == runner.Status(0) &&
 		!b.Output.Valid &&
 		b.CreatedAt == time.Time{} &&

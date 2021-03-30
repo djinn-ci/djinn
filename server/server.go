@@ -219,6 +219,7 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 					},
 					Stack: encodeStack(),
 				}
+				s.Log.Error.Println(string(debug.Stack()))
 				webutil.HTML(w, template.Render(p), p.Code)
 			}
 		}()

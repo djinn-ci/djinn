@@ -45,7 +45,7 @@ func spoofFile(t *testing.T, useMagic bool) (*http.Request, http.ResponseWriter)
 		}
 
 		if useMagic {
-			w.Write(magic)
+			w.Write(qcow)
 		}
 
 		buf := make([]byte, 1024)

@@ -120,12 +120,14 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	var payload build.Payload
 
 	if err := gob.NewDecoder(data).Decode(&payload); err != nil {
+		w.Log.Error.Println(job.ID, "failed to decode job payload", errors.Err(err))
 		return errors.Err(err)
 	}
 
 	b, err := build.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(payload.BuildID)))
 
 	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
@@ -136,24 +138,28 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	b.User, err = user.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.UserID)))
 
 	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
 	t, err := build.NewTriggerStore(w.DB, b).Get()
 
 	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
 	p, err := provider.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(t.ProviderID)))
 
 	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
 	r, err := provider.NewRepoStore(w.DB, p).Get(query.Where("id", "=", query.Arg(t.RepoID)))
 
 	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
@@ -168,6 +174,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		)
 
 		if err != nil {
+			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 			return errors.Err(err)
 		}
 	}
@@ -189,18 +196,21 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	run := w.Runner(b)
 
 	if err := run.Init(); err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
 	d, err := build.NewDriverStore(w.DB, b).Get()
 
 	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
 	status, err := run.Run(ctx, job.ID, d)
 
 	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
@@ -215,6 +225,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		)
 
 		if err != nil {
+			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 			return errors.Err(err)
 		}
 	}
@@ -234,6 +245,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	u, err := users.Get(query.Where("id", "=", query.Arg(b.UserID)))
 
 	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
@@ -251,6 +263,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		)
 
 		if err != nil {
+			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 			return errors.Err(err)
 		}
 
@@ -288,7 +301,12 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		Subject: subj,
 		Body:    buf.String(),
 	}
-	return errors.Err(m.Send(w.SMTP))
+
+	if err := m.Send(w.SMTP); err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
+		return errors.Err(err)
+	}
+	return nil
 }
 
 // Run begins the worker for handling builds.

@@ -80,9 +80,12 @@ func (cfg *Config) Apply(d runner.Driver) {
 	v.Workspace = cfg.Workspace
 }
 
-func (cfg *Config) Merge(m map[string]string) {
-	cfg.Image = m["image"]
-	cfg.Workspace = m["workspace"]
+func (cfg *Config) Merge(m map[string]string) driver.Config {
+	cfg1 := (*cfg)
+	cfg1.Image = m["image"]
+	cfg1.Workspace = m["workspace"]
+
+	return &cfg1
 }
 
 // Create will create a volume, and pull down the configured image. The client

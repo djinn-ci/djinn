@@ -96,9 +96,12 @@ func MatchesGOARCH(arch string) bool {
 	return archLookup[arch] == runtime.GOARCH
 }
 
-func (cfg *Config) Merge(m map[string]string) {
-	cfg.Image = m["image"]
-	cfg.Arch = "x86_64"
+func (cfg *Config) Merge(m map[string]string) driver.Config {
+	cfg1 := (*cfg)
+	cfg1.Image = m["image"]
+	cfg1.Arch = "x86_64"
+
+	return &cfg1
 }
 
 func (cfg *Config) Apply(d runner.Driver) {
@@ -183,6 +186,7 @@ func (q *Driver) runCmd() error {
 				fmt.Fprintf(q.Writer, "failed to boot machine, couldn't find image %s\n", filepath.Base(disk))
 			} else {
 				fmt.Fprintf(q.Writer, "failed to boot machine\n")
+				fmt.Fprintf(q.Writer, buf.String() + "\n")
 			}
 			return err
 		}

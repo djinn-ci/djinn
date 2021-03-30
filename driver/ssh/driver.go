@@ -44,8 +44,11 @@ var (
 	_ driver.Config  = (*Config)(nil)
 )
 
-func (cfg *Config) Merge(m map[string]string) {
-	cfg.Addr = m["addr"]
+func (cfg *Config) Merge(m map[string]string) driver.Config {
+	cfg1 := (*cfg)
+	cfg1.Addr = m["addr"]
+
+	return &cfg1
 }
 
 func (cfg *Config) Apply(d runner.Driver) {

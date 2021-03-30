@@ -61,18 +61,13 @@ type Worker struct {
 	// running builds.
 	Log *log.Logger
 
+	Driver      string        // Driver is the name of the driver the worker is configured for.
 	Queue       string        // Queue is the name of the queue the worker should work from.
 	Parallelism int           // Parallelism is how many builds should be processed at once.
 	Timeout     time.Duration // Timeout is the maximum duration a build can run for.
 
-	// Config is the global driver configuration values. This will store
-	// information about the various drivers, such as where the QEMU images are
-	// stored, or the Docker API version to use.
-	Config map[string]driver.Config
-
-	// Drivers is the registry containg the driver implementations the worker
-	// can use for running builds.
-	Drivers *driver.Registry
+	Init   driver.Init   // Init is the initialization function for the worker's driver.
+	Config driver.Config // Config is the global configuration for the worker's driver.
 
 	// Providers is the registry containing the provider client implementations
 	// used for updating a build's commit status, if submitted via a pull
@@ -278,7 +273,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	)
 
 	adj := strings.Replace(status.String(), "_", " ", -1)
-	subj := fmt.Sprintf("Djinn - Build #%d %s", b.ID, adj)
+	subj := fmt.Sprintf("Djinn - Build #%d %s", b.Number, adj)
 
 	if status == runner.Failed {
 		output = run.Tail()
@@ -332,7 +327,8 @@ func (w *Worker) Runner(b *build.Build) *Runner {
 		build:     b,
 		objects:   w.Objects,
 		artifacts: w.Artifacts,
-		drivers:   w.Drivers,
+		driver:    w.Driver,
+		init:      w.Init,
 		config:    w.Config,
 		buf:       &bytes.Buffer{},
 		bufs:      make(map[int64]*bytes.Buffer),

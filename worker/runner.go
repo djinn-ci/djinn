@@ -42,11 +42,9 @@ type Runner struct {
 	objects   fs.Store
 	artifacts fs.Store
 
-	drivers *driver.Registry
-
-	// config is the map of global driver configurations read in from the
-	// djinn-driver.cfg fille when the worker started.
-	config  map[string]driver.Config
+	driver string
+	init   driver.Init
+	config driver.Config
 
 	keycfg string            // the .ssh/config to place in to a build
 	keys   map[string][]byte // the encrypted private keys to place in to a build
@@ -293,9 +291,13 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 	builds := build.NewStore(r.db)
 	jobs := build.NewJobStore(r.db)
 
-	init, err := r.drivers.Get(d.Config["type"])
+	typ := d.Config["type"]
 
-	if err != nil {
+	if typ == "qemu" {
+		typ += "-" + qemu.GetExpectedArch()
+	}
+
+	if typ != r.driver {
 		fmt.Fprintf(r.buf, "driver %s has not been configured for the worker\n", d.Config["type"])
 		fmt.Fprintf(r.buf, "killing build...\n")
 
@@ -307,14 +309,12 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 		if err := r.updateJobs(runner.Killed); err != nil {
 			r.log.Error.Println(jobId, "failed to update build jobs", err)
 		}
-		return runner.Killed, errors.Err(err)
+		return runner.Killed, nil
 	}
 
-	// Merge in the driver configuration from the build manifest.
-	cfg := r.config[d.Config["type"]]
-	cfg.Merge(d.Config)
+	cfg := r.config.Merge(d.Config)
 
-	driver := init(io.MultiWriter(r.buf, r.DriverBuffer()), cfg)
+	driver := r.init(io.MultiWriter(r.buf, r.DriverBuffer()), cfg)
 
 	if q, ok := driver.(*qemu.Driver); ok {
 		qemucfg := cfg.(*qemu.Config)

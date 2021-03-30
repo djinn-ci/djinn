@@ -77,7 +77,9 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 
 	defer f2.Close()
 
-	drivers, driverCfg, err := config.DecodeDriver(f2.Name(), f2)
+	driverName := cfg.Driver()
+
+	driverInit, driverCfg, err := config.DecodeDriver(driverName, f2.Name(), f2)
 
 	if err != nil {
 		return nil, cfg, nil, errors.Err(err)
@@ -93,8 +95,9 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 		Queue:       cfg.Queue(),
 		Parallelism: cfg.Parallelism(),
 		Timeout:     cfg.Timeout(),
+		Driver:      driverName,
+		Init:        driverInit,
 		Config:      driverCfg,
-		Drivers:     drivers,
 		Providers:   cfg.Providers(),
 		Objects:     cfg.Objects(),
 		Artifacts:   cfg.Artifacts(),

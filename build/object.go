@@ -319,22 +319,22 @@ func (s *ObjectStore) Place(name string, w io.Writer) (int64, error) {
 		return 0, errors.Err(err)
 	}
 
-	n, errPlace := s.placer.Place(o.Object.Hash, w)
+	n, placeerr := s.placer.Place(o.Object.Hash, w)
 
-	if errors.Cause(errPlace) == io.EOF {
-		errPlace = nil
+	if errors.Cause(placeerr) == io.EOF {
+		placeerr = nil
 	}
-
-	o.Placed = errPlace == nil
 
 	q := query.Update(
 		objectTable,
-		query.Set("placed", query.Arg(o.Placed)),
+		query.Set("placed", query.Arg(placeerr == nil)),
 		query.Where("id", "=", query.Arg(o.ID)),
 	)
 
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
-	return n, errors.Err(err)
+	if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
+		return n, errors.Err(err)
+	}
+	return n, errors.Err(placeerr)
 }
 
 // Stat returns the os.FileInfo of the Object by the given name. This uses the

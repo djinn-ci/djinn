@@ -406,8 +406,8 @@ func (s *Store) All(opts ...query.Option) ([]*Cron, error) {
 // This applies the namespace.WhereCollaborator option to the *user.User bound
 // database, and the database.Where option to the *namespace.Namespace bound
 // database.
-func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Store.Paginate(table, page, 25, opts...)
+func (s *Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
+	paginator, err := s.Store.Paginate(table, page, limit, opts...)
 	return paginator, errors.Err(err)
 }
 
@@ -427,7 +427,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Cron, database.
 		database.Search("name", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, opts...)
+	paginator, err := s.Paginate(page, 25, opts...)
 
 	if err != nil {
 		return nil, paginator, errors.Err(err)

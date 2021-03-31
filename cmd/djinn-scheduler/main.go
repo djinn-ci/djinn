@@ -20,12 +20,14 @@ func main() {
 	var (
 		configfile  string
 		batchsize   int64
+		interval    string
 		showversion bool
 	)
 
 	fs := flag.CommandLine
 
 	fs.Int64Var(&batchsize, "batch", 1000, "the number of jobs in a single batch")
+	fs.StringVar(&interval, "interval", "1m", "the inteval at which to poll for jobs")
 	fs.StringVar(&configfile, "config", "djinn-scheduler.conf", "the config file to use")
 	fs.BoolVar(&showversion, "version", false, "show the version and exit")
 	fs.Parse(os.Args[1:])
@@ -78,9 +80,20 @@ func main() {
 
 	signal.Notify(c, os.Interrupt)
 
-	t := time.NewTicker(time.Minute)
+	d, err := time.ParseDuration(interval)
+
+	if err != nil {
+		log.Error.Println("invalid duration string:", interval, "using default of 1m")
+		d = time.Minute
+	}
+
+	t := time.NewTicker(d)
 
 	producers := cfg.Producers()
+
+	batcher := cron.NewBatcher(db, batchsize, func(err error) {
+		log.Error.Println(err)
+	})
 
 loop:
 	for {
@@ -95,25 +108,20 @@ loop:
 					}
 				}()
 
-				batcher := cron.NewBatcher(db, batchsize)
-
-				for batcher.Next() {
+				for batcher.Load() {
 					log.Debug.Println("scheduled", len(batcher.Batch()), "cron job(s)")
 
-					n, err := batcher.Invoke(ctx, producers)
+					n := batcher.Invoke(ctx, producers)
 
-					if err != nil {
-						log.Error.Println(err)
-						continue
-					}
 					log.Debug.Println("submitted", n, "build(s)")
 				}
 
 				if err := batcher.Err(); err != nil {
-					log.Error.Println(err)
+					log.Error.Println("batch error", err)
 				}
 			}()
 		case sig := <-c:
+			t.Stop()
 			cancel()
 			log.Info.Println("signal:", sig, "received, shutting down")
 			break loop

@@ -21,31 +21,39 @@ import (
 // to be executed.
 type Batcher struct {
 	err       error
-	paginator database.Paginator
+	atEOF     bool
+	page      int64
+	limit     int64
 	store     *Store
 	builds    *build.Store
 	batch     []*Cron
+	errh      func(error)
 }
 
 // NewBatcher returns a new Batcher using the given Store to retrieve cron jobs
 // from, and setting the size of each batch to the given limit.
-func NewBatcher(db *sqlx.DB, limit int64) *Batcher {
+func NewBatcher(db *sqlx.DB, limit int64, errh func(error)) *Batcher {
 	return &Batcher{
 		store:  NewStore(db),
 		builds: build.NewStore(db),
-		paginator: database.Paginator{
-			Page:  1,
-			Limit: limit,
-		},
+		errh:   errh,
+		page:   1,
+		limit:  limit,
 	}
 }
 
-// Next will load in the next batch of cron jobs to be executed
+// Load will load in the next batch of cron jobs to be executed
 // (WHERE NOW() >= next_run). This will return false if it reaches the end of
 // the batches in the table. If the end of the table is reached, or if an error
 // happens then false is returned.
-func (b *Batcher) Next() bool {
-	paginator, err := b.store.Paginate(b.paginator.Page, query.Where("NOW()", ">=", query.Lit("next_run")))
+func (b *Batcher) Load() bool {
+	b.batch = b.batch[0:0]
+
+	if b.atEOF {
+		return false
+	}
+
+	paginator, err := b.store.Paginate(b.page, b.limit, query.Where("NOW()", ">=", query.Lit("next_run")))
 
 	if err != nil {
 		b.err = errors.Err(err)
@@ -86,10 +94,12 @@ func (b *Batcher) Next() bool {
 		c.User = users[c.UserID]
 	}
 
-	b.paginator = paginator
 	b.batch = cc
 
-	return paginator.Page == paginator.Pages[len(paginator.Pages)-1]
+	if paginator.Page == paginator.Next {
+		b.atEOF = true
+	}
+	return true
 }
 
 func (b *Batcher) Batch() []*Cron { return b.batch }
@@ -98,11 +108,10 @@ func (b *Batcher) Batch() []*Cron { return b.batch }
 func (b *Batcher) Err() error { return b.err }
 
 // Invoke will submit a build for each job in the current batch.
-func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Producer) (int, error) {
+func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Producer) int {
 	namespaces := namespace.NewStore(b.store.DB)
 	users := user.NewStore(b.store.DB)
 
-	errs := make([]error, 0, len(b.batch))
 	n := 0
 
 	for _, c := range b.batch {
@@ -110,14 +119,14 @@ func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Produ
 			n, err := namespaces.Get(query.Where("id", "=", query.Arg(c.NamespaceID.Int64)))
 
 			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to get namespace: %v", errors.Err(err)))
+				b.errh(fmt.Errorf("failed to get namespace: %v", errors.Err(err)))
 				continue
 			}
 
 			u, err := users.Get(query.Where("user_id", "=", query.Arg(n.UserID)))
 
 			if err != nil {
-				errs = append(errs, fmt.Errorf("failed to get namespace owner: %v", errors.Err(err)))
+				b.errh(fmt.Errorf("failed to get namespace owner: %v", errors.Err(err)))
 				continue
 			}
 			c.Manifest.Namespace = n.Path + "@" + u.Username
@@ -126,22 +135,22 @@ func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Produ
 		bld, err := b.store.Invoke(c)
 
 		if err != nil {
-			errs = append(errs, fmt.Errorf("failed to invoke cron: %v", errors.Err(err)))
+			b.errh(fmt.Errorf("failed to invoke cron: %v", errors.Err(err)))
 			continue
 		}
 
 		queue, ok := producers[bld.Manifest.Driver["type"]]
 
 		if !ok {
-			errs = append(errs, fmt.Errorf("invalid build driver: %v", bld.Manifest.Driver["type"]))
+			b.errh(fmt.Errorf("invalid build driver: %v", bld.Manifest.Driver["type"]))
 			continue
 		}
 
 		if err := b.builds.Submit(ctx, queue, "djinn-scheduler", bld); err != nil {
-			errs = append(errs, fmt.Errorf("failed to submit build: %v", errors.Err(err)))
+			b.errh(fmt.Errorf("failed to submit build: %v", errors.Err(err)))
 			continue
 		}
 		n++
 	}
-	return n, errors.Slice(errs)
+	return n
 }

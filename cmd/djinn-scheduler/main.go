@@ -87,13 +87,11 @@ func main() {
 		d = time.Minute
 	}
 
+	log.Info.Println("batch interval set to", d)
+
 	t := time.NewTicker(d)
 
 	producers := cfg.Producers()
-
-	batcher := cron.NewBatcher(db, batchsize, func(err error) {
-		log.Error.Println(err)
-	})
 
 loop:
 	for {
@@ -107,6 +105,12 @@ loop:
 						log.Error.Println(e.Error() + "\n" + string(debug.Stack()))
 					}
 				}()
+
+				batcher := cron.NewBatcher(db, batchsize, func(err error) {
+					log.Error.Println(err)
+				})
+
+				log.Debug.Println("loading batch of size", batchsize)
 
 				for batcher.Load() {
 					log.Debug.Println("scheduled", len(batcher.Batch()), "cron job(s)")

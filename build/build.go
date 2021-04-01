@@ -660,7 +660,7 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 
 	stages := NewStageStore(s.DB, b)
 
-	setup, err := stages.Create("setup - #"+strconv.FormatInt(b.ID, 10), false)
+	setup, err := stages.Create("setup - #"+strconv.FormatInt(b.Number, 10), false)
 
 	if err != nil {
 		return errors.Err(err)

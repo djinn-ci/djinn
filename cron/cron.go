@@ -336,6 +336,7 @@ func (s *Store) Invoke(c *Cron) (*build.Build, error) {
 
 	q := query.Update(
 		table,
+		query.Set("prev_run", query.Arg(time.Now())),
 		query.Set("next_run", query.Arg(c.NextRun)),
 	)
 

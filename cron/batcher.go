@@ -132,21 +132,28 @@ func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Produ
 			c.Manifest.Namespace = n.Path + "@" + u.Username
 		}
 
-		bld, err := b.store.Invoke(c)
+		build, err := b.store.Invoke(c)
 
 		if err != nil {
 			b.errh(fmt.Errorf("failed to invoke cron: %v", errors.Err(err)))
 			continue
 		}
 
-		queue, ok := producers[bld.Manifest.Driver["type"]]
+		typ := build.Manifest.Driver["type"]
+
+		if typ == "qemu" {
+			arch := "x86_64"
+			typ += "-" + arch
+		}
+
+		queue, ok := producers[typ]
 
 		if !ok {
-			b.errh(fmt.Errorf("invalid build driver: %v", bld.Manifest.Driver["type"]))
+			b.errh(fmt.Errorf("invalid build driver: %v", build.Manifest.Driver["type"]))
 			continue
 		}
 
-		if err := b.builds.Submit(ctx, queue, "djinn-scheduler", bld); err != nil {
+		if err := b.builds.Submit(ctx, queue, "djinn-scheduler", build); err != nil {
 			b.errh(fmt.Errorf("failed to submit build: %v", errors.Err(err)))
 			continue
 		}

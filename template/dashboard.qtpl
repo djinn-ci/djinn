@@ -63,7 +63,7 @@ const (
 var (
 	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
 	CronURI         = "\\/cron\\/?"
-	InvitesURI      =  "\\/invites\\/?"
+	InvitesURI      =  "^\\/invites\\/?"
 	BuildsURI       = "(^\\/builds\\/?|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
 	SettingsURI     = "\\/settings\\/?"
 	RepositoriesURI = "\\/repos\\/?"
@@ -191,7 +191,7 @@ func (l Level) String() string {
 					{% if Match(p.URL.Path, pattern("keys")) %}
 						<li><a title="SSH Keys" href="/keys" class="active">{% cat "../static/svg/key.svg" %}<span>SSH Keys</span></a></li>
 					{% else %}
-						<li><a title="Keys" href="/keys">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
+						<li><a title="Keys" href="/keys">{% cat "../static/svg/key.svg" %}<span>SSH Keys</span></a></li>
 					{% endif %}
 					<li class="sidebar-nav-header">ACCOUNT</li>
 					{% if Match(p.URL.Path, SettingsURI) %}

@@ -123,7 +123,7 @@ const (
 var (
 	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
 	CronURI         = "\\/cron\\/?"
-	InvitesURI      = "\\/invites\\/?"
+	InvitesURI      = "^\\/invites\\/?"
 	BuildsURI       = "(^\\/builds\\/?|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
 	SettingsURI     = "\\/settings\\/?"
 	RepositoriesURI = "\\/repos\\/?"
@@ -526,7 +526,7 @@ func (p *baseDashboard) StreamBody(qw422016 *qt422016.Writer) {
 </svg>
 `)
 //line template/dashboard.qtpl:194
-			qw422016.N().S(`<span>Keys</span></a></li> `)
+			qw422016.N().S(`<span>SSH Keys</span></a></li> `)
 //line template/dashboard.qtpl:195
 		}
 //line template/dashboard.qtpl:195

@@ -195,7 +195,7 @@ func (s *schedulerCfg) put(n *node) error {
 		// pass validation, so spoof for now.
 		s.Crypto.Block = []byte("00000000000000000000000000000000")
 		s.Crypto.Auth = []byte("00000000000000000000000000000000")
-		s.Crypto.Salt = []byte("00000000000000000000000000000000")
+		s.Crypto.Hash = []byte("00000000000000000000000000000000")
 
 		if err := s.Crypto.put(n); err != nil {
 			return err
@@ -203,7 +203,7 @@ func (s *schedulerCfg) put(n *node) error {
 
 		s.Crypto.Block = nil
 		s.Crypto.Auth = nil
-		s.Crypto.Salt = nil
+		s.Crypto.Hash = nil
 	case "database":
 		return s.Database.put(n)
 	case "redis":

@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
+	"time"
 
+	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/log"
 
 	"github.com/go-redis/redis"
@@ -17,10 +20,14 @@ import (
 type schedulerCfg struct {
 	Pidfile string
 
+	Interval  time.Duration
+	BatchSize int64
+
 	Log logCfg
 
 	Drivers []string
 
+	Crypto    Crypto
 	Database databaseCfg
 	Redis    redisCfg
 }
@@ -28,8 +35,12 @@ type schedulerCfg struct {
 type Scheduler struct {
 	pidfile *os.File
 
-	db    *sqlx.DB
-	redis *redis.Client
+	interval  time.Duration
+	batchsize int64
+
+	hasher *crypto.Hasher
+	db     *sqlx.DB
+	redis  *redis.Client
 
 	log *log.Logger
 
@@ -80,6 +91,30 @@ func DecodeScheduler(name string, r io.Reader) (*Scheduler, error) {
 
 	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
 
+	if cfg0.Interval == 0 {
+		cfg0.Interval = time.Minute
+	}
+
+	cfg.log.Info.Println("batch interval set to", cfg0.Interval)
+
+	if cfg0.BatchSize == 0 {
+		cfg0.BatchSize = 1000
+	}
+
+	cfg.log.Info.Println("batch size set to", cfg0.BatchSize)
+
+	cfg.interval = cfg0.Interval
+	cfg.batchsize = cfg0.BatchSize
+
+	cfg.hasher = &crypto.Hasher{
+		Salt:   string(cfg0.Crypto.Salt),
+		Length: 8,
+	}
+
+	if err := cfg.hasher.Init(); err != nil {
+		return nil, err
+	}
+
 	cfg.db, err = connectdb(cfg.log, cfg0.Database)
 
 	if err != nil {
@@ -113,6 +148,28 @@ func (s *schedulerCfg) put(n *node) error {
 			return n.err("pidfile must be a string")
 		}
 		s.Pidfile = n.value
+	case "interval":
+		if n.lit != stringLit {
+			return n.err("interval must be a duration string")
+		}
+
+		d, err := time.ParseDuration(n.value)
+
+		if err != nil {
+			return n.err("interval is not a valid duration string")
+		}
+		s.Interval = d
+	case "batchsize":
+		if n.lit != numberLit {
+			return n.err("batchsize must be an integer")
+		}
+
+		i, err := strconv.ParseInt(n.value, 10, 64)
+
+		if err != nil {
+			return n.err("batchsize must be an integer")
+		}
+		s.BatchSize = i
 	case "log":
 		return s.Log.put(n)
 	case "drivers":
@@ -133,6 +190,20 @@ func (s *schedulerCfg) put(n *node) error {
 		if walkerr != nil {
 			return walkerr
 		}
+	case "crypto":
+		// These values are not needed by the worker itself, but necessary to
+		// pass validation, so spoof for now.
+		s.Crypto.Block = []byte("00000000000000000000000000000000")
+		s.Crypto.Auth = []byte("00000000000000000000000000000000")
+		s.Crypto.Salt = []byte("00000000000000000000000000000000")
+
+		if err := s.Crypto.put(n); err != nil {
+			return err
+		}
+
+		s.Crypto.Block = nil
+		s.Crypto.Auth = nil
+		s.Crypto.Salt = nil
 	case "database":
 		return s.Database.put(n)
 	case "redis":
@@ -144,6 +215,9 @@ func (s *schedulerCfg) put(n *node) error {
 }
 
 func (s *Scheduler) Pidfile() *os.File { return s.pidfile }
+func (s *Scheduler) Interval() time.Duration { return s.interval }
+func (s *Scheduler) BatchSize() int64 { return s.batchsize }
+func (s *Scheduler) Hasher() *crypto.Hasher { return s.hasher }
 func (s *Scheduler) DB() *sqlx.DB { return s.db }
 func (s *Scheduler) Redis() *redis.Client { return s.redis }
 func (s *Scheduler) Log() *log.Logger { return s.log }

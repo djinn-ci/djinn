@@ -19,15 +19,11 @@ import (
 func main() {
 	var (
 		configfile  string
-		batchsize   int64
-		interval    string
 		showversion bool
 	)
 
 	fs := flag.CommandLine
 
-	fs.Int64Var(&batchsize, "batch", 1000, "the number of jobs in a single batch")
-	fs.StringVar(&interval, "interval", "1m", "the inteval at which to poll for jobs")
 	fs.StringVar(&configfile, "config", "djinn-scheduler.conf", "the config file to use")
 	fs.BoolVar(&showversion, "version", false, "show the version and exit")
 	fs.Parse(os.Args[1:])
@@ -80,18 +76,13 @@ func main() {
 
 	signal.Notify(c, os.Interrupt)
 
-	d, err := time.ParseDuration(interval)
-
-	if err != nil {
-		log.Error.Println("invalid duration string:", interval, "using default of 1m")
-		d = time.Minute
-	}
-
-	log.Info.Println("batch interval set to", d)
-
+	d := cfg.Interval()
 	t := time.NewTicker(d)
 
 	producers := cfg.Producers()
+	batchsize := cfg.BatchSize()
+
+	hasher := cfg.Hasher()
 
 loop:
 	for {
@@ -106,7 +97,7 @@ loop:
 					}
 				}()
 
-				batcher := cron.NewBatcher(db, batchsize, func(err error) {
+				batcher := cron.NewBatcher(db, hasher, batchsize, func(err error) {
 					log.Error.Println(err)
 				})
 

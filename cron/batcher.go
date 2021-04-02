@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/andrewpillar/djinn/build"
+	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/namespace"
@@ -32,10 +33,10 @@ type Batcher struct {
 
 // NewBatcher returns a new Batcher using the given Store to retrieve cron jobs
 // from, and setting the size of each batch to the given limit.
-func NewBatcher(db *sqlx.DB, limit int64, errh func(error)) *Batcher {
+func NewBatcher(db *sqlx.DB, hasher *crypto.Hasher, limit int64, errh func(error)) *Batcher {
 	return &Batcher{
 		store:  NewStore(db),
-		builds: build.NewStore(db),
+		builds: build.NewStoreWithHasher(db, hasher),
 		errh:   errh,
 		page:   1,
 		limit:  limit,

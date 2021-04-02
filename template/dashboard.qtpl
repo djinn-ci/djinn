@@ -189,7 +189,7 @@ func (l Level) String() string {
 						<li><a title="Variables" href="/variables">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
 					{% endif %}
 					{% if Match(p.URL.Path, pattern("keys")) %}
-						<li><a title="Keys" href="/keys" class="active">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
+						<li><a title="SSH Keys" href="/keys" class="active">{% cat "../static/svg/key.svg" %}<span>SSH Keys</span></a></li>
 					{% else %}
 						<li><a title="Keys" href="/keys">{% cat "../static/svg/key.svg" %}<span>Keys</span></a></li>
 					{% endif %}

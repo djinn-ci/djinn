@@ -224,7 +224,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 	</li>
 	<li>
 		<a href="{%s p.Build.Endpoint("keys") %}" class="{%s template.Active(p.Build.Endpoint("keys") == p.URL.Path) %}">
-			{% cat "../../static/svg/key.svg" %}<span>Keys</span>
+			{% cat "../../static/svg/key.svg" %}<span>SSH Keys</span>
 		</a>
 	</li>
 	<li>

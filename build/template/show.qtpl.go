@@ -705,7 +705,7 @@ func (p *Show) StreamNavigation(qw422016 *qt422016.Writer) {
 </svg>
 `)
 //line build/template/show.qtpl:227
-	qw422016.N().S(`<span>Keys</span></a></li><li><a href="`)
+	qw422016.N().S(`<span>SSH Keys</span></a></li><li><a href="`)
 //line build/template/show.qtpl:231
 	qw422016.E().S(p.Build.Endpoint("tags"))
 //line build/template/show.qtpl:231

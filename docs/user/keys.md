@@ -16,8 +16,8 @@ cloning repositories only.
 
 ## Creating a key
 
-Keys a created from the *Keys* link the dashboard's sidebar, and by clicking
-the *Create* button in the top right hand corner.
+Keys are created from the *SSH Keys* link the dashboard's sidebar, and by
+clicking the *Create* button in the top right hand corner.
 
 A key needs to be a valid SSH private key. During creation you will have the
 option to specify configuration for that key, for example,
@@ -30,7 +30,7 @@ the given name of the SSH key will be normalized with `_`, for example if
 you give the key a name of `my deploy key` then it will be stored and referenced
 as `my_deploy_key`.
 
-Keys and be grouped into a namespace just as any other resource.
+Keys can be grouped into a namespace just as any other resource.
 
 ## Using a key
 

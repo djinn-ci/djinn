@@ -33,6 +33,16 @@ The list of drivers supported on the server. This should match what is in the
 [server configuration](/admin/server#configuring-the-server). This should only
 contain string literals.
 
+* **`crypto`** `{...}`
+
+Configuration settings for generating names for artifacts that will be
+collected from builds submitted via the scheduler. The value directives put
+here should match what is in the
+[server configuration](/admin/server#configuring-the-server). This should only
+contain string lierals.
+
+* **`salt`** `string` - Salt is used for generating hard to guess secrets.
+
 * **`database`** `{...}`
 
 Provides connection information to the PostgreSQL database. Below are the
@@ -75,6 +85,10 @@ source repository.
         "docker",
         "qemu-x86_64",
     ]
+
+    crypto {
+        salt  "1a2b3c4d5e6f7g8h1a2b3c4d5e6f7g8h"
+    }
     
     database {
         addr "localhost:5432"

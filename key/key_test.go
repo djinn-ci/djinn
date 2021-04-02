@@ -161,10 +161,10 @@ func Test_StoreUpdate(t *testing.T) {
 	defer close_()
 
 	mock.ExpectExec(
-		"^UPDATE keys SET namespace_id = \\$1, config = \\$2, updated_at = \\$3 WHERE \\(id = \\$4\\)$",
-	).WithArgs(1, "", anyTime{}, 10).WillReturnResult(sqlmock.NewResult(0, 1))
+		"^UPDATE keys SET config = \\$1, updated_at = \\$2 WHERE \\(id = \\$3\\)$",
+	).WithArgs("", anyTime{}, 10).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	if err := store.Update(10, 1, ""); err != nil {
+	if err := store.Update(10, ""); err != nil {
 		t.Errorf("unexpected Update error: %s\n", errors.Cause(err))
 	}
 }

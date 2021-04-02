@@ -38,14 +38,12 @@ func (p *Form) Action() string {
 				{% if p.Key != nil %}
 					<input type="hidden" name="_method" value="PATCH"/>
 				{% endif %}
-				<div class="form-field">
-					<label class="label" for="namespace">Namespace <small>(optional)</small></label>
-					{% if p.Key != nil && p.Key.Namespace != nil %}
-						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Key.Namespace.Name %}" autocomplete="off"/>
-					{% else %}
-						<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Fields["namespace"] %}" autocomplete="off"/>
-					{% endif %}
-				</div>
+				{% if p.Key == nil  %}
+					<div class="form-field">
+						<label class="label" for="namespace">Namespace <small>(optional)</small></label>
+							<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Fields["namespace"] %}" autocomplete="off"/>
+					</div>
+				{% endif %}
 				{% if p.Key == nil %}
 					<div class="form-field">
 						<label class="label" for="name">Name</label>

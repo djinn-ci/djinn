@@ -40,12 +40,18 @@ func (f Form) Fields() map[string]string {
 func (f Form) Validate() error {
 	errs := webutil.NewErrors()
 
-	if err := f.Resource.Resolve(f.Keys); err != nil {
-		return errors.Err(err)
+	// Only resolve the namespace on new keys being created, we don't want
+	// resources to be easily moved between namespaces.
+	if f.Key == nil {
+		if err := f.Resource.Resolve(f.Keys); err != nil {
+			return errors.Err(err)
+		}
 	}
 
-	if f.Name == "" && f.Key == nil {
-		errs.Put("name", webutil.ErrFieldRequired("Name"))
+	if f.Name == "" {
+		if f.Key == nil {
+			errs.Put("name", webutil.ErrFieldRequired("Name"))
+		}
 	}
 
 	checkUnique := true
@@ -76,8 +82,10 @@ func (f Form) Validate() error {
 		}
 	}
 
-	if f.PrivateKey == "" && f.Key == nil {
-		errs.Put("key", webutil.ErrFieldRequired("Key"))
+	if f.PrivateKey == "" {
+		if f.Key == nil {
+			errs.Put("key", webutil.ErrFieldRequired("Key"))
+		}
 	}
 
 	if f.Key == nil {

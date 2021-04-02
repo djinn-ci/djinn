@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/andrewpillar/djinn/crypto"
 	"github.com/andrewpillar/djinn/database"
@@ -21,6 +22,10 @@ type Key struct {
 
 	loaders *database.Loaders
 	block   *crypto.Block
+}
+
+func stripCRLF(s string) string {
+	return strings.Replace(s, "\r", "", -1)
 }
 
 func New(h web.Handler, block *crypto.Block) Key {
@@ -93,7 +98,7 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	k, err := keys.Create(f.Author.ID, f.Name, f.PrivateKey, f.Config)
+	k, err := keys.Create(f.Author.ID, f.Name, stripCRLF(f.PrivateKey), f.Config)
 	return k, f, errors.Err(err)
 }
 
@@ -143,10 +148,6 @@ func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 
 	keys := key.NewStore(h.DB, u)
 
-	f.Resource = namespace.Resource{
-		Author:     u,
-		Namespaces: namespace.NewStore(h.DB, u),
-	}
 	f.Key = k
 	f.Keys = keys
 
@@ -154,18 +155,7 @@ func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 		return k, f, errors.Err(err)
 	}
 
-	namespaceId := k.NamespaceID.Int64
-
-	if f.Namespace != "" {
-		n, err := namespace.NewStore(h.DB).GetByPath(f.Namespace)
-
-		if err != nil {
-			return k, f, errors.Err(err)
-		}
-		namespaceId = n.ID
-	}
-
-	err := keys.Update(k.ID, namespaceId, f.Config)
+	err := keys.Update(k.ID, f.Config)
 	return k, f, errors.Err(err)
 }
 

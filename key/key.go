@@ -262,13 +262,9 @@ func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(ta
 
 // Update updates the key with the given id, and set's the new namespace for
 // the key, and the new config to use.
-func (s *Store) Update(id, namespaceId int64, config string) error {
+func (s *Store) Update(id int64, config string) error {
 	q := query.Update(
 		table,
-		query.Set("namespace_id", query.Arg(sql.NullInt64{
-			Int64: namespaceId,
-			Valid: namespaceId > 0,
-		})),
 		query.Set("config", query.Arg(config)),
 		query.Set("updated_at", query.Arg(time.Now())),
 		query.Where("id", "=", query.Arg(id)),

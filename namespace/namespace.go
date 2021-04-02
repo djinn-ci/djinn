@@ -141,7 +141,8 @@ func SharedWith(u *user.User) query.Option {
 
 // Resolve will get the namespace and namespace owner for the current resource.
 // This will bind the namespace and namespace owner to the given
-// database.Binder.
+// database.Binder. If the resource author cannot add the resource to the
+// namespace, then this return ErrPermission.
 func (r *Resource) Resolve(b database.Binder) error {
 	if r.Namespace == "" {
 		return nil
@@ -153,8 +154,10 @@ func (r *Resource) Resolve(b database.Binder) error {
 		return errors.Err(err)
 	}
 
-	if n.Collaborators != nil && !n.CanAdd(r.Author) {
-		return ErrPermission
+	if n.Collaborators != nil {
+		if !n.CanAdd(r.Author) {
+			return ErrPermission
+		}
 	}
 
 	b.Bind(n, n.User)

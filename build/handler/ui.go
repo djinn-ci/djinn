@@ -335,7 +335,15 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rec, err := h.artifacts.Open(a.Hash)
+	store, err := h.artifacts.Partition(b.UserID)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	rec, err := store.Open(a.Hash)
 
 	if err != nil {
 		if os.IsNotExist(errors.Cause(err)) {

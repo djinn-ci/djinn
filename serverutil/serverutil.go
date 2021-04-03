@@ -234,11 +234,30 @@ func RegisterRoutesWithGates(cfg *config.Server, api, ui bool, srv *server.Serve
 	var prefix string
 
 	if api {
+		route := "/"
+
 		if ui {
 			prefix = "/api"
+			route = prefix
 
 			srv.Log.Info.Println("api routes served under", srv.Server.Addr+prefix)
 		}
+
+		srv.Router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+			addr := webutil.BaseAddress(r)
+
+			data := map[string]string{
+				"builds_url":     addr + "/builds",
+				"namespaces_url": addr + "/namespaces",
+				"cron_url":       addr + "/cron",
+				"invites_url":    addr + "/invites",
+				"images_url":     addr + "/images",
+				"objects_url":    addr + "/objects",
+				"variables_url":  addr + "/variables",
+				"keys_url":       addr + "/keys",
+			}
+			webutil.JSON(w, data, http.StatusOK)
+		})
 
 		apisrv := server.API{
 			Server: srv,

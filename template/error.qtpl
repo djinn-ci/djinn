@@ -50,7 +50,7 @@ type InternalError struct {
 		<br/>
 		<a href="/">Back</a>
 		<br/><br/>
-		<pre>{%s p.Stack %}</pre>
+		<textarea readonly>{%s p.Stack %}</textarea>
 	</div>
 {% endfunc %}
 {% endcollapsespace %}

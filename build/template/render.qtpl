@@ -74,7 +74,7 @@ import (
 							{% if a.DeletedAt.Valid || a.MD5 == nil && a.SHA256 == nil %}
 								<td><a title="Artifact deleted"><strike>{%s a.Name %}</strike></a></td>
 							{% else %}
-								<td><a href="{%s a.Endpoint("download", a.Name) %}">{%s a.Name %}</a></td>
+								<td><a href="{%s a.Endpoint() %}">{%s a.Name %}</a></td>
 							{% endif %}
 							<td>{%s template.RenderSize(a.Size.Int64) %}</td>
 							<td>

@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
@@ -82,9 +81,9 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	id, _ := strconv.ParseInt(mux.Vars(r)["artifact"], 10, 64)
+	name := mux.Vars(r)["name"]
 
-	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", query.Arg(id)))
+	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", query.Arg(name)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

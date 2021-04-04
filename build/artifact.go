@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"strconv"
 	"time"
 
 	"github.com/andrewpillar/djinn/database"
@@ -190,12 +189,13 @@ func (a *Artifact) JSON(addr string) map[string]interface{} {
 // otherwise the fulld Build endpoint is returned, suffixed with the Artifact
 // endpoint, for example,
 //
-//   /b/l.belardo/10/artifacts/3
+//   /b/l.belardo/10/artifacts/os-release
 func (a *Artifact) Endpoint(uris ...string) string {
 	if a.Build == nil || a.Build.IsZero() {
 		return ""
 	}
-	uris = append([]string{"artifacts", strconv.FormatInt(a.ID, 10)}, uris...)
+
+	uris = append([]string{"artifacts", a.Name}, uris...)
 	return a.Build.Endpoint(uris...)
 }
 

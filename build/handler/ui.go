@@ -320,9 +320,9 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "Failed to get build from request context")
 	}
 
-	id, _ := strconv.ParseInt(mux.Vars(r)["artifact"], 10, 64)
+	name := mux.Vars(r)["name"]
 
-	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("id", "=", query.Arg(id)))
+	a, err := build.NewArtifactStore(h.DB, b).Get(query.Where("name", "=", query.Arg(name)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -330,7 +330,7 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if a.IsZero() || a.Name != mux.Vars(r)["name"] {
+	if a.IsZero() {
 		web.HTMLError(w, "Not found", http.StatusNotFound)
 		return
 	}

@@ -227,7 +227,7 @@ func StreamRenderArtifactTable(qw422016 *qt422016.Writer, aa []*build.Artifact, 
 //line build/template/render.qtpl:76
 					qw422016.N().S(` <td><a href="`)
 //line build/template/render.qtpl:77
-					qw422016.E().S(a.Endpoint("download", a.Name))
+					qw422016.E().S(a.Endpoint())
 //line build/template/render.qtpl:77
 					qw422016.N().S(`">`)
 //line build/template/render.qtpl:77

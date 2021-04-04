@@ -2,6 +2,7 @@ package handler
 
 import (
 	"crypto/rand"
+	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
@@ -17,6 +18,8 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/gorilla/mux"
+
+	"github.com/go-redis/redis"
 )
 
 // Provider is the handler that handles the authentication flow against a
@@ -24,16 +27,40 @@ import (
 type Provider struct {
 	web.Handler
 
+	redis     *redis.Client
 	block     *crypto.Block
 	providers *provider.Registry
 }
 
-func New(h web.Handler, block *crypto.Block, providers *provider.Registry) Provider {
+func New(h web.Handler, redis *redis.Client, block *crypto.Block, providers *provider.Registry) Provider {
 	return Provider{
 		Handler:   h,
+		redis:     redis,
 		block:     block,
 		providers: providers,
 	}
+}
+
+func (h Provider) cachePurge(name string, id int64) error {
+	page := 1
+
+	// Delete every key we can find, this breaks when the result returned from
+	// DEL is 0, or if there is an error.
+	for {
+		key := fmt.Sprintf(cacheKey, name, id, page)
+
+		n, err := h.redis.Del(key).Result()
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		if n == 0 {
+			break
+		}
+		page++
+	}
+	return nil
 }
 
 func (h Provider) disableHooks(p *provider.Provider) error {
@@ -395,6 +422,17 @@ func (h Provider) Revoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.disableHooks(p); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to disconnect from provider",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if err := h.cachePurge(p.Name, p.UserID); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Alert{
 			Level:   template.Danger,

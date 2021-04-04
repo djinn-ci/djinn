@@ -74,12 +74,13 @@ func New(cfg *config.Server, h web.Handler, mw web.Middleware) *Router {
 	gob.Register([]*provider.Repo{})
 	gob.Register(database.Paginator{})
 
+	redis := cfg.Redis()
 	block := cfg.BlockCipher()
 	providers := cfg.Providers()
 
 	return &Router{
 		middleware: mw,
-		provider:   handler.New(h, block, providers),
+		provider:   handler.New(h, redis, block, providers),
 		repo:       handler.NewRepo(h, cfg.Redis(), block, providers),
 	}
 }

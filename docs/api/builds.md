@@ -374,7 +374,7 @@ was created.
         "md5": null,
         "sha256": null,
         "created_at": "2006-01-02T15:04:05Z",
-        "url": "{{index .Vars "apihost"}}/b/me/3/artifacts/1"
+        "url": "{{index .Vars "apihost"}}/b/me/3/artifacts/data.cleaned"
     }
 
 </div>
@@ -748,14 +748,14 @@ Returns the given [artifact](/api/builds#the-artifact-object).
 
 **Request**
 
-    GET /b/:user/:id/artifacts/:artifact_id
+    GET /b/:user/:id/artifacts/:name
 
 **Examples**
 
     $ curl -X GET \
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
-           {{index .Vars "apihost"}}/b/me/3/artifacts/1
+           {{index .Vars "apihost"}}/b/me/3/artifacts/data.cleaned
 
 </div>
 </div>

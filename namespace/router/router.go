@@ -176,40 +176,6 @@ func New(_ *config.Server, h web.Handler, mw web.Middleware) *Router {
 	}
 }
 
-// Init initialiases the primary handler.Namespace for handling the primary
-// logic of Namespace creation and management. This will setup the database.Loader
-// for relationship loading, and the related database stores. The exported
-// properties on the Router itself are passed through to the underlying
-// handler.Namspace.
-//func (r *Router) Init(h web.Handler) {
-//	namespaces := namespace.NewStore(h.DB)
-//
-//	loaders := database.NewLoaders()
-//	loaders.Put("user", h.Users)
-//	loaders.Put("inviter", h.Users)
-//	loaders.Put("invitee", h.Users)
-//	loaders.Put("namespace", namespaces)
-//	loaders.Put("build_tag", build.NewTagStore(h.DB))
-//	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
-//
-//	r.namespace = handler.Namespace{
-//		Handler:    h,
-//		Loaders:    loaders,
-//		Builds:     build.NewStore(h.DB),
-//		Namespaces: namespaces,
-//	}
-//
-//	r.invite = handler.Invite{
-//		Handler: h,
-//		Invites: namespace.NewInviteStore(h.DB),
-//		Loaders: loaders,
-//	}
-//
-//	r.collaborator = handler.Collaborator{
-//		Handler: h,
-//	}
-//}
-
 // RegisterUI registers the UI routes for Namespace creation, and management.
 // There are two types of routes, simple auth routes, and individual namespace
 // routes. These routes respond with a text/html Content-Type.

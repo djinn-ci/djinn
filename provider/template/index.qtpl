@@ -67,6 +67,9 @@ var providerNames = map[string]string{
 				</thead>
 				<tbody>
 					{% for _, r := range p.Repos %}
+						{% if r.Provider == nil %}
+							{% continue %}
+						{% endif %}
 						<tr>
 							<td>
 								<span class="muted">
@@ -113,7 +116,7 @@ var providerNames = map[string]string{
 {% endfunc %}
 
 {% func (p *RepoIndex) Actions() %}
-	{% if p.Connected %}
+	{% if p.Provider != nil && p.Provider.Connected %}
 		<form method="POST" action="/repos/reload?provider={%s p.Provider.Name %}&page={%v p.Paginator.Page %}">
 			{%v= p.CSRF %}
 			<input type="hidden" name="_method" value="PATCH">

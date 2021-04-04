@@ -150,14 +150,22 @@ func (h Repo) loadRepos(u *user.User, name string, page int64, reload bool) ([]*
 			return nil, nil, nil, paginator, errors.Err(err)
 		}
 
-		if err := h.cachePut(name, u.ID, rr, paginator); err != nil {
-			return nil, nil, nil, paginator, errors.Err(err)
+		if len(rr) > 0 {
+			if err := h.cachePut(name, u.ID, rr, paginator); err != nil {
+				return nil, nil, nil, paginator, errors.Err(err)
+			}
 		}
 	}
 
 	for _, r := range rr {
-		r.Provider = providerLookup[p.Name + strconv.FormatInt(r.ProviderUserID, 10)]
-		r.ProviderID = r.Provider.ID
+		p, ok := providerLookup[p.Name + strconv.FormatInt(r.ProviderUserID, 10)]
+
+		if !ok {
+			continue
+		}
+
+		r.Provider = p
+		r.ProviderID = p.ID
 	}
 
 	enabled, err := provider.NewRepoStore(h.DB, u).All(query.Where("enabled", "=", query.Arg(true)))
@@ -207,7 +215,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 
 	var connected bool
 
-	rr, p, pp, paginator, err := h.loadRepos(u, q.Get("name"), page, false)
+	rr, p, pp, paginator, err := h.loadRepos(u, q.Get("provider"), page, false)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

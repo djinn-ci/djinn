@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"io"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 
@@ -156,12 +155,12 @@ func (j *Job) JSON(addr string) map[string]interface{} {
 // otherwise the full Build endpoint is returned, suffixed with the Job
 // endpoint, for example,
 //
-//   /b/l.belardo/10/jobs/3
+//   /b/l.belardo/10/jobs/create-driver
 func (j *Job) Endpoint(uri ...string) string {
 	if j.Build == nil || j.Build.IsZero() {
 		return ""
 	}
-	return j.Build.Endpoint(append([]string{"jobs", strconv.FormatInt(j.ID, 10)}, uri...)...)
+	return j.Build.Endpoint(append([]string{"jobs", j.Name}, uri...)...)
 }
 
 // Values implements the database.Model interface. This will return a map with

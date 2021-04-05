@@ -2,7 +2,6 @@ package build
 
 import (
 	"database/sql"
-	"strconv"
 	"time"
 
 	"github.com/andrewpillar/djinn/database"
@@ -84,12 +83,12 @@ func (t *Tag) SetPrimary(i int64) { t.ID = i }
 // otherwise the full Build endpoint is returned, suffixed with the Tag
 // endpoint, for example,
 //
-//   /b/l.belardo/10/tags/7
+//   /b/l.belardo/10/tags/qemu
 func (t Tag) Endpoint(uri ...string) string {
 	if t.Build == nil || t.Build.IsZero() {
 		return ""
 	}
-	return t.Build.Endpoint("tags", strconv.FormatInt(t.ID, 10))
+	return t.Build.Endpoint("tags", t.Name)
 }
 
 // IsZero implements the database.Model interface.
@@ -143,9 +142,42 @@ func (s *TagStore) Create(userId int64, names ...string) ([]*Tag, error) {
 		return []*Tag{}, nil
 	}
 
+	set := make(map[string]struct{})
+	vals := make([]interface{}, 0, len(names))
+
+	for _, name := range names {
+		vals = append(vals, name)
+	}
+
+	q := query.Select(
+		query.Columns("name"),
+		query.From(tagTable),
+		query.Where("build_id", "=", query.Arg(s.Build.ID)),
+		query.Where("name", "IN", query.List(vals...)),
+	)
+
+	rows, err := s.Query(q.Build(), q.Args()...)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	for rows.Next() {
+		var s string
+
+		if err := rows.Scan(&s); err != nil {
+			return nil, errors.Err(err)
+		}
+		set[s] = struct{}{}
+	}
+
 	tt := make([]*Tag, 0, len(names))
 
 	for _, name := range names {
+		if _, ok := set[name]; ok {
+			continue
+		}
+
 		t := s.New()
 		t.UserID = userId
 		t.Name = name
@@ -153,18 +185,16 @@ func (s *TagStore) Create(userId int64, names ...string) ([]*Tag, error) {
 		tt = append(tt, t)
 	}
 
-	err := s.Store.Create(tagTable, database.ModelSlice(len(tt), TagModel(tt))...)
+	err = s.Store.Create(tagTable, database.ModelSlice(len(tt), TagModel(tt))...)
 	return tt, errors.Err(err)
 }
 
-func (s *TagStore) Delete(ids ...int64) error {
-	vals := make([]interface{}, 0, len(ids))
-
-	for _, id := range ids {
-		vals = append(vals, id)
-	}
-
-	q := query.Delete(tagTable, query.Where("id", "IN", query.List(vals...)))
+func (s *TagStore) Delete(buildId int64, name string) error {
+	q := query.Delete(
+		tagTable,
+		query.Where("build_id", "=", query.Arg(buildId)),
+		query.Where("name", "=", query.Arg(name)),
+	)
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)

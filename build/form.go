@@ -3,6 +3,7 @@ package build
 import (
 	"encoding/json"
 	"strings"
+	"unicode"
 
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/manifest"
@@ -31,6 +32,19 @@ var (
 	_ webutil.Form = (*TagForm)(nil)
 )
 
+func isLetter(r rune) bool {
+	return unicode.IsLetter(r) || '0' <= r && r <= '9' || r == '-' || r == '_'
+}
+
+func isTagValid(s string) bool {
+	for _, r := range s {
+		if !isLetter(r) {
+			return false
+		}
+	}
+	return true
+}
+
 // UnmarshalJSON parses the byte slice into a slice of strings.
 func (t *tags) UnmarshalJSON(data []byte) error {
 	ss := make([]string, 0)
@@ -45,10 +59,12 @@ func (t *tags) UnmarshalJSON(data []byte) error {
 
 // UnmarshalText parses the slice of bytes as a comma separated string. Each
 // delineation will be treated as a separate tag, and appended to the
-// underlying string slice.
+// underlying string slice. This will also ensure that the tags are unique.
 func (t *tags) UnmarshalText(b []byte) error {
 	str := string(b)
 	parts := strings.Split(str, ",")
+
+	set := make(map[string]struct{})
 
 	(*t) = tags(make([]string, 0, len(parts)))
 
@@ -58,6 +74,14 @@ func (t *tags) UnmarshalText(b []byte) error {
 		if tag == "" {
 			continue
 		}
+
+		if !isTagValid(tag) {
+			continue
+		}
+		set[tag] = struct{}{}
+	}
+
+	for tag := range set {
 		(*t) = append((*t), tag)
 	}
 	return nil
@@ -113,6 +137,19 @@ func (f *TagForm) UnmarshalJSON(data []byte) error {
 		return errors.Err(err)
 	}
 
-	f.Tags = tags
+	set := make(map[string]struct{})
+
+	for _, name := range tags {
+		if !isTagValid(name) {
+			continue
+		}
+		set[name] = struct{}{}
+	}
+
+	f.Tags = make([]string, 0, len(set))
+
+	for name := range set {
+		f.Tags = append(f.Tags, name)
+	}
 	return nil
 }

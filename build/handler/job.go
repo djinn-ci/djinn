@@ -3,7 +3,6 @@ package handler
 import (
 	"net/http"
 	"net/url"
-	"strconv"
 
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
@@ -61,9 +60,9 @@ func (h Job) ShowWithRelations(r *http.Request) (*build.Job, error) {
 		return nil, errors.Err(err)
 	}
 
-	id, _ := strconv.ParseInt(mux.Vars(r)["job"], 10, 64)
+	name := mux.Vars(r)["name"]
 
-	j, err := build.NewJobStore(h.DB, b).Get(query.Where("id", "=", query.Arg(id)))
+	j, err := build.NewJobStore(h.DB, b).Get(query.Where("name", "=", query.Arg(name)))
 
 	if err != nil {
 		return j, errors.Err(err)

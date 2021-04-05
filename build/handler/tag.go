@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strconv"
 
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/database"
@@ -66,6 +65,10 @@ func (h Tag) StoreModel(r *http.Request) ([]*build.Tag, error) {
 }
 
 func (h Tag) DeleteModel(r *http.Request) error {
-	id, _ := strconv.ParseInt(mux.Vars(r)["tag"], 10, 64)
-	return errors.Err(build.NewTagStore(h.DB).Delete(id))
+	b, ok := build.FromContext(r.Context())
+
+	if !ok {
+		return errors.New("failed to get build from context")
+	}
+	return errors.Err(build.NewTagStore(h.DB).Delete(b.ID, mux.Vars(r)["name"]))
 }

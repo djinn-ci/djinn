@@ -251,7 +251,7 @@ func (r *Runner) Placer() (runner.Placer, error) {
 // tracking the progress of driver creation.
 func (r *Runner) DriverJob() *build.Job {
 	for _, j := range r.jobs {
-		if j.Name == "create driver" {
+		if j.Name == "create-driver" {
 			return j
 		}
 	}
@@ -334,7 +334,7 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 	})
 
 	r.Runner.HandleJobStart(func(job runner.Job) {
-		if job.Name == "create driver" {
+		if job.Name == "create-driver" {
 			return
 		}
 

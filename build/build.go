@@ -687,7 +687,7 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 
 	jobs := NewJobStore(s.DB, b, setup)
 
-	if _, err := jobs.Create("create driver", ""); err != nil {
+	if _, err := jobs.Create("create-driver", ""); err != nil {
 		return errors.Err(err)
 	}
 

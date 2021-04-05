@@ -293,14 +293,14 @@ any.
     {
         "id": 4,
         "build_id": 3,
-        "name": "create driver",
+        "name": "create-driver",
         "commands": "",
         "status": "queued",
         "output": null,
         "created_at": "2006-01-02T15:04:05Z",
         "started_at": null,
         "finished_at": null,
-        "url": "{{index .Vars "apihost"}}/b/me/3/jobs/4"
+        "url": "{{index .Vars "apihost"}}/b/me/3/jobs/create-driver"
     }
 
 </div>
@@ -689,14 +689,14 @@ Returns the given [job](/api/builds#the-job-object).
 
 **Request**
 
-    GET /b/:user/:id/jobs/:job_id
+    GET /b/:user/:id/jobs/:name
 
 **Examples**
 
     $ curl -X GET \
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
-           {{index .Vars "apihost"}}/b/me/3/jobs/5
+           {{index .Vars "apihost"}}/b/me/3/jobs/create-driver
 
 </div>
 </div>
@@ -870,14 +870,14 @@ This returns no content in the response body.
 
 **Request**
 
-    DELETE /b/:user/:id/tags/:tag_id
+    DELETE /b/:user/:id/tags/:name
 
 **Examples**
 
     $ curl -X DELETE \
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
-           {{index .Vars "apihost"}}/b/me/3/tags/5
+           {{index .Vars "apihost"}}/b/me/3/tags/tag2
 
 </div>
 </div>

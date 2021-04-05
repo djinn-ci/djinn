@@ -251,7 +251,7 @@ type Tags struct {
 				<tbody>
 					{% for _, t := range p.Tags %}
 						<tr>
-							<td><a href="/?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a></td>
+							<td><a href="/builds?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a></td>
 							<td>{%s t.User.Username %} &lt;{%s t.User.Email %}&gt;</td>
 							<td class="align-right">
 								{% if !p.User.IsZero() %}

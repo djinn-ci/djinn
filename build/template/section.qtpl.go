@@ -768,7 +768,7 @@ func (p *Tags) StreamBody(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:252
 		for _, t := range p.Tags {
 //line build/template/section.qtpl:252
-			qw422016.N().S(` <tr> <td><a href="/?tag=`)
+			qw422016.N().S(` <tr> <td><a href="/builds?tag=`)
 //line build/template/section.qtpl:254
 			qw422016.E().S(t.Name)
 //line build/template/section.qtpl:254

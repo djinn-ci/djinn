@@ -326,7 +326,7 @@ func (s *Store) Invoke(c *Cron) (*build.Build, error) {
 		},
 	}
 
-	tag := "cron: "+ c.Name
+	tag := "cron:"+strings.Replace(c.Name, " ", "-", -1)
 
 	b, err := build.NewStore(s.DB, c.User, c.Namespace).Create(c.Manifest, t, tag)
 

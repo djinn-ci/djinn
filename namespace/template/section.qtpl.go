@@ -143,7 +143,7 @@ func (p *InviteIndex) Navigation() string {
 //line namespace/template/section.qtpl:39
 func (p *InviteIndex) StreamTitle(qw422016 *qt422016.Writer) {
 //line namespace/template/section.qtpl:39
-	qw422016.N().S(` Invites `)
+	qw422016.N().S(` Invites - Djinn CI `)
 //line namespace/template/section.qtpl:41
 }
 

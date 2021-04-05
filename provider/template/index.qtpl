@@ -28,7 +28,7 @@ var providerNames = map[string]string{
 
 {% collapsespace %}
 {% func (p *RepoIndex) Title() %}
-	Repositories - Djinn
+	Repositories - Djinn CI
 {% endfunc %}
 
 {% func (p *RepoIndex) Header() %}

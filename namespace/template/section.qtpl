@@ -37,7 +37,7 @@ type CollaboratorIndex struct {
 {% func (p *InviteIndex) Navigation() %}{% endfunc %}
 
 {% func (p *InviteIndex) Title() %}
-	Invites
+	Invites - Djinn CI
 {% endfunc %}
 
 {% func (p *InviteIndex) Header() %}

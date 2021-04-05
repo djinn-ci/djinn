@@ -102,38 +102,22 @@ func Test_TagStoreCreate(t *testing.T) {
 	store, mock, close_ := tagStore(t)
 	defer close_()
 
-	tests := []struct {
-		buildId int64
-		userId  int64
-		names   []string
-		queries []string
-		rows    []*sqlmock.Rows
-	}{
-		{
-			1,
-			2,
-			[]string{"tag1", "tag2", "tag3"},
-			[]string{
-				"^INSERT INTO build_tags (.+) VALUES (.+)$",
-				"^INSERT INTO build_tags (.+) VALUES (.+)$",
-				"^INSERT INTO build_tags (.+) VALUES (.+)$",
-			},
-			[]*sqlmock.Rows{
-				sqlmock.NewRows([]string{"*"}).AddRow(10),
-				sqlmock.NewRows([]string{"*"}).AddRow(11),
-				sqlmock.NewRows([]string{"*"}).AddRow(12),
-			},
-		},
-	}
+	mock.ExpectQuery(
+		"^SELECT name FROM build_tags WHERE (.+)$",
+	).WillReturnRows(
+		sqlmock.NewRows([]string{"name"}),
+	)
 
-	for i, test := range tests {
-		for j, q := range test.queries {
-			mock.ExpectQuery(q).WillReturnRows(test.rows[j])
-		}
+	mock.ExpectQuery(
+		"^INSERT INTO build_tags (.+) VALUES (.+)$",
+	).WithArgs(3, 10, "tag1").WillReturnRows(
+		sqlmock.NewRows([]string{"id"}).AddRow(1),
+	)
 
-		if _, err := store.Create(test.userId, test.names...); err != nil {
-			t.Errorf("tests[%d] - unexpected Create error: %s\n", i, errors.Cause(err))
-		}
+	store.Bind(&Build{ID: 10})
+
+	if _, err := store.Create(3, "tag1"); err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -142,10 +126,10 @@ func Test_TagStoreDelete(t *testing.T) {
 	defer close_()
 
 	mock.ExpectExec(
-		"^DELETE FROM build_tags WHERE \\(id IN \\(\\$1, \\$2, \\$3\\)\\)$",
-	).WillReturnResult(sqlmock.NewResult(0, 3))
+		"^DELETE FROM build_tags WHERE \\(build_id = \\$1 AND name = \\$2\\)$",
+	).WillReturnResult(sqlmock.NewResult(0, 1))
 
-	if err := store.Delete(1, 2, 3); err != nil {
+	if err := store.Delete(1, "tag1"); err != nil {
 		t.Errorf("unexpected Delete error: %s\n", errors.Cause(err))
 	}
 }

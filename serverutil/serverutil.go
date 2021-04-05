@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/andrewpillar/djinn/config"
+	"github.com/andrewpillar/djinn/env"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/oauth2"
 	"github.com/andrewpillar/djinn/server"
@@ -92,6 +93,8 @@ func ParseFlags(args []string) (bool, string, bool, bool) {
 }
 
 func Init(path string) (*server.Server, *config.Server, func(), error) {
+	env.Load()
+
 	var cfg *config.Server
 
 	f, err := os.Open(path)

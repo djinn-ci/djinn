@@ -3,6 +3,7 @@ import (
 	"net/url"
 	"html/template"
 
+	"github.com/andrewpillar/djinn/env"
 	"github.com/andrewpillar/djinn/user"
 )
 %}
@@ -39,10 +40,12 @@ interface Section {
 type baseDashboard struct {
 	Dashboard
 
-	alert Alert
-	URL   *url.URL
-	User  *user.User
-	CSRF  template.HTML
+	alert    Alert
+	apiDocs  string
+	userDocs string
+	URL      *url.URL
+	User     *user.User
+	CSRF     template.HTML
 }
 
 type Alert struct {
@@ -73,6 +76,8 @@ func NewDashboard(d Dashboard, url *url.URL, u *user.User, a Alert, csrf templat
 	return &baseDashboard{
 		Dashboard: d,
 		alert:     a,
+		apiDocs:   env.DJINN_API_DOCS,
+		userDocs:  env.DJINN_USER_DOCS,
 		URL:       url,
 		User:      u,
 		CSRF:      csrf,
@@ -147,6 +152,15 @@ func (l Level) String() string {
 				</div>
 			{% else %}
 				<ul class="sidebar-nav">
+					{% if p.apiDocs != "" || p.userDocs != "" %}
+						<li class="sidebar-nav-header">DOCS</li>
+						{% if p.apiDocs != "" %}
+							<li><a title="API Documentation" href="{%s p.apiDocs %}" target="_blank">{% cat "../static/svg/code.svg" %}<span>API</span></a></li>
+						{% endif %}
+						{% if p.userDocs != "" %}
+							<li><a title="User Documentation" href="{%s p.userDocs %}" target="_blank">{% cat "../static/svg/list.svg" %}<span>User</span></a></li>
+						{% endif %}
+					{% endif %}
 					<li class="sidebar-nav-header">MANAGE</li>
 					{% if Match(p.URL.Path, BuildsURI) %}
 						<li><a title="Builds" href="/builds" class="active">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>

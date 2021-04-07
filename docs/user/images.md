@@ -22,10 +22,8 @@ Detailed below are the default images that are available in the hosted version
 of Djinn CI. These images are also available for download from the hosted
 version.
 
-
 ### Alpine
 
-* `alpine/edge`
 * `alpine/v3.13`
 * `alpine/v3.12`
 

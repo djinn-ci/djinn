@@ -75,6 +75,7 @@ and prepare it for use in Djinn CI as a custom image.
         -m 4096 \
         -cdrom ubuntu.iso \
         -net nic,model=virtio \
+        -net user \
         -drive file=my-image.qcow2,media=disk,if=virtio
 
 Once the operating has been installed we can go about configuring the image for

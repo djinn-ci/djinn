@@ -7,7 +7,6 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
-	"net/smtp"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -47,7 +46,7 @@ type Worker struct {
 
 	// SMTP is the client to the SMTP server we use for sending emails about
 	// a build's progress.
-	SMTP *smtp.Client
+	SMTP *mail.Client
 
 	// Admin is the email address that should be used in emails sent from the
 	// worker on build failures.

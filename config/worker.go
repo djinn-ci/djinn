@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"io"
-	"net/smtp"
 	"os"
 	"runtime"
 	"strconv"
@@ -14,6 +13,7 @@ import (
 	"github.com/andrewpillar/djinn/driver/qemu"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
+	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/provider"
 
 	"github.com/go-redis/redis"
@@ -54,7 +54,7 @@ type Worker struct {
 
 	db         *sqlx.DB
 	redis      *redis.Client
-	smtp       *smtp.Client
+	smtp       *mail.Client
 	postmaster string
 
 	artifacts fs.Store
@@ -275,7 +275,7 @@ func (w *Worker) Queue() string { return w.queue }
 func (w *Worker) Timeout() time.Duration { return w.timeout }
 func (w *Worker) DB() *sqlx.DB { return w.db }
 func (w *Worker) Redis() *redis.Client { return w.redis }
-func (w *Worker) SMTP() (*smtp.Client, string) { return w.smtp, w.postmaster }
+func (w *Worker) SMTP() (*mail.Client, string) { return w.smtp, w.postmaster }
 func (w *Worker) Artifacts() fs.Store { return w.artifacts }
 func (w *Worker) Objects() fs.Store { return w.objects }
 func (w *Worker) BlockCipher() *crypto.Block { return w.block }

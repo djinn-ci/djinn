@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/smtp"
 	"net/url"
 	"os"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/log"
+	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/provider"
 	"github.com/andrewpillar/djinn/server"
 
@@ -82,7 +82,7 @@ type Server struct {
 
 	db         *sqlx.DB
 	redis      *redis.Client
-	smtp       *smtp.Client
+	smtp       *mail.Client
 	postmaster string
 	session    sessions.Store
 
@@ -433,7 +433,7 @@ func (s *Server) Pidfile() *os.File { return s.pidfile }
 func (s *Server) Server() *server.Server { return s.srv }
 func (s *Server) DB() *sqlx.DB { return s.db }
 func (s *Server) Redis() *redis.Client { return s.redis }
-func (s *Server) SMTP() (*smtp.Client, string) { return s.smtp, s.postmaster }
+func (s *Server) SMTP() (*mail.Client, string) { return s.smtp, s.postmaster }
 func (s *Server) SessionStore() sessions.Store { return s.session }
 func (s *Server) Images() Store { return s.images }
 func (s *Server) Artifacts() Store { return s.artifacts }

@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"net"
-	"net/smtp"
 	"os"
 	"strconv"
 
@@ -143,7 +142,7 @@ func connectredis(log *log.Logger, cfg redisCfg) (*redis.Client, error) {
 	return redis, nil
 }
 
-func connectsmtp(log *log.Logger, cfg smtpCfg) (*smtp.Client, error) {
+func connectsmtp(log *log.Logger, cfg smtpCfg) (*mail.Client, error) {
 	log.Debug.Println("connecting to smtp addr", cfg.Addr)
 
 	if cfg.Username != "" && cfg.Password != "" {

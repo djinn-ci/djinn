@@ -3,13 +3,13 @@ package web
 import (
 	"encoding/hex"
 	"net/http"
-	"net/smtp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/log"
+	"github.com/andrewpillar/djinn/mail"
 	"github.com/andrewpillar/djinn/oauth2"
 	"github.com/andrewpillar/djinn/user"
 
@@ -29,7 +29,7 @@ type Handler struct {
 	DB *sqlx.DB
 
 	SMTP struct {
-		Client *smtp.Client
+		Client *mail.Client
 		From   string
 	}
 

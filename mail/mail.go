@@ -8,9 +8,16 @@ import (
 	"net"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"github.com/andrewpillar/djinn/errors"
 )
+
+type Client struct {
+	*smtp.Client
+
+	conn net.Conn
+}
 
 type Mail struct {
 	From    string   // From is the address we're sending the mail from.
@@ -52,7 +59,7 @@ func writeField(buf *strings.Builder, field, val string) {
 // NewClient will use the given ClientConfig to return an *smtp.Client.
 // Depending on the fields present in the given config will determine whether
 // authentication or TLS connectivity is made.
-func NewClient(cfg ClientConfig) (*smtp.Client, error) {
+func NewClient(cfg ClientConfig) (*Client, error) {
 	var (
 		auth   smtp.Auth
 		tlscfg *tls.Config
@@ -87,11 +94,13 @@ func NewClient(cfg ClientConfig) (*smtp.Client, error) {
 		}
 	}
 
-	cli, err := smtp.Dial(cfg.Addr)
+	conn, err := net.Dial("tcp", cfg.Addr)
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
+
+	cli, err := smtp.NewClient(conn, host)
 
 	if tlscfg != nil {
 		if err := cli.StartTLS(tlscfg); err != nil {
@@ -104,7 +113,10 @@ func NewClient(cfg ClientConfig) (*smtp.Client, error) {
 			return nil, errors.Err(err)
 		}
 	}
-	return cli, nil
+	return &Client{
+		Client: cli,
+		conn:   conn,
+	}, nil
 }
 
 // String returns the string representation of the current mail. This is
@@ -127,7 +139,9 @@ func (m Mail) String() string {
 // smtp.Client. If any errors occur when adding a recipient via RCPT, then an
 // attempt to send the mail will still be done, and the ErrRcpts type will be
 // returned.
-func (m Mail) Send(cli *smtp.Client) error {
+func (m Mail) Send(cli *Client) error {
+	cli.conn.SetDeadline(time.Now().Add(time.Minute))
+
 	if err := cli.Mail(m.From); err != nil {
 		return errors.Err(err)
 	}

@@ -71,8 +71,7 @@ format of `qcow2`. We recommend keeping the size of this image smaller than 20GB
 With this image created you can now install an operating system of your choice,
 and prepare it for use in Djinn CI as a custom image.
 
-    $ qemu-system-x86_64 -sdl \
-        -m 4096 \
+    $ qemu-system-x86_64 -m 4096 \
         -cdrom ubuntu.iso \
         -net nic,model=virtio \
         -net user \

@@ -244,6 +244,9 @@ func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 		return err
 	}
 
+	// Wait for machine to boot before attempting to connect.
+	time.Sleep(time.Second * 2)
+
 	if err := q.ssh.Create(c, env, runner.Passthrough{}, p); err != nil {
 		return err
 	}

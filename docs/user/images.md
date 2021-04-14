@@ -17,8 +17,8 @@ talk to the Docker Hub, that image will be downloaded and used.
 
 ## Creating an image
 
-Images a created from the *Images* link the dashboard's sidebar, and by clicking
-the *Create* button in the top right hand corner.
+Images are created from the *Images* link the dashboard's sidebar, and by
+clicking the *Create* button in the top right hand corner.
 
 Images for the QEMU driver are expected to be QCOW2 (v3) image file. It is
 expected for the `root` user to have no password and for SSH access to be

@@ -27,15 +27,13 @@ var (
 		"qemu":   QEMU,
 		"docker": Docker,
 	}
-
-	// All is a slice of all of the driver types that can be used for executing
-	// a build.
-	All = []string{
-		"docker",
-		"ssh",
-		"qemu",
-	}
 )
+
+// IsValid checks to see if the given driver type is valid.
+func IsValid(typ string) bool {
+	_, ok := driversMap[typ]
+	return ok
+}
 
 // Scan assumes the given interface value is either a byte slice or a string,
 // and turns the underlying value into the corresponding Type.

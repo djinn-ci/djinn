@@ -99,7 +99,8 @@ var (
 		"build_stage":   database.Relation("id", "build_id"),
 	}
 
-	ErrDriver = errors.New("unknown driver")
+	ErrDriver         = errors.New("unknown driver")
+	ErrDriverDisabled = errors.New("driver disabled")
 )
 
 // NewStore returns a new Store for querying the builds table. Each model

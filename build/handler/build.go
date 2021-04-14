@@ -6,6 +6,7 @@ import (
 	"github.com/andrewpillar/djinn/fs"
 	"github.com/andrewpillar/djinn/build"
 	"github.com/andrewpillar/djinn/crypto"
+	"github.com/andrewpillar/djinn/driver"
 	"github.com/andrewpillar/djinn/database"
 	"github.com/andrewpillar/djinn/errors"
 	"github.com/andrewpillar/djinn/manifest"
@@ -197,6 +198,9 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 	}
 
 	if _, ok := h.getDriverQueue(f.Manifest); !ok {
+		if driver.IsValid(f.Manifest.Driver["type"]) {
+			return nil, f, build.ErrDriverDisabled
+		}
 		return nil, f, build.ErrDriver
 	}
 

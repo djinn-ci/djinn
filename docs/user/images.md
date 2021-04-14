@@ -55,24 +55,23 @@ Next, we need to configure the SSH server to allow for a root login, and to
 allow password authentication. Below is the typical SSH configuration used
 by the base images provided by Djinn CI.
 
-    # Authentication:
     PermitRootLogin yes
     
     PasswordAuthentication yes
     PermitEmptyPasswords yes
     PubkeyAuthentication no
     
-    # Change to no to disable s/key passwords
     ChallengeResponseAuthentication no
-    GSSAPICleanupCredentials no
+    GSSAPIAuthentication no
+
     UsePAM no
+    UseDNS no
     
-    # Accept locale-related environment variables
     AcceptEnv *
     
     PermitUserEnvironment yes
     
-    Subsystem  sftp  internal-sftp 
+    Subsystem sftp internal-sftp 
 
 ## Using a custom image
 

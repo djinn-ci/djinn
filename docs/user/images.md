@@ -11,42 +11,9 @@ images.
 specify any image for this driver to use, and as long as the Djinn Server can
 talk to the Docker Hub, that image will be downloaded and used.
 
-* [Default images](#default-images)
 * [Creating an image](#creating-an-image)
   * [Preparing a QEMU image](#preparing-a-qemu-image)
 * [Using a custom image](#using-a-custom-image)
-
-## Default images
-
-Detailed below are the default images that are available in the hosted version
-of Djinn CI. These images are also available for download from the hosted
-version.
-
-### Alpine
-
-* `alpine/v3.13`
-* `alpine/v3.12`
-
-### Arch
-
-* `arch`
-
-### Debian
-
-* `debian/testing`
-* `debian/stable`
-* `debian/oldstable`
-
-### FreeBSD
-
-* `freebsd/12.2`
-* `freebsd/11.4`
-
-### Ubuntu
-
-* `ubuntu/20.04`
-* `ubuntu/18.04`
-* `ubuntu/16.04`
 
 ## Creating an image
 

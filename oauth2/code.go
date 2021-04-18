@@ -3,6 +3,7 @@ package oauth2
 import (
 	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"time"
 
 	"github.com/andrewpillar/djinn/database"
@@ -20,7 +21,7 @@ type Code struct {
 	ID        int64     `db:"id"`
 	UserID    int64     `db:"user_id"`
 	AppID     int64     `db:"app_id"`
-	Code      []byte    `db:"code"`
+	Code      string    `db:"code"`
 	Scope     Scope     `db:"scope"`
 	ExpiresAt time.Time `db:"expires_at"`
 
@@ -150,14 +151,16 @@ func (s *CodeStore) Bind(mm ...database.Model) {
 // Create creates a new code with the given scope. This will set the code's
 // expiration to 10 minutes from when this is called.
 func (s *CodeStore) Create(scope Scope) (*Code, error) {
+	code := make([]byte, 16)
+
+	if _, err := rand.Read(code); err != nil {
+		return nil, errors.Err(err)
+	}
+
 	c := s.New()
-	c.Code = make([]byte, 16)
+	c.Code = hex.EncodeToString(code)
 	c.Scope = scope
 	c.ExpiresAt = time.Now().Add(time.Minute * 10)
-
-	if _, err := rand.Read(c.Code); err != nil {
-		return c, errors.Err(err)
-	}
 
 	err := s.Store.Create(codeTable, c)
 	return c, errors.Err(err)

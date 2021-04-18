@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"time"
 
 	"github.com/andrewpillar/djinn/database"
@@ -150,11 +151,11 @@ func (u *User) SetPermission(perm string) {
 	u.Permissions[perm] = struct{}{}
 }
 
-func (s *Store) touchAccountToken(id int64, purpose string) ([]byte, error) {
+func (s *Store) touchAccountToken(id int64, purpose string) (string, error) {
 	tok := make([]byte, 16)
 
 	if _, err := rand.Read(tok); err != nil {
-		return nil, errors.Err(err)
+		return "", errors.Err(err)
 	}
 
 	var count int64
@@ -167,7 +168,7 @@ func (s *Store) touchAccountToken(id int64, purpose string) ([]byte, error) {
 	)
 
 	if err := s.DB.QueryRow(q0.Build(), q0.Args()...).Scan(&count); err != nil {
-		return nil, errors.Err(err)
+		return "", errors.Err(err)
 	}
 
 	var q query.Query
@@ -178,22 +179,22 @@ func (s *Store) touchAccountToken(id int64, purpose string) ([]byte, error) {
 		q = query.Insert(
 			tokenTable,
 			query.Columns("user_id", "token", "purpose", "created_at", "expires_at"),
-			query.Values(id, tok, purpose, now, now.Add(time.Minute)),
+			query.Values(id, hex.EncodeToString(tok), purpose, now, now.Add(time.Minute)),
 		)
 	} else {
 		q = query.Update(
 			tokenTable,
-			query.Set("token", query.Arg(tok)),
-			query.Set("purpose", query.Arg(purpose)),
+			query.Set("token", query.Arg(hex.EncodeToString(tok))),
 			query.Set("expires_at", query.Arg(now.Add(time.Minute))),
+			query.Where("user_id", "=", query.Arg(id)),
 		)
 	}
 
 	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return tok, errors.Err(err)
+	return hex.EncodeToString(tok), errors.Err(err)
 }
 
-func (s *Store) flushAccountToken(tok []byte, purpose string) (int64, error) {
+func (s *Store) flushAccountToken(tok string, purpose string) (int64, error) {
 	var (
 		id     int64
 		expiry time.Time
@@ -275,11 +276,11 @@ func (*Store) New() *User { return &User{} }
 
 // Create creates a new user with the given email, username and password. The
 // given password is hashed via bcrypt using the default cost.
-func (s *Store) Create(email, username string, password []byte) (*User, []byte, error) {
+func (s *Store) Create(email, username string, password []byte) (*User, string, error) {
 	hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
 
 	if err != nil {
-		return nil, nil, errors.Err(err)
+		return nil, "", errors.Err(err)
 	}
 
 	u := s.New()
@@ -289,19 +290,19 @@ func (s *Store) Create(email, username string, password []byte) (*User, []byte, 
 	u.UpdatedAt = time.Now()
 
 	if err := s.Store.Create(table, u); err != nil {
-		return nil, nil, errors.Err(err)
+		return nil, "", errors.Err(err)
 	}
 
 	tok, err := s.touchAccountToken(u.ID, "verify_account")
 	return u, tok, errors.Err(err)
 }
 
-func (s *Store) RequestVerify(id int64) ([]byte, error) {
+func (s *Store) RequestVerify(id int64) (string, error) {
 	tok, err := s.touchAccountToken(id, "verify_account")
 	return tok, errors.Err(err)
 }
 
-func (s *Store) Verify(tok []byte) error {
+func (s *Store) Verify(tok string) error {
 	id, err := s.flushAccountToken(tok, "verify_account")
 
 	if err != nil {
@@ -364,7 +365,7 @@ func (s *Store) Delete(id int64, password []byte) error {
 	return errors.Err(err)
 }
 
-func (s *Store) UpdatePassword(tok, password []byte) error {
+func (s *Store) UpdatePassword(tok string, password []byte) error {
 	id, err := s.flushAccountToken(tok, "password_reset")
 
 	if err != nil {
@@ -387,7 +388,7 @@ func (s *Store) UpdatePassword(tok, password []byte) error {
 	return errors.Err(err)
 }
 
-func (s *Store) ResetPassword(id int64) ([]byte, error) {
+func (s *Store) ResetPassword(id int64) (string, error) {
 	tok, err := s.touchAccountToken(id, "password_reset")
 	return tok, errors.Err(err)
 }

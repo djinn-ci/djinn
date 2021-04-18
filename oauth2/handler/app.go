@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/hex"
 	"net/http"
 
 	"github.com/andrewpillar/djinn/crypto"
@@ -45,11 +44,7 @@ func (h App) appFromRequest(r *http.Request) (*oauth2.App, error) {
 		return nil, errors.New("failed to get user from context")
 	}
 
-	clientId, err := hex.DecodeString(mux.Vars(r)["app"])
-
-	if err != nil {
-		return nil, database.ErrNotFound
-	}
+	clientId := mux.Vars(r)["app"]
 
 	a, err := oauth2.NewAppStore(h.DB, u).Get(query.Where("client_id", "=", query.Arg(clientId)))
 

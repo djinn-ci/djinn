@@ -1,7 +1,5 @@
 {%
 import (
-	"encoding/hex"
-	"fmt"
 	htmltemplate "html/template"
 
 	"github.com/andrewpillar/djinn/oauth2"
@@ -78,7 +76,7 @@ type TokenIndex struct {
 					{% for _, t := range p.Tokens %}
 						<tr>
 							<td>
-								<a href="/settings/connections/{%s hex.EncodeToString(t.App.ClientID) %}">{%s t.App.Name %}</a><br/>
+								<a href="/settings/connections/{%s t.App.ClientID %}">{%s t.App.Name %}</a><br/>
 								Owned by {%s t.App.User.Username %}
 							</td>
 						</tr>
@@ -110,8 +108,8 @@ type TokenIndex struct {
 						<tr>
 							<td>
 								<strong><a href="{%s t.Endpoint() %}">{%s t.Name %}</a></strong>
-								{% if t.Token != nil %}
-									- <span class="muted">{%s fmt.Sprintf("%x", t.Token) %}</span>
+								{% if t.Token != "" %}
+									- <span class="muted">{%s t.Token %}</span>
 								{% endif %}
 							</td>
 							<td class="align-right">

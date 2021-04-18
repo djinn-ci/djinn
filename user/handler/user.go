@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"sort"
@@ -143,7 +142,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 		From:    h.SMTP.From,
 		To:      []string{u.Email},
 		Subject: "Djinn CI - Verify email",
-		Body:    fmt.Sprintf(verifyMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
+		Body:    fmt.Sprintf(verifyMail, webutil.BaseAddress(r), tok),
 	}
 
 	if err := m.Send(h.SMTP.Client); err != nil {
@@ -322,19 +321,7 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tok, err := hex.DecodeString(f.Token)
-
-	if err != nil {
-		sess.AddFlash(template.Alert{
-			Level:   template.Danger,
-			Close:   true,
-			Message: "Invalid token",
-		}, "alert")
-		h.RedirectBack(w, r)
-		return
-	}
-
-	if err := h.Users.UpdatePassword(tok, []byte(f.Password)); err != nil {
+	if err := h.Users.UpdatePassword(f.Token, []byte(f.Password)); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		h.RedirectBack(w, r)
@@ -420,7 +407,7 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 		From:    h.SMTP.From,
 		To:      []string{u.Email},
 		Subject: "Djinn CI - Password reset request",
-		Body:    fmt.Sprintf(resetMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
+		Body:    fmt.Sprintf(resetMail, webutil.BaseAddress(r), tok),
 	}
 
 	if err := m.Send(h.SMTP.Client); err != nil {
@@ -560,7 +547,7 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 			From:    h.SMTP.From,
 			To:      []string{u.Email},
 			Subject: "Djinn CI - Verify email",
-			Body:    fmt.Sprintf(verifyMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
+			Body:    fmt.Sprintf(verifyMail, webutil.BaseAddress(r), tok),
 		}
 
 		if err := m.Send(h.SMTP.Client); err != nil {
@@ -591,30 +578,7 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, err := hex.DecodeString(r.URL.Query().Get("token"))
-
-	if err != nil {
-		if errors.Cause(err) == user.ErrTokenExpired {
-			sess.AddFlash(template.Alert{
-				Level:   template.Danger,
-				Close:   true,
-				Message: "Token expired, resend verification email",
-			}, "alert")
-			h.Redirect(w, r, "/settings")
-			return
-		}
-
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Alert{
-			Level:   template.Danger,
-			Close:   true,
-			Message: "Failed to verify account",
-		}, "alert")
-		h.Redirect(w, r, "/settings")
-		return
-	}
-
-	if err := h.Users.Verify(b); err != nil {
+	if err := h.Users.Verify(r.URL.Query().Get("token")); err != nil {
 		cause := errors.Cause(err)
 
 		if cause == database.ErrNotFound {

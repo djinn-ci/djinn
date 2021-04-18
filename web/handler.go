@@ -1,7 +1,6 @@
 package web
 
 import (
-	"encoding/hex"
 	"net/http"
 	"strconv"
 	"strings"
@@ -172,13 +171,9 @@ func (h Handler) UserFromToken(r *http.Request) (*user.User, bool, error) {
 		return nil, false, nil
 	}
 
-	b, err := hex.DecodeString(tok[len(prefix):])
+	tok = tok[len(prefix):]
 
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	t, err := h.Tokens.Get(query.Where("token", "=", query.Arg(b)))
+	t, err := h.Tokens.Get(query.Where("token", "=", query.Arg(tok)))
 
 	if err != nil {
 		return nil, false, errors.Err(err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"strconv"
 	"strings"
 	"time"
@@ -23,7 +24,7 @@ type Token struct {
 	UserID    int64         `db:"user_id"`
 	AppID     sql.NullInt64 `db:"app_id"`
 	Name      string        `db:"name"`
-	Token     []byte        `db:"token"`
+	Token     string        `db:"token"`
 	Scope     Scope         `db:"scope"`
 	CreatedAt time.Time     `db:"created_at"`
 	UpdatedAt time.Time     `db:"updated_at"`
@@ -252,14 +253,16 @@ func (s *TokenStore) Get(opts ...query.Option) (*Token, error) {
 func (s *TokenStore) Create(name string, sc Scope) (*Token, error) {
 	var err error
 
+	tok := make([]byte, 16)
+
+	if _, err := rand.Read(tok); err != nil {
+		return nil, errors.Err(err)
+	}
+
 	t := s.New()
 	t.Name = name
-	t.Token = make([]byte, 16)
+	t.Token = hex.EncodeToString(tok)
 	t.Scope = sc
-
-	if _, err := rand.Read(t.Token); err != nil {
-		return t, errors.Err(err)
-	}
 
 	err = s.Store.Create(tokenTable, t)
 	return t, errors.Err(err)

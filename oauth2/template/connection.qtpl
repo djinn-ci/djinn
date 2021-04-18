@@ -1,6 +1,5 @@
 {%
 import (
-	"encoding/hex"
 	htmltemplate "html/template"
 
 	"github.com/andrewpillar/djinn/oauth2"
@@ -43,7 +42,7 @@ type Connection struct {
 
 {% func (p *Connection) Actions() %}
 	<li>
-		<form method="POST" actions="/settings/connections/{%s hex.EncodeToString(p.Token.App.ClientID) %}">
+		<form method="POST" actions="/settings/connections/{%s p.Token.App.ClientID %}">
 			{%v= p.CSRF %}
 			<input type="hidden" name="_method" value="DELETE"/>
 			<button type="submit" class="btn btn-danger">Revoke access</button>

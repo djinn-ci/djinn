@@ -63,7 +63,7 @@ func (h Token) Index(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 		}
-		t.Token = nil
+		t.Token = ""
 	}
 
 	csrf := csrf.TemplateField(r)

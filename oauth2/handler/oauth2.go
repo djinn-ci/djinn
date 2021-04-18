@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/hex"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -88,14 +87,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b, err := hex.DecodeString(clientId)
-
-	if err != nil {
-		web.HTMLError(w, errors.Cause(err).Error(), http.StatusBadRequest)
-		return
-	}
-
-	a, err := h.apps.Get(query.Where("client_id", "=", query.Arg(b)))
+	a, err := h.apps.Get(query.Where("client_id", "=", query.Arg(clientId)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -142,7 +134,7 @@ func (h Oauth2) handleAuthPage(w http.ResponseWriter, r *http.Request) {
 				}
 
 				redirectQuery := url.Values(make(map[string][]string))
-				redirectQuery.Add("code", hex.EncodeToString(c.Code))
+				redirectQuery.Add("code", c.Code)
 
 				if state != "" {
 					redirectQuery.Add("state", state)
@@ -216,19 +208,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientId, err := hex.DecodeString(f.ClientID)
-
-	if err != nil {
-		errs := webutil.NewErrors()
-		errs.Put("client_id", err)
-
-		sess.AddFlash(errs, "form_errors")
-		sess.AddFlash(f.Fields(), "form_fields")
-		h.RedirectBack(w, r)
-		return
-	}
-
-	a, err := h.apps.Get(query.Where("client_id", "=", query.Arg(clientId)))
+	a, err := h.apps.Get(query.Where("client_id", "=", query.Arg(f.ClientID)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -283,7 +263,7 @@ func (h Oauth2) Auth(w http.ResponseWriter, r *http.Request) {
 	}
 
 	redirectQuery := url.Values(make(map[string][]string))
-	redirectQuery.Add("code", hex.EncodeToString(c.Code))
+	redirectQuery.Add("code", c.Code)
 
 	if f.State != "" {
 		redirectQuery.Add("state", f.State)
@@ -314,15 +294,8 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	realCode, err := hex.DecodeString(code)
-
-	if err != nil {
-		web.JSONError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
 	codes := oauth2.NewCodeStore(h.DB, a)
-	c, err := codes.Get(query.Where("code", "=", query.Arg(realCode)))
+	c, err := codes.Get(query.Where("code", "=", query.Arg(code)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -381,7 +354,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body := map[string]string{
-		"access_token": hex.EncodeToString(t.Token),
+		"access_token": t.Token,
 		"token_type":   "bearer",
 		"scope":        t.Scope.String(),
 	}
@@ -402,16 +375,11 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 // Revoke revokes the OAuth token in the given request header.
 func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 	prefix := "Bearer "
+
 	tok := r.Header.Get("Authorization")
+	tok = tok[len(prefix):]
 
-	b, err := hex.DecodeString(tok[len(prefix):])
-
-	if err != nil {
-		web.JSONError(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	t, err := h.tokens.Get(query.Where("token", "=", query.Arg(b)))
+	t, err := h.tokens.Get(query.Where("token", "=", query.Arg(tok)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

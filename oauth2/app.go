@@ -22,7 +22,7 @@ import (
 type App struct {
 	ID           int64     `db:"id"`
 	UserID       int64     `db:"user_id"`
-	ClientID     []byte    `db:"client_id"`
+	ClientID     string    `db:"client_id"`
 	ClientSecret []byte    `db:"client_secret"`
 	Name         string    `db:"name"`
 	Description  string    `db:"description"`
@@ -134,9 +134,9 @@ func (*App) JSON(_ string) map[string]interface{} { return map[string]interface{
 // given uri parts to the returned endpoint.
 func (a *App) Endpoint(uri ...string) string {
 	if len(uri) > 0 {
-		return "/settings/apps/" + hex.EncodeToString(a.ClientID) + "/" + strings.Join(uri, "/")
+		return "/settings/apps/" + a.ClientID + "/" + strings.Join(uri, "/")
 	}
-	return "/settings/apps/" + hex.EncodeToString(a.ClientID)
+	return "/settings/apps/" + a.ClientID
 }
 
 // Values implements the database.Model interface. This will return a map with
@@ -192,17 +192,19 @@ func (s *AppStore) Create(name, description, homepage, redirect string) (*App, e
 		return nil, errors.Err(err)
 	}
 
+	clientId := make([]byte, 16)
+
+	if _, err := rand.Read(clientId); err != nil {
+		return nil, errors.Err(err)
+	}
+
 	a := s.New()
-	a.ClientID = make([]byte, 16)
+	a.ClientID = hex.EncodeToString(clientId)
 	a.ClientSecret = secret
 	a.Name = name
 	a.Description = description
 	a.HomeURI = homepage
 	a.RedirectURI = redirect
-
-	if _, err := rand.Read(a.ClientID); err != nil {
-		return nil, errors.Err(err)
-	}
 
 	err = s.Store.Create(appTable, a)
 	return a, errors.Err(err)
@@ -306,19 +308,13 @@ func (s *AppStore) Get(opts ...query.Option) (*App, error) {
 // database is returned. If authentication fails then ErrAuth is returned, if any
 // other errors occur then they are wrapped via errors.Err.
 func (s *AppStore) Auth(id, secret string) (*App, error) {
-	realId, err := hex.DecodeString(id)
-
-	if err != nil {
-		return nil, ErrAuth
-	}
-
 	realSecret, err := hex.DecodeString(secret)
 
 	if err != nil {
 		return nil, ErrAuth
 	}
 
-	a, err := s.Get(query.Where("client_id", "=", query.Arg(realId)))
+	a, err := s.Get(query.Where("client_id", "=", query.Arg(id)))
 
 	if err != nil {
 		return a, errors.Err(err)

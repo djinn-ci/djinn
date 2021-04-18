@@ -57,7 +57,7 @@ CREATE TABLE users (
 CREATE TABLE account_tokens (
 	id         SERIAL PRIMARY KEY,
 	user_id    INT NOT NULL REFERENCES users(id),
-	token      BYTEA NOT NULL UNIQUE,
+	token      VARCHAR NOT NULL UNIQUE,
 	purpose    VARCHAR NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	expires_at TIMESTAMP NOT NULL
@@ -293,7 +293,7 @@ CREATE TABLE cron_builds (
 CREATE TABLE oauth_apps (
 	id            SERIAL PRIMARY KEY,
 	user_id       INT NOT NULL REFERENCES users(id),
-	client_id     BYTEA NOT NULL UNIQUE,
+	client_id     VARCHAR NOT NULL UNIQUE,
 	client_secret BYTEA NOT NULL,
 	name          VARCHAR NOT NULL,
 	description   VARCHAR NULL,
@@ -306,7 +306,7 @@ CREATE TABLE oauth_codes (
 	id         SERIAL PRIMARY KEY,
 	user_id    INT NOT NULL REFERENCES users(id),
 	app_id     INT NOT NULL REFERENCES oauth_apps(id),
-	code       BYTEA NOT NULL UNIQUE,
+	code       VARCHAR NOT NULL UNIQUE,
 	scope      BYTEA NOT NULL,
 	expires_at TIMESTAMP NOT NULL
 );
@@ -316,7 +316,7 @@ CREATE TABLE oauth_tokens (
 	user_id    INT NOT NULL REFERENCES users(id),
 	app_id     INT NULL REFERENCES oauth_apps(id) ON DELETE CASCADE,
 	name       VARCHAR NULL,
-	token      BYTEA NOT NULL UNIQUE,
+	token      VARCHAR NOT NULL UNIQUE,
 	scope      BYTEA NOT NULL,
 	created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 	updated_at TIMESTAMP NOT NULL DEFAULT NOW()

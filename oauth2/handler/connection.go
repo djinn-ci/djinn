@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/hex"
 	"net/http"
 
 	"github.com/andrewpillar/djinn/database"
@@ -38,11 +37,7 @@ func NewConnection(h web.Handler) Connection {
 }
 
 func (h Connection) getToken(r *http.Request) (*oauth2.Token, error) {
-	clientId, err := hex.DecodeString(mux.Vars(r)["id"])
-
-	if err != nil {
-		return nil, errors.New("invalid hex encoding")
-	}
+	clientId := mux.Vars(r)["id"]
 
 	a, err := h.apps.Get(query.Where("client_id", "=", query.Arg(clientId)))
 

@@ -272,7 +272,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	)
 
 	adj := strings.Replace(status.String(), "_", " ", -1)
-	subj := fmt.Sprintf("Djinn - Build #%d %s", b.Number, adj)
+	subj := fmt.Sprintf("Djinn CI - Build #%d %s", b.Number, adj)
 
 	if status == runner.Failed {
 		output = run.Tail()

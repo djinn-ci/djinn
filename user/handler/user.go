@@ -142,7 +142,7 @@ func (h User) Register(w http.ResponseWriter, r *http.Request) {
 	m := mail.Mail{
 		From:    h.SMTP.From,
 		To:      []string{u.Email},
-		Subject: "Djinn - Verify email",
+		Subject: "Djinn CI - Verify email",
 		Body:    fmt.Sprintf(verifyMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
 	}
 
@@ -419,7 +419,7 @@ func (h User) PasswordReset(w http.ResponseWriter, r *http.Request) {
 	m := mail.Mail{
 		From:    h.SMTP.From,
 		To:      []string{u.Email},
-		Subject: "Djinn - Password reset request",
+		Subject: "Djinn CI - Password reset request",
 		Body:    fmt.Sprintf(resetMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
 	}
 
@@ -559,7 +559,7 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 		m := mail.Mail{
 			From:    h.SMTP.From,
 			To:      []string{u.Email},
-			Subject: "Djinn - Verify email",
+			Subject: "Djinn CI - Verify email",
 			Body:    fmt.Sprintf(verifyMail, webutil.BaseAddress(r), hex.EncodeToString(tok)),
 		}
 
@@ -874,8 +874,8 @@ func (h User) Destroy(w http.ResponseWriter, r *http.Request) {
 	m := mail.Mail{
 		From:    h.SMTP.From,
 		To:      []string{u.Email},
-		Subject: "Djinn - Account deleted",
-		Body:    "Your Djinn account has been deleted, you will no longer be able to access your builds.",
+		Subject: "Djinn CI - Account deleted",
+		Body:    "Your Djinn CI account has been deleted, you will no longer be able to access your builds.",
 	}
 
 	if err := m.Send(h.SMTP.Client); err != nil {

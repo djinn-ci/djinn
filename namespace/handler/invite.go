@@ -100,7 +100,7 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 		m := mail.Mail{
 			From:    h.SMTP.From,
 			To:      []string{f.Invitee.Email},
-			Subject: fmt.Sprintf("Djinn - %s invited you to %s", f.Inviter.Username, n.Path),
+			Subject: fmt.Sprintf("Djinn CI - %s invited you to %s", f.Inviter.Username, n.Path),
 			Body:    fmt.Sprintf(inviteMail, f.Inviter.Username, n.Path, webutil.BaseAddress(r)),
 		}
 

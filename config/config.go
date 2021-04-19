@@ -6,9 +6,9 @@ import (
 	"os"
 	"strconv"
 
-	"djinn-ci.com/fs"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/provider"

@@ -514,7 +514,6 @@ func (h User) Settings(w http.ResponseWriter, r *http.Request) {
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
-
 // Verify will either send a verification email to the user, or verify the
 // user's account. If the tok query parameter is in the current request then
 // an attempt will be made to verify the user's account. If the tok query
@@ -572,7 +571,7 @@ func (h User) Verify(w http.ResponseWriter, r *http.Request) {
 		sess.AddFlash(template.Alert{
 			Level:   template.Success,
 			Close:   true,
-			Message: "Verification email sent to: "+u.Email,
+			Message: "Verification email sent to: " + u.Email,
 		}, "alert")
 		h.RedirectBack(w, r)
 		return

@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"djinn-ci.com/fs"
 	"djinn-ci.com/config"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/manifest"
 	"djinn-ci.com/runner"
 	"djinn-ci.com/version"
@@ -121,7 +121,7 @@ func main() {
 		}
 
 		if src.Ref != "" {
-			commands = append(commands, "git checkout -q " + src.Ref)
+			commands = append(commands, "git checkout -q "+src.Ref)
 		}
 
 		if src.Dir != "" {

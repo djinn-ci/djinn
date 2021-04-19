@@ -21,14 +21,14 @@ import (
 // Batcher provides a way of retrieving batches of cron jobs that are ready
 // to be executed.
 type Batcher struct {
-	err       error
-	atEOF     bool
-	page      int64
-	limit     int64
-	store     *Store
-	builds    *build.Store
-	batch     []*Cron
-	errh      func(error)
+	err    error
+	atEOF  bool
+	page   int64
+	limit  int64
+	store  *Store
+	builds *build.Store
+	batch  []*Cron
+	errh   func(error)
 }
 
 // NewBatcher returns a new Batcher using the given Store to retrieve cron jobs

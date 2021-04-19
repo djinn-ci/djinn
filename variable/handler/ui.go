@@ -107,8 +107,8 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		case namespace.ErrPermission:
 			sess.AddFlash(template.Alert{
-				Level:    template.Danger,
-				Close:    true,
+				Level:   template.Danger,
+				Close:   true,
 				Message: "Failed to create variable: could not add to namespace",
 			}, "alert")
 			h.RedirectBack(w, r)
@@ -116,8 +116,8 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Alert{
-				Level:    template.Danger,
-				Close:    true,
+				Level:   template.Danger,
+				Close:   true,
 				Message: "Failed to create variable",
 			}, "alert")
 			h.RedirectBack(w, r)
@@ -128,7 +128,7 @@ func (h Variable) Store(w http.ResponseWriter, r *http.Request) {
 	sess.AddFlash(template.Alert{
 		Level:   template.Success,
 		Close:   true,
-		Message: "Variable has been added: "+v.Key,
+		Message: "Variable has been added: " + v.Key,
 	}, "alert")
 	h.Redirect(w, r, "/variables")
 }

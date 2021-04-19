@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"djinn-ci.com/fs"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/driver/qemu"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/provider"
@@ -228,7 +228,7 @@ func (w *workerCfg) put(n *node) error {
 		w.Crypto.Hash = []byte("00000000000000000000000000000000")
 		w.Crypto.Auth = []byte("00000000000000000000000000000000")
 
-		if err :=  w.Crypto.put(n); err != nil {
+		if err := w.Crypto.put(n); err != nil {
 			return err
 		}
 
@@ -268,16 +268,16 @@ func (w *workerCfg) put(n *node) error {
 	return nil
 }
 
-func (w *Worker) Pidfile() *os.File { return w.pidfile }
-func (w *Worker) Parallelism() int { return w.parallelism }
-func (w *Worker) Driver() string { return w.driver }
-func (w *Worker) Queue() string { return w.queue }
-func (w *Worker) Timeout() time.Duration { return w.timeout }
-func (w *Worker) DB() *sqlx.DB { return w.db }
-func (w *Worker) Redis() *redis.Client { return w.redis }
-func (w *Worker) SMTP() (*mail.Client, string) { return w.smtp, w.postmaster }
-func (w *Worker) Artifacts() fs.Store { return w.artifacts }
-func (w *Worker) Objects() fs.Store { return w.objects }
-func (w *Worker) BlockCipher() *crypto.Block { return w.block }
-func (w *Worker) Log() *log.Logger { return w.log }
+func (w *Worker) Pidfile() *os.File             { return w.pidfile }
+func (w *Worker) Parallelism() int              { return w.parallelism }
+func (w *Worker) Driver() string                { return w.driver }
+func (w *Worker) Queue() string                 { return w.queue }
+func (w *Worker) Timeout() time.Duration        { return w.timeout }
+func (w *Worker) DB() *sqlx.DB                  { return w.db }
+func (w *Worker) Redis() *redis.Client          { return w.redis }
+func (w *Worker) SMTP() (*mail.Client, string)  { return w.smtp, w.postmaster }
+func (w *Worker) Artifacts() fs.Store           { return w.artifacts }
+func (w *Worker) Objects() fs.Store             { return w.objects }
+func (w *Worker) BlockCipher() *crypto.Block    { return w.block }
+func (w *Worker) Log() *log.Logger              { return w.log }
 func (w *Worker) Providers() *provider.Registry { return w.providers }

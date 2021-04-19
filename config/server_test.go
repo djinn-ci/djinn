@@ -5,7 +5,6 @@ import (
 	"testing"
 )
 
-
 func Test_DecodeServer(t *testing.T) {
 	r := strings.NewReader(`
 

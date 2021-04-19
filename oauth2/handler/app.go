@@ -173,7 +173,7 @@ func (h App) Store(w http.ResponseWriter, r *http.Request) {
 	sess.AddFlash(template.Alert{
 		Level:   template.Success,
 		Close:   true,
-		Message: "Created OAuth app "+a.Name,
+		Message: "Created OAuth app " + a.Name,
 	}, "alert")
 	h.Redirect(w, r, "/settings/apps")
 }

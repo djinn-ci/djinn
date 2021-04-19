@@ -23,7 +23,6 @@ func Test_Parser(t *testing.T) {
 	for _, n := range nodes {
 		n.walk(func(n *node) {
 
-
 			println(n.name, n.label, n.value)
 		})
 	}

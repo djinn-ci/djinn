@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"djinn-ci.com/fs"
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 

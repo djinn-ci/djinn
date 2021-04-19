@@ -125,7 +125,7 @@ func (h Repo) loadRepos(u *user.User, name string, page int64, reload bool) ([]*
 		if p.MainAccount {
 			accounts = append(accounts, p)
 		}
-		providerLookup[p.Name + strconv.FormatInt(p.ProviderUserID.Int64, 10)] = p
+		providerLookup[p.Name+strconv.FormatInt(p.ProviderUserID.Int64, 10)] = p
 	}
 
 	p := accounts[0]
@@ -158,7 +158,7 @@ func (h Repo) loadRepos(u *user.User, name string, page int64, reload bool) ([]*
 	}
 
 	for _, r := range rr {
-		p, ok := providerLookup[p.Name + strconv.FormatInt(r.ProviderUserID, 10)]
+		p, ok := providerLookup[p.Name+strconv.FormatInt(r.ProviderUserID, 10)]
 
 		if !ok {
 			continue
@@ -351,7 +351,7 @@ func (h Repo) Store(w http.ResponseWriter, r *http.Request) {
 			sess.AddFlash(template.Alert{
 				Level:   template.Danger,
 				Close:   true,
-				Message: "Failed to enable repository hooks: "+cause.Error(),
+				Message: "Failed to enable repository hooks: " + cause.Error(),
 			}, "alert")
 			h.RedirectBack(w, r)
 			return

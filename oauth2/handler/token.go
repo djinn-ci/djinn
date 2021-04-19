@@ -255,7 +255,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 		sess.AddFlash(template.Alert{
 			Level:   template.Success,
 			Close:   true,
-			Message: "Token has been updated: "+t.Name,
+			Message: "Token has been updated: " + t.Name,
 		}, "alert")
 		h.Redirect(w, r, "/settings/tokens")
 		return
@@ -304,7 +304,7 @@ func (h Token) Update(w http.ResponseWriter, r *http.Request) {
 	sess.AddFlash(template.Alert{
 		Level:   template.Success,
 		Close:   true,
-		Message: "Token has been updated: "+t.Name,
+		Message: "Token has been updated: " + t.Name,
 	}, "alert")
 	h.Redirect(w, r, "/settings/tokens")
 }

@@ -187,7 +187,7 @@ func (q *Driver) runCmd() error {
 				fmt.Fprintf(q.Writer, "make sure your image exists in the namespace the build is being run from\n")
 			} else {
 				fmt.Fprintf(q.Writer, "failed to boot machine\n")
-				fmt.Fprintf(q.Writer, buf.String() + "\n")
+				fmt.Fprintf(q.Writer, buf.String()+"\n")
 			}
 			return err
 		}

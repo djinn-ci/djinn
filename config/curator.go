@@ -17,8 +17,8 @@ type curatorCfg struct {
 
 	Log logCfg
 
-	Database  databaseCfg
-	Stores    map[string]storeCfg
+	Database databaseCfg
+	Stores   map[string]storeCfg
 }
 
 type Curator struct {
@@ -123,7 +123,7 @@ func (c *curatorCfg) put(n *node) error {
 	return nil
 }
 
-func (c *Curator) Pidfile() *os.File { return c.pidfile }
-func (c *Curator) DB() *sqlx.DB { return c.db }
+func (c *Curator) Pidfile() *os.File   { return c.pidfile }
+func (c *Curator) DB() *sqlx.DB        { return c.db }
 func (c *Curator) Artifacts() fs.Store { return c.artifacts }
-func (c *Curator) Log() *log.Logger { return c.log }
+func (c *Curator) Log() *log.Logger    { return c.log }

@@ -27,7 +27,7 @@ type schedulerCfg struct {
 
 	Drivers []string
 
-	Crypto    Crypto
+	Crypto   Crypto
 	Database databaseCfg
 	Redis    redisCfg
 }
@@ -214,11 +214,11 @@ func (s *schedulerCfg) put(n *node) error {
 	return nil
 }
 
-func (s *Scheduler) Pidfile() *os.File { return s.pidfile }
-func (s *Scheduler) Interval() time.Duration { return s.interval }
-func (s *Scheduler) BatchSize() int64 { return s.batchsize }
-func (s *Scheduler) Hasher() *crypto.Hasher { return s.hasher }
-func (s *Scheduler) DB() *sqlx.DB { return s.db }
-func (s *Scheduler) Redis() *redis.Client { return s.redis }
-func (s *Scheduler) Log() *log.Logger { return s.log }
+func (s *Scheduler) Pidfile() *os.File                      { return s.pidfile }
+func (s *Scheduler) Interval() time.Duration                { return s.interval }
+func (s *Scheduler) BatchSize() int64                       { return s.batchsize }
+func (s *Scheduler) Hasher() *crypto.Hasher                 { return s.hasher }
+func (s *Scheduler) DB() *sqlx.DB                           { return s.db }
+func (s *Scheduler) Redis() *redis.Client                   { return s.redis }
+func (s *Scheduler) Log() *log.Logger                       { return s.log }
 func (s *Scheduler) Producers() map[string]*curlyq.Producer { return s.producers }

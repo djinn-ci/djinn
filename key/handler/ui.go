@@ -200,7 +200,7 @@ func (h Key) Update(w http.ResponseWriter, r *http.Request) {
 	sess.AddFlash(template.Alert{
 		Level:   template.Success,
 		Close:   true,
-		Message: "Key has been updated: "+k.Name,
+		Message: "Key has been updated: " + k.Name,
 	}, "alert")
 	h.Redirect(w, r, "/keys")
 }

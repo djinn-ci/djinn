@@ -23,18 +23,18 @@ type scanner struct {
 
 //go:generate stringer -type token -linecomment
 const (
-	_EOF token = iota  // eof
+	_EOF token = iota // eof
 
-	_Name             // name
-	_Literal          // literal
+	_Name    // name
+	_Literal // literal
 
-	_Semi             // newline
-	_Comma            // ,
+	_Semi  // newline
+	_Comma // ,
 
-	_Lbrace           // {
-	_Rbrace           // }
-	_Lbrack           // [
-	_Rbrack           // ]
+	_Lbrace // {
+	_Rbrace // }
+	_Lbrack // [
+	_Rbrack // ]
 )
 
 const (
@@ -44,11 +44,11 @@ const (
 )
 
 func isLetter(r rune) bool {
-	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || r == '-' || r == '_';
+	return 'a' <= r && r <= 'z' || 'A' <= r && r <= 'Z' || r == '-' || r == '_'
 }
 
 func isDigit(r rune) bool {
-	return '0' <= r && r <= '9';
+	return '0' <= r && r <= '9'
 }
 
 func newScanner(s *source) *scanner {
@@ -110,7 +110,7 @@ func (s *scanner) string() {
 
 	s.tok = _Literal
 	s.litKind = stringLit
-	s.lit = lit[1:len(lit)-1]
+	s.lit = lit[1 : len(lit)-1]
 }
 
 func (s *scanner) comment() {

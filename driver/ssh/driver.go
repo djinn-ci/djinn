@@ -41,7 +41,7 @@ type Driver struct {
 
 var (
 	_ runner.Driver = (*Driver)(nil)
-	_ driver.Config  = (*Config)(nil)
+	_ driver.Config = (*Config)(nil)
 )
 
 func (cfg *Config) Merge(m map[string]string) driver.Config {

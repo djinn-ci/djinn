@@ -30,9 +30,9 @@ func (f Form) Fields() map[string]string {
 	}
 
 	return map[string]string{
-		"name":      f.Name,
-		"schedule":  f.Schedule.String(),
-		"manifest":  manifest,
+		"name":     f.Name,
+		"schedule": f.Schedule.String(),
+		"manifest": manifest,
 	}
 }
 

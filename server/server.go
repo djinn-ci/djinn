@@ -85,7 +85,7 @@ func encodeStack() string {
 	prev := 0
 
 	for i := range base64 {
-		if i % 47 == 0 {
+		if i%47 == 0 {
 			buf.WriteString(base64[prev:i] + "\n")
 			prev = i
 			continue
@@ -205,7 +205,7 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 					strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 					data := map[string]string{
 						"message": "Something went wrong",
-						"stack": encodeStack(),
+						"stack":   encodeStack(),
 					}
 
 					webutil.JSON(w, data, http.StatusInternalServerError)

@@ -118,7 +118,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			sess.AddFlash(template.Alert{
 				Level:   template.Danger,
 				Close:   true,
-				Message:  "Failed to create cron: could not add to namespace",
+				Message: "Failed to create cron: could not add to namespace",
 			}, "alert")
 			h.RedirectBack(w, r)
 			return
@@ -127,7 +127,7 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 			sess.AddFlash(template.Alert{
 				Level:   template.Danger,
 				Close:   true,
-				Message:  "Failed to create cron",
+				Message: "Failed to create cron",
 			}, "alert")
 			h.RedirectBack(w, r)
 			return

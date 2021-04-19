@@ -10,10 +10,10 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/andrewpillar/djinn/config"
-	"github.com/andrewpillar/djinn/cron"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/version"
+	"djinn-ci.com/config"
+	"djinn-ci.com/cron"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/version"
 )
 
 func main() {

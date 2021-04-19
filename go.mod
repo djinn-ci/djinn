@@ -1,4 +1,4 @@
-module github.com/andrewpillar/djinn
+module djinn-ci.com
 
 go 1.15
 

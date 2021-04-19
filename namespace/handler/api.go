@@ -3,16 +3,16 @@ package handler
 import (
 	"net/http"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/image"
-	"github.com/andrewpillar/djinn/key"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/object"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/variable"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/build"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/image"
+	"djinn-ci.com/key"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/object"
+	"djinn-ci.com/user"
+	"djinn-ci.com/variable"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 )

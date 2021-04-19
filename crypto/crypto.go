@@ -14,7 +14,7 @@ import (
 	"crypto/sha256"
 	"time"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 
 	"github.com/speps/go-hashids"
 

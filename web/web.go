@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/database"
+	"djinn-ci.com/template"
 
 	"github.com/andrewpillar/webutil"
 

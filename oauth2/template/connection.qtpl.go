@@ -8,8 +8,8 @@ package template
 import (
 	htmltemplate "html/template"
 
-	"github.com/andrewpillar/djinn/oauth2"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/oauth2"
+	"djinn-ci.com/template"
 )
 
 //line oauth2/template/connection.qtpl:10

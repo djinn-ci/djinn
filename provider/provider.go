@@ -7,11 +7,11 @@ import (
 	"database/sql"
 	"time"
 
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/runner"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/crypto"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/runner"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 

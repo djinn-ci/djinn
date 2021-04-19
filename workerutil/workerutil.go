@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/andrewpillar/djinn/config"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/worker"
+	"djinn-ci.com/config"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/worker"
 )
 
 func ParseFlags(args []string) (string, string, bool) {

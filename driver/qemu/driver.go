@@ -17,10 +17,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/driver"
-	driverssh "github.com/andrewpillar/djinn/driver/ssh"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/runner"
+	"djinn-ci.com/driver"
+	driverssh "djinn-ci.com/driver/ssh"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/runner"
 )
 
 type realpathFunc func(string, string) (string, error)

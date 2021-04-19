@@ -3,7 +3,7 @@ package build
 import (
 	"database/sql/driver"
 
-	"github.com/andrewpillar/djinn/database"
+	"djinn-ci.com/database"
 
 	"github.com/andrewpillar/query"
 

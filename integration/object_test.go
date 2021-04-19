@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/andrewpillar/djinn/object"
+	"djinn-ci.com/object"
 
 	"github.com/andrewpillar/query"
 )

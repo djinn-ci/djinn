@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"

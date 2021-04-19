@@ -7,10 +7,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andrewpillar/djinn/driver"
-	"github.com/andrewpillar/djinn/driver/docker"
-	"github.com/andrewpillar/djinn/driver/qemu"
-	"github.com/andrewpillar/djinn/driver/ssh"
+	"djinn-ci.com/driver"
+	"djinn-ci.com/driver/docker"
+	"djinn-ci.com/driver/qemu"
+	"djinn-ci.com/driver/ssh"
 )
 
 type driverCfg struct {

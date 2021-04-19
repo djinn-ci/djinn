@@ -8,8 +8,8 @@ package template
 import (
 	htmltemplate "html/template"
 
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template"
 )
 
 //line namespace/template/section.qtpl:10

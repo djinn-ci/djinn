@@ -10,10 +10,10 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/log"
-	"github.com/andrewpillar/djinn/template"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/log"
+	"djinn-ci.com/template"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 

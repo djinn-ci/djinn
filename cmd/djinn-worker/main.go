@@ -7,10 +7,10 @@ import (
 	"os/signal"
 	"runtime"
 
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/version"
-	"github.com/andrewpillar/djinn/workerutil"
+	"djinn-ci.com/crypto"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/version"
+	"djinn-ci.com/workerutil"
 )
 
 func main() {

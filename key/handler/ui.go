@@ -3,12 +3,12 @@ package handler
 import (
 	"net/http"
 
-	"github.com/andrewpillar/djinn/errors"
-	keytemplate "github.com/andrewpillar/djinn/key/template"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/template"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/errors"
+	keytemplate "djinn-ci.com/key/template"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template"
+	"djinn-ci.com/user"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 

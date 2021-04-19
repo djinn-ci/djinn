@@ -3,8 +3,8 @@ package fs
 import (
 	"io"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/runner"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/runner"
 )
 
 type limitedWriter struct {

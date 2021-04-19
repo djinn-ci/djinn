@@ -3,8 +3,8 @@ package cron
 import (
 	"time"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/database"
+	"djinn-ci.com/build"
+	"djinn-ci.com/database"
 
 	"github.com/andrewpillar/query"
 

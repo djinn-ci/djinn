@@ -16,10 +16,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/andrewpillar/djinn/fs"
-	"github.com/andrewpillar/djinn/oauth2"
-	"github.com/andrewpillar/djinn/serverutil"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/fs"
+	"djinn-ci.com/oauth2"
+	"djinn-ci.com/serverutil"
+	"djinn-ci.com/user"
 
 	"github.com/jmoiron/sqlx"
 )

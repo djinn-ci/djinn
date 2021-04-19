@@ -11,8 +11,8 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/database"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/webutil"
 )

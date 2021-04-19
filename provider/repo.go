@@ -6,9 +6,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 

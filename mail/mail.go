@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 )
 
 type Client struct {

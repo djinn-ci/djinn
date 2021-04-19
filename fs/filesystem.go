@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 )
 
 // Filesystem provides an implementation of the Store interface for the

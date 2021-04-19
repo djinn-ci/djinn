@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/andrewpillar/djinn/runner"
+	"djinn-ci.com/runner"
 )
 
 type Config interface {

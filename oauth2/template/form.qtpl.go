@@ -9,8 +9,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/andrewpillar/djinn/oauth2"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/oauth2"
+	"djinn-ci.com/template"
 )
 
 //line oauth2/template/form.qtpl:11

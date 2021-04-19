@@ -3,8 +3,8 @@ package runner
 import (
 	"database/sql/driver"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
 )
 
 type Status uint8

@@ -8,10 +8,10 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/serverutil"
-	"github.com/andrewpillar/djinn/version"
+	"djinn-ci.com/crypto"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/serverutil"
+	"djinn-ci.com/version"
 )
 
 func main() {

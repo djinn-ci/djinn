@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
 )
 
 // Type represents the type of driver being used.

@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/runner"
+	"djinn-ci.com/crypto"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/runner"
 )
 
 type info struct {

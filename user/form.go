@@ -3,7 +3,7 @@ package user
 import (
 	"regexp"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"

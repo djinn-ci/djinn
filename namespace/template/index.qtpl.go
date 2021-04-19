@@ -6,10 +6,10 @@ package template
 
 //line namespace/template/index.qtpl:2
 import (
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/build"
+	"djinn-ci.com/database"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template"
 )
 
 //line namespace/template/index.qtpl:10

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 )
 
 func unmarshal(s string) func(interface{}) error {

@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/build"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/query"
 

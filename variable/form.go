@@ -3,8 +3,8 @@ package variable
 import (
 	"regexp"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/namespace"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/namespace"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"

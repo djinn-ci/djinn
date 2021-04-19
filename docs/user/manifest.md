@@ -190,7 +190,7 @@ to demonstrate its structure,
       type: qemu
       image: djinn-dev
     sources:
-    - https://github.com/andrewpillar/djinn.git => djinn
+    - https://djinn-ci.com.git => djinn
     env:
     - PGPASSWORD=secret
     - LDFLAGS=-s -w

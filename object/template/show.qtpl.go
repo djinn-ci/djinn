@@ -9,8 +9,8 @@ import (
 	"fmt"
 	htmltemplate "html/template"
 
-	"github.com/andrewpillar/djinn/object"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/object"
+	"djinn-ci.com/template"
 )
 
 //line object/template/show.qtpl:11

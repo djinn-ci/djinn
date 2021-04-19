@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/image"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/image"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 )

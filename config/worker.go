@@ -8,13 +8,13 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andrewpillar/djinn/fs"
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/driver/qemu"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/log"
-	"github.com/andrewpillar/djinn/mail"
-	"github.com/andrewpillar/djinn/provider"
+	"djinn-ci.com/fs"
+	"djinn-ci.com/crypto"
+	"djinn-ci.com/driver/qemu"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/log"
+	"djinn-ci.com/mail"
+	"djinn-ci.com/provider"
 
 	"github.com/go-redis/redis"
 

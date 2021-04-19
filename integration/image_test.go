@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/andrewpillar/djinn/image"
+	"djinn-ci.com/image"
 
 	"github.com/andrewpillar/query"
 )

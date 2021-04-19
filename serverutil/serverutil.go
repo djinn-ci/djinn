@@ -7,14 +7,14 @@ import (
 	"os"
 	"strings"
 
-	"github.com/andrewpillar/djinn/config"
-	"github.com/andrewpillar/djinn/env"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/oauth2"
-	"github.com/andrewpillar/djinn/server"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/version"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/config"
+	"djinn-ci.com/env"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/oauth2"
+	"djinn-ci.com/server"
+	"djinn-ci.com/user"
+	"djinn-ci.com/version"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 
@@ -23,16 +23,16 @@ import (
 
 	"github.com/jmoiron/sqlx"
 
-	buildrouter "github.com/andrewpillar/djinn/build/router"
-	cronrouter "github.com/andrewpillar/djinn/cron/router"
-	imagerouter "github.com/andrewpillar/djinn/image/router"
-	keyrouter "github.com/andrewpillar/djinn/key/router"
-	namespacerouter "github.com/andrewpillar/djinn/namespace/router"
-	oauth2router "github.com/andrewpillar/djinn/oauth2/router"
-	objectrouter "github.com/andrewpillar/djinn/object/router"
-	providerrouter "github.com/andrewpillar/djinn/provider/router"
-	userrouter "github.com/andrewpillar/djinn/user/router"
-	variablerouter "github.com/andrewpillar/djinn/variable/router"
+	buildrouter "djinn-ci.com/build/router"
+	cronrouter "djinn-ci.com/cron/router"
+	imagerouter "djinn-ci.com/image/router"
+	keyrouter "djinn-ci.com/key/router"
+	namespacerouter "djinn-ci.com/namespace/router"
+	oauth2router "djinn-ci.com/oauth2/router"
+	objectrouter "djinn-ci.com/object/router"
+	providerrouter "djinn-ci.com/provider/router"
+	userrouter "djinn-ci.com/user/router"
+	variablerouter "djinn-ci.com/variable/router"
 )
 
 var (

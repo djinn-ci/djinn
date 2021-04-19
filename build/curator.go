@@ -1,11 +1,11 @@
 package build
 
 import (
-	"github.com/andrewpillar/djinn/fs"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/log"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/fs"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/log"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 

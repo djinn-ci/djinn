@@ -1,6 +1,6 @@
 {%
 import (
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/template"
 )
 %}
 

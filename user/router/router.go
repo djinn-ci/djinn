@@ -3,11 +3,11 @@ package router
 import (
 	"net/http"
 
-	"github.com/andrewpillar/djinn/config"
-	"github.com/andrewpillar/djinn/server"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/user/handler"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/config"
+	"djinn-ci.com/server"
+	"djinn-ci.com/user"
+	"djinn-ci.com/user/handler"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 

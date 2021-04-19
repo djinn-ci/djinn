@@ -6,11 +6,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/log"
-	"github.com/andrewpillar/djinn/mail"
-	"github.com/andrewpillar/djinn/oauth2"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/log"
+	"djinn-ci.com/mail"
+	"djinn-ci.com/oauth2"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 

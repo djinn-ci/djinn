@@ -6,13 +6,13 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/image"
-	imagetemplate "github.com/andrewpillar/djinn/image/template"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/template"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/image"
+	imagetemplate "djinn-ci.com/image/template"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template"
+	"djinn-ci.com/user"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 

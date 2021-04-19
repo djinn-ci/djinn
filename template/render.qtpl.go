@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/andrewpillar/djinn/runner"
+	"djinn-ci.com/runner"
 )
 
 //line template/render.qtpl:10

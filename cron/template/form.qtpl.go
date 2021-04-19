@@ -6,8 +6,8 @@ package template
 
 //line cron/template/form.qtpl:2
 import (
-	"github.com/andrewpillar/djinn/cron"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/cron"
+	"djinn-ci.com/template"
 )
 
 //line cron/template/form.qtpl:8

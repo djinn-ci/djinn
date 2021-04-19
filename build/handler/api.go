@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/build"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"

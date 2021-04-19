@@ -9,8 +9,8 @@ import (
 	"html/template"
 	"net/url"
 
-	"github.com/andrewpillar/djinn/env"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/env"
+	"djinn-ci.com/user"
 )
 
 //line template/dashboard.qtpl:12

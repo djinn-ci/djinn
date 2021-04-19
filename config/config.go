@@ -6,14 +6,14 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/andrewpillar/djinn/fs"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/log"
-	"github.com/andrewpillar/djinn/mail"
-	"github.com/andrewpillar/djinn/provider"
-	"github.com/andrewpillar/djinn/provider/github"
-	"github.com/andrewpillar/djinn/provider/gitlab"
+	"djinn-ci.com/fs"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/log"
+	"djinn-ci.com/mail"
+	"djinn-ci.com/provider"
+	"djinn-ci.com/provider/github"
+	"djinn-ci.com/provider/gitlab"
 
 	"github.com/go-redis/redis"
 

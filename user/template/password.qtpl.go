@@ -5,7 +5,7 @@
 package template
 
 //line user/template/password.qtpl:2
-import "github.com/andrewpillar/djinn/template"
+import "djinn-ci.com/template"
 
 //line user/template/password.qtpl:5
 import (

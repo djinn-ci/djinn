@@ -8,7 +8,7 @@ package template
 import (
 	"strings"
 
-	"github.com/andrewpillar/djinn/oauth2"
+	"djinn-ci.com/oauth2"
 )
 
 //line oauth2/template/render.qtpl:9

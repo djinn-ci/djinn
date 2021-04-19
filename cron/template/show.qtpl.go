@@ -9,9 +9,9 @@ import (
 	htmltemplate "html/template"
 	"strings"
 
-	buildtemplate "github.com/andrewpillar/djinn/build/template"
-	"github.com/andrewpillar/djinn/cron"
-	"github.com/andrewpillar/djinn/template"
+	buildtemplate "djinn-ci.com/build/template"
+	"djinn-ci.com/cron"
+	"djinn-ci.com/template"
 )
 
 //line cron/template/show.qtpl:12

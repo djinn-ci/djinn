@@ -9,9 +9,9 @@ import (
 	htmltemplate "html/template"
 	"strings"
 
-	"github.com/andrewpillar/djinn/cron"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/cron"
+	"djinn-ci.com/database"
+	"djinn-ci.com/template"
 )
 
 //line cron/template/index.qtpl:12

@@ -4,14 +4,14 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/andrewpillar/djinn/config"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/key"
-	"github.com/andrewpillar/djinn/key/handler"
-	"github.com/andrewpillar/djinn/server"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/config"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/key"
+	"djinn-ci.com/key/handler"
+	"djinn-ci.com/server"
+	"djinn-ci.com/user"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/query"
 

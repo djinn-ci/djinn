@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/key"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/crypto"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/key"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/user"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 )

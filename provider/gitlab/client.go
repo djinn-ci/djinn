@@ -14,10 +14,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/provider"
-	"github.com/andrewpillar/djinn/runner"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/provider"
+	"djinn-ci.com/runner"
 
 	"golang.org/x/oauth2"
 )

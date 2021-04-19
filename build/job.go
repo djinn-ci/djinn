@@ -7,9 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/runner"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/runner"
 
 	"github.com/andrewpillar/query"
 

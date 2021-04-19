@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/driver"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/runner"
+	"djinn-ci.com/driver"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/runner"
 
 	"github.com/pkg/sftp"
 

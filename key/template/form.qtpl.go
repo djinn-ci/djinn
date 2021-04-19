@@ -6,8 +6,8 @@ package template
 
 //line key/template/form.qtpl:2
 import (
-	"github.com/andrewpillar/djinn/key"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/key"
+	"djinn-ci.com/template"
 )
 
 //line key/template/form.qtpl:8

@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/provider"
-	"github.com/andrewpillar/djinn/template"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/crypto"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/provider"
+	"djinn-ci.com/template"
+	"djinn-ci.com/user"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/query"
 

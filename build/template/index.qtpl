@@ -2,9 +2,9 @@
 import (
 	"strings"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/build"
+	"djinn-ci.com/database"
+	"djinn-ci.com/template"
 
 	"github.com/hako/durafmt"
 )

@@ -3,7 +3,7 @@ package namespace
 import (
 	"testing"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 )
 
 func Test_Visibility(t *testing.T) {

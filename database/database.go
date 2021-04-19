@@ -6,7 +6,7 @@ import (
 	"database/sql/driver"
 	"strings"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 
 	"github.com/andrewpillar/query"
 

@@ -9,12 +9,12 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/andrewpillar/djinn/fs"
-	"github.com/andrewpillar/djinn/config"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/manifest"
-	"github.com/andrewpillar/djinn/runner"
-	"github.com/andrewpillar/djinn/version"
+	"djinn-ci.com/fs"
+	"djinn-ci.com/config"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/manifest"
+	"djinn-ci.com/runner"
+	"djinn-ci.com/version"
 )
 
 var setupStage = "setup"

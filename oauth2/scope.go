@@ -4,8 +4,8 @@ import (
 	"database/sql/driver"
 	"strings"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
 )
 
 // Resource is the resource that the OAuth server makes available.

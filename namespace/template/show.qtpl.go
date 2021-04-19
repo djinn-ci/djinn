@@ -6,8 +6,8 @@ package template
 
 //line namespace/template/show.qtpl:2
 import (
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template"
 )
 
 //line namespace/template/show.qtpl:8

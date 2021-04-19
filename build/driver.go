@@ -3,10 +3,10 @@ package build
 import (
 	"database/sql"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/driver"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/manifest"
+	"djinn-ci.com/database"
+	"djinn-ci.com/driver"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/manifest"
 
 	"github.com/andrewpillar/query"
 

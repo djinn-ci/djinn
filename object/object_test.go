@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andrewpillar/djinn/fs"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/fs"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 

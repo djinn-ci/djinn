@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/andrewpillar/djinn/crypto"
-	"github.com/andrewpillar/djinn/log"
+	"djinn-ci.com/crypto"
+	"djinn-ci.com/log"
 
 	"github.com/go-redis/redis"
 

@@ -3,9 +3,9 @@ import (
 	htmltemplate "html/template"
 	"time"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/runner"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/build"
+	"djinn-ci.com/runner"
+	"djinn-ci.com/template"
 
 	"github.com/hako/durafmt"
 )

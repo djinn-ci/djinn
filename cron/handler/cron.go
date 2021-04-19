@@ -4,13 +4,13 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/cron"
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/user"
-	"github.com/andrewpillar/djinn/web"
+	"djinn-ci.com/build"
+	"djinn-ci.com/cron"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/user"
+	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 )

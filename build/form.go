@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/manifest"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/manifest"
 
 	"github.com/andrewpillar/webutil"
 )

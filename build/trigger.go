@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
 
 	"github.com/andrewpillar/query"
 

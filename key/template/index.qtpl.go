@@ -8,9 +8,9 @@ package template
 import (
 	htmltemplate "html/template"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/key"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/database"
+	"djinn-ci.com/key"
+	"djinn-ci.com/template"
 )
 
 //line key/template/index.qtpl:11

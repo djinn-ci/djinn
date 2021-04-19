@@ -8,8 +8,8 @@ package template
 import (
 	"fmt"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/template"
+	"djinn-ci.com/build"
+	"djinn-ci.com/template"
 )
 
 //line build/template/render.qtpl:11

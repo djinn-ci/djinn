@@ -7,12 +7,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/manifest"
-	"github.com/andrewpillar/djinn/namespace"
-	"github.com/andrewpillar/djinn/runner"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/manifest"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/runner"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 

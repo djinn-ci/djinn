@@ -5,8 +5,8 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/webutil"
 

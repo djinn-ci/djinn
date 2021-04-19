@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/andrewpillar/djinn/errors"
+	"djinn-ci.com/errors"
 
 	"github.com/andrewpillar/webutil"
 )

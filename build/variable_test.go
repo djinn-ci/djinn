@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/andrewpillar/djinn/database"
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/variable"
+	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/variable"
 
 	"github.com/andrewpillar/query"
 

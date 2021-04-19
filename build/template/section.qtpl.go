@@ -10,9 +10,9 @@ import (
 	htmltemplate "html/template"
 	"net/url"
 
-	"github.com/andrewpillar/djinn/build"
-	"github.com/andrewpillar/djinn/template"
-	"github.com/andrewpillar/djinn/user"
+	"djinn-ci.com/build"
+	"djinn-ci.com/template"
+	"djinn-ci.com/user"
 )
 
 //line build/template/section.qtpl:13

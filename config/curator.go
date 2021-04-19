@@ -5,9 +5,9 @@ import (
 	"io"
 	"os"
 
-	"github.com/andrewpillar/djinn/errors"
-	"github.com/andrewpillar/djinn/fs"
-	"github.com/andrewpillar/djinn/log"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
+	"djinn-ci.com/log"
 
 	"github.com/jmoiron/sqlx"
 )

@@ -96,7 +96,7 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 	}
 
 	for _, n := range nn {
-		if b, ok := m[n.ID]; ok {
+		if b, ok := m[n.ID]; ok && n.Build == nil {
 			n.Build = b
 		}
 	}

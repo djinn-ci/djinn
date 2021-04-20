@@ -4,7 +4,6 @@ package integration
 
 import (
 	"bytes"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -167,7 +166,7 @@ func (c client) do(t *testing.T, r request) *http.Response {
 	}
 
 	if r.token != nil {
-		req.Header.Set("Authorization", "Bearer "+hex.EncodeToString(r.token.Token))
+		req.Header.Set("Authorization", "Bearer "+r.token.Token)
 	}
 
 	req.Header.Set("Content-Type", r.contentType)

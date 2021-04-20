@@ -139,6 +139,10 @@ func (m Mail) String() string {
 // attempt to send the mail will still be done, and the ErrRcpts type will be
 // returned.
 func (m Mail) Send(cli *Client) error {
+	if err := cli.Reset(); err != nil {
+		return errors.Err(err)
+	}
+
 	if err := cli.Mail(m.From); err != nil {
 		return errors.Err(err)
 	}

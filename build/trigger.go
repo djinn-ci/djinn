@@ -151,9 +151,9 @@ func (d *triggerData) Set(key, val string) {
 }
 
 func (d *triggerData) String() string {
-	buf := &bytes.Buffer{}
-	json.NewEncoder(buf).Encode(d)
-	return buf.String()
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(d)
+	return buf.String()[:buf.Len()-1]
 }
 
 func (d triggerData) Value() (driver.Value, error) { return driver.Value(d.String()), nil }

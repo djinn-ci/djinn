@@ -84,7 +84,6 @@ func (c *Curator) Invoke(log *log.Logger) error {
 			log.Debug.Println("removing artifact", r.hash)
 
 			if err := c.artifacts.Remove(r.hash); err != nil {
-				err = ErrCuration
 				log.Error.Println("failed to remove artifact", r.hash, err)
 				continue
 			}

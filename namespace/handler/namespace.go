@@ -91,7 +91,9 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 
 	for _, b := range bb {
 		if b.NamespaceID.Valid {
-			m[b.NamespaceID.Int64] = b
+			if _, ok := m[b.NamespaceID.Int64]; !ok {
+				m[b.NamespaceID.Int64] = b
+			}
 		}
 	}
 

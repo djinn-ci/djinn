@@ -163,11 +163,5 @@ func (h Image) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get image from context")
 	}
-
-	store, err := h.store.Partition(i.UserID)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-	return errors.Err(image.NewStoreWithBlockStore(h.DB, store).Delete(i.ID, i.Driver, i.Hash))
+	return errors.Err(image.NewStoreWithBlockStore(h.DB, h.store).Delete(i.ID, i.Driver, i.Hash))
 }

@@ -152,6 +152,12 @@ func dumpResponse(t *testing.T, r *http.Response) {
 	}
 }
 
+func dumpLog() {
+	f, _ := os.Open(filepath.Join("testdata", "server.log"))
+	defer f.Close()
+	io.Copy(os.Stdout, f)
+}
+
 func jsonBody(v interface{}) io.ReadCloser {
 	var buf bytes.Buffer
 	json.NewEncoder(&buf).Encode(v)
@@ -163,6 +169,7 @@ func (c client) do(t *testing.T, r request) *http.Response {
 
 	if err != nil {
 		t.Fatalf("unexpected http.NewRequest error: %s\n", err)
+		dumpLog()
 	}
 
 	if r.token != nil {
@@ -179,6 +186,7 @@ func (c client) do(t *testing.T, r request) *http.Response {
 
 	if err != nil {
 		t.Fatalf("unexpected http.Client.Do error: %s\n", err)
+		dumpLog()
 	}
 
 	req.Body = reqbody2
@@ -188,6 +196,7 @@ func (c client) do(t *testing.T, r request) *http.Response {
 		t.Errorf("unexpected http response status, expected=%d, got=%q\n", r.code, resp.Status)
 		dumpRequest(t, req)
 		dumpResponse(t, resp)
+		dumpLog()
 	}
 
 	respbody1, respbody2 := drain(t, resp.Body)

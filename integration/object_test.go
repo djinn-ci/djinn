@@ -89,7 +89,13 @@ func Test_Object(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := objectStore.Stat(o.Hash); err != nil {
+	part, err := objectStore.Partition(o.UserID)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := part.Stat(o.Hash); err != nil {
 		t.Fatalf("failed to stat image file %s: %s\n", o.Hash, err)
 	}
 

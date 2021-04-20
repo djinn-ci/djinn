@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/smtp"
 	"strings"
-	"time"
 
 	"djinn-ci.com/errors"
 )
@@ -140,8 +139,6 @@ func (m Mail) String() string {
 // attempt to send the mail will still be done, and the ErrRcpts type will be
 // returned.
 func (m Mail) Send(cli *Client) error {
-	cli.conn.SetDeadline(time.Now().Add(time.Minute))
-
 	if err := cli.Mail(m.From); err != nil {
 		return errors.Err(err)
 	}

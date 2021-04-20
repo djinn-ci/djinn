@@ -79,11 +79,18 @@ func (c *Curator) Invoke(log *log.Logger) error {
 		sums[a.UserID] = sum
 	}
 
-	for _, records := range curated {
+	for userId, records := range curated {
+		part, err := c.artifacts.Partition(userId)
+
+		if err != nil {
+			log.Error.Println("failed to partition artifact store", err)
+			continue
+		}
+
 		for _, r := range records {
 			log.Debug.Println("removing artifact", r.hash)
 
-			if err := c.artifacts.Remove(r.hash); err != nil {
+			if err := part.Remove(r.hash); err != nil {
 				log.Error.Println("failed to remove artifact", r.hash, err)
 				continue
 			}

@@ -143,7 +143,7 @@ func (p *Manifest) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:66
 	qw422016.N().S(` Build #`)
 //line build/template/section.qtpl:67
-	qw422016.E().V(p.Build.ID)
+	qw422016.E().V(p.Build.Number)
 //line build/template/section.qtpl:67
 	qw422016.N().S(` - Manifest `)
 //line build/template/section.qtpl:68
@@ -229,7 +229,7 @@ func (p *Objects) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:85
 	qw422016.N().S(` Build #`)
 //line build/template/section.qtpl:86
-	qw422016.E().V(p.Build.ID)
+	qw422016.E().V(p.Build.Number)
 //line build/template/section.qtpl:86
 	qw422016.N().S(` - Objects `)
 //line build/template/section.qtpl:87
@@ -423,7 +423,7 @@ func (p *Artifacts) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:155
 	qw422016.N().S(` Build #`)
 //line build/template/section.qtpl:156
-	qw422016.E().V(p.Build.ID)
+	qw422016.E().V(p.Build.Number)
 //line build/template/section.qtpl:156
 	qw422016.N().S(` - Artifacts `)
 //line build/template/section.qtpl:157
@@ -497,7 +497,7 @@ func (p *Variables) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:163
 	qw422016.N().S(` Build #`)
 //line build/template/section.qtpl:164
-	qw422016.E().V(p.Build.ID)
+	qw422016.E().V(p.Build.Number)
 //line build/template/section.qtpl:164
 	qw422016.N().S(` - Variables `)
 //line build/template/section.qtpl:165
@@ -607,7 +607,7 @@ func (p *Keys) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:194
 	qw422016.N().S(` Build #`)
 //line build/template/section.qtpl:195
-	qw422016.E().V(p.Build.ID)
+	qw422016.E().V(p.Build.Number)
 //line build/template/section.qtpl:195
 	qw422016.N().S(` - Keys `)
 //line build/template/section.qtpl:196
@@ -705,7 +705,7 @@ func (p *Tags) StreamTitle(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:223
 	qw422016.N().S(` Build #`)
 //line build/template/section.qtpl:224
-	qw422016.E().V(p.Build.ID)
+	qw422016.E().V(p.Build.Number)
 //line build/template/section.qtpl:224
 	qw422016.N().S(` - Tags `)
 //line build/template/section.qtpl:225

@@ -64,7 +64,7 @@ type Tags struct {
 {% func (p *section) Header() %}{% endfunc %}
 
 {% func (p *Manifest) Title() %}
-	Build #{%v p.Build.ID %} - Manifest
+	Build #{%v p.Build.Number %} - Manifest
 {% endfunc %}
 
 {% func (p *Manifest) Body() %}
@@ -83,7 +83,7 @@ type Tags struct {
 {% endfunc %}
 
 {% func (p *Objects) Title() %}
-	Build #{%v p.Build.ID %} - Objects
+	Build #{%v p.Build.Number %} - Objects
 {% endfunc %}
 
 {% func (p *Objects) Body() %}
@@ -153,7 +153,7 @@ type Tags struct {
 {% endfunc %}
 
 {% func (p *Artifacts) Title() %}
-	Build #{%v p.Build.ID %} - Artifacts
+	Build #{%v p.Build.Number %} - Artifacts
 {% endfunc %}
 
 {% func (p *Artifacts) Body() %}
@@ -161,7 +161,7 @@ type Tags struct {
 {% endfunc %}
 
 {% func (p *Variables) Title() %}
-	Build #{%v p.Build.ID %} - Variables
+	Build #{%v p.Build.Number %} - Variables
 {% endfunc %}
 
 {% func (p *Variables) Body() %}
@@ -192,7 +192,7 @@ type Tags struct {
 {% endfunc %}
 
 {% func (p *Keys) Title() %}
-	Build #{%v p.Build.ID %} - Keys
+	Build #{%v p.Build.Number %} - Keys
 {% endfunc %}
 
 {% func (p *Keys) Body() %}
@@ -221,7 +221,7 @@ type Tags struct {
 {% endfunc %}
 
 {% func (p *Tags) Title() %}
-	Build #{%v p.Build.ID %} - Tags
+	Build #{%v p.Build.Number %} - Tags
 {% endfunc %}
 
 {% func (p *Tags) Body() %}

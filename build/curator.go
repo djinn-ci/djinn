@@ -26,8 +26,6 @@ type Curator struct {
 	users     *user.Store
 }
 
-var ErrCuration = errors.New("artifact curation failed")
-
 // NewCurator creates a new curator for cleaning up old artifacts from the
 // given block store.
 func NewCurator(db *sqlx.DB, artifacts fs.Store, limit int64) Curator {

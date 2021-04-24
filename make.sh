@@ -3,11 +3,12 @@
 set -e
 
 _version() {
-	while read line; do
-		if echo "$line" | grep -q "tag: "; then
-			echo "$line" | cut -d / -f 3 | tr -d ',)'
-		fi
-	done <<< $(git log --decorate=full --format=format:%d | head -1 | tr ',' '\n')
+	git log --decorate=full --format=format:%d |
+		head -1 |
+		tr ',' '\n' |
+		grep tag: |
+		cut -d / -f 3 |
+		tr -d ',)'
 }
 
 module="$(head -1 go.mod | awk '{ print $2 }')"

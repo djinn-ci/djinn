@@ -274,7 +274,7 @@ func (t Trigger) String() string {
 	case Manual:
 		buf.WriteString("Submitted by " + username + "<" + email + ">\n")
 	case Push:
-		buf.WriteString("Committed " + t.Data["id"][:7] + " to " + t.Data["ref"] + "\n")
+		buf.WriteString("Committed " + t.Data["sha"][:7] + " to " + t.Data["ref"] + "\n")
 	case Pull:
 		buf.WriteString(strings.Title(t.Data["action"]) + " pull request to " + t.Data["ref"] + "\n")
 	}

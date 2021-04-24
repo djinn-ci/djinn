@@ -51,17 +51,20 @@ we collected from the build.
 
 Now that we've submitted a simple build manifest let's submit another one, only
 this time let's actually build some source code, and collect the artifacts from
-it. For this build we will make use of the `docker` driver,
+it.
 
     driver:
-      type: docker
-      image: golang:latest
-      workspace: /go
+      type: qemu
+      image: debian/stable
     sources:
     - https://github.com/andrewpillar/mdsrv
     stages:
+    - packages
     - make
     jobs:
+    - stage: packages
+      commands:
+      - apt install -y golang
     - stage: make
       commands:
       - cd mdsrv

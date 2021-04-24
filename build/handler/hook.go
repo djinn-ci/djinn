@@ -361,7 +361,11 @@ func (h Hook) submitBuilds(ctx context.Context, mm []manifest.Manifest, host str
 	submitted := make([]*build.Build, 0, len(mm))
 
 	for _, b := range bb {
-		prd := h.producers[b.Manifest.Driver["type"]]
+		prd, ok := h.getDriverQueue(b.Manifest)
+
+		if !ok {
+			return nil, build.ErrDriverDisabled
+		}
 
 		if err := build.NewStoreWithHasher(h.DB, h.hasher).Submit(ctx, prd, host, b); err != nil {
 			return nil, errors.Err(err)
@@ -478,6 +482,11 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		if manifesterr, ok := cause.(*errors.Slice); ok {
 			h.Log.Debug.Println("found some invalid manifests, responding with 202 Accepted")
 			webutil.Text(w, invalidManifest+"\n\n"+manifesterr.Error(), http.StatusAccepted)
+			return
+		}
+
+		if cause == build.ErrDriverDisabled {
+			webutil.Text(w, cause.Error(), http.StatusBadRequest)
 			return
 		}
 
@@ -599,6 +608,11 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		}
 
 		cause := errors.Cause(err)
+
+		if cause == build.ErrDriverDisabled {
+			webutil.Text(w, cause.Error(), http.StatusBadRequest)
+			return
+		}
 
 		if cause == namespace.ErrName {
 			webutil.Text(w, invalidNamespaceName, http.StatusBadRequest)

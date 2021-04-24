@@ -18,3 +18,9 @@ djinn-driver.conf
 djinn-worker.conf
 djinn-server.conf
 djinn-scheduler.conf
+djin
+djinn-curator
+djinn-scheduler
+djinn-server
+djinn-worker
+sum.manif

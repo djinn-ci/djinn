@@ -181,7 +181,7 @@ case "$1" in
 		help_ "$1"
 		;;
 	clean)
-		rm -f bin/*
+		rm -f bin/* djinn* sum.manif
 		find . -name "*.log" -exec rm -f {} \;
 		go clean -cache -testcache
 		;;

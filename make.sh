@@ -2,10 +2,18 @@
 
 set -e
 
-module="$(head -1 go.mod | awk '{ print $2 }')"
-version="$(git rev-parse --abbrev-ref HEAD)"
+_version() {
+	while read line; do
+		if echo "$line" | grep -q "tag: "; then
+			echo "$line" | cut -d / -f 3 | tr -d ',)'
+		fi
+	done <<< $(git log --decorate=full --format=format:%d | head -1 | tr ',' '\n')
+}
 
-if ! echo "$version" | grep -qE "^v"; then
+module="$(head -1 go.mod | awk '{ print $2 }')"
+version="$(_version)"
+
+if [ "$version" = "" ]; then
 	version="devel $(git log -n 1 --format='format: +%h %cd' HEAD)"
 fi
 

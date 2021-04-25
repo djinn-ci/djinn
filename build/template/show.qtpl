@@ -313,7 +313,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 	{% if !p.Job.Build.Namespace.IsZero() %}
 		<a href="{%s p.Job.Build.Namespace.Endpoint() %}">{%v p.Job.Build.Namespace.Values()["name"] %}</a> /
 	{% endif %}
- 	Build #{%v p.Job.BuildID %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
+ 	Build #{%v p.Job.Build.Number %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
 {% endfunc %}
 
 {% func (p *Job) Actions() %}{% endfunc %}

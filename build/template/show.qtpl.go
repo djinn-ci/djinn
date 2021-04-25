@@ -954,7 +954,7 @@ func (p *Job) StreamHeader(qw422016 *qt422016.Writer) {
 //line build/template/show.qtpl:315
 	qw422016.N().S(` Build #`)
 //line build/template/show.qtpl:316
-	qw422016.E().V(p.Job.BuildID)
+	qw422016.E().V(p.Job.Build.Number)
 //line build/template/show.qtpl:316
 	qw422016.N().S(` / `)
 //line build/template/show.qtpl:316

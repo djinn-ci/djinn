@@ -4,9 +4,7 @@ package errors
 import (
 	"bytes"
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 	"runtime"
 )
 

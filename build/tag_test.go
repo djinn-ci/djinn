@@ -110,14 +110,28 @@ func Test_TagStoreCreate(t *testing.T) {
 
 	mock.ExpectQuery(
 		"^INSERT INTO build_tags (.+) VALUES (.+)$",
-	).WithArgs(3, 10, "tag1").WillReturnRows(
+	).WithArgs(sqlmock.AnyArg(), sqlmock.AnyArg(), sqlmock.AnyArg()).WillReturnRows(
 		sqlmock.NewRows([]string{"id"}).AddRow(1),
 	)
 
 	store.Bind(&Build{ID: 10})
 
-	if _, err := store.Create(3, "tag1"); err != nil {
+	tags, err := store.Create(3, "tag1")
+
+	if err != nil {
 		t.Fatal(err)
+	}
+
+	tag := tags[0]
+
+	if tag.UserID != 3 {
+		t.Fatalf("unexpected UserID, expected=%d, got=%d\n", 3, tag.UserID)
+	}
+	if tag.BuildID != 10 {
+		t.Fatalf("unexpected BuildID, expected=%d, got=%d\n", 10, tag.BuildID)
+	}
+	if tag.Name != "tag1" {
+		t.Fatalf("unexpected Name, expected=%q, got=%q\n", "tag1", tag.Name)
 	}
 }
 

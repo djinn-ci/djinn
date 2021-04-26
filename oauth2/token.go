@@ -278,7 +278,7 @@ func (s *TokenStore) Reset(id int64) error {
 
 	q := query.Update(
 		tokenTable,
-		query.Set("token", query.Arg(token)),
+		query.Set("token", query.Arg(hex.EncodeToString(token))),
 		query.Where("id", "=", query.Arg(id)),
 	)
 

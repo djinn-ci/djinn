@@ -8,7 +8,6 @@ import (
 	"path"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 var skip = 1
@@ -68,12 +67,10 @@ func Err(err error) error {
 		funcName = pcFunc.Name()
 	}
 
-	parts := strings.SplitN(fname, "djinn", 2)
-
 	return &Error{
 		Err:  err,
 		Func: funcName,
-		File: strings.TrimPrefix(filepath.Join(parts[1:]...), string(os.PathSeparator)),
+		File: fname,
 		Line: l,
 	}
 }

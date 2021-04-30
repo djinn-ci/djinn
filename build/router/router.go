@@ -112,7 +112,7 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		root.LoadCollaborators(cc)
-		return r, root.AccessibleBy(u), nil
+		return r, ok && root.AccessibleBy(u), nil
 	}
 }
 

@@ -15,7 +15,9 @@ import (
 type Client struct {
 	*smtp.Client
 
-	conn net.Conn
+	addr   string
+	auth   smtp.Auth
+	tlscfg *tls.Config
 }
 
 type Mail struct {
@@ -93,29 +95,51 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 		}
 	}
 
-	conn, err := net.Dial("tcp", cfg.Addr)
+	cli := &Client{
+		addr:   cfg.Addr,
+		auth:   auth,
+		tlscfg: tlscfg,
+	}
 
-	if err != nil {
+	if err := cli.dial(); err != nil {
 		return nil, errors.Err(err)
 	}
+	return cli, nil
+}
+
+func (c *Client) dial() error {
+	conn, err := net.Dial("tcp", c.addr)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	host, _, _ := net.SplitHostPort(c.addr)
 
 	cli, err := smtp.NewClient(conn, host)
 
-	if tlscfg != nil {
-		if err := cli.StartTLS(tlscfg); err != nil {
-			return nil, errors.Err(err)
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if c.tlscfg != nil {
+		if err := cli.StartTLS(c.tlscfg); err != nil {
+			return errors.Err(err)
 		}
 	}
 
-	if auth != nil {
-		if err := cli.Auth(auth); err != nil {
-			return nil, errors.Err(err)
+	if c.auth != nil {
+		if err := cli.Auth(c.auth); err != nil {
+			return errors.Err(err)
 		}
 	}
-	return &Client{
-		Client: cli,
-		conn:   conn,
-	}, nil
+
+	if err := c.Close(); err != nil {
+		return errors.Err(err)
+	}
+
+	c.Client = cli
+	return nil
 }
 
 // String returns the string representation of the current mail. This is
@@ -139,6 +163,13 @@ func (m Mail) String() string {
 // attempt to send the mail will still be done, and the ErrRcpts type will be
 // returned.
 func (m Mail) Send(cli *Client) error {
+	if err := cli.Reset(); err != nil {
+		// Failure could be due to a broken pipe, so attempt to redial.
+		if err := cli.dial(); err != nil {
+			return errors.Err(err)
+		}
+	}
+
 	if err := cli.Reset(); err != nil {
 		return errors.Err(err)
 	}

@@ -193,7 +193,7 @@ case "$1" in
 		;;
 	*)
 		if [ "$1" = "" ]; then
-			go test -gcflags "-e" -tags "$TAGS" -cover ./...
+			go test -gcflags "-e" -cover ./...
 			ui
 			build
 			manif

@@ -1,5 +1,3 @@
-// +build integration
-
 package integration
 
 import (
@@ -259,15 +257,18 @@ func newClient(server *httptest.Server) client {
 }
 
 func TestMain(m *testing.M) {
+	cfgfile := os.Getenv("INTEGRATION_CONFIG")
+
+	if cfgfile == "" {
+		fmt.Printf("skipping integration tests, INTEGRATION_CONFIG not set\n")
+		return
+	}
+
 	if err := os.MkdirAll(filepath.Join(os.TempDir(), "qemu"), os.FileMode(0755)); err != nil {
 		fatalf("failed to create qemu tempdir: %s\n", err)
 	}
 
-	args := []string{
-		"djinn-server",
-		"-config",
-		filepath.Join("testdata", "server.cfg"),
-	}
+	args := []string{"djinn-server", "-config", cfgfile}
 
 	api, config, ui, _ := serverutil.ParseFlags(args)
 

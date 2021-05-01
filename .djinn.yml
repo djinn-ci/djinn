@@ -7,18 +7,14 @@ sources:
 env:
 - PGPASSWORD=secret
 - LDFLAGS=-s -w
+- INTEGRATION_CONFIG=testdata/server.cfg
 stages:
 - setup
-- integration
 - make
 jobs:
 - stage: setup
   commands:
   - psql -U djinn -h localhost -d djinn -f djinn/schema.sql
-- stage: integration
-  commands:
-  - cd djinn
-  - go test -v -tags "integration" ./integration
 - stage: make
   commands:
   - cd djinn

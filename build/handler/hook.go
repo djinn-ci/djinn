@@ -453,7 +453,7 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		}
 
 		data.userId = pull.PullRequest.Base.User.ID
-		data.repoId = pull.PullRequest.Head.Repo.ID
+		data.repoId = pull.PullRequest.Base.Repo.ID
 		data.dirurl = strings.Replace(pull.PullRequest.Head.Repo.ContentsURL, "{+path}", ".djinn", 1)
 		data.ref = pull.PullRequest.Head.Sha
 		data.comment = pull.PullRequest.Title

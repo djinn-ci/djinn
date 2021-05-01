@@ -1,0 +1,104 @@
+{%
+import (
+	htmltemplate "html/template"
+
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template"
+)
+%}
+
+{% code
+type ShowDelivery struct {
+	template.BasePage
+
+	CSRF     htmltemplate.HTML
+	Delivery *namespace.WebhookDelivery
+}
+%}
+
+{% collapsespace %}
+{% func (p *ShowDelivery) Title() %}
+	{%s p.Delivery.Webhook.Namespace.Name %} - Webhook Delivery
+{% endfunc %}
+
+{% func (p *ShowDelivery) Body() %}
+	{% if p.Delivery.Error.Valid %}
+		<div class="alert alert-danger mb-10">
+			Failed to deliver payload: {%s p.Delivery.Error.String %}
+		</div>
+	{% endif %}
+	<div class="overflow">
+		<div class="col-50 col-left">
+			<div class="panel">
+				<div class="panel-header"><h3>Request Headers</h3></div>
+				<div class="panel-body">
+					<pre class="code">{%s p.Delivery.RequestHeaders %}</pre>
+				</div>
+			</div>
+			<div class="panel">
+				<div class="panel-header"><h3>Request Body</h3></div>
+				<div class="panel-body">
+					<pre class="code">{%s template.IndentJSON(p.Delivery.RequestBody) %}</pre>
+				</div>
+			</div>
+		</div>
+		<div class="col-50 col-right">
+			{% if !p.Delivery.Error.Valid %}
+				<div class="panel">
+					<table class="table">
+						<tr>
+							<td><strong>Status</strong></td>
+							<td class="right"><code class="code">{%s p.Delivery.ResponseStatus %}</code></td>
+						</tr>
+					</table>
+				</div>
+			{% endif %}
+			<div class="panel">
+				<div class="panel-header"><h3>Response Headers</h3></div>
+				{% if !p.Delivery.ResponseHeaders.Valid %}
+					<div class="panel-message muted">None</div>
+				{% else %}
+					<div class="panel-body">
+						<pre class="code">{%s p.Delivery.ResponseHeaders.String %}</pre>
+					</div>
+				{% endif %}
+			</div>
+			<div class="panel">
+				<div class="panel-header"><h3>Response Body</h3></div>
+				{% if !p.Delivery.ResponseBody.Valid %}
+					<div class="panel-message muted">None</div>
+				{% else %}
+					<div class="panel-body">
+						<pre class="code">{%s p.Delivery.ResponseBody.String %}</pre>
+					</div>
+				{% endif %}
+			</div>
+		</div>
+	</div>
+{% endfunc %}
+
+{% func (p *ShowDelivery) Header() %}
+	<a class="back" href="{%s p.Delivery.Webhook.Endpoint() %}">{%cat "../../static/svg/back.svg" %}</a>
+	{% if p.Delivery.ResponseCode >= 200 && p.Delivery.ResponseCode < 300 %}
+		<span class="hook-status hook-status-ok">{% cat "../../static/svg/check.svg" %}</span>
+	{% else %}
+		<span class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</span>
+	{% endif %}
+	<code>{%s p.Delivery.DeliveryID %}</code>
+	{% if p.Delivery.Redelivery %}
+		<span class="muted" title="Redelivery">{% cat "../../static/svg/sync.svg" %}</span>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *ShowDelivery) Navigation() %}{% endfunc %}
+
+{% func (p *ShowDelivery) Actions() %}
+	<li>
+		<form method="POST" action="{%s p.Delivery.Endpoint() %}">
+			{%v= p.CSRF %}
+			<input type="hidden" name="_method" value="PATCH"/>
+			<button class="btn btn-primary">Redeliver</button>
+		</form>
+	</li>
+{% endfunc %}
+{% endcollapsespace %}

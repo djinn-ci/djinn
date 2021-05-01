@@ -1,6 +1,7 @@
 package serverutil
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
@@ -11,6 +12,7 @@ import (
 	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/oauth2"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/server"
 	"djinn-ci.com/user"
 	"djinn-ci.com/version"
@@ -92,7 +94,7 @@ func ParseFlags(args []string) (bool, string, bool, bool) {
 	return api, config, ui, version
 }
 
-func Init(path string) (*server.Server, *config.Server, func(), error) {
+func Init(ctx context.Context, path string) (*server.Server, *config.Server, func(), error) {
 	env.Load()
 
 	var cfg *config.Server
@@ -169,14 +171,21 @@ func Init(path string) (*server.Server, *config.Server, func(), error) {
 		webutil.Text(w, version.Build, http.StatusOK)
 	}).Methods("GET")
 
+	qerrh := func(err error) {
+		log.Error.Println("queue job failed:", err)
+	}
+
 	h := web.Handler{
 		DB:           db,
 		Log:          log,
+		Queue:        queue.New(20, qerrh),
 		Store:        cfg.SessionStore(),
 		SecureCookie: securecookie.New(cfg.Crypto.Hash, cfg.Crypto.Block),
 		Users:        user.NewStore(db),
 		Tokens:       oauth2.NewTokenStore(db),
 	}
+
+	go h.Queue.Run(ctx)
 
 	h.SMTP.Client = smtp
 	h.SMTP.From = postmaster

@@ -4,12 +4,14 @@ import (
 	"net/http"
 
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 	"djinn-ci.com/variable"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -93,7 +95,30 @@ func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form
 	}
 
 	v, err := variables.Create(f.Author.ID, f.Key, f.Value)
-	return v, f, errors.Err(err)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !v.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(v.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		v.Namespace = n
+
+		return namespace.NewWebhookStore(h.DB, n).Deliver("variables", map[string]interface{}{
+			"action":   "created",
+			"variable":  v.JSON(env.DJINN_API_SERVER),
+		})
+	})
+	return v, f, nil
 }
 
 // DeleteModel removes the variable in the given request context from the
@@ -104,5 +129,28 @@ func (h Variable) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("no variable in request context")
 	}
-	return errors.Err(variable.NewStore(h.DB).Delete(v.ID))
+
+	if err := variable.NewStore(h.DB).Delete(v.ID); err != nil {
+		return errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !v.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(v.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		v.Namespace = n
+
+		return namespace.NewWebhookStore(h.DB, n).Deliver("variables", map[string]interface{}{
+			"action":    "deleted",
+			"variable":  v.JSON(env.DJINN_API_SERVER),
+		})
+	})
+	return nil
 }

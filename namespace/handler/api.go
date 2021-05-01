@@ -47,6 +47,14 @@ type CollaboratorAPI struct {
 	Prefix string
 }
 
+type WebhookAPI struct {
+	Webhook
+
+	// Prefix is the part of the URL under which the API is being served, for
+	// example "/api".
+	Prefix string
+}
+
 // Index serves the JSON encoded list of namespaces for the given request. If
 // multiple pages of namespaces are returned then the database.Paginator is
 // encoded in the Link response header.
@@ -485,6 +493,109 @@ func (h CollaboratorAPI) Destroy(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h WebhookAPI) Index(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request")
+	}
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request")
+	}
+
+	ww, err := namespace.NewWebhookStore(h.DB, n, u).All()
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	data := make([]interface{}, 0, len(ww))
+	addr := webutil.BaseAddress(r) + h.Prefix
+
+	for _, w := range ww {
+		data = append(data, w.JSON(addr))
+	}
+	webutil.JSON(w, data, http.StatusOK)
+}
+
+func (h WebhookAPI) Store(w http.ResponseWriter, r *http.Request) {
+	wh, _, err := h.StoreModel(r)
+
+	if err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+	webutil.JSON(w, wh.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+}
+
+func (h WebhookAPI) Show(w http.ResponseWriter, r *http.Request) {
+	wh, ok := namespace.WebhookFromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	d, err := namespace.NewWebhookStore(h.DB).LastDelivery(wh.ID)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	wh.LastDelivery = d
+
+	webutil.JSON(w, wh.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+}
+
+func (h WebhookAPI) Update(w http.ResponseWriter, r *http.Request) {
+	wh, _, err := h.UpdateModel(r)
+
+	if err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.JSON(w, ferrs, http.StatusBadRequest)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+	webutil.JSON(w, wh.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+}
+
+func (h WebhookAPI) Destroy(w http.ResponseWriter, r *http.Request) {
+	wh, ok := namespace.WebhookFromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	if err := namespace.NewWebhookStore(h.DB).Delete(wh.ID); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return

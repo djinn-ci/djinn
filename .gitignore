@@ -2,6 +2,7 @@
 *.tar
 *.crt
 *.key
+*.pem
 *.record
 *.log
 *.sig

@@ -8,6 +8,7 @@ import (
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/image"
@@ -15,6 +16,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -129,7 +131,31 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 	}
 
 	i, err := images.Create(f.Author.ID, hash, f.Name, driver.QEMU, f.File)
-	return i, f, errors.Err(err)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !i.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(i.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		i.Namespace = n
+
+		v := map[string]interface{}{
+			"action": "created",
+			"image":  i.JSON(env.DJINN_API_SERVER),
+		}
+		return namespace.NewWebhookStore(h.DB, n).Deliver("images", v)
+	})
+	return i, f, nil
 }
 
 // ShowWithRelations retrieves the *image.Image model from the context of the
@@ -163,5 +189,29 @@ func (h Image) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get image from context")
 	}
-	return errors.Err(image.NewStoreWithBlockStore(h.DB, h.store).Delete(i.ID, i.Driver, i.Hash))
+
+	if err := image.NewStoreWithBlockStore(h.DB, h.store).Delete(i.ID, i.Driver, i.Hash); err != nil {
+		return errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !i.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(i.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		i.Namespace = n
+
+		v := map[string]interface{}{
+			"action": "deleted",
+			"image":  i.JSON(env.DJINN_API_SERVER),
+		}
+		return namespace.NewWebhookStore(h.DB, n).Deliver("images", v)
+	})
+	return nil
 }

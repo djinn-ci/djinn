@@ -24,7 +24,10 @@ func main() {
 		return
 	}
 
-	srv, cfg, close_, err := serverutil.Init(config)
+	qctx, qcancel := context.WithCancel(context.Background())
+	defer qcancel()
+
+	srv, cfg, close_, err := serverutil.Init(qctx, config)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))

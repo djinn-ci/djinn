@@ -15,4 +15,5 @@ executed, and how build resources can be organized with namespaces.
 * [Objects](/user/objects)
 * [Keys](/user/keys)
 * [Variables](/user/variables)
+* [Webhooks](/user/webhooks)
 * [Offline Runner](/user/offline-runner)

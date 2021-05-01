@@ -105,17 +105,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-
-	builds := build.NewStoreWithHasher(h.DB, h.hasher)
-	prd, _ := h.getDriverQueue(b.Manifest)
-	addr := webutil.BaseAddress(r)
-
-	if err := builds.Submit(r.Context(), prd, addr, b); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
-		return
-	}
-	webutil.JSON(w, b.JSON(addr+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, b.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
 }
 
 // Show serves up the JSON response for the build in the given request. This

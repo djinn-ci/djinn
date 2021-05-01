@@ -1,4 +1,4 @@
-[Prev](/user/keys) - [Next](/api)
+[Prev](/user/webhooks) - [Next](/api)
 
 # Offline Runner
 

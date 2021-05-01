@@ -8,6 +8,7 @@ import (
 	"djinn-ci.com/build"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
@@ -15,6 +16,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -137,7 +139,31 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 	}
 
 	o, err := objects.Create(f.Author.ID, f.Name, hash, f.File)
-	return o, f, errors.Err(err)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !o.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(o.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		o.Namespace = n
+
+		v := map[string]interface{}{
+			"action": "deleted",
+			"object":  o.JSON(env.DJINN_API_SERVER),
+		}
+		return namespace.NewWebhookStore(h.DB, n).Deliver("objects", v)
+	})
+	return o, f, nil
 }
 
 // ShowWithRelations retrieves the *object.Object model from the context of the
@@ -179,5 +205,29 @@ func (h Object) DeleteModel(r *http.Request) error {
 	if err != nil {
 		return errors.Err(err)
 	}
-	return errors.Err(object.NewStoreWithBlockStore(h.DB, store).Delete(o.ID, o.Hash))
+
+	if err := object.NewStoreWithBlockStore(h.DB, store).Delete(o.ID, o.Hash); err != nil {
+		return errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !o.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(o.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		o.Namespace = n
+
+		v := map[string]interface{}{
+			"action": "deleted",
+			"object":  o.JSON(env.DJINN_API_SERVER),
+		}
+		return namespace.NewWebhookStore(h.DB, n).Deliver("objects", v)
+	})
+	return nil
 }

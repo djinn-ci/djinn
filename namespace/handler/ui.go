@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"djinn-ci.com/build"
@@ -45,6 +46,10 @@ type InviteUI struct {
 // namespace collaborators.
 type CollaboratorUI struct {
 	Collaborator
+}
+
+type WebhookUI struct {
+	Webhook
 }
 
 // Index serves the HTML response detailing the list of namespaces.
@@ -768,4 +773,343 @@ func (h CollaboratorUI) Destroy(w http.ResponseWriter, r *http.Request) {
 		Message: "Collaborator remove: " + mux.Vars(r)["collaborator"],
 	}, "alert")
 	h.RedirectBack(w, r)
+}
+
+func (h WebhookUI) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request")
+	}
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request")
+	}
+
+	webhooks := namespace.NewWebhookStore(h.DB, n, u)
+
+	ww, err := webhooks.All()
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	for _, w := range ww {
+		w.Namespace = n
+	}
+
+	if err := webhooks.LoadLastDeliveries(ww...); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	csrf := csrf.TemplateField(r)
+
+	bp := template.BasePage{
+		URL:  r.URL,
+		User: u,
+	}
+
+	p := &namespacetemplate.Show{
+		BasePage:  bp,
+		Namespace: n,
+		Section: &namespacetemplate.WebhookIndex{
+			BasePage:  bp,
+			CSRF:      csrf,
+			Namespace: n,
+			Webhooks:  ww,
+		},
+	}
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+	save(r, w)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h WebhookUI) Create(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request")
+	}
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request")
+	}
+
+	csrf := csrf.TemplateField(r)
+
+	p := &namespacetemplate.WebhookForm{
+		Form: template.Form{
+			CSRF:   csrf,
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
+		},
+		Namespace: n,
+	}
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+	save(r, w)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h WebhookUI) Store(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	n, ok := namespace.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request context")
+	}
+
+	_, f, err := h.StoreModel(r)
+
+	if err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to create webhook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Webhook created",
+	}, "alert")
+	h.Redirect(w, r, n.Endpoint("webhooks"))
+}
+
+func (h WebhookUI) Show(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request context")
+	}
+
+	wh, ok := namespace.WebhookFromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request context")
+	}
+
+	dd, err := namespace.NewWebhookStore(h.DB, n).Deliveries(wh.ID)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	csrf := csrf.TemplateField(r)
+
+	p := &namespacetemplate.WebhookForm{
+		Form: template.Form{
+			CSRF:   csrf,
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
+		},
+		Namespace:  n,
+		Webhook:    wh,
+		Deliveries: dd,
+	}
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+	save(r, w)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h WebhookUI) Delivery(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	ctx := r.Context()
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request context")
+	}
+
+	wh, ok := namespace.WebhookFromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	id, _ := strconv.ParseInt(mux.Vars(r)["delivery"], 10, 64)
+
+	del, err := namespace.NewWebhookStore(h.DB).Delivery(wh.ID, id)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	del.Webhook = wh
+
+	csrf := csrf.TemplateField(r)
+
+	p := &namespacetemplate.ShowDelivery{
+		BasePage: template.BasePage{
+			User: u,
+			URL:  r.URL,
+		},
+		CSRF:     csrf,
+		Delivery: del,
+	}
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+
+	save(r, w)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h WebhookUI) Redeliver(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	ctx := r.Context()
+
+	wh, ok := namespace.WebhookFromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	id, _ := strconv.ParseInt(mux.Vars(r)["delivery"], 10, 64)
+
+	store := namespace.NewWebhookStore(h.DB)
+
+	del, err := store.Delivery(wh.ID, id)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to redeliver hook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if err := store.Redeliver(wh.ID, del.DeliveryID); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to redeliver hook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	latest, err := store.LastDelivery(wh.ID)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to redeliver hook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	latest.Webhook = wh
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Webhook delivered",
+	}, "alert")
+	h.Redirect(w, r, latest.Endpoint())
+}
+
+func (h WebhookUI) Update(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	wh, f, err := h.UpdateModel(r)
+
+	if err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update webhook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Webhook has been updated: " + wh.PayloadURL.String(),
+	}, "alert")
+	h.Redirect(w, r, wh.Endpoint())
+}
+
+func (h WebhookUI) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	wh, ok := namespace.WebhookFromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	if err := namespace.NewWebhookStore(h.DB).Delete(wh.ID); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Webhook has been deleted",
+	}, "alert")
+	h.Redirect(w, r, wh.Namespace.Endpoint("webhooks"))
 }

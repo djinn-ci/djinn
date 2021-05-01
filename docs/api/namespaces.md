@@ -3,6 +3,7 @@
 # Namespaces
 
 * [The namespace object](#the-namespace-object)
+* [The webhook object](#the-webhook-object)
 * [List namespaces for the authenticated user](#list-namespaces-for-the-authenticated-user)
 * [Create a namespace for the authenticated user](#create-a-namespace-for-the-authenticated-user)
 * [Get an individual namespace](#get-an-individual-namespace)
@@ -16,6 +17,10 @@
 * [List a namespace's keys](#list-a-namespaces-keys)
 * [List a namespace's invites](#list-a-namespaces-invites)
 * [List a namespace's collaborators](#list-a-namespaces-collaborators)
+* [List a namespace's webhooks](#list-a-namespaces-webhooks)
+* [Create a webhook for the namespace](#create-a-webhook-for-the-namespace)
+* [Update a webhook in the namespace](#update-a-webhook-in-the-namespace)
+* [Delete a webhook from the namespace](#delete-a-webhook-in-from-namespace)
 
 ## The namespace object
 
@@ -98,6 +103,10 @@ namespace was created.
 
 ---
 
+**`webhooks_url`** `string` - The API URL to the namespace's webhooks.
+
+---
+
 **`user`** `object` `nullable` - The [user](/api/user#the-user-object) of the
 namespace, if any.
 
@@ -134,6 +143,7 @@ that was most recently submitted to the namespace.
         "variables_url": "{{index .Vars "apihost"}}/n/me/djinn/-/variables",
         "keys_url": "{{index .Vars "apihost"}}/n/me/djinn/-/keys",
         "collaborators_url": "{{index .Vars "apihost"}}/n/me/djinn/-/collaborators",
+        "webhooks_url": "{{index .Vars "apihost"}}/n/me/djinn/-/webhooks",
         "user": {
             "id": 1,
             "email": "me@example.com",
@@ -174,6 +184,131 @@ that was most recently submitted to the namespace.
                 "anon",
                 "golang"
             ]
+        }
+    }
+
+</div>
+</div>
+
+## The webhook object
+
+<div class="api-section">
+<div class="api-doc">
+
+**Attributes**
+
+---
+
+**`id`** `int` - Unique identifier for the webhook.
+
+---
+
+**`author_id`** `int` - ID of the user who created the webhook.
+
+---
+
+**`user_id`** `int` - ID of the user the webhook belongs to.
+
+---
+
+**`namespace_id`** `int` - ID of the namespace the webhook belongs to.
+
+---
+
+**`payload_url`** `string` - URL to send the event payload to.
+
+---
+
+**`ssl`** `bool` - Whether or not the event will be sent over TLS.
+
+---
+
+**`active`** `bool` - Whether or not the webhook is active.
+
+---
+
+**`events`** `string[]` - The events the webhook will activate on. See the
+[Event payloads](/user/webhooks#event-payloads) section for details on the
+different webhook events.
+
+---
+
+**`namespace`** `object` - The [namespace](/api/namespaces#the-namespace-object)
+object.
+
+---
+
+**`last_response`** `object` - The last response received from the webhook, if
+any.
+
+---
+
+**`last_response.code`** `int` - The HTTP status code of the delivery
+
+---
+
+**`last_response.duration`** `int` - The duration of the request delivered to
+the URL in nanoseconds.
+
+---
+
+**`last_response.error`** `string` - The error that occurred if the event failed
+to be delivered. This will be `null` if not error occurred.
+
+---
+
+**`last_response.created_at`** `timestamp` - The RFC3339 formatted string at
+which the delivery was made.
+
+</div>
+
+<div class="api-example">
+
+**Object**
+
+    {
+        "id": 1,
+        "user_id": 1,
+        "author_id": 1,
+        "namespace_id": 1,
+        "payload_url": "https://api.example.com/hook/djinn-ci",
+        "ssl": true,
+        "active": true,
+        "events": [
+            "build_submitted",
+            "build_finished",
+            "build_tagged"
+        ],
+        "last_response": {
+            "code": 204,
+            "duration": 1024,
+            "created_at": "2006-01-02T15:04:05Z"
+        },
+        "namespace": {
+            "id": 3,
+            "user_id": 1,
+            "root_id": 3,
+            "parent_id": null,
+            "name": "djinn",
+            "path": "djinn",
+            "description": "",
+            "visibility": "private",
+            "created_at": "2006-01-02T15:04:05Z",
+            "url": "{{index .Vars "apihost"}}/n/me/djinn",
+            "builds_url": "{{index .Vars "apihost"}}/n/me/djinn/-/builds",
+            "namespaces_url": "{{index .Vars "apihost"}}/n/me/djinn/-/namespaces",
+            "images_url": "{{index .Vars "apihost"}}/n/me/djinn/-/images",
+            "objects_url": "{{index .Vars "apihost"}}/n/me/djinn/-/objects",
+            "variables_url": "{{index .Vars "apihost"}}/n/me/djinn/-/variables",
+            "keys_url": "{{index .Vars "apihost"}}/n/me/djinn/-/keys",
+            "collaborators_url": "{{index .Vars "apihost"}}/n/me/djinn/-/collaborators",
+            "webhooks_url": "{{index .Vars "apihost"}}/n/me/djinn/-/webhooks",
+            "user": {
+                "id": 1,
+                "email": "me@example.com",
+                "username": "me",
+                "created_at": "2006-01-02T15:04:05Z"
+            }
         }
     }
 
@@ -732,6 +867,102 @@ on which the collaborator was added to the namespace.
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
            {{index .Vars "apihost"}}/n/me/djinn/-/collaborators
+
+</div>
+</div>
+
+## List a namespace's webhooks
+
+<div class="api-section">
+<div class="api-doc">
+
+This will list the webhooks for the given namespace. This requires the explicit
+`webhook:read` permission. If the currently authenticated user does not own the
+given namespace, then a `404 Not Found` response will be sent.
+
+**Returns**
+
+Returns a list of [webhooks](/api/namespaces#the-webhook-object) in the
+namespace.
+
+</div>
+<div class="api-example">
+
+**Request**
+
+    GET /n/:user/:path/-/webhooks
+
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           {{index .Vars "apihost"}}/n/me/djinn/-/webhooks
+
+</div>
+</div>
+
+## Create a webhook for the namespace
+
+<div class="api-section">
+<div class="api-doc">
+
+This will create a webhook for the currently authenticated user in the given
+namespace. This requires the explicit `webhook:write` permission.
+
+**Parameters**
+
+---
+
+**`payload_url`** `string` - The URL to send the event payload to.
+
+---
+
+**`secret`** `string` - *optional* The secret to sign the event payload with.
+
+---
+
+**`ssl`** `bool` - *optional* Whether or not to use TLS when sending the request.
+
+---
+
+**`active`** `bool` - *optional* Whether or not the webhook should be active.
+
+---
+
+**`events`** `string[]` - *optional* The events for the webhook to activate on.
+If no events are given, then the webhook will activate on all events.
+
+**Returns**
+
+Returns the [webhook](/api/namespaces#the-webhook-object). It returns an
+[error](/api#errors) if any of the parameters are invalid, or if an internal
+error occurs.
+
+</div>
+<div class="api-example">
+
+</div>
+</div>
+
+## Update a webhook in the namespace
+
+<div class="api-section">
+<div class="api-doc">
+
+</div>
+<div class="api-example">
+
+</div>
+</div>
+
+## Delete a webhook from the namespace
+
+<div class="api-section">
+<div class="api-doc">
+
+</div>
+<div class="api-example">
 
 </div>
 </div>

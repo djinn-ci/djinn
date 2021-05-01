@@ -19,7 +19,13 @@ import (
 	"github.com/go-redis/redis"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/mcmathja/curlyq"
 )
+
+type workerLogger struct {
+	log *log.Logger
+}
 
 type workerCfg struct {
 	Pidfile     string
@@ -50,6 +56,8 @@ type Worker struct {
 	parallelism int
 	timeout     time.Duration
 
+	consumer *curlyq.Consumer
+
 	block *crypto.Block
 
 	db         *sqlx.DB
@@ -62,6 +70,8 @@ type Worker struct {
 
 	providers *provider.Registry
 }
+
+var _ curlyq.Logger = (*workerLogger)(nil)
 
 func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 	errh := func(name string, line, col int, msg string) {
@@ -113,7 +123,6 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 		cfg.driver += "-" + qemu.GetExpectedArch()
 	}
 
-	cfg.queue = defaultBuildQueue + "_" + cfg.driver
 	cfg.parallelism = cfg0.Parallelism
 
 	if cfg.parallelism == 0 {
@@ -143,6 +152,16 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	cfg.queue = defaultBuildQueue + "_" + cfg.driver
+
+	cfg.consumer = curlyq.NewConsumer(&curlyq.ConsumerOpts{
+		Queue:                cfg.queue,
+		Client:               cfg.redis,
+		Logger:               workerLogger{log: cfg.log},
+		ProcessorConcurrency: cfg.parallelism,
+		JobMaxAttempts:       1,
+	})
 
 	cfg.smtp, err = connectsmtp(cfg.log, cfg0.SMTP)
 
@@ -187,6 +206,11 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 	}
 	return cfg, nil
 }
+
+func (l workerLogger) Debug(v ...interface{}) { l.log.Debug.Println(v...) }
+func (l workerLogger) Info(v ...interface{})  { l.log.Info.Println(v...) }
+func (l workerLogger) Warn(v ...interface{})  { l.log.Warn.Println(v...) }
+func (l workerLogger) Error(v ...interface{}) { l.log.Error.Println(v...) }
 
 func (w *workerCfg) put(n *node) error {
 	switch n.name {
@@ -272,6 +296,7 @@ func (w *Worker) Pidfile() *os.File             { return w.pidfile }
 func (w *Worker) Parallelism() int              { return w.parallelism }
 func (w *Worker) Driver() string                { return w.driver }
 func (w *Worker) Queue() string                 { return w.queue }
+func (w *Worker) Consumer() *curlyq.Consumer    { return w.consumer }
 func (w *Worker) Timeout() time.Duration        { return w.timeout }
 func (w *Worker) DB() *sqlx.DB                  { return w.db }
 func (w *Worker) Redis() *redis.Client          { return w.redis }

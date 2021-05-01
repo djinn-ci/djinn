@@ -1,40 +1,9 @@
+/*
+Revision: 20210507080454
+Author:   Andrew Pillar <me@andrewpillar.com>
 
-
-DROP TABLE IF EXISTS oauth_tokens;
-DROP TABLE IF EXISTS oauth_codes;
-DROP TABLE IF EXISTS oauth_apps;
-DROP TABLE IF EXISTS build_triggers;
-DROP TABLE IF EXISTS provider_repos;
-DROP TABLE IF EXISTS providers;
-DROP TABLE IF EXISTS images;
-DROP TABLE IF EXISTS cron_builds;
-DROP TABLE IF EXISTS cron;
-DROP TABLE IF EXISTS build_keys;
-DROP TABLE IF EXISTS namespace_collaborators;
-DROP TABLE IF EXISTS namespace_invites;
-DROP TABLE IF EXISTS keys;
-DROP TYPE IF EXISTS trigger_type;
-DROP TABLE IF EXISTS build_drivers;
-DROP TYPE IF EXISTS driver_type;
-DROP TABLE IF EXISTS build_variables;
-DROP TABLE IF EXISTS variables;
-DROP TABLE IF EXISTS build_artifacts;
-DROP TABLE IF EXISTS build_objects;
-DROP TABLE IF EXISTS objects;
-DROP TABLE IF EXISTS build_jobs;
-DROP TABLE IF EXISTS build_stages;
-DROP TABLE IF EXISTS build_tags;
-DROP TABLE IF EXISTS builds;
-DROP TYPE IF EXISTS status; 
-DROP TABLE IF EXISTS namespaces;
-DROP TABLE IF EXISTS account_tokens;
-DROP TABLE IF EXISTS users;
-
-DROP TYPE IF EXISTS visibility;
-DROP TYPE IF EXISTS status;
-DROP TYPE IF EXISTS driver_type;
-DROP TYPE IF EXISTS trigger_type;
-DROP TYPE IF EXISTS schedule;
+Initial revision for Djinn CI.
+*/
 
 CREATE TYPE visibility AS ENUM ('private', 'internal', 'public');
 CREATE TYPE status AS ENUM ('queued', 'running', 'passed', 'passed_with_failures', 'failed', 'killed', 'timed_out');

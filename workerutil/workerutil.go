@@ -7,7 +7,9 @@ import (
 	"os"
 
 	"djinn-ci.com/config"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/worker"
 )
 
@@ -28,6 +30,8 @@ func ParseFlags(args []string) (string, string, bool) {
 }
 
 func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func(), error) {
+	env.Load()
+
 	var cfg *config.Worker
 
 	f1, err := os.Open(workerPath)
@@ -68,6 +72,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 
 	log.Info.Println("consuming from queue:", cfg.Queue())
 	log.Info.Println("enabled build driver", cfg.Driver())
+	log.Info.Println("using parallelism of:", cfg.Parallelism())
 
 	f2, err := os.Open(driverPath)
 
@@ -85,30 +90,35 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 		return nil, cfg, nil, errors.Err(err)
 	}
 
+	qerrh := func(err error) {
+		log.Error.Println("queue job failed:", err)
+	}
+
 	return &worker.Worker{
-		DB:          db,
-		Redis:       redis,
-		SMTP:        smtp,
-		Admin:       postmaster,
-		Block:       cfg.BlockCipher(),
-		Log:         log,
-		Queue:       cfg.Queue(),
-		Parallelism: cfg.Parallelism(),
-		Timeout:     cfg.Timeout(),
-		Driver:      driverName,
-		Init:        driverInit,
-		Config:      driverCfg,
-		Providers:   cfg.Providers(),
-		Objects:     cfg.Objects(),
-		Artifacts:   cfg.Artifacts(),
+		DB:        db,
+		Redis:     redis,
+		SMTP:      smtp,
+		Admin:     postmaster,
+		Block:     cfg.BlockCipher(),
+		Log:       log,
+		Consumer:  cfg.Consumer(),
+		Queue:     queue.New(20, qerrh),
+		Timeout:   cfg.Timeout(),
+		Driver:    driverName,
+		Init:      driverInit,
+		Config:    driverCfg,
+		Providers: cfg.Providers(),
+		Objects:   cfg.Objects(),
+		Artifacts: cfg.Artifacts(),
 	}, cfg, close_, nil
 }
 
 func Start(ctx context.Context, w *worker.Worker) {
+	go w.Queue.Run(ctx)
+
 	go func() {
 		if err := w.Run(ctx); err != nil {
 			w.Log.Error.Println(errors.Cause(err))
 		}
 	}()
-	w.Log.Info.Println(os.Args[0], "running with", w.Parallelism, "parallelism")
 }

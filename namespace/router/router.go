@@ -29,6 +29,7 @@ type Router struct {
 	middleware   web.Middleware
 	namespace    handler.Namespace
 	invite       handler.Invite
+	webhook      handler.Webhook
 	collaborator handler.Collaborator
 }
 
@@ -59,9 +60,14 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		base := webutil.BasePath(r.URL.Path)
 
-		// Are we creating a namespace.
 		if base == "create" {
-			return r, ok, nil
+			parts := strings.Split(r.URL.Path, "/")
+
+			// Not creating a webhook so return. If creating a webhook we want
+			// to get the namespace and owner from the URL.
+			if parts[len(parts)-2] != "webhooks" {
+				return r, ok, nil
+			}
 		}
 
 		// Check if the base of the path is for a namespace's children or
@@ -133,6 +139,8 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, false, nil
 		}
 
+		n.User = owner
+
 		// Can the current user modify/delete the current namespace.
 		if r.Method == "POST" || r.Method == "PATCH" || r.Method == "DELETE" {
 			if owner.ID != u.ID {
@@ -149,6 +157,34 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), "namespace", n))
+
+		if webhook, ok := vars["webhook"]; ok {
+			id, _ := strconv.ParseInt(webhook, 10, 64)
+
+			switch r.Method {
+			case "GET":
+				_, ok = u.Permissions["webhook:read"]
+			case "PATCH":
+				_, ok = u.Permissions["webhook:write"]
+			case "DELETE":
+				_, ok = u.Permissions["webhook:delete"]
+			}
+
+			w, err := namespace.NewWebhookStore(db).Get(query.Where("id", "=", query.Arg(id)))
+
+			if err != nil {
+				return r, ok, errors.Err(err)
+			}
+
+			if w.IsZero() {
+				return r, false, nil
+			}
+
+			w.Namespace = n
+
+			r = r.WithContext(context.WithValue(r.Context(), "webhook", w))
+			return r, ok, errors.Err(err)
+		}
 
 		root, err := namespaces.Get(
 			query.Where("root_id", "=", namespace.SelectRootID(n.ID)),
@@ -167,12 +203,15 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		root.LoadCollaborators(cc)
 
-		if isJson {
-			return r, ok && root.AccessibleBy(u), nil
+		if base == "webhooks" {
+			switch r.Method {
+			case "GET":
+				_, ok = u.Permissions["webhook:read"]
+			case "POST":
+				_, ok = u.Permissions["webhook:write"]
+			}
 		}
-
-		// Account for public namespaces.
-		return r, root.AccessibleBy(u), nil
+		return r, ok && root.AccessibleBy(u), nil
 	}
 }
 
@@ -181,6 +220,7 @@ func New(_ *config.Server, h web.Handler, mw web.Middleware) *Router {
 		middleware:   mw,
 		namespace:    handler.New(h),
 		invite:       handler.NewInvite(h),
+		webhook:      handler.NewWebhook(h),
 		collaborator: handler.Collaborator{Handler: h},
 	}
 }
@@ -210,6 +250,10 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 		Collaborator: r.collaborator,
 	}
 
+	webhook := handler.WebhookUI{
+		Webhook: r.webhook,
+	}
+
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/namespaces", namespace.Index).Methods("GET")
 	auth.HandleFunc("/namespaces/create", namespace.Create).Methods("GET")
@@ -231,6 +275,14 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/-/invites", invite.Store).Methods("POST")
 	sr.HandleFunc("/-/collaborators", collaborator.Index).Methods("GET")
 	sr.HandleFunc("/-/collaborators/{collaborator}", collaborator.Destroy).Methods("DELETE")
+	sr.HandleFunc("/-/webhooks", webhook.Index).Methods("GET")
+	sr.HandleFunc("/-/webhooks/create", webhook.Create).Methods("GET")
+	sr.HandleFunc("/-/webhooks", webhook.Store).Methods("POST")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Show).Methods("GET")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}/deliveries/{delivery:[0-9]+}", webhook.Delivery).Methods("GET")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}/deliveries/{delivery:[0-9]+}", webhook.Redeliver).Methods("PATCH")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Update).Methods("PATCH")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	sr.Use(r.middleware.Gate(gates...), csrf)
@@ -256,6 +308,11 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 		Prefix:       prefix,
 	}
 
+	webhook := handler.WebhookAPI{
+		Webhook: r.webhook,
+		Prefix:  prefix,
+	}
+
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/namespaces", namespace.Index).Methods("GET", "HEAD")
 	auth.HandleFunc("/namespaces", namespace.Store).Methods("POST")
@@ -276,6 +333,11 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/-/invites", invite.Store).Methods("POST")
 	sr.HandleFunc("/-/collaborators", collaborator.Index).Methods("GET")
 	sr.HandleFunc("/-/collaborators/{collaborator}", collaborator.Destroy).Methods("DELETE")
+	sr.HandleFunc("/-/webhooks", webhook.Index).Methods("GET")
+	sr.HandleFunc("/-/webhooks", webhook.Store).Methods("POST")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Show).Methods("GET")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Update).Methods("PATCH")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	sr.Use(r.middleware.Gate(gates...))

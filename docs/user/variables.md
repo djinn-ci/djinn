@@ -1,4 +1,4 @@
-[Prev](/user/keys) - [Next](/user/offline-runner)
+[Prev](/user/keys) - [Next](/user/webhooks)
 
 # Variables
 

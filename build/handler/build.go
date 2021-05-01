@@ -7,6 +7,7 @@ import (
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/manifest"
@@ -219,8 +220,29 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 		tags = append(tags, &build.Tag{UserID: u.ID, Name: name})
 	}
 
-	b, err := build.NewStore(h.DB, u).Create(f.Manifest, t, f.Tags...)
-	return b, f, errors.Err(err)
+	builds := build.NewStoreWithHasher(h.DB, h.hasher, u)
+
+	b, err := builds.Create(f.Manifest, t, f.Tags...)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	producer, _ := h.getDriverQueue(b.Manifest)
+	addr := webutil.BaseAddress(r)
+
+	if err := builds.Submit(r.Context(), producer, addr, b); err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !b.NamespaceID.Valid {
+			return nil
+		}
+
+		return namespace.NewWebhookStore(h.DB, b.Namespace).Deliver("build_submitted", b.JSON(env.DJINN_API_SERVER))
+	})
+	return b, f, nil
 }
 
 // Kill will kill the build in the given request context.

@@ -5,8 +5,9 @@ package env
 import "os"
 
 var (
-	DJINN_API_DOCS  string
-	DJINN_USER_DOCS string
+	DJINN_API_DOCS   string
+	DJINN_API_SERVER string
+	DJINN_USER_DOCS  string
 )
 
 // Load will load in the environment variables Djinn into their respective
@@ -14,8 +15,9 @@ var (
 // been previously set.
 func Load() {
 	envvars := map[string]*string{
-		"DJINN_API_DOCS":  &DJINN_API_DOCS,
-		"DJINN_USER_DOCS": &DJINN_USER_DOCS,
+		"DJINN_API_DOCS":   &DJINN_API_DOCS,
+		"DJINN_API_SERVER": &DJINN_API_SERVER,
+		"DJINN_USER_DOCS":  &DJINN_USER_DOCS,
 	}
 
 	for k, p := range envvars {

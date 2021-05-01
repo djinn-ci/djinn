@@ -28,6 +28,15 @@ type CollaboratorIndex struct {
 	Namespace     *namespace.Namespace
 	Collaborators []*namespace.Collaborator
 }
+
+type WebhookIndex struct {
+	section
+	template.BasePage
+
+	CSRF      htmltemplate.HTML
+	Namespace *namespace.Namespace
+	Webhooks  []*namespace.Webhook
+}
 %}
 
 {% collapsespace %}
@@ -118,7 +127,7 @@ type CollaboratorIndex struct {
 {% endfunc %}
 
 {% func (p *CollaboratorIndex) Title() %}
-	Namespace Collaborators
+	Collaborators - Djinn CI
 {% endfunc %}
 
 {% func (p *CollaboratorIndex) Body() %}
@@ -146,6 +155,52 @@ type CollaboratorIndex struct {
 									</form>
 								</td>
 							{% endif %}
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *WebhookIndex) Title() %}
+	Webhooks - Djinn CI
+{% endfunc %}
+
+{% func (p *WebhookIndex) Body() %}
+	<div class="panel">
+		<div class="panel-header panel-body">
+			<a class="btn btn-primary right" href="{%s p.Namespace.Endpoint("webhooks", "create") %}">Create webhook</a>
+		</div>
+		{% if len(p.Webhooks) == 0 %}
+			<div class="panel-message muted">Add a webhook to notify external services of events.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, w := range p.Webhooks %}
+						<tr>
+							{% if !w.Active %}
+								<td class="hook-status hook-status-none" title="Disabled">{% cat "../../static/svg/disabled.svg" %}</td>
+							{% endif %}
+							{% if w.LastDelivery == nil %}
+									<td class="hook-status hook-status-none">{% cat "../../static/svg/close.svg" %}</td>
+							{% else %}
+								{% if w.LastDelivery.ResponseCode >= 200 && w.LastDelivery.ResponseCode < 300 %}
+									<td class="hook-status hook-status-ok">{% cat "../../static/svg/check.svg" %}</td>
+								{% else %}
+									<td class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</td>
+								{% endif %}
+							{% endif %}
+							<td>
+								<a href="{%s w.Endpoint() %}">{%s w.PayloadURL.String() %}</a>
+							</td>
+							<td class="align-right">
+								<form method="POST" action="{%s w.Endpoint() %}">
+									{%v= p.CSRF %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Delete</button>
+								</form>
+							</td>
 						</tr>
 					{% endfor %}
 				</tbody>

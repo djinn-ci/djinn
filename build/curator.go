@@ -53,7 +53,7 @@ func (c *Curator) Invoke(log *log.Logger) error {
 		query.Where("size", ">", query.Arg(0)),
 		query.Where("user_id", "IN", database.List(database.MapKey("id", mm)...)),
 		query.Where("deleted_at", "IS", query.Lit("NULL")),
-		query.OrderAsc("created_at"),
+		query.OrderDesc("created_at"),
 	)
 
 	if err != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/build/handler"
@@ -54,6 +55,9 @@ func Gate(db *sqlx.DB) web.Gate {
 		case "DELETE":
 			_, ok = u.Permissions["build:delete"]
 		}
+
+		isJson := strings.HasPrefix(r.Header.Get("Accept"), "application/json") ||
+			strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
 
 		base := webutil.BasePath(r.URL.Path)
 
@@ -112,7 +116,13 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		root.LoadCollaborators(cc)
-		return r, ok && root.AccessibleBy(u), nil
+
+		if isJson {
+			return r, ok && root.AccessibleBy(u), nil
+		}
+
+		// Account for public namespaces.
+		return r, root.AccessibleBy(u), nil
 	}
 }
 

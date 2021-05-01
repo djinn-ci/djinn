@@ -54,6 +54,9 @@ func Gate(db *sqlx.DB) web.Gate {
 			_, ok = u.Permissions["namespace:delete"]
 		}
 
+		isJson := strings.HasPrefix(r.Header.Get("Accept"), "application/json") ||
+			strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
+
 		base := webutil.BasePath(r.URL.Path)
 
 		// Are we creating a namespace.
@@ -163,7 +166,13 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		root.LoadCollaborators(cc)
-		return r, ok && root.AccessibleBy(u), nil
+
+		if isJson {
+			return r, ok && root.AccessibleBy(u), nil
+		}
+
+		// Account for public namespaces.
+		return r, root.AccessibleBy(u), nil
 	}
 }
 

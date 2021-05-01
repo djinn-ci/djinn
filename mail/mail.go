@@ -134,10 +134,6 @@ func (c *Client) dial() error {
 		}
 	}
 
-	if err := c.Close(); err != nil {
-		return errors.Err(err)
-	}
-
 	c.Client = cli
 	return nil
 }
@@ -164,6 +160,10 @@ func (m Mail) String() string {
 // returned.
 func (m Mail) Send(cli *Client) error {
 	if err := cli.Reset(); err != nil {
+		if err := cli.Close(); err != nil {
+			return errors.Err(err)
+		}
+
 		// Failure could be due to a broken pipe, so attempt to redial.
 		if err := cli.dial(); err != nil {
 			return errors.Err(err)

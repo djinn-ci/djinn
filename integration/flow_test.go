@@ -1,5 +1,3 @@
-// +build integration
-
 package integration
 
 //func Test_ObjectFlow(t *testing.T) {

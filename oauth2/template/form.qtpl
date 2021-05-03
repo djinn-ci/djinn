@@ -1,6 +1,6 @@
 {%
 import (
-	"fmt"
+	"encoding/hex"
 	"strings"
 
 	"djinn-ci.com/oauth2"
@@ -87,8 +87,8 @@ func (p *AppForm) field(field string) string {
 			<div class="panel-body slim">
 				<h1 class="mb-10">{%s p.App.Name %}</h1>
 				<div class="mb-10">
-					<strong>Client ID</strong><br/><code><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientID) %}</span></code><br/><br/>
-					<strong>Client Secret</strong><br/><code><span class="muted">{%s fmt.Sprintf("%x", p.App.ClientSecret) %}</span></code></br>
+					<strong>Client ID</strong><br/><code><span class="muted">{%s p.App.ClientID %}</span></code><br/><br/>
+					<strong>Client Secret</strong><br/><code><span class="muted">{%s hex.EncodeToString(p.App.ClientSecret) %}</span></code></br>
 				</div>
 				<form method="POST" action="{%s p.App.Endpoint("revoke") %}" class="inline-block">
 					{%v= p.CSRF %}

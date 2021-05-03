@@ -6,7 +6,7 @@ package template
 
 //line oauth2/template/form.qtpl:2
 import (
-	"fmt"
+	"encoding/hex"
 	"strings"
 
 	"djinn-ci.com/oauth2"
@@ -147,11 +147,11 @@ func (p *AppForm) StreamBody(qw422016 *qt422016.Writer) {
 //line oauth2/template/form.qtpl:88
 		qw422016.N().S(`</h1> <div class="mb-10"> <strong>Client ID</strong><br/><code><span class="muted">`)
 //line oauth2/template/form.qtpl:90
-		qw422016.E().S(fmt.Sprintf("%x", p.App.ClientID))
+		qw422016.E().S(p.App.ClientID)
 //line oauth2/template/form.qtpl:90
 		qw422016.N().S(`</span></code><br/><br/> <strong>Client Secret</strong><br/><code><span class="muted">`)
 //line oauth2/template/form.qtpl:91
-		qw422016.E().S(fmt.Sprintf("%x", p.App.ClientSecret))
+		qw422016.E().S(hex.EncodeToString(p.App.ClientSecret))
 //line oauth2/template/form.qtpl:91
 		qw422016.N().S(`</span></code></br> </div> <form method="POST" action="`)
 //line oauth2/template/form.qtpl:93

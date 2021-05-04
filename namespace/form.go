@@ -1,6 +1,7 @@
 package namespace
 
 import (
+	"net/url"
 	"strings"
 
 	"djinn-ci.com/database"
@@ -40,9 +41,21 @@ type InviteForm struct {
 	Handle    string `schema:"handle" json:"handle"`
 }
 
+type WebhookForm struct {
+	Webhooks *WebhookStore `schema:"-" json:"-"`
+	Webhook  *Webhook      `schema:"-" json:"-"`
+
+	PayloadURL string   `schema:"payload_url" json:"payload_url"`
+	Secret     string   `schema:"secret"      json:"secret"`
+	SSL        bool     `schema:"ssl"         json:"ssl"`
+	Active     bool     `schema:"active"      json:"active"`
+	Events     []string `schema:"events[]"    json:"events"`
+}
+
 var (
 	_ webutil.Form = (*Form)(nil)
 	_ webutil.Form = (*InviteForm)(nil)
+	_ webutil.Form = (*WebhookForm)(nil)
 )
 
 // Fields returns a map of the Name and Description fields in the Namespace
@@ -187,6 +200,52 @@ func (f *InviteForm) Validate() error {
 
 	if !c.IsZero() {
 		errs.Put("handle", errors.New("User is already a collaborator"))
+	}
+	return errs.Err()
+}
+
+func (f WebhookForm) Fields() map[string]string {
+	return map[string]string{
+		"payload_url": f.PayloadURL,
+		"events":      strings.Join(f.Events, " "),
+	}
+}
+
+func (f WebhookForm) Validate() error {
+	errs := webutil.NewErrors()
+
+	if f.PayloadURL == "" {
+		errs.Put("payload_url", webutil.ErrFieldRequired("Payload URL"))
+	}
+
+	w, err := f.Webhooks.Get(query.Where("payload_url", "=", query.Arg(f.PayloadURL)))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if !w.IsZero() {
+		errs.Put("payload_url", errors.New("Webhook for URL already exists"))
+	}
+
+	url, err := url.Parse(f.PayloadURL)
+
+	if err != nil {
+		errs.Put("payload_url", errors.New("Invalid URL"))
+	}
+
+	if url.Host == "" {
+		errs.Put("payload_url", errors.New("Missing URL host"))
+	}
+
+	if url.Scheme != "http" && url.Scheme != "https" {
+		errs.Put("payload_url", errors.New("Unrecognized URL scheme, must be http or https"))
+	}
+
+	if f.SSL {
+		if url.Scheme == "http" {
+			errs.Put("payload_url", errors.New("Cannot use SSL for a plain http URL"))
+		}
 	}
 	return errs.Err()
 }

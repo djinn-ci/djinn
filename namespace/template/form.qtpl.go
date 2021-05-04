@@ -32,6 +32,13 @@ type Form struct {
 	Namespace *namespace.Namespace
 }
 
+type WebhookForm struct {
+	template.BasePage
+	template.Form
+
+	Namespace *namespace.Namespace
+}
+
 func (p *Form) action() string {
 	if p.Namespace == nil {
 		return "/namespaces"
@@ -95,379 +102,531 @@ func (p *Form) disabled(vis namespace.Visibility) string {
 	return ""
 }
 
-//line namespace/template/form.qtpl:82
+//line namespace/template/form.qtpl:89
 func (p *Form) StreamTitle(qw422016 *qt422016.Writer) {
-//line namespace/template/form.qtpl:82
+//line namespace/template/form.qtpl:89
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:83
+//line namespace/template/form.qtpl:90
 	if p.Namespace == nil {
-//line namespace/template/form.qtpl:83
+//line namespace/template/form.qtpl:90
 		qw422016.N().S(` Create Namespace - Djinn CI `)
-//line namespace/template/form.qtpl:85
+//line namespace/template/form.qtpl:92
 	} else {
-//line namespace/template/form.qtpl:85
+//line namespace/template/form.qtpl:92
 		qw422016.N().S(` Edit Namespace - Djinn CI `)
-//line namespace/template/form.qtpl:87
+//line namespace/template/form.qtpl:94
 	}
-//line namespace/template/form.qtpl:87
+//line namespace/template/form.qtpl:94
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 }
 
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 func (p *Form) WriteTitle(qq422016 qtio422016.Writer) {
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 	p.StreamTitle(qw422016)
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 }
 
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 func (p *Form) Title() string {
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 	p.WriteTitle(qb422016)
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 	qs422016 := string(qb422016.B)
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 	return qs422016
-//line namespace/template/form.qtpl:88
+//line namespace/template/form.qtpl:95
 }
 
-//line namespace/template/form.qtpl:90
+//line namespace/template/form.qtpl:97
 func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
-//line namespace/template/form.qtpl:90
+//line namespace/template/form.qtpl:97
 	qw422016.N().S(` <div class="panel"> <div class="panel-body slim"> <form method="POST" action="`)
-//line namespace/template/form.qtpl:93
+//line namespace/template/form.qtpl:100
 	qw422016.E().S(p.action())
-//line namespace/template/form.qtpl:93
+//line namespace/template/form.qtpl:100
 	qw422016.N().S(`"> `)
-//line namespace/template/form.qtpl:94
+//line namespace/template/form.qtpl:101
 	qw422016.N().S(string(p.CSRF))
-//line namespace/template/form.qtpl:94
+//line namespace/template/form.qtpl:101
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:95
+//line namespace/template/form.qtpl:102
 	if p.Namespace != nil {
-//line namespace/template/form.qtpl:95
+//line namespace/template/form.qtpl:102
 		qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> `)
-//line namespace/template/form.qtpl:97
+//line namespace/template/form.qtpl:104
 	}
-//line namespace/template/form.qtpl:97
+//line namespace/template/form.qtpl:104
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:98
+//line namespace/template/form.qtpl:105
 	if p.Parent != nil && !p.Parent.IsZero() {
-//line namespace/template/form.qtpl:98
+//line namespace/template/form.qtpl:105
 		qw422016.N().S(` <input type="hidden" name="parent" value="`)
-//line namespace/template/form.qtpl:99
+//line namespace/template/form.qtpl:106
 		qw422016.E().S(p.Parent.Path)
-//line namespace/template/form.qtpl:99
+//line namespace/template/form.qtpl:106
 		qw422016.N().S(`"/> `)
-//line namespace/template/form.qtpl:100
+//line namespace/template/form.qtpl:107
 	}
-//line namespace/template/form.qtpl:100
+//line namespace/template/form.qtpl:107
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:101
+//line namespace/template/form.qtpl:108
 	if p.Namespace == nil {
-//line namespace/template/form.qtpl:101
+//line namespace/template/form.qtpl:108
 		qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Name</label> <input class="form-text" type="text" name="name" value="`)
-//line namespace/template/form.qtpl:104
+//line namespace/template/form.qtpl:111
 		qw422016.E().S(p.Field("name"))
-//line namespace/template/form.qtpl:104
+//line namespace/template/form.qtpl:111
 		qw422016.N().S(`" autocomplete="off"/> `)
-//line namespace/template/form.qtpl:105
+//line namespace/template/form.qtpl:112
 		p.StreamError(qw422016, "name")
-//line namespace/template/form.qtpl:105
+//line namespace/template/form.qtpl:112
 		qw422016.N().S(` </div> `)
-//line namespace/template/form.qtpl:107
+//line namespace/template/form.qtpl:114
 	}
-//line namespace/template/form.qtpl:107
+//line namespace/template/form.qtpl:114
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="name">Description</label> <input class="form-text" type="text" name="description" value="`)
-//line namespace/template/form.qtpl:110
-	qw422016.E().S(p.Field("description"))
-//line namespace/template/form.qtpl:110
-	qw422016.N().S(`" autocomplete="off"/> `)
-//line namespace/template/form.qtpl:111
-	p.StreamError(qw422016, "description")
-//line namespace/template/form.qtpl:111
-	qw422016.N().S(` </div> <div class="form-field"> <label class="form-option `)
-//line namespace/template/form.qtpl:114
-	qw422016.E().S(p.disabled(namespace.Private))
-//line namespace/template/form.qtpl:114
-	qw422016.N().S(`"> <input class="form-selector" type="radio" name="visibility" value="private" `)
-//line namespace/template/form.qtpl:115
-	qw422016.E().S(p.checked(namespace.Private))
-//line namespace/template/form.qtpl:115
-	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:115
-	qw422016.E().S(p.disabled(namespace.Private))
-//line namespace/template/form.qtpl:115
-	qw422016.N().S(`/> <strong>Private</strong> `)
 //line namespace/template/form.qtpl:117
+	qw422016.E().S(p.Field("description"))
+//line namespace/template/form.qtpl:117
+	qw422016.N().S(`" autocomplete="off"/> `)
+//line namespace/template/form.qtpl:118
+	p.StreamError(qw422016, "description")
+//line namespace/template/form.qtpl:118
+	qw422016.N().S(` </div> <div class="form-field"> <label class="form-option `)
+//line namespace/template/form.qtpl:121
+	qw422016.E().S(p.disabled(namespace.Private))
+//line namespace/template/form.qtpl:121
+	qw422016.N().S(`"> <input class="form-selector" type="radio" name="visibility" value="private" `)
+//line namespace/template/form.qtpl:122
+	qw422016.E().S(p.checked(namespace.Private))
+//line namespace/template/form.qtpl:122
+	qw422016.N().S(` `)
+//line namespace/template/form.qtpl:122
+	qw422016.E().S(p.disabled(namespace.Private))
+//line namespace/template/form.qtpl:122
+	qw422016.N().S(`/> <strong>Private</strong> `)
+//line namespace/template/form.qtpl:124
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M15.094 8.016v-2.016c0-1.688-1.406-3.094-3.094-3.094s-3.094 1.406-3.094 3.094v2.016h6.188zM12 17.016c1.078 0 2.016-0.938 2.016-2.016s-0.938-2.016-2.016-2.016-2.016 0.938-2.016 2.016 0.938 2.016 2.016 2.016zM18 8.016c1.078 0 2.016 0.891 2.016 1.969v10.031c0 1.078-0.938 1.969-2.016 1.969h-12c-1.078 0-2.016-0.891-2.016-1.969v-10.031c0-1.078 0.938-1.969 2.016-1.969h0.984v-2.016c0-2.766 2.25-5.016 5.016-5.016s5.016 2.25 5.016 5.016v2.016h0.984z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:117
+//line namespace/template/form.qtpl:124
 	qw422016.N().S(` <div class="form-desc">You choose who can view builds in the namespace.</div> </label> <label class="form-option `)
-//line namespace/template/form.qtpl:120
+//line namespace/template/form.qtpl:127
 	qw422016.E().S(p.disabled(namespace.Internal))
-//line namespace/template/form.qtpl:120
+//line namespace/template/form.qtpl:127
 	qw422016.N().S(`"> <input class="form-selector" type="radio" name="visibility" value="internal" `)
-//line namespace/template/form.qtpl:121
+//line namespace/template/form.qtpl:128
 	qw422016.E().S(p.checked(namespace.Internal))
-//line namespace/template/form.qtpl:121
+//line namespace/template/form.qtpl:128
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:121
+//line namespace/template/form.qtpl:128
 	qw422016.E().S(p.disabled(namespace.Internal))
-//line namespace/template/form.qtpl:121
+//line namespace/template/form.qtpl:128
 	qw422016.N().S(`/> <strong>Internal</strong> `)
-//line namespace/template/form.qtpl:123
+//line namespace/template/form.qtpl:130
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M12 0.984l9 4.031v6c0 5.531-3.844 10.734-9 12-5.156-1.266-9-6.469-9-12v-6zM12 12v8.953c3.703-1.172 6.469-4.828 6.984-8.953h-6.984zM12 12v-8.813l-6.984 3.094v5.719h6.984z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:123
+//line namespace/template/form.qtpl:130
 	qw422016.N().S(` <div class="form-desc">Anyone with an account will be able to view builds in the namespace.</div> </label> <label class="form-option `)
-//line namespace/template/form.qtpl:126
+//line namespace/template/form.qtpl:133
 	qw422016.E().S(p.disabled(namespace.Public))
-//line namespace/template/form.qtpl:126
+//line namespace/template/form.qtpl:133
 	qw422016.N().S(`"> <input class="form-selector" type="radio" name="visibility" value="public" `)
-//line namespace/template/form.qtpl:127
+//line namespace/template/form.qtpl:134
 	qw422016.E().S(p.checked(namespace.Public))
-//line namespace/template/form.qtpl:127
+//line namespace/template/form.qtpl:134
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:127
+//line namespace/template/form.qtpl:134
 	qw422016.E().S(p.disabled(namespace.Public))
-//line namespace/template/form.qtpl:127
+//line namespace/template/form.qtpl:134
 	qw422016.N().S(`/> <strong>Public</strong> `)
-//line namespace/template/form.qtpl:129
+//line namespace/template/form.qtpl:136
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M17.906 17.391c1.313-1.406 2.109-3.328 2.109-5.391 0-3.328-2.063-6.234-5.016-7.406v0.422c0 1.078-0.938 1.969-2.016 1.969h-1.969v2.016c0 0.563-0.469 0.984-1.031 0.984h-1.969v2.016h6c0.563 0 0.984 0.422 0.984 0.984v3h0.984c0.891 0 1.641 0.609 1.922 1.406zM11.016 19.922v-1.922c-1.078 0-2.016-0.938-2.016-2.016v-0.984l-4.781-4.781c-0.141 0.563-0.234 1.172-0.234 1.781 0 4.078 3.094 7.453 7.031 7.922zM12 2.016c5.531 0 9.984 4.453 9.984 9.984s-4.453 9.984-9.984 9.984-9.984-4.453-9.984-9.984 4.453-9.984 9.984-9.984z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:129
+//line namespace/template/form.qtpl:136
 	qw422016.N().S(` <div class="form-desc">Anyone will be able to view builds in the namespace.</div> </label> </div> <div class="form-field"> `)
-//line namespace/template/form.qtpl:134
+//line namespace/template/form.qtpl:141
 	if p.Namespace != nil {
-//line namespace/template/form.qtpl:134
+//line namespace/template/form.qtpl:141
 		qw422016.N().S(` <button type="submit" class="btn btn-primary">Save</button> `)
-//line namespace/template/form.qtpl:136
+//line namespace/template/form.qtpl:143
 	} else {
-//line namespace/template/form.qtpl:136
+//line namespace/template/form.qtpl:143
 		qw422016.N().S(` <button type="submit" class="btn btn-primary">Create</button> `)
-//line namespace/template/form.qtpl:138
+//line namespace/template/form.qtpl:145
 	}
-//line namespace/template/form.qtpl:138
+//line namespace/template/form.qtpl:145
 	qw422016.N().S(` </div> </form> `)
-//line namespace/template/form.qtpl:141
+//line namespace/template/form.qtpl:148
 	if p.Namespace != nil {
-//line namespace/template/form.qtpl:141
+//line namespace/template/form.qtpl:148
 		qw422016.N().S(` <div class="separator"></div> <form method="POST" action="`)
-//line namespace/template/form.qtpl:143
+//line namespace/template/form.qtpl:150
 		qw422016.E().S(p.Namespace.Endpoint())
-//line namespace/template/form.qtpl:143
+//line namespace/template/form.qtpl:150
 		qw422016.N().S(`"> `)
-//line namespace/template/form.qtpl:144
+//line namespace/template/form.qtpl:151
 		qw422016.N().S(string(p.CSRF))
-//line namespace/template/form.qtpl:144
+//line namespace/template/form.qtpl:151
 		qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <div class="overflow"> <div class="right"> <button type="submit" class="btn btn-danger">Delete</button> </div> <strong>Delete Namespace</strong><br/><p>Builds within the namespace will not be deleted.</p> </div> </form> `)
-//line namespace/template/form.qtpl:153
+//line namespace/template/form.qtpl:160
 	}
-//line namespace/template/form.qtpl:153
+//line namespace/template/form.qtpl:160
 	qw422016.N().S(` </div> </div> `)
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 }
 
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 func (p *Form) WriteBody(qq422016 qtio422016.Writer) {
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 	p.StreamBody(qw422016)
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 }
 
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 func (p *Form) Body() string {
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 	p.WriteBody(qb422016)
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 	qs422016 := string(qb422016.B)
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 	return qs422016
-//line namespace/template/form.qtpl:156
+//line namespace/template/form.qtpl:163
 }
 
-//line namespace/template/form.qtpl:158
+//line namespace/template/form.qtpl:165
 func (p *Form) StreamHeader(qw422016 *qt422016.Writer) {
-//line namespace/template/form.qtpl:158
+//line namespace/template/form.qtpl:165
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:159
+//line namespace/template/form.qtpl:166
 	if p.Namespace != nil {
-//line namespace/template/form.qtpl:159
+//line namespace/template/form.qtpl:166
 		qw422016.N().S(` <a class="back" href="`)
-//line namespace/template/form.qtpl:160
+//line namespace/template/form.qtpl:167
 		qw422016.E().S(p.Namespace.Endpoint())
-//line namespace/template/form.qtpl:160
+//line namespace/template/form.qtpl:167
 		qw422016.N().S(`">`)
-//line namespace/template/form.qtpl:160
+//line namespace/template/form.qtpl:167
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:160
+//line namespace/template/form.qtpl:167
 		qw422016.N().S(`</a> `)
-//line namespace/template/form.qtpl:161
+//line namespace/template/form.qtpl:168
 		streamrenderPath(qw422016, p.Namespace.User.Username, p.Namespace.Path)
-//line namespace/template/form.qtpl:161
+//line namespace/template/form.qtpl:168
 		qw422016.N().S(` - Edit `)
-//line namespace/template/form.qtpl:162
+//line namespace/template/form.qtpl:169
 	} else {
-//line namespace/template/form.qtpl:162
+//line namespace/template/form.qtpl:169
 		qw422016.N().S(` `)
-//line namespace/template/form.qtpl:163
+//line namespace/template/form.qtpl:170
 		if p.Parent != nil && !p.Parent.IsZero() {
-//line namespace/template/form.qtpl:163
+//line namespace/template/form.qtpl:170
 			qw422016.N().S(` <a class="back" href="`)
-//line namespace/template/form.qtpl:164
+//line namespace/template/form.qtpl:171
 			qw422016.E().S(p.Parent.Endpoint())
-//line namespace/template/form.qtpl:164
+//line namespace/template/form.qtpl:171
 			qw422016.N().S(`">`)
-//line namespace/template/form.qtpl:164
+//line namespace/template/form.qtpl:171
 			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:164
+//line namespace/template/form.qtpl:171
 			qw422016.N().S(`</a> `)
-//line namespace/template/form.qtpl:165
+//line namespace/template/form.qtpl:172
 			streamrenderPath(qw422016, p.Parent.User.Username, p.Parent.Path)
-//line namespace/template/form.qtpl:165
+//line namespace/template/form.qtpl:172
 			qw422016.N().S(` - Create Sub-namespace `)
-//line namespace/template/form.qtpl:166
+//line namespace/template/form.qtpl:173
 		} else {
-//line namespace/template/form.qtpl:166
+//line namespace/template/form.qtpl:173
 			qw422016.N().S(` <a class="back" href="/namespaces">`)
-//line namespace/template/form.qtpl:167
+//line namespace/template/form.qtpl:174
 			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:167
+//line namespace/template/form.qtpl:174
 			qw422016.N().S(`</a> Create Namespace `)
-//line namespace/template/form.qtpl:168
+//line namespace/template/form.qtpl:175
 		}
-//line namespace/template/form.qtpl:168
+//line namespace/template/form.qtpl:175
 		qw422016.N().S(` `)
-//line namespace/template/form.qtpl:169
+//line namespace/template/form.qtpl:176
 	}
-//line namespace/template/form.qtpl:169
+//line namespace/template/form.qtpl:176
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 }
 
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 func (p *Form) WriteHeader(qq422016 qtio422016.Writer) {
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 	p.StreamHeader(qw422016)
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 }
 
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 func (p *Form) Header() string {
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 	p.WriteHeader(qb422016)
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 	qs422016 := string(qb422016.B)
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 	return qs422016
-//line namespace/template/form.qtpl:170
+//line namespace/template/form.qtpl:177
 }
 
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 func (p *Form) StreamActions(qw422016 *qt422016.Writer) {
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 }
 
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 func (p *Form) WriteActions(qq422016 qtio422016.Writer) {
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 	p.StreamActions(qw422016)
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 }
 
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 func (p *Form) Actions() string {
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 	p.WriteActions(qb422016)
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 	qs422016 := string(qb422016.B)
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 	return qs422016
-//line namespace/template/form.qtpl:172
+//line namespace/template/form.qtpl:179
 }
 
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 func (p *Form) StreamNavigation(qw422016 *qt422016.Writer) {
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 }
 
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 func (p *Form) WriteNavigation(qq422016 qtio422016.Writer) {
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 	p.StreamNavigation(qw422016)
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 }
 
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 func (p *Form) Navigation() string {
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 	p.WriteNavigation(qb422016)
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 	qs422016 := string(qb422016.B)
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
 	return qs422016
-//line namespace/template/form.qtpl:173
+//line namespace/template/form.qtpl:180
+}
+
+//line namespace/template/form.qtpl:182
+func (p *WebhookForm) StreamTitle(qw422016 *qt422016.Writer) {
+//line namespace/template/form.qtpl:182
+	qw422016.N().S(` `)
+//line namespace/template/form.qtpl:183
+	qw422016.E().S(p.Namespace.Name)
+//line namespace/template/form.qtpl:183
+	qw422016.N().S(` - Create webhook - Djinn CI `)
+//line namespace/template/form.qtpl:184
+}
+
+//line namespace/template/form.qtpl:184
+func (p *WebhookForm) WriteTitle(qq422016 qtio422016.Writer) {
+//line namespace/template/form.qtpl:184
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line namespace/template/form.qtpl:184
+	p.StreamTitle(qw422016)
+//line namespace/template/form.qtpl:184
+	qt422016.ReleaseWriter(qw422016)
+//line namespace/template/form.qtpl:184
+}
+
+//line namespace/template/form.qtpl:184
+func (p *WebhookForm) Title() string {
+//line namespace/template/form.qtpl:184
+	qb422016 := qt422016.AcquireByteBuffer()
+//line namespace/template/form.qtpl:184
+	p.WriteTitle(qb422016)
+//line namespace/template/form.qtpl:184
+	qs422016 := string(qb422016.B)
+//line namespace/template/form.qtpl:184
+	qt422016.ReleaseByteBuffer(qb422016)
+//line namespace/template/form.qtpl:184
+	return qs422016
+//line namespace/template/form.qtpl:184
+}
+
+//line namespace/template/form.qtpl:186
+func (p *WebhookForm) StreamHeader(qw422016 *qt422016.Writer) {
+//line namespace/template/form.qtpl:186
+	qw422016.N().S(` <a class="back" href="`)
+//line namespace/template/form.qtpl:187
+	qw422016.E().S(p.Namespace.Endpoint("webhooks"))
+//line namespace/template/form.qtpl:187
+	qw422016.N().S(`">`)
+//line namespace/template/form.qtpl:187
+	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
+</svg>
+`)
+//line namespace/template/form.qtpl:187
+	qw422016.N().S(`</a> <a href="`)
+//line namespace/template/form.qtpl:188
+	qw422016.E().S(p.Namespace.Endpoint())
+//line namespace/template/form.qtpl:188
+	qw422016.N().S(`">`)
+//line namespace/template/form.qtpl:188
+	qw422016.E().S(p.Namespace.Name)
+//line namespace/template/form.qtpl:188
+	qw422016.N().S(`</a> / Create webhook `)
+//line namespace/template/form.qtpl:189
+}
+
+//line namespace/template/form.qtpl:189
+func (p *WebhookForm) WriteHeader(qq422016 qtio422016.Writer) {
+//line namespace/template/form.qtpl:189
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line namespace/template/form.qtpl:189
+	p.StreamHeader(qw422016)
+//line namespace/template/form.qtpl:189
+	qt422016.ReleaseWriter(qw422016)
+//line namespace/template/form.qtpl:189
+}
+
+//line namespace/template/form.qtpl:189
+func (p *WebhookForm) Header() string {
+//line namespace/template/form.qtpl:189
+	qb422016 := qt422016.AcquireByteBuffer()
+//line namespace/template/form.qtpl:189
+	p.WriteHeader(qb422016)
+//line namespace/template/form.qtpl:189
+	qs422016 := string(qb422016.B)
+//line namespace/template/form.qtpl:189
+	qt422016.ReleaseByteBuffer(qb422016)
+//line namespace/template/form.qtpl:189
+	return qs422016
+//line namespace/template/form.qtpl:189
+}
+
+//line namespace/template/form.qtpl:191
+func (p *WebhookForm) StreamActions(qw422016 *qt422016.Writer) {
+//line namespace/template/form.qtpl:191
+}
+
+//line namespace/template/form.qtpl:191
+func (p *WebhookForm) WriteActions(qq422016 qtio422016.Writer) {
+//line namespace/template/form.qtpl:191
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line namespace/template/form.qtpl:191
+	p.StreamActions(qw422016)
+//line namespace/template/form.qtpl:191
+	qt422016.ReleaseWriter(qw422016)
+//line namespace/template/form.qtpl:191
+}
+
+//line namespace/template/form.qtpl:191
+func (p *WebhookForm) Actions() string {
+//line namespace/template/form.qtpl:191
+	qb422016 := qt422016.AcquireByteBuffer()
+//line namespace/template/form.qtpl:191
+	p.WriteActions(qb422016)
+//line namespace/template/form.qtpl:191
+	qs422016 := string(qb422016.B)
+//line namespace/template/form.qtpl:191
+	qt422016.ReleaseByteBuffer(qb422016)
+//line namespace/template/form.qtpl:191
+	return qs422016
+//line namespace/template/form.qtpl:191
+}
+
+//line namespace/template/form.qtpl:192
+func (p *WebhookForm) StreamNavigation(qw422016 *qt422016.Writer) {
+//line namespace/template/form.qtpl:192
+}
+
+//line namespace/template/form.qtpl:192
+func (p *WebhookForm) WriteNavigation(qq422016 qtio422016.Writer) {
+//line namespace/template/form.qtpl:192
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line namespace/template/form.qtpl:192
+	p.StreamNavigation(qw422016)
+//line namespace/template/form.qtpl:192
+	qt422016.ReleaseWriter(qw422016)
+//line namespace/template/form.qtpl:192
+}
+
+//line namespace/template/form.qtpl:192
+func (p *WebhookForm) Navigation() string {
+//line namespace/template/form.qtpl:192
+	qb422016 := qt422016.AcquireByteBuffer()
+//line namespace/template/form.qtpl:192
+	p.WriteNavigation(qb422016)
+//line namespace/template/form.qtpl:192
+	qs422016 := string(qb422016.B)
+//line namespace/template/form.qtpl:192
+	qt422016.ReleaseByteBuffer(qb422016)
+//line namespace/template/form.qtpl:192
+	return qs422016
+//line namespace/template/form.qtpl:192
 }

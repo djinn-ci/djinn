@@ -14,6 +14,13 @@ type Form struct {
 	Namespace *namespace.Namespace
 }
 
+type WebhookForm struct {
+	template.BasePage
+	template.Form
+
+	Namespace *namespace.Namespace
+}
+
 func (p *Form) action() string {
 	if p.Namespace == nil {
 		return "/namespaces"
@@ -171,4 +178,16 @@ func (p *Form) disabled(vis namespace.Visibility) string {
 
 {% func (p *Form) Actions() %}{% endfunc %}
 {% func (p *Form) Navigation() %}{% endfunc %}
+
+{% func (p *WebhookForm) Title() %}
+	{%s p.Namespace.Name %} - Create webhook - Djinn CI
+{% endfunc %}
+
+{% func (p *WebhookForm) Header() %}
+	<a class="back" href="{%s p.Namespace.Endpoint("webhooks") %}">{% cat "../../static/svg/back.svg" %}</a>
+	<a href="{%s p.Namespace.Endpoint() %}">{%s p.Namespace.Name %}</a> / Create webhook
+{% endfunc %}
+
+{% func (p *WebhookForm) Actions() %}{% endfunc %}
+{% func (p *WebhookForm) Navigation() %}{% endfunc %}
 {% endcollapsespace %}

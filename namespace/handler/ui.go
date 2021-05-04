@@ -47,6 +47,10 @@ type CollaboratorUI struct {
 	Collaborator
 }
 
+type WebhookUI struct {
+	Webhook
+}
+
 // Index serves the HTML response detailing the list of namespaces.
 func (h Namespace) Index(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
@@ -768,4 +772,82 @@ func (h CollaboratorUI) Destroy(w http.ResponseWriter, r *http.Request) {
 		Message: "Collaborator remove: " + mux.Vars(r)["collaborator"],
 	}, "alert")
 	h.RedirectBack(w, r)
+}
+
+func (h WebhookUI) Index(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request")
+	}
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request")
+	}
+
+	ww, err := namespace.NewWebhookStore(h.DB, n, u).All()
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	csrf := csrf.TemplateField(r)
+
+	bp := template.BasePage{
+		URL:  r.URL,
+		User: u,
+	}
+
+	p := &namespacetemplate.Show{
+		BasePage:  bp,
+		Namespace: n,
+		Section: &namespacetemplate.WebhookIndex{
+			BasePage:  bp,
+			Namespace: n,
+			Webhooks:  ww,
+		},
+	}
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+	save(r, w)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h WebhookUI) Create(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request")
+	}
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request")
+	}
+
+	csrf := csrf.TemplateField(r)
+
+	p := &namespacetemplate.WebhookForm{
+		Form: template.Form{
+			CSRF:   csrf,
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
+		},
+		Namespace: n,
+	}
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+	save(r, w)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
 }

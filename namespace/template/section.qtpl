@@ -28,6 +28,14 @@ type CollaboratorIndex struct {
 	Namespace     *namespace.Namespace
 	Collaborators []*namespace.Collaborator
 }
+
+type WebhookIndex struct {
+	section
+	template.BasePage
+
+	Namespace *namespace.Namespace
+	Webhooks  []*namespace.Webhook
+}
 %}
 
 {% collapsespace %}
@@ -118,7 +126,7 @@ type CollaboratorIndex struct {
 {% endfunc %}
 
 {% func (p *CollaboratorIndex) Title() %}
-	Namespace Collaborators
+	Collaborators - Djinn CI
 {% endfunc %}
 
 {% func (p *CollaboratorIndex) Body() %}
@@ -150,6 +158,22 @@ type CollaboratorIndex struct {
 					{% endfor %}
 				</tbody>
 			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *WebhookIndex) Title() %}
+	Webhooks - Djinn CI
+{% endfunc %}
+
+{% func (p *WebhookIndex) Body() %}
+	<div class="panel">
+		<div class="panel-header panel-body">
+			<a class="btn btn-primary right" href="{%s p.Namespace.Endpoint("webhooks", "create") %}">Create</a>
+		</div>
+		{% if len(p.Webhooks) == 0 %}
+			<div class="panel-message muted">Add a webhook to notify external services of events.</div>
+		{% else %}
 		{% endif %}
 	</div>
 {% endfunc %}

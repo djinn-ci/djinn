@@ -29,6 +29,7 @@ type Router struct {
 	middleware   web.Middleware
 	namespace    handler.Namespace
 	invite       handler.Invite
+	webhook      handler.Webhook
 	collaborator handler.Collaborator
 }
 
@@ -56,9 +57,14 @@ func Gate(db *sqlx.DB) web.Gate {
 
 		base := webutil.BasePath(r.URL.Path)
 
-		// Are we creating a namespace.
 		if base == "create" {
-			return r, ok, nil
+			parts := strings.Split(r.URL.Path, "/")
+
+			// Not creating a webhook so return. If creating a webhook we want
+			// to get the namespace and owner from the URL.
+			if parts[len(parts)-2] != "webhooks" {
+				return r, ok, nil
+			}
 		}
 
 		// Check if the base of the path is for a namespace's children or
@@ -172,6 +178,7 @@ func New(_ *config.Server, h web.Handler, mw web.Middleware) *Router {
 		middleware:   mw,
 		namespace:    handler.New(h),
 		invite:       handler.NewInvite(h),
+		webhook:      handler.NewWebhook(h),
 		collaborator: handler.Collaborator{Handler: h},
 	}
 }
@@ -201,6 +208,10 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 		Collaborator: r.collaborator,
 	}
 
+	webhook := handler.WebhookUI{
+		Webhook: r.webhook,
+	}
+
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/namespaces", namespace.Index).Methods("GET")
 	auth.HandleFunc("/namespaces/create", namespace.Create).Methods("GET")
@@ -222,6 +233,12 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/-/invites", invite.Store).Methods("POST")
 	sr.HandleFunc("/-/collaborators", collaborator.Index).Methods("GET")
 	sr.HandleFunc("/-/collaborators/{collaborator}", collaborator.Destroy).Methods("DELETE")
+	sr.HandleFunc("/-/webhooks", webhook.Index).Methods("GET")
+	sr.HandleFunc("/-/webhooks/create", webhook.Create).Methods("GET")
+//	sr.HandleFunc("/-/webhooks", webhook.Store).Methods("POST")
+//	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Show).Methods("GET")
+//	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Update).Methods("PATCH")
+//	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}/events", webhook.Show).Methods("GET")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	sr.Use(r.middleware.Gate(gates...), csrf)

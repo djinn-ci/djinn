@@ -91,6 +91,11 @@ type Show struct {
 				{% cat "../../static/svg/users.svg" %}<span>Collaborators</span>
 			</a>
 		</li>
+		<li>
+			<a href="{%s p.Namespace.Endpoint("webhooks") %}" class="{%s template.Active(p.Namespace.Endpoint("webhooks") == p.URL.Path) %}">
+				{% cat "../../static/svg/all_out.svg" %}<span>Webhooks</span>
+			</a>
+		</li>
 	{% endif %}
 {% endfunc %}
 {% endcollapsespace %}

@@ -257,6 +257,7 @@ func (n *Namespace) JSON(addr string) map[string]interface{} {
 		"variables_url":     addr + n.Endpoint("variables"),
 		"keys_url":          addr + n.Endpoint("keys"),
 		"collaborators_url": addr + n.Endpoint("collaborators"),
+		"webhooks_url":      addr + n.Endpoint("webhooks"),
 	}
 
 	if n.ParentID.Valid {

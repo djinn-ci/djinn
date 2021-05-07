@@ -39,3 +39,9 @@ once booted you will be able to SSH into it as `root` on port `2222`,
 
 the ports for Redis (`6379`), and PostgreSQL (`5432`) will also be locally
 accessible too.
+
+[mgrt](https://github.com/andrewpillar/mgrt) is used for performing revisions
+against for Djinn CI. Once the virtual machine is booted, you can run the
+following mgrt command,
+
+    $ mgrt run -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=djinn password=secret"

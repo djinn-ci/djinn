@@ -8,6 +8,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"database/sql/driver"
+	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"io"
@@ -26,14 +28,18 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type WebhookEvent int
+type hookURL struct {
+	*url.URL
+}
+
+type WebhookEvent int64
 
 type Webhook struct {
 	ID          int64        `db:"id"`
 	UserID      int64        `db:"user_id"`
 	AuthorID    int64        `db:"author_id"`
 	NamespaceID int64        `db:"namespace_id"`
-	PayloadURL  *url.URL     `db:"payload_url"`
+	PayloadURL  hookURL      `db:"payload_url"`
 	Secret      string       `db:"secret"`
 	SSL         bool         `db:"ssl"`
 	Events      WebhookEvent `db:"events"`
@@ -73,6 +79,12 @@ const (
 var (
 	_ database.Model  = (*Webhook)(nil)
 	_ database.Binder = (*WebhookStore)(nil)
+
+	_ sql.Scanner   = (*hookURL)(nil)
+	_ driver.Valuer = (*hookURL)(nil)
+
+	_ sql.Scanner   = (*WebhookEvent)(nil)
+	_ driver.Valuer = (*WebhookEvent)(nil)
 
 	webhookTable         = "namespace_webhooks"
 	webhookDeliveryTable = "namespace_webhook_deliveries"
@@ -172,6 +184,54 @@ func (e WebhookEvent) Has(event string) bool {
 	return (e & mask) == mask
 }
 
+func (e WebhookEvent) Value() (driver.Value, error) {
+	size := binary.Size(e)
+
+	if size < 0 {
+		return nil, errors.New("invalid webhook event")
+	}
+
+	buf := make([]byte, size)
+
+	binary.PutVarint(buf, int64(e))
+	return buf, nil
+}
+
+func (e *WebhookEvent) Scan(v interface{}) error {
+	if v == nil {
+		return nil
+	}
+
+	b, err := database.Scan(v)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	i, n := binary.Varint(b)
+
+	if n < 0 {
+		return errors.New("64 bit overflow")
+	}
+
+	(*e) = WebhookEvent(i)
+	return nil
+}
+
+func (u hookURL) Value() (driver.Value, error) { return u.String(), nil }
+
+func (u *hookURL) Scan(v interface{}) error {
+	b, err := database.Scan(v)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	u.URL, err = url.Parse(string(b))
+
+	return errors.Err(err)
+}
+
 func (w *Webhook) Bind(mm ...database.Model) {
 	for _, m := range mm {
 		switch v := m.(type) {
@@ -194,7 +254,7 @@ func (w *Webhook) IsZero() bool {
 	return w == nil || w.ID == 0 &&
 		w.AuthorID == 0 &&
 		w.NamespaceID == 0 &&
-		w.PayloadURL.String() == "" &&
+		w.PayloadURL.URL == nil &&
 		w.Secret == "" &&
 		!w.SSL &&
 		w.Events == WebhookEvent(0) &&
@@ -265,7 +325,7 @@ func (s *WebhookStore) Bind(mm ...database.Model) {
 func (s *WebhookStore) Create(authorId int64, payloadUrl *url.URL, secret string, ssl bool, events WebhookEvent, active bool) (*Webhook, error) {
 	w := s.New()
 	w.AuthorID = authorId
-	w.PayloadURL = payloadUrl
+	w.PayloadURL = hookURL{URL: payloadUrl}
 	w.Secret = secret
 	w.SSL = ssl
 	w.Events = events
@@ -428,7 +488,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, event string, r *bytes.Reader) (*
 
 	req := &http.Request{
 		Method: "POST",
-		URL:    w.PayloadURL,
+		URL:    w.PayloadURL.URL,
 		Header: map[string][]string{
 			"Accept":             {"*/*"},
 			"Content-Length":     {strconv.FormatInt(int64(r.Size()), 10)},

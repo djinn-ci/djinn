@@ -39,7 +39,7 @@ func (h Webhook) StoreModel(r *http.Request) (*namespace.Webhook, namespace.Webh
 		return nil, f, errors.New("no namespace in request context")
 	}
 
-	webhooks := namespace.NewWebhookStore(h.DB, n)
+	webhooks := namespace.NewWebhookStore(h.DB, n, u)
 
 	f.Webhooks = webhooks
 

@@ -234,12 +234,12 @@ func (f WebhookForm) Validate() error {
 		errs.Put("payload_url", errors.New("Invalid URL"))
 	}
 
-	if url.Host == "" {
-		errs.Put("payload_url", errors.New("Missing URL host"))
+	if url.Scheme != "http" && url.Scheme != "https" {
+		errs.Put("payload_url", errors.New("Invalid payload URL"))
 	}
 
-	if url.Scheme != "http" && url.Scheme != "https" {
-		errs.Put("payload_url", errors.New("Unrecognized URL scheme, must be http or https"))
+	if url.Host == "" {
+		errs.Put("payload_url", errors.New("Invalid payload URL"))
 	}
 
 	if f.SSL {

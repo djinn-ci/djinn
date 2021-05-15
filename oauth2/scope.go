@@ -56,6 +56,7 @@ const (
 	Variable                      // variable
 	Key                           // key
 	Cron                          // cron
+	Webhook                       // webhook
 )
 
 var (
@@ -74,6 +75,7 @@ var (
 		Variable,
 		Key,
 		Cron,
+		Webhook,
 	}
 
 	perms map[string]Permission = map[string]Permission{
@@ -91,6 +93,7 @@ var (
 		"variable":  Variable,
 		"key":       Key,
 		"cron":      Cron,
+		"webhook":   Webhook,
 	}
 )
 

@@ -11,11 +11,13 @@ func _() {
 	_ = x[BuildSubmitted-1]
 	_ = x[BuildStarted-2]
 	_ = x[BuildFinished-4]
+	_ = x[BuildTagged-8]
 }
 
 const (
 	_WebhookEvent_name_0 = "build_submittedbuild_started"
 	_WebhookEvent_name_1 = "build_finished"
+	_WebhookEvent_name_2 = "build_tagged"
 )
 
 var (
@@ -29,6 +31,8 @@ func (i WebhookEvent) String() string {
 		return _WebhookEvent_name_0[_WebhookEvent_index_0[i]:_WebhookEvent_index_0[i+1]]
 	case i == 4:
 		return _WebhookEvent_name_1
+	case i == 8:
+		return _WebhookEvent_name_2
 	default:
 		return "WebhookEvent(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

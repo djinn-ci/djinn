@@ -2,6 +2,7 @@ package namespace
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/rand"
@@ -74,6 +75,7 @@ const (
 	BuildSubmitted WebhookEvent = 1 << iota // build_submitted
 	BuildStarted                            // build_started
 	BuildFinished                           // build_finished
+	BuildTagged                             // build_tagged
 )
 
 var (
@@ -93,14 +95,17 @@ var (
 		"build_submitted": BuildSubmitted,
 		"build_started":   BuildStarted,
 		"build_finished":  BuildFinished,
+		"build_tagged":    BuildTagged,
 	}
 
 	WebhookEvents = []WebhookEvent{
 		BuildSubmitted,
 		BuildStarted,
 		BuildFinished,
+		BuildTagged,
 	}
 
+	ErrUnknownEvent   = errors.New("unknown event")
 	ErrUnknownWebhook = errors.New("unknown webhook")
 )
 
@@ -161,8 +166,13 @@ func NewWebhookStore(db *sqlx.DB, mm ...database.Model) *WebhookStore {
 	return s
 }
 
+func WebhookFromContext(ctx context.Context) (*Webhook, bool) {
+	w, ok := ctx.Value("webhook").(*Webhook)
+	return w, ok
+}
+
 func UnmarshalWebhookEvents(names ...string) (WebhookEvent, error) {
-	var event WebhookEvent
+	var events WebhookEvent
 
 	for _, name := range names {
 		ev, ok := webhookEventsMap[name]
@@ -170,19 +180,12 @@ func UnmarshalWebhookEvents(names ...string) (WebhookEvent, error) {
 		if !ok {
 			return 0, errors.New("unknown webhook event: " + name)
 		}
-		event |= ev
+		events |= ev
 	}
-	return event, nil
+	return events, nil
 }
 
-func (e WebhookEvent) Has(event string) bool {
-	mask, ok := webhookEventsMap[event]
-
-	if !ok {
-		return false
-	}
-	return (e & mask) == mask
-}
+func (e WebhookEvent) Has(mask WebhookEvent) bool { return (e & mask) == mask }
 
 func (e WebhookEvent) Value() (driver.Value, error) {
 	size := binary.Size(e)
@@ -247,7 +250,7 @@ func (w *Webhook) Endpoint(uri ...string) string {
 	if w.Namespace.IsZero() {
 		return ""
 	}
-	return w.Namespace.Endpoint(append([]string{"webhooks"}, uri...)...)
+	return w.Namespace.Endpoint(append([]string{"webhooks", strconv.FormatInt(w.ID, 10)}, uri...)...)
 }
 
 func (w *Webhook) IsZero() bool {
@@ -285,7 +288,7 @@ func (w *Webhook) SetPrimary(id int64) { w.ID = id }
 
 func (w *Webhook) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"user_id":    w.UserID,
+		"user_id":      w.UserID,
 		"author_id":    w.AuthorID,
 		"namespace_id": w.NamespaceID,
 		"payload_url":  w.PayloadURL,
@@ -440,7 +443,7 @@ func (s *WebhookStore) createEvent(hookId int64, eventId string, req *http.Reque
 	return errors.Err(err)
 }
 
-func (s *WebhookStore) realDeliver(w *Webhook, event string, r *bytes.Reader) (*http.Request, *http.Response, time.Duration, error) {
+func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Reader) (*http.Request, *http.Response, time.Duration, error) {
 	if !w.Active {
 		return nil, nil, 0, nil
 	}
@@ -494,7 +497,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, event string, r *bytes.Reader) (*
 			"Content-Length":     {strconv.FormatInt(int64(r.Size()), 10)},
 			"Content-Type":       {"application/json", "charset=utf-8"},
 			"User-Agent":         {"Djinn-CI-Hook"},
-			"X-Djinn-CI-Event":   {event},
+			"X-Djinn-CI-Event":   {event.String()},
 			"X-Djinn-CI-Hook-ID": {strconv.FormatInt(w.ID, 10)},
 		},
 		Body: io.NopCloser(r),
@@ -547,7 +550,9 @@ func (s *WebhookStore) Redeliver(id int64, eventId string) error {
 	hdr := decodeHeaders(headers)
 	r := bytes.NewReader([]byte(body))
 
-	req, resp, dur, err := s.realDeliver(w, hdr["X-Djinn-CI-Event"][0], r)
+	event := webhookEventsMap[hdr["X-Djinn-CI-Event"][0]]
+
+	req, resp, dur, err := s.realDeliver(w, event, r)
 
 	if err != nil {
 		return errors.Err(err)
@@ -564,6 +569,12 @@ func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) err
 		return errors.Err(err)
 	}
 
+	ev, ok := webhookEventsMap[event]
+
+	if !ok {
+		return ErrUnknownEvent
+	}
+
 	var buf bytes.Buffer
 
 	json.NewEncoder(&buf).Encode(payload)
@@ -571,7 +582,7 @@ func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) err
 	r := bytes.NewReader(buf.Bytes())
 
 	for _, w := range ww {
-		req, resp, dur, err := s.realDeliver(w, event, r)
+		req, resp, dur, err := s.realDeliver(w, ev, r)
 
 		if err != nil {
 			return errors.Err(err)

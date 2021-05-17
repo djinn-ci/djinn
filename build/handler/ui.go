@@ -152,21 +152,6 @@ func (h UI) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	builds := build.NewStoreWithHasher(h.DB, h.hasher)
-	prd, _ := h.getDriverQueue(b.Manifest)
-	addr := webutil.BaseAddress(r)
-
-	if err := builds.Submit(r.Context(), prd, addr, b); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		sess.AddFlash(template.Alert{
-			Level:   template.Danger,
-			Close:   true,
-			Message: "Failed to create build",
-		}, "alert")
-		h.RedirectBack(w, r)
-		return
-	}
-
 	sess.AddFlash(template.Alert{
 		Level:   template.Success,
 		Close:   true,

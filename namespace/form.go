@@ -218,14 +218,16 @@ func (f WebhookForm) Validate() error {
 		errs.Put("payload_url", webutil.ErrFieldRequired("Payload URL"))
 	}
 
-	w, err := f.Webhooks.Get(query.Where("payload_url", "=", query.Arg(f.PayloadURL)))
+	w, err := f.Webhooks.Get(query.Where("payload_url", "=", query.Arg(strings.ToLower(f.PayloadURL))))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if !w.IsZero() {
-		errs.Put("payload_url", errors.New("Webhook for URL already exists"))
+	if f.Webhook != nil && f.Webhook.PayloadURL.String() != f.PayloadURL {
+		if !w.IsZero() {
+			errs.Put("payload_url", errors.New("Webhook for URL already exists"))
+		}
 	}
 
 	url, err := url.Parse(f.PayloadURL)

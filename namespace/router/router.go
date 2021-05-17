@@ -107,32 +107,6 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, ok, errors.Err(err)
 		}
 
-		if webhook, ok := vars["webhook"]; ok {
-			id, _ := strconv.ParseInt(webhook, 10, 64)
-
-			switch r.Method {
-			case "GET":
-				_, ok = u.Permissions["webhook:read"]
-			case "PATCH":
-				_, ok = u.Permissions["webhook:write"]
-			case "DELETE":
-				_, ok = u.Permissions["webhook:delete"]
-			}
-
-			w, err := namespace.NewWebhookStore(db).Get(query.Where("id", "=", query.Arg(id)))
-
-			if err != nil {
-				return r, ok, errors.Err(err)
-			}
-
-			if w.IsZero() {
-				return r, false, nil
-			}
-
-			r = r.WithContext(context.WithValue(r.Context(), "webhook", w))
-			return r, ok, errors.Err(err)
-		}
-
 		owner, err := users.Get(query.Where("username", "=", query.Arg(vars["username"])))
 
 		if err != nil {
@@ -162,6 +136,8 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, false, nil
 		}
 
+		n.User = owner
+
 		// Can the current user modify/delete the current namespace.
 		if r.Method == "POST" || r.Method == "PATCH" || r.Method == "DELETE" {
 			if owner.ID != u.ID {
@@ -178,6 +154,34 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), "namespace", n))
+
+		if webhook, ok := vars["webhook"]; ok {
+			id, _ := strconv.ParseInt(webhook, 10, 64)
+
+			switch r.Method {
+			case "GET":
+				_, ok = u.Permissions["webhook:read"]
+			case "PATCH":
+				_, ok = u.Permissions["webhook:write"]
+			case "DELETE":
+				_, ok = u.Permissions["webhook:delete"]
+			}
+
+			w, err := namespace.NewWebhookStore(db).Get(query.Where("id", "=", query.Arg(id)))
+
+			if err != nil {
+				return r, ok, errors.Err(err)
+			}
+
+			if w.IsZero() {
+				return r, false, nil
+			}
+
+			w.Namespace = n
+
+			r = r.WithContext(context.WithValue(r.Context(), "webhook", w))
+			return r, ok, errors.Err(err)
+		}
 
 		root, err := namespaces.Get(
 			query.Where("root_id", "=", namespace.SelectRootID(n.ID)),
@@ -263,8 +267,8 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/-/webhooks/create", webhook.Create).Methods("GET")
 	sr.HandleFunc("/-/webhooks", webhook.Store).Methods("POST")
 	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Show).Methods("GET")
-//	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Update).Methods("PATCH")
-//	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}/events", webhook.Show).Methods("GET")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Update).Methods("PATCH")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	sr.Use(r.middleware.Gate(gates...), csrf)

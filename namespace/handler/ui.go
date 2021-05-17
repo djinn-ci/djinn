@@ -799,6 +799,10 @@ func (h WebhookUI) Index(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	for _, w := range ww {
+		w.Namespace = n
+	}
+
 	csrf := csrf.TemplateField(r)
 
 	bp := template.BasePage{
@@ -811,6 +815,7 @@ func (h WebhookUI) Index(w http.ResponseWriter, r *http.Request) {
 		Namespace: n,
 		Section: &namespacetemplate.WebhookIndex{
 			BasePage:  bp,
+			CSRF:      csrf,
 			Namespace: n,
 			Webhooks:  ww,
 		},
@@ -850,4 +855,136 @@ func (h WebhookUI) Create(w http.ResponseWriter, r *http.Request) {
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h WebhookUI) Store(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	n, ok := namespace.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request context")
+	}
+
+	_, f, err := h.StoreModel(r)
+
+	if err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to create webhook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Webhook created",
+	}, "alert")
+	h.Redirect(w, r, n.Endpoint("webhooks"))
+}
+
+func (h WebhookUI) Show(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no namespace in request context")
+	}
+
+	wh, ok := namespace.WebhookFromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request context")
+	}
+
+	csrf := csrf.TemplateField(r)
+
+	p := &namespacetemplate.WebhookForm{
+		Form: template.Form{
+			CSRF:   csrf,
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
+		},
+		Namespace: n,
+		Webhook:   wh,
+	}
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+	save(r, w)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
+func (h WebhookUI) Update(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	wh, f, err := h.UpdateModel(r)
+
+	if err != nil {
+		cause := errors.Cause(err)
+
+		if ferrs, ok := cause.(*webutil.Errors); ok {
+			webutil.FlashFormWithErrors(sess, f, ferrs)
+			h.RedirectBack(w, r)
+			return
+		}
+
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to update webhook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Webhook has been updated: " + wh.PayloadURL.String(),
+	}, "alert")
+	h.Redirect(w, r, wh.Namespace.Endpoint("webhooks"))
+}
+
+func (h WebhookUI) Destroy(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	wh, ok := namespace.WebhookFromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	if err := namespace.NewWebhookStore(h.DB).Delete(wh.ID); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Webhook has been deleted",
+	}, "alert")
+	h.Redirect(w, r, wh.Namespace.Endpoint("webhooks"))
 }

@@ -10,6 +10,7 @@ import (
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/oauth2"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -34,6 +35,10 @@ type Handler struct {
 
 	// Log is the log file that the HTTP server is writing to.
 	Log *log.Logger
+
+	// Queue is the in memory queue for dispatching background jobs, such as
+	// webhooks, and sending of emails.
+	Queue *queue.Queue
 
 	// Store is the current store being used for storing session data, such
 	// as form fields, form errors, and general error messages.

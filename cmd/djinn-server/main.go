@@ -24,7 +24,12 @@ func main() {
 		return
 	}
 
-	srv, cfg, close_, err := serverutil.Init(config)
+	c := make(chan os.Signal, 1)
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))
+	defer cancel()
+
+	srv, cfg, close_, err := serverutil.Init(ctx, config)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
@@ -35,11 +40,6 @@ func main() {
 
 	serverutil.RegisterRoutes(cfg, api, ui, srv)
 	serverutil.Start(srv)
-
-	c := make(chan os.Signal, 1)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))
-	defer cancel()
 
 	signal.Notify(c, os.Interrupt)
 

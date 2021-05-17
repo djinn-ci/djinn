@@ -158,6 +158,12 @@ func encodeHeaders(headers http.Header) string {
 	return buf.String()
 }
 
+func WebhookURL(url *url.URL) hookURL {
+	return hookURL{
+		URL: url,
+	}
+}
+
 func NewWebhookStore(db *sqlx.DB, mm ...database.Model) *WebhookStore {
 	s := &WebhookStore{
 		Store: database.Store{DB: db},
@@ -221,7 +227,7 @@ func (e *WebhookEvent) Scan(v interface{}) error {
 	return nil
 }
 
-func (u hookURL) Value() (driver.Value, error) { return u.String(), nil }
+func (u hookURL) Value() (driver.Value, error) { return strings.ToLower(u.String()), nil }
 
 func (u *hookURL) Scan(v interface{}) error {
 	b, err := database.Scan(v)
@@ -338,13 +344,14 @@ func (s *WebhookStore) Create(authorId int64, payloadUrl *url.URL, secret string
 	return w, errors.Err(err)
 }
 
-func (s *WebhookStore) Update(id int64, payloadUrl url.URL, secret string, ssl bool, events WebhookEvent) error {
+func (s *WebhookStore) Update(id int64, payloadUrl *url.URL, secret string, ssl bool, events WebhookEvent, active bool) error {
 	q := query.Update(
 		webhookTable,
-		query.Set("payload_url", query.Arg(payloadUrl)),
+		query.Set("payload_url", query.Arg(hookURL{URL:payloadUrl})),
 		query.Set("secret", query.Arg(secret)),
 		query.Set("ssl", query.Arg(ssl)),
 		query.Set("events", query.Arg(events)),
+		query.Set("active", query.Arg(active)),
 		query.Where("id", "=", query.Arg(id)),
 	)
 

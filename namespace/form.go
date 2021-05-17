@@ -56,6 +56,12 @@ var (
 	_ webutil.Form = (*Form)(nil)
 	_ webutil.Form = (*InviteForm)(nil)
 	_ webutil.Form = (*WebhookForm)(nil)
+
+	localhosts = map[string]struct{}{
+		"localhost": {},
+		"127.0.0.1": {},
+		"::1":       {},
+	}
 )
 
 // Fields returns a map of the Name and Description fields in the Namespace
@@ -241,6 +247,10 @@ func (f WebhookForm) Validate() error {
 	}
 
 	if url.Host == "" {
+		errs.Put("payload_url", errors.New("Invalid payload URL"))
+	}
+
+	if _, ok := localhosts[url.Host]; ok {
 		errs.Put("payload_url", errors.New("Invalid payload URL"))
 	}
 

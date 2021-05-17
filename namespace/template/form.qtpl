@@ -1,5 +1,7 @@
 {%
 import (
+	"strings"
+
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/template"
 )
@@ -18,7 +20,9 @@ type WebhookForm struct {
 	template.BasePage
 	template.Form
 
-	Namespace *namespace.Namespace
+	Namespace  *namespace.Namespace
+	Webhook    *namespace.Webhook
+	Deliveries []*namespace.WebhookDelivery
 }
 
 func (p *Form) action() string {
@@ -83,6 +87,29 @@ func (p *Form) disabled(vis namespace.Visibility) string {
 	}
 	return ""
 }
+
+func (p *WebhookForm) action() string {
+	if p.Webhook == nil {
+		return p.Namespace.Endpoint("webhooks")
+	}
+	return p.Webhook.Endpoint()
+}
+
+func (p *WebhookForm) Field(field string) string {
+	old := p.Form.Fields[field]
+
+	if p.Webhook != nil {
+		if old != "" {
+			return old
+		}
+
+		if field == "payload_url" {
+			return p.Webhook.PayloadURL.String()
+		}
+		return ""
+	}
+	return old
+}
 %}
 
 {% collapsespace %}
@@ -120,21 +147,27 @@ func (p *Form) disabled(vis namespace.Visibility) string {
 				<div class="form-field">
 					<label class="form-option {%s p.disabled(namespace.Private) %}">
 						<input class="form-selector" type="radio" name="visibility" value="private" {%s p.checked(namespace.Private) %} {%s p.disabled(namespace.Private) %}/>
-						<strong>Private</strong>
 						{% cat "../../static/svg/lock.svg" %}
-						<div class="form-desc">You choose who can view builds in the namespace.</div>
+						<div class="form-option-info">
+							<strong>Private</strong>
+							<div class="form-desc">You choose who can view builds in the namespace.</div>
+						</div>
 					</label>
 					<label class="form-option {%s p.disabled(namespace.Internal) %}">
 						<input class="form-selector" type="radio" name="visibility" value="internal" {%s p.checked(namespace.Internal) %} {%s p.disabled(namespace.Internal) %}/>
-						<strong>Internal</strong>
 						{% cat "../../static/svg/security.svg" %}
-						<div class="form-desc">Anyone with an account will be able to view builds in the namespace.</div>
+						<div class="form-option-info">
+							<strong>Internal</strong>
+							<div class="form-desc">Anyone with an account will be able to view builds in the namespace.</div>
+						</div>
 					</label>
 					<label class="form-option {%s p.disabled(namespace.Public) %}">
 						<input class="form-selector" type="radio" name="visibility" value="public" {%s p.checked(namespace.Public) %} {%s p.disabled(namespace.Public) %}/>
-						<strong>Public</strong>
 						{% cat "../../static/svg/public.svg" %}
-						<div class="form-desc">Anyone will be able to view builds in the namespace.</div>
+						<div class="form-option-info">
+							<strong>Public</strong>
+							<div class="form-desc">Anyone will be able to view builds in the namespace.</div>
+						</div>
 					</label>
 				</div>
 				<div class="form-field">
@@ -180,12 +213,101 @@ func (p *Form) disabled(vis namespace.Visibility) string {
 {% func (p *Form) Navigation() %}{% endfunc %}
 
 {% func (p *WebhookForm) Title() %}
-	{%s p.Namespace.Name %} - Create webhook - Djinn CI
+	{% if p.Webhook == nil %}
+		{%s p.Namespace.Name %} - Create webhook - Djinn CI
+	{% else %}
+		{%s p.Namespace.Name %} - Edit webhook - Djinn CI
+	{% endif %}
 {% endfunc %}
 
 {% func (p *WebhookForm) Header() %}
 	<a class="back" href="{%s p.Namespace.Endpoint("webhooks") %}">{% cat "../../static/svg/back.svg" %}</a>
-	<a href="{%s p.Namespace.Endpoint() %}">{%s p.Namespace.Name %}</a> / Create webhook
+	{% if p.Webhook == nil %}
+		<a href="{%s p.Namespace.Endpoint() %}">{%s p.Namespace.Name %}</a> / Create webhook
+	{% else %}
+		<a href="{%s p.Namespace.Endpoint() %}">{%s p.Namespace.Name %}</a> / Edit webhook
+	{% endif %}
+{% endfunc %}
+
+{% func (p *WebhookForm) Body() %}
+	<div class="panel">
+		<div class="panel-body slim">
+			<form method="POST" action="{%s p.action() %}">
+			{% if p.Webhook != nil %}
+				<input type="hidden" name="_method" value="PATCH"/>
+			{% endif %}
+				{%v= p.CSRF %}
+				<div class="form-field">
+					<label class="label" for="payload_url">Payload URL</label>
+					<input type="text" class="form-text" id="payload_url" name="payload_url" placeholder="https://example.com" autocomplete="off" value="{%s p.Field("payload_url") %}"/>
+					{%= p.Error("payload_url") %}
+				</div>
+				<div class="form-field">
+					<label class="label" for="secret">Secret</label>
+					<input type="password" class="form-text" id="secret" name="secret" autocomplete="off"/>
+				</div>
+				<div class="form-field">
+					<label class="form-option">
+						<input class="form-selector" type="checkbox" name="ssl" checked="true"/>
+						<div class="form-option-info">
+							<strong>SSL</strong>
+							<div class="form-desc">Verify SSL certificates when sending payloads</div>
+						</div>
+					</label>
+				</div>
+				<div class="form-field">
+					<label class="form-option">
+						<input class="form-selector" type="checkbox" name="active" checked="true"/	>
+						<div class="form-option-info">
+							<strong>Active</strong>
+							<div class="form-desc">Send events for this webhook</div>
+						</div>
+					</label>
+				</div>
+				<div class="form-field">
+					<strong>Events</strong><br/>
+				{% for _, event := range namespace.WebhookEvents %}
+					<label class="hook-event">
+						{% if p.Webhook != nil && p.Webhook.Events.Has(event) %}
+							<input checked="true" class="form-selector" type="checkbox" name="events[]" value="{%s event.String() %}"> {%s strings.Replace(strings.Title(event.String()), "_", " ", -1) %}
+						{% else %}
+							<input class="form-selector" type="checkbox" name="events[]" value="{%s event.String() %}"> {%s strings.Replace(strings.Title(event.String()), "_", " ", -1) %}
+						{% endif %}
+					</label>
+				{% endfor %}
+				</div>
+				<div class="form-field">
+					{% if p.Webhook == nil %}
+						<button type="submit" class="btn btn-primary">Create</button>
+					{% else %}
+						<button type="submit" class="btn btn-primary">Save</button>
+					{% endif %}
+				</div>
+			</form>
+			{% if p.Webhook != nil %}
+				<div class="separator"></div>
+				<form method="POST" action="{%s p.Webhook.Endpoint() %}">
+					{%v= p.CSRF %}
+					<input type="hidden" name="_method" value="DELETE"/>
+					<div class="overflow">
+						<div class="right">
+							<button class="btn btn-danger" type="submit">Delete</button>
+						</div>
+					</div>
+				</form>
+			{% endif %}
+		</div>
+	</div>
+	{% if p.Webhook != nil %}
+		<div class="panel">
+			<div class="panel-header">
+				<h3>Recent deliveries</h3>
+			</div>
+			{% if len(p.Deliveries) == 0 %}
+				<div class="panel-message muted">No recent deliveries.</div>
+			{% endif %}
+		</div>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *WebhookForm) Actions() %}{% endfunc %}

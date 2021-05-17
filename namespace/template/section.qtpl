@@ -33,6 +33,7 @@ type WebhookIndex struct {
 	section
 	template.BasePage
 
+	CSRF      htmltemplate.HTML
 	Namespace *namespace.Namespace
 	Webhooks  []*namespace.Webhook
 }
@@ -174,6 +175,24 @@ type WebhookIndex struct {
 		{% if len(p.Webhooks) == 0 %}
 			<div class="panel-message muted">Add a webhook to notify external services of events.</div>
 		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, w := range p.Webhooks %}
+						<tr>
+							<td>
+								<a href="{%s w.Endpoint() %}">{%s w.PayloadURL.String() %}</a>
+							</td>
+							<td class="align-right">
+								<form method="POST" action="{%s w.Endpoint() %}">
+									{%v= p.CSRF %}
+									<input type="hidden" name="_method" value="DELETE"/>
+									<button type="submit" class="btn btn-danger">Delete</button>
+								</form>
+							</td>
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
 		{% endif %}
 	</div>
 {% endfunc %}

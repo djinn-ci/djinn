@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -272,7 +273,7 @@ func TestMain(m *testing.M) {
 
 	api, config, ui, _ := serverutil.ParseFlags(args)
 
-	srv, cfg, close_, err := serverutil.Init(config)
+	srv, cfg, close_, err := serverutil.Init(context.Background(), config)
 
 	if err != nil {
 		fatalf("failed to initialize server: %s\n", err)

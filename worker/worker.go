@@ -14,12 +14,14 @@ import (
 	"djinn-ci.com/build"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/driver"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/provider"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/runner"
 	"djinn-ci.com/user"
 
@@ -31,10 +33,6 @@ import (
 
 	"github.com/mcmathja/curlyq"
 )
-
-type workerLogger struct {
-	log *log.Logger
-}
 
 type Worker struct {
 	// DB is the client to the SQL database.
@@ -60,9 +58,13 @@ type Worker struct {
 	// running builds.
 	Log *log.Logger
 
+	// Consumer is the consumer used for retrieving builds from the queue.
+	Consumer *curlyq.Consumer
+
+	// Queue is the in memory queue for dispatching webhooks.
+	Queue *queue.Queue
+
 	Driver      string        // Driver is the name of the driver the worker is configured for.
-	Queue       string        // Queue is the name of the queue the worker should work from.
-	Parallelism int           // Parallelism is how many builds should be processed at once.
 	Timeout     time.Duration // Timeout is the maximum duration a build can run for.
 
 	Init   driver.Init   // Init is the initialization function for the worker's driver.
@@ -77,21 +79,12 @@ type Worker struct {
 	Artifacts fs.Store // The fs.Store to where we collect build artifacts.
 }
 
-var (
-	_ curlyq.Logger = (*workerLogger)(nil)
-
-	passedStatuses = map[runner.Status]struct{}{
-		runner.Queued:             {},
-		runner.Running:            {},
-		runner.Passed:             {},
-		runner.PassedWithFailures: {},
-	}
-)
-
-func (l workerLogger) Debug(v ...interface{}) { l.log.Debug.Println(v...) }
-func (l workerLogger) Info(v ...interface{})  { l.log.Info.Println(v...) }
-func (l workerLogger) Warn(v ...interface{})  { l.log.Warn.Println(v...) }
-func (l workerLogger) Error(v ...interface{}) { l.log.Error.Println(v...) }
+var passedStatuses = map[runner.Status]struct{}{
+	runner.Queued:             {},
+	runner.Running:            {},
+	runner.Passed:             {},
+	runner.PassedWithFailures: {},
+}
 
 func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	defer func() {
@@ -201,12 +194,38 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
+	w.Queue.Enqueue(func() error {
+		if !b.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+		return namespace.NewWebhookStore(w.DB, n).Deliver("build_started", b.JSON(env.DJINN_API_SERVER))
+	})
+
 	status, err := run.Run(ctx, job.ID, d)
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
+
+	w.Queue.Enqueue(func() error {
+		if !b.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+		return namespace.NewWebhookStore(w.DB, n).Deliver("build_finished", b.JSON(env.DJINN_API_SERVER))
+	})
 
 	if t.Type == build.Pull {
 		err := p.SetCommitStatus(
@@ -306,15 +325,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 // Run begins the worker for handling builds.
 func (w *Worker) Run(ctx context.Context) error {
 	gob.Register(build.Payload{})
-
-	consumer := curlyq.NewConsumer(&curlyq.ConsumerOpts{
-		Queue:                w.Queue,
-		Client:               w.Redis,
-		Logger:               workerLogger{log: w.Log},
-		ProcessorConcurrency: w.Parallelism,
-		JobMaxAttempts:       1,
-	})
-	return errors.Err(consumer.ConsumeCtx(ctx, w.handle))
+	return errors.Err(w.Consumer.ConsumeCtx(ctx, w.handle))
 }
 
 // Runner configures a new runner for running the given build.

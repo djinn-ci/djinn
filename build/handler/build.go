@@ -240,10 +240,7 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 			return nil
 		}
 
-		if v := env.DJINN_API_SERVER; v != "" {
-			addr = v
-		}
-		return namespace.NewWebhookStore(h.DB, b.Namespace).Deliver("build_submitted", b.JSON(addr))
+		return namespace.NewWebhookStore(h.DB, b.Namespace).Deliver("build_submitted", b.JSON(env.DJINN_API_SERVER))
 	})
 	return b, f, nil
 }

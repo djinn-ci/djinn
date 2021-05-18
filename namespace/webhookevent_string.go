@@ -12,12 +12,24 @@ func _() {
 	_ = x[BuildStarted-2]
 	_ = x[BuildFinished-4]
 	_ = x[BuildTagged-8]
+	_ = x[CollaboratorJoined-16]
+	_ = x[Cron-32]
+	_ = x[Images-64]
+	_ = x[Objects-128]
+	_ = x[Variables-256]
+	_ = x[SSHKeys-512]
 }
 
 const (
 	_WebhookEvent_name_0 = "build_submittedbuild_started"
 	_WebhookEvent_name_1 = "build_finished"
 	_WebhookEvent_name_2 = "build_tagged"
+	_WebhookEvent_name_3 = "collaborator_joined"
+	_WebhookEvent_name_4 = "cron"
+	_WebhookEvent_name_5 = "images"
+	_WebhookEvent_name_6 = "objects"
+	_WebhookEvent_name_7 = "variables"
+	_WebhookEvent_name_8 = "ssh_keys"
 )
 
 var (
@@ -33,6 +45,18 @@ func (i WebhookEvent) String() string {
 		return _WebhookEvent_name_1
 	case i == 8:
 		return _WebhookEvent_name_2
+	case i == 16:
+		return _WebhookEvent_name_3
+	case i == 32:
+		return _WebhookEvent_name_4
+	case i == 64:
+		return _WebhookEvent_name_5
+	case i == 128:
+		return _WebhookEvent_name_6
+	case i == 256:
+		return _WebhookEvent_name_7
+	case i == 512:
+		return _WebhookEvent_name_8
 	default:
 		return "WebhookEvent(" + strconv.FormatInt(int64(i), 10) + ")"
 	}

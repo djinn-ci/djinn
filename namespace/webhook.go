@@ -52,13 +52,16 @@ type Webhook struct {
 }
 
 type WebhookDelivery struct {
-	ID         string         `db:"id"`
-	WebhookID  int64          `db:"webhook_id"`
-	DeliveryID string         `db:"delivery_id"`
-	Request    string         `db:"request"`
-	Response   sql.NullString `db:"response"`
-	Duration   time.Duration  `db:"duration"`
-	CreatedAt  time.Time      `db:"created_at"`
+	ID              string         `db:"id"`
+	WebhookID       int64          `db:"webhook_id"`
+	DeliveryID      string         `db:"delivery_id"`
+	RequestHeaders  string         `db:"request_headers"`
+	RequestBody     string         `db:"request"`
+	ResponseCode    int            `db:"response_code"`
+	ResponseHeaders string         `db:"response_headers"`
+	ResponseBody    sql.NullString `db:"response"`
+	Duration        time.Duration  `db:"duration"`
+	CreatedAt       time.Time      `db:"created_at"`
 }
 
 type WebhookStore struct {
@@ -76,6 +79,12 @@ const (
 	BuildStarted                            // build_started
 	BuildFinished                           // build_finished
 	BuildTagged                             // build_tagged
+	CollaboratorJoined                      // collaborator_joined
+	Cron                                    // cron
+	Images                                  // images
+	Objects                                 // objects
+	Variables                               // variables
+	SSHKeys                                 // ssh_keys
 )
 
 var (
@@ -92,10 +101,16 @@ var (
 	webhookDeliveryTable = "namespace_webhook_deliveries"
 
 	webhookEventsMap = map[string]WebhookEvent{
-		"build_submitted": BuildSubmitted,
-		"build_started":   BuildStarted,
-		"build_finished":  BuildFinished,
-		"build_tagged":    BuildTagged,
+		"build_submitted":     BuildSubmitted,
+		"build_started":       BuildStarted,
+		"build_finished":      BuildFinished,
+		"build_tagged":        BuildTagged,
+		"collaborator_joined": CollaboratorJoined,
+		"cron":                Cron,
+		"images":              Images,
+		"objects":             Objects,
+		"variables":           Variables,
+		"ssh_keys":            SSHKeys,
 	}
 
 	WebhookEvents = []WebhookEvent{
@@ -103,6 +118,12 @@ var (
 		BuildStarted,
 		BuildFinished,
 		BuildTagged,
+		CollaboratorJoined,
+		Cron,
+		Images,
+		Objects,
+		Variables,
+		SSHKeys,
 	}
 
 	ErrUnknownEvent   = errors.New("unknown event")
@@ -451,14 +472,6 @@ func (s *WebhookStore) createEvent(hookId int64, eventId string, req *http.Reque
 }
 
 func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Reader) (*http.Request, *http.Response, time.Duration, error) {
-	if !w.Active {
-		return nil, nil, 0, nil
-	}
-
-	if !w.Events.Has(event) {
-		return nil, nil, 0, nil
-	}
-
 	cli := http.Client{
 		Transport: http.DefaultTransport,
 		Timeout:   time.Minute,
@@ -589,6 +602,14 @@ func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) err
 	r := bytes.NewReader(buf.Bytes())
 
 	for _, w := range ww {
+		if !w.Active {
+			continue
+		}
+
+		if !w.Events.Has(ev) {
+			continue
+		}
+
 		req, resp, dur, err := s.realDeliver(w, ev, r)
 
 		if err != nil {

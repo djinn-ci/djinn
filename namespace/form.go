@@ -230,8 +230,8 @@ func (f WebhookForm) Validate() error {
 		return errors.Err(err)
 	}
 
-	if f.Webhook != nil && f.Webhook.PayloadURL.String() != f.PayloadURL {
-		if !w.IsZero() {
+	if !w.IsZero() {
+		if f.Webhook == nil || f.Webhook.PayloadURL.String() != f.PayloadURL {
 			errs.Put("payload_url", errors.New("Webhook for URL already exists"))
 		}
 	}

@@ -47,8 +47,9 @@ type Webhook struct {
 	Active      bool         `db:"active"`
 	CreatedAt   time.Time    `db:"created_at"`
 
-	User      *user.User `db:"-"`
-	Namespace *Namespace `db:"-"`
+	User         *user.User       `db:"-"`
+	Namespace    *Namespace       `db:"-"`
+	LastDelivery *WebhookDelivery `db:"-"`
 }
 
 type WebhookDelivery struct {
@@ -299,12 +300,29 @@ func (w *Webhook) JSON(addr string) map[string]interface{} {
 		"payload_url":  w.PayloadURL,
 		"secret":       w.Secret,
 		"ssl":          w.SSL,
-		"events":       w.Events,
 		"url":          addr + w.Endpoint(),
 	}
 
+	events := make([]string, 0, len(WebhookEvents))
+
+	for _, ev := range WebhookEvents {
+		if w.Events.Has(ev) {
+			events = append(events, ev.String())
+		}
+	}
+
+	json["events"] = events
+
 	if !w.Namespace.IsZero() {
 		json["namespace"] = w.Namespace.JSON(addr)
+	}
+
+	if w.LastDelivery != nil {
+		json["last_response"] = map[string]interface{}{
+			"code":       w.LastDelivery.ResponseCode,
+			"duration":   w.LastDelivery.Duration,
+			"created_at": w.LastDelivery.CreatedAt.Format(time.RFC3339),
+		}
 	}
 	return json
 }
@@ -399,6 +417,22 @@ func (s *WebhookStore) All(opts ...query.Option) ([]*Webhook, error) {
 		w.Namespace = s.Namespace
 	}
 	return ww, errors.Err(err)
+}
+
+func (s *WebhookStore) LastDelivery(id int64) (*WebhookDelivery, error) {
+	d := &WebhookDelivery{}
+
+	opts := []query.Option{
+		query.Where("webhook_id", "=", query.Arg(id)),
+		query.OrderDesc("created_at"),
+	}
+
+	err := s.Store.Get(d, webhookDeliveryTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+	return d, errors.Err(err)
 }
 
 func (s *WebhookStore) Get(opts ...query.Option) (*Webhook, error) {

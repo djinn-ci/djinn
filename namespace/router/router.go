@@ -294,6 +294,11 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 		Prefix:       prefix,
 	}
 
+	webhook := handler.WebhookAPI{
+		Webhook: r.webhook,
+		Prefix:  prefix,
+	}
+
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/namespaces", namespace.Index).Methods("GET", "HEAD")
 	auth.HandleFunc("/namespaces", namespace.Store).Methods("POST")
@@ -314,6 +319,11 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/-/invites", invite.Store).Methods("POST")
 	sr.HandleFunc("/-/collaborators", collaborator.Index).Methods("GET")
 	sr.HandleFunc("/-/collaborators/{collaborator}", collaborator.Destroy).Methods("DELETE")
+	sr.HandleFunc("/-/webhooks", webhook.Index).Methods("GET")
+	sr.HandleFunc("/-/webhooks", webhook.Store).Methods("POST")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Show).Methods("GET")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Update).Methods("PATCH")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
 	sr.Use(r.middleware.Gate(gates...))

@@ -305,6 +305,22 @@ func (p *WebhookForm) Field(field string) string {
 			</div>
 			{% if len(p.Deliveries) == 0 %}
 				<div class="panel-message muted">No recent deliveries.</div>
+			{% else %}
+				<table class="table">
+					<tbody>
+						{% for _, d := range p.Deliveries %}
+							<tr>
+								{% if d.ResponseCode >= 200 && d.ResponseCode < 300 %}
+									<td>{% cat "../../static/svg/check.svg" %}</td>
+								{% else %}
+									<td>{% cat "../../static/svg/close.svg" %}</td>
+								{% endif %}
+								<td><code><a href="">{%s d.DeliveryID %}</a></code></td>
+								<td>{%s d.Duration.String() %}</td>
+							</tr>
+						{% endfor %}
+					</tbody>
+				</table>
 			{% endif %}
 		</div>
 	{% endif %}

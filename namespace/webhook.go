@@ -459,8 +459,9 @@ func (s *WebhookStore) createEvent(hookId int64, eventId string, req *http.Reque
 
 	q := query.Select(
 		query.Count("webhook_id"),
+		query.From(webhookDeliveryTable),
 		query.Where("webhook_id", "=", query.Arg(hookId)),
-		query.Where("event_id", "=",query.Arg(eventId)),
+		query.Where("delivery_id", "=", query.Arg(eventId)),
 	)
 
 	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
@@ -566,6 +567,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Read
 	resp, err := cli.Do(req)
 
 	if err != nil {
+
 		return nil, nil, 0, errors.Err(err)
 	}
 	return req, resp, time.Now().Sub(start), nil
@@ -591,7 +593,7 @@ func (s *WebhookStore) Redeliver(id int64, eventId string) error {
 		query.Columns("request_headers", "request_body"),
 		query.From(webhookDeliveryTable),
 		query.Where("webhook_id", "=", query.Arg(w.ID)),
-		query.Where("event_id", "=", query.Arg(eventId)),
+		query.Where("delivery_id", "=", query.Arg(eventId)),
 	)
 
 	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&headers, &body); err != nil {

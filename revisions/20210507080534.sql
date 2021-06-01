@@ -26,7 +26,7 @@ CREATE TABLE namespace_webhook_deliveries (
 	request_headers  VARCHAR NOT NULL,
 	request_body     VARCHAR NOT NULL, 
 	response_code    INT NOT NULL,
-	repsonse_headers VARCHAR NOT NULL,
+	response_headers VARCHAR NOT NULL,
 	response_body    VARCHAR NULL,
 	duration         INT NOT NULL,
 	created_at       TIMESTAMP NOT NULL DEFAULT NOW(),

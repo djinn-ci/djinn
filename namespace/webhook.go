@@ -56,6 +56,7 @@ type WebhookDelivery struct {
 	ID              string         `db:"id"`
 	WebhookID       int64          `db:"webhook_id"`
 	DeliveryID      string         `db:"delivery_id"`
+	DeliveryErr     bool           `db:"delivery_err"`
 	RequestHeaders  string         `db:"request_headers"`
 	RequestBody     string         `db:"request"`
 	ResponseCode    int            `db:"response_code"`
@@ -454,14 +455,17 @@ func (s *WebhookStore) Get(opts ...query.Option) (*Webhook, error) {
 	return w, errors.Err(err)
 }
 
-func (s *WebhookStore) createEvent(hookId int64, eventId string, req *http.Request, resp *http.Response, dur time.Duration) error {
+// createDelivery records the given webhook delivery in the database. derr
+// denotes any errors that occurred during delivery, such as the HTTP client
+// not being able to communicate with the remote server.
+func (s *WebhookStore) createDelivery(hookId int64, deliveryId string, req *http.Request, resp *http.Response, dur time.Duration, derr error) error {
 	var count int64
 
 	q := query.Select(
 		query.Count("webhook_id"),
 		query.From(webhookDeliveryTable),
 		query.Where("webhook_id", "=", query.Arg(hookId)),
-		query.Where("delivery_id", "=", query.Arg(eventId)),
+		query.Where("delivery_id", "=", query.Arg(deliveryId)),
 	)
 
 	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
@@ -470,17 +474,34 @@ func (s *WebhookStore) createEvent(hookId int64, eventId string, req *http.Reque
 
 	redelivery := count > 0
 
-	reqHeaders := encodeHeaders(req.Header)
-	respHeaders := encodeHeaders(resp.Header)
+	var (
+		reqHeaders  string
+		respHeaders string
+		respStatus  int
 
-	reqBody, _ := io.ReadAll(req.Body)
-	respBody, _ := io.ReadAll(resp.Body)
+		reqBody  []byte
+		respBody []byte
+
+		deliveryErr string
+	)
+
+	if derr != nil {
+		deliveryErr = errors.Cause(derr).Error()
+	} else {
+		reqHeaders = encodeHeaders(req.Header)
+		respHeaders = encodeHeaders(resp.Header)
+		respStatus = resp.StatusCode
+
+		reqBody, _ = io.ReadAll(req.Body)
+		respBody, _ = io.ReadAll(resp.Body)
+	}
 
 	q = query.Insert(
 		webhookDeliveryTable,
 		query.Columns(
 			"webhook_id",
 			"delivery_id",
+			"delivery_err",
 			"redelivery",
 			"request_headers",
 			"request_body",
@@ -491,11 +512,15 @@ func (s *WebhookStore) createEvent(hookId int64, eventId string, req *http.Reque
 		),
 		query.Values(
 			hookId,
-			eventId,
+			deliveryId,
+			sql.NullString{
+				Valid:  derr != nil,
+				String: deliveryErr,
+			},
 			redelivery,
 			reqHeaders,
 			string(reqBody),
-			resp.StatusCode,
+			respStatus,
 			respHeaders,
 			string(respBody),
 			dur,
@@ -573,7 +598,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Read
 	return req, resp, time.Now().Sub(start), nil
 }
 
-func (s *WebhookStore) Redeliver(id int64, eventId string) error {
+func (s *WebhookStore) Redeliver(id int64, deliveryId string) error {
 	w, err := s.Get(query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
@@ -593,7 +618,7 @@ func (s *WebhookStore) Redeliver(id int64, eventId string) error {
 		query.Columns("request_headers", "request_body"),
 		query.From(webhookDeliveryTable),
 		query.Where("webhook_id", "=", query.Arg(w.ID)),
-		query.Where("delivery_id", "=", query.Arg(eventId)),
+		query.Where("delivery_id", "=", query.Arg(deliveryId)),
 	)
 
 	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&headers, &body); err != nil {
@@ -608,14 +633,10 @@ func (s *WebhookStore) Redeliver(id int64, eventId string) error {
 
 	event := webhookEventsMap[hdr["X-Djinn-CI-Event"][0]]
 
-	req, resp, dur, err := s.realDeliver(w, event, r)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
+	req, resp, dur, derr := s.realDeliver(w, event, r)
 	req.Body = io.NopCloser(strings.NewReader(body))
-	return s.createEvent(w.ID, eventId, req, resp, dur)
+
+	return s.createDelivery(w.ID, deliveryId, req, resp, dur, derr)
 }
 
 func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) error {
@@ -646,23 +667,24 @@ func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) err
 			continue
 		}
 
-		req, resp, dur, err := s.realDeliver(w, ev, r)
+		deliveryId := make([]byte, 16)
+		rand.Read(deliveryId)
 
-		if err != nil {
-			return errors.Err(err)
-		}
+		req, resp, dur, derr := s.realDeliver(w, ev, r)
 
 		r.Seek(0, io.SeekStart)
 
-		eventId := make([]byte, 16)
-		rand.Read(eventId)
+		if req != nil {
+			req.Body = io.NopCloser(&buf)
+		}
 
-		req.Body = io.NopCloser(&buf)
-
-		if err := s.createEvent(w.ID, hex.EncodeToString(eventId), req, resp, dur); err != nil {
+		if err := s.createDelivery(w.ID, hex.EncodeToString(deliveryId), req, resp, dur, derr); err != nil {
 			return errors.Err(err)
 		}
-		resp.Body.Close()
+
+		if resp != nil {
+			resp.Body.Close()
+		}
 	}
 	return nil
 }

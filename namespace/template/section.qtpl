@@ -179,6 +179,11 @@ type WebhookIndex struct {
 				<tbody>
 					{% for _, w := range p.Webhooks %}
 						<tr>
+							{% if w.LastDelivery.ResponseCode >= 200 && w.LastDelivery.ResponseCode < 300 %}
+								<td class="hook-status hook-status-ok">{% cat "../../static/svg/check.svg" %}</td>
+							{% else %}
+								<td class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</td>
+							{% endif %}
 							<td>
 								<a href="{%s w.Endpoint() %}">{%s w.PayloadURL.String() %}</a>
 							</td>

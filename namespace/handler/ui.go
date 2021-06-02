@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"djinn-ci.com/build"
@@ -926,6 +927,14 @@ func (h WebhookUI) Show(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "no user in request context")
 	}
 
+	dd, err := namespace.NewWebhookStore(h.DB, n).Deliveries(wh.ID)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
 	csrf := csrf.TemplateField(r)
 
 	p := &namespacetemplate.WebhookForm{
@@ -934,8 +943,9 @@ func (h WebhookUI) Show(w http.ResponseWriter, r *http.Request) {
 			Errors: webutil.FormErrors(sess),
 			Fields: webutil.FormFields(sess),
 		},
-		Namespace: n,
-		Webhook:   wh,
+		Namespace:  n,
+		Webhook:    wh,
+		Deliveries: dd,
 	}
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)

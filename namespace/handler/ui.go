@@ -791,7 +791,9 @@ func (h WebhookUI) Index(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "no user in request")
 	}
 
-	ww, err := namespace.NewWebhookStore(h.DB, n, u).All()
+	webhooks := namespace.NewWebhookStore(h.DB, n, u)
+
+	ww, err := webhooks.All()
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -801,6 +803,12 @@ func (h WebhookUI) Index(w http.ResponseWriter, r *http.Request) {
 
 	for _, w := range ww {
 		w.Namespace = n
+	}
+
+	if err := webhooks.LoadLastDeliveries(ww...); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
 	}
 
 	csrf := csrf.TemplateField(r)

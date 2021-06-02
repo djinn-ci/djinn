@@ -53,17 +53,20 @@ type Webhook struct {
 }
 
 type WebhookDelivery struct {
-	ID              string         `db:"id"`
+	ID              int64          `db:"id"`
 	WebhookID       int64          `db:"webhook_id"`
 	DeliveryID      string         `db:"delivery_id"`
-	DeliveryErr     bool           `db:"delivery_err"`
+	DeliveryErr     sql.NullString `db:"delivery_err"`
+	Redelivery      bool           `db:"redelivery"`
 	RequestHeaders  string         `db:"request_headers"`
-	RequestBody     string         `db:"request"`
+	RequestBody     string         `db:"request_body"`
 	ResponseCode    int            `db:"response_code"`
 	ResponseHeaders string         `db:"response_headers"`
-	ResponseBody    sql.NullString `db:"response"`
+	ResponseBody    sql.NullString `db:"response_body"`
 	Duration        time.Duration  `db:"duration"`
 	CreatedAt       time.Time      `db:"created_at"`
+
+	Webhook *Webhook `db:"-"`
 }
 
 type WebhookStore struct {
@@ -212,6 +215,10 @@ func UnmarshalWebhookEvents(names ...string) (WebhookEvent, error) {
 		events |= ev
 	}
 	return events, nil
+}
+
+func (e *WebhookDelivery) Endpoint(_ ...string) string {
+	return e.Webhook.Endpoint("deliveries", strconv.FormatInt(e.ID, 10))
 }
 
 func (e WebhookEvent) Has(mask WebhookEvent) bool { return (e & mask) == mask }
@@ -420,6 +427,48 @@ func (s *WebhookStore) All(opts ...query.Option) ([]*Webhook, error) {
 	return ww, errors.Err(err)
 }
 
+func (s *WebhookStore) Delivery(hookId, id int64) (*WebhookDelivery, error) {
+	d := &WebhookDelivery{}
+
+	opts := []query.Option{
+		query.Where("id", "=", query.Arg(id)),
+		query.Where("webhook_id", "=", query.Arg(hookId)),
+	}
+
+	err := s.Store.Get(d, webhookDeliveryTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+	return d, errors.Err(err)
+}
+
+func (s *WebhookStore) Deliveries(id int64) ([]*WebhookDelivery, error) {
+	dd := make([]*WebhookDelivery, 0)
+
+	opts := []query.Option{
+		query.Where("webhook_id", "=", query.Arg(id)),
+		query.OrderDesc("created_at"),
+		query.Limit(25),
+	}
+
+	err := s.Store.All(&dd, webhookDeliveryTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	w := &Webhook{
+		ID:        id,
+		Namespace: s.Namespace,
+	}
+
+	for _, d := range dd {
+		d.Webhook = w
+	}
+	return dd, errors.Err(err)
+}
+
 func (s *WebhookStore) LastDelivery(id int64) (*WebhookDelivery, error) {
 	d := &WebhookDelivery{}
 
@@ -434,6 +483,42 @@ func (s *WebhookStore) LastDelivery(id int64) (*WebhookDelivery, error) {
 		err = nil
 	}
 	return d, errors.Err(err)
+}
+
+func (s *WebhookStore) LoadLastDeliveries(ww ...*Webhook) error {
+	mm := make([]database.Model, 0, len(ww))
+
+	for _, w := range ww {
+		mm = append(mm, w)
+	}
+
+	ids := database.MapKey("id", mm)
+
+	opts := []query.Option{
+		query.Where("webhook_id", "IN", query.List(ids...)),
+		query.OrderDesc("created_at"),
+	}
+
+	dd := make([]*WebhookDelivery, 0, len(ww))
+
+	err := s.Store.All(&dd, webhookDeliveryTable, opts...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	deliveries := make(map[int64]*WebhookDelivery)
+
+	for _, d := range dd {
+		if _, ok := deliveries[d.WebhookID]; !ok {
+			deliveries[d.WebhookID] = d
+		}
+	}
+
+	for _, w := range ww {
+		w.LastDelivery = deliveries[w.ID]
+	}
+	return nil
 }
 
 func (s *WebhookStore) Get(opts ...query.Option) (*Webhook, error) {

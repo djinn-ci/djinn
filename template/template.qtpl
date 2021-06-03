@@ -1,5 +1,7 @@
 {%
 import (
+	"bytes"
+	"encoding/json"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -50,6 +52,13 @@ func Match(uri, pattern string) bool {
 		return false
 	}
 	return matched
+}
+
+func IndentJSON(s string) string {
+	var buf bytes.Buffer
+
+	json.Indent(&buf, []byte(s), "", "    ")
+	return buf.String()
 }
 
 func pageURL(url *url.URL, page int64) string {

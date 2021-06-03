@@ -267,6 +267,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/-/webhooks/create", webhook.Create).Methods("GET")
 	sr.HandleFunc("/-/webhooks", webhook.Store).Methods("POST")
 	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Show).Methods("GET")
+	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}/deliveries/{delivery:[0-9]+}", webhook.Delivery).Methods("GET")
 	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Update).Methods("PATCH")
 	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")

@@ -61,7 +61,8 @@ type WebhookDelivery struct {
 	RequestHeaders  string         `db:"request_headers"`
 	RequestBody     string         `db:"request_body"`
 	ResponseCode    int            `db:"response_code"`
-	ResponseHeaders string         `db:"response_headers"`
+	ResponseStatus  string         `db:"-"`
+	ResponseHeaders sql.NullString `db:"response_headers"`
 	ResponseBody    sql.NullString `db:"response_body"`
 	Duration        time.Duration  `db:"duration"`
 	CreatedAt       time.Time      `db:"created_at"`
@@ -177,10 +178,7 @@ func decodeHeaders(s string) http.Header {
 
 func encodeHeaders(headers http.Header) string {
 	var buf bytes.Buffer
-
-	for header, vals := range headers {
-		buf.WriteString(header + ": " + strings.Join(vals, "; "))
-	}
+	headers.Write(&buf)
 	return buf.String()
 }
 
@@ -440,6 +438,8 @@ func (s *WebhookStore) Delivery(hookId, id int64) (*WebhookDelivery, error) {
 	if err == sql.ErrNoRows {
 		err = nil
 	}
+
+	d.ResponseStatus = strconv.FormatInt(int64(d.ResponseCode), 10) + " " +http.StatusText(d.ResponseCode)
 	return d, errors.Err(err)
 }
 
@@ -495,7 +495,7 @@ func (s *WebhookStore) LoadLastDeliveries(ww ...*Webhook) error {
 	ids := database.MapKey("id", mm)
 
 	opts := []query.Option{
-		query.Where("webhook_id", "IN", query.List(ids...)),
+		query.Where("webhook_id", "IN", database.List(ids...)),
 		query.OrderDesc("created_at"),
 	}
 
@@ -559,25 +559,23 @@ func (s *WebhookStore) createDelivery(hookId int64, deliveryId string, req *http
 
 	redelivery := count > 0
 
+	reqBody, _ := io.ReadAll(req.Body)
+
 	var (
-		reqHeaders  string
-		respHeaders string
-		respStatus  int
-
-		reqBody  []byte
-		respBody []byte
-
 		deliveryErr string
+
+		respStatus  int
+		respHeaders string
+		respBody    []byte
 	)
 
 	if derr != nil {
 		deliveryErr = errors.Cause(derr).Error()
-	} else {
-		reqHeaders = encodeHeaders(req.Header)
+	}
+
+	if resp != nil {
 		respHeaders = encodeHeaders(resp.Header)
 		respStatus = resp.StatusCode
-
-		reqBody, _ = io.ReadAll(req.Body)
 		respBody, _ = io.ReadAll(resp.Body)
 	}
 
@@ -603,11 +601,17 @@ func (s *WebhookStore) createDelivery(hookId int64, deliveryId string, req *http
 				String: deliveryErr,
 			},
 			redelivery,
-			reqHeaders,
+			encodeHeaders(req.Header),
 			string(reqBody),
 			respStatus,
-			respHeaders,
-			string(respBody),
+			sql.NullString{
+				Valid:  len(respHeaders) > 0,
+				String: respHeaders,
+			},
+			sql.NullString{
+				Valid:  len(respBody) > 0,
+				String: string(respBody),
+			},
 			dur,
 		),
 	)
@@ -669,7 +673,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Read
 	}
 
 	if signature != "" {
-		req.Header.Set("X-Djinn-CI-Signature", signature)
+		req.Header["X-Djinn-CI-Signature"] = []string{signature}
 	}
 
 	start := time.Now()
@@ -677,8 +681,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Read
 	resp, err := cli.Do(req)
 
 	if err != nil {
-
-		return nil, nil, 0, errors.Err(err)
+		return req, nil, 0, errors.Err(err)
 	}
 	return req, resp, time.Now().Sub(start), nil
 }
@@ -759,9 +762,7 @@ func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) err
 
 		r.Seek(0, io.SeekStart)
 
-		if req != nil {
-			req.Body = io.NopCloser(&buf)
-		}
+		req.Body = io.NopCloser(&buf)
 
 		if err := s.createDelivery(w.ID, hex.EncodeToString(deliveryId), req, resp, dur, derr); err != nil {
 			return errors.Err(err)

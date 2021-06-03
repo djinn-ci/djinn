@@ -952,6 +952,51 @@ func (h WebhookUI) Show(w http.ResponseWriter, r *http.Request) {
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
+func (h WebhookUI) Delivery(w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	ctx := r.Context()
+
+	u, ok := user.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no user in request context")
+	}
+
+	wh, ok := namespace.WebhookFromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	id, _ := strconv.ParseInt(mux.Vars(r)["delivery"], 10, 64)
+
+	del, err := namespace.NewWebhookStore(h.DB).Delivery(wh.ID, id)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	del.Webhook = wh
+
+	csrf := csrf.TemplateField(r)
+
+	p := &namespacetemplate.ShowDelivery{
+		BasePage: template.BasePage{
+			User: u,
+			URL:  r.URL,
+		},
+		CSRF:     csrf,
+		Delivery: del,
+	}
+	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
+
+	save(r, w)
+	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
 func (h WebhookUI) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

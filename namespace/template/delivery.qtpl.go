@@ -75,11 +75,11 @@ func (p *ShowDelivery) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/delivery.qtpl:24
 	qw422016.N().S(` `)
 //line namespace/template/delivery.qtpl:25
-	if p.Delivery.DeliveryErr.Valid {
+	if p.Delivery.Error.Valid {
 //line namespace/template/delivery.qtpl:25
 		qw422016.N().S(` <div class="alert alert-danger mb-10"> Failed to deliver payload: `)
 //line namespace/template/delivery.qtpl:27
-		qw422016.E().S(p.Delivery.DeliveryErr.String)
+		qw422016.E().S(p.Delivery.Error.String)
 //line namespace/template/delivery.qtpl:27
 		qw422016.N().S(` </div> `)
 //line namespace/template/delivery.qtpl:29
@@ -95,7 +95,7 @@ func (p *ShowDelivery) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/delivery.qtpl:41
 	qw422016.N().S(`</pre> </div> </div> </div> <div class="col-50 col-right"> `)
 //line namespace/template/delivery.qtpl:46
-	if !p.Delivery.DeliveryErr.Valid {
+	if !p.Delivery.Error.Valid {
 //line namespace/template/delivery.qtpl:46
 		qw422016.N().S(` <div class="panel"> <table class="table"> <tr> <td><strong>Status</strong></td> <td class="right"><code class="code">`)
 //line namespace/template/delivery.qtpl:51

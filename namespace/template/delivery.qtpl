@@ -22,9 +22,9 @@ type ShowDelivery struct {
 {% endfunc %}
 
 {% func (p *ShowDelivery) Body() %}
-	{% if p.Delivery.DeliveryErr.Valid %}
+	{% if p.Delivery.Error.Valid %}
 		<div class="alert alert-danger mb-10">
-			Failed to deliver payload: {%s p.Delivery.DeliveryErr.String %}
+			Failed to deliver payload: {%s p.Delivery.Error.String %}
 		</div>
 	{% endif %}
 	<div class="overflow">
@@ -43,7 +43,7 @@ type ShowDelivery struct {
 			</div>
 		</div>
 		<div class="col-50 col-right">
-			{% if !p.Delivery.DeliveryErr.Valid %}
+			{% if !p.Delivery.Error.Valid %}
 				<div class="panel">
 					<table class="table">
 						<tr>

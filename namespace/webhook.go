@@ -56,7 +56,7 @@ type WebhookDelivery struct {
 	ID              int64          `db:"id"`
 	WebhookID       int64          `db:"webhook_id"`
 	DeliveryID      string         `db:"delivery_id"`
-	DeliveryErr     sql.NullString `db:"delivery_err"`
+	Error           sql.NullString `db:"delivery_err"`
 	Redelivery      bool           `db:"redelivery"`
 	RequestHeaders  string         `db:"request_headers"`
 	RequestBody     string         `db:"request_body"`

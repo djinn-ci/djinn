@@ -22,7 +22,7 @@ CREATE TABLE namespace_webhook_deliveries (
 	id               SERIAL,
 	webhook_id       INT NOT NULL REFERENCES namespace_webhooks(id) ON DELETE CASCADE,
 	delivery_id      VARCHAR NOT NULL,
-	delivery_err     VARCHAR NULL,
+	error            VARCHAR NULL,
 	redelivery       BOOLEAN NOT NULL DEFAULT FALSE,
 	request_headers  VARCHAR NOT NULL,
 	request_body     VARCHAR NOT NULL,

@@ -43,14 +43,16 @@ type ShowDelivery struct {
 			</div>
 		</div>
 		<div class="col-50 col-right">
-			<div class="panel">
-				<table class="table">
-					<tr>
-						<td><strong>Status</strong></td>
-						<td class="right"><code class="code">{%s p.Delivery.ResponseStatus %}</code></td>
-					</tr>
-				</table>
-			</div>
+			{% if !p.Delivery.DeliveryErr.Valid %}
+				<div class="panel">
+					<table class="table">
+						<tr>
+							<td><strong>Status</strong></td>
+							<td class="right"><code class="code">{%s p.Delivery.ResponseStatus %}</code></td>
+						</tr>
+					</table>
+				</div>
+			{% endif %}
 			<div class="panel">
 				<div class="panel-header"><h3>Response Headers</h3></div>
 				{% if !p.Delivery.ResponseHeaders.Valid %}

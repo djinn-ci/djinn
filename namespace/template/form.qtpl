@@ -315,7 +315,7 @@ func (p *WebhookForm) Field(field string) string {
 								{% else %}
 									<td class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</td>
 								{% endif %}
-								<td><code><a href="{%s d.Endpoint() %}">{%s d.DeliveryID %}</a></code></td>
+								<td>{% if d.Redelivery %}<span class="muted" title="Redelivery">{% cat "../../static/svg/sync.svg" %}</span>{% endif %} <code><a href="{%s d.Endpoint() %}">{%s d.DeliveryID %}</a></code></td>
 								<td>{%s d.Duration.String() %}</td>
 							</tr>
 						{% endfor %}

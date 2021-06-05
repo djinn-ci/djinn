@@ -83,6 +83,9 @@ type ShowDelivery struct {
 		<span class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</span>
 	{% endif %}
 	<code>{%s p.Delivery.DeliveryID %}</code>
+	{% if p.Delivery.Redelivery %}
+		<span class="muted" title="Redelivery">{% cat "../../static/svg/sync.svg" %}</span>
+	{% endif %}
 {% endfunc %}
 
 {% func (p *ShowDelivery) Navigation() %}{% endfunc %}

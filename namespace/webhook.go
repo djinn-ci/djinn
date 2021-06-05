@@ -156,10 +156,10 @@ func decodeHeaders(s string) http.Header {
 			key = string(buf)
 			buf = buf[0:0]
 		case ';':
-			m[key] = append(m[key], string(buf))
+			m[key] = append(m[key], strings.TrimSpace(string(buf)))
 			buf = buf[0:0]
 		case '\n':
-			m[key] = append(m[key], string(buf))
+			m[key] = append(m[key], strings.TrimSpace(string(buf)))
 
 			buf = buf[0:0]
 			key = key[0:0]

@@ -997,6 +997,68 @@ func (h WebhookUI) Delivery(w http.ResponseWriter, r *http.Request) {
 	webutil.HTML(w, template.Render(d), http.StatusOK)
 }
 
+func (h WebhookUI) Redeliver(w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	ctx := r.Context()
+
+	wh, ok := namespace.WebhookFromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "no webhook in request context")
+	}
+
+	id, _ := strconv.ParseInt(mux.Vars(r)["delivery"], 10, 64)
+
+	store := namespace.NewWebhookStore(h.DB)
+
+	del, err := store.Delivery(wh.ID, id)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to redeliver hook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	if err := store.Redeliver(wh.ID, del.DeliveryID); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to redeliver hook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	latest, err := store.LastDelivery(wh.ID)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		sess.AddFlash(template.Alert{
+			Level:   template.Danger,
+			Close:   true,
+			Message: "Failed to redeliver hook",
+		}, "alert")
+		h.RedirectBack(w, r)
+		return
+	}
+
+	latest.Webhook = wh
+
+	sess.AddFlash(template.Alert{
+		Level:   template.Success,
+		Close:   true,
+		Message: "Webhook delivered",
+	}, "alert")
+	h.Redirect(w, r, latest.Endpoint())
+}
+
 func (h WebhookUI) Update(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 

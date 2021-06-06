@@ -584,7 +584,7 @@ func (s *WebhookStore) createDelivery(hookId int64, deliveryId string, req *http
 		query.Columns(
 			"webhook_id",
 			"delivery_id",
-			"delivery_err",
+			"error",
 			"redelivery",
 			"request_headers",
 			"request_body",

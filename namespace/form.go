@@ -45,11 +45,12 @@ type WebhookForm struct {
 	Webhooks *WebhookStore `schema:"-" json:"-"`
 	Webhook  *Webhook      `schema:"-" json:"-"`
 
-	PayloadURL string   `schema:"payload_url" json:"payload_url"`
-	Secret     string   `schema:"secret"      json:"secret"`
-	SSL        bool     `schema:"ssl"         json:"ssl"`
-	Active     bool     `schema:"active"      json:"active"`
-	Events     []string `schema:"events[]"    json:"events"`
+	PayloadURL   string   `schema:"payload_url" json:"payload_url"`
+	Secret       string   `schema:"secret"      json:"secret"`
+	RemoveSecret bool     `schema:"remove_secret"`
+	SSL          bool     `schema:"ssl"         json:"ssl"`
+	Active       bool     `schema:"active"      json:"active"`
+	Events       []string `schema:"events[]"    json:"events"`
 }
 
 var (

@@ -1088,7 +1088,7 @@ func (h WebhookUI) Update(w http.ResponseWriter, r *http.Request) {
 		Close:   true,
 		Message: "Webhook has been updated: " + wh.PayloadURL.String(),
 	}, "alert")
-	h.Redirect(w, r, wh.Namespace.Endpoint("webhooks"))
+	h.Redirect(w, r, wh.Endpoint())
 }
 
 func (h WebhookUI) Destroy(w http.ResponseWriter, r *http.Request) {

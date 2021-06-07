@@ -101,7 +101,13 @@ func (h Webhook) UpdateModel(r *http.Request) (*namespace.Webhook, namespace.Web
 
 	events, _ := namespace.UnmarshalWebhookEvents(f.Events...)
 
-	if err := webhooks.Update(w.ID, url, f.Secret, f.SSL, events, f.Active); err != nil {
+	secret := f.Secret
+
+	if !f.RemoveSecret && secret == "" {
+		secret = w.Secret
+	}
+
+	if err := webhooks.Update(w.ID, url, secret, f.SSL, events, f.Active); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

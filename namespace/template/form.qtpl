@@ -246,6 +246,17 @@ func (p *WebhookForm) Field(field string) string {
 					<label class="label" for="secret">Secret</label>
 					<input type="password" class="form-text" id="secret" name="secret" autocomplete="off"/>
 				</div>
+				{% if p.Webhook != nil %}
+					<div class="form-field">
+						<label class="form-option">
+							<input class="form-selector" type="checkbox" name="remove_secret"/>
+							<div class="form-option-info">
+								<strong>Remove secret</strong>
+								<div class="form-desc">Leave the secret blank to remove it</div>
+							</div>
+						</label>
+					</div>
+				{% endif %}
 				<div class="form-field">
 					<label class="form-option">
 						{% if p.Webhook != nil %}

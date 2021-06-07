@@ -659,282 +659,290 @@ func (p *WebhookForm) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/form.qtpl:243
 	p.StreamError(qw422016, "payload_url")
 //line namespace/template/form.qtpl:243
-	qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="secret">Secret</label> <input type="password" class="form-text" id="secret" name="secret" autocomplete="off"/> </div> <div class="form-field"> <label class="form-option"> `)
-//line namespace/template/form.qtpl:251
+	qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="secret">Secret</label> <input type="password" class="form-text" id="secret" name="secret" autocomplete="off"/> </div> `)
+//line namespace/template/form.qtpl:249
 	if p.Webhook != nil {
-//line namespace/template/form.qtpl:251
+//line namespace/template/form.qtpl:249
+		qw422016.N().S(` <div class="form-field"> <label class="form-option"> <input class="form-selector" type="checkbox" name="remove_secret"/> <div class="form-option-info"> <strong>Remove secret</strong> <div class="form-desc">Leave the secret blank to remove it</div> </div> </label> </div> `)
+//line namespace/template/form.qtpl:259
+	}
+//line namespace/template/form.qtpl:259
+	qw422016.N().S(` <div class="form-field"> <label class="form-option"> `)
+//line namespace/template/form.qtpl:262
+	if p.Webhook != nil {
+//line namespace/template/form.qtpl:262
 		qw422016.N().S(` <input class="form-selector" type="checkbox" name="ssl" `)
-//line namespace/template/form.qtpl:252
+//line namespace/template/form.qtpl:263
 		if p.Webhook.SSL {
-//line namespace/template/form.qtpl:252
+//line namespace/template/form.qtpl:263
 			qw422016.N().S(`checked="true"`)
-//line namespace/template/form.qtpl:252
+//line namespace/template/form.qtpl:263
 		}
-//line namespace/template/form.qtpl:252
+//line namespace/template/form.qtpl:263
 		qw422016.N().S(`/> `)
-//line namespace/template/form.qtpl:253
+//line namespace/template/form.qtpl:264
 	} else {
-//line namespace/template/form.qtpl:253
+//line namespace/template/form.qtpl:264
 		qw422016.N().S(` <input class="form-selector" type="checkbox" name="ssl" checked="true"/> `)
-//line namespace/template/form.qtpl:255
+//line namespace/template/form.qtpl:266
 	}
-//line namespace/template/form.qtpl:255
+//line namespace/template/form.qtpl:266
 	qw422016.N().S(` <div class="form-option-info"> <strong>SSL</strong> <div class="form-desc">Verify SSL certificates when sending payloads</div> </div> </label> </div> <div class="form-field"> <label class="form-option"> `)
-//line namespace/template/form.qtpl:264
+//line namespace/template/form.qtpl:275
 	if p.Webhook != nil {
-//line namespace/template/form.qtpl:264
+//line namespace/template/form.qtpl:275
 		qw422016.N().S(` <input class="form-selector" type="checkbox" name="active" `)
-//line namespace/template/form.qtpl:265
+//line namespace/template/form.qtpl:276
 		if p.Webhook.Active {
-//line namespace/template/form.qtpl:265
+//line namespace/template/form.qtpl:276
 			qw422016.N().S(`checked="true"`)
-//line namespace/template/form.qtpl:265
+//line namespace/template/form.qtpl:276
 		}
-//line namespace/template/form.qtpl:265
+//line namespace/template/form.qtpl:276
 		qw422016.N().S(`/> `)
-//line namespace/template/form.qtpl:266
+//line namespace/template/form.qtpl:277
 	} else {
-//line namespace/template/form.qtpl:266
+//line namespace/template/form.qtpl:277
 		qw422016.N().S(` <input class="form-selector" type="checkbox" name="active" checked="true"/> `)
-//line namespace/template/form.qtpl:268
+//line namespace/template/form.qtpl:279
 	}
-//line namespace/template/form.qtpl:268
+//line namespace/template/form.qtpl:279
 	qw422016.N().S(` <div class="form-option-info"> <strong>Active</strong> <div class="form-desc">Send events for this webhook</div> </div> </label> </div> <div class="form-field"> <strong>Events</strong><br/> `)
-//line namespace/template/form.qtpl:277
+//line namespace/template/form.qtpl:288
 	for _, event := range namespace.WebhookEvents {
-//line namespace/template/form.qtpl:277
+//line namespace/template/form.qtpl:288
 		qw422016.N().S(` <label class="hook-event"> `)
-//line namespace/template/form.qtpl:279
+//line namespace/template/form.qtpl:290
 		if p.Webhook != nil && p.Webhook.Events.Has(event) {
-//line namespace/template/form.qtpl:279
+//line namespace/template/form.qtpl:290
 			qw422016.N().S(` <input checked="true" class="form-selector" type="checkbox" name="events[]" value="`)
-//line namespace/template/form.qtpl:280
+//line namespace/template/form.qtpl:291
 			qw422016.E().S(event.String())
-//line namespace/template/form.qtpl:280
+//line namespace/template/form.qtpl:291
 			qw422016.N().S(`"> `)
-//line namespace/template/form.qtpl:280
+//line namespace/template/form.qtpl:291
 			qw422016.E().S(strings.Replace(strings.Title(event.String()), "_", " ", -1))
-//line namespace/template/form.qtpl:280
+//line namespace/template/form.qtpl:291
 			qw422016.N().S(` `)
-//line namespace/template/form.qtpl:281
+//line namespace/template/form.qtpl:292
 		} else {
-//line namespace/template/form.qtpl:281
+//line namespace/template/form.qtpl:292
 			qw422016.N().S(` <input class="form-selector" type="checkbox" name="events[]" value="`)
-//line namespace/template/form.qtpl:282
+//line namespace/template/form.qtpl:293
 			qw422016.E().S(event.String())
-//line namespace/template/form.qtpl:282
+//line namespace/template/form.qtpl:293
 			qw422016.N().S(`"> `)
-//line namespace/template/form.qtpl:282
+//line namespace/template/form.qtpl:293
 			qw422016.E().S(strings.Replace(strings.Title(event.String()), "_", " ", -1))
-//line namespace/template/form.qtpl:282
+//line namespace/template/form.qtpl:293
 			qw422016.N().S(` `)
-//line namespace/template/form.qtpl:283
+//line namespace/template/form.qtpl:294
 		}
-//line namespace/template/form.qtpl:283
+//line namespace/template/form.qtpl:294
 		qw422016.N().S(` </label> `)
-//line namespace/template/form.qtpl:285
+//line namespace/template/form.qtpl:296
 	}
-//line namespace/template/form.qtpl:285
+//line namespace/template/form.qtpl:296
 	qw422016.N().S(` </div> <div class="form-field"> `)
-//line namespace/template/form.qtpl:288
+//line namespace/template/form.qtpl:299
 	if p.Webhook == nil {
-//line namespace/template/form.qtpl:288
+//line namespace/template/form.qtpl:299
 		qw422016.N().S(` <button type="submit" class="btn btn-primary">Create</button> `)
-//line namespace/template/form.qtpl:290
+//line namespace/template/form.qtpl:301
 	} else {
-//line namespace/template/form.qtpl:290
+//line namespace/template/form.qtpl:301
 		qw422016.N().S(` <button type="submit" class="btn btn-primary">Save</button> `)
-//line namespace/template/form.qtpl:292
+//line namespace/template/form.qtpl:303
 	}
-//line namespace/template/form.qtpl:292
+//line namespace/template/form.qtpl:303
 	qw422016.N().S(` </div> </form> `)
-//line namespace/template/form.qtpl:295
+//line namespace/template/form.qtpl:306
 	if p.Webhook != nil {
-//line namespace/template/form.qtpl:295
+//line namespace/template/form.qtpl:306
 		qw422016.N().S(` <div class="separator"></div> <form method="POST" action="`)
-//line namespace/template/form.qtpl:297
+//line namespace/template/form.qtpl:308
 		qw422016.E().S(p.Webhook.Endpoint())
-//line namespace/template/form.qtpl:297
+//line namespace/template/form.qtpl:308
 		qw422016.N().S(`"> `)
-//line namespace/template/form.qtpl:298
+//line namespace/template/form.qtpl:309
 		qw422016.N().V(p.CSRF)
-//line namespace/template/form.qtpl:298
+//line namespace/template/form.qtpl:309
 		qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <div class="overflow"> <div class="right"> <button class="btn btn-danger" type="submit">Delete</button> </div> </div> </form> `)
-//line namespace/template/form.qtpl:306
+//line namespace/template/form.qtpl:317
 	}
-//line namespace/template/form.qtpl:306
+//line namespace/template/form.qtpl:317
 	qw422016.N().S(` </div> </div> `)
-//line namespace/template/form.qtpl:309
+//line namespace/template/form.qtpl:320
 	if p.Webhook != nil {
-//line namespace/template/form.qtpl:309
+//line namespace/template/form.qtpl:320
 		qw422016.N().S(` <div class="panel"> <div class="panel-header"> <h3>Recent deliveries</h3> </div> `)
-//line namespace/template/form.qtpl:314
+//line namespace/template/form.qtpl:325
 		if len(p.Deliveries) == 0 {
-//line namespace/template/form.qtpl:314
+//line namespace/template/form.qtpl:325
 			qw422016.N().S(` <div class="panel-message muted">No recent deliveries.</div> `)
-//line namespace/template/form.qtpl:316
+//line namespace/template/form.qtpl:327
 		} else {
-//line namespace/template/form.qtpl:316
+//line namespace/template/form.qtpl:327
 			qw422016.N().S(` <table class="table"> <tbody> `)
-//line namespace/template/form.qtpl:319
+//line namespace/template/form.qtpl:330
 			for _, d := range p.Deliveries {
-//line namespace/template/form.qtpl:319
+//line namespace/template/form.qtpl:330
 				qw422016.N().S(` <tr> `)
-//line namespace/template/form.qtpl:321
+//line namespace/template/form.qtpl:332
 				if d.ResponseCode >= 200 && d.ResponseCode < 300 {
-//line namespace/template/form.qtpl:321
+//line namespace/template/form.qtpl:332
 					qw422016.N().S(` <td class="hook-status hook-status-ok">`)
-//line namespace/template/form.qtpl:322
+//line namespace/template/form.qtpl:333
 					qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M9 16.172l10.594-10.594 1.406 1.406-12 12-5.578-5.578 1.406-1.406z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:322
+//line namespace/template/form.qtpl:333
 					qw422016.N().S(`</td> `)
-//line namespace/template/form.qtpl:323
+//line namespace/template/form.qtpl:334
 				} else {
-//line namespace/template/form.qtpl:323
+//line namespace/template/form.qtpl:334
 					qw422016.N().S(` <td class="hook-status hook-status-err">`)
-//line namespace/template/form.qtpl:324
+//line namespace/template/form.qtpl:335
 					qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M18.984 6.422l-5.578 5.578 5.578 5.578-1.406 1.406-5.578-5.578-5.578 5.578-1.406-1.406 5.578-5.578-5.578-5.578 1.406-1.406 5.578 5.578 5.578-5.578z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:324
+//line namespace/template/form.qtpl:335
 					qw422016.N().S(`</td> `)
-//line namespace/template/form.qtpl:325
+//line namespace/template/form.qtpl:336
 				}
-//line namespace/template/form.qtpl:325
+//line namespace/template/form.qtpl:336
 				qw422016.N().S(` <td>`)
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 				if d.Redelivery {
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 					qw422016.N().S(`<span class="muted" title="Redelivery">`)
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 					qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M12 18v-3l3.984 3.984-3.984 4.031v-3c-4.406 0-8.016-3.609-8.016-8.016 0-1.547 0.469-3.047 1.266-4.266l1.453 1.453c-0.469 0.844-0.703 1.781-0.703 2.813 0 3.328 2.672 6 6 6zM12 3.984c4.406 0 8.016 3.609 8.016 8.016 0 1.547-0.469 3.047-1.266 4.266l-1.453-1.453c0.469-0.844 0.703-1.781 0.703-2.813 0-3.328-2.672-6-6-6v3l-3.984-3.984 3.984-4.031v3z"></path>
 </svg>
 `)
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 					qw422016.N().S(`</span>`)
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 				}
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 				qw422016.N().S(` <code><a href="`)
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 				qw422016.E().S(d.Endpoint())
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 				qw422016.N().S(`">`)
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 				qw422016.E().S(d.DeliveryID)
-//line namespace/template/form.qtpl:326
+//line namespace/template/form.qtpl:337
 				qw422016.N().S(`</a></code></td> <td>`)
-//line namespace/template/form.qtpl:327
+//line namespace/template/form.qtpl:338
 				qw422016.E().S(d.Duration.String())
-//line namespace/template/form.qtpl:327
+//line namespace/template/form.qtpl:338
 				qw422016.N().S(`</td> </tr> `)
-//line namespace/template/form.qtpl:329
+//line namespace/template/form.qtpl:340
 			}
-//line namespace/template/form.qtpl:329
+//line namespace/template/form.qtpl:340
 			qw422016.N().S(` </tbody> </table> `)
-//line namespace/template/form.qtpl:332
+//line namespace/template/form.qtpl:343
 		}
-//line namespace/template/form.qtpl:332
+//line namespace/template/form.qtpl:343
 		qw422016.N().S(` </div> `)
-//line namespace/template/form.qtpl:334
+//line namespace/template/form.qtpl:345
 	}
-//line namespace/template/form.qtpl:334
+//line namespace/template/form.qtpl:345
 	qw422016.N().S(` `)
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 }
 
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 func (p *WebhookForm) WriteBody(qq422016 qtio422016.Writer) {
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 	p.StreamBody(qw422016)
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 }
 
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 func (p *WebhookForm) Body() string {
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 	p.WriteBody(qb422016)
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 	qs422016 := string(qb422016.B)
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 	return qs422016
-//line namespace/template/form.qtpl:335
+//line namespace/template/form.qtpl:346
 }
 
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 func (p *WebhookForm) StreamActions(qw422016 *qt422016.Writer) {
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 }
 
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 func (p *WebhookForm) WriteActions(qq422016 qtio422016.Writer) {
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 	p.StreamActions(qw422016)
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 }
 
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 func (p *WebhookForm) Actions() string {
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 	p.WriteActions(qb422016)
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 	qs422016 := string(qb422016.B)
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 	return qs422016
-//line namespace/template/form.qtpl:337
+//line namespace/template/form.qtpl:348
 }
 
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 func (p *WebhookForm) StreamNavigation(qw422016 *qt422016.Writer) {
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 }
 
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 func (p *WebhookForm) WriteNavigation(qq422016 qtio422016.Writer) {
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 	p.StreamNavigation(qw422016)
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 	qt422016.ReleaseWriter(qw422016)
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 }
 
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 func (p *WebhookForm) Navigation() string {
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 	qb422016 := qt422016.AcquireByteBuffer()
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 	p.WriteNavigation(qb422016)
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 	qs422016 := string(qb422016.B)
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 	qt422016.ReleaseByteBuffer(qb422016)
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 	return qs422016
-//line namespace/template/form.qtpl:338
+//line namespace/template/form.qtpl:349
 }

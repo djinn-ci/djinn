@@ -248,7 +248,11 @@ func (p *WebhookForm) Field(field string) string {
 				</div>
 				<div class="form-field">
 					<label class="form-option">
-						<input class="form-selector" type="checkbox" name="ssl" checked="true"/>
+						{% if p.Webhook != nil %}
+							<input class="form-selector" type="checkbox" name="ssl" {% if p.Webhook.SSL %}checked="true"{% endif %}/>
+						{% else %}
+							<input class="form-selector" type="checkbox" name="ssl" checked="true"/>
+						{% endif %}
 						<div class="form-option-info">
 							<strong>SSL</strong>
 							<div class="form-desc">Verify SSL certificates when sending payloads</div>
@@ -257,7 +261,11 @@ func (p *WebhookForm) Field(field string) string {
 				</div>
 				<div class="form-field">
 					<label class="form-option">
-						<input class="form-selector" type="checkbox" name="active" checked="true"/	>
+						{% if p.Webhook != nil %}
+							<input class="form-selector" type="checkbox" name="active" {% if p.Webhook.Active %}checked="true"{% endif %}/>
+						{% else %}
+							<input class="form-selector" type="checkbox" name="active" checked="true"/>
+						{% endif %}
 						<div class="form-option-info">
 							<strong>Active</strong>
 							<div class="form-desc">Send events for this webhook</div>

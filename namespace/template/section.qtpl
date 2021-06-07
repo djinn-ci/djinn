@@ -170,7 +170,7 @@ type WebhookIndex struct {
 {% func (p *WebhookIndex) Body() %}
 	<div class="panel">
 		<div class="panel-header panel-body">
-			<a class="btn btn-primary right" href="{%s p.Namespace.Endpoint("webhooks", "create") %}">Create</a>
+			<a class="btn btn-primary right" href="{%s p.Namespace.Endpoint("webhooks", "create") %}">Create webhook</a>
 		</div>
 		{% if len(p.Webhooks) == 0 %}
 			<div class="panel-message muted">Add a webhook to notify external services of events.</div>

@@ -494,7 +494,7 @@ func (p *WebhookIndex) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/section.qtpl:173
 	qw422016.E().S(p.Namespace.Endpoint("webhooks", "create"))
 //line namespace/template/section.qtpl:173
-	qw422016.N().S(`">Create</a> </div> `)
+	qw422016.N().S(`">Create webhook</a> </div> `)
 //line namespace/template/section.qtpl:175
 	if len(p.Webhooks) == 0 {
 //line namespace/template/section.qtpl:175

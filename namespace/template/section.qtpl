@@ -179,6 +179,9 @@ type WebhookIndex struct {
 				<tbody>
 					{% for _, w := range p.Webhooks %}
 						<tr>
+							{% if !w.Active %}
+								<td class="hook-status hook-status-none" title="Disabled">{% cat "../../static/svg/disabled.svg" %}</td>
+							{% endif %}
 							{% if w.LastDelivery == nil %}
 									<td class="hook-status hook-status-none">{% cat "../../static/svg/close.svg" %}</td>
 							{% else %}

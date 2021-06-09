@@ -300,12 +300,13 @@ func (w *Webhook) IsZero() bool {
 
 func (w *Webhook) JSON(addr string) map[string]interface{} {
 	json := map[string]interface{}{
+		"id":           w.ID,
 		"user_id":      w.UserID,
 		"author_id":    w.AuthorID,
 		"namespace_id": w.NamespaceID,
 		"payload_url":  w.PayloadURL,
-		"secret":       w.Secret,
 		"ssl":          w.SSL,
+		"active":       w.Active,
 		"url":          addr + w.Endpoint(),
 	}
 

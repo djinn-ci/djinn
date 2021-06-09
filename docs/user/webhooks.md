@@ -10,6 +10,7 @@ various communication channels, to update an issue tracker, or to kick off
 another automated process.
 
 * [Creating a webhook](#creating-a-webhook)
+* [Signing webhooks](#signing-webhooks)
 * [Event payloads](#event-payloads)
   * [build_submitted](#build-submitted)
   * [build_started](#build-started)
@@ -26,7 +27,19 @@ another automated process.
 
 Navigate to the [namespace](/user/namespaces) you want to configure the webhook
 for. From the *Webhooks* tab, you will be able to create a new webhook via the
-*Create webhook* button.
+*Create webhook* button. Webhooks can also be created via the
+[REST API](/api/namespaces#create-a-webhook-for-the-namespace).
+
+## Signing webhooks
+
+Secrets can be set on a webhook that is used for signing the payload of the
+delivered event. Webhooks with secrets will include the signature in the
+request headers,
+
+    X-Djinn-CI-Signature sha256=6a7f769...
+
+the secret should be used from your end to compute the hash using an HMAC
+digest, then compare that with what's in the header.
 
 ## Event payloads
 

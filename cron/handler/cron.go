@@ -7,11 +7,13 @@ import (
 	"djinn-ci.com/build"
 	"djinn-ci.com/cron"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -86,7 +88,31 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 	}
 
 	c, err := crons.Create(u.ID, f.Name, f.Schedule, f.Manifest)
-	return c, f, errors.Err(err)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !c.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		c.Namespace = n
+
+		v := map[string]interface{}{
+			"action": "created",
+			"cron":   c.JSON(env.DJINN_API_SERVER),
+		}
+		return namespace.NewWebhookStore(h.DB, n).Deliver("cron", v)
+	})
+	return c, f, nil
 }
 
 // ShowWithRelations retrieves the *cron.Cron model from the context of the
@@ -150,6 +176,26 @@ func (h Cron) UpdateModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
 	c.Name = f.Name
 	c.Schedule = f.Schedule
 	c.Manifest = f.Manifest
+
+	h.Queue.Enqueue(func() error {
+		if !c.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		c.Namespace = n
+
+		v := map[string]interface{}{
+			"action": "updated",
+			"cron":   c.JSON(env.DJINN_API_SERVER),
+		}
+		return namespace.NewWebhookStore(h.DB, n).Deliver("cron", v)
+	})
 	return c, f, nil
 }
 
@@ -160,5 +206,29 @@ func (h Cron) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("no cron in request context")
 	}
-	return errors.Err(cron.NewStore(h.DB).Delete(c.ID))
+
+	if err := cron.NewStore(h.DB).Delete(c.ID); err != nil {
+		return errors.Err(err)
+	}
+
+	h.Queue.Enqueue(func() error {
+		if !c.NamespaceID.Valid {
+			return nil
+		}
+
+		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.NamespaceID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		c.Namespace = n
+
+		v := map[string]interface{}{
+			"action": "deleted",
+			"cron":   c.JSON(env.DJINN_API_SERVER),
+		}
+		return namespace.NewWebhookStore(h.DB, n).Deliver("cron", v)
+	})
+	return nil
 }

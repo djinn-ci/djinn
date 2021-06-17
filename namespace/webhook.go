@@ -304,7 +304,7 @@ func (w *Webhook) JSON(addr string) map[string]interface{} {
 		"user_id":      w.UserID,
 		"author_id":    w.AuthorID,
 		"namespace_id": w.NamespaceID,
-		"payload_url":  w.PayloadURL,
+		"payload_url":  w.PayloadURL.String(),
 		"ssl":          w.SSL,
 		"active":       w.Active,
 		"url":          addr + w.Endpoint(),

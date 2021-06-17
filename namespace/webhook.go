@@ -325,7 +325,14 @@ func (w *Webhook) JSON(addr string) map[string]interface{} {
 	}
 
 	if w.LastDelivery != nil {
+		var deliveryError interface{} = nil
+
+		if w.LastDelivery.Error.Valid {
+			deliveryError = w.LastDelivery.Error.String
+		}
+
 		json["last_response"] = map[string]interface{}{
+			"error":      deliveryError,
 			"code":       w.LastDelivery.ResponseCode,
 			"duration":   w.LastDelivery.Duration,
 			"created_at": w.LastDelivery.CreatedAt.Format(time.RFC3339),

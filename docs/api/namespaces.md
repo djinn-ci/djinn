@@ -252,6 +252,11 @@ the URL in nanoseconds.
 
 ---
 
+**`last_response.error`** `string` - The error that occurred if the event failed
+to be delivered. This will be `null` if not error occurred.
+
+---
+
 **`last_response.created_at`** `timestamp` - The RFC3339 formatted string at
 which the delivery was made.
 

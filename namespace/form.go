@@ -1,6 +1,7 @@
 package namespace
 
 import (
+	"net"
 	"net/url"
 	"strings"
 
@@ -247,11 +248,19 @@ func (f WebhookForm) Validate() error {
 		errs.Put("payload_url", errors.New("Invalid payload URL"))
 	}
 
-	if url.Host == "" {
+	host, _, err := net.SplitHostPort(url.Host)
+
+	if nerr, ok := err.(*net.AddrError); ok {
+		if nerr.Err == "missing port in address" {
+			host = url.Host
+		}
+	}
+
+	if host == "" {
 		errs.Put("payload_url", errors.New("Invalid payload URL"))
 	}
 
-	if _, ok := localhosts[url.Host]; ok {
+	if _, ok := localhosts[host]; ok {
 		errs.Put("payload_url", errors.New("Invalid payload URL"))
 	}
 

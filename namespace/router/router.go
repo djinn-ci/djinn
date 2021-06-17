@@ -199,6 +199,15 @@ func Gate(db *sqlx.DB) web.Gate {
 		}
 
 		root.LoadCollaborators(cc)
+
+		if base == "webhooks" {
+			switch r.Method {
+			case "GET":
+				_, ok = u.Permissions["webhook:read"]
+			case "POST":
+				_, ok = u.Permissions["webhook:write"]
+			}
+		}
 		return r, ok && root.AccessibleBy(u), nil
 	}
 }

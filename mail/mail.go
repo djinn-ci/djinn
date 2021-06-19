@@ -170,10 +170,6 @@ func (m Mail) Send(cli *Client) error {
 		}
 	}
 
-	if err := cli.Reset(); err != nil {
-		return errors.Err(err)
-	}
-
 	if err := cli.Mail(m.From); err != nil {
 		return errors.Err(err)
 	}

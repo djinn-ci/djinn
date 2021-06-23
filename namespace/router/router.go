@@ -55,9 +55,6 @@ func Gate(db *sqlx.DB) web.Gate {
 			_, ok = u.Permissions["namespace:delete"]
 		}
 
-		isJson := strings.HasPrefix(r.Header.Get("Accept"), "application/json") ||
-			strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
-
 		base := webutil.BasePath(r.URL.Path)
 
 		if base == "create" {

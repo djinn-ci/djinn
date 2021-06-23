@@ -5,7 +5,6 @@ driver:
 sources:
 - https://github.com/djinn-ci/djinn
 env:
-- PGPASSWORD=secret
 - LDFLAGS=-s -w
 - INTEGRATION_CONFIG=testdata/server.cfg
 stages:
@@ -14,7 +13,8 @@ stages:
 jobs:
 - stage: setup
   commands:
-  - psql -U djinn -h localhost -d djinn -f djinn/schema.sql
+  - cd djinn
+  - mgrt run -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=djinn password=secret"
 - stage: make
   commands:
   - cd djinn

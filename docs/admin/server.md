@@ -9,6 +9,7 @@ so there is no need to worry about where assets will exist on disk.
 
 * [External Dependencies](#external-dependencies)
 * [Configuring the Server](#configuring-the-server)
+* [Environment Variables](#environment-variables)
 * [Example Server Configuration](#example-server-configuration)
 * [Running the Server](#running-the-server)
 * [Configuring the Server Daemon](#configuring-the-server-daemon)
@@ -151,6 +152,29 @@ with.
 
 * **`client_secret`** `string` - The `client_secret` of the provider being
 integrated with.
+
+## Environment Variables
+
+Detailed below are the environment variables that can be set for the Djinn CI
+server,
+
+* `DJINN_API_DOCS` - This is the link to the API documentation. This link is
+rendered on the sidebar, if set.
+
+* `DJINN_API_SERVER` - The host the API server is running on. This is used when
+emitting webhook events, to ensure the links in the event payloads point back
+to the API server.
+
+* `DJINN_USER_DOCS` - This is the link to the user documentation. This link is
+rendered on the sidebar, if set.
+
+If deploying on a distribution with systemd, then it is recommended you put
+these variables in an environment variable to be loaded in, for example,
+
+    $ cat /etc/default/djinn
+    DJINN_API_DOCS=https://docs.djinn-ci.com/api
+    DJINN_API_SERVER=https://api.djinn-ci.com
+    DJINN_USER_DOCS=https://docs.djinn-ci.com/user
 
 ## Example server configuration
 

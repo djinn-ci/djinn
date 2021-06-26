@@ -14,7 +14,7 @@ jobs:
 - stage: setup
   commands:
   - cd djinn
-  - mgrt run -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=djinn password=secret"
+  - mgrt run -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
   - sudo -u postgres psql -c "ALTER USER djinn_curator WITH PASSWORD 'secret'"
   - sudo -u postgres psql -c "ALTER USER djinn_scheduler WITH PASSWORD 'secret'"
   - sudo -u postgres psql -c "ALTER USER djinn_server WITH PASSWORD 'secret'"

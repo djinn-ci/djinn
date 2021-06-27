@@ -437,8 +437,8 @@ func (h UI) Badge(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
 	w.Header().Set("Content-Type", "image/svg+xml")
+	w.WriteHeader(http.StatusOK)
 
 	if b.IsZero() {
 		io.WriteString(w, badgeUnknown)

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"djinn-ci.com/namespace"
 	namespacetemplate "djinn-ci.com/namespace/template"
 	"djinn-ci.com/object"
+	"djinn-ci.com/runner"
 	objecttemplate "djinn-ci.com/object/template"
 	"djinn-ci.com/template"
 	"djinn-ci.com/user"
@@ -412,6 +414,53 @@ func (h Namespace) Show(w http.ResponseWriter, r *http.Request) {
 	d := template.NewDashboard(p, r.URL, u, web.Alert(sess), csrf)
 	save(r, w)
 	webutil.HTML(w, template.Render(d), http.StatusOK)
+}
+
+// Badge renders an SVG badge of the latest build in the namespace, if any.
+func (h UI) Badge(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get namespace from request context")
+	}
+
+	b, err := build.NewStore(h.DB).Get(
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+		query.OrderDesc("created_at"),
+	)
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set("Content-Type", "image/svg+xml")
+
+	if b.IsZero() {
+		io.WriteString(w, badgeUnknown)
+		return
+	}
+
+	switch b.Status {
+	case runner.Queued:
+		io.WriteString(w, badgeQueued)
+	case runner.Running:
+		io.WriteString(w, badgeRunning)
+	case runner.Passed:
+		io.WriteString(w, badgePassed)
+	case runner.PassedWithFailures:
+		io.WriteString(w, badgePassedWithFailures)
+	case runner.Failed:
+		io.WriteString(w, badgeFailed)
+	case runner.Killed:
+		io.WriteString(w, badgeKilled)
+	case runner.TimedOut:
+		io.WriteString(w, badgeTimedOut)
+	}
 }
 
 // Edit serves the HTML response for editing the namespace in the given request

@@ -262,6 +262,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 
 	sr := mux.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
 	sr.HandleFunc("", namespace.Show).Methods("GET")
+	sr.HandleFunc("/-/badge.svg", namespace.Badge).Methods("GET")
 	sr.HandleFunc("/-/edit", namespace.Edit).Methods("GET")
 	sr.HandleFunc("/-/namespaces", namespace.Show).Methods("GET")
 	sr.HandleFunc("/-/images", namespace.Show).Methods("GET")

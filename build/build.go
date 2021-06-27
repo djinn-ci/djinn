@@ -696,7 +696,7 @@ func (s *Store) Submit(ctx context.Context, prd *curlyq.Producer, host string, b
 		commands := []string{"git clone -q " + src.URL + " " + src.Dir}
 
 		if src.Ref != "" {
-			commands = append(commands, "git checkout -q "+src.Ref, "cd "+src.Dir)
+			commands = append(commands, "cd "+src.Dir, "git checkout -q "+src.Ref)
 		}
 
 		if src.Dir != "" {

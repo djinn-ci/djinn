@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"djinn-ci.com/config"
 	"djinn-ci.com/errors"
@@ -108,20 +109,17 @@ func main() {
 	}
 
 	setup := &runner.Stage{
-		Name:    setupStage,
+		Name:    fmt.Sprintf("%s - %v", setupStage, time.Now().Unix()),
 		CanFail: false,
 	}
 
 	for i, src := range m.Sources {
 		name := fmt.Sprintf("clone.%d", i+1)
 
-		commands := []string{
-			"git clone " + src.URL + " " + src.Dir,
-			"cd " + src.Dir,
-		}
+		commands := []string{"git clone " + src.URL + " " + src.Dir}
 
 		if src.Ref != "" {
-			commands = append(commands, "git checkout -q "+src.Ref)
+			commands = append(commands, "cd " + src.Dir, "git checkout -q "+src.Ref)
 		}
 
 		if src.Dir != "" {

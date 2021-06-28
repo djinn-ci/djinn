@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/user"
@@ -41,7 +42,7 @@ type Webhook struct {
 	AuthorID    int64        `db:"author_id"`
 	NamespaceID int64        `db:"namespace_id"`
 	PayloadURL  hookURL      `db:"payload_url"`
-	Secret      string       `db:"secret"`
+	Secret      []byte       `db:"secret"`
 	SSL         bool         `db:"ssl"`
 	Events      WebhookEvent `db:"events"`
 	Active      bool         `db:"active"`
@@ -73,7 +74,8 @@ type WebhookDelivery struct {
 type WebhookStore struct {
 	database.Store
 
-	pool *x509.CertPool
+	block *crypto.Block
+	pool  *x509.CertPool
 
 	User      *user.User
 	Namespace *Namespace
@@ -196,6 +198,12 @@ func NewWebhookStore(db *sqlx.DB, mm ...database.Model) *WebhookStore {
 	return s
 }
 
+func NewWebhookStoreWithBlock(db *sqlx.DB, block *crypto.Block, mm ...database.Model) *WebhookStore {
+	s := NewWebhookStore(db, mm...)
+	s.block = block
+	return s
+}
+
 func WebhookFromContext(ctx context.Context) (*Webhook, bool) {
 	w, ok := ctx.Value("webhook").(*Webhook)
 	return w, ok
@@ -292,7 +300,7 @@ func (w *Webhook) IsZero() bool {
 		w.AuthorID == 0 &&
 		w.NamespaceID == 0 &&
 		w.PayloadURL.URL == nil &&
-		w.Secret == "" &&
+		w.Secret == nil &&
 		!w.SSL &&
 		w.Events == WebhookEvent(0) &&
 		w.CreatedAt == time.Time{}
@@ -385,30 +393,64 @@ func (s *WebhookStore) Bind(mm ...database.Model) {
 }
 
 func (s *WebhookStore) Create(authorId int64, payloadUrl *url.URL, secret string, ssl bool, events WebhookEvent, active bool) (*Webhook, error) {
+	var (
+		b   []byte
+		err error
+	)
+
+	if secret != "" {
+		if s.block == nil {
+			return nil, errors.New("nil block cipher")
+		}
+
+		b, err = s.block.Encrypt([]byte(secret))
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+	}
+
 	w := s.New()
 	w.AuthorID = authorId
 	w.PayloadURL = hookURL{URL: payloadUrl}
-	w.Secret = secret
+	w.Secret = b
 	w.SSL = ssl
 	w.Events = events
 	w.Active = active
 
-	err := s.Store.Create(webhookTable, w)
+	err = s.Store.Create(webhookTable, w)
 	return w, errors.Err(err)
 }
 
 func (s *WebhookStore) Update(id int64, payloadUrl *url.URL, secret string, ssl bool, events WebhookEvent, active bool) error {
+	var (
+		b   []byte
+		err error
+	)
+
+	if secret != "" {
+		if s.block == nil {
+			return errors.New("nil block cipher")
+		}
+
+		b, err = s.block.Encrypt([]byte(secret))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+	}
+
 	q := query.Update(
 		webhookTable,
 		query.Set("payload_url", query.Arg(hookURL{URL:payloadUrl})),
-		query.Set("secret", query.Arg(secret)),
+		query.Set("secret", query.Arg(b)),
 		query.Set("ssl", query.Arg(ssl)),
 		query.Set("events", query.Arg(events)),
 		query.Set("active", query.Arg(active)),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	_, err = s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
 }
 
@@ -654,10 +696,20 @@ func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Read
 
 	var signature string
 
-	if w.Secret != "" {
+	if w.Secret != nil {
+		if s.block == nil {
+			return nil, nil, 0, errors.New("nil block cipher")
+		}
+
+		secret, err := s.block.Decrypt(w.Secret)
+
+		if err != nil {
+			return nil, nil, 0, errors.Err(err)
+		}
+
 		var buf bytes.Buffer
 
-		hmac := hmac.New(sha256.New, []byte(w.Secret))
+		hmac := hmac.New(sha256.New, secret)
 		tee := io.TeeReader(r, &buf)
 
 		io.Copy(hmac, tee)

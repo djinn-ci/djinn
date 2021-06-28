@@ -11,7 +11,7 @@ CREATE TABLE namespace_webhooks (
 	author_id    INT NOT NULL REFERENCES users(id),
 	namespace_id INT NOT NULL REFERENCES namespaces(id),
 	payload_url  VARCHAR NOT NULL,
-	secret       VARCHAR NULL,
+	secret       BYTEA NULL,
 	ssl          BOOLEAN NOT NULL,
 	events       BYTEA NOT NULL,
 	active       BOOLEAN NOT NULL DEFAULT TRUE,

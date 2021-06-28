@@ -212,12 +212,12 @@ func Gate(db *sqlx.DB) web.Gate {
 	}
 }
 
-func New(_ *config.Server, h web.Handler, mw web.Middleware) *Router {
+func New(cfg *config.Server, h web.Handler, mw web.Middleware) *Router {
 	return &Router{
 		middleware:   mw,
 		namespace:    handler.New(h),
 		invite:       handler.NewInvite(h),
-		webhook:      handler.NewWebhook(h),
+		webhook:      handler.NewWebhook(h, cfg.BlockCipher()),
 		collaborator: handler.Collaborator{Handler: h},
 	}
 }

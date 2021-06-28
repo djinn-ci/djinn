@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"djinn-ci.com/crypto"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
@@ -14,11 +15,14 @@ import (
 
 type Webhook struct {
 	web.Handler
+
+	block *crypto.Block
 }
 
-func NewWebhook(h web.Handler) Webhook {
+func NewWebhook(h web.Handler, block *crypto.Block) Webhook {
 	return Webhook{
 		Handler: h,
+		block:   block,
 	}
 }
 
@@ -39,7 +43,7 @@ func (h Webhook) StoreModel(r *http.Request) (*namespace.Webhook, namespace.Webh
 		return nil, f, errors.New("no namespace in request context")
 	}
 
-	webhooks := namespace.NewWebhookStore(h.DB, n, u)
+	webhooks := namespace.NewWebhookStoreWithBlock(h.DB, h.block, n, u)
 
 	f.Webhooks = webhooks
 
@@ -88,7 +92,7 @@ func (h Webhook) UpdateModel(r *http.Request) (*namespace.Webhook, namespace.Web
 		return nil, f, errors.New("no namespace in request context")
 	}
 
-	webhooks := namespace.NewWebhookStore(h.DB, n, u)
+	webhooks := namespace.NewWebhookStoreWithBlock(h.DB, h.block, n, u)
 
 	f.Webhooks = webhooks
 	f.Webhook = w
@@ -104,7 +108,12 @@ func (h Webhook) UpdateModel(r *http.Request) (*namespace.Webhook, namespace.Web
 	secret := f.Secret
 
 	if !f.RemoveSecret && secret == "" {
-		secret = w.Secret
+		secret0, err := h.block.Decrypt(w.Secret)
+
+		if err != nil {
+			return nil, f, errors.Err(err)
+		}
+		secret = string(secret0)
 	}
 
 	if err := webhooks.Update(w.ID, url, secret, f.SSL, events, f.Active); err != nil {

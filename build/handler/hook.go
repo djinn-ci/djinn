@@ -349,8 +349,17 @@ func (h Hook) getManifestURLs(tok, rawurl string, geturl func(map[string]string)
 func (h Hook) submitBuilds(ctx context.Context, mm []manifest.Manifest, host string, u *user.User, t *build.Trigger) ([]*build.Build, error) {
 	bb := make([]*build.Build, 0, len(mm))
 
+	var tag string
+
+	switch t.Type {
+	case build.Push:
+		tag = t.Data["ref"]
+	case build.Pull:
+		tag = t.Data["ref"]
+	}
+
 	for _, m := range mm {
-		b, err := build.NewStore(h.DB, u).Create(m, t)
+		b, err := build.NewStore(h.DB, u).Create(m, t, tag)
 
 		if err != nil {
 			return nil, errors.Err(err)

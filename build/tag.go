@@ -178,6 +178,10 @@ func (s *TagStore) Create(userId int64, names ...string) ([]*Tag, error) {
 			continue
 		}
 
+		if name == "" {
+			continue
+		}
+
 		t := s.New()
 		t.UserID = userId
 		t.Name = name

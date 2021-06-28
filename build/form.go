@@ -33,7 +33,7 @@ var (
 )
 
 func isLetter(r rune) bool {
-	return unicode.IsLetter(r) || '0' <= r && r <= '9' || r == '-' || r == '_' || r == '.'
+	return unicode.IsLetter(r) || '0' <= r && r <= '9' || r == '-' || r == '_' || r == '.' || r == '/'
 }
 
 func isTagValid(s string) bool {

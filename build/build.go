@@ -428,6 +428,40 @@ func (s *Store) Create(m manifest.Manifest, t *Trigger, tags ...string) (*Build,
 	return b, errors.Err(err)
 }
 
+// Orphan marks the given build as orphaned, and clears down the output of
+// the build and its jobs. An orphaned build happens when the worker is
+// restarted whilst a build is processing.
+func (s *Store) Orphan(b *Build) error {
+	if _, err := NewTagStore(s.DB, b).Create(b.UserID, "orphaned"); err != nil {
+		return errors.Err(err)
+	}
+
+	q := query.Update(
+		jobTable,
+		query.Set("status", query.Arg(runner.Queued)),
+		query.Set("output", query.Lit("NULL")),
+		query.Set("started_at", query.Lit("NULL")),
+		query.Set("finished_at", query.Lit("NULL")),
+		query.Where("build_id", "=", query.Arg(b.ID)),
+	)
+
+	if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+
+	q = query.Update(
+		table,
+		query.Set("status", query.Arg(runner.Queued)),
+		query.Set("output", query.Lit("NULL")),
+		query.Set("started_at", query.Lit("NULL")),
+		query.Set("finished_at", query.Lit("NULL")),
+		query.Where("id", "=", query.Arg(b.ID)),
+	)
+
+	_, err := s.DB.Exec(q.Build(), q.Args()...)
+	return errors.Err(err)
+}
+
 // Started marks the build of the given id as started.
 func (s *Store) Started(id int64) error {
 	q := query.Update(

@@ -291,6 +291,12 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 	builds := build.NewStore(r.db)
 	jobs := build.NewJobStore(r.db)
 
+	if r.build.StartedAt.Valid {
+		if err := builds.Orphan(r.build); err != nil {
+			return runner.Failed, errors.Err(err)
+		}
+	}
+
 	typ := d.Config["type"]
 
 	if typ == "qemu" {

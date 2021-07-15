@@ -11,9 +11,12 @@ import (
 
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
+	"djinn-ci.com/queue"
 
 	"github.com/andrewpillar/query"
 
@@ -36,6 +39,13 @@ type Key struct {
 	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
+}
+
+type Event struct {
+	dis event.Dispatcher
+
+	Key    *Key
+	Action string
 }
 
 // Store is the type for creating and modifying Key models in the database. The
@@ -63,6 +73,8 @@ var (
 	_ database.Model  = (*Key)(nil)
 	_ database.Binder = (*Store)(nil)
 	_ database.Loader = (*Store)(nil)
+
+	_ queue.Job = (*Event)(nil)
 
 	table     = "keys"
 	relations = map[string]database.RelationFunc{
@@ -110,6 +122,28 @@ func Model(kk []*Key) func(int) database.Model {
 	return func(i int) database.Model {
 		return kk[i]
 	}
+}
+
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
+		}
+	}
+}
+
+func (ev *Event) Name() string { return "event:"+event.Images.String() }
+
+func (ev *Event) Perform() error {
+	if ev.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	payload := map[string]interface{}{
+		"key":    ev.Key.JSON(env.DJINN_API_SERVER),
+		"action": ev.Action,
+	}
+	return errors.Err(ev.dis.Dispatch(event.New(ev.Key.NamespaceID, event.SSHKeys, payload)))
 }
 
 // Bind implements the database.Binder interface. This will only bind the model

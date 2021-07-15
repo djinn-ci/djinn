@@ -178,6 +178,7 @@ func (h Image) Show(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer rec.Close()
+	w.Header().Set("Content-Type", "application/x-qemu-disk")
 	http.ServeContent(w, r, i.Name, i.CreatedAt, rec)
 }
 

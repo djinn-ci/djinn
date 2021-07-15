@@ -5,13 +5,11 @@ import (
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/database"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
-	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
@@ -68,30 +66,10 @@ func (h Tag) StoreModel(r *http.Request) ([]*build.Tag, error) {
 		return nil, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !b.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		jsontags := make([]map[string]interface{}, 0, len(tt))
-
-		for _, t := range tt {
-			jsontags = append(jsontags, t.JSON(env.DJINN_API_SERVER))
-		}
-
-		v := map[string]interface{}{
-			"url": env.DJINN_API_SERVER + b.Endpoint("tags"),
-			"tags": jsontags,
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("build_tagged", v)
+	h.Queues.Produce(ctx, "events", &build.TagEvent{
+		Build: b,
+		Tags:  tt,
 	})
-
 	return tt, nil
 }
 

@@ -8,7 +8,6 @@ import (
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/image"
@@ -16,7 +15,6 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
-	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -84,9 +82,11 @@ func (h Image) IndexWithRelations(r *http.Request) ([]*image.Image, database.Pag
 // stores it in the database. Upon success this will return the newly created
 // image. This also returns the form for creating an image.
 func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image, image.Form, error) {
+	ctx := r.Context()
+
 	f := image.Form{}
 
-	u, ok := user.FromContext(r.Context())
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
 		return nil, f, errors.New("no user in request context")
@@ -130,30 +130,30 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		return nil, f, errors.Err(err)
 	}
 
+	// If being downloaded from a remote then f.File will be nil, and no
+	// attempt will be made to actually upload an image file, this will be
+	// handled as a queue job.
 	i, err := images.Create(f.Author.ID, hash, f.Name, driver.QEMU, f.File)
 
 	if err != nil {
 		return nil, f, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !i.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(i.NamespaceID)))
+	if f.DownloadURL.URL != nil {
+		j, err := image.NewDownloadJob(h.DB, i, f.DownloadURL)
 
 		if err != nil {
-			return errors.Err(err)
+			return nil, f, errors.Err(err)
 		}
 
-		i.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "created",
-			"image":  i.JSON(env.DJINN_API_SERVER),
+		if _, err := h.Queues.Produce(ctx, "image_downloads", j); err != nil {
+			return nil, f, errors.Err(err)
 		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("images", v)
+	}
+
+	h.Queues.Produce(ctx, "events", &image.Event{
+		Image:  i,
+		Action: "created",
 	})
 	return i, f, nil
 }
@@ -184,7 +184,9 @@ func (h Image) ShowWithRelations(r *http.Request) (*image.Image, error) {
 // DeleteModel removes the image in the given request context from the database
 // and the underlying block store.
 func (h Image) DeleteModel(r *http.Request) error {
-	i, ok := image.FromContext(r.Context())
+	ctx := r.Context()
+
+	i, ok := image.FromContext(ctx)
 
 	if !ok {
 		return errors.New("failed to get image from context")
@@ -194,24 +196,9 @@ func (h Image) DeleteModel(r *http.Request) error {
 		return errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !i.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(i.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		i.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "deleted",
-			"image":  i.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("images", v)
+	h.Queues.Produce(ctx, "events", &image.Event{
+		Image:  i,
+		Action: "deleted",
 	})
 	return nil
 }

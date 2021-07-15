@@ -6,6 +6,7 @@ import (
 
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
@@ -54,12 +55,12 @@ func (h Webhook) StoreModel(r *http.Request) (*namespace.Webhook, namespace.Webh
 	url, _ := url.Parse(f.PayloadURL)
 
 	if len(f.Events) == 0 {
-		for _, ev := range namespace.WebhookEvents {
+		for _, ev := range event.Types {
 			f.Events = append(f.Events, ev.String())
 		}
 	}
 
-	events, _ := namespace.UnmarshalWebhookEvents(f.Events...)
+	events, _ := event.UnmarshalType(f.Events...)
 
 	w, err := webhooks.Create(u.ID, url, f.Secret, f.SSL, events, f.Active)
 
@@ -103,7 +104,7 @@ func (h Webhook) UpdateModel(r *http.Request) (*namespace.Webhook, namespace.Web
 
 	url, _ := url.Parse(f.PayloadURL)
 
-	events, _ := namespace.UnmarshalWebhookEvents(f.Events...)
+	events, _ := event.UnmarshalType(f.Events...)
 
 	secret := f.Secret
 

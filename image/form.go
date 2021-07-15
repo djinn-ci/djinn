@@ -20,8 +20,9 @@ type Form struct {
 	namespace.Resource
 	*webutil.File
 
-	Images *Store `schema:"-"`
-	Name   string `schema:"name"`
+	Images      *Store      `schema:"-"`
+	Name        string      `schema:"name"`
+	DownloadURL DownloadURL `schema:"download_url"`
 }
 
 var (
@@ -36,8 +37,9 @@ var (
 // original Form.
 func (f *Form) Fields() map[string]string {
 	return map[string]string{
-		"namespace": f.Namespace,
-		"name":      f.Name,
+		"namespace":    f.Namespace,
+		"name":         f.Name,
+		"download_url": f.DownloadURL.String(),
 	}
 }
 
@@ -78,12 +80,15 @@ func (f *Form) Validate() error {
 		errs.Put("name", webutil.ErrFieldExists("Name"))
 	}
 
-	if err := f.File.Validate(); err != nil {
-		if ferrs, ok := err.(*webutil.Errors); ok {
-			errs.Merge(ferrs)
-			return errs.Err()
+	if f.DownloadURL.URL == nil {
+		if err := f.File.Validate(); err != nil {
+			if ferrs, ok := err.(*webutil.Errors); ok {
+				errs.Merge(ferrs)
+				errs.Put("download_url", errors.New("Download URL or image file must be given"))
+				return errs.Err()
+			}
+			return errors.Err(err)
 		}
-		return errors.Err(err)
 	}
 
 	if f.File.File != nil {

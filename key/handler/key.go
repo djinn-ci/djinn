@@ -6,14 +6,12 @@ import (
 
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/key"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
-	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -80,9 +78,11 @@ func (h Key) IndexWithRelations(r *http.Request) ([]*key.Key, database.Paginator
 // stores it in the database. Upon success this will return the newly created
 // key. This also returns the form for creating a key.
 func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
+	ctx := r.Context()
+
 	f := key.Form{}
 
-	u, ok := user.FromContext(r.Context())
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
 		return nil, f, errors.New("no user in request context")
@@ -106,26 +106,10 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !k.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(k.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		k.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "created",
-			"key":    k.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("ssh_keys", v)
+	h.Queues.Produce(ctx, "events", &key.Event{
+		Key:    k,
+		Action: "created",
 	})
-
 	return k, f, nil
 }
 
@@ -161,7 +145,9 @@ func (h Key) ShowWithRelations(r *http.Request) (*key.Key, error) {
 func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 	f := key.Form{}
 
-	u, ok := user.FromContext(r.Context())
+	ctx := r.Context()
+
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
 		return nil, f, errors.New("no user in request context")
@@ -188,32 +174,18 @@ func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !k.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(k.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		k.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "updated",
-			"key":    k.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("ssh_keys", v)
+	h.Queues.Produce(ctx, "events", &key.Event{
+		Key:    k,
+		Action: "updated",
 	})
-
 	return k, f, nil
 }
 
 // DeleteModel removes the key in the given request context from the database.
 func (h Key) DeleteModel(r *http.Request) error {
-	k, ok := key.FromContext(r.Context())
+	ctx := r.Context()
+
+	k, ok := key.FromContext(ctx)
 
 	if !ok {
 		return errors.New("no key in request context")
@@ -223,24 +195,9 @@ func (h Key) DeleteModel(r *http.Request) error {
 		return errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !k.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(k.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		k.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "deleted",
-			"key":    k.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("ssh_keys", v)
+	h.Queues.Produce(ctx, "events", &key.Event{
+		Key:    k,
+		Action: "deleted",
 	})
 	return nil
 }

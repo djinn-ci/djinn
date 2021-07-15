@@ -102,7 +102,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 		Block:     cfg.BlockCipher(),
 		Log:       log,
 		Consumer:  cfg.Consumer(),
-		Queue:     queue.New(20, qerrh),
+		Queue:     queue.NewMemory(20, qerrh),
 		Timeout:   cfg.Timeout(),
 		Driver:    driverName,
 		Init:      driverInit,

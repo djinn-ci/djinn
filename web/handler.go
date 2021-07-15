@@ -36,9 +36,9 @@ type Handler struct {
 	// Log is the log file that the HTTP server is writing to.
 	Log *log.Logger
 
-	// Queue is the in memory queue for dispatching background jobs, such as
-	// webhooks, and sending of emails.
-	Queue *queue.Queue
+	// Queues is a set of different queues to dispatch background jobs to such
+	// as webhooks, and downloading of remote images.
+	Queues *queue.Set
 
 	// Store is the current store being used for storing session data, such
 	// as form fields, form errors, and general error messages.

@@ -2,6 +2,7 @@
 import (
 	"strings"
 
+	"djinn-ci.com/event"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/template"
 )
@@ -285,7 +286,7 @@ func (p *WebhookForm) Field(field string) string {
 				</div>
 				<div class="form-field">
 					<strong>Events</strong><br/>
-				{% for _, event := range namespace.WebhookEvents %}
+				{% for _, event := range event.Types %}
 					<label class="hook-event">
 						{% if p.Webhook != nil && p.Webhook.Events.Has(event) %}
 							<input checked="true" class="form-selector" type="checkbox" name="events[]" value="{%s event.String() %}"> {%s strings.Replace(strings.Title(event.String()), "_", " ", -1) %}
@@ -334,7 +335,7 @@ func (p *WebhookForm) Field(field string) string {
 								{% else %}
 									<td class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</td>
 								{% endif %}
-								<td>{% if d.Redelivery %}<span class="muted" title="Redelivery">{% cat "../../static/svg/sync.svg" %}</span>{% endif %} <code><a href="{%s d.Endpoint() %}">{%s d.DeliveryID %}</a></code></td>
+								<td>{% if d.Redelivery %}<span class="muted" title="Redelivery">{% cat "../../static/svg/sync.svg" %}</span>{% endif %} <code><a href="{%s d.Endpoint() %}">{%v d.EventID %}</a></code></td>
 								<td>{%s d.Duration.String() %}</td>
 							</tr>
 						{% endfor %}

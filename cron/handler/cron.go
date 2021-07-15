@@ -7,13 +7,11 @@ import (
 	"djinn-ci.com/build"
 	"djinn-ci.com/cron"
 	"djinn-ci.com/database"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
-	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -73,7 +71,9 @@ func (h Cron) IndexWithRelations(s *cron.Store, vals url.Values) ([]*cron.Cron, 
 func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 	var f cron.Form
 
-	u, ok := user.FromContext(r.Context())
+	ctx := r.Context()
+
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
 		return nil, f, errors.New("no user in request context")
@@ -93,24 +93,9 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !c.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		c.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "created",
-			"cron":   c.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("cron", v)
+	h.Queues.Produce(ctx, "events", &cron.Event{
+		Cron:   c,
+		Action: "created",
 	})
 	return c, f, nil
 }
@@ -177,31 +162,18 @@ func (h Cron) UpdateModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
 	c.Schedule = f.Schedule
 	c.Manifest = f.Manifest
 
-	h.Queue.Enqueue(func() error {
-		if !c.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		c.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "updated",
-			"cron":   c.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("cron", v)
+	h.Queues.Produce(ctx, "events", &cron.Event{
+		Cron:   c,
+		Action: "updated",
 	})
 	return c, f, nil
 }
 
 // DeleteModel removes the cron in the given request context from the database.
 func (h Cron) DeleteModel(r *http.Request) error {
-	c, ok := cron.FromContext(r.Context())
+	ctx := r.Context()
+
+	c, ok := cron.FromContext(ctx)
 
 	if !ok {
 		return errors.New("no cron in request context")
@@ -211,24 +183,9 @@ func (h Cron) DeleteModel(r *http.Request) error {
 		return errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !c.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		c.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "deleted",
-			"cron":   c.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("cron", v)
+	h.Queues.Produce(ctx, "events", &cron.Event{
+		Cron:   c,
+		Action: "deleted",
 	})
 	return nil
 }

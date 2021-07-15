@@ -8,7 +8,6 @@ import (
 	"djinn-ci.com/build"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
@@ -16,7 +15,6 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
-	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -86,9 +84,11 @@ func (h Object) IndexWithRelations(r *http.Request) ([]*object.Object, database.
 // stores it in the database. Upon success this will return the newly created
 // object. This also returns the form for creating an object.
 func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Object, object.Form, error) {
+	ctx := r.Context()
+
 	f := object.Form{}
 
-	u, ok := user.FromContext(r.Context())
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
 		return nil, f, errors.New("no user in request context")
@@ -144,24 +144,9 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		return nil, f, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !o.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(o.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		o.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "deleted",
-			"object":  o.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("objects", v)
+	h.Queues.Produce(ctx, "events", &object.Event{
+		Object: o,
+		Action: "created",
 	})
 	return o, f, nil
 }
@@ -194,7 +179,9 @@ func (h Object) ShowWithRelations(r *http.Request) (*object.Object, error) {
 // DeleteModel removes the object in the given request context from the
 // database and the underlying block store.
 func (h Object) DeleteModel(r *http.Request) error {
-	o, ok := object.FromContext(r.Context())
+	ctx := r.Context()
+
+	o, ok := object.FromContext(ctx)
 
 	if !ok {
 		return errors.New("failed to get object from context")
@@ -210,24 +197,9 @@ func (h Object) DeleteModel(r *http.Request) error {
 		return errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !o.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(o.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		o.Namespace = n
-
-		v := map[string]interface{}{
-			"action": "deleted",
-			"object":  o.JSON(env.DJINN_API_SERVER),
-		}
-		return namespace.NewWebhookStore(h.DB, n).Deliver("objects", v)
+	h.Queues.Produce(ctx, "events", &object.Event{
+		Object: o,
+		Action: "deleted",
 	})
 	return nil
 }

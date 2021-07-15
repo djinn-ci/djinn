@@ -11,8 +11,11 @@ import (
 	"time"
 
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/namespace"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -33,6 +36,13 @@ type Variable struct {
 	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
+}
+
+type Event struct {
+	dis event.Dispatcher
+
+	Variable *Variable
+	Action   string
 }
 
 // Store is the type for creating and modifying Variable models in the database.
@@ -57,6 +67,8 @@ var (
 	_ database.Binder = (*Store)(nil)
 	_ database.Loader = (*Store)(nil)
 
+	_ queue.Job = (*Event)(nil)
+
 	table     = "variables"
 	relations = map[string]database.RelationFunc{
 		"author":    database.Relation("author_id", "id"),
@@ -65,14 +77,12 @@ var (
 	}
 )
 
-// NewStore returns a new Store for querying the variables table. Each of the
-// given models is bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
-	s := &Store{
-		Store: database.Store{DB: db},
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
+		}
 	}
-	s.Bind(mm...)
-	return s
 }
 
 // FromContext returns the Variable model from the given context, if any.
@@ -94,6 +104,30 @@ func Model(vv []*Variable) func(int) database.Model {
 func LoadRelations(loaders *database.Loaders, vv ...*Variable) error {
 	mm := database.ModelSlice(len(vv), Model(vv))
 	return errors.Err(database.LoadRelations(relations, loaders, mm...))
+}
+
+// NewStore returns a new Store for querying the variables table. Each of the
+// given models is bound to the returned Store.
+func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
+	s := &Store{
+		Store: database.Store{DB: db},
+	}
+	s.Bind(mm...)
+	return s
+}
+
+func (ev *Event) Name() string { return "event:"+event.Variables.String() }
+
+func (ev *Event) Perform() error {
+	if ev.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	payload := map[string]interface{}{
+		"variable": ev.Variable.JSON(env.DJINN_API_SERVER),
+		"action":   ev.Action,
+	}
+	return errors.Err(ev.dis.Dispatch(event.New(ev.Variable.NamespaceID, event.Variables, payload)))
 }
 
 // Bind implements the database.Binder interface. This will only bind the model

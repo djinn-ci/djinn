@@ -17,12 +17,15 @@ import (
 
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/key"
 	"djinn-ci.com/manifest"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/object"
 	"djinn-ci.com/runner"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 	"djinn-ci.com/variable"
 
@@ -58,6 +61,12 @@ type Build struct {
 	Stages    []*Stage             `db:"-" json:"-"`
 }
 
+type Event struct {
+	dis event.Dispatcher
+
+	Build *Build
+}
+
 // Payload is how the build is put onto the queue. This struct will be encoded
 // via encoding/gob, and submitted to Redis.
 type Payload struct {
@@ -89,6 +98,8 @@ var (
 	_ database.Model  = (*Build)(nil)
 	_ database.Binder = (*Store)(nil)
 	_ database.Loader = (*Store)(nil)
+
+	_ queue.Job = (*Event)(nil)
 
 	table     = "builds"
 	relations = map[string]database.RelationFunc{
@@ -194,6 +205,60 @@ func WhereTag(tag string) query.Option {
 			),
 		)(q)
 	}
+}
+
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
+		}
+	}
+}
+
+func (ev *Event) Name() string {
+	switch ev.Build.Status {
+	case runner.Queued:
+		return "event:"+event.BuildSubmitted.String()
+	case runner.Running:
+		return "event:"+event.BuildStarted.String()
+	case runner.Passed:
+		fallthrough
+	case runner.PassedWithFailures:
+		fallthrough
+	case runner.Failed:
+		fallthrough
+	case runner.Killed:
+		fallthrough
+	case runner.TimedOut:
+		return "event:"+event.BuildFinished.String()
+	}
+	return "event:build"
+}
+
+func (ev *Event) Perform() error {
+	if ev.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	var typ event.Type
+
+	switch ev.Build.Status {
+	case runner.Queued:
+		typ = event.BuildSubmitted
+	case runner.Running:
+		typ = event.BuildStarted
+	case runner.Passed:
+		fallthrough
+	case runner.PassedWithFailures:
+		fallthrough
+	case runner.Failed:
+		fallthrough
+	case runner.Killed:
+		fallthrough
+	case runner.TimedOut:
+		typ = event.BuildFinished
+	}
+	return errors.Err(ev.dis.Dispatch(event.New(ev.Build.NamespaceID, typ, ev.Build.JSON(env.DJINN_API_SERVER))))
 }
 
 // Kill kills the given build by publishing the build's secret to the given

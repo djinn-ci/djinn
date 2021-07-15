@@ -4,14 +4,12 @@ import (
 	"net/http"
 
 	"djinn-ci.com/database"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 	"djinn-ci.com/variable"
 	"djinn-ci.com/web"
 
-	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -74,9 +72,11 @@ func (h Variable) IndexWithRelations(r *http.Request) ([]*variable.Variable, dat
 // stores it in the database. Upon success this will return the newly created
 // variable. This also returns the form for creating a variable.
 func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form, error) {
+	ctx := r.Context()
+
 	f := variable.Form{}
 
-	u, ok := user.FromContext(r.Context())
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
 		return nil, f, errors.New("no user in request context")
@@ -100,23 +100,9 @@ func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form
 		return nil, f, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !v.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(v.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		v.Namespace = n
-
-		return namespace.NewWebhookStore(h.DB, n).Deliver("variables", map[string]interface{}{
-			"action":   "created",
-			"variable":  v.JSON(env.DJINN_API_SERVER),
-		})
+	h.Queues.Produce(ctx, "events", &variable.Event{
+		Variable: v,
+		Action:   "created",
 	})
 	return v, f, nil
 }
@@ -124,7 +110,9 @@ func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form
 // DeleteModel removes the variable in the given request context from the
 // database.
 func (h Variable) DeleteModel(r *http.Request) error {
-	v, ok := variable.FromContext(r.Context())
+	ctx := r.Context()
+
+	v, ok := variable.FromContext(ctx)
 
 	if !ok {
 		return errors.New("no variable in request context")
@@ -134,23 +122,9 @@ func (h Variable) DeleteModel(r *http.Request) error {
 		return errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !v.NamespaceID.Valid {
-			return nil
-		}
-
-		n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(v.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-
-		v.Namespace = n
-
-		return namespace.NewWebhookStore(h.DB, n).Deliver("variables", map[string]interface{}{
-			"action":    "deleted",
-			"variable":  v.JSON(env.DJINN_API_SERVER),
-		})
+	h.Queues.Produce(ctx, "events", &variable.Event{
+		Variable: v,
+		Action:   "deleted",
 	})
 	return nil
 }

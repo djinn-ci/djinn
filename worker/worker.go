@@ -61,8 +61,7 @@ type Worker struct {
 	// Consumer is the consumer used for retrieving builds from the queue.
 	Consumer *curlyq.Consumer
 
-	// Queue is the in memory queue for dispatching webhooks.
-	Queue *queue.Queue
+	Queue queue.Queue // Queue for dispatching webhooks.
 
 	Driver      string        // Driver is the name of the driver the worker is configured for.
 	Timeout     time.Duration // Timeout is the maximum duration a build can run for.

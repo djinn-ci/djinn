@@ -5,12 +5,10 @@ import (
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
-	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	"database/sql/driver"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"io"
@@ -23,6 +21,7 @@ import (
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -34,19 +33,17 @@ type hookURL struct {
 	*url.URL
 }
 
-type WebhookEvent int64
-
 type Webhook struct {
-	ID          int64        `db:"id"`
-	UserID      int64        `db:"user_id"`
-	AuthorID    int64        `db:"author_id"`
-	NamespaceID int64        `db:"namespace_id"`
-	PayloadURL  hookURL      `db:"payload_url"`
-	Secret      []byte       `db:"secret"`
-	SSL         bool         `db:"ssl"`
-	Events      WebhookEvent `db:"events"`
-	Active      bool         `db:"active"`
-	CreatedAt   time.Time    `db:"created_at"`
+	ID          int64      `db:"id"`
+	UserID      int64      `db:"user_id"`
+	AuthorID    int64      `db:"author_id"`
+	NamespaceID int64      `db:"namespace_id"`
+	PayloadURL  hookURL    `db:"payload_url"`
+	Secret      []byte     `db:"secret"`
+	SSL         bool       `db:"ssl"`
+	Events      event.Type `db:"events"`
+	Active      bool       `db:"active"`
+	CreatedAt   time.Time  `db:"created_at"`
 
 	User         *user.User       `db:"-"`
 	Namespace    *Namespace       `db:"-"`
@@ -54,19 +51,22 @@ type Webhook struct {
 }
 
 type WebhookDelivery struct {
-	ID              int64          `db:"id"`
-	WebhookID       int64          `db:"webhook_id"`
-	DeliveryID      string         `db:"delivery_id"`
-	Error           sql.NullString `db:"error"`
-	Redelivery      bool           `db:"redelivery"`
-	RequestHeaders  string         `db:"request_headers"`
-	RequestBody     string         `db:"request_body"`
-	ResponseCode    int            `db:"response_code"`
-	ResponseStatus  string         `db:"-"`
-	ResponseHeaders sql.NullString `db:"response_headers"`
-	ResponseBody    sql.NullString `db:"response_body"`
-	Duration        time.Duration  `db:"duration"`
-	CreatedAt       time.Time      `db:"created_at"`
+	ID              int64                  `db:"id"`
+	WebhookID       int64                  `db:"webhook_id"`
+	EventID         int64                  `db:"event_id"`
+	NamespaceID     sql.NullInt64          `db:"-"`
+	Error           sql.NullString         `db:"error"`
+	Event           event.Type             `db:"event"`
+	Redelivery      bool                   `db:"redelivery"`
+	RequestHeaders  string                 `db:"request_headers"`
+	RequestBody     string                 `db:"request_body"`
+	ResponseCode    int                    `db:"response_code"`
+	ResponseStatus  string                 `db:"-"`
+	ResponseHeaders sql.NullString         `db:"response_headers"`
+	ResponseBody    sql.NullString         `db:"response_body"`
+	Payload         map[string]interface{} `db:"-"`
+	Duration        time.Duration          `db:"duration"`
+	CreatedAt       time.Time              `db:"created_at"`
 
 	Webhook *Webhook `db:"-"`
 }
@@ -81,20 +81,6 @@ type WebhookStore struct {
 	Namespace *Namespace
 }
 
-//go:generate stringer -type WebhookEvent -linecomment
-const (
-	BuildSubmitted WebhookEvent = 1 << iota // build_submitted
-	BuildStarted                            // build_started
-	BuildFinished                           // build_finished
-	BuildTagged                             // build_tagged
-	CollaboratorJoined                      // collaborator_joined
-	Cron                                    // cron
-	Images                                  // images
-	Objects                                 // objects
-	Variables                               // variables
-	SSHKeys                                 // ssh_keys
-)
-
 var (
 	_ database.Model  = (*Webhook)(nil)
 	_ database.Binder = (*WebhookStore)(nil)
@@ -102,39 +88,9 @@ var (
 	_ sql.Scanner   = (*hookURL)(nil)
 	_ driver.Valuer = (*hookURL)(nil)
 
-	_ sql.Scanner   = (*WebhookEvent)(nil)
-	_ driver.Valuer = (*WebhookEvent)(nil)
-
 	webhookTable         = "namespace_webhooks"
 	webhookDeliveryTable = "namespace_webhook_deliveries"
 
-	webhookEventsMap = map[string]WebhookEvent{
-		"build_submitted":     BuildSubmitted,
-		"build_started":       BuildStarted,
-		"build_finished":      BuildFinished,
-		"build_tagged":        BuildTagged,
-		"collaborator_joined": CollaboratorJoined,
-		"cron":                Cron,
-		"images":              Images,
-		"objects":             Objects,
-		"variables":           Variables,
-		"ssh_keys":            SSHKeys,
-	}
-
-	WebhookEvents = []WebhookEvent{
-		BuildSubmitted,
-		BuildStarted,
-		BuildFinished,
-		BuildTagged,
-		CollaboratorJoined,
-		Cron,
-		Images,
-		Objects,
-		Variables,
-		SSHKeys,
-	}
-
-	ErrUnknownEvent   = errors.New("unknown event")
 	ErrUnknownWebhook = errors.New("unknown webhook")
 )
 
@@ -209,58 +165,8 @@ func WebhookFromContext(ctx context.Context) (*Webhook, bool) {
 	return w, ok
 }
 
-func UnmarshalWebhookEvents(names ...string) (WebhookEvent, error) {
-	var events WebhookEvent
-
-	for _, name := range names {
-		ev, ok := webhookEventsMap[name]
-
-		if !ok {
-			return 0, errors.New("unknown webhook event: " + name)
-		}
-		events |= ev
-	}
-	return events, nil
-}
-
 func (e *WebhookDelivery) Endpoint(_ ...string) string {
 	return e.Webhook.Endpoint("deliveries", strconv.FormatInt(e.ID, 10))
-}
-
-func (e WebhookEvent) Has(mask WebhookEvent) bool { return (e & mask) == mask }
-
-func (e WebhookEvent) Value() (driver.Value, error) {
-	size := binary.Size(e)
-
-	if size < 0 {
-		return nil, errors.New("invalid webhook event")
-	}
-
-	buf := make([]byte, size)
-
-	binary.PutVarint(buf, int64(e))
-	return buf, nil
-}
-
-func (e *WebhookEvent) Scan(v interface{}) error {
-	if v == nil {
-		return nil
-	}
-
-	b, err := database.Scan(v)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	i, n := binary.Varint(b)
-
-	if n < 0 {
-		return errors.New("64 bit overflow")
-	}
-
-	(*e) = WebhookEvent(i)
-	return nil
 }
 
 func (u hookURL) Value() (driver.Value, error) { return strings.ToLower(u.String()), nil }
@@ -302,7 +208,7 @@ func (w *Webhook) IsZero() bool {
 		w.PayloadURL.URL == nil &&
 		w.Secret == nil &&
 		!w.SSL &&
-		w.Events == WebhookEvent(0) &&
+		w.Events == event.Type(0) &&
 		w.CreatedAt == time.Time{}
 }
 
@@ -318,9 +224,9 @@ func (w *Webhook) JSON(addr string) map[string]interface{} {
 		"url":          addr + w.Endpoint(),
 	}
 
-	events := make([]string, 0, len(WebhookEvents))
+	events := make([]string, 0, len(event.Types))
 
-	for _, ev := range WebhookEvents {
+	for _, ev := range event.Types {
 		if w.Events.Has(ev) {
 			events = append(events, ev.String())
 		}
@@ -392,7 +298,7 @@ func (s *WebhookStore) Bind(mm ...database.Model) {
 	}
 }
 
-func (s *WebhookStore) Create(authorId int64, payloadUrl *url.URL, secret string, ssl bool, events WebhookEvent, active bool) (*Webhook, error) {
+func (s *WebhookStore) Create(authorId int64, payloadUrl *url.URL, secret string, ssl bool, events event.Type, active bool) (*Webhook, error) {
 	var (
 		b   []byte
 		err error
@@ -422,7 +328,7 @@ func (s *WebhookStore) Create(authorId int64, payloadUrl *url.URL, secret string
 	return w, errors.Err(err)
 }
 
-func (s *WebhookStore) Update(id int64, payloadUrl *url.URL, secret string, ssl bool, events WebhookEvent, active bool) error {
+func (s *WebhookStore) Update(id int64, payloadUrl *url.URL, secret string, ssl bool, events event.Type, active bool) error {
 	var (
 		b   []byte
 		err error
@@ -593,7 +499,7 @@ func (s *WebhookStore) Get(opts ...query.Option) (*Webhook, error) {
 // createDelivery records the given webhook delivery in the database. derr
 // denotes any errors that occurred during delivery, such as the HTTP client
 // not being able to communicate with the remote server.
-func (s *WebhookStore) createDelivery(hookId int64, deliveryId string, req *http.Request, resp *http.Response, dur time.Duration, derr error) error {
+func (s *WebhookStore) createDelivery(hookId, deliveryId int64, req *http.Request, resp *http.Response, dur time.Duration, derr error) error {
 	var count int64
 
 	q := query.Select(
@@ -670,7 +576,7 @@ func (s *WebhookStore) createDelivery(hookId int64, deliveryId string, req *http
 	return errors.Err(err)
 }
 
-func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Reader) (*http.Request, *http.Response, time.Duration, error) {
+func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) (*http.Request, *http.Response, time.Duration, error) {
 	cli := http.Client{
 		Transport: http.DefaultTransport,
 		Timeout:   time.Minute,
@@ -726,7 +632,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Read
 			"Content-Length":     {strconv.FormatInt(int64(r.Size()), 10)},
 			"Content-Type":       {"application/json", "charset=utf-8"},
 			"User-Agent":         {"Djinn-CI-Hook"},
-			"X-Djinn-CI-Event":   {event.String()},
+			"X-Djinn-CI-Event":   {typ.String()},
 			"X-Djinn-CI-Hook-ID": {strconv.FormatInt(w.ID, 10)},
 		},
 		Body: io.NopCloser(r),
@@ -746,7 +652,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, event WebhookEvent, r *bytes.Read
 	return req, resp, time.Now().Sub(start), nil
 }
 
-func (s *WebhookStore) Redeliver(id int64, deliveryId string) error {
+func (s *WebhookStore) Redeliver(id, eventId int64) error {
 	w, err := s.Get(query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
@@ -766,7 +672,7 @@ func (s *WebhookStore) Redeliver(id int64, deliveryId string) error {
 		query.Columns("request_headers", "request_body"),
 		query.From(webhookDeliveryTable),
 		query.Where("webhook_id", "=", query.Arg(w.ID)),
-		query.Where("delivery_id", "=", query.Arg(deliveryId)),
+		query.Where("event_id", "=", query.Arg(eventId)),
 	)
 
 	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&headers, &body); err != nil {
@@ -779,30 +685,28 @@ func (s *WebhookStore) Redeliver(id int64, deliveryId string) error {
 	hdr := decodeHeaders(headers)
 	r := bytes.NewReader([]byte(body))
 
-	event := webhookEventsMap[hdr["X-Djinn-CI-Event"][0]]
+	event, _ := event.Lookup(hdr["X-Djinn-CI-Event"][0])
 
 	req, resp, dur, derr := s.realDeliver(w, event, r)
 	req.Body = io.NopCloser(strings.NewReader(body))
 
-	return s.createDelivery(w.ID, deliveryId, req, resp, dur, derr)
+	return s.createDelivery(w.ID, eventId, req, resp, dur, derr)
 }
 
-func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) error {
-	ww, err := s.All()
+func (s *WebhookStore) Dispatch(ev *event.Event) error {
+	if !ev.NamespaceID.Valid {
+		return nil
+	}
+
+	ww, err := s.All(query.Where("namespace_id", "=", query.Arg(ev.NamespaceID)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	ev, ok := webhookEventsMap[event]
-
-	if !ok {
-		return ErrUnknownEvent
-	}
-
 	var buf bytes.Buffer
 
-	json.NewEncoder(&buf).Encode(payload)
+	json.NewEncoder(&buf).Encode(ev.Data)
 
 	r := bytes.NewReader(buf.Bytes())
 
@@ -811,20 +715,17 @@ func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) err
 			continue
 		}
 
-		if !w.Events.Has(ev) {
+		if !w.Events.Has(ev.Type) {
 			continue
 		}
 
-		deliveryId := make([]byte, 16)
-		rand.Read(deliveryId)
-
-		req, resp, dur, derr := s.realDeliver(w, ev, r)
+		req, resp, dur, derr := s.realDeliver(w, ev.Type, r)
 
 		r.Seek(0, io.SeekStart)
 
 		req.Body = io.NopCloser(&buf)
 
-		if err := s.createDelivery(w.ID, hex.EncodeToString(deliveryId), req, resp, dur, derr); err != nil {
+		if err := s.createDelivery(w.ID, ev.ID, req, resp, dur, derr); err != nil {
 			return errors.Err(err)
 		}
 
@@ -834,6 +735,54 @@ func (s *WebhookStore) Deliver(event string, payload map[string]interface{}) err
 	}
 	return nil
 }
+
+//func (s *WebhookStore) Deliver(id int64, name string, payload map[string]interface{}) error {
+//	ww, err := s.All()
+//
+//	if err != nil {
+//		return errors.Err(err)
+//	}
+//
+//	ev, ok := event.Lookup(name)
+//
+//	if !ok {
+//		return event.ErrUnknown
+//	}
+//
+//	var buf bytes.Buffer
+//
+//	json.NewEncoder(&buf).Encode(payload)
+//
+//	r := bytes.NewReader(buf.Bytes())
+//
+//	for _, w := range ww {
+//		if !w.Active {
+//			continue
+//		}
+//
+//		if !w.Events.Has(ev) {
+//			continue
+//		}
+//
+//		deliveryId := make([]byte, 16)
+//		rand.Read(deliveryId)
+//
+//		req, resp, dur, derr := s.realDeliver(w, ev, r)
+//
+//		r.Seek(0, io.SeekStart)
+//
+//		req.Body = io.NopCloser(&buf)
+//
+//		if err := s.createDelivery(w.ID, hex.EncodeToString(deliveryId), req, resp, dur, derr); err != nil {
+//			return errors.Err(err)
+//		}
+//
+//		if resp != nil {
+//			resp.Body.Close()
+//		}
+//	}
+//	return nil
+//}
 
 func (s *WebhookStore) Delete(id int64) error {
 	q := query.Delete(webhookTable, query.Where("id", "=", query.Arg(id)))

@@ -8,13 +8,20 @@ import (
 	"os"
 	"strings"
 
+	"djinn-ci.com/build"
+	"djinn-ci.com/cron"
 	"djinn-ci.com/config"
 	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/image"
+	"djinn-ci.com/key"
+	"djinn-ci.com/namespace"
 	"djinn-ci.com/oauth2"
+	"djinn-ci.com/object"
 	"djinn-ci.com/queue"
 	"djinn-ci.com/server"
 	"djinn-ci.com/user"
+	"djinn-ci.com/variable"
 	"djinn-ci.com/version"
 	"djinn-ci.com/web"
 
@@ -24,6 +31,8 @@ import (
 	"github.com/gorilla/securecookie"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/mcmathja/curlyq"
 
 	buildrouter "djinn-ci.com/build/router"
 	cronrouter "djinn-ci.com/cron/router"
@@ -171,21 +180,43 @@ func Init(ctx context.Context, path string) (*server.Server, *config.Server, fun
 		webutil.Text(w, version.Build, http.StatusOK)
 	}).Methods("GET")
 
-	qerrh := func(err error) {
-		log.Error.Println("queue job failed:", err)
-	}
+	memq := queue.NewMemory(20, func(j queue.Job, err error) {
+		log.Error.Println("queue job failed:", j.Name(), err)
+	})
+
+	webhooks := namespace.NewWebhookStore(db)
+
+	memq.InitFunc("event:build.submitted", build.InitEvent(webhooks))
+	memq.InitFunc("event:build.started", build.InitEvent(webhooks))
+	memq.InitFunc("event:build.finished", build.InitEvent(webhooks))
+	memq.InitFunc("event:invite.accepted", namespace.InitInviteEvent(webhooks))
+	memq.InitFunc("event:invite.sent", namespace.InitInviteEvent(webhooks))
+	memq.InitFunc("event:cron", cron.InitEvent(webhooks))
+	memq.InitFunc("event:images", image.InitEvent(webhooks))
+	memq.InitFunc("event:objects", object.InitEvent(webhooks))
+	memq.InitFunc("event:variables", variable.InitEvent(webhooks))
+	memq.InitFunc("event:ssh_keys", key.InitEvent(webhooks))
+
+	prd := curlyq.NewProducer(&curlyq.ProducerOpts{
+		Client: redis,
+		Queue:  "image_downloads",
+	})
+
+	queues := queue.NewSet()
+	queues.Add("events", memq)
+	queues.Add("image_downloads", queue.NewCurlyQ(prd, nil))
 
 	h := web.Handler{
 		DB:           db,
 		Log:          log,
-		Queue:        queue.New(20, qerrh),
+		Queues:       queues,
 		Store:        cfg.SessionStore(),
 		SecureCookie: securecookie.New(cfg.Crypto.Hash, cfg.Crypto.Block),
 		Users:        user.NewStore(db),
 		Tokens:       oauth2.NewTokenStore(db),
 	}
 
-	go h.Queue.Run(ctx)
+	go memq.Consume(ctx)
 
 	h.SMTP.Client = smtp
 	h.SMTP.From = postmaster

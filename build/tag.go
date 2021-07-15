@@ -5,7 +5,10 @@ import (
 	"time"
 
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -25,6 +28,13 @@ type Tag struct {
 	Build *Build     `db:"-"`
 }
 
+type TagEvent struct {
+	dis event.Dispatcher
+
+	Build *Build
+	Tags  []*Tag
+}
+
 // TagStore is the type for creating and modifying Tag models in the database.
 type TagStore struct {
 	database.Store
@@ -37,6 +47,8 @@ var (
 	_ database.Model  = (*Tag)(nil)
 	_ database.Binder = (*TagStore)(nil)
 	_ database.Loader = (*TagStore)(nil)
+
+	_ queue.Job = (*Event)(nil)
 
 	tagTable = "build_tags"
 )
@@ -57,6 +69,34 @@ func TagModel(tt []*Tag) func(int) database.Model {
 	return func(i int) database.Model {
 		return tt[i]
 	}
+}
+
+func InitTagEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*TagEvent); ok {
+			ev.dis = dis
+		}
+	}
+}
+
+func (ev *TagEvent) Name() string { return "event:"+event.BuildTagged.String() }
+
+func (ev *TagEvent) Perform() error {
+	if ev.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	tt := make([]map[string]interface{}, 0, len(ev.Tags))
+
+	for _, t := range ev.Tags {
+		tt = append(tt, t.JSON(env.DJINN_API_SERVER))
+	}
+
+	payload := map[string]interface{}{
+		"url":  ev.Build.Endpoint("tags"),
+		"tags": tt,
+	}
+	return errors.Err(ev.dis.Dispatch(event.New(ev.Build.NamespaceID, event.BuildTagged, payload)))
 }
 
 // Bind implements the database.Binder interface. This will only bind the models

@@ -15,9 +15,12 @@ import (
 	"time"
 
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -45,6 +48,13 @@ type Object struct {
 	Namespace *namespace.Namespace `db:"-"`
 }
 
+type Event struct {
+	dis event.Dispatcher
+
+	Object *Object
+	Action string
+}
+
 // Store is the type for creating and modifying Object models in the database.
 // The Store type can have an underlying fs.Store implementation that is used
 // for storing the contents of an object.
@@ -70,6 +80,8 @@ var (
 	_ database.Model  = (*Object)(nil)
 	_ database.Binder = (*Store)(nil)
 	_ database.Loader = (*Store)(nil)
+
+	_ queue.Job = (*Event)(nil)
 
 	table     = "objects"
 	relations = map[string]database.RelationFunc{
@@ -117,6 +129,28 @@ func Model(oo []*Object) func(int) database.Model {
 	return func(i int) database.Model {
 		return oo[i]
 	}
+}
+
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
+		}
+	}
+}
+
+func (ev *Event) Name() string { return "event:"+event.Objects.String() }
+
+func (ev *Event) Perform() error {
+	if ev.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	payload := map[string]interface{}{
+		"object": ev.Object.JSON(env.DJINN_API_SERVER),
+		"action": ev.Action,
+	}
+	return errors.Err(ev.dis.Dispatch(event.New(ev.Object.NamespaceID, event.Objects, payload)))
 }
 
 // Bind implements the database.Binder interface. This will only bind the model

@@ -7,7 +7,6 @@ import (
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/manifest"
@@ -188,7 +187,9 @@ func (h Build) IndexWithRelations(r *http.Request) ([]*build.Build, database.Pag
 func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 	f := build.Form{}
 
-	u, ok := user.FromContext(r.Context())
+	ctx := r.Context()
+
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
 		return nil, f, errors.New("failed to get user from request context")
@@ -235,12 +236,8 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		if !b.NamespaceID.Valid {
-			return nil
-		}
-
-		return namespace.NewWebhookStore(h.DB, b.Namespace).Deliver("build_submitted", b.JSON(env.DJINN_API_SERVER))
+	h.Queues.Produce(ctx, "events", &build.Event{
+		Build: b,
 	})
 	return b, f, nil
 }

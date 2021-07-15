@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"djinn-ci.com/database"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/namespace"
@@ -139,15 +138,10 @@ func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user
 		return nil, nil, nil, errors.Err(err)
 	}
 
-	h.Queue.Enqueue(func() error {
-		v := map[string]interface{}{
-			"namespace": n.JSON(env.DJINN_API_SERVER),
-			"user":      invitee.JSON(env.DJINN_API_SERVER),
-		}
-
-		return namespace.NewWebhookStore(h.DB, n).Deliver("collaborator_joined", v)
+	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{
+		Namespace: n,
+		Invitee:   invitee,
 	})
-
 	return n, inviter, invitee, nil
 }
 

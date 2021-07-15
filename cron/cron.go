@@ -13,9 +13,12 @@ import (
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/manifest"
 	"djinn-ci.com/namespace"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -50,6 +53,13 @@ type Cron struct {
 	Namespace *namespace.Namespace `db:"-"`
 }
 
+type Event struct {
+	dis event.Dispatcher
+
+	Cron   *Cron
+	Action string
+}
+
 // Store is the type for creating, modifying, and deleting Cron models in the
 // database.
 type Store struct {
@@ -79,6 +89,8 @@ var (
 	_ database.Model  = (*Cron)(nil)
 	_ database.Binder = (*Store)(nil)
 	_ database.Loader = (*Store)(nil)
+
+	_ queue.Job = (*Event)(nil)
 
 	table     = "cron"
 	relations = map[string]database.RelationFunc{
@@ -123,6 +135,28 @@ func Model(cc []*Cron) func(int) database.Model {
 func LoadRelations(loaders *database.Loaders, cc ...*Cron) error {
 	mm := database.ModelSlice(len(cc), Model(cc))
 	return errors.Err(database.LoadRelations(relations, loaders, mm...))
+}
+
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
+		}
+	}
+}
+
+func (ev *Event) Name() string { return "event:"+event.Cron.String() }
+
+func (ev *Event) Perform() error {
+	if ev.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	payload := map[string]interface{}{
+		"cron":   ev.Cron.JSON(env.DJINN_API_SERVER),
+		"action": ev.Action,
+	}
+	return errors.Err(ev.dis.Dispatch(event.New(ev.Cron.NamespaceID, event.Cron, payload)))
 }
 
 // Bind implements the database.Binder interface. This will only bind the model

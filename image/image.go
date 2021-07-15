@@ -13,9 +13,12 @@ import (
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -37,6 +40,13 @@ type Image struct {
 	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
+}
+
+type Event struct {
+	dis event.Dispatcher
+
+	Image  *Image
+	Action string
 }
 
 // Store is the type for creating and modifying Image models in the
@@ -65,7 +75,10 @@ var (
 	_ database.Loader = (*Store)(nil)
 	_ database.Binder = (*Store)(nil)
 
-	table     = "images"
+	_ queue.Job = (*Event)(nil)
+
+	table = "images"
+
 	relations = map[string]database.RelationFunc{
 		"author":    database.Relation("author_id", "id"),
 		"user":      database.Relation("user_id", "id"),
@@ -111,6 +124,28 @@ func Model(ii []*Image) func(int) database.Model {
 	return func(i int) database.Model {
 		return ii[i]
 	}
+}
+
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
+		}
+	}
+}
+
+func (ev *Event) Name() string { return event.Images.String()+"_event" }
+
+func (ev *Event) Perform() error {
+	if ev.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	data := map[string]interface{}{
+		"image":  ev.Image.JSON(env.DJINN_API_SERVER),
+		"action": ev.Action,
+	}
+	return errors.Err(ev.dis.Dispatch(event.New(ev.Image.NamespaceID, event.Images, data)))
 }
 
 // Bind implements the database.Binder interface. This will only bind the model
@@ -220,20 +255,18 @@ func (s *Store) Bind(mm ...database.Model) {
 // underlying fs.Store. It is expected for the Store to have a fs.Store
 // set on it, otherwise it will error.
 func (s *Store) Create(authorId int64, hash, name string, t driver.Type, r io.Reader) (*Image, error) {
-	if s.blockStore == nil {
-		return nil, errors.New("nil block store")
-	}
+	if s.blockStore != nil && r != nil {
+		dst, err := s.blockStore.Create(filepath.Join(t.String(), hash))
 
-	dst, err := s.blockStore.Create(filepath.Join(t.String(), hash))
+		if err != nil {
+			return nil, errors.Err(err)
+		}
 
-	if err != nil {
-		return nil, errors.Err(err)
-	}
+		defer dst.Close()
 
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, r); err != nil {
-		return nil, errors.Err(err)
+		if _, err := io.Copy(dst, r); err != nil {
+			return nil, errors.Err(err)
+		}
 	}
 
 	i := s.New()
@@ -243,7 +276,7 @@ func (s *Store) Create(authorId int64, hash, name string, t driver.Type, r io.Re
 	i.Name = name
 	i.CreatedAt = time.Now()
 
-	err = s.Store.Create(table, i)
+	err := s.Store.Create(table, i)
 	return i, errors.Err(err)
 }
 

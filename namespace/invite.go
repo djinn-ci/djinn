@@ -7,7 +7,10 @@ import (
 	"time"
 
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -26,6 +29,77 @@ type Invite struct {
 	Inviter   *user.User `db:"-"`
 	Invitee   *user.User `db:"-"`
 	Namespace *Namespace `db:"-"`
+}
+
+type InviteEvent struct {
+	dis event.Dispatcher
+
+	Namespace *Namespace
+	Invitee   *user.User
+	Inviter   *user.User
+}
+
+func InitInviteEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*InviteEvent); ok {
+			ev.dis = dis
+		}
+	}
+}
+
+func (ev *InviteEvent) Name() string {
+	if ev.Invitee != nil {
+		return "event:"+event.InviteSent.String()
+	}
+	if ev.Inviter != nil {
+		return "event:"+event.InviteAccepted.String()
+	}
+	return "event:invite"
+}
+
+func (ev *InviteEvent) Perform() error {
+	if ev.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	var (
+		typ event.Type
+		u   *user.User
+	)
+
+	if ev.Inviter != nil {
+		typ = event.InviteAccepted
+		u = ev.Inviter
+	}
+
+	if ev.Invitee != nil {
+		if typ != 0 {
+			return errors.New("invalid invite event")
+		}
+		typ = event.InviteSent
+		u = ev.Invitee
+	}
+
+	if typ == 0 {
+		return errors.New("invalid invite event")
+	}
+
+	fields := map[event.Type]string{
+		event.InviteAccepted: "inviter",
+		event.InviteSent:     "invitee",
+	}
+
+	data := map[string]interface{}{
+		"namespace": ev.Namespace.JSON(env.DJINN_API_SERVER),
+		fields[typ]: u,
+	}
+
+	namespaceId := sql.NullInt64{
+		Int64: ev.Namespace.ID,
+		Valid: true,
+	}
+
+	return errors.Err(ev.dis.Dispatch(event.New(namespaceId, typ, data)))
 }
 
 // InviteStore is the type for creating and mofiying Invite models in the
@@ -48,6 +122,8 @@ type InviteStore struct {
 var (
 	_ database.Model  = (*Invite)(nil)
 	_ database.Binder = (*InviteStore)(nil)
+
+	_ queue.Job = (*InviteEvent)(nil)
 
 	inviteTable     = "namespace_invites"
 	inviteRelations = map[string]database.RelationFunc{

@@ -1074,7 +1074,7 @@ func (h WebhookUI) Redeliver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := store.Redeliver(wh.ID, del.DeliveryID); err != nil {
+	if err := store.Redeliver(wh.ID, del.EventID); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Alert{
 			Level:   template.Danger,

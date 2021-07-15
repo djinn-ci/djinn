@@ -7,9 +7,9 @@ import (
 	"time"
 )
 
-func errh(t *testing.T) func(error) {
-	return func(err error) {
-		t.Error(t)
+func errh(t *testing.T) func(Job, error) {
+	return func(j Job, err error) {
+		t.Error(j.Name(), t)
 	}
 }
 

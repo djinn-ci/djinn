@@ -14,7 +14,6 @@ import (
 	"djinn-ci.com/build"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/driver"
-	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
@@ -193,17 +192,10 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	w.Queue.Enqueue(func() error {
-		if !b.NamespaceID.Valid {
-			return nil
-		}
+	b.Status = runner.Running
 
-		n, err := namespace.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-		return namespace.NewWebhookStore(w.DB, n).Deliver("build_started", b.JSON(env.DJINN_API_SERVER))
+	w.Queue.Produce(ctx, &build.Event{
+		Build: b,
 	})
 
 	status, err := run.Run(ctx, job.ID, d)
@@ -213,17 +205,10 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	w.Queue.Enqueue(func() error {
-		if !b.NamespaceID.Valid {
-			return nil
-		}
+	b.Status = status
 
-		n, err := namespace.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
-
-		if err != nil {
-			return errors.Err(err)
-		}
-		return namespace.NewWebhookStore(w.DB, n).Deliver("build_finished", b.JSON(env.DJINN_API_SERVER))
+	w.Queue.Produce(ctx, &build.Event{
+		Build: b,
 	})
 
 	if t.Type == build.Pull {

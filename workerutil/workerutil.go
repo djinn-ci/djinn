@@ -90,9 +90,13 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 		return nil, cfg, nil, errors.Err(err)
 	}
 
-	qerrh := func(err error) {
-		log.Error.Println("queue job failed:", err)
-	}
+	webhooks := namespace.NewWebhookStore(db)
+
+	memq := queue.NewMemory(20, func(j queue.Job, err error) {
+		log.Error.Println("queue job failed:", j.Name(), err)
+	})
+	memq.InitFunc("event:build.started", build.InitEvent(webhooks))
+	memq.InitFunc("event:build.finished", build.InitEvent(webhooks))
 
 	return &worker.Worker{
 		DB:        db,
@@ -102,7 +106,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 		Block:     cfg.BlockCipher(),
 		Log:       log,
 		Consumer:  cfg.Consumer(),
-		Queue:     queue.NewMemory(20, qerrh),
+		Queue:     memq,
 		Timeout:   cfg.Timeout(),
 		Driver:    driverName,
 		Init:      driverInit,
@@ -114,7 +118,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 }
 
 func Start(ctx context.Context, w *worker.Worker) {
-	go w.Queue.Run(ctx)
+	go w.Queue.Consume(ctx)
 
 	go func() {
 		if err := w.Run(ctx); err != nil {

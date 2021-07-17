@@ -5,7 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 
+	"djinn-ci.com/config"
+	"djinn-ci.com/image"
 	"djinn-ci.com/queue"
 )
 
@@ -27,15 +30,37 @@ func main() {
 
 	defer f.Close()
 
+	cfg, err := config.DecodeConsumer(f.Name(), f)
+
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		os.Exit(1)
+	}
+
+	if pidfile := cfg.Pidfile(); pidfile != nil {
+		defer os.RemoveAll(pidfile.Name())
+	}
+
+	log := cfg.Log()
+
+	store, ok := cfg.Store("images")
+
+	if !ok {
+		fmt.Fprintf(os.Stderr, "%s: image store not defined\n", os.Args[0])
+		os.Exit(1)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	q := queue.NewCurlyQ(nil, con)
-	q.InitFunc("download_job", image.DownloadJobInit(db, store))
+	q := queue.NewCurlyQ(nil, cfg.Consumer())
+	q.InitFunc("download_job", image.DownloadJobInit(cfg.DB(), store))
 
 	go func() {
+		log.Info.Println("consuming jobs from", cfg.QueueName())
+
 		if err := q.Consume(ctx); err != nil {
-			// log error
+			log.Error.Println(err)
 		}
 	}()
 
@@ -44,6 +69,7 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 
 	sig := <-c
+	log.Info.Println("signal:", sig, "received, shutting down")
 
 	cancel()
 }

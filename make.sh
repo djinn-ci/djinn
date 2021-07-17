@@ -118,6 +118,10 @@ help_() {
 			printf "compile the offline runner\n"
 			printf "usage: make.sh runner\n"
 			;;
+		consumer)
+			printf "compile the consumer\n"
+			printf "usage: make.sh consumer\n"
+			;;
 		server)
 			printf "compile the server\n"
 			printf "usage: make.sh server\n"
@@ -163,6 +167,9 @@ case "$1" in
 		;;
 	runner)
 		build djinn
+		;;
+	consumer)
+		build djinn-consumer
 		;;
 	server)
 		build djinn-server

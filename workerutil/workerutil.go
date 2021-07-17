@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 
+	"djinn-ci.com/build"
 	"djinn-ci.com/config"
 	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/namespace"
 	"djinn-ci.com/queue"
 	"djinn-ci.com/worker"
 )

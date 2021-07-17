@@ -6,20 +6,29 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"runtime"
 
 	"djinn-ci.com/config"
 	"djinn-ci.com/image"
 	"djinn-ci.com/queue"
+	"djinn-ci.com/version"
 )
 
 func main() {
 	var (
-		cfgfile string
+		cfgfile     string
+		showversion bool
 	)
 
 	fs := flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	fs.StringVar(&cfgfile, "config", "djinn-consumer.conf", "the config file to use")
+	fs.BoolVar(&showversion, "version", false, "show the version and exit")
 	fs.Parse(os.Args[1:])
+
+	if showversion {
+		fmt.Printf("%s %s %s/%s\n", os.Args[0], version.Build, runtime.GOOS, runtime.GOARCH)
+		return
+	}
 
 	f, err := os.Open(cfgfile)
 

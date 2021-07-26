@@ -7,6 +7,7 @@ import (
 	"regexp"
 
 	"djinn-ci.com/errors"
+	"djinn-ci.com/database"
 	"djinn-ci.com/image"
 	imagetemplate "djinn-ci.com/image/template"
 	"djinn-ci.com/namespace"
@@ -14,6 +15,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
@@ -42,6 +44,32 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
+	}
+
+	itab := make(map[int64]*image.Image)
+
+	for _, i := range ii {
+		itab[i.ID] = i
+	}
+
+	ids := make([]int64, 0, len(ii))
+
+	for _, i := range ii {
+		ids = append(ids, i.ID)
+	}
+
+	dd, err := image.NewDownloadStore(h.DB).All(query.Where("image_id", "IN", database.List(ids)))
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+
+	for _, d := range dd {
+		i := itab[d.ID]
+		i.Download = d
+		itab[d.ID] = i
 	}
 
 	csrf := csrf.TemplateField(r)

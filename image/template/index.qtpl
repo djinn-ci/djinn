@@ -36,8 +36,10 @@ type Index struct {
 				<table class="table">
 					<thead>
 						<tr>
+							<th></th>
 							<th>NAME</th>
 							<th>NAMESPACE</th>
+							<th>SOURCE</th>
 							<th></th>
 							<th></th>
 							<th></th>
@@ -46,10 +48,22 @@ type Index struct {
 					<tbody>
 						{% for _, i := range p.Images %}
 							<tr>
+								<td>
+									{% if i.Download != nil && i.Download.StartedAt.Valid && !i.Download.FinishedAt.Valid %}
+										<span class="muted">{% cat "../../static/svg/download.svg" %}</span>
+									{% endif %}
+								</td>
 								<td>{%s i.Name %}</td>
 								<td>
 									{% if i.Namespace != nil %}
 										<a href="{%s i.Namespace.Endpoint() %}">{%s i.Namespace.Path %}</a>
+									{% else %}
+										<span class="muted">--</span>
+									{% endif %}
+								</td>
+								<td>
+									{% if i.Download != nil %}
+										{%s i.Download.Source.String()  %}
 									{% else %}
 										<span class="muted">--</span>
 									{% endif %}

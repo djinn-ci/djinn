@@ -39,6 +39,7 @@ type Image struct {
 
 	Author    *user.User           `db:"-"`
 	User      *user.User           `db:"-"`
+	Download  *Download            `db:"-"`
 	Namespace *namespace.Namespace `db:"-"`
 }
 
@@ -199,6 +200,27 @@ func (i *Image) JSON(addr string) map[string]interface{} {
 
 	if i.NamespaceID.Valid {
 		json["namespace_id"] = i.NamespaceID.Int64
+	}
+
+	if i.Download != nil {
+		download := map[string]interface{}{
+			"source":      i.Download.Source.String(),
+			"error":       nil,
+			"created_at":  i.Download.CreatedAt.Format(time.RFC3339),
+			"started_at":  nil,
+			"finished_at": nil,
+		}
+
+		if i.Download.Error.Valid {
+			download["error"] = i.Download.Error.String
+		}
+		if i.Download.StartedAt.Valid {
+			download["started_at"] = i.Download.StartedAt.Time.Format(time.RFC3339)
+		}
+		if i.Download.FinishedAt.Valid {
+			download["finished_at"] = i.Download.FinishedAt.Time.Format(time.RFC3339)
+		}
+		json["download"] = download
 	}
 
 	for name, m := range map[string]database.Model{

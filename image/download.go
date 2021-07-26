@@ -14,6 +14,7 @@ import (
 	"djinn-ci.com/fs"
 	"djinn-ci.com/database"
 	"djinn-ci.com/queue"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 
@@ -32,18 +33,30 @@ type downloadJob struct {
 type Download struct {
 	ID         int64          `db:"id"`
 	ImageID    int64          `db:"image_id"`
-	URL        DownloadURL    `db:"url"`
+	Source     DownloadURL    `db:"source"`
 	Error      sql.NullString `db:"error"`
 	CreatedAt  time.Time      `db:"created_at"`
 	StartedAt  sql.NullTime   `db:"started_at"`
 	FinishedAt sql.NullTime   `db:"finished_at"`
+
+	User  *user.User `db:"-"`
+	Image *Image     `db:"-"`
 }
 
 type DownloadURL struct {
 	*url.URL
 }
 
+type DownloadStore struct {
+	database.Store
+
+	User  *user.User
+	Image *Image
+}
+
 var (
+	_ database.Binder = (*DownloadStore)(nil)
+
 	_ sql.Scanner   = (*DownloadURL)(nil)
 	_ driver.Valuer = (*DownloadURL)(nil)
 
@@ -66,8 +79,8 @@ var (
 func NewDownloadJob(db *sqlx.DB, i *Image, url DownloadURL) (queue.Job, error) {
 	q := query.Insert(
 		downloadTable,
-		query.Columns("image_id", "url", "created_at"),
-		query.Values(i.ID, url.Redacted(), time.Now()),
+		query.Columns("image_id", "source", "created_at"),
+		query.Values(i.ID, url, time.Now()),
 		query.Returning("id"),
 	)
 
@@ -76,12 +89,60 @@ func NewDownloadJob(db *sqlx.DB, i *Image, url DownloadURL) (queue.Job, error) {
 	if err := db.QueryRow(q.Build(), q.Args()).Scan(&id); err != nil {
 		return nil, errors.Err(err)
 	}
-
 	return &downloadJob{
 		image: i,
 		url:   url,
 		id:    id,
 	}, nil
+}
+
+func NewDownloadStore(db *sqlx.DB, mm ...database.Model) *DownloadStore {
+	s := &DownloadStore{
+		Store: database.Store{DB: db},
+	}
+	s.Bind(mm...)
+	return s
+}
+
+func (s *DownloadStore) Bind(mm ...database.Model) {
+	for _, m := range mm {
+		switch v := m.(type) {
+		case *user.User:
+			s.User = v
+		case *Image:
+			s.Image = v
+		}
+	}
+}
+
+func (s *DownloadStore) All(opts ...query.Option) ([]*Download, error) {
+	dd := make([]*Download, 0)
+
+	opts = append([]query.Option{
+		database.Where(s.Image, "image_id"),
+	}, opts...)
+
+	if s.User != nil {
+		opts = append([]query.Option{
+			query.Where("image_id", "IN", query.Select(
+				query.Columns("id"),
+				query.From(table),
+				query.Where("user_id", "=", query.Arg(s.User.ID)),
+			)),
+		}, opts...)
+	}
+
+	err := s.Store.All(&dd, downloadTable, opts...)
+
+	if err == sql.ErrNoRows {
+		err = nil
+	}
+
+	for _, d := range dd {
+		d.User = s.User
+		d.Image = s.Image
+	}
+	return dd, errors.Err(err)
 }
 
 // DownloadJobInit returns a callback for initializing a download job with the
@@ -214,4 +275,4 @@ func (u *DownloadURL) Validate() error {
 	return nil
 }
 
-func (u DownloadURL) Value() (driver.Value, error) { return strings.ToLower(u.String()), nil }
+func (u DownloadURL) Value() (driver.Value, error) { return strings.ToLower(u.Redacted()), nil }

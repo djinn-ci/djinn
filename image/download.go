@@ -69,7 +69,7 @@ var (
 		"sftp":  {},
 	}
 
-	qemuMimeType = "application/x-qemu-disk"
+	MimeTypeQEMU = "application/x-qemu-disk"
 
 	ErrInvalidScheme = errors.New("invalid url scheme")
 )
@@ -214,8 +214,8 @@ func (d *downloadJob) Perform() error {
 
 		defer resp.Body.Close()
 
-		if resp.Header.Get("Content-Type") != qemuMimeType {
-			downloaderr.String = "unexpected Content-Type, expected "+qemuMimeType
+		if resp.Header.Get("Content-Type") != MimeTypeQEMU {
+			downloaderr.String = "unexpected Content-Type, expected "+MimeTypeQEMU
 			downloaderr.Valid = true
 			break
 		}

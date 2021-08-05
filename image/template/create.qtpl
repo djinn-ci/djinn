@@ -29,6 +29,11 @@ type Create struct {
 				<input class="form-text" type="text" id="name" name="name" value="{%s p.Fields["name"] %}" autocomplete="off"/>
 				{%= p.Error("name") %}
 			</div>
+			<div class="form-field">
+				<label class="label" for="download_url">Download URL</label>
+				<input class="form-text" type="text" id="download_url" name="download_url" value="{%s p.Fields["download_url"] %} autocomplete="off"/>
+				{%= p.Error("download_url") %}
+			</div>
 			{%= template.FileInput(p.Form) %}
 			<div class="form-field">
 				<button type="submit" class="btn btn-primary">Create</button>

@@ -123,6 +123,8 @@ func DecodeConsumer(name string, r io.Reader) (*Consumer, error) {
 		JobMaxAttempts:       cfg0.Attempts,
 	})
 
+	cfg.stores = make(map[string]fs.Store)
+
 	for name, storecfg := range cfg0.Stores {
 		if _, ok := blockstores[storecfg.Type]; !ok {
 			return nil, errors.New("unknown store type: "+storecfg.Type)

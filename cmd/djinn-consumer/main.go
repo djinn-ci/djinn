@@ -9,10 +9,15 @@ import (
 	"runtime"
 
 	"djinn-ci.com/config"
+	"djinn-ci.com/errors"
 	"djinn-ci.com/image"
 	"djinn-ci.com/queue"
 	"djinn-ci.com/version"
 )
+
+var validqueues = map[string]struct{}{
+	"image_downloads": {},
+}
 
 func main() {
 	var (
@@ -42,7 +47,20 @@ func main() {
 	cfg, err := config.DecodeConsumer(f.Name(), f)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
+		os.Exit(1)
+	}
+
+	qname := cfg.QueueName()
+
+	if _, ok := validqueues[qname]; !ok {
+		valid := make([]string, 0, len(validqueues))
+
+		for qname := range validqueues {
+			valid = append(valid, qname)
+		}
+
+		fmt.Fprintf(os.Stderr, "%s: invalid queue to consume from, must be one of: %v\n", os.Args[0], valid)
 		os.Exit(1)
 	}
 
@@ -66,7 +84,7 @@ func main() {
 	q.InitFunc("download_job", image.DownloadJobInit(cfg.DB(), store))
 
 	go func() {
-		log.Info.Println("consuming jobs from", cfg.QueueName())
+		log.Info.Println("consuming jobs from", qname)
 
 		if err := q.Consume(ctx); err != nil {
 			log.Error.Println(err)

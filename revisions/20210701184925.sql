@@ -14,3 +14,6 @@ CREATE TABLE image_downloads (
 	started_at  TIMESTAMP NULL,
 	finished_at TIMESTAMP NULL
 );
+
+GRANT SELECT ON image_downloads TO djinn_server;
+GRANT SELECT, INSERT, UPDATE ON image_downloads TO djinn_consumer;

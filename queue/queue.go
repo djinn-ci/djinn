@@ -167,7 +167,7 @@ func (r *InitRegistry) Get(name string) (InitFunc, bool) {
 // the given name has already been set.
 func (s *Set) Add(name string, q Queue) {
 	s.mu.Lock()
-	defer s.mu.RUnlock()
+	defer s.mu.Unlock()
 
 	if _, ok := s.queues[name]; ok {
 		panic("queue: queue with name "+name+" already in set")

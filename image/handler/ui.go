@@ -52,13 +52,13 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 		itab[i.ID] = i
 	}
 
-	ids := make([]int64, 0, len(ii))
+	ids := make([]interface{}, 0, len(ii))
 
 	for _, i := range ii {
 		ids = append(ids, i.ID)
 	}
 
-	dd, err := image.NewDownloadStore(h.DB).All(query.Where("image_id", "IN", database.List(ids)))
+	dd, err := image.NewDownloadStore(h.DB, u).All(query.Where("image_id", "IN", database.List(ids...)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

@@ -1,12 +1,16 @@
 package image
 
 import (
+	"bytes"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/base64"
+	"io"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -19,6 +23,10 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/jmoiron/sqlx"
+
+	"github.com/pkg/sftp"
+
+	"golang.org/x/crypto/ssh"
 )
 
 type downloadJob struct {
@@ -178,6 +186,14 @@ func (d *downloadJob) Perform() error {
 		downloaderr sql.NullString
 	)
 
+	i, err := NewStore(d.db).Get(query.Where("id", "=", query.Arg(d.id)))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	var r io.Reader
+
 	switch d.url.Scheme {
 	case "https":
 		pool, err := x509.SystemCertPool()
@@ -204,6 +220,12 @@ func (d *downloadJob) Perform() error {
 			URL:    d.url.URL,
 		}
 
+		if d.url.User != nil {
+			auth := []byte(d.url.User.String())
+
+			req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString(auth))
+		}
+
 		resp, err := cli.Do(req)
 
 		if err != nil {
@@ -219,22 +241,106 @@ func (d *downloadJob) Perform() error {
 			downloaderr.Valid = true
 			break
 		}
-
-
-		break
+		r = resp.Body
 	case "sftp":
-		break
+		timeout := time.Minute
+
+		if dur := d.url.Query().Get("timeout"); dur != "" {
+			dur, err := time.ParseDuration(dur)
+
+			if err == nil {
+				timeout = dur
+			}
+		}
+
+		password, _ := d.url.User.Password()
+
+		cfg := &ssh.ClientConfig{
+			User: d.url.User.Username(),
+			Auth: []ssh.AuthMethod{
+				ssh.Password(password),
+			},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+			Timeout:         timeout,
+		}
+
+		sshcli, err := ssh.Dial("tcp", d.url.Host, cfg)
+
+		if err != nil {
+			downloaderr.String = err.Error()
+			downloaderr.Valid = true
+			break
+		}
+
+		defer sshcli.Close()
+
+		cli, err := sftp.NewClient(sshcli)
+
+		if err != nil {
+			downloaderr.String = err.Error()
+			downloaderr.Valid = true
+			break
+		}
+
+		defer cli.Close()
+
+		f, err := cli.Open(d.url.Path)
+
+		if err != nil {
+			downloaderr.String = err.Error()
+			downloaderr.Valid = true
+			break
+		}
+
+		defer f.Close()
+
+		buf := make([]byte, 0, 4)
+
+		if _, err := f.Read(buf); err != nil {
+			downloaderr.String = err.Error()
+			downloaderr.Valid = true
+			break
+		}
+
+		if !bytes.Equal(buf, qcow) {
+			downloaderr.String = "not a valid qcow2"
+			downloaderr.Valid = true
+			break
+		}
+
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			downloaderr.String = err.Error()
+			downloaderr.Valid = true
+			break
+		}
+		r = f
 	default:
 		return ErrInvalidScheme
 	}
 
+	if r != nil {
+		dst, err := d.store.Create(filepath.Join(i.Driver.String(), i.Hash))
+
+		if err != nil {
+			downloaderr.String = errors.Cause(err).Error()
+			downloaderr.Valid = true
+			goto update
+		}
+
+		if _, err := io.Copy(dst, r); err != nil {
+			downloaderr.String = errors.Cause(err).Error()
+			downloaderr.Valid = true
+		}
+	}
+
+update:
 	q = query.Update(
 		downloadTable,
 		query.Set("error", query.Arg(downloaderr)),
 		query.Set("finished_at", query.Arg(time.Now())),
 	)
 
-	_, err := d.db.Exec(q.Build(), q.Args()...)
+	_, err = d.db.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
 }
 

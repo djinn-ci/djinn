@@ -82,7 +82,7 @@ func (p *Create) StreamBody(qw422016 *qt422016.Writer) {
 //line image/template/create.qtpl:34
 	qw422016.E().S(p.Fields["download_url"])
 //line image/template/create.qtpl:34
-	qw422016.N().S(` autocomplete="off"/> `)
+	qw422016.N().S(`" autocomplete="off"/> `)
 //line image/template/create.qtpl:35
 	p.StreamError(qw422016, "download_url")
 //line image/template/create.qtpl:35

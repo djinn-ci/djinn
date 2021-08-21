@@ -31,7 +31,7 @@ type Create struct {
 			</div>
 			<div class="form-field">
 				<label class="label" for="download_url">Download URL</label>
-				<input class="form-text" type="text" id="download_url" name="download_url" value="{%s p.Fields["download_url"] %} autocomplete="off"/>
+				<input class="form-text" type="text" id="download_url" name="download_url" value="{%s p.Fields["download_url"] %}" autocomplete="off"/>
 				{%= p.Error("download_url") %}
 			</div>
 			{%= template.FileInput(p.Form) %}

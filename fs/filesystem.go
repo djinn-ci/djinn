@@ -156,11 +156,17 @@ func (fs *Filesystem) Create(name string) (Record, error) {
 		return nil, errors.Err(err)
 	}
 
-	if _, err := os.Stat(fs.realpath(name)); err == nil {
+	fname := fs.realpath(name)
+
+	if err := os.MkdirAll(filepath.Dir(fname), os.FileMode(0750)); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if _, err := os.Stat(fname); err == nil {
 		return nil, ErrRecordExists
 	}
 
-	f, err := os.Create(fs.realpath(name))
+	f, err := os.Create(fname)
 
 	if err != nil {
 		return nil, errors.Err(err)

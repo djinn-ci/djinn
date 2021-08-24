@@ -116,7 +116,7 @@ func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 	return s
 }
 
-func (ev *Event) Name() string { return "event:"+event.Variables.String() }
+func (ev *Event) Name() string { return "event:" + event.Variables.String() }
 
 func (ev *Event) Perform() error {
 	if ev.dis == nil {

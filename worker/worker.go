@@ -62,8 +62,8 @@ type Worker struct {
 
 	Queue queue.Queue // Queue for dispatching webhooks.
 
-	Driver      string        // Driver is the name of the driver the worker is configured for.
-	Timeout     time.Duration // Timeout is the maximum duration a build can run for.
+	Driver  string        // Driver is the name of the driver the worker is configured for.
+	Timeout time.Duration // Timeout is the maximum duration a build can run for.
 
 	Init   driver.Init   // Init is the initialization function for the worker's driver.
 	Config driver.Config // Config is the global configuration for the worker's driver.

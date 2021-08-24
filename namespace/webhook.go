@@ -348,7 +348,7 @@ func (s *WebhookStore) Update(id int64, payloadUrl *url.URL, secret string, ssl 
 
 	q := query.Update(
 		webhookTable,
-		query.Set("payload_url", query.Arg(hookURL{URL:payloadUrl})),
+		query.Set("payload_url", query.Arg(hookURL{URL: payloadUrl})),
 		query.Set("secret", query.Arg(b)),
 		query.Set("ssl", query.Arg(ssl)),
 		query.Set("events", query.Arg(events)),
@@ -395,7 +395,7 @@ func (s *WebhookStore) Delivery(hookId, id int64) (*WebhookDelivery, error) {
 		err = nil
 	}
 
-	d.ResponseStatus = strconv.FormatInt(int64(d.ResponseCode), 10) + " " +http.StatusText(d.ResponseCode)
+	d.ResponseStatus = strconv.FormatInt(int64(d.ResponseCode), 10) + " " + http.StatusText(d.ResponseCode)
 	return d, errors.Err(err)
 }
 

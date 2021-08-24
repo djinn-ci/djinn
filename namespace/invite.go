@@ -49,10 +49,10 @@ func InitInviteEvent(dis event.Dispatcher) queue.InitFunc {
 
 func (ev *InviteEvent) Name() string {
 	if ev.Invitee != nil {
-		return "event:"+event.InviteSent.String()
+		return "event:" + event.InviteSent.String()
 	}
 	if ev.Inviter != nil {
-		return "event:"+event.InviteAccepted.String()
+		return "event:" + event.InviteAccepted.String()
 	}
 	return "event:invite"
 }

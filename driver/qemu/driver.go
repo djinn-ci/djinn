@@ -116,7 +116,7 @@ func (cfg *Config) Apply(d runner.Driver) {
 	v.Memory = cfg.Memory
 	v.Image = cfg.Image
 	v.Realpath = func(arch, image string) (string, error) {
-		path := filepath.Join(cfg.Disks, arch, filepath.Join(strings.Split(image, "/")...))
+		path := filepath.Join(cfg.Disks, "qemu", arch, filepath.Join(strings.Split(image, "/")...))
 
 		info, err := os.Stat(path)
 

@@ -119,7 +119,7 @@ func main() {
 		commands := []string{"git clone " + src.URL + " " + src.Dir}
 
 		if src.Ref != "" {
-			commands = append(commands, "cd " + src.Dir, "git checkout -q "+src.Ref)
+			commands = append(commands, "cd "+src.Dir, "git checkout -q "+src.Ref)
 		}
 
 		if src.Dir != "" {

@@ -15,8 +15,8 @@ import (
 	"djinn-ci.com/errors"
 	"djinn-ci.com/event"
 	"djinn-ci.com/namespace"
-	"djinn-ci.com/user"
 	"djinn-ci.com/queue"
+	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 
@@ -132,7 +132,7 @@ func InitEvent(dis event.Dispatcher) queue.InitFunc {
 	}
 }
 
-func (ev *Event) Name() string { return "event:"+event.Images.String() }
+func (ev *Event) Name() string { return "event:" + event.Images.String() }
 
 func (ev *Event) Perform() error {
 	if ev.dis == nil {

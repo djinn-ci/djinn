@@ -6,9 +6,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
+	"runtime/debug"
 	"sync"
 
 	"djinn-ci.com/errors"
+	"djinn-ci.com/log"
 
 	"github.com/mcmathja/curlyq"
 )
@@ -58,6 +60,7 @@ type Queue interface {
 // Producer/Consumer framework.
 type CurlyQ struct {
 	reg *InitRegistry
+	log *log.Logger
 	prd *curlyq.Producer
 	con *curlyq.Consumer
 }
@@ -102,9 +105,10 @@ var (
 //    q := queue.NewCurlyQ(prd, nil)
 //
 // or to have it act as both, then you would pass two non-nil pointers.
-func NewCurlyQ(prd *curlyq.Producer, con *curlyq.Consumer) *CurlyQ {
+func NewCurlyQ(log *log.Logger, prd *curlyq.Producer, con *curlyq.Consumer) *CurlyQ {
 	return &CurlyQ{
 		reg: NewInitRegistry(),
+		log: log,
 		prd: prd,
 		con: con,
 	}
@@ -148,7 +152,7 @@ func (r *InitRegistry) Register(name string, fn InitFunc) {
 	defer r.mu.Unlock()
 
 	if _, ok := r.fns[name]; ok {
-		panic("queue: init function already registered for job: "+name)
+		panic("queue: init function already registered for job: " + name)
 	}
 	r.fns[name] = fn
 }
@@ -170,7 +174,7 @@ func (s *Set) Add(name string, q Queue) {
 	defer s.mu.Unlock()
 
 	if _, ok := s.queues[name]; ok {
-		panic("queue: queue with name "+name+" already in set")
+		panic("queue: queue with name " + name + " already in set")
 	}
 	s.queues[name] = q
 }
@@ -301,6 +305,15 @@ func (c *CurlyQ) Produce(ctx context.Context, j Job) (string, error) {
 }
 
 func (c *CurlyQ) handler(ctx context.Context, j0 curlyq.Job) error {
+	defer func() {
+		if v := recover(); v != nil {
+			if err, ok := v.(error); ok {
+				c.log.Error.Println(err.Error())
+			}
+			c.log.Error.Println(string(debug.Stack()))
+		}
+	}()
+
 	if err := ctx.Err(); err != nil {
 		return errors.Err(err)
 	}

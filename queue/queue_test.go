@@ -41,9 +41,9 @@ func Test_Queue(t *testing.T) {
 	defer cancel()
 
 	mem := NewMemory(4, errh(t))
-	mem.Produce(ctx, Sleep{time.Second*1})
-	mem.Produce(ctx, Sleep{time.Second*2})
-	mem.Produce(ctx, Sleep{time.Second*3})
+	mem.Produce(ctx, Sleep{time.Second * 1})
+	mem.Produce(ctx, Sleep{time.Second * 2})
+	mem.Produce(ctx, Sleep{time.Second * 3})
 	mem.Produce(ctx, Cancel{cancel})
 
 	mem.Consume(ctx)

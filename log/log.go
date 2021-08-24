@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"strings"
+
+	"github.com/mcmathja/curlyq"
 )
 
 type level uint8
@@ -21,6 +23,12 @@ type Logger struct {
 	Error state
 }
 
+// Queue is a logger that can be given to CurlyQ for logging information about
+// the jobs being processed.
+type Queue struct {
+	*Logger
+}
+
 type state struct {
 	logger *log.Logger
 	level  level
@@ -35,12 +43,16 @@ const (
 	err                // ERROR
 )
 
-var levels = map[string]level{
-	"debug": debug,
-	"info":  info,
-	"warn":  warn,
-	"error": err,
-}
+var (
+	_ curlyq.Logger = (*Queue)(nil)
+
+	levels = map[string]level{
+		"debug": debug,
+		"info":  info,
+		"warn":  warn,
+		"error": err,
+	}
+)
 
 // New returns a new Logger that will write to the given io.Writer. This will
 // use the stdlib's logger with the log.Ldate, log.Ltime, and log.LUTC flags
@@ -97,6 +109,11 @@ func (l *Logger) SetWriter(w io.WriteCloser) {
 }
 
 func (l *Logger) Close() error { return l.closer.Close() }
+
+func (q Queue) Debug(v ...interface{}) { q.Logger.Debug.Println(v...) }
+func (q Queue) Info(v ...interface{})  { q.Logger.Info.Println(v...) }
+func (q Queue) Warn(v ...interface{})  { q.Logger.Warn.Println(v...) }
+func (q Queue) Error(v ...interface{}) { q.Logger.Error.Println(v...) }
 
 func (s *state) Printf(format string, v ...interface{}) {
 	if s.actual < s.level {

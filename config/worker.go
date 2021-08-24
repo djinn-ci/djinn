@@ -23,10 +23,6 @@ import (
 	"github.com/mcmathja/curlyq"
 )
 
-type workerLogger struct {
-	log *log.Logger
-}
-
 type workerCfg struct {
 	Pidfile     string
 	Parallelism int
@@ -70,8 +66,6 @@ type Worker struct {
 
 	providers *provider.Registry
 }
-
-var _ curlyq.Logger = (*workerLogger)(nil)
 
 func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 	errh := func(name string, line, col int, msg string) {
@@ -158,7 +152,9 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 	cfg.consumer = curlyq.NewConsumer(&curlyq.ConsumerOpts{
 		Queue:                cfg.queue,
 		Client:               cfg.redis,
-		Logger:               workerLogger{log: cfg.log},
+		Logger:               log.Queue{
+			Logger: cfg.log,
+		},
 		ProcessorConcurrency: cfg.parallelism,
 		JobMaxAttempts:       1,
 	})
@@ -206,11 +202,6 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 	}
 	return cfg, nil
 }
-
-func (l workerLogger) Debug(v ...interface{}) { l.log.Debug.Println(v...) }
-func (l workerLogger) Info(v ...interface{})  { l.log.Info.Println(v...) }
-func (l workerLogger) Warn(v ...interface{})  { l.log.Warn.Println(v...) }
-func (l workerLogger) Error(v ...interface{}) { l.log.Error.Println(v...) }
 
 func (w *workerCfg) put(n *node) error {
 	switch n.name {

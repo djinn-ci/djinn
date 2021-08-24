@@ -118,7 +118,9 @@ func DecodeConsumer(name string, r io.Reader) (*Consumer, error) {
 	cfg.consumer = curlyq.NewConsumer(&curlyq.ConsumerOpts{
 		Queue:                cfg0.Queue,
 		Client:               cfg.redis,
-		Logger:               workerLogger{log: cfg.log},
+		Logger:               log.Queue{
+			Logger: cfg.log,
+		},
 		ProcessorConcurrency: cfg.parallelism,
 		JobMaxAttempts:       cfg0.Attempts,
 	})
@@ -127,7 +129,7 @@ func DecodeConsumer(name string, r io.Reader) (*Consumer, error) {
 
 	for name, storecfg := range cfg0.Stores {
 		if _, ok := blockstores[storecfg.Type]; !ok {
-			return nil, errors.New("unknown store type: "+storecfg.Type)
+			return nil, errors.New("unknown store type: " + storecfg.Type)
 		}
 		cfg.stores[name] = blockstores[storecfg.Type](storecfg.Path, storecfg.Limit)
 	}

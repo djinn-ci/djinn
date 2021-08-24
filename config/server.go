@@ -61,10 +61,6 @@ type serverCfg struct {
 	Providers map[string]providerCfg
 }
 
-type serverLogger struct {
-	log *log.Logger
-}
-
 type Store struct {
 	Limit int64
 	Store fs.Store
@@ -97,11 +93,7 @@ type Server struct {
 	Crypto Crypto
 }
 
-var (
-	_ curlyq.Logger = (*serverLogger)(nil)
-
-	defaultBuildQueue = "builds"
-)
+var defaultBuildQueue = "builds"
 
 func DecodeServer(name string, r io.Reader) (*Server, error) {
 	errh := func(name string, line, col int, msg string) {
@@ -183,7 +175,9 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 		cfg.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
 			Client: cfg.redis,
 			Queue:  queue,
-			Logger: serverLogger{log: cfg.log},
+			Logger: log.Queue{
+				Logger: cfg.log,
+			},
 		})
 	}
 
@@ -423,11 +417,6 @@ func (s *serverCfg) put(n *node) error {
 	}
 	return nil
 }
-
-func (l serverLogger) Debug(v ...interface{}) { l.log.Debug.Println(v...) }
-func (l serverLogger) Info(v ...interface{})  { l.log.Info.Println(v...) }
-func (l serverLogger) Warn(v ...interface{})  { l.log.Warn.Println(v...) }
-func (l serverLogger) Error(v ...interface{}) { l.log.Error.Println(v...) }
 
 func (s *Server) Pidfile() *os.File                      { return s.pidfile }
 func (s *Server) Server() *server.Server                 { return s.srv }

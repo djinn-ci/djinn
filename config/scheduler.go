@@ -135,7 +135,9 @@ func DecodeScheduler(name string, r io.Reader) (*Scheduler, error) {
 		cfg.producers[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
 			Client: cfg.redis,
 			Queue:  queue,
-			Logger: serverLogger{log: cfg.log},
+			Logger: log.Queue{
+				Logger: cfg.log,
+			},
 		})
 	}
 	return cfg, nil

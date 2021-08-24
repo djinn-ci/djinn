@@ -79,7 +79,7 @@ func InitTagEvent(dis event.Dispatcher) queue.InitFunc {
 	}
 }
 
-func (ev *TagEvent) Name() string { return "event:"+event.BuildTagged.String() }
+func (ev *TagEvent) Name() string { return "event:" + event.BuildTagged.String() }
 
 func (ev *TagEvent) Perform() error {
 	if ev.dis == nil {

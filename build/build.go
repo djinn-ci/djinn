@@ -24,8 +24,8 @@ import (
 	"djinn-ci.com/manifest"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/object"
-	"djinn-ci.com/runner"
 	"djinn-ci.com/queue"
+	"djinn-ci.com/runner"
 	"djinn-ci.com/user"
 	"djinn-ci.com/variable"
 
@@ -218,9 +218,9 @@ func InitEvent(dis event.Dispatcher) queue.InitFunc {
 func (ev *Event) Name() string {
 	switch ev.Build.Status {
 	case runner.Queued:
-		return "event:"+event.BuildSubmitted.String()
+		return "event:" + event.BuildSubmitted.String()
 	case runner.Running:
-		return "event:"+event.BuildStarted.String()
+		return "event:" + event.BuildStarted.String()
 	case runner.Passed:
 		fallthrough
 	case runner.PassedWithFailures:
@@ -230,7 +230,7 @@ func (ev *Event) Name() string {
 	case runner.Killed:
 		fallthrough
 	case runner.TimedOut:
-		return "event:"+event.BuildFinished.String()
+		return "event:" + event.BuildFinished.String()
 	}
 	return "event:build"
 }

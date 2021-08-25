@@ -49,8 +49,8 @@ type Index struct {
 						{% for _, i := range p.Images %}
 							<tr>
 								<td>
-									{% if i.Download != nil && i.Download.StartedAt.Valid && !i.Download.FinishedAt.Valid %}
-										<span class="muted">{% cat "../../static/svg/download.svg" %}</span>
+									{% if i.Download != nil %}
+										<span class="muted" title="Downloaded Image">{% cat "../../static/svg/download.svg" %}</span>
 									{% endif %}
 								</td>
 								<td>{%s i.Name %}</td>

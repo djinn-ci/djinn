@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"os"
 	"strings"
 
 	"djinn-ci.com/crypto"
@@ -92,7 +91,13 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		return nil, f, errors.New("no user in request context")
 	}
 
-	images := image.NewStoreWithBlockStore(h.DB, h.store, u)
+	store, err := h.store.Partition(u.ID)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	images := image.NewStoreWithBlockStore(h.DB, store, u)
 
 	f.File = webutil.NewFile("file", h.limit, r)
 	f.Resource = namespace.Resource{
@@ -116,13 +121,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		return nil, f, errors.Err(err)
 	}
 
-	defer func() {
-		// File was written to disk because it was too big for memory, so make
-		// sure it is removed to free up space.
-		if v, ok := f.File.File.(*os.File); ok {
-			os.RemoveAll(v.Name())
-		}
-	}()
+	defer f.Remove()
 
 	hash, err := h.hasher.HashNow()
 
@@ -133,7 +132,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 	// If being downloaded from a remote then f.File will be nil, and no
 	// attempt will be made to actually upload an image file, this will be
 	// handled as a queue job.
-	i, err := images.Create(f.Author.ID, hash, f.Name, driver.QEMU, f.File)
+	i, err := images.Create(f.Author.ID, hash, f.Name, driver.QEMU, f.File.File)
 
 	if err != nil {
 		return nil, f, errors.Err(err)

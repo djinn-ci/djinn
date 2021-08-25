@@ -5,7 +5,6 @@ import (
 	"compress/bzip2"
 	"io"
 	"io/ioutil"
-	"os"
 	"regexp"
 
 	"djinn-ci.com/errors"
@@ -123,7 +122,7 @@ func (f *Form) extractIfBzip() error {
 		return errors.Err(err)
 	}
 
-	f.File.File.Seek(0, io.SeekStart)
+	f.Seek(0, io.SeekStart)
 
 	// Not bzip, do nothing.
 	if !bytes.Equal(buf, bzh) {
@@ -142,12 +141,10 @@ func (f *Form) extractIfBzip() error {
 		return errors.Err(err)
 	}
 
-	f.File.Close()
+	f.Close()
 
-	if v, ok := f.File.File.(*os.File); ok {
-		if err := os.Remove(v.Name()); err != nil {
-			return errors.Err(err)
-		}
+	if err := f.Remove(); err != nil {
+		return errors.Err(err)
 	}
 
 	tmp.Seek(0, io.SeekStart)

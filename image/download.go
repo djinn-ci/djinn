@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 	"encoding/base64"
+	"encoding/gob"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,9 +15,10 @@ import (
 	"strings"
 	"time"
 
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
-	"djinn-ci.com/database"
+	"djinn-ci.com/log"
 	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
@@ -29,13 +31,14 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-type downloadJob struct {
-	db    *sqlx.DB
-	store fs.Store
+type DownloadJob struct {
+	db    *sqlx.DB    `gob:"-"`
+	log   *log.Logger `gob:"-"`
+	store fs.Store    `gob:"-"`
 
-	image *Image
-	url   DownloadURL
-	id    int64
+	ID      int64
+	ImageID int64
+	URL     DownloadURL
 }
 
 type Download struct {
@@ -68,7 +71,7 @@ var (
 	_ sql.Scanner   = (*DownloadURL)(nil)
 	_ driver.Valuer = (*DownloadURL)(nil)
 
-	_ queue.Job = (*downloadJob)(nil)
+	_ queue.Job = (*DownloadJob)(nil)
 
 	downloadTable   = "image_downloads"
 	downloadSchemes = map[string]struct{}{
@@ -94,13 +97,13 @@ func NewDownloadJob(db *sqlx.DB, i *Image, url DownloadURL) (queue.Job, error) {
 
 	var id int64
 
-	if err := db.QueryRow(q.Build(), q.Args()).Scan(&id); err != nil {
+	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
 		return nil, errors.Err(err)
 	}
-	return &downloadJob{
-		image: i,
-		url:   url,
-		id:    id,
+	return &DownloadJob{
+		ID:      id,
+		ImageID: i.ID,
+		URL:     url,
 	}, nil
 }
 
@@ -155,29 +158,35 @@ func (s *DownloadStore) All(opts ...query.Option) ([]*Download, error) {
 
 // DownloadJobInit returns a callback for initializing a download job with the
 // given database connection and file store.
-func DownloadJobInit(db *sqlx.DB, store fs.Store) queue.InitFunc {
+func DownloadJobInit(db *sqlx.DB, log *log.Logger, store fs.Store) queue.InitFunc {
 	return func(j queue.Job) {
-		if d, ok := j.(*downloadJob); ok {
+		if d, ok := j.(*DownloadJob); ok {
 			d.db = db
+			d.log = log
 			d.store = store
 		}
 	}
 }
 
 // Name implements the queue.Job interface.
-func (d *downloadJob) Name() string { return "download_job" }
+func (d *DownloadJob) Name() string { return "download_job" }
 
 // Perform implements the queue.Job interface. This will attempt to download
 // the image from the remote URL. This will fail if the URL does not have a
 // valid scheme such as, http, https, or sftp.
-func (d *downloadJob) Perform() error {
+func (d *DownloadJob) Perform() error {
+	now := time.Now()
+
 	q := query.Update(
 		downloadTable,
-		query.Set("started_at", query.Arg(time.Now())),
-		query.Where("id", "=", query.Arg(d.id)),
+		query.Set("started_at", query.Arg(now)),
+		query.Where("id", "=", query.Arg(d.ID)),
 	)
 
+	d.log.Debug.Println("image download started at", now)
+
 	if _, err := d.db.Exec(q.Build(), q.Args()...); err != nil {
+		d.log.Error.Println(errors.Err(err))
 		return errors.Err(err)
 	}
 
@@ -186,30 +195,27 @@ func (d *downloadJob) Perform() error {
 		downloaderr sql.NullString
 	)
 
-	i, err := NewStore(d.db).Get(query.Where("id", "=", query.Arg(d.id)))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
 	var r io.Reader
 
-	switch d.url.Scheme {
+	d.log.Debug.Println("downloading image from", d.URL.String())
+
+	switch d.URL.Scheme {
 	case "https":
 		pool, err := x509.SystemCertPool()
 
 		if err != nil {
+			d.log.Error.Println(errors.Err(err))
 			return errors.Err(err)
 		}
 
 		tlscfg = &tls.Config{
-			ServerName: d.url.Host,
+			ServerName: d.URL.Host,
 			RootCAs:    pool,
 		}
 		fallthrough
 	case "http":
 		cli := &http.Client{
-			Timeout:   time.Minute*10,
+			Timeout: time.Minute * 10,
 			Transport: &http.Transport{
 				TLSClientConfig: tlscfg,
 			},
@@ -217,11 +223,11 @@ func (d *downloadJob) Perform() error {
 
 		req := &http.Request{
 			Method: "GET",
-			URL:    d.url.URL,
+			URL:    d.URL.URL,
 		}
 
-		if d.url.User != nil {
-			auth := []byte(d.url.User.String())
+		if d.URL.User != nil {
+			auth := []byte(d.URL.User.String())
 
 			req.Header.Set("Authorization", "Basic "+base64.StdEncoding.EncodeToString(auth))
 		}
@@ -237,7 +243,7 @@ func (d *downloadJob) Perform() error {
 		defer resp.Body.Close()
 
 		if resp.Header.Get("Content-Type") != MimeTypeQEMU {
-			downloaderr.String = "unexpected Content-Type, expected "+MimeTypeQEMU
+			downloaderr.String = "unexpected Content-Type, expected " + MimeTypeQEMU
 			downloaderr.Valid = true
 			break
 		}
@@ -245,7 +251,7 @@ func (d *downloadJob) Perform() error {
 	case "sftp":
 		timeout := time.Minute
 
-		if dur := d.url.Query().Get("timeout"); dur != "" {
+		if dur := d.URL.Query().Get("timeout"); dur != "" {
 			dur, err := time.ParseDuration(dur)
 
 			if err == nil {
@@ -253,10 +259,10 @@ func (d *downloadJob) Perform() error {
 			}
 		}
 
-		password, _ := d.url.User.Password()
+		password, _ := d.URL.User.Password()
 
 		cfg := &ssh.ClientConfig{
-			User: d.url.User.Username(),
+			User: d.URL.User.Username(),
 			Auth: []ssh.AuthMethod{
 				ssh.Password(password),
 			},
@@ -264,7 +270,7 @@ func (d *downloadJob) Perform() error {
 			Timeout:         timeout,
 		}
 
-		sshcli, err := ssh.Dial("tcp", d.url.Host, cfg)
+		sshcli, err := ssh.Dial("tcp", d.URL.Host, cfg)
 
 		if err != nil {
 			downloaderr.String = err.Error()
@@ -284,7 +290,7 @@ func (d *downloadJob) Perform() error {
 
 		defer cli.Close()
 
-		f, err := cli.Open(d.url.Path)
+		f, err := cli.Open(d.URL.Path)
 
 		if err != nil {
 			downloaderr.String = err.Error()
@@ -318,7 +324,16 @@ func (d *downloadJob) Perform() error {
 		return ErrInvalidScheme
 	}
 
+	i, err := NewStore(d.db).Get(query.Where("id", "=", query.Arg(d.ImageID)))
+
+	if err != nil {
+		d.log.Error.Println(errors.Err(err))
+		return errors.Err(err)
+	}
+
 	if r != nil {
+		d.log.Debug.Println("downloading image from", d.URL)
+
 		dst, err := d.store.Create(filepath.Join(i.Driver.String(), i.Hash))
 
 		if err != nil {
@@ -340,8 +355,38 @@ update:
 		query.Set("finished_at", query.Arg(time.Now())),
 	)
 
-	_, err = d.db.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := d.db.Exec(q.Build(), q.Args()...); err != nil {
+		d.log.Error.Println(errors.Err(err))
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (u *DownloadURL) GobEncode() ([]byte, error) {
+	var buf bytes.Buffer
+
+	if err := gob.NewEncoder(&buf).Encode(u.URL); err != nil {
+		return nil, errors.Err(err)
+	}
+	return buf.Bytes(), nil
+}
+
+func (u *DownloadURL) GobDecode(p []byte) error {
+	var url url.URL
+
+	if err := gob.NewDecoder(bytes.NewReader(p)).Decode(&url); err != nil {
+		return errors.Err(err)
+	}
+
+	u.URL = &url
+	return nil
+}
+
+func (u *DownloadURL) String() string {
+	if u.URL != nil {
+		return u.URL.String()
+	}
+	return ""
 }
 
 func (u *DownloadURL) Scan(v interface{}) error {
@@ -361,6 +406,10 @@ func (u *DownloadURL) Scan(v interface{}) error {
 
 func (u *DownloadURL) UnmarshalText(b []byte) error {
 	var err error
+
+	if len(b) == 0 {
+		return nil
+	}
 
 	u.URL, err = url.Parse(string(b))
 

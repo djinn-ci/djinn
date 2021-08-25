@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"djinn-ci.com/errors"
 	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
 	"djinn-ci.com/image"
 	imagetemplate "djinn-ci.com/image/template"
 	"djinn-ci.com/namespace"
@@ -67,7 +67,7 @@ func (h Image) Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, d := range dd {
-		i := itab[d.ID]
+		i := itab[d.ImageID]
 		i.Download = d
 		itab[d.ID] = i
 	}

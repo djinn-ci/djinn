@@ -37,10 +37,10 @@ type Image struct {
 	Name        string        `db:"name"`
 	CreatedAt   time.Time     `db:"created_at"`
 
-	Author    *user.User           `db:"-"`
-	User      *user.User           `db:"-"`
-	Download  *Download            `db:"-"`
-	Namespace *namespace.Namespace `db:"-"`
+	Author    *user.User           `db:"-" gob:"-"`
+	User      *user.User           `db:"-" gob:"-"`
+	Download  *Download            `db:"-" gob:"-"`
+	Namespace *namespace.Namespace `db:"-" gob:"-"`
 }
 
 type Event struct {
@@ -135,7 +135,7 @@ func InitEvent(dis event.Dispatcher) queue.InitFunc {
 	}
 }
 
-func (ev *Event) Name() string { return event.Images.String()+"_event" }
+func (ev *Event) Name() string { return "event:" + event.Images.String() }
 
 func (ev *Event) Perform() error {
 	if ev.dis == nil {
@@ -164,6 +164,15 @@ func (i *Image) Bind(mm ...database.Model) {
 			i.Namespace = v
 		}
 	}
+}
+
+// Downloaded returns whether the image was downloaded successfully. If the
+// image has no associated download, then this returns true.
+func (i *Image) Downloaded() bool {
+	if i.Download != nil {
+		return !i.Download.Error.Valid && i.Download.FinishedAt.Valid
+	}
+	return true
 }
 
 // SetPrimary implements the database.Model interface.

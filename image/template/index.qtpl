@@ -86,7 +86,16 @@ type Index struct {
 									</td>
 								{% else %}
 									{% if i.Download != nil && i.Download.Error.Valid %}
-										<td class="align-right error">{%s i.Download.Error.String %}</td>
+										<td class="align-right error">
+											{%s i.Download.Error.String %}
+											{% if p.User.ID == i.UserID || i.Namespace != nil && i.Namespace.UserID == p.User.ID %}
+												<form method="POST" action="{%s i.Endpoint() %}">
+													{%v= p.CSRF %}
+													<input type="hidden" name="_method" value="DELETE"/>
+													<button type="submit" class="btn btn-danger">Delete</button>
+												</form>
+											{% endif %}
+										</td>
 									{% endif %}
 								{% endif %}
 							</tr>

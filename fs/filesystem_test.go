@@ -2,6 +2,7 @@ package fs
 
 import (
 	"crypto/rand"
+	"os"
 	"strconv"
 	"testing"
 
@@ -18,13 +19,15 @@ func randBytes(t *testing.T) []byte {
 }
 
 func Test_Filesystem(t *testing.T) {
+	tmpdir := os.TempDir()
+
 	tests := []struct {
 		dir   string
 		limit int64
 	}{
-		{".", 5},
-		{".", 32},
-		{".", 0},
+		{tmpdir, 5},
+		{tmpdir, 32},
+		{tmpdir, 0},
 	}
 
 	for i, test := range tests {

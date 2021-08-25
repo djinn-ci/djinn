@@ -324,7 +324,13 @@ func (s *Store) Delete(id int64, t driver.Type, hash string) error {
 	if err := s.Store.Delete(table, &Image{ID: id}); err != nil {
 		return errors.Err(err)
 	}
-	return errors.Err(s.blockStore.Remove(filepath.Join(t.String(), hash)))
+
+	if err := s.blockStore.Remove(filepath.Join(t.String(), hash)); err != nil {
+		if !errors.Is(err, fs.ErrRecordNotFound) {
+			return errors.Err(err)
+		}
+	}
+	return nil
 }
 
 // All returns a slice of Image models, applying each query.Option that is

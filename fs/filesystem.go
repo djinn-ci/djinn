@@ -200,7 +200,16 @@ func (fs *Filesystem) Remove(name string) error {
 	if err := fs.checkDir(); err != nil {
 		return errors.Err(err)
 	}
-	return errors.Err(os.Remove(fs.realpath(name)))
+
+	fname := fs.realpath(name)
+
+	if _, err := os.Stat(fname); err != nil {
+		if os.IsNotExist(err) {
+			return ErrRecordNotFound
+		}
+		return errors.Err(err)
+	}
+	return errors.Err(os.Remove(fname))
 }
 
 func (r *fileRecord) Write(p []byte) (int, error) {

@@ -3,6 +3,7 @@ package errors
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"path"
 	"runtime"
@@ -49,6 +50,12 @@ func Cause(err error) error {
 	return err
 }
 
+// Is reports whether any error in err's chain matches target. This calls
+// errors.Is from the stdlib.
+func Is(err, target error) bool {
+	return errors.Is(err, target)
+}
+
 // Err wraps the given error in the context in which it occurred. If the given
 // err is nil then nil is returned.
 func Err(err error) error {
@@ -73,10 +80,22 @@ func Err(err error) error {
 	}
 }
 
+// Unwrap returns the result of calling the Unwrap method on err, if err's
+// type contains an Unwrap method returning error. This calls errors.Unwrap
+// from the stdlib.
+func Unwrap(err error) error {
+	return errors.Unwrap(err)
+}
+
 // Error returns the full "stacktrace" of the error using the context data
 // about that error.
 func (e *Error) Error() string {
 	return fmt.Sprintf("%s - %s:%d: %s", path.Base(e.Func), e.File, e.Line, e.Err)
+}
+
+// Unwrap returns the underlying error.
+func (e *Error) Unwrap() error {
+	return e.Err
 }
 
 func (e *errorStr) Error() string { return string(*e) }

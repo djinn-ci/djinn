@@ -109,6 +109,8 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
+	w.Log.Debug.Println("build id:", payload.BuildID)
+
 	b, err := build.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(payload.BuildID)))
 
 	if err != nil {

@@ -47,8 +47,8 @@ github.com/alicebob/miniredis v2.5.0+incompatible h1:yBHoLpsyjupjz3NL3MhKMVkR41j
 github.com/alicebob/miniredis v2.5.0+incompatible/go.mod h1:8HZjEj4yU0dwhYHky+DxYx+6BMjkBbe5ONFIF1MXffk=
 github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4 h1:aNiK7dzPXmJXlQzqkxce3L5MUhThbcoc0QYDInog/GM=
 github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
-github.com/andrewpillar/webutil v0.0.0-20210130170620-bc75ec163f74 h1:FmVZJpr/yAXi6TuCewmD96tXwBdkKohvjMB0B9fcPSw=
-github.com/andrewpillar/webutil v0.0.0-20210130170620-bc75ec163f74/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
+github.com/andrewpillar/webutil v0.0.0-20210821160210-1fba4d485f82 h1:sSwdXWQ6XTtOaNLqzfmL7ZZRf2mTsq6O8ELGVmftIC0=
+github.com/andrewpillar/webutil v0.0.0-20210821160210-1fba4d485f82/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=

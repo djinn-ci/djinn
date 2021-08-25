@@ -20,7 +20,6 @@ djinn-driver.conf
 djinn-worker.conf
 djinn-server.conf
 djinn-scheduler.conf
-djinn
 djinn-curator
 djinn-scheduler
 djinn-server

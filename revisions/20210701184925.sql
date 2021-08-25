@@ -15,5 +15,10 @@ CREATE TABLE image_downloads (
 	finished_at TIMESTAMP NULL
 );
 
-GRANT SELECT ON image_downloads TO djinn_server;
-GRANT SELECT, INSERT, UPDATE ON image_downloads TO djinn_consumer;
+CREATE USER djinn_consumer;
+
+GRANT SELECT, INSERT ON image_downloads TO djinn_server;
+GRANT USAGE ON SEQUENCE image_downloads_id_seq TO djinn_server;
+
+GRANT SELECT ON images TO djinn_consumer;
+GRANT SELECT, UPDATE ON image_downloads TO djinn_consumer;

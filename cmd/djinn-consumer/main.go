@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"os"
@@ -80,8 +81,10 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	q := queue.NewCurlyQ(nil, cfg.Consumer())
-	q.InitFunc("download_job", image.DownloadJobInit(cfg.DB(), store))
+	gob.Register(&image.DownloadJob{})
+
+	q := queue.NewCurlyQ(log, nil, cfg.Consumer())
+	q.InitFunc("download_job", image.DownloadJobInit(cfg.DB(), cfg.Log(), store))
 
 	go func() {
 		log.Info.Println("consuming jobs from", qname)

@@ -2,6 +2,7 @@ package serverutil
 
 import (
 	"context"
+	"encoding/gob"
 	"flag"
 	"fmt"
 	"net/http"
@@ -9,8 +10,8 @@ import (
 	"strings"
 
 	"djinn-ci.com/build"
-	"djinn-ci.com/cron"
 	"djinn-ci.com/config"
+	"djinn-ci.com/cron"
 	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/image"
@@ -202,9 +203,11 @@ func Init(ctx context.Context, path string) (*server.Server, *config.Server, fun
 		Queue:  "image_downloads",
 	})
 
+	gob.Register(&image.DownloadJob{})
+
 	queues := queue.NewSet()
 	queues.Add("events", memq)
-	queues.Add("image_downloads", queue.NewCurlyQ(prd, nil))
+	queues.Add("image_downloads", queue.NewCurlyQ(log, prd, nil))
 
 	h := web.Handler{
 		DB:           db,

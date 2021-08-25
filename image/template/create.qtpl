@@ -14,7 +14,7 @@ type Create struct {
 
 {% func (p *Create) Body() %}
 	<div class="alert alert-warn">
-		Large images will take a long time to upload. It is recommended that you compress them with bzip2 to reduce the amount of time this takes.
+		Large images will take a long time to upload. It is recommended that you compress them with bzip2 to reduce the amount of time this takes, or have them downloaded via a URL.
 	</div>
 	<br/>
 	<div class="panel">

@@ -62,7 +62,7 @@ func (p *Create) Title() string {
 //line image/template/create.qtpl:15
 func (p *Create) StreamBody(qw422016 *qt422016.Writer) {
 //line image/template/create.qtpl:15
-	qw422016.N().S(` <div class="alert alert-warn"> Large images will take a long time to upload. It is recommended that you compress them with bzip2 to reduce the amount of time this takes. </div> <br/> <div class="panel"> <form class="panel-body slim" method="POST" action="/images" enctype="multipart/form-data"> `)
+	qw422016.N().S(` <div class="alert alert-warn"> Large images will take a long time to upload. It is recommended that you compress them with bzip2 to reduce the amount of time this takes, or have them downloaded via a URL. </div> <br/> <div class="panel"> <form class="panel-body slim" method="POST" action="/images" enctype="multipart/form-data"> `)
 //line image/template/create.qtpl:22
 	qw422016.N().S(string(p.CSRF))
 //line image/template/create.qtpl:22

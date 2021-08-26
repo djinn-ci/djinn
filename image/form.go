@@ -42,6 +42,12 @@ func (f *Form) Fields() map[string]string {
 	}
 }
 
+var downloadschemes = map[string]struct{}{
+	"http":  {},
+	"https": {},
+	"sftp":  {},
+}
+
 // Validate checks to see if there is a name for the image, and if that name
 // is valid. This will also check the contents of the uploaded file to make
 // sure it is a valid QCOW2 image file. It does this by checking the first
@@ -83,14 +89,11 @@ func (f *Form) Validate() error {
 		if err := f.File.Validate(); err != nil {
 			if ferrs, ok := err.(*webutil.Errors); ok {
 				errs.Merge(ferrs)
-				errs.Put("download_url", errors.New("Download URL or image file must be given"))
 				return errs.Err()
 			}
 			return errors.Err(err)
 		}
-	}
 
-	if f.File.File != nil {
 		if err := f.extractIfBzip(); err != nil {
 			return errors.Err(err)
 		}
@@ -104,7 +107,19 @@ func (f *Form) Validate() error {
 		if !bytes.Equal(buf, qcow) {
 			errs.Put("file", webutil.ErrField("File", errors.New("not a valid QCOW file format")))
 		}
+
 		f.File.Seek(0, io.SeekStart)
+		return errs.Err()
+	}
+
+	if _, ok := downloadschemes[f.DownloadURL.Scheme]; !ok {
+		errs.Put("download_url", errors.New("invalid url scheme, must be http, https, or sftp"))
+	}
+
+	if f.DownloadURL.Scheme == "sftp" {
+		if _, ok := f.DownloadURL.User.Password(); !ok {
+			errs.Put("download_url", errors.New("sftp url must use password for authentication"))
+		}
 	}
 	return errs.Err()
 }

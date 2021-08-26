@@ -49,6 +49,8 @@ github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4 h1:aNiK7dzPXmJX
 github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
 github.com/andrewpillar/webutil v0.0.0-20210821160210-1fba4d485f82 h1:sSwdXWQ6XTtOaNLqzfmL7ZZRf2mTsq6O8ELGVmftIC0=
 github.com/andrewpillar/webutil v0.0.0-20210821160210-1fba4d485f82/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
+github.com/andrewpillar/webutil v0.0.0-20210826110650-dd64e24258e2 h1:46pUlbFKleZLL5s92h/R4MOAO1VKachS5YD0ajl8+zM=
+github.com/andrewpillar/webutil v0.0.0-20210826110650-dd64e24258e2/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=

@@ -36,10 +36,10 @@ func main() {
 
 	defer close_()
 
-	serverutil.RegisterRoutes(cfg, api, ui, srv)
-	serverutil.Start(srv)
-
 	c := make(chan os.Signal, 1)
+
+	serverutil.RegisterRoutes(cfg, api, ui, srv)
+	serverutil.Start(srv, c)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))
 	defer cancel()
@@ -49,5 +49,12 @@ func main() {
 	sig := <-c
 
 	srv.Shutdown(ctx)
+
+	if sig == os.Kill {
+		close_()
+		qcancel()
+
+		os.Exit(1)
+	}
 	srv.Log.Info.Println("signal:", sig, "received, shutting down")
 }

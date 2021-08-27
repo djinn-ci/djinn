@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"flag"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -318,11 +319,19 @@ func RegisterRoutesWithGates(cfg *config.Server, api, ui bool, srv *server.Serve
 	}
 }
 
-func Start(srv *server.Server) {
+// Start will start the server in a goroutine. If the server fails to start
+// then SIGKILL is sent to the given channel to signal that the program should
+// terminate. A channel is used so we can gracefully close down any connections
+// that the server may have opened.
+func Start(srv *server.Server, ch chan os.Signal) {
 	go func() {
 		if err := srv.Serve(); err != nil {
 			if cause := errors.Cause(err); cause != http.ErrServerClosed {
 				srv.Log.Error.Println(cause)
+
+				if nerr, ok := cause.(net.Error); ok && !nerr.Temporary() {
+					ch <- os.Kill
+				}
 			}
 		}
 	}()

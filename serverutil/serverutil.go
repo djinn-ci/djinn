@@ -331,9 +331,10 @@ func Start(srv *server.Server, ch chan os.Signal) {
 
 				if nerr, ok := cause.(net.Error); ok && !nerr.Temporary() {
 					ch <- os.Kill
+					return
 				}
 			}
 		}
+		srv.Log.Info.Println(os.Args[0], "started on", srv.Server.Addr)
 	}()
-	srv.Log.Info.Println(os.Args[0], "started on", srv.Server.Addr)
 }

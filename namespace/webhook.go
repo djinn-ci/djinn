@@ -630,7 +630,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) 
 		Header: map[string][]string{
 			"Accept":             {"*/*"},
 			"Content-Length":     {strconv.FormatInt(int64(r.Size()), 10)},
-			"Content-Type":       {"application/json", "charset=utf-8"},
+			"Content-Type":       {"application/json; charset=utf-8"},
 			"User-Agent":         {"Djinn-CI-Hook"},
 			"X-Djinn-CI-Event":   {typ.String()},
 			"X-Djinn-CI-Hook-ID": {strconv.FormatInt(w.ID, 10)},

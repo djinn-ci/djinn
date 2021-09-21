@@ -14,54 +14,34 @@ func _() {
 	_ = x[BuildTagged-8]
 	_ = x[InviteSent-16]
 	_ = x[InviteAccepted-32]
-	_ = x[Cron-64]
-	_ = x[Images-128]
-	_ = x[Objects-256]
-	_ = x[Variables-512]
-	_ = x[SSHKeys-1024]
+	_ = x[Namespaces-64]
+	_ = x[Cron-128]
+	_ = x[Images-256]
+	_ = x[Objects-512]
+	_ = x[Variables-1024]
+	_ = x[SSHKeys-2048]
 }
 
-const (
-	_Type_name_0 = "build.submittedbuild.started"
-	_Type_name_1 = "build.finished"
-	_Type_name_2 = "build.tagged"
-	_Type_name_3 = "invite.sent"
-	_Type_name_4 = "invite.accepted"
-	_Type_name_5 = "cron"
-	_Type_name_6 = "images"
-	_Type_name_7 = "objects"
-	_Type_name_8 = "variables"
-	_Type_name_9 = "ssh_keys"
-)
+const _Type_name = "build.submittedbuild.startedbuild.finishedbuild.taggedinvite.sentinvite.acceptednamespacescronimagesobjectsvariablesssh_keys"
 
-var (
-	_Type_index_0 = [...]uint8{0, 15, 28}
-)
+var _Type_map = map[Type]string{
+	1:    _Type_name[0:15],
+	2:    _Type_name[15:28],
+	4:    _Type_name[28:42],
+	8:    _Type_name[42:54],
+	16:   _Type_name[54:65],
+	32:   _Type_name[65:80],
+	64:   _Type_name[80:90],
+	128:  _Type_name[90:94],
+	256:  _Type_name[94:100],
+	512:  _Type_name[100:107],
+	1024: _Type_name[107:116],
+	2048: _Type_name[116:124],
+}
 
 func (i Type) String() string {
-	switch {
-	case 1 <= i && i <= 2:
-		i -= 1
-		return _Type_name_0[_Type_index_0[i]:_Type_index_0[i+1]]
-	case i == 4:
-		return _Type_name_1
-	case i == 8:
-		return _Type_name_2
-	case i == 16:
-		return _Type_name_3
-	case i == 32:
-		return _Type_name_4
-	case i == 64:
-		return _Type_name_5
-	case i == 128:
-		return _Type_name_6
-	case i == 256:
-		return _Type_name_7
-	case i == 512:
-		return _Type_name_8
-	case i == 1024:
-		return _Type_name_9
-	default:
-		return "Type(" + strconv.FormatInt(int64(i), 10) + ")"
+	if str, ok := _Type_map[i]; ok {
+		return str
 	}
+	return "Type(" + strconv.FormatInt(int64(i), 10) + ")"
 }

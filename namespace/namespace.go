@@ -12,7 +12,10 @@ import (
 	"time"
 
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
+	"djinn-ci.com/queue"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
@@ -38,6 +41,13 @@ type Namespace struct {
 	Parent        *Namespace         `db:"-"`
 	Build         database.Model     `db:"-"`
 	Collaborators map[int64]struct{} `db:"-"`
+}
+
+type Event struct {
+	dis event.Dispatcher
+
+	Namespace *Namespace
+	Action    string
 }
 
 // Resource is the type that represents a model that can exist within a
@@ -70,6 +80,8 @@ var (
 	_ database.Model  = (*Namespace)(nil)
 	_ database.Loader = (*Store)(nil)
 	_ database.Binder = (*Store)(nil)
+
+	_ queue.Job = (*Event)(nil)
 
 	table  = "namespaces"
 	rename = regexp.MustCompile("^[a-zA-Z0-9]+$")
@@ -137,6 +149,20 @@ func SharedWith(u *user.User) query.Option {
 			),
 		)(q)
 	}
+}
+
+func (e *Event) Name() string { return "event:" + event.Namespaces.String() }
+
+func (e *Event) Perform() error {
+	if e.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	payload := map[string]interface{}{
+		"namespace": e.Namespace.JSON(env.DJINN_API_SERVER),
+		"action":    e.Action,
+	}
+	return errors.Err(e.dis.Dispatch(event.New(sql.NullInt64{Int64: e.Namespace.ID, Valid: true}, event.Namespaces, payload)))
 }
 
 // Resolve will get the namespace and namespace owner for the current resource.
@@ -700,10 +726,10 @@ func (s *Store) GetByPath(path string) (*Namespace, error) {
 				query.Where("id", "=", query.Arg(n.ID)),
 			)
 
-			_, err = s.DB.Exec(q.Build(), q.Args()...)
-			return n, errors.Err(err)
+			if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
+				return n, errors.Err(err)
+			}
 		}
-
 		p = n
 	}
 	return n, nil

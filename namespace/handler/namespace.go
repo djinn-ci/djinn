@@ -109,9 +109,11 @@ func (h Namespace) IndexWithRelations(s *namespace.Store, vals url.Values) ([]*n
 // stores it in the database. Upon success this will return the newly created
 // namespace. This also returns the form for creating a namespace.
 func (h Namespace) StoreModel(r *http.Request) (*namespace.Namespace, namespace.Form, error) {
+	ctx := r.Context()
+
 	f := namespace.Form{}
 
-	u, ok := user.FromContext(r.Context())
+	u, ok := user.FromContext(ctx)
 
 	if !ok {
 		return nil, f, errors.New("no user in request context")
@@ -126,7 +128,16 @@ func (h Namespace) StoreModel(r *http.Request) (*namespace.Namespace, namespace.
 	}
 
 	n, err := namespaces.Create(f.Parent, f.Name, f.Description, f.Visibility)
-	return n, f, errors.Err(err)
+
+	if err != nil {
+		return n, f, errors.Err(err)
+	}
+
+	h.Queues.Produce(ctx, "events", &namespace.Event{
+		Namespace: n,
+		Action:   "created",
+	})
+	return n, f, nil
 }
 
 // UpdateModel unmarshals the request's data into a namespace, validates it and
@@ -160,17 +171,38 @@ func (h Namespace) UpdateModel(r *http.Request) (*namespace.Namespace, namespace
 		return nil, f, errors.Err(err)
 	}
 
-	err := namespaces.Update(n.ID, f.Description, f.Visibility)
-	return n, f, errors.Err(err)
+	if err := namespaces.Update(n.ID, f.Description, f.Visibility); err != nil {
+		return n, f, errors.Err(err)
+	}
+
+	n.Description = f.Description
+	n.Visibility = f.Visibility
+
+	h.Queues.Produce(ctx, "events", &namespace.Event{
+		Namespace: n,
+		Action:   "updated",
+	})
+	return n, f, nil
 }
 
 // DeleteModel removes the namespace and all of its children in the given
 // request context from the database.
 func (h Namespace) DeleteModel(r *http.Request) error {
-	n, ok := namespace.FromContext(r.Context())
+	ctx := r.Context()
+
+	n, ok := namespace.FromContext(ctx)
 
 	if !ok {
 		return errors.New("no namespace in request context")
 	}
-	return errors.Err(namespace.NewStore(h.DB).Delete(n.ID))
+
+	if err := namespace.NewStore(h.DB).Delete(n.ID); err != nil {
+		return errors.Err(err)
+	}
+
+	h.Queues.Produce(ctx, "events", &namespace.Event{
+		Namespace: n,
+		Action:   "deleted",
+	})
+	return nil
 }

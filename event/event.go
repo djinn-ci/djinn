@@ -32,6 +32,7 @@ const (
 	BuildTagged                     // build.tagged
 	InviteSent                      // invite.sent
 	InviteAccepted                  // invite.accepted
+	Namespaces                      // namespaces
 	Cron                            // cron
 	Images                          // images
 	Objects                         // objects
@@ -50,6 +51,7 @@ var (
 		"build.tagged":    BuildTagged,
 		"invite.sent":     InviteSent,
 		"invite.accepted": InviteAccepted,
+		"namespaces":      Namespaces,
 		"cron":            Cron,
 		"images":          Images,
 		"objects":         Objects,
@@ -64,6 +66,7 @@ var (
 		BuildTagged,
 		InviteSent,
 		InviteAccepted,
+		Namespaces,
 		Cron,
 		Images,
 		Objects,

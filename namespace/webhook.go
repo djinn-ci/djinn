@@ -736,54 +736,6 @@ func (s *WebhookStore) Dispatch(ev *event.Event) error {
 	return nil
 }
 
-//func (s *WebhookStore) Deliver(id int64, name string, payload map[string]interface{}) error {
-//	ww, err := s.All()
-//
-//	if err != nil {
-//		return errors.Err(err)
-//	}
-//
-//	ev, ok := event.Lookup(name)
-//
-//	if !ok {
-//		return event.ErrUnknown
-//	}
-//
-//	var buf bytes.Buffer
-//
-//	json.NewEncoder(&buf).Encode(payload)
-//
-//	r := bytes.NewReader(buf.Bytes())
-//
-//	for _, w := range ww {
-//		if !w.Active {
-//			continue
-//		}
-//
-//		if !w.Events.Has(ev) {
-//			continue
-//		}
-//
-//		deliveryId := make([]byte, 16)
-//		rand.Read(deliveryId)
-//
-//		req, resp, dur, derr := s.realDeliver(w, ev, r)
-//
-//		r.Seek(0, io.SeekStart)
-//
-//		req.Body = io.NopCloser(&buf)
-//
-//		if err := s.createDelivery(w.ID, hex.EncodeToString(deliveryId), req, resp, dur, derr); err != nil {
-//			return errors.Err(err)
-//		}
-//
-//		if resp != nil {
-//			resp.Body.Close()
-//		}
-//	}
-//	return nil
-//}
-
 func (s *WebhookStore) Delete(id int64) error {
 	q := query.Delete(webhookTable, query.Where("id", "=", query.Arg(id)))
 

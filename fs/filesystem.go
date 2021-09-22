@@ -184,6 +184,9 @@ func (fs *Filesystem) Open(name string) (Record, error) {
 	f, err := os.Open(fs.realpath(name))
 
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, ErrRecordNotFound
+		}
 		return nil, errors.Err(err)
 	}
 	return newFileRecord(f, fs.l), nil

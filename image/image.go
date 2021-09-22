@@ -202,6 +202,7 @@ func (i *Image) JSON(addr string) map[string]interface{} {
 		"author_id":    i.AuthorID,
 		"user_id":      i.UserID,
 		"namespace_id": nil,
+		"driver":       i.Driver.String(),
 		"name":         i.Name,
 		"created_at":   i.CreatedAt.Format(time.RFC3339),
 		"url":          addr + i.Endpoint(),

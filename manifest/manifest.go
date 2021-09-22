@@ -195,7 +195,7 @@ func (m *Manifest) Validate() error {
 			return errors.New("driver ssh requires address")
 		}
 	default:
-		return errors.New("invalid driver specified")
+		return errors.New("invalid driver specified " + m.Driver["type"])
 	}
 	return nil
 }

@@ -3,8 +3,6 @@ package event
 import (
 	"database/sql"
 	"database/sql/driver"
-	"encoding/binary"
-	"fmt"
 	"time"
 
 	"djinn-ci.com/errors"
@@ -111,40 +109,23 @@ func UnmarshalType(names ...string) (Type, error) {
 
 func (t Type) Has(mask Type) bool { return (t & mask) == mask }
 
-func (t Type) Value() (driver.Value, error) {
-	size := binary.Size(t)
-
-	if size < 0 {
-		return nil, errors.New("invalid event")
-	}
-
-	buf := make([]byte, size)
-
-	binary.PutVarint(buf, int64(t))
-	return buf, nil
-}
+func (t Type) Value() (driver.Value, error) { return driver.Value(int32(t)), nil }
 
 func (t *Type) Scan(v interface{}) error {
 	if v == nil {
 		return nil
 	}
 
-	str, err := driver.String.ConvertValue(v)
+	i32, err := driver.Int32.ConvertValue(v)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	b, ok := str.([]byte)
+	i, ok := i32.(int32)
 
 	if !ok {
-		return errors.New(fmt.Sprintf("unexpected event type %T", str))
-	}
-
-	i, n := binary.Varint(b)
-
-	if n < 0 {
-		return errors.New("64 bit overflow")
+		return errors.New("could not type assert event to int32")
 	}
 
 	(*t) = Type(i)

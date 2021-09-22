@@ -13,7 +13,7 @@ CREATE TABLE namespace_webhooks (
 	payload_url  VARCHAR NOT NULL,
 	secret       BYTEA NULL,
 	ssl          BOOLEAN NOT NULL,
-	events       BYTEA NOT NULL,
+	events       INT NOT NULL,
 	active       BOOLEAN NOT NULL DEFAULT TRUE,
 	created_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );

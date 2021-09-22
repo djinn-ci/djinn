@@ -20,8 +20,8 @@ type Form struct {
 	*webutil.File
 
 	Images      *Store      `schema:"-"`
-	Name        string      `schema:"name"`
-	DownloadURL DownloadURL `schema:"download_url"`
+	Name        string      `schema:"name" json:"name"`
+	DownloadURL DownloadURL `schema:"download_url" json:"download_url"`
 }
 
 var (

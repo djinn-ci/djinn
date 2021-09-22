@@ -20,7 +20,6 @@ import (
 
 type consumerCfg struct {
 	Pidfile     string
-	Queue       string
 	Attempts    int
 	Parallelism int
 
@@ -35,12 +34,11 @@ type consumerCfg struct {
 type Consumer struct {
 	pidfile *os.File
 
-	queue       string
 	parallelism int
 
 	log *log.Logger
 
-	consumer *curlyq.Consumer
+	consumer *curlyq.ConsumerOpts
 
 	db    *sqlx.DB
 	redis *redis.Client
@@ -96,7 +94,6 @@ func DecodeConsumer(name string, r io.Reader) (*Consumer, error) {
 		cfg0.Attempts = 5
 	}
 
-	cfg.queue = cfg0.Queue
 	cfg.parallelism = cfg0.Parallelism
 
 	if cfg.parallelism == 0 {
@@ -115,15 +112,14 @@ func DecodeConsumer(name string, r io.Reader) (*Consumer, error) {
 		return nil, err
 	}
 
-	cfg.consumer = curlyq.NewConsumer(&curlyq.ConsumerOpts{
-		Queue:                cfg0.Queue,
-		Client:               cfg.redis,
-		Logger:               log.Queue{
+	cfg.consumer = &curlyq.ConsumerOpts{
+		Client: cfg.redis,
+		Logger: log.Queue{
 			Logger: cfg.log,
 		},
 		ProcessorConcurrency: cfg.parallelism,
 		JobMaxAttempts:       cfg0.Attempts,
-	})
+	}
 
 	cfg.stores = make(map[string]fs.Store)
 
@@ -143,11 +139,6 @@ func (c *consumerCfg) put(n *node) error {
 			return n.err("pidfile must be a string")
 		}
 		c.Pidfile = n.value
-	case "queue":
-		if n.lit != stringLit {
-			return n.err("queue must be a string")
-		}
-		c.Queue = n.value
 	case "attempts":
 		if n.lit != numberLit {
 			return n.err("attempts must be an integer")
@@ -193,12 +184,11 @@ func (c *consumerCfg) put(n *node) error {
 	return nil
 }
 
-func (c *Consumer) Pidfile() *os.File          { return c.pidfile }
-func (c *Consumer) QueueName() string          { return c.queue }
-func (c *Consumer) Consumer() *curlyq.Consumer { return c.consumer }
-func (c *Consumer) DB() *sqlx.DB               { return c.db }
-func (c *Consumer) Redis() *redis.Client       { return c.redis }
-func (c *Consumer) Log() *log.Logger           { return c.log }
+func (c *Consumer) Pidfile() *os.File                  { return c.pidfile }
+func (c *Consumer) ConsumerOpts() *curlyq.ConsumerOpts { return c.consumer }
+func (c *Consumer) DB() *sqlx.DB                       { return c.db }
+func (c *Consumer) Redis() *redis.Client               { return c.redis }
+func (c *Consumer) Log() *log.Logger                   { return c.log }
 
 func (c *Consumer) Store(name string) (fs.Store, bool) {
 	store, ok := c.stores[name]

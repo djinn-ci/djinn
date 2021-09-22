@@ -150,9 +150,9 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 	cfg.queue = defaultBuildQueue + "_" + cfg.driver
 
 	cfg.consumer = curlyq.NewConsumer(&curlyq.ConsumerOpts{
-		Queue:                cfg.queue,
-		Client:               cfg.redis,
-		Logger:               log.Queue{
+		Queue:  cfg.queue,
+		Client: cfg.redis,
+		Logger: log.Queue{
 			Logger: cfg.log,
 		},
 		ProcessorConcurrency: cfg.parallelism,

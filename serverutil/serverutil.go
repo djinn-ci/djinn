@@ -175,7 +175,7 @@ func Init(ctx context.Context, path string) (*server.Server, *config.Server, fun
 	})
 
 	srv.Router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+		if strings.HasPrefix(r.Header.Get("Accept"), "application/json") {
 			webutil.JSON(w, map[string]string{"build": version.Build}, http.StatusOK)
 			return
 		}
@@ -190,25 +190,24 @@ func Init(ctx context.Context, path string) (*server.Server, *config.Server, fun
 
 	memq.InitFunc("event:build.submitted", build.InitEvent(webhooks))
 	memq.InitFunc("event:build.started", build.InitEvent(webhooks))
+	memq.InitFunc("event:build.tagged", build.InitTagEvent(webhooks))
 	memq.InitFunc("event:build.finished", build.InitEvent(webhooks))
 	memq.InitFunc("event:invite.accepted", namespace.InitInviteEvent(webhooks))
 	memq.InitFunc("event:invite.sent", namespace.InitInviteEvent(webhooks))
+	memq.InitFunc("event:namespaces", namespace.InitEvent(webhooks))
 	memq.InitFunc("event:cron", cron.InitEvent(webhooks))
 	memq.InitFunc("event:images", image.InitEvent(webhooks))
 	memq.InitFunc("event:objects", object.InitEvent(webhooks))
 	memq.InitFunc("event:variables", variable.InitEvent(webhooks))
 	memq.InitFunc("event:ssh_keys", key.InitEvent(webhooks))
 
-	prd := curlyq.NewProducer(&curlyq.ProducerOpts{
-		Client: redis,
-		Queue:  "image_downloads",
-	})
-
 	gob.Register(&image.DownloadJob{})
 
 	queues := queue.NewSet()
 	queues.Add("events", memq)
-	queues.Add("image_downloads", queue.NewCurlyQ(log, prd, nil))
+	queues.Add("jobs", queue.NewRedisProducer(log, &curlyq.ProducerOpts{
+		Client: redis,
+	}))
 
 	h := web.Handler{
 		DB:           db,

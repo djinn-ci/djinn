@@ -15,6 +15,8 @@ import (
 	"github.com/mcmathja/curlyq"
 )
 
+var queueName = "jobs"
+
 // InitFunc is a callback for initializing a Job for it to be performed. This
 // would typically be used for setting up dependencies for a Job that could not
 // otherwise be reliably stored on the Queue, such as database connections.
@@ -43,7 +45,10 @@ type Set struct {
 }
 
 type Queue interface {
-	// InitFunc registers the given init callback for the given Job name.
+	// InitFunc registers the given init callback for the given Job name. The
+	// callback is invoked when the Job is retrieved from the queue to be
+	// performed. This would be used to initialize things such as database
+	// connections.
 	InitFunc(string, InitFunc)
 
 	// Consume begins consuming jobs that have been submitted onto the queue.
@@ -56,9 +61,9 @@ type Queue interface {
 	Produce(context.Context, Job) (string, error)
 }
 
-// CurlyQ offers is an implementation of the Queue interface using the curlyq
-// Producer/Consumer framework.
-type CurlyQ struct {
+// Redis offers an implementation of the Queue interface using curlyq for
+// producing/consuming from/to Redis.
+type Redis struct {
 	reg *InitRegistry
 	log *log.Logger
 	prd *curlyq.Producer
@@ -78,7 +83,7 @@ type Memory struct {
 }
 
 var (
-	_ Queue = (*CurlyQ)(nil)
+	_ Queue = (*Redis)(nil)
 	_ Queue = (*Memory)(nil)
 
 	// ErrNilProducer should be returned when a Queue implementation is not
@@ -94,23 +99,23 @@ var (
 	ErrQueueNotExist = errors.New("queue does not exist")
 )
 
-// NewCurlyQ returns a Queue implementation for curlyq. It is perfectly valid
-// to have either the given prd, or con to be nil. For example, to only have
-// the implementation act as a consumer, you would pass a nil producer,
-//
-//     q := queue.NewCurlyQ(nil, con)
-//
-// or to have it act as only a producer,
-//
-//    q := queue.NewCurlyQ(prd, nil)
-//
-// or to have it act as both, then you would pass two non-nil pointers.
-func NewCurlyQ(log *log.Logger, prd *curlyq.Producer, con *curlyq.Consumer) *CurlyQ {
-	return &CurlyQ{
+func NewRedisConsumer(log *log.Logger, opts *curlyq.ConsumerOpts) *Redis {
+	opts.Queue = queueName
+
+	return &Redis{
 		reg: NewInitRegistry(),
 		log: log,
-		prd: prd,
-		con: con,
+		con: curlyq.NewConsumer(opts),
+	}
+}
+
+func NewRedisProducer(log *log.Logger, opts *curlyq.ProducerOpts) *Redis {
+	opts.Queue = queueName
+
+	return &Redis{
+		reg: NewInitRegistry(),
+		log: log,
+		prd: curlyq.NewProducer(opts),
 	}
 }
 
@@ -280,17 +285,17 @@ func (m *Memory) Consume(ctx context.Context) error {
 	}
 }
 
-// InitFunc implementas the Queue interface.
-func (c *CurlyQ) InitFunc(name string, fn InitFunc) { c.reg.Register(name, fn) }
+// InitFunc implements the Queue interface.
+func (c *Redis) InitFunc(name string, fn InitFunc) { c.reg.Register(name, fn) }
 
 // Produce implements the Queue interface. The given Job is encoded into bytes
 // using gob encoding. This returns the underlying Job ID from curlyq itself.
-// If CurlyQ has not been configured as a producer, then ErrNilProducer is
+// If Redis has not been configured as a producer, then ErrNilProducer is
 // returned.
-func (c *CurlyQ) Produce(ctx context.Context, j Job) (string, error) {
+func (r *Redis) Produce(ctx context.Context, j Job) (string, error) {
 	var buf bytes.Buffer
 
-	if c.prd == nil {
+	if r.prd == nil {
 		return "", ErrNilProducer
 	}
 
@@ -298,19 +303,19 @@ func (c *CurlyQ) Produce(ctx context.Context, j Job) (string, error) {
 		return "", errors.Err(err)
 	}
 
-	id, err := c.prd.PerformCtx(ctx, curlyq.Job{
+	id, err := r.prd.PerformCtx(ctx, curlyq.Job{
 		Data: buf.Bytes(),
 	})
 	return id, errors.Err(err)
 }
 
-func (c *CurlyQ) handler(ctx context.Context, j0 curlyq.Job) error {
+func (r *Redis) handler(ctx context.Context, j0 curlyq.Job) error {
 	defer func() {
 		if v := recover(); v != nil {
 			if err, ok := v.(error); ok {
-				c.log.Error.Println(err.Error())
+				r.log.Error.Println(err.Error())
 			}
-			c.log.Error.Println(string(debug.Stack()))
+			r.log.Error.Println(string(debug.Stack()))
 		}
 	}()
 
@@ -324,7 +329,7 @@ func (c *CurlyQ) handler(ctx context.Context, j0 curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	fn, ok := c.reg.Get(j.Name())
+	fn, ok := r.reg.Get(j.Name())
 
 	if ok {
 		fn(j)
@@ -332,11 +337,11 @@ func (c *CurlyQ) handler(ctx context.Context, j0 curlyq.Job) error {
 	return errors.Err(j.Perform())
 }
 
-// Consume implements the Queue interface. If CurlyQ has not been configured as
+// Consume implements the Queue interface. If Redis has not been configured as
 // a consumer, then ErrNilConsumer is returned.
-func (c *CurlyQ) Consume(ctx context.Context) error {
-	if c.con == nil {
+func (r *Redis) Consume(ctx context.Context) error {
+	if r.con == nil {
 		return ErrNilConsumer
 	}
-	return c.con.ConsumeCtx(ctx, c.handler)
+	return r.con.ConsumeCtx(ctx, r.handler)
 }

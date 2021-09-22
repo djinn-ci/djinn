@@ -90,8 +90,7 @@ build() {
 			exit 1
 		fi
 		set -x
-		GOOS="$GOOS" GOARCH="$GOARCH" go build -gcflags "-e" \
-			-ldflags "$LDFLAGS" \
+		GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags "$LDFLAGS" \
 			-tags "$TAGS" \
 			-o bin/"$c" ./cmd/"$c"
 		set +x
@@ -188,7 +187,7 @@ case "$1" in
 		help_ "$1"
 		;;
 	clean)
-		rm -f bin/* djinn* sum.manif
+		rm -f bin/* djinn djinn-consumer djinn-curator djinn-scheduler djinn-server djinn-worker sum.manif
 		find . -name "*.log" -exec rm -f {} \;
 		go clean -cache -testcache
 		;;
@@ -200,7 +199,7 @@ case "$1" in
 		;;
 	*)
 		if [ "$1" = "" ]; then
-			go test -gcflags "-e" -cover ./...
+			go test -cover ./...
 			ui
 			build
 			manif

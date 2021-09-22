@@ -16,9 +16,7 @@ import (
 	"djinn-ci.com/version"
 )
 
-var validqueues = map[string]struct{}{
-	"image_downloads": {},
-}
+var qname = "jobs"
 
 func main() {
 	var (
@@ -52,19 +50,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	qname := cfg.QueueName()
-
-	if _, ok := validqueues[qname]; !ok {
-		valid := make([]string, 0, len(validqueues))
-
-		for qname := range validqueues {
-			valid = append(valid, qname)
-		}
-
-		fmt.Fprintf(os.Stderr, "%s: invalid queue to consume from, must be one of: %v\n", os.Args[0], valid)
-		os.Exit(1)
-	}
-
 	if pidfile := cfg.Pidfile(); pidfile != nil {
 		defer os.RemoveAll(pidfile.Name())
 	}
@@ -83,7 +68,7 @@ func main() {
 
 	gob.Register(&image.DownloadJob{})
 
-	q := queue.NewCurlyQ(log, nil, cfg.Consumer())
+	q := queue.NewRedisConsumer(log, cfg.ConsumerOpts())
 	q.InitFunc("download_job", image.DownloadJobInit(cfg.DB(), cfg.Log(), store))
 
 	go func() {

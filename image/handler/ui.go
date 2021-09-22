@@ -142,6 +142,13 @@ func (h Image) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch cause {
+		case image.ErrInvalidScheme:
+			errs := webutil.NewErrors()
+			errs.Put("download_url", cause)
+
+			sess.AddFlash(errs, "form_errors")
+			h.RedirectBack(w, r)
+			return
 		case namespace.ErrName:
 			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)

@@ -66,6 +66,12 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch cause {
+		case image.ErrInvalidScheme:
+			errs := webutil.NewErrors()
+			errs.Put("download_url", cause)
+
+			webutil.JSON(w, errs, http.StatusBadRequest)
+			return
 		case namespace.ErrName:
 			errs := webutil.NewErrors()
 			errs.Put("namespace", cause)
@@ -85,10 +91,10 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 // Show serves up the JSON response for the image in the given request. If the
-// Accept header in the request is "application/octet-stream" then the content
+// Accept header in the request is "application/x-qemu-disk" then the content
 // of the image itself is sent in the response.
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
-	if r.Header.Get("Accept") == "application/octet-stream" {
+	if r.Header.Get("Accept") == image.MimeTypeQEMU {
 		i, ok := image.FromContext(r.Context())
 
 		if !ok {

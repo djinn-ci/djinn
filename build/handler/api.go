@@ -84,7 +84,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 		}
 
 		switch cause {
-		case build.ErrDriver:
+		case build.ErrDriver, build.ErrDriverDisabled:
 			errs := webutil.NewErrors()
 			errs.Put("manifest", cause)
 

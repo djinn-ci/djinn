@@ -199,7 +199,9 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	if _, ok := h.getDriverQueue(f.Manifest); !ok {
+	prd, ok := h.getDriverQueue(f.Manifest)
+
+	if !ok {
 		if driver.IsValid(f.Manifest.Driver["type"]) {
 			return nil, f, build.ErrDriverDisabled
 		}
@@ -229,10 +231,9 @@ func (h Build) StoreModel(r *http.Request) (*build.Build, build.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
-	producer, _ := h.getDriverQueue(b.Manifest)
 	addr := webutil.BaseAddress(r)
 
-	if err := builds.Submit(r.Context(), producer, addr, b); err != nil {
+	if err := builds.Submit(r.Context(), prd, addr, b); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

@@ -132,7 +132,7 @@ func InitEvent(dis event.Dispatcher) queue.InitFunc {
 	}
 }
 
-func (ev *Event) Name() string { return "event:" + event.Images.String() }
+func (ev *Event) Name() string { return "event:" + event.SSHKeys.String() }
 
 func (ev *Event) Perform() error {
 	if ev.dis == nil {

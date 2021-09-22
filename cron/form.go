@@ -13,9 +13,9 @@ import (
 type Form struct {
 	Crons    *Store            `schema:"-"`
 	Cron     *Cron             `schema:"-"`
-	Name     string            `schema:"name"`
-	Schedule Schedule          `schema:"schedule"`
-	Manifest manifest.Manifest `schema:"manifest"`
+	Name     string            `schema:"name" json:"name"`
+	Schedule Schedule          `schema:"schedule" json:"schedule"`
+	Manifest manifest.Manifest `schema:"manifest" json:"manifest"`
 }
 
 var _ webutil.Form = (*Form)(nil)

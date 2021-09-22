@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
@@ -499,10 +500,10 @@ func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) e
 // Next returns the next time a schedule will occur. If Daily the start of the
 // next day is returned. If Weekly the start of the next week is returned. If
 // Monthly the start of the next month is returned.
-func (s *Schedule) Next() time.Time {
+func (s Schedule) Next() time.Time {
 	now := time.Now()
 
-	switch *s {
+	switch s {
 	case Daily:
 		return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 	case Weekly:
@@ -514,6 +515,29 @@ func (s *Schedule) Next() time.Time {
 	default:
 		return time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, time.UTC)
 	}
+}
+
+// UnmarshalJSON attempts to unmarshal the given byte slice as a JSON string,
+// and checks to see if it is a valid schedule of either daily, weekly, or
+// monthly.
+func (s *Schedule) UnmarshalJSON(b []byte) error {
+	var str string
+
+	if err := json.Unmarshal(b, &str); err != nil {
+		return err
+	}
+
+	var ok bool
+
+	(*s), ok = schedules[str]
+
+	if !ok {
+		return webutil.UnmarshalError{
+			Field: "schedule",
+			Err:   errors.New("unknown schedule: " + string(b)),
+		}
+	}
+	return nil
 }
 
 // UnmarshalText takes the given byte slice, and attempts to map it to a known

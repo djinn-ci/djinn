@@ -193,7 +193,7 @@ The body of this request should be the contents of the image file being created.
 This will get the given image, this requires the explicit `image:read`
 permission.
 
-If the `Accept` header is set to `application/octet-stream` then the response
+If the `Accept` header is set to `application/x-qemu-disk` then the response
 body will be the contents of the image file.
 
 **Returns**

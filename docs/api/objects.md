@@ -231,8 +231,8 @@ permission.
 **Returns**
 
 Returns the [object](/api/objects#the-object-object). If requested with the
-`Accept` header set to `application/octet-stream` then this will download the
-object itself.
+`Accept` header set to the MIME type of the object, then this will download
+the object itself.
 
 </div>
 <div class="api-example">

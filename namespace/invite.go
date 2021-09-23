@@ -34,6 +34,7 @@ type Invite struct {
 type InviteEvent struct {
 	dis event.Dispatcher
 
+	Action    string
 	Namespace *Namespace
 	Invitee   *user.User
 	Inviter   *user.User
@@ -48,13 +49,16 @@ func InitInviteEvent(dis event.Dispatcher) queue.InitFunc {
 }
 
 func (ev *InviteEvent) Name() string {
-	if ev.Invitee != nil {
-		return "event:" + event.InviteSent.String()
+	switch ev.Action {
+	case "accepted":
+		return "event:"+event.InviteAccepted.String()
+	case "rejected":
+		return "event:"+event.InviteRejected.String()
+	case "sent":
+		return "event:"+event.InviteSent.String()
+	default:
+		return "event:invite"
 	}
-	if ev.Inviter != nil {
-		return "event:" + event.InviteAccepted.String()
-	}
-	return "event:invite"
 }
 
 func (ev *InviteEvent) Perform() error {
@@ -62,44 +66,33 @@ func (ev *InviteEvent) Perform() error {
 		return event.ErrNilDispatcher
 	}
 
-	var (
-		typ event.Type
-		u   *user.User
-	)
-
-	if ev.Inviter != nil {
-		typ = event.InviteAccepted
-		u = ev.Inviter
-	}
-
-	if ev.Invitee != nil {
-		if typ != 0 {
-			return errors.New("invalid invite event")
-		}
-		typ = event.InviteSent
-		u = ev.Invitee
-	}
-
-	if typ == 0 {
-		return errors.New("invalid invite event")
-	}
-
-	fields := map[event.Type]string{
-		event.InviteAccepted: "inviter",
-		event.InviteSent:     "invitee",
-	}
-
 	data := map[string]interface{}{
 		"namespace": ev.Namespace.JSON(env.DJINN_API_SERVER),
-		fields[typ]: u,
+	}
+
+	typs := map[string]event.Type{
+		"sent":     event.InviteSent,
+		"accepted": event.InviteAccepted,
+		"rejected": event.InviteRejected,
+	}
+
+	switch ev.Action {
+	case "sent":
+		data["inviter"] = ev.Inviter
+		data["invitee"] = ev.Invitee
+	case "accepted":
+		data["invitee"] = ev.Invitee
+	case "rejected":
+		data["invitee"] = ev.Invitee
+	default:
+		return errors.New("invalid invite action " + ev.Action)
 	}
 
 	namespaceId := sql.NullInt64{
 		Int64: ev.Namespace.ID,
 		Valid: true,
 	}
-
-	return errors.Err(ev.dis.Dispatch(event.New(namespaceId, typ, data)))
+	return errors.Err(ev.dis.Dispatch(event.New(namespaceId, typs[ev.Action], data)))
 }
 
 // InviteStore is the type for creating and mofiying Invite models in the

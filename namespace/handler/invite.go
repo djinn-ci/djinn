@@ -106,6 +106,13 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 
 		return i, f, errors.Err(m.Send(h.SMTP.Client))
 	}
+
+	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{
+		Namespace: n,
+		Action:    "sent",
+		Inviter:   i.Inviter,
+		Invitee:   i.Invitee,
+	})
 	return i, f, nil
 }
 
@@ -140,6 +147,7 @@ func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user
 
 	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{
 		Namespace: n,
+		Action:    "accepted",
 		Invitee:   invitee,
 	})
 	return n, inviter, invitee, nil
@@ -165,5 +173,14 @@ func (h Invite) DeleteModel(r *http.Request) error {
 	if i.IsZero() || (u.ID != i.InviteeID && u.ID != i.InviterID) {
 		return database.ErrNotFound
 	}
-	return errors.Err(namespace.NewInviteStore(h.DB).Delete(i))
+
+	if err := namespace.NewInviteStore(h.DB).Delete(i); err != nil {
+		return errors.Err(err)
+	}
+
+	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{
+		Action:    "rejected",
+		Invitee:   i.Invitee,
+	})
+	return nil
 }

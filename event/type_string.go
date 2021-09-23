@@ -14,15 +14,16 @@ func _() {
 	_ = x[BuildTagged-8]
 	_ = x[InviteSent-16]
 	_ = x[InviteAccepted-32]
-	_ = x[Namespaces-64]
-	_ = x[Cron-128]
-	_ = x[Images-256]
-	_ = x[Objects-512]
-	_ = x[Variables-1024]
-	_ = x[SSHKeys-2048]
+	_ = x[InviteRejected-64]
+	_ = x[Namespaces-128]
+	_ = x[Cron-256]
+	_ = x[Images-512]
+	_ = x[Objects-1024]
+	_ = x[Variables-2048]
+	_ = x[SSHKeys-4096]
 }
 
-const _Type_name = "build.submittedbuild.startedbuild.finishedbuild.taggedinvite.sentinvite.acceptednamespacescronimagesobjectsvariablesssh_keys"
+const _Type_name = "build.submittedbuild.startedbuild.finishedbuild.taggedinvite.sentinvite.acceptedinvite.rejectednamespacescronimagesobjectsvariablesssh_keys"
 
 var _Type_map = map[Type]string{
 	1:    _Type_name[0:15],
@@ -31,12 +32,13 @@ var _Type_map = map[Type]string{
 	8:    _Type_name[42:54],
 	16:   _Type_name[54:65],
 	32:   _Type_name[65:80],
-	64:   _Type_name[80:90],
-	128:  _Type_name[90:94],
-	256:  _Type_name[94:100],
-	512:  _Type_name[100:107],
-	1024: _Type_name[107:116],
-	2048: _Type_name[116:124],
+	64:   _Type_name[80:95],
+	128:  _Type_name[95:105],
+	256:  _Type_name[105:109],
+	512:  _Type_name[109:115],
+	1024: _Type_name[115:122],
+	2048: _Type_name[122:131],
+	4096: _Type_name[131:139],
 }
 
 func (i Type) String() string {

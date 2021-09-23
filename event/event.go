@@ -30,6 +30,7 @@ const (
 	BuildTagged                     // build.tagged
 	InviteSent                      // invite.sent
 	InviteAccepted                  // invite.accepted
+	InviteRejected                  // invite.rejected
 	Namespaces                      // namespaces
 	Cron                            // cron
 	Images                          // images
@@ -49,6 +50,7 @@ var (
 		"build.tagged":    BuildTagged,
 		"invite.sent":     InviteSent,
 		"invite.accepted": InviteAccepted,
+		"invite.rejected": InviteRejected,
 		"namespaces":      Namespaces,
 		"cron":            Cron,
 		"images":          Images,
@@ -125,6 +127,7 @@ func (t *Type) Scan(v interface{}) error {
 	i, ok := i32.(int32)
 
 	if !ok {
+		println(i)
 		return errors.New("could not type assert event to int32")
 	}
 

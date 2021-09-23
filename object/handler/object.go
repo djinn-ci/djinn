@@ -109,15 +109,18 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 	}
 	f.Objects = objects
 
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+	typ := r.Header.Get("Content-Type")
+
+	if strings.HasPrefix(typ, "application/x-www-form-urlencoded") ||
+		strings.HasPrefix(typ, "multipart/form-data") {
+		if err := webutil.Unmarshal(&f, r); err != nil {
+			return nil, f, errors.Err(err)
+		}
+	} else {
 		q := r.URL.Query()
 
 		f.Resource.Namespace = q.Get("namespace")
 		f.Name = q.Get("name")
-	} else {
-		if err := webutil.Unmarshal(&f, r); err != nil {
-			return nil, f, errors.Err(err)
-		}
 	}
 
 	if err := f.Validate(); err != nil {

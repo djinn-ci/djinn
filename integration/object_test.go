@@ -1,133 +1,137 @@
 package integration
 
 import (
-	"encoding/json"
-	"net/http"
-	"net/url"
+	"bytes"
+	"crypto/md5"
+	"encoding/hex"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
+	"io"
 	"testing"
 
-	"djinn-ci.com/object"
-
-	"github.com/andrewpillar/query"
+	"djinn-ci.com/integration/djinn"
 )
 
-func Test_Object(t *testing.T) {
-	client := newClient(server)
+// blusqr encodes a PNG of a blue square into the given writer.
+func blusqr(w io.Writer) {
+	rect := image.NewRGBA(image.Rect(0, 0, 100, 100))
+	blue := color.RGBA{
+		R: 127,
+		G: 213,
+		B: 234,
+		A: 1,
+	}
 
-	f1 := openFile(t, "data")
-	defer f1.Close()
+	draw.Draw(rect, rect.Bounds(), &image.Uniform{C: blue}, image.ZP, draw.Src)
 
-	f2 := openFile(t, "data")
-	defer f2.Close()
+	png.Encode(w, rect)
+}
 
-	reqs := []request{
+func Test_ObjectValidation(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	tests := []struct {
+		params djinn.ObjectParams
+		errors []string
+	}{
 		{
-			name:        "attempt to create nil object",
-			method:      "POST",
-			contentType: "application/octet-stream",
-			uri:         "/api/objects",
-			token:       myTok,
-			code:        http.StatusBadRequest,
+			djinn.ObjectParams{},
+			[]string{"name", "file"},
 		},
 		{
-			name:        "attempt to create nil object with name",
-			method:      "POST",
-			contentType: "application/octet-stream",
-			uri:         "/api/objects?name=data",
-			token:       myTok,
-			code:        http.StatusBadRequest,
-		},
-		{
-			name:        "create object in namespace objectspace",
-			method:      "POST",
-			contentType: "application/octet-stream",
-			uri:         "/api/objects?name=data&namespace=objectspace",
-			token:       myTok,
-			body:        f1,
-			code:        http.StatusCreated,
-		},
-		{
-			name:        "create object in namespace objectspace with duplicate name",
-			method:      "POST",
-			contentType: "application/octet-stream",
-			uri:         "/api/objects?name=data&namespace=objectspace",
-			token:       myTok,
-			code:        http.StatusBadRequest,
-			check:       checkFormErrors("name", "Name already exists"),
-		},
-		{
-			name:        "create object with no namespace",
-			method:      "POST",
-			contentType: "application/octet-stream",
-			uri:         "/api/objects?name=data",
-			token:       myTok,
-			body:        f2,
-			code:        http.StatusCreated,
+			djinn.ObjectParams{
+				Name:   "Test_ObjectValidation",
+				Object: bytes.NewBuffer(make([]byte, 5*(1<<20))),
+			},
+			[]string{"file"},
 		},
 	}
 
-	var o0 struct {
-		ID  int64
-		URL string
-	}
+	for i, test := range tests {
+		_, err := djinn.CreateObject(cli, test.params)
 
-	for i, req := range reqs {
-		resp := client.do(t, req)
+		if err == nil {
+			t.Fatalf("tests[%d] - expected error, got nil\n", i)
+		}
 
-		if i == len(reqs)-1 {
-			if err := json.NewDecoder(resp.Body).Decode(&o0); err != nil {
-				t.Fatal(err)
+		djinnerr, ok := err.(*djinn.Error)
+
+		if !ok {
+			t.Fatalf("tests[%d] - unexpected error type, expected=%T, got=%T (%q)\n", i, djinn.Error{}, err, err)
+		}
+
+		if len(djinnerr.Params) != len(test.errors) {
+			t.Fatalf("tests[%d] - unexpected error count, expected=%d, got=%d\nerrs = %v", i, len(test.errors), len(djinnerr.Params), djinnerr.Params)
+		}
+
+		for _, err := range test.errors {
+			if _, ok := djinnerr.Params[err]; !ok {
+				t.Fatalf("tests[%d] - could not find field %s in field errors\n", i, err)
 			}
 		}
 	}
+}
 
-	o, err := object.NewStore(db).Get(query.Where("id", "=", query.Arg(o0.ID)))
+func Test_ObjectCreate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	var data bytes.Buffer
+
+	blusqr(&data)
+
+	origmd5 := md5.New()
+	tr := io.TeeReader(&data, origmd5)
+
+	o, err := djinn.CreateObject(cli, djinn.ObjectParams{
+		Name:   "Test_ObjectCreate",
+		Object: tr,
+	})
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	part, err := objectStore.Partition(o.UserID)
+	rc, err := o.Data(cli)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := part.Stat(o.Hash); err != nil {
-		t.Fatalf("failed to stat image file %s: %s\n", o.Hash, err)
+	defer rc.Close()
+
+	md5 := md5.New()
+
+	if _, err := io.Copy(md5, rc); err != nil {
+		t.Fatal(err)
 	}
 
-	client.do(t, request{
-		name:        "search for object 'data'",
-		method:      "GET",
-		uri:         "/api/objects?search=data",
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusOK,
-		check:       checkResponseJSONLen(2),
+	if orig := origmd5.Sum(nil); !bytes.Equal(orig, md5.Sum(nil)) {
+		t.Fatalf("downloaded object content does not match, expected=%q, got=%q", hex.EncodeToString(orig), hex.EncodeToString(md5.Sum(nil)))
+	}
+}
+
+func Test_ObjectDelete(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	var data bytes.Buffer
+
+	blusqr(&data)
+
+	origmd5 := md5.New()
+	tr := io.TeeReader(&data, origmd5)
+
+	o, err := djinn.CreateObject(cli, djinn.ObjectParams{
+		Name:   "Test_ObjectDelete",
+		Object: tr,
 	})
 
-	client.do(t, request{
-		name:        "search for object 'data' as 'you'",
-		method:      "GET",
-		uri:         "/api/objects?search=data",
-		token:       yourTok,
-		contentType: "application/json",
-		code:        http.StatusOK,
-		check:       checkResponseJSONLen(0),
-	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	url, _ := url.Parse(o0.URL)
-
-	client.do(t, request{
-		name:   "delete object 'data'",
-		method: "DELETE",
-		uri:    url.Path,
-		token:  myTok,
-		code:   http.StatusNoContent,
-	})
-
-	if _, err := objectStore.Stat(o.Hash); err == nil {
-		t.Fatalf("expected objectStore.Stat(%q) to fail, it did not\n", o.Hash)
+	if err := o.Delete(cli); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -5,6 +5,7 @@ import (
 
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
+	"djinn-ci.com/variable"
 	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
@@ -74,6 +75,22 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	webutil.JSON(w, v.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+}
+
+// Show serves the JSON response for viewing an individual variable.
+func (h API) Show(w http.ResponseWriter, r *http.Request) {
+	v, ok := variable.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get variable from request context")
+	}
+
+	if err := variable.LoadRelations(h.loaders, v); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+	webutil.JSON(w, v.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 // Destroy removes the variable in the given request context from the database.

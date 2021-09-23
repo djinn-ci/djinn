@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"djinn-ci.com/errors"
+	"djinn-ci.com/key"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/web"
 
@@ -74,6 +75,22 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	webutil.JSON(w, k.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+}
+
+// Show serves the JSON response for viewing an individual key.
+func (h API) Show(w http.ResponseWriter, r *http.Request) {
+	k, ok := key.FromContext(r.Context())
+
+	if !ok {
+		h.Log.Error.Println(r.Method, r.URL, "failed to get key from request context")
+	}
+
+	if err := key.LoadRelations(h.loaders, k); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+		return
+	}
+	webutil.JSON(w, k.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
 }
 
 // Update applies the changes in the given request body to the existing key

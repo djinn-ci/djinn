@@ -1,214 +1,136 @@
 package integration
 
 import (
-	"encoding/json"
 	"net/http"
-	"net/url"
 	"testing"
 
-	"djinn-ci.com/namespace"
+	"djinn-ci.com/integration/djinn"
 )
 
-func Test_NamespaceCRUD(t *testing.T) {
-	client := newClient(server)
+func Test_NamespaceCreate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
-	parentBody := map[string]interface{}{
-		"name":       "fremen",
-		"visibility": "private",
-	}
-
-	childBody := map[string]interface{}{
-		"parent":     "fremen",
-		"name":       "chani",
-		"visibility": "public",
-	}
-
-	grandchildBody := map[string]interface{}{
-		"parent": "fremen/chani",
-		"name":   "letoii",
-	}
-
-	client.do(t, request{
-		name:        "attempt to create grandchild namespace fremen/chani/letoii",
-		method:      "POST",
-		uri:         "/api/namespaces",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(grandchildBody),
-		code:        http.StatusBadRequest,
+	n, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
+		Name:       "TestNamespaceCreate",
+		Visibility: djinn.Private,
 	})
-
-	parentResp := client.do(t, request{
-		name:        "create parent namespace fremen",
-		method:      "POST",
-		uri:         "/api/namespaces",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(parentBody),
-		code:        http.StatusCreated,
-	})
-	defer parentResp.Body.Close()
-
-	parent := struct {
-		URL string
-	}{}
-
-	if err := json.NewDecoder(parentResp.Body).Decode(&parent); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
-	}
-
-	parenturl, err := url.Parse(parent.URL)
 
 	if err != nil {
-		t.Fatalf("unexpected url.Parse error: %s\n", err)
+		t.Fatal(err)
 	}
 
-	childResp := client.do(t, request{
-		name:        "create child namespace fremen/chani",
-		method:      "POST",
-		uri:         "/api/namespaces",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(childBody),
-		code:        http.StatusCreated,
+	if _, err := djinn.GetNamespace(cli, n.User.Username, n.Path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_NamespaceParentCreate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	n, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
+		Name:       "TestNamespaceParentCreate",
+		Visibility: djinn.Private,
 	})
-	defer childResp.Body.Close()
-
-	child := struct {
-		URL string
-	}{}
-
-	if err := json.NewDecoder(childResp.Body).Decode(&child); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
-	}
-
-	createGrandchildResp := client.do(t, request{
-		name:        "create grandchild namespace fremen/chani/letoii",
-		method:      "POST",
-		uri:         "/api/namespaces",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(grandchildBody),
-		code:        http.StatusCreated,
-	})
-	defer createGrandchildResp.Body.Close()
-
-	grandchild := struct {
-		Visibility namespace.Visibility
-		URL        string
-		Parent     struct {
-			Name string
-		}
-	}{}
-
-	if err := json.NewDecoder(createGrandchildResp.Body).Decode(&grandchild); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
-	}
-
-	if grandchild.Visibility != namespace.Private {
-		t.Fatalf("unexpected namespace visibility, expected=%q, got=%q\n", namespace.Private, grandchild.Visibility)
-	}
-
-	if grandchild.Parent.Name != "chani" {
-		t.Fatalf("unexpected namespace name, expected=%q, got=%q\n", "fremen", grandchild.Parent.Name)
-	}
-
-	grandchildurl, err := url.Parse(grandchild.URL)
 
 	if err != nil {
-		t.Fatalf("unexpected url.Parse error: %s\n", err)
+		t.Fatal(err)
 	}
 
-	updatedGrandchild := map[string]interface{}{
-		"visibility": "internal",
-	}
-
-	updateGrandchildResp := client.do(t, request{
-		name:        "attempt to set grandchild namespace visibility to 'internal'",
-		method:      "PATCH",
-		uri:         grandchildurl.Path,
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(updatedGrandchild),
-		code:        http.StatusOK,
+	child, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
+		Parent:     n.Path,
+		Name:       "TestNamespaceParentCreateChild",
+		Visibility: djinn.Public,
 	})
-	defer updateGrandchildResp.Body.Close()
-
-	grandchildUpdated := struct {
-		Visibility namespace.Visibility
-	}{}
-
-	if err := json.NewDecoder(updateGrandchildResp.Body).Decode(&grandchildUpdated); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
-	}
-
-	updatedParent := map[string]interface{}{
-		"visibility": "internal",
-	}
-
-	updateParentResp := client.do(t, request{
-		name:        "attempt to set parent namespace visibility to 'internal'",
-		method:      "PATCH",
-		uri:         parenturl.Path,
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(updatedParent),
-		code:        http.StatusOK,
-	})
-	defer updateParentResp.Body.Close()
-
-	if err := json.NewDecoder(updateParentResp.Body).Decode(&grandchild); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
-	}
-
-	grandchildResp := client.do(t, request{
-		name:        "get grandchild namespace to recheck visibility",
-		method:      "GET",
-		uri:         grandchildurl.Path,
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusOK,
-	})
-	defer grandchildResp.Body.Close()
-
-	if err := json.NewDecoder(grandchildResp.Body).Decode(&grandchild); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
-	}
-
-	if grandchild.Visibility != namespace.Internal {
-		t.Fatalf("unexpected namespace visibility, expected=%q, got=%q\n", namespace.Internal, grandchild.Visibility)
-	}
-
-	childurl, err := url.Parse(child.URL)
 
 	if err != nil {
-		t.Fatalf("unexpected url.Parse error: %s\n", err)
+		t.Fatal(err)
 	}
 
-	client.do(t, request{
-		name:        "deleted the fremen/chani namespace",
-		method:      "DELETE",
-		uri:         childurl.Path,
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusNoContent,
+	if child.RootID != n.ID {
+		t.Fatalf("unexpected namespace root_id, expected=%d, got=%d\n", n.ID, child.RootID)
+	}
+
+	if child.ParentID.Int64 != n.ID {
+		t.Fatalf("unexpected namespace parent_id, expected=%d, got=%d\n", n.ID, child.ParentID.Int64)
+	}
+
+	if child.Visibility != n.Visibility {
+		t.Fatalf("unexpected namespace visiblity, expected=%q, got=%q\n", n.Visibility, child.Visibility)
+	}
+}
+
+func Test_NamespaceUpdate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	n, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
+		Name:       "TestNamespaceUpdate",
+		Visibility: djinn.Private,
 	})
 
-	client.do(t, request{
-		name:        "attempt to view the fremen/chani namespace",
-		method:      "GET",
-		uri:         childurl.Path,
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusNotFound,
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
+		Parent: n.Path,
+		Name:   "TestNamespaceUpdateChild",
 	})
 
-	client.do(t, request{
-		name:        "attempt to view the fremen/chani namespace",
-		method:      "GET",
-		uri:         grandchildurl.Path,
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusNotFound,
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := n.Update(cli, djinn.NamespaceParams{Visibility: djinn.Internal}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := child.Get(cli); err != nil {
+		t.Fatal(err)
+	}
+
+	if child.Visibility != n.Visibility {
+		t.Fatalf("unexpected namespace visibility for child, expected=%q, got=%q\n", n.Visibility, child.Visibility)
+	}
+}
+
+func Test_NamespaceDelete(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	n, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
+		Name:       "TestNamespaceDelete",
+		Visibility: djinn.Private,
 	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	child, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
+		Parent: n.Path,
+		Name:   "TestNamespaceDeleteChild",
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := n.Delete(cli); err != nil {
+		t.Fatal(err)
+	}
+
+	err = child.Get(cli)
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+
+	djinnerr, ok := err.(*djinn.Error)
+
+	if !ok {
+		t.Fatalf("unexpected error type, expected=%T, got=%T (%q)\n", djinn.Error{}, err, err)
+	}
+
+	if djinnerr.StatusCode != http.StatusNotFound {
+		t.Fatalf("unexpected http status, expected=%q, got=%q\n", http.StatusText(http.StatusNotFound), http.StatusText(djinnerr.StatusCode))
+	}
 }

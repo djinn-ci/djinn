@@ -1,90 +1,86 @@
 package integration
 
 import (
-	"net/http"
 	"testing"
+
+	"djinn-ci.com/integration/djinn"
 )
 
-func Test_Cron(t *testing.T) {
-	client := newClient(server)
+func Test_CronCreate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
-	client.do(t, request{
-		name:        "create cron namespace for user 'me'",
-		method:      "POST",
-		uri:         "/api/namespaces",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(map[string]string{"name": "cronspace", "visibility": "private"}),
-		code:        http.StatusCreated,
+	c, err := djinn.CreateCron(cli, djinn.CronParams{
+		Name:     "Test_CronCreate",
+		Schedule: djinn.Daily,
+		Manifest: djinn.Manifest{
+			Namespace: "",
+			Driver: map[string]string{
+				"type":      "docker",
+				"image":     "golang",
+				"workspace": "/go",
+			},
+		},
 	})
 
-	client.do(t, request{
-		name:        "create cron namespace for user 'you'",
-		method:      "POST",
-		uri:         "/api/namespaces",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(map[string]string{"name": "spacecron", "visibility": "private"}),
-		code:        http.StatusCreated,
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Get(cli); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_CronUpdate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	c, err := djinn.CreateCron(cli, djinn.CronParams{
+		Name:     "Test_CronUpdate",
+		Schedule: djinn.Daily,
+		Manifest: djinn.Manifest{
+			Namespace: "",
+			Driver: map[string]string{
+				"type":      "docker",
+				"image":     "golang",
+				"workspace": "/go",
+			},
+		},
 	})
 
-	client.do(t, request{
-		name:        "attempt to create cron unauthenticated",
-		method:      "POST",
-		uri:         "/api/cron",
-		contentType: "application/json",
-		code:        http.StatusNotFound,
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := c.Update(cli, djinn.CronParams{Schedule: djinn.Monthly}); err != nil {
+		t.Fatal(err)
+	}
+
+	if c.Schedule != djinn.Monthly {
+		t.Fatalf("unexpected cron schedule, expected=%q, got=%q\n", djinn.Monthly, c.Schedule)
+	}
+}
+
+func Test_CronDelete(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	c, err := djinn.CreateCron(cli, djinn.CronParams{
+		Name:     "Test_CronDelete",
+		Schedule: djinn.Daily,
+		Manifest: djinn.Manifest{
+			Namespace: "",
+			Driver: map[string]string{
+				"type":      "docker",
+				"image":     "golang",
+				"workspace": "/go",
+			},
+		},
 	})
 
-	client.do(t, request{
-		name:        "attempt to create cron with no request body as 'me'",
-		method:      "POST",
-		uri:         "/api/cron",
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusBadRequest,
-	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	client.do(t, request{
-		name:        "attempt to create cron with invalid schedule as 'me'",
-		method:      "POST",
-		uri:         "/api/cron",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(map[string]string{"schedule": "foo"}),
-		code:        http.StatusBadRequest,
-		check:       checkFormErrors("schedule", "unknown schedule: foo"),
-	})
-
-	client.do(t, request{
-		name:        "attempt to create cron in namespace spacecron@you as 'me'",
-		method:      "POST",
-		uri:         "/api/cron",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(map[string]string{"manifest": "namespace: spacecron@you"}),
-		code:        http.StatusBadRequest,
-	})
-
-	manifest := "namespace: cronspace\ndriver:\n  type: qemu\n  image: centos/7"
-
-	client.do(t, request{
-		name:        "create daily cron as 'me' in namespace cronspace",
-		method:      "POST",
-		uri:         "/api/cron",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(map[string]string{"name": "Nightly", "manifest": manifest}),
-		code:        http.StatusCreated,
-	})
-
-	client.do(t, request{
-		name:        "create daily cron as 'me'",
-		method:      "POST",
-		uri:         "/api/cron",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(map[string]string{"name": "Nightly", "manifest": manifest}),
-		code:        http.StatusCreated,
-	})
+	if err := c.Delete(cli); err != nil {
+		t.Fatal(err)
+	}
 }

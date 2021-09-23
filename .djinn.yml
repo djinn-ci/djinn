@@ -6,7 +6,7 @@ sources:
 - https://github.com/djinn-ci/djinn
 env:
 - LDFLAGS=-s -w
-- INTEGRATION_CONFIG=testdata/server.cfg
+- INTEGRATION_CONFIG=testdata/server.conf
 stages:
 - setup
 - make

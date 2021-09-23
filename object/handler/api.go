@@ -81,11 +81,11 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 }
 
 // Show serves up the JSON response for the object in the given request. If the
-// Accept header in the request is "application/octet-stream" then the content
-// of the image itself is sent in the response. If the base request URL path
-// is "/builds" then a list of the builds that the object was placed on will be
-// returned. If there are multiple pages of builds then the paginator is
-// encoded into the Link response header.
+// Accept header in the request matches the MIME type of the object then the
+// content of the object itself is sent in the response. If the base request
+// URL path is "/builds" then a list of the builds that the object was placed
+// on will be returned. If there are multiple pages of builds then the
+// paginator is encoded into the Link response header.
 func (h API) Show(w http.ResponseWriter, r *http.Request) {
 	base := webutil.BasePath(r.URL.Path)
 
@@ -124,7 +124,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.Header.Get("Accept") == "application/octet-stream" {
+	if r.Header.Get("Accept") == o.Type {
 		store, err := h.store.Partition(o.UserID)
 
 		if err != nil {

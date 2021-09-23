@@ -1,73 +1,41 @@
 package integration
 
 import (
-	"net/http"
 	"testing"
+
+	"djinn-ci.com/integration/djinn"
 )
 
-func Test_Variable(t *testing.T) {
-	client := newClient(server)
+func Test_VariableCreate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
-	variable := map[string]string{
-		"key":   "PGADDR",
-		"value": "host=localhost port=5432 dbname=djinn user=djinn password=secret sslmode=disable",
-	}
-
-	variable["namespace"] = "varspace"
-
-	client.do(t, request{
-		name:        "create variable with in separate namespace",
-		method:      "POST",
-		uri:         "/api/variables",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(variable),
-		code:        http.StatusCreated,
+	v, err := djinn.CreateVariable(cli, djinn.VariableParams{
+		Key:   "Test_VariableCreate",
+		Value: "foo",
 	})
 
-	delete(variable, "namespace")
-
-	reqs := []request{
-		{
-			name:        "attempt to create variable with no body",
-			method:      "POST",
-			uri:         "/api/variables",
-			token:       myTok,
-			contentType: "application/json",
-			code:        http.StatusBadRequest,
-		},
-		{
-			name:        "create variable",
-			method:      "POST",
-			uri:         "/api/variables",
-			token:       myTok,
-			contentType: "application/json",
-			body:        jsonBody(variable),
-			code:        http.StatusCreated,
-		},
-		{
-			name:        "create variable with duplicate name",
-			method:      "POST",
-			uri:         "/api/variables",
-			token:       myTok,
-			contentType: "application/json",
-			body:        jsonBody(variable),
-			code:        http.StatusBadRequest,
-			check:       checkFormErrors("key", "Key already exists"),
-		},
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	for _, req := range reqs {
-		client.do(t, req)
+	if err := v.Get(cli); err != nil {
+		t.Fatal(err)
 	}
+}
 
-	client.do(t, request{
-		name:        "search for variable with 'PG'",
-		method:      "GET",
-		uri:         "/api/variables?search=PG",
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusOK,
-		check:       checkResponseJSONLen(2),
+func Test_VariableDelete(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	v, err := djinn.CreateVariable(cli, djinn.VariableParams{
+		Key:   "Test_VariableDelete",
+		Value: "foo",
 	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := v.Delete(cli); err != nil {
+		t.Fatal(err)
+	}
 }

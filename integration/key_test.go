@@ -4,20 +4,19 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
-	"encoding/json"
 	"encoding/pem"
-	"net/http"
-	"net/url"
 	"testing"
+
+	"djinn-ci.com/integration/djinn"
 )
 
-func Test_Key(t *testing.T) {
-	client := newClient(server)
+func Test_KeyCreate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 
 	if err != nil {
-		t.Fatalf("unexpected rsa.GenerateKey error: %s\n", err)
+		t.Fatal(err)
 	}
 
 	b := pem.EncodeToMemory(&pem.Block{
@@ -25,80 +24,78 @@ func Test_Key(t *testing.T) {
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	})
 
-	keyBody := map[string]interface{}{
-		"namespace": "keyspace",
-		"name":      "id_rsa",
-		"key":       "AAAAABBBBBCCCCC",
-	}
-
-	client.do(t, request{
-		name:        "attempt to create ssh key with no body",
-		method:      "POST",
-		uri:         "/api/keys",
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusBadRequest,
+	k, err := djinn.CreateKey(cli, djinn.KeyParams{
+		Name: "Test_KeyCreate",
+		Key:  string(b),
 	})
-
-	client.do(t, request{
-		name:        "attempt to create ssh key with invalid key",
-		method:      "POST",
-		uri:         "/api/keys",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(keyBody),
-		code:        http.StatusBadRequest,
-	})
-
-	keyBody["key"] = string(b)
-
-	client.do(t, request{
-		name:        "create ssh key in namespace keyspace",
-		method:      "POST",
-		uri:         "/api/keys",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(keyBody),
-		code:        http.StatusCreated,
-	})
-
-	delete(keyBody, "namespace")
-
-	createResp := client.do(t, request{
-		name:        "create ssh key",
-		method:      "POST",
-		uri:         "/api/keys",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(keyBody),
-		code:        http.StatusCreated,
-	})
-	defer createResp.Body.Close()
-
-	k := struct {
-		URL string
-	}{}
-
-	if err := json.NewDecoder(createResp.Body).Decode(&k); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
-	}
-
-	url, err := url.Parse(k.URL)
 
 	if err != nil {
-		t.Fatalf("unexpected url.Parse error: %s\n", err)
+		t.Fatal(err)
 	}
 
-	keyBody["key"] = "foo"
-	keyBody["config"] = "UserKnownHostsFile /dev/null"
+	if err := k.Get(cli); err != nil {
+		t.Fatal(err)
+	}
+}
 
-	client.do(t, request{
-		name:        "update ssh key",
-		method:      "PATCH",
-		uri:         url.Path,
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(keyBody),
-		code:        http.StatusOK,
+func Test_KeyUpdate(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	})
+
+	k, err := djinn.CreateKey(cli, djinn.KeyParams{
+		Name: "Test_KeyUpdate",
+		Key:  string(b),
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	config := "UserKnownHostsFile /dev/null"
+
+	if err := k.Update(cli, djinn.KeyParams{Config: config}); err != nil {
+		t.Fatal(err)
+	}
+
+	if k.Config != config {
+		t.Fatalf("unexpected key config after updated, expected=%q, got=%q\n", config, k.Config)
+	}
+}
+
+func Test_KeyDelete(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	b := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	})
+
+	k, err := djinn.CreateKey(cli, djinn.KeyParams{
+		Name: "Test_KeyDelete",
+		Key:  string(b),
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := k.Delete(cli); err != nil {
+		t.Fatal(err)
+	}
 }

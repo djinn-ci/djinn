@@ -50,6 +50,14 @@ type Event struct {
 	Action    string
 }
 
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
+		}
+	}
+}
+
 // Resource is the type that represents a model that can exist within a
 // Namespace, such as an object, image, variable, or key.
 type Resource struct {

@@ -98,6 +98,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr := mux.PathPrefix("/variables").Subrouter()
 	sr.HandleFunc("", variable.Index).Methods("GET", "HEAD")
 	sr.HandleFunc("", variable.Store).Methods("POST")
+	sr.HandleFunc("/{variable:[0-9]+}", variable.Show).Methods("GET")
 	sr.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
 	sr.Use(r.middleware.Gate(gates...))
 }

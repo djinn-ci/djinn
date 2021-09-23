@@ -1,279 +1,138 @@
 package integration
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"djinn-ci.com/fs"
 	"djinn-ci.com/oauth2"
 	"djinn-ci.com/serverutil"
 	"djinn-ci.com/user"
 
+	goredis "github.com/go-redis/redis"
+
 	"github.com/jmoiron/sqlx"
 )
 
-type client struct {
-	server *httptest.Server
+var (
+	users  *usermap
+	tokens *tokenmap
+)
+
+type usermap struct {
+	mu *sync.RWMutex
+	m  map[string]*user.User
 }
 
-type request struct {
-	name        string
-	method      string
-	uri         string
-	token       *oauth2.Token
-	contentType string
-	body        io.ReadCloser
-	code        int
-	check       func(*testing.T, string, *http.Request, *http.Response)
+func (m *usermap) put(u *user.User) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.m == nil {
+		m.m = make(map[string]*user.User)
+	}
+	m.m[u.Email] = u
+}
+
+func (m *usermap) get(email string) *user.User {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.m[email]
+}
+
+type tokenmap struct {
+	mu *sync.RWMutex
+	m  map[string]*oauth2.Token
+}
+
+func (m *tokenmap) put(t *oauth2.Token) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.m == nil {
+		m.m = make(map[string]*oauth2.Token)
+	}
+	m.m[t.Name] = t
+}
+
+func (m *tokenmap) get(name string) *oauth2.Token {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	return m.m[name]
 }
 
 var (
-	myTok   *oauth2.Token
-	yourTok *oauth2.Token
-
-	buildRWD     *oauth2.Token // build:read,write,delete
-	namespaceRWD *oauth2.Token // namespace:read,write,delete
-	objectRWD    *oauth2.Token // object:read,write,delete
-	variableRWD  *oauth2.Token // variable:read,write,delete
-	keyRWD       *oauth2.Token // key:read,write,delete
-
-	server *httptest.Server
 	db     *sqlx.DB
+	redis  *goredis.Client
+	server *httptest.Server
 
-	imageStore  fs.Store
-	objectStore fs.Store
+	imagestore  fs.Store
+	objectstore fs.Store
+
+	apiEndpoint string
 )
-
-func checkResponseJSONLen(l int) func(*testing.T, string, *http.Request, *http.Response) {
-	return func(t *testing.T, name string, req *http.Request, resp *http.Response) {
-		items := make([]interface{}, 0)
-
-		json.NewDecoder(resp.Body).Decode(&items)
-
-		if len(items) != l {
-			t.Errorf("unexpected number of json items in response for %q, expected=%d, got=%d\n", name, l, len(items))
-		}
-	}
-}
-
-func checkFormErrors(field string, msgs ...string) func(*testing.T, string, *http.Request, *http.Response) {
-	return func(t *testing.T, name string, req *http.Request, resp *http.Response) {
-		errs := make(map[string][]string)
-
-		if err := json.NewDecoder(resp.Body).Decode(&errs); err != nil {
-			t.Errorf("request test failed: %q\n", name)
-			t.Fatalf("unexpected json.Decode error: %s\n", err.Error())
-		}
-
-		msgs1, ok := errs[field]
-
-		if !ok {
-			t.Fatalf("expected field %s in errors json: %v\n", field, errs)
-		}
-
-		set := make(map[string]struct{})
-
-		for _, msg := range msgs1 {
-			set[msg] = struct{}{}
-		}
-
-		for _, msg := range msgs {
-			if _, ok := set[msg]; !ok {
-				dumpRequest(t, req)
-				t.Errorf("request test failed: %q\n", name)
-				t.Fatalf("could not find error message\nmessage = %q\nerrors  = %v", msg, errs)
-			}
-		}
-	}
-}
-
-func drain(t *testing.T, rc io.ReadCloser) (io.ReadCloser, io.ReadCloser) {
-	if rc == nil {
-		return nil, nil
-	}
-
-	var buf bytes.Buffer
-
-	if _, err := buf.ReadFrom(rc); err != nil {
-		t.Fatalf("unexpected bytes.Buffer.ReadFrom error: %s\n", err)
-	}
-	if err := rc.Close(); err != nil {
-		t.Fatalf("unexpected io.ReadCloser.Close error: %s\n", err)
-	}
-	return ioutil.NopCloser(&buf), ioutil.NopCloser(bytes.NewReader(buf.Bytes()))
-}
-
-func dumpRequest(t *testing.T, r *http.Request) {
-	t.Logf("%s %s", r.Method, r.URL.String())
-
-	for k, v := range r.Header {
-		t.Logf("%s: %s\n", k, strings.Join(v, "; "))
-	}
-
-	if r.Body != nil {
-		defer r.Body.Close()
-
-		var buf bytes.Buffer
-
-		if _, err := io.Copy(&buf, r.Body); err != nil {
-			t.Fatalf("unexpected io.Copy error: %s\n", err)
-		}
-		t.Logf("%s\n", buf.String())
-	}
-}
-
-func dumpResponse(t *testing.T, r *http.Response) {
-	t.Logf("%s\n", r.Status)
-
-	for k, v := range r.Header {
-		t.Logf("%s: %s\n", k, strings.Join(v, "; "))
-	}
-
-	if r.Body != nil {
-		defer r.Body.Close()
-
-		var buf bytes.Buffer
-
-		if _, err := io.Copy(&buf, r.Body); err != nil {
-			t.Fatalf("unexpected io.Copy error: %s\n", err)
-		}
-		t.Logf("%s\n", buf.String())
-	}
-}
-
-func dumpLog() {
-	f, _ := os.Open(filepath.Join("testdata", "server.log"))
-	defer f.Close()
-	io.Copy(os.Stdout, f)
-}
-
-func jsonBody(v interface{}) io.ReadCloser {
-	var buf bytes.Buffer
-	json.NewEncoder(&buf).Encode(v)
-	return ioutil.NopCloser(&buf)
-}
-
-func (c client) do(t *testing.T, r request) *http.Response {
-	req, err := http.NewRequest(r.method, c.server.URL+r.uri, r.body)
-
-	if err != nil {
-		t.Fatalf("unexpected http.NewRequest error: %s\n", err)
-		dumpLog()
-	}
-
-	if r.token != nil {
-		req.Header.Set("Authorization", "Bearer "+r.token.Token)
-	}
-
-	req.Header.Set("Content-Type", r.contentType)
-
-	reqbody1, reqbody2 := drain(t, req.Body)
-
-	req.Body = reqbody1
-
-	resp, err := c.server.Client().Do(req)
-
-	if err != nil {
-		t.Fatalf("unexpected http.Client.Do error: %s\n", err)
-		dumpLog()
-	}
-
-	req.Body = reqbody2
-
-	if resp.StatusCode != r.code {
-		t.Errorf("request test failed: %q\n", r.name)
-		t.Errorf("unexpected http response status, expected=%d, got=%q\n", r.code, resp.Status)
-		dumpRequest(t, req)
-		dumpResponse(t, resp)
-		dumpLog()
-	}
-
-	respbody1, respbody2 := drain(t, resp.Body)
-
-	resp.Body = respbody1
-
-	if r.check != nil {
-		r.check(t, r.name, req, resp)
-	}
-
-	resp.Body = respbody2
-	return resp
-}
 
 func fatalf(format string, a ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	os.Exit(1)
 }
 
-func getenv(key string) string {
-	val := os.Getenv(key)
-
-	if val == "" {
-		fatalf("environment variable %s not set\n", key)
-	}
-	return val
-}
-
-func readFile(t *testing.T, name string) []byte {
-	b, err := ioutil.ReadFile(filepath.Join("testdata", name))
+func mkuser(db *sqlx.DB, username, email string, password []byte) *user.User {
+	u, _, err := user.NewStore(db).Create(username, email, password)
 
 	if err != nil {
-		t.Fatalf("unexpected ReadFile error: %s\n", err)
+		fatalf("mkuser error: %s\n", err)
 	}
-	return b
+	return u
 }
 
-func openFile(t *testing.T, name string) *os.File {
-	f, err := os.Open(filepath.Join("testdata", name))
+func mktoken(db *sqlx.DB, u *user.User, name, scope string) *oauth2.Token {
+	sc, err := oauth2.UnmarshalScope(scope)
 
 	if err != nil {
-		t.Fatalf("unexpected Open error: %s\n", err)
+		fatalf("mktoken error: %s\n", err)
 	}
-	return f
-}
 
-func readAll(t *testing.T, r io.Reader) []byte {
-	b, err := ioutil.ReadAll(r)
+	tok, err := oauth2.NewTokenStore(db, u).Create(name, sc)
 
 	if err != nil {
-		t.Fatalf("unexpected ReadAll error: %s\n", err)
+		fatalf("mktoken error: %s\n", err)
 	}
-	return b
-}
-
-func newClient(server *httptest.Server) client {
-	return client{
-		server: server,
-	}
+	return tok
 }
 
 func TestMain(m *testing.M) {
 	cfgfile := os.Getenv("INTEGRATION_CONFIG")
 
 	if cfgfile == "" {
-		fmt.Printf("skipping integration tests, INTEGRATION_CONFIG not set\n")
+		fmt.Println("skipping integration tests, INTEGRATION_CONFIG not set")
 		return
 	}
 
-	if err := os.MkdirAll(filepath.Join(os.TempDir(), "qemu"), os.FileMode(0755)); err != nil {
-		fatalf("failed to create qemu tempdir: %s\n", err)
+	tmp := os.TempDir()
+
+	for _, dir := range []string{"artifacts", "images", "objects"} {
+		if err := os.MkdirAll(filepath.Join(tmp, dir), os.FileMode(0755)); err != nil {
+			fatalf("failed to create directory %s: %s\n", dir, err)
+		}
 	}
 
-	args := []string{"djinn-server", "-config", cfgfile}
+	api, config, ui, _ := serverutil.ParseFlags([]string{"djinn-server", "-config", cfgfile})
 
-	api, config, ui, _ := serverutil.ParseFlags(args)
+	bgctx := context.Background()
 
-	srv, cfg, close_, err := serverutil.Init(context.Background(), config)
+	qctx, qcancel := context.WithCancel(bgctx)
+	defer qcancel()
+
+	srv, cfg, close_, err := serverutil.Init(qctx, config)
 
 	if err != nil {
 		fatalf("failed to initialize server: %s\n", err)
@@ -282,96 +141,61 @@ func TestMain(m *testing.M) {
 	defer close_()
 
 	db = cfg.DB()
-
-	imageStore = cfg.Images().Store
-	objectStore = cfg.Objects().Store
-
-	users := user.NewStore(db)
-
-	me, _, err := users.Create("me@example.com", "me", []byte("secret"))
-
-	if err != nil {
-		fatalf("failed to create user: %s\n", err)
-	}
-
-	you, _, err := users.Create("you@example.com", "you", []byte("secret"))
-
-	if err != nil {
-		fatalf("failed to create user: %s\n", err)
-	}
-
-	scope := oauth2.NewScope()
-
-	for _, res := range oauth2.Resources {
-		for _, perm := range oauth2.Permissions {
-			scope.Add(res, perm)
-		}
-	}
-
-	buildScope := oauth2.NewScope()
-	buildScope.Add(oauth2.Build, oauth2.Read|oauth2.Write|oauth2.Delete)
-
-	namespaceScope := oauth2.NewScope()
-	namespaceScope.Add(oauth2.Namespace, oauth2.Read|oauth2.Write|oauth2.Delete)
-
-	objectScope := oauth2.NewScope()
-	objectScope.Add(oauth2.Object, oauth2.Read|oauth2.Write|oauth2.Delete)
-
-	variableScope := oauth2.NewScope()
-	variableScope.Add(oauth2.Variable, oauth2.Read|oauth2.Write|oauth2.Delete)
-
-	keyScope := oauth2.NewScope()
-	keyScope.Add(oauth2.Key, oauth2.Read|oauth2.Write|oauth2.Delete)
-
-	myTok, err = oauth2.NewTokenStore(db, me).Create("My Token", scope)
-
-	if err != nil {
-		fatalf("failed to create token: %s\n", err)
-	}
-
-	buildRWD, err = oauth2.NewTokenStore(db, me).Create("Build Token", buildScope)
-
-	if err != nil {
-		fatalf("failed to create token: %s\n", err)
-	}
-
-	namespaceRWD, err = oauth2.NewTokenStore(db, me).Create("Namespace Token", namespaceScope)
-
-	if err != nil {
-		fatalf("failed to create token: %s\n", err)
-	}
-
-	objectRWD, err = oauth2.NewTokenStore(db, me).Create("Object Token", objectScope)
-
-	if err != nil {
-		fatalf("failed to create token: %s\n", err)
-	}
-
-	variableRWD, err = oauth2.NewTokenStore(db, me).Create("Variable Token", variableScope)
-
-	if err != nil {
-		fatalf("failed to create token: %s\n", err)
-	}
-
-	keyRWD, err = oauth2.NewTokenStore(db, me).Create("Key Token", keyScope)
-
-	if err != nil {
-		fatalf("failed to create token: %s\n", err)
-	}
-
-	yourTok, err = oauth2.NewTokenStore(db, you).Create("Your Token", scope)
-
-	if err != nil {
-		fatalf("failed to create token: %s\n", err)
-	}
-
-	serverutil.RegisterRoutes(cfg, api, ui, srv)
-
+	redis = cfg.Redis()
 	server = httptest.NewServer(srv.Server.Handler)
+
+	defer server.Close()
+
+	imagestore = cfg.Images().Store
+	objectstore = cfg.Objects().Store
+
+	apiEndpoint = server.URL + "/api"
+
+	users = &usermap{
+		mu: &sync.RWMutex{},
+	}
+
+	uu := []*user.User{
+		{Email: "gordon.freeman@black-mesa.com", Username: "gordon.freeman", Password: []byte("secret")},
+		{Email: "eli.vance@black-mesa.com", Username: "eli.vance", Password: []byte("secret")},
+		{Email: "wallace.breen@black-mesa.com", Username: "wallace.breen", Password: []byte("secret")},
+		{Email: "doug.rattman@aperturescience.com", Username: "doug.rattman", Password: []byte("secret")},
+		{Email: "henry.bloggs@aperturescience.com", Username: "henry.bloggs", Password: []byte("secret")},
+	}
+
+	for i, u0 := range uu {
+		u := mkuser(db, u0.Email, u0.Username, u0.Password)
+
+		users.put(u)
+		uu[i] = u
+	}
+
+	tokens = &tokenmap{
+		mu: &sync.RWMutex{},
+	}
+
+	for _, u := range uu {
+		sc := oauth2.NewScope()
+
+		for _, res := range oauth2.Resources {
+			for _, perm := range oauth2.Permissions {
+				sc.Add(res, perm)
+			}
+		}
+		tokens.put(mktoken(db, u, u.Username, sc.String()))
+	}
 
 	srv.Server = server.Config
 
-	serverutil.Start(srv)
+	ch := make(chan os.Signal, 1)
+
+	serverutil.RegisterRoutes(cfg, api, ui, srv)
+	serverutil.Start(srv, ch)
+
+	ctx, cancel := context.WithTimeout(bgctx, time.Duration(time.Second*15))
+	defer cancel()
 
 	os.Exit(m.Run())
+
+	srv.Shutdown(ctx)
 }

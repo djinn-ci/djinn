@@ -47,10 +47,14 @@ github.com/alicebob/miniredis v2.5.0+incompatible h1:yBHoLpsyjupjz3NL3MhKMVkR41j
 github.com/alicebob/miniredis v2.5.0+incompatible/go.mod h1:8HZjEj4yU0dwhYHky+DxYx+6BMjkBbe5ONFIF1MXffk=
 github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4 h1:aNiK7dzPXmJXlQzqkxce3L5MUhThbcoc0QYDInog/GM=
 github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
-github.com/andrewpillar/webutil v0.0.0-20210821160210-1fba4d485f82 h1:sSwdXWQ6XTtOaNLqzfmL7ZZRf2mTsq6O8ELGVmftIC0=
-github.com/andrewpillar/webutil v0.0.0-20210821160210-1fba4d485f82/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
 github.com/andrewpillar/webutil v0.0.0-20210826110650-dd64e24258e2 h1:46pUlbFKleZLL5s92h/R4MOAO1VKachS5YD0ajl8+zM=
 github.com/andrewpillar/webutil v0.0.0-20210826110650-dd64e24258e2/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
+github.com/andrewpillar/webutil v0.0.0-20210920153047-a1cf2eccd51b h1:3rCLyIaYEpM2wSDO5BLm+hEsc30nMvMt84s0wutxktg=
+github.com/andrewpillar/webutil v0.0.0-20210920153047-a1cf2eccd51b/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
+github.com/andrewpillar/webutil v0.0.0-20210920154135-112fcabbf104 h1:qQICBQ5bGNdYf4Ml+zNibEfh9JmS22xLxJT4uBfHMjg=
+github.com/andrewpillar/webutil v0.0.0-20210920154135-112fcabbf104/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
+github.com/andrewpillar/webutil v0.0.0-20210921111926-1bf352928edc h1:bbiNBeZA2eepujjAOERTCqGmT6tJAA/Z1/tRwRD+2VY=
+github.com/andrewpillar/webutil v0.0.0-20210921111926-1bf352928edc/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
@@ -302,6 +306,10 @@ github.com/valyala/quicktemplate v1.4.1/go.mod h1:EH+4AkTd43SvgIbQHYu59/cJyxDoOV
 github.com/valyala/tcplisten v0.0.0-20161114210144-ceec8f93295a/go.mod h1:v3UYOV9WzVtRmSR+PDvWpU/qWl4Wa5LApYYX4ZtKbio=
 github.com/vmihailenco/msgpack v4.0.4+incompatible h1:dSLoQfGFAo3F6OoNhwUmLwVgaUXK79GlxNBwueZn0xI=
 github.com/vmihailenco/msgpack v4.0.4+incompatible/go.mod h1:fy3FlTQTDXWkZ7Bh6AcGMlsjHatGryHQYUTf1ShIgkk=
+github.com/vmihailenco/msgpack/v4 v4.3.12 h1:07s4sz9IReOgdikxLTKNbBdqDMLsjPKXwvCazn8G65U=
+github.com/vmihailenco/msgpack/v4 v4.3.12/go.mod h1:gborTTJjAo/GWTqqRjrLCn9pgNN+NXzzngzBKDPIqw4=
+github.com/vmihailenco/tagparser v0.1.1 h1:quXMXlA39OCbd2wAdTsGDlK9RkOk6Wuw+x37wVyIuWY=
+github.com/vmihailenco/tagparser v0.1.1/go.mod h1:OeAg3pn3UbLjkWt+rN9oFYB6u/cQgqMEUPoW2WPyhdI=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

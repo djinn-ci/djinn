@@ -241,7 +241,7 @@ func (f WebhookForm) Validate() error {
 	url, err := url.Parse(f.PayloadURL)
 
 	if err != nil {
-		errs.Put("payload_url", errors.New("Invalid URL"))
+		errs.Put("payload_url", errors.New("Invalid payload URL"))
 	}
 
 	if url.Scheme != "http" && url.Scheme != "https" {
@@ -257,11 +257,11 @@ func (f WebhookForm) Validate() error {
 	}
 
 	if host == "" {
-		errs.Put("payload_url", errors.New("Invalid payload URL"))
+		errs.Put("payload_url", errors.New("Invalid payload URL, missing host"))
 	}
 
 	if _, ok := localhosts[host]; ok {
-		errs.Put("payload_url", errors.New("Invalid payload URL"))
+		errs.Put("payload_url", errors.New("Invalid payload URL, cannot be localhost"))
 	}
 
 	if f.SSL {

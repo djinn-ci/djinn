@@ -8,7 +8,7 @@ import (
 )
 
 func Test_DownloadURL(t *testing.T) {
-	tests := []struct{
+	tests := []struct {
 		url      string
 		expected string
 	}{

@@ -174,6 +174,8 @@ func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
+	k.Config = f.Config
+
 	h.Queues.Produce(ctx, "events", &key.Event{
 		Key:    k,
 		Action: "updated",

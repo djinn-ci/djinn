@@ -1,228 +1,206 @@
 package integration
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
-	"net/url"
+	"bytes"
+	"encoding/gob"
 	"testing"
 
-	"djinn-ci.com/namespace"
+	"djinn-ci.com/build"
+	"djinn-ci.com/integration/djinn"
+
+	"github.com/mcmathja/curlyq"
+
+	"github.com/vmihailenco/msgpack/v4"
 )
 
-func Test_ManifestNamespaceValidation(t *testing.T) {
-	client := newClient(server)
+func Test_BuildValidation(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
-	manifest := "namespace: %s\ndriver:\n  type: qemu\n  image: centos/7"
-
-	reqs := []request{
+	tests := []struct {
+		params djinn.BuildParams
+		errors []string
+	}{
 		{
-			name:        "invalid namespace name",
-			method:      "POST",
-			uri:         "/api/builds",
-			token:       myTok,
-			contentType: "application/json",
-			body:        jsonBody(map[string]interface{}{"manifest": fmt.Sprintf(manifest, "black-mesa")}),
-			code:        http.StatusBadRequest,
-			check:       checkFormErrors("manifest", namespace.ErrName.Error()),
+			djinn.BuildParams{},
+			[]string{"manifest"},
 		},
 		{
-			name:        "incorrect namespace owner",
-			method:      "POST",
-			uri:         "/api/builds",
-			token:       myTok,
-			contentType: "application/json",
-			body:        jsonBody(map[string]interface{}{"manifest": fmt.Sprintf(manifest, "city17@you")}),
-			code:        http.StatusBadRequest,
-			check:       checkFormErrors("namespace", "Could not find namespace"),
+			djinn.BuildParams{
+				Manifest: djinn.Manifest{
+					Driver: map[string]string{"type": "docker"},
+				},
+			},
+			[]string{"manifest"},
 		},
 		{
-			name:        "valid namespace name - me",
-			method:      "POST",
-			uri:         "/api/builds",
-			token:       myTok,
-			contentType: "application/json",
-			body:        jsonBody(map[string]interface{}{"manifest": fmt.Sprintf(manifest, "blackmesa")}),
-			code:        http.StatusCreated,
+			djinn.BuildParams{
+				Manifest: djinn.Manifest{
+					Driver: map[string]string{"type": "docker", "image": "golang"},
+				},
+			},
+			[]string{"manifest"},
 		},
 		{
-			name:        "valid namespace name - you",
-			method:      "POST",
-			uri:         "/api/builds",
-			token:       yourTok,
-			contentType: "application/json",
-			body:        jsonBody(map[string]interface{}{"manifest": fmt.Sprintf(manifest, "blackmesa")}),
-			code:        http.StatusCreated,
+			djinn.BuildParams{
+				Manifest: djinn.Manifest{
+					Driver: map[string]string{"type": "qemu", "image": "debian/stable"},
+				},
+			},
+			[]string{"manifest"},
 		},
 	}
 
-	for _, req := range reqs {
-		client.do(t, req)
+	for i, test := range tests {
+		_, err := djinn.SubmitBuild(cli, test.params)
+
+		if err == nil {
+			t.Fatalf("tests[%d] - expected error, got nil\n", i)
+		}
+
+		djinnerr, ok := err.(*djinn.Error)
+
+		if !ok {
+			t.Fatalf("tests[%d] - unexpected error type, expected=%T, got=%T (%q)\n", i, djinn.Error{}, err, err)
+		}
+
+		if len(djinnerr.Params) != len(test.errors) {
+			t.Fatalf("tests[%d] - unexpected error count, expected=%d, got=%d\nerrs = %v", i, len(test.errors), len(djinnerr.Params), djinnerr.Params)
+		}
+
+		for _, err := range test.errors {
+			if _, ok := djinnerr.Params[err]; !ok {
+				t.Fatalf("tests[%d] - could not find field %s in field errors\n", i, err)
+			}
+		}
 	}
 }
 
-func Test_AnonymousBuild(t *testing.T) {
-	client := newClient(server)
+var buildQueue = "builds_docker:data"
 
-	body := map[string]interface{}{
-		"manifest": string(readFile(t, "anonymous.yml")),
-		"tags":     []string{"anon", "go"},
-	}
+func Test_BuildSubmit(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
-	createResp := client.do(t, request{
-		name:        "create anonymous build",
-		method:      "POST",
-		uri:         "/api/builds",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(body),
-		code:        http.StatusCreated,
+	tags := []string{"build_test", "Test_BuildSubmit"}
+
+	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
+		Manifest: djinn.Manifest{
+			Driver: map[string]string{
+				"type":      "docker",
+				"image":     "golang",
+				"workspace": "/go",
+			},
+		},
+		Comment: "Test_BuildSubmit",
+		Tags:    tags,
 	})
-	defer createResp.Body.Close()
 
-	build := struct {
-		URL          string
-		ObjectsURL   string `json:"objects_url"`
-		VariablesURL string `json:"variables_url"`
-		JobsURL      string `json:"jobs_url"`
-		ArtifactsURL string `json:"artifacts_url"`
-		TagsURL      string `json:"tags_url"`
-	}{}
-
-	if err := json.NewDecoder(createResp.Body).Decode(&build); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	for _, rawurl := range []string{
-		build.ObjectsURL,
-		build.VariablesURL,
-		build.JobsURL,
-		build.ArtifactsURL,
-		build.TagsURL,
-	} {
-		url, err := url.Parse(rawurl)
+	if len(b.Tags) != len(tags) {
+		t.Fatalf("unexpected number of tags, expected=%d, got=%d\n", len(tags), len(b.Tags))
+	}
 
-		if err != nil {
-			t.Fatalf("unexpected url.Parse error: %s\n", err)
+	for i, tag := range tags {
+		if b.Tags[i] != tag {
+			t.Fatalf("tag does not match, expected=%q, got=%q\n", tag, b.Tags[i])
+		}
+	}
+
+	m, err := redis.HGetAll(buildQueue).Result()
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var (
+		qjob    curlyq.Job
+		payload build.Payload
+		found   bool
+	)
+
+	for _, v := range m {
+		if err := msgpack.Unmarshal([]byte(v), &qjob); err != nil {
+			t.Fatal(err)
 		}
 
-		client.do(t, request{
-			name:        "GET " + url.Path,
-			method:      "GET",
-			uri:         url.Path,
-			token:       myTok,
-			contentType: "application/json",
-			code:        http.StatusOK,
-		})
+		if err := gob.NewDecoder(bytes.NewBuffer(qjob.Data)).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+
+		if payload.BuildID == b.ID {
+			found = true
+			break
+		}
 	}
 
-	reqs := []request{
-		{
-			name:        "search builds for 'anon' tag",
-			method:      "GET",
-			uri:         "/api/builds?search=anon",
-			token:       myTok,
-			contentType: "application/json",
-			code:        http.StatusOK,
-			check:       checkResponseJSONLen(1),
-		},
-		{
-			name:        "search builds for 'go' tag",
-			method:      "GET",
-			uri:         "/api/builds?search=go",
-			token:       myTok,
-			contentType: "application/json",
-			code:        http.StatusOK,
-			check:       checkResponseJSONLen(1),
-		},
-	}
-
-	for _, req := range reqs {
-		client.do(t, req)
+	if !found {
+		t.Fatalf("could not find build %d in queue %s\n", b.ID, buildQueue)
 	}
 }
 
-func Test_NamespaceBuild(t *testing.T) {
-	client := newClient(server)
+func Test_BuildSubmitToNamespace(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
-	buildBody := map[string]interface{}{
-		"manifest": string(readFile(t, "build.yml")),
-		"tags":     []string{"centos/7"},
-	}
-
-	client.do(t, request{
-		name:        "search builds for 'centos/7' tag",
-		method:      "GET",
-		uri:         "/api/builds?search=centos/7",
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusOK,
-		check:       checkResponseJSONLen(0),
+	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
+		Manifest: djinn.Manifest{
+			Namespace: "submit/to/namespace",
+			Driver: map[string]string{
+				"type":      "docker",
+				"image":     "golang",
+				"workspace": "/go",
+			},
+		},
+		Comment: "Test_BuildSubmitToNamespace",
+		Tags:    []string{"build_test", "Test_BuildSubmitToNamespace"},
 	})
 
-	createResp := client.do(t, request{
-		name:        "create namespace build",
-		method:      "POST",
-		uri:         "/api/builds",
-		token:       myTok,
-		contentType: "application/json",
-		body:        jsonBody(buildBody),
-		code:        http.StatusCreated,
-	})
-	defer createResp.Body.Close()
-
-	build := struct {
-		ObjectsURL   string `json:"objects_url"`
-		VariablesURL string `json:"variables_url"`
-		JobsURL      string `json:"jobs_url"`
-		ArtifactsURL string `json:"artifacts_url"`
-		TagsURL      string `json:"tags_url"`
-	}{}
-
-	if err := json.NewDecoder(createResp.Body).Decode(&build); err != nil {
-		t.Fatalf("unexpected json.Decode error: %s\n", err)
+	if err != nil {
+		t.Fatal(err)
 	}
 
-	for _, rawurl := range []string{
-		build.ObjectsURL,
-		build.VariablesURL,
-		build.JobsURL,
-		build.ArtifactsURL,
-		build.TagsURL,
-	} {
-		url, err := url.Parse(rawurl)
+	if b.Namespace.Name != "namespace" {
+		t.Fatalf("unexpected namespace name, expected=%q, got=%q\n", "namespace", b.Namespace.Name)
+	}
 
-		if err != nil {
-			t.Fatalf("unexpected url.Parse error: %s\n", err)
+	if b.Namespace.Path != "submit/to/namespace" {
+		t.Fatalf("unexpected namespace name, expected=%q, got=%q\n", "submit/to/namespace", b.Namespace.Name)
+	}
+
+	if _, err := djinn.GetNamespace(cli, b.Namespace.User.Username, b.Namespace.Path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func Test_BuildTags(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
+		Manifest: djinn.Manifest{
+			Namespace: "",
+			Driver: map[string]string{
+				"type":      "docker",
+				"image":     "golang",
+				"workspace": "/go",
+			},
+		},
+		Comment: "Test_BuildTags",
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tt, err := b.Tag(cli, "build_test", "Test_BuildTags")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	for i, tag := range tt {
+		if err := tag.Delete(cli); err != nil {
+			t.Fatalf("failed to delete tag %d - %s\n", i, err)
 		}
-
-		client.do(t, request{
-			name:        "GET " + url.Path,
-			method:      "GET",
-			uri:         url.Path,
-			token:       myTok,
-			contentType: "application/json",
-			code:        http.StatusOK,
-		})
 	}
-
-	client.do(t, request{
-		name:        "search namespaces for 'djinn'",
-		method:      "GET",
-		uri:         "/api/namespaces?search=djinn",
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusOK,
-		check:       checkResponseJSONLen(1),
-	})
-
-	client.do(t, request{
-		name:        "search builds for 'centos/7' tag",
-		method:      "GET",
-		uri:         "/api/builds?search=centos/7",
-		token:       myTok,
-		contentType: "application/json",
-		code:        http.StatusOK,
-		check:       checkResponseJSONLen(1),
-	})
 }

@@ -199,7 +199,7 @@ case "$1" in
 		;;
 	*)
 		if [ "$1" = "" ]; then
-			go test -cover ./...
+			go test ./...
 			ui
 			build
 			manif

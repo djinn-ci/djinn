@@ -135,7 +135,7 @@ func (h Namespace) StoreModel(r *http.Request) (*namespace.Namespace, namespace.
 
 	h.Queues.Produce(ctx, "events", &namespace.Event{
 		Namespace: n,
-		Action:   "created",
+		Action:    "created",
 	})
 	return n, f, nil
 }
@@ -180,7 +180,7 @@ func (h Namespace) UpdateModel(r *http.Request) (*namespace.Namespace, namespace
 
 	h.Queues.Produce(ctx, "events", &namespace.Event{
 		Namespace: n,
-		Action:   "updated",
+		Action:    "updated",
 	})
 	return n, f, nil
 }
@@ -202,7 +202,7 @@ func (h Namespace) DeleteModel(r *http.Request) error {
 
 	h.Queues.Produce(ctx, "events", &namespace.Event{
 		Namespace: n,
-		Action:   "deleted",
+		Action:    "deleted",
 	})
 	return nil
 }

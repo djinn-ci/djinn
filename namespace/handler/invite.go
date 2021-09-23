@@ -11,6 +11,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
@@ -108,8 +109,8 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 	}
 
 	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{
-		Namespace: n,
 		Action:    "sent",
+		Namespace: n,
 		Inviter:   i.Inviter,
 		Invitee:   i.Invitee,
 	})
@@ -146,8 +147,8 @@ func (h Invite) Accept(r *http.Request) (*namespace.Namespace, *user.User, *user
 	}
 
 	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{
-		Namespace: n,
 		Action:    "accepted",
+		Namespace: n,
 		Invitee:   invitee,
 	})
 	return n, inviter, invitee, nil
@@ -174,12 +175,19 @@ func (h Invite) DeleteModel(r *http.Request) error {
 		return database.ErrNotFound
 	}
 
+	n, err := namespace.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(i.NamespaceID)))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
 	if err := namespace.NewInviteStore(h.DB).Delete(i); err != nil {
 		return errors.Err(err)
 	}
 
 	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{
 		Action:    "rejected",
+		Namespace: n,
 		Invitee:   i.Invitee,
 	})
 	return nil

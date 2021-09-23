@@ -453,6 +453,7 @@ func (s *Store) Create(m manifest.Manifest, t *Trigger, tags ...string) (*Build,
 			return b, errors.Err(err)
 		}
 
+		b.User = n.User
 		b.Namespace = n
 		b.UserID = n.UserID
 		b.NamespaceID = sql.NullInt64{

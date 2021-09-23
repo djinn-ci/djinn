@@ -95,6 +95,7 @@ var (
 	rename = regexp.MustCompile("^[a-zA-Z0-9]+$")
 
 	MaxDepth      int64 = 20
+	ErrOwner            = errors.New("invalid namespace owner")
 	ErrDepth            = errors.New("namespace cannot exceed depth of 20")
 	ErrName             = errors.New("namespace name can only contain letters and numbers")
 	ErrPermission       = errors.New("namespace permissions invalid")
@@ -290,6 +291,7 @@ func (n *Namespace) JSON(addr string) map[string]interface{} {
 		"objects_url":       addr + n.Endpoint("objects"),
 		"variables_url":     addr + n.Endpoint("variables"),
 		"keys_url":          addr + n.Endpoint("keys"),
+		"invites_url":       addr + n.Endpoint("invites"),
 		"collaborators_url": addr + n.Endpoint("collaborators"),
 		"webhooks_url":      addr + n.Endpoint("webhooks"),
 	}
@@ -403,10 +405,17 @@ func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
 		parts := strings.Split((*path), "@")
 		(*path) = parts[0]
 
-		u, err = user.NewStore(s.DB).Get(query.Where("username", "=", query.Arg(parts[1])))
+		u, err = user.NewStore(s.DB).Get(
+			query.Where("username", "=", query.Arg(parts[1])),
+			query.Where("deleted_at", "IS", query.Lit("NULL")),
+		)
 
 		if err != nil {
 			return nil, errors.Err(err)
+		}
+
+		if u.IsZero() {
+			return nil, ErrOwner
 		}
 	}
 

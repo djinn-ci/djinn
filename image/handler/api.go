@@ -78,7 +78,7 @@ func (h API) Store(w http.ResponseWriter, r *http.Request) {
 
 			webutil.JSON(w, errs, http.StatusBadRequest)
 			return
-		case namespace.ErrPermission:
+		case namespace.ErrPermission, namespace.ErrOwner:
 			webutil.JSON(w, map[string][]string{"namespace": {"Could not find namespace"}}, http.StatusBadRequest)
 			return
 		default:

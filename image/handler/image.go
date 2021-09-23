@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"strings"
 
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
@@ -106,7 +105,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 	}
 	f.Images = images
 
-	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+	if r.Header.Get("Content-Type") == image.MimeTypeQEMU {
 		q := r.URL.Query()
 
 		f.Resource.Namespace = q.Get("namespace")
@@ -145,7 +144,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 			return nil, f, errors.Err(err)
 		}
 
-		if _, err := h.Queues.Produce(ctx, "image_downloads", j); err != nil {
+		if _, err := h.Queues.Produce(ctx, "jobs", j); err != nil {
 			return nil, f, errors.Err(err)
 		}
 	}
@@ -172,7 +171,15 @@ func (h Image) ShowWithRelations(r *http.Request) (*image.Image, error) {
 		return i, errors.Err(err)
 	}
 
-	err := h.Users.Load(
+	d, err := image.NewDownloadStore(h.DB, i).Get()
+
+	if err != nil {
+		return i, errors.Err(err)
+	}
+
+	i.Download = d
+
+	err = h.Users.Load(
 		"id",
 		[]interface{}{i.Namespace.Values()["user_id"]},
 		database.Bind("user_id", "id", i.Namespace),

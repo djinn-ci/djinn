@@ -26,6 +26,8 @@ import (
 
 	"github.com/andrewpillar/query"
 
+	"github.com/google/uuid"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -53,7 +55,7 @@ type Webhook struct {
 type WebhookDelivery struct {
 	ID              int64                  `db:"id"`
 	WebhookID       int64                  `db:"webhook_id"`
-	EventID         int64                  `db:"event_id"`
+	EventID         uuid.UUID              `db:"event_id"`
 	NamespaceID     sql.NullInt64          `db:"-"`
 	Error           sql.NullString         `db:"error"`
 	Event           event.Type             `db:"event"`
@@ -499,14 +501,14 @@ func (s *WebhookStore) Get(opts ...query.Option) (*Webhook, error) {
 // createDelivery records the given webhook delivery in the database. derr
 // denotes any errors that occurred during delivery, such as the HTTP client
 // not being able to communicate with the remote server.
-func (s *WebhookStore) createDelivery(hookId, deliveryId int64, req *http.Request, resp *http.Response, dur time.Duration, derr error) error {
+func (s *WebhookStore) createDelivery(hookId int64, typ event.Type, eventId uuid.UUID, req *http.Request, resp *http.Response, dur time.Duration, derr error) error {
 	var count int64
 
 	q := query.Select(
 		query.Count("webhook_id"),
 		query.From(webhookDeliveryTable),
 		query.Where("webhook_id", "=", query.Arg(hookId)),
-		query.Where("delivery_id", "=", query.Arg(deliveryId)),
+		query.Where("event_id", "=", query.Arg(eventId)),
 	)
 
 	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
@@ -515,59 +517,59 @@ func (s *WebhookStore) createDelivery(hookId, deliveryId int64, req *http.Reques
 
 	redelivery := count > 0
 
-	reqBody, _ := io.ReadAll(req.Body)
-
 	var (
-		deliveryErr string
+		deliveryError sql.NullString
 
-		respStatus  int
-		respHeaders string
-		respBody    []byte
+		reqHeaders  sql.NullString
+		reqBody     sql.NullString
+
+		respStatus  sql.NullInt64
+		respHeaders sql.NullString
+		respBody    sql.NullString
 	)
 
 	if derr != nil {
-		deliveryErr = errors.Cause(derr).Error()
+		deliveryError.Valid = true
+		deliveryError.String = errors.Cause(derr).Error()
+	}
+
+	if req != nil {
+		reqHeaders.Valid = true
+		reqHeaders.String = encodeHeaders(req.Header)
+
+		b, _ := io.ReadAll(req.Body)
+
+		reqBody.Valid = true
+		reqBody.String = string(b)
 	}
 
 	if resp != nil {
-		respHeaders = encodeHeaders(resp.Header)
-		respStatus = resp.StatusCode
-		respBody, _ = io.ReadAll(resp.Body)
+		respStatus.Valid = true
+		respStatus.Int64 = int64(resp.StatusCode)
+
+		respHeaders.Valid = true
+		respHeaders.String = encodeHeaders(resp.Header)
+
+		b, _ := io.ReadAll(resp.Body)
+
+		respBody.Valid = true
+		respBody.String = string(b)
 	}
 
 	q = query.Insert(
 		webhookDeliveryTable,
-		query.Columns(
-			"webhook_id",
-			"delivery_id",
-			"error",
-			"redelivery",
-			"request_headers",
-			"request_body",
-			"response_code",
-			"response_headers",
-			"response_body",
-			"duration",
-		),
+		query.Columns("webhook_id", "event_id", "event", "error", "redelivery", "request_headers", "request_body", "response_code", "response_headers", "response_body", "duration"),
 		query.Values(
 			hookId,
-			deliveryId,
-			sql.NullString{
-				Valid:  derr != nil,
-				String: deliveryErr,
-			},
+			eventId,
+			typ.String(),
+			deliveryError,
 			redelivery,
-			encodeHeaders(req.Header),
-			string(reqBody),
+			reqHeaders,
+			reqBody,
 			respStatus,
-			sql.NullString{
-				Valid:  len(respHeaders) > 0,
-				String: respHeaders,
-			},
-			sql.NullString{
-				Valid:  len(respBody) > 0,
-				String: string(respBody),
-			},
+			respHeaders,
+			respBody,
 			dur,
 		),
 	)
@@ -652,7 +654,7 @@ func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) 
 	return req, resp, time.Now().Sub(start), nil
 }
 
-func (s *WebhookStore) Redeliver(id, eventId int64) error {
+func (s *WebhookStore) Redeliver(id int64, eventId uuid.UUID) error {
 	w, err := s.Get(query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
@@ -690,7 +692,7 @@ func (s *WebhookStore) Redeliver(id, eventId int64) error {
 	req, resp, dur, derr := s.realDeliver(w, event, r)
 	req.Body = io.NopCloser(strings.NewReader(body))
 
-	return s.createDelivery(w.ID, eventId, req, resp, dur, derr)
+	return s.createDelivery(w.ID, event, eventId, req, resp, dur, derr)
 }
 
 func (s *WebhookStore) Dispatch(ev *event.Event) error {
@@ -723,9 +725,11 @@ func (s *WebhookStore) Dispatch(ev *event.Event) error {
 
 		r.Seek(0, io.SeekStart)
 
-		req.Body = io.NopCloser(&buf)
+		if req != nil {
+			req.Body = io.NopCloser(&buf)
+		}
 
-		if err := s.createDelivery(w.ID, ev.ID, req, resp, dur, derr); err != nil {
+		if err := s.createDelivery(w.ID, ev.Type, ev.ID, req, resp, dur, derr); err != nil {
 			return errors.Err(err)
 		}
 

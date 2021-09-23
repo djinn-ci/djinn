@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"djinn-ci.com/errors"
+
+	"github.com/google/uuid"
 )
 
 type Dispatcher interface {
@@ -15,7 +17,7 @@ type Dispatcher interface {
 type Type uint
 
 type Event struct {
-	ID          int64
+	ID          uuid.UUID
 	NamespaceID sql.NullInt64
 	Type        Type
 	Data        map[string]interface{}
@@ -87,7 +89,7 @@ func New(namespaceId sql.NullInt64, typ Type, data map[string]interface{}) *Even
 	now := time.Now()
 
 	return &Event{
-		ID:          now.UnixNano(),
+		ID:          uuid.New(),
 		NamespaceID: namespaceId,
 		Type:        typ,
 		Data:        data,
@@ -124,11 +126,12 @@ func (t *Type) Scan(v interface{}) error {
 		return errors.Err(err)
 	}
 
-	i, ok := i32.(int32)
+	// driver.Value will be of int64 under the hood, but respects int32 bounds.
+	i, ok := i32.(int64)
 
 	if !ok {
 		println(i)
-		return errors.New("could not type assert event to int32")
+		return errors.New("could not type assert event to int64")
 	}
 
 	(*t) = Type(i)

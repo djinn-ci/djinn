@@ -21,16 +21,16 @@ CREATE TABLE namespace_webhooks (
 CREATE TABLE namespace_webhook_deliveries (
 	id               SERIAL,
 	webhook_id       INT NOT NULL REFERENCES namespace_webhooks(id) ON DELETE CASCADE,
-	delivery_id      VARCHAR NOT NULL,
+	event_id         BYTEA NOT NULL,
 	error            VARCHAR NULL,
 	event            VARCHAR NOT NULL,
 	redelivery       BOOLEAN NOT NULL DEFAULT FALSE,
-	request_headers  VARCHAR NOT NULL,
-	request_body     VARCHAR NOT NULL,
-	response_code    INT NOT NULL,
+	request_headers  VARCHAR NULL,
+	request_body     VARCHAR NULL,
+	response_code    INT NULL,
 	response_headers VARCHAR NULL,
 	response_body    VARCHAR NULL,
 	duration         INT NOT NULL,
 	created_at       TIMESTAMP NOT NULL DEFAULT NOW(),
-	PRIMARY KEY(id, delivery_id)
+	PRIMARY KEY(id, event_id)
 );

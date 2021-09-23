@@ -37,9 +37,8 @@ type InviteForm struct {
 	// Invitee is the User who received the invite.
 	Invitee *user.User `schema:"-"`
 
-	Namespace string `schema:"-"`
-	Owner     string `schema:"-"`
-	Handle    string `schema:"handle" json:"handle"`
+	Owner  string `schema:"-" json:"-"`
+	Handle string `schema:"handle" json:"handle"`
 }
 
 type WebhookForm struct {

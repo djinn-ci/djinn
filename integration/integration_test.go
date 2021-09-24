@@ -195,7 +195,8 @@ func TestMain(m *testing.M) {
 	ctx, cancel := context.WithTimeout(bgctx, time.Duration(time.Second*15))
 	defer cancel()
 
-	os.Exit(m.Run())
+	code := m.Run()
 
 	srv.Shutdown(ctx)
+	os.Exit(code)
 }

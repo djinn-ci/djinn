@@ -7,14 +7,15 @@ import (
 )
 
 type Variable struct {
-	ID          int64     `json:"id"`
-	AuthorID    int64     `json:"author_id"`
-	UserID      int64     `json:"user_id"`
-	NamespaceID NullInt64 `json:"namespace_id"`
-	Key         string    `json:"key"`
-	Value       string    `json:"value"`
-	CreatedAt   Time      `json:"created_at"`
-	URL         URL       `json:"url"`
+	ID          int64      `json:"id"`
+	AuthorID    int64      `json:"author_id"`
+	UserID      int64      `json:"user_id"`
+	NamespaceID NullInt64  `json:"namespace_id"`
+	Key         string     `json:"key"`
+	Value       string     `json:"value"`
+	CreatedAt   Time       `json:"created_at"`
+	URL         URL        `json:"url"`
+	Namespace   *Namespace `json:"namespace"`
 }
 
 type VariableParams struct {

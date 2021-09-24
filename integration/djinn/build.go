@@ -319,7 +319,7 @@ func (b *Build) Tag(cli *Client, tags ...string) ([]*BuildTag, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		return nil, err
+		return nil, cli.err(resp)
 	}
 
 	tt := make([]*BuildTag, 0, len(tags))

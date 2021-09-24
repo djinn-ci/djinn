@@ -24,6 +24,7 @@ type Namespace struct {
 	ObjectsURL       URL        `json:"objects_url"`
 	VariablesURL     URL        `json:"variables_url"`
 	KeysURL          URL        `json:"keys_url"`
+	InvitesURL       URL        `json:"invites_url"`
 	CollaboratorsURL URL        `json:"collaborators_url"`
 	WebhooksURL      URL        `json:"webhooks_url"`
 	User             *User      `json:"user"`
@@ -47,6 +48,7 @@ type Webhook struct {
 	SSL          bool             `json:"ssl"`
 	Active       bool             `json:"active"`
 	URL          URL              `json:"url"`
+	Events       []string         `json:"events"`
 	LastResponse *WebhookResponse `json:"last_response"`
 }
 
@@ -64,6 +66,19 @@ type WebhookParams struct {
 	SSL          bool     `json:"ssl"`
 	Active       bool     `json:"active"`
 	Events       []string `json:"events"`
+}
+
+var WebhookEvents = []string{
+	"build.submitted",
+	"invite.sent",
+	"invite.accepted",
+	"invite.rejected",
+	"namespaces",
+	"cron",
+	"images",
+	"objects",
+	"variables",
+	"ssh_keys",
 }
 
 type Visibility uint8
@@ -197,6 +212,44 @@ func (n *Namespace) CreateWebhook(cli *Client, p WebhookParams) (*Webhook, error
 		return nil, err
 	}
 	return &wh, nil
+}
+
+func (n *Namespace) Invite(cli *Client, handle string) (*Invite, error) {
+	var body bytes.Buffer
+
+	json.NewEncoder(&body).Encode(map[string]string{"handle": handle})
+
+	resp, err := cli.Post(n.InvitesURL.Path, "application/json; charset=utf-8", &body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		return nil, cli.err(resp)
+	}
+
+	var i Invite
+
+	if err := json.NewDecoder(resp.Body).Decode(&i); err != nil {
+		return nil, err
+	}
+	return &i, nil
+}
+
+func (n *Namespace) DeleteCollaborator(cli *Client, username string) error {
+	resp, err := cli.Delete(n.CollaboratorsURL.Path+"/"+username)
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusNoContent {
+		return cli.err(resp)
+	}
+	return nil
 }
 
 func (n *Namespace) Update(cli *Client, p NamespaceParams) error {

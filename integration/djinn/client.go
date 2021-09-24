@@ -66,6 +66,13 @@ func NewClientWithLogger(tok, endpoint string, log Logger) (*Client, error) {
 	return cli, nil
 }
 
+// String returns the string representation of the client, this will look
+// something like &djinn.Client{endpoint: endpoint, tok: tok}. This would
+// typically be used during logging.
+func (c *Client) String() string {
+	return "&djinn.Client{endpoint: "+c.endpoint.String()+", tok: "+c.tok+"}"
+}
+
 func (c *Client) err(resp *http.Response) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 400 {
 		return nil
@@ -198,8 +205,9 @@ func (c *Client) Post(url, contentType string, body io.Reader) (*http.Response, 
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", contentType)
-
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 	return c.Do(req)
 }
 
@@ -210,8 +218,9 @@ func (c *Client) Patch(url, contentType string, body io.Reader) (*http.Response,
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", contentType)
-
+	if contentType != "" {
+		req.Header.Set("Content-Type", contentType)
+	}
 	return c.Do(req)
 }
 

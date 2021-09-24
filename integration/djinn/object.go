@@ -41,8 +41,6 @@ func CreateObject(cli *Client, p ObjectParams) (*Object, error) {
 
 	defer resp.Body.Close()
 
-	defer resp.Body.Close()
-
 	if resp.StatusCode != http.StatusCreated {
 		return nil, cli.err(resp)
 	}

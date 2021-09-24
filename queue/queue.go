@@ -255,7 +255,11 @@ func (m *Memory) Consume(ctx context.Context) error {
 			m.wg.Wait()
 			close(sem)
 			return ctx.Err()
-		case <-sem:
+		case _, ok := <-sem:
+			if !ok {
+				break
+			}
+
 			j, ok := m.dequeue()
 
 			if !ok {

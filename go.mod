@@ -18,6 +18,7 @@ require (
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/gogo/protobuf v1.3.0 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/csrf v1.6.2
 	github.com/gorilla/mux v1.7.4
 	github.com/gorilla/securecookie v1.1.1

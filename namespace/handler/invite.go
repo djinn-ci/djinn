@@ -105,7 +105,9 @@ func (h Invite) StoreModel(r *http.Request) (*namespace.Invite, namespace.Invite
 			Body:    fmt.Sprintf(inviteMail, f.Inviter.Username, n.Path, webutil.BaseAddress(r)),
 		}
 
-		return i, f, errors.Err(m.Send(h.SMTP.Client))
+		if err := m.Send(h.SMTP.Client); err != nil {
+			return i, f, errors.Err(err)
+		}
 	}
 
 	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{

@@ -66,10 +66,6 @@ func Gate(db *sqlx.DB) web.Gate {
 			return r, ok, nil
 		}
 
-		if base == "tags" && r.Method == "DELETE" {
-			return r, ok, nil
-		}
-
 		vars := mux.Vars(r)
 
 		owner, err := users.Get(query.Where("username", "=", query.Arg(vars["username"])))

@@ -700,7 +700,10 @@ func (s *WebhookStore) Dispatch(ev *event.Event) error {
 		return nil
 	}
 
-	ww, err := s.All(query.Where("namespace_id", "=", query.Arg(ev.NamespaceID)))
+	ww, err := s.All(
+		query.Where("namespace_id", "=", query.Arg(ev.NamespaceID)),
+		query.Where("active", "=", query.Lit(true)),
+	)
 
 	if err != nil {
 		return errors.Err(err)
@@ -713,10 +716,6 @@ func (s *WebhookStore) Dispatch(ev *event.Event) error {
 	r := bytes.NewReader(buf.Bytes())
 
 	for _, w := range ww {
-		if !w.Active {
-			continue
-		}
-
 		if !w.Events.Has(ev.Type) {
 			continue
 		}

@@ -171,7 +171,12 @@ func (e *Event) Perform() error {
 		"namespace": e.Namespace.JSON(env.DJINN_API_SERVER),
 		"action":    e.Action,
 	}
-	return errors.Err(e.dis.Dispatch(event.New(sql.NullInt64{Int64: e.Namespace.ID, Valid: true}, event.Namespaces, payload)))
+
+	namespaceId := sql.NullInt64{
+		Int64: e.Namespace.ID,
+		Valid: true,
+	}
+	return errors.Err(e.dis.Dispatch(event.New(namespaceId, event.Namespaces, payload)))
 }
 
 // Resolve will get the namespace and namespace owner for the current resource.

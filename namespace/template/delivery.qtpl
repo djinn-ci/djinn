@@ -1,6 +1,5 @@
 {%
 import (
-	"encoding/hex"
 	htmltemplate "html/template"
 
 	"djinn-ci.com/namespace"
@@ -85,7 +84,7 @@ type ShowDelivery struct {
 	{% else %}
 		<span class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</span>
 	{% endif %}
-	<code>{%s hex.EncodeToString(p.Delivery.EventID) %}</code>
+	<code>{%s p.Delivery.EventID.String() %}</code>
 	{% if p.Delivery.Redelivery %}
 		<span class="muted" title="Redelivery">{% cat "../../static/svg/sync.svg" %}</span>
 	{% endif %}

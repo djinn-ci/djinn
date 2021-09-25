@@ -212,7 +212,7 @@ func (p *ShowDelivery) StreamHeader(qw422016 *qt422016.Writer) {
 //line namespace/template/delivery.qtpl:86
 	qw422016.N().S(` <code>`)
 //line namespace/template/delivery.qtpl:87
-	qw422016.E().V(p.Delivery.EventID)
+	qw422016.E().S(p.Delivery.EventID.String())
 //line namespace/template/delivery.qtpl:87
 	qw422016.N().S(`</code> `)
 //line namespace/template/delivery.qtpl:88

@@ -1,11 +1,13 @@
 package integration
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -143,7 +145,6 @@ func TestMain(m *testing.M) {
 	db = cfg.DB()
 	redis = cfg.Redis()
 	server = httptest.NewServer(srv.Server.Handler)
-
 	defer server.Close()
 
 	imagestore = cfg.Images().Store
@@ -185,8 +186,6 @@ func TestMain(m *testing.M) {
 		tokens.put(mktoken(db, u, u.Username, sc.String()))
 	}
 
-	srv.Server = server.Config
-
 	ch := make(chan os.Signal, 1)
 
 	serverutil.RegisterRoutes(cfg, api, ui, srv)
@@ -198,5 +197,28 @@ func TestMain(m *testing.M) {
 	code := m.Run()
 
 	srv.Shutdown(ctx)
+
+	f, err := os.Open(filepath.Join("testdata", "server.log"))
+
+	if err != nil {
+		fatalf("failed to open server log: %s\n", err)
+	}
+
+	sc := bufio.NewScanner(f)
+
+	for sc.Scan() {
+		line := sc.Text()
+
+		parts := strings.SplitN(line, " ", 4)
+
+		if parts[2] == "ERROR" {
+			fmt.Fprintf(os.Stderr, line)
+			code = 1
+		}
+	}
+
+	if err := sc.Err(); err != nil {
+		fatalf("failed to scan log: %s\n", err)
+	}
 	os.Exit(code)
 }

@@ -20,10 +20,6 @@ import (
 	"djinn-ci.com/integration/djinn"
 )
 
-func apertureFlow(t *testing.T) {
-
-}
-
 var webhookSecret = "secret"
 
 func webhookHandler(t *testing.T, m map[string]struct{}) func(http.ResponseWriter, *http.Request) {
@@ -106,6 +102,107 @@ func webhookHandler(t *testing.T, m map[string]struct{}) func(http.ResponseWrite
 
 		m[ev] = struct{}{}
 		w.WriteHeader(http.StatusNoContent)
+	}
+}
+
+func apertureFlow(t *testing.T) {
+	rattman, _ := djinn.NewClientWithLogger(tokens.get("doug.rattman").Token, apiEndpoint, t)
+
+	_, err := djinn.GetNamespace(rattman, "wallace.breen", "blackmesa")
+
+	if err == nil {
+		t.Fatalf("expected call to djinn.GetNamespace(%s, %q, %q) to error, it did not\n", rattman.String(), "wallace.breen", "blackmesa")
+	}
+
+	djinnerr, ok := err.(*djinn.Error)
+
+	if !ok {
+		t.Fatalf("unexpected error type, expected=%T, got=%T\n", &djinn.Error{}, err)
+	}
+
+	if djinnerr.StatusCode != http.StatusNotFound {
+		t.Fatalf("unexpected http status, expected=%q, got=%q\n", http.StatusText(http.StatusNotFound), http.StatusText(djinnerr.StatusCode))
+	}
+
+	_, err = djinn.CreateVariable(rattman, djinn.VariableParams{
+		Namespace: "blackmesa@wallace.breen",
+		Key:       "apertureFlow_Var",
+		Value:     "rattman",
+	})
+
+	if err == nil {
+		t.Fatalf("expected call to djinn.CreateVariable(%s) to error, it did not\n", rattman.String())
+	}
+
+	djinnerr, ok = err.(*djinn.Error)
+
+	if !ok {
+		t.Fatalf("unexpected error type, expected=%T, got=%T\n", &djinn.Error{}, err)
+	}
+
+	if djinnerr.StatusCode != http.StatusBadRequest {
+		t.Fatalf("unexpected http status, expected=%q, got=%q\n", http.StatusText(http.StatusBadRequest), http.StatusText(djinnerr.StatusCode))
+	}
+
+	_, err = djinn.GetBuild(rattman, "wallace.breen", int64(1))
+
+	if err == nil {
+		t.Fatalf("expected call to djinn.GetBuild(%s, %q, %d) to error, it did not\n", rattman.String(), "wallace.breen", 1)
+	}
+
+	djinnerr, ok = err.(*djinn.Error)
+
+	if !ok {
+		t.Fatalf("unexpected error type, expected=%T, got=%T\n", &djinn.Error{}, err)
+	}
+
+	if djinnerr.StatusCode != http.StatusNotFound {
+		t.Fatalf("unexpected http status, expected=%q, got=%q\n", http.StatusText(http.StatusNotFound), http.StatusText(djinnerr.StatusCode))
+	}
+
+	n, err := djinn.CreateNamespace(rattman, djinn.NamespaceParams{
+		Name:        "aperture",
+		Description: "Aperture Science",
+		Visibility:  djinn.Internal,
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	breen, _ := djinn.NewClientWithLogger(tokens.get("wallace.breen").Token, apiEndpoint, t)
+
+	if err := n.Get(breen); err != nil {
+		t.Fatal(err)
+	}
+
+	i, err := n.Invite(rattman, "henry.bloggs@aperturescience.com")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	bloggs, _ := djinn.NewClientWithLogger(tokens.get("henry.bloggs").Token, apiEndpoint, t)
+
+	if err := i.Accept(bloggs); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = djinn.SubmitBuild(bloggs, djinn.BuildParams{
+		Manifest: djinn.Manifest{
+			Namespace: "aperture@doug.rattman",
+			Driver:    map[string]string{
+				"type":      "docker",
+				"image":     "golang",
+				"workspace": "/go",
+			},
+		},
+		Comment: "apertureFlow_Build",
+		Tags:    []string{"flow_test"},
+	})
+
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 
@@ -274,11 +371,23 @@ func blackMesaFlow(t *testing.T) {
 
 	blusqr(&object)
 
-	_, err = djinn.CreateObject(freeman, djinn.ObjectParams{
+	o, err := djinn.CreateObject(freeman, djinn.ObjectParams{
 		Namespace: "blackmesa@wallace.breen",
 		Name:      "blackMesaFlow_Object",
 		Object:    &object,
 	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	rc, err := o.Data(freeman)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Close()
 
 	b, err := djinn.SubmitBuild(freeman, djinn.BuildParams{
 		Manifest: djinn.Manifest{

@@ -130,7 +130,6 @@ func (t *Type) Scan(v interface{}) error {
 	i, ok := i32.(int64)
 
 	if !ok {
-		println(i)
 		return errors.New("could not type assert event to int64")
 	}
 

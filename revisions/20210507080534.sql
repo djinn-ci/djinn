@@ -23,7 +23,7 @@ CREATE TABLE namespace_webhook_deliveries (
 	webhook_id       INT NOT NULL REFERENCES namespace_webhooks(id) ON DELETE CASCADE,
 	event_id         BYTEA NOT NULL,
 	error            VARCHAR NULL,
-	event            VARCHAR NOT NULL,
+	event            INT NOT NULL,
 	redelivery       BOOLEAN NOT NULL DEFAULT FALSE,
 	request_headers  VARCHAR NULL,
 	request_body     VARCHAR NULL,

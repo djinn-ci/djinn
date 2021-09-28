@@ -562,7 +562,7 @@ func (s *WebhookStore) createDelivery(hookId int64, typ event.Type, eventId uuid
 		query.Values(
 			hookId,
 			eventId,
-			typ.String(),
+			typ,
 			deliveryError,
 			redelivery,
 			reqHeaders,

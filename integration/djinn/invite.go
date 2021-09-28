@@ -16,7 +16,7 @@ type Invite struct {
 }
 
 func (i *Invite) Accept(cli *Client) error {
-	resp, err := cli.Patch(i.URL.Path, "", nil)
+	resp, err := cli.Patch(i.URL.Path, "application/json; charset=utf-8", nil)
 
 	if err != nil {
 		return err

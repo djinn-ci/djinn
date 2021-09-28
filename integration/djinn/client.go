@@ -13,8 +13,6 @@ import (
 
 type Logger interface {
 	Log(args ...interface{})
-
-	Logf(format string, args ...interface{})
 }
 
 type Error struct {
@@ -136,7 +134,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 		}
 
 		if l := buf.Len(); l > 0 {
-			if l >= 1*(1<<20) {
+			if l >= 1<<20 {
 				c.log.Log("BLOB CONTENT - TOO BIG TO LOG")
 			} else {
 				s := buf.String()
@@ -170,7 +168,7 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 		}
 
 		if l := buf.Len(); l > 0 {
-			if l >= 1*(1<<20) {
+			if l >= 1<<20 {
 				c.log.Log("BLOB CONTENT - TOO BIG TO LOG")
 			} else {
 				s := buf.String()

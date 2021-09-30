@@ -94,13 +94,7 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		return nil, f, errors.New("no user in request context")
 	}
 
-	store, err := h.store.Partition(u.ID)
-
-	if err != nil {
-		return nil, f, errors.Err(err)
-	}
-
-	objects := object.NewStoreWithBlockStore(h.DB, store, u)
+	objects := object.NewStore(h.DB, u)
 
 	f.File = webutil.NewFile("file", h.limit, r)
 	f.Resource = namespace.Resource{
@@ -140,6 +134,14 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 	if err != nil {
 		return nil, f, errors.Err(err)
 	}
+
+	store, err := h.store.Partition(f.Resource.Owner.ID)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	objects.SetBlockStore(store)
 
 	o, err := objects.Create(f.Author.ID, f.Name, hash, f.File)
 

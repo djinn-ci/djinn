@@ -2,10 +2,10 @@ package handler
 
 import (
 	"net/http"
-	"os"
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/web"
 
@@ -136,7 +136,7 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		rec, err := store.Open(o.Hash)
 
 		if err != nil {
-			if os.IsNotExist(errors.Cause(err)) {
+			if errors.Cause(err) == fs.ErrRecordNotFound {
 				web.JSONError(w, "Not found", http.StatusNotFound)
 				return
 			}

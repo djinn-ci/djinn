@@ -185,6 +185,7 @@ func (e *Event) Perform() error {
 // namespace, then this return ErrPermission.
 func (r *Resource) Resolve(b database.Binder) error {
 	if r.Namespace == "" {
+		r.Owner = r.Author
 		return nil
 	}
 
@@ -200,6 +201,7 @@ func (r *Resource) Resolve(b database.Binder) error {
 		}
 	}
 
+	r.Owner = n.User
 	b.Bind(n, n.User)
 	return nil
 }

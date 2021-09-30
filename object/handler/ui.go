@@ -2,13 +2,13 @@ package handler
 
 import (
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 
 	"djinn-ci.com/build"
 	buildtemplate "djinn-ci.com/build/template"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/object"
 	objecttemplate "djinn-ci.com/object/template"
@@ -173,7 +173,7 @@ func (h UI) Show(w http.ResponseWriter, r *http.Request) {
 		rec, err := store.Open(o.Hash)
 
 		if err != nil {
-			if os.IsNotExist(errors.Cause(err)) {
+			if errors.Cause(err) == fs.ErrRecordNotFound {
 				web.HTMLError(w, "Not found", http.StatusNotFound)
 				return
 			}
@@ -256,7 +256,7 @@ func (h UI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := h.DeleteModel(r); err != nil {
-		if !os.IsNotExist(errors.Cause(err)) {
+		if errors.Cause(err) != fs.ErrRecordNotFound {
 			h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
 			sess.AddFlash(template.Alert{
 				Level:   template.Danger,

@@ -106,6 +106,8 @@ func NewStoreWithBlockStore(db *sqlx.DB, blockStore fs.Store, mm ...database.Mod
 	return s
 }
 
+func (s *Store) SetBlockStore(store fs.Store) { s.blockStore = store }
+
 // FromContext returns the Image model from the given context, if any.
 func FromContext(ctx context.Context) (*Image, bool) {
 	i, ok := ctx.Value("image").(*Image)

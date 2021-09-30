@@ -90,13 +90,7 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		return nil, f, errors.New("no user in request context")
 	}
 
-	store, err := h.store.Partition(u.ID)
-
-	if err != nil {
-		return nil, f, errors.Err(err)
-	}
-
-	images := image.NewStoreWithBlockStore(h.DB, store, u)
+	images := image.NewStore(h.DB, u)
 
 	f.File = webutil.NewFile("file", h.limit, r)
 	f.Resource = namespace.Resource{
@@ -127,6 +121,14 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 	if err != nil {
 		return nil, f, errors.Err(err)
 	}
+
+	store, err := h.store.Partition(f.Resource.Owner.ID)
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
+	images.SetBlockStore(store)
 
 	// If being downloaded from a remote then f.File will be nil, and no
 	// attempt will be made to actually upload an image file, this will be

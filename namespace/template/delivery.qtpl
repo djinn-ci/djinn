@@ -31,15 +31,23 @@ type ShowDelivery struct {
 		<div class="col-50 col-left">
 			<div class="panel">
 				<div class="panel-header"><h3>Request Headers</h3></div>
-				<div class="panel-body">
-					<pre class="code">{%s p.Delivery.RequestHeaders %}</pre>
-				</div>
+				{% if !p.Delivery.RequestHeaders.Valid %}
+					<div class="panel-message muted">None</div>
+				{% else %}
+					<div class="panel-body">
+						<pre class="code">{%s p.Delivery.RequestHeaders.String %}</pre>
+					</div>
+				{% endif %}
 			</div>
 			<div class="panel">
 				<div class="panel-header"><h3>Request Body</h3></div>
-				<div class="panel-body">
-					<pre class="code">{%s template.IndentJSON(p.Delivery.RequestBody) %}</pre>
-				</div>
+				{% if !p.Delivery.RequestHeaders.Valid %}
+					<div class="panel-message muted">None</div>
+				{% else %}
+					<div class="panel-body">
+						<pre class="code">{%s template.IndentJSON(p.Delivery.RequestBody.String) %}</pre>
+					</div>
+				{% endif %}
 			</div>
 		</div>
 		<div class="col-50 col-right">
@@ -79,7 +87,7 @@ type ShowDelivery struct {
 
 {% func (p *ShowDelivery) Header() %}
 	<a class="back" href="{%s p.Delivery.Webhook.Endpoint() %}">{%cat "../../static/svg/back.svg" %}</a>
-	{% if p.Delivery.ResponseCode >= 200 && p.Delivery.ResponseCode < 300 %}
+	{% if p.Delivery.ResponseCode.Int64 >= 200 && p.Delivery.ResponseCode.Int64 < 300 %}
 		<span class="hook-status hook-status-ok">{% cat "../../static/svg/check.svg" %}</span>
 	{% else %}
 		<span class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</span>

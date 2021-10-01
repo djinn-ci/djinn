@@ -330,7 +330,7 @@ func (p *WebhookForm) Field(field string) string {
 					<tbody>
 						{% for _, d := range p.Deliveries %}
 							<tr>
-								{% if d.ResponseCode >= 200 && d.ResponseCode < 300 %}
+								{% if d.ResponseCode.Int64 >= 200 && d.ResponseCode.Int64 < 300 %}
 									<td class="hook-status hook-status-ok">{% cat "../../static/svg/check.svg" %}</td>
 								{% else %}
 									<td class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</td>

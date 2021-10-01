@@ -185,7 +185,7 @@ type WebhookIndex struct {
 							{% if w.LastDelivery == nil %}
 									<td class="hook-status hook-status-none">{% cat "../../static/svg/close.svg" %}</td>
 							{% else %}
-								{% if w.LastDelivery.ResponseCode >= 200 && w.LastDelivery.ResponseCode < 300 %}
+								{% if w.LastDelivery.ResponseCode.Int64 >= 200 && w.LastDelivery.ResponseCode.Int64 < 300 %}
 									<td class="hook-status hook-status-ok">{% cat "../../static/svg/check.svg" %}</td>
 								{% else %}
 									<td class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</td>

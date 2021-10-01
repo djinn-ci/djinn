@@ -1059,9 +1059,9 @@ func (h WebhookUI) Redeliver(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["delivery"], 10, 64)
 
-	store := namespace.NewWebhookStore(h.DB)
+	webhooks := namespace.NewWebhookStoreWithBlock(h.DB, h.block)
 
-	del, err := store.Delivery(wh.ID, id)
+	d, err := webhooks.Delivery(wh.ID, id)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -1074,7 +1074,7 @@ func (h WebhookUI) Redeliver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := store.Redeliver(wh.ID, del.EventID); err != nil {
+	if err := webhooks.Redeliver(wh.ID, d.EventID); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Alert{
 			Level:   template.Danger,
@@ -1085,7 +1085,7 @@ func (h WebhookUI) Redeliver(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	latest, err := store.LastDelivery(wh.ID)
+	latest, err := webhooks.LastDelivery(wh.ID)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -1103,7 +1103,7 @@ func (h WebhookUI) Redeliver(w http.ResponseWriter, r *http.Request) {
 	sess.AddFlash(template.Alert{
 		Level:   template.Success,
 		Close:   true,
-		Message: "Webhook delivered",
+		Message: "Webhook delivery sent",
 	}, "alert")
 	h.Redirect(w, r, latest.Endpoint())
 }

@@ -790,7 +790,7 @@ func (p *WebhookForm) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/form.qtpl:331
 				qw422016.N().S(` <tr> `)
 //line namespace/template/form.qtpl:333
-				if d.ResponseCode >= 200 && d.ResponseCode < 300 {
+				if d.ResponseCode.Int64 >= 200 && d.ResponseCode.Int64 < 300 {
 //line namespace/template/form.qtpl:333
 					qw422016.N().S(` <td class="hook-status hook-status-ok">`)
 //line namespace/template/form.qtpl:334

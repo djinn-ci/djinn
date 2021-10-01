@@ -60,9 +60,9 @@ type WebhookDelivery struct {
 	Error           sql.NullString         `db:"error"`
 	Event           event.Type             `db:"event"`
 	Redelivery      bool                   `db:"redelivery"`
-	RequestHeaders  string                 `db:"request_headers"`
-	RequestBody     string                 `db:"request_body"`
-	ResponseCode    int                    `db:"response_code"`
+	RequestHeaders  sql.NullString         `db:"request_headers"`
+	RequestBody     sql.NullString         `db:"request_body"`
+	ResponseCode    sql.NullInt64          `db:"response_code"`
 	ResponseStatus  string                 `db:"-"`
 	ResponseHeaders sql.NullString         `db:"response_headers"`
 	ResponseBody    sql.NullString         `db:"response_body"`
@@ -397,7 +397,9 @@ func (s *WebhookStore) Delivery(hookId, id int64) (*WebhookDelivery, error) {
 		err = nil
 	}
 
-	d.ResponseStatus = strconv.FormatInt(int64(d.ResponseCode), 10) + " " + http.StatusText(d.ResponseCode)
+	if d.ResponseCode.Valid {
+		d.ResponseStatus = strconv.FormatInt(d.ResponseCode.Int64, 10) + " " + http.StatusText(int(d.ResponseCode.Int64))
+	}
 	return d, errors.Err(err)
 }
 
@@ -690,8 +692,10 @@ func (s *WebhookStore) Redeliver(id int64, eventId uuid.UUID) error {
 	event, _ := event.Lookup(hdr["X-Djinn-CI-Event"][0])
 
 	req, resp, dur, derr := s.realDeliver(w, event, r)
-	req.Body = io.NopCloser(strings.NewReader(body))
 
+	if req != nil {
+		req.Body = io.NopCloser(strings.NewReader(body))
+	}
 	return s.createDelivery(w.ID, event, eventId, req, resp, dur, derr)
 }
 

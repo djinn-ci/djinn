@@ -540,7 +540,7 @@ func (p *WebhookIndex) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/section.qtpl:187
 				qw422016.N().S(` `)
 //line namespace/template/section.qtpl:188
-				if w.LastDelivery.ResponseCode >= 200 && w.LastDelivery.ResponseCode < 300 {
+				if w.LastDelivery.ResponseCode.Int64 >= 200 && w.LastDelivery.ResponseCode.Int64 < 300 {
 //line namespace/template/section.qtpl:188
 					qw422016.N().S(` <td class="hook-status hook-status-ok">`)
 //line namespace/template/section.qtpl:189

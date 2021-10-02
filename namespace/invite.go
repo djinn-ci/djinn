@@ -32,6 +32,7 @@ type Invite struct {
 }
 
 type InviteEvent struct {
+	db  *sqlx.DB
 	dis event.Dispatcher
 
 	Action    string
@@ -40,9 +41,10 @@ type InviteEvent struct {
 	Inviter   *user.User
 }
 
-func InitInviteEvent(dis event.Dispatcher) queue.InitFunc {
+func InitInviteEvent(db *sqlx.DB, dis event.Dispatcher) queue.InitFunc {
 	return func(j queue.Job) {
 		if ev, ok := j.(*InviteEvent); ok {
+			ev.db = db
 			ev.dis = dis
 		}
 	}
@@ -66,6 +68,16 @@ func (ev *InviteEvent) Perform() error {
 		return event.ErrNilDispatcher
 	}
 
+	if ev.Namespace.User == nil {
+		var err error
+
+		ev.Namespace.User, err = user.NewStore(ev.db).Get(query.Where("id", "=", query.Arg(ev.Namespace.UserID)))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+	}
+
 	data := map[string]interface{}{
 		"namespace": ev.Namespace.JSON(env.DJINN_API_SERVER),
 	}
@@ -78,12 +90,12 @@ func (ev *InviteEvent) Perform() error {
 
 	switch ev.Action {
 	case "sent":
-		data["inviter"] = ev.Inviter
-		data["invitee"] = ev.Invitee
+		data["inviter"] = ev.Inviter.JSON(env.DJINN_API_SERVER)
+		data["invitee"] = ev.Invitee.JSON(env.DJINN_API_SERVER)
 	case "accepted":
-		data["invitee"] = ev.Invitee
+		data["invitee"] = ev.Invitee.JSON(env.DJINN_API_SERVER)
 	case "rejected":
-		data["invitee"] = ev.Invitee
+		data["invitee"] = ev.Invitee.JSON(env.DJINN_API_SERVER)
 	default:
 		return errors.New("invalid invite action " + ev.Action)
 	}
@@ -346,8 +358,26 @@ func (s *InviteStore) Create(inviterId, inviteeId int64) (*Invite, error) {
 	i.InviterID = inviterId
 	i.InviteeID = inviteeId
 
-	err := s.Store.Create(inviteTable, i)
-	return i, errors.Err(err)
+	if err := s.Store.Create(inviteTable, i); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	var err error
+
+	users := user.NewStore(s.DB)
+
+	i.Inviter, err = users.Get(query.Where("id", "=", query.Arg(i.InviterID)))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	i.Invitee, err = users.Get(query.Where("id", "=", query.Arg(i.InviteeID)))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return i, nil
 }
 
 // Update updates the given Invite models in the namespace_invites table.

@@ -190,7 +190,7 @@ func (h Invite) DeleteModel(r *http.Request) error {
 	h.Queues.Produce(ctx, "events", &namespace.InviteEvent{
 		Action:    "rejected",
 		Namespace: n,
-		Invitee:   i.Invitee,
+		Invitee:   u,
 	})
 	return nil
 }

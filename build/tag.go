@@ -32,6 +32,7 @@ type TagEvent struct {
 	dis event.Dispatcher
 
 	Build *Build
+	User  *user.User
 	Tags  []*Tag
 }
 
@@ -89,12 +90,17 @@ func (ev *TagEvent) Perform() error {
 	tt := make([]map[string]interface{}, 0, len(ev.Tags))
 
 	for _, t := range ev.Tags {
-		tt = append(tt, t.JSON(env.DJINN_API_SERVER))
+		tt = append(tt, map[string]interface{}{
+			"name": t.Name,
+			"url":  env.DJINN_API_SERVER + t.Endpoint(),
+		})
 	}
 
 	payload := map[string]interface{}{
-		"url":  ev.Build.Endpoint("tags"),
-		"tags": tt,
+		"url":   ev.Build.Endpoint("tags"),
+		"build": ev.Build.JSON(env.DJINN_API_SERVER),
+		"user":  ev.User.JSON(env.DJINN_API_SERVER),
+		"tags":  tt,
 	}
 	return errors.Err(ev.dis.Dispatch(event.New(ev.Build.NamespaceID, event.BuildTagged, payload)))
 }

@@ -68,6 +68,7 @@ func (h Tag) StoreModel(r *http.Request) ([]*build.Tag, error) {
 
 	h.Queues.Produce(ctx, "events", &build.TagEvent{
 		Build: b,
+		User:  u,
 		Tags:  tt,
 	})
 	return tt, nil

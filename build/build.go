@@ -445,6 +445,7 @@ func (s *Store) Create(m manifest.Manifest, t *Trigger, tags ...string) (*Build,
 		Valid:  true,
 	}
 	b.Manifest = m
+	b.CreatedAt = time.Now()
 
 	if m.Namespace != "" {
 		n, err := namespace.NewStore(s.DB, b.User).GetByPath(m.Namespace)

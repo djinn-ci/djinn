@@ -90,6 +90,8 @@ func (ev *TagEvent) Perform() error {
 	tt := make([]map[string]interface{}, 0, len(ev.Tags))
 
 	for _, t := range ev.Tags {
+		ev.Build.Tags = append(ev.Build.Tags, t)
+
 		tt = append(tt, map[string]interface{}{
 			"name": t.Name,
 			"url":  env.DJINN_API_SERVER + t.Endpoint(),

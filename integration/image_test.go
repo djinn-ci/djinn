@@ -15,6 +15,7 @@ import (
 	"djinn-ci.com/database"
 	"djinn-ci.com/image"
 	"djinn-ci.com/integration/djinn"
+	"djinn-ci.com/namespace"
 	"djinn-ci.com/log"
 	"djinn-ci.com/queue"
 
@@ -198,9 +199,16 @@ func Test_ImageCreateDownload(t *testing.T) {
 
 	defer db2.Close()
 
+	webhooks := namespace.NewWebhookStoreWithCrypto(db, aesgcm)
+
+	memq := queue.NewMemory(1, func(j queue.Job, err error) {
+		t.Error("queue job failed:", j.Name(), err)
+	})
+	memq.InitFunc("event:images", image.InitEvent(webhooks))
+
 	// Directly call the init function since we are not processing it on the
 	// queue where this would have otherwise been invoked.
-	image.DownloadJobInit(db2, log, store)(job)
+	image.DownloadJobInit(db2, memq, log, store)(job)
 
 	if err := job.Perform(); err != nil {
 		t.Fatal(err)

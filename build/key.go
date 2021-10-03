@@ -28,12 +28,12 @@ type Key struct {
 }
 
 // KeyStore is the type for creating and modifying Key models in the database.
-// The KeyStore type uses an underlying crypto.Block for encrypting the SSH key
+// The KeyStore type uses an underlying crypto.AESGCM for encrypting the SSH key
 // itself when being stored in the database.
 type KeyStore struct {
 	database.Store
 
-	block *crypto.Block
+	block *crypto.AESGCM
 	Build *Build
 	Key   *key.Key
 }
@@ -57,8 +57,8 @@ func NewKeyStore(db *sqlx.DB, mm ...database.Model) *KeyStore {
 }
 
 // NewKeyStoreWithblock is functionally the same as NewStore, however it sets
-// the given crypto.Block on the newly returned KeyStore.
-func NewKeyStoreWithBlock(db *sqlx.DB, block *crypto.Block, mm ...database.Model) *KeyStore {
+// the given crypto.AESGCM on the newly returned KeyStore.
+func NewKeyStoreWithCrypto(db *sqlx.DB, block *crypto.AESGCM, mm ...database.Model) *KeyStore {
 	s := NewKeyStore(db, mm...)
 	s.block = block
 	return s

@@ -29,10 +29,10 @@ type Oauth2 struct {
 	tokens *oauth2.TokenStore
 }
 
-func New(h web.Handler, block *crypto.Block) Oauth2 {
+func New(h web.Handler, block *crypto.AESGCM) Oauth2 {
 	return Oauth2{
 		Handler: h,
-		apps:    oauth2.NewAppStoreWithBlock(h.DB, block),
+		apps:    oauth2.NewAppStoreWithCrypto(h.DB, block),
 		tokens:  oauth2.NewTokenStore(h.DB),
 	}
 }

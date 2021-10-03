@@ -54,7 +54,7 @@ type Worker struct {
 
 	consumer *curlyq.Consumer
 
-	block *crypto.Block
+	block *crypto.AESGCM
 
 	db         *sqlx.DB
 	redis      *redis.Client
@@ -129,7 +129,7 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 		return nil, err
 	}
 
-	cfg.block, err = crypto.NewBlock(cfg0.Crypto.Block, cfg0.Crypto.Salt)
+	cfg.block, err = crypto.NewAESGCM(cfg0.Crypto.Block, cfg0.Crypto.Salt)
 
 	if err != nil {
 		return nil, err
@@ -294,6 +294,6 @@ func (w *Worker) Redis() *redis.Client          { return w.redis }
 func (w *Worker) SMTP() (*mail.Client, string)  { return w.smtp, w.postmaster }
 func (w *Worker) Artifacts() fs.Store           { return w.artifacts }
 func (w *Worker) Objects() fs.Store             { return w.objects }
-func (w *Worker) BlockCipher() *crypto.Block    { return w.block }
+func (w *Worker) BlockCipher() *crypto.AESGCM    { return w.block }
 func (w *Worker) Log() *log.Logger              { return w.log }
 func (w *Worker) Providers() *provider.Registry { return w.providers }

@@ -34,12 +34,12 @@ type App struct {
 }
 
 // AppStore is the type for creating and modfiying App models in the database.
-// The AppStore type can have an underlying crypto.Block for encrypting the
+// The AppStore type can have an underlying crypto.AESGCM for encrypting the
 // App's secret.
 type AppStore struct {
 	database.Store
 
-	block *crypto.Block
+	crypto *crypto.AESGCM
 
 	// User is the bound user.User model. If not nil this will bind the
 	// user.User model to any App models that are created. If not nil this
@@ -80,12 +80,12 @@ func NewAppStore(db *sqlx.DB, mm ...database.Model) *AppStore {
 	return s
 }
 
-// NewAppStoreWithBlock is functionally the same as NewAppStore, however it gets
-// the crypto.Block to use on the returned AppStore. This will allow for
+// NewAppStoreWithCrypto is functionally the same as NewAppStore, however it gets
+// the crypto.AESGCM to use on the returned AppStore. This will allow for
 // encryption of the App's secret.
-func NewAppStoreWithBlock(db *sqlx.DB, block *crypto.Block, mm ...database.Model) *AppStore {
+func NewAppStoreWithCrypto(db *sqlx.DB, crypto *crypto.AESGCM, mm ...database.Model) *AppStore {
 	s := NewAppStore(db, mm...)
-	s.block = block
+	s.crypto = crypto
 	return s
 }
 
@@ -182,11 +182,11 @@ func (s *AppStore) Bind(mm ...database.Model) {
 // and redirect URIs. This will generate a random ID for the newly created App,
 // and secret.
 func (s *AppStore) Create(name, description, homepage, redirect string) (*App, error) {
-	if s.block == nil {
+	if s.crypto == nil {
 		return nil, errors.New("nil block cipher")
 	}
 
-	secret, err := generateSecret(s.block.Encrypt)
+	secret, err := generateSecret(s.crypto.Encrypt)
 
 	if err != nil {
 		return nil, errors.Err(err)
@@ -211,13 +211,13 @@ func (s *AppStore) Create(name, description, homepage, redirect string) (*App, e
 }
 
 // Reset generates a new secret for the App of the given id, and updates it in
-// the database. This will error if the underlying crypto.Block is not set.
+// the database. This will error if the underlying crypto.AESGCM is not set.
 func (s *AppStore) Reset(id int64) error {
-	if s.block == nil {
+	if s.crypto == nil {
 		return errors.New("nil block cipher")
 	}
 
-	secret, err := generateSecret(s.block.Encrypt)
+	secret, err := generateSecret(s.crypto.Encrypt)
 
 	if err != nil {
 		return errors.Err(err)
@@ -320,7 +320,7 @@ func (s *AppStore) Auth(id, secret string) (*App, error) {
 		return a, errors.Err(err)
 	}
 
-	dec, err := s.block.Decrypt(a.ClientSecret)
+	dec, err := s.crypto.Decrypt(a.ClientSecret)
 
 	if err != nil {
 		return a, errors.Err(err)

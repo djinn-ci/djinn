@@ -17,13 +17,13 @@ import (
 type Webhook struct {
 	web.Handler
 
-	block *crypto.Block
+	crypto *crypto.AESGCM
 }
 
-func NewWebhook(h web.Handler, block *crypto.Block) Webhook {
+func NewWebhook(h web.Handler, crypto *crypto.AESGCM) Webhook {
 	return Webhook{
 		Handler: h,
-		block:   block,
+		crypto:   crypto,
 	}
 }
 
@@ -44,7 +44,7 @@ func (h Webhook) StoreModel(r *http.Request) (*namespace.Webhook, namespace.Webh
 		return nil, f, errors.New("no namespace in request context")
 	}
 
-	webhooks := namespace.NewWebhookStoreWithBlock(h.DB, h.block, n, u)
+	webhooks := namespace.NewWebhookStoreWithCrypto(h.DB, h.crypto, n, u)
 
 	f.Webhooks = webhooks
 
@@ -93,7 +93,7 @@ func (h Webhook) UpdateModel(r *http.Request) (*namespace.Webhook, namespace.Web
 		return nil, f, errors.New("no namespace in request context")
 	}
 
-	webhooks := namespace.NewWebhookStoreWithBlock(h.DB, h.block, n, u)
+	webhooks := namespace.NewWebhookStoreWithCrypto(h.DB, h.crypto, n, u)
 
 	f.Webhooks = webhooks
 	f.Webhook = w
@@ -109,7 +109,7 @@ func (h Webhook) UpdateModel(r *http.Request) (*namespace.Webhook, namespace.Web
 	secret := f.Secret
 
 	if !f.RemoveSecret && secret == "" {
-		secret0, err := h.block.Decrypt(w.Secret)
+		secret0, err := h.crypto.Decrypt(w.Secret)
 
 		if err != nil {
 			return nil, f, errors.Err(err)

@@ -49,12 +49,12 @@ type Event struct {
 }
 
 // Store is the type for creating and modifying Key models in the database. The
-// Store type can have an underlying crypto.Block for encrypting the SSH keys
+// Store type can have an underlying crypto.AESGCM for encrypting the SSH keys
 // that are stored.
 type Store struct {
 	database.Store
 
-	block *crypto.Block
+	crypto *crypto.AESGCM
 
 	// User is the bound user.User model. If not nil this will bind the
 	// user.User model to any Image models that are created. If not nil this
@@ -94,12 +94,12 @@ func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
 	return s
 }
 
-// NewStoreWithBlock is functionally the same as NewStore, however it sets the
-// crypto.Block to use on the returned Store. This will allow for encryption of
+// NewStoreWithCrypto is functionally the same as NewStore, however it sets the
+// crypto.AESGCM to use on the returned Store. This will allow for encryption of
 // keys during creation.
-func NewStoreWithBlock(db *sqlx.DB, block *crypto.Block, mm ...database.Model) *Store {
+func NewStoreWithCrypto(db *sqlx.DB, crypto *crypto.AESGCM, mm ...database.Model) *Store {
 	s := NewStore(db, mm...)
-	s.block = block
+	s.crypto = crypto
 	return s
 }
 
@@ -268,14 +268,14 @@ func (s *Store) Bind(mm ...database.Model) {
 
 // Create creates a new key with the given name and config. The given key string
 // should be the contents of the key itself, this will be encrypted with the
-// underlying crypto.Block that is set on the Store. If no crypto.Block is set
+// underlying crypto.AESGCM that is set on the Store. If no crypto.AESGCM is set
 // on the Store then this will error.
 func (s *Store) Create(authorId int64, name, key, config string) (*Key, error) {
-	if s.block == nil {
+	if s.crypto == nil {
 		return nil, errors.New("nil block cipher")
 	}
 
-	b, err := s.block.Encrypt([]byte(key))
+	b, err := s.crypto.Encrypt([]byte(key))
 
 	if err != nil {
 		return nil, errors.Err(err)

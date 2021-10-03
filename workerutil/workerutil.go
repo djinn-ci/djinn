@@ -72,9 +72,11 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 		}
 	}
 
+	parallelism := cfg.Parallelism()
+
 	log.Info.Println("consuming from queue:", cfg.Queue())
 	log.Info.Println("enabled build driver", cfg.Driver())
-	log.Info.Println("using parallelism of:", cfg.Parallelism())
+	log.Info.Println("using parallelism of:", parallelism)
 
 	f2, err := os.Open(driverPath)
 
@@ -94,7 +96,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 
 	webhooks := namespace.NewWebhookStore(db)
 
-	memq := queue.NewMemory(20, func(j queue.Job, err error) {
+	memq := queue.NewMemory(parallelism, func(j queue.Job, err error) {
 		log.Error.Println("queue job failed:", j.Name(), err)
 	})
 	memq.InitFunc("event:build.started", build.InitEvent(webhooks))
@@ -105,7 +107,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 		Redis:     redis,
 		SMTP:      smtp,
 		Admin:     postmaster,
-		Block:     cfg.BlockCipher(),
+		Crypto:    cfg.BlockCipher(),
 		Log:       log,
 		Consumer:  cfg.Consumer(),
 		Queue:     memq,

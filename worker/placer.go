@@ -18,7 +18,7 @@ type info struct {
 }
 
 type placer struct {
-	block  *crypto.Block
+	crypto *crypto.AESGCM
 	keycfg []byte
 	keys   map[string][]byte
 	placer runner.Placer
@@ -49,7 +49,7 @@ func (p *placer) Place(name string, w io.Writer) (int64, error) {
 			return 0, nil
 		}
 
-		dec, err := p.block.Decrypt(enc)
+		dec, err := p.crypto.Decrypt(enc)
 
 		if err != nil {
 			return 0, errors.Err(err)

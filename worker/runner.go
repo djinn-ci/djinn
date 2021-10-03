@@ -35,8 +35,8 @@ type Runner struct {
 
 	db *sqlx.DB
 
-	block *crypto.Block
-	log   *log.Logger
+	crypto *crypto.AESGCM
+	log    *log.Logger
 
 	build *build.Build
 
@@ -241,7 +241,7 @@ func (r *Runner) Placer() (runner.Placer, error) {
 	}
 
 	return &placer{
-		block:  r.block,
+		crypto: r.crypto,
 		keycfg: []byte(r.keycfg),
 		keys:   r.keys,
 		placer: build.NewObjectStoreWithPlacer(r.db, store, r.build),

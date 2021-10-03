@@ -134,14 +134,14 @@ func (p *Provider) Values() map[string]interface{} {
 // the current provider. This will either set/unset the HookID field on the
 // given Repo struct, and will toggle the Enabled field depending on whether a
 // hook was added or removed.
-func (p *Provider) ToggleRepo(block *crypto.Block, reg *Registry, r *Repo) error {
+func (p *Provider) ToggleRepo(crypto *crypto.AESGCM, reg *Registry, r *Repo) error {
 	cli, err := reg.Get(p.Name)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	tok, err := block.Decrypt(p.AccessToken)
+	tok, err := crypto.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return errors.Err(err)
@@ -152,14 +152,14 @@ func (p *Provider) ToggleRepo(block *crypto.Block, reg *Registry, r *Repo) error
 // SetCommitStatus will set the given status for the given commit sha on the
 // current provider. This assumes the given commit sha is part of a merge/pull
 // request.
-func (p *Provider) SetCommitStatus(block *crypto.Block, reg *Registry, r *Repo, status runner.Status, url, sha string) error {
+func (p *Provider) SetCommitStatus(crypto *crypto.AESGCM, reg *Registry, r *Repo, status runner.Status, url, sha string) error {
 	cli, err := reg.Get(p.Name)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	tok, err := block.Decrypt(p.AccessToken)
+	tok, err := crypto.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return errors.Err(err)
@@ -168,10 +168,10 @@ func (p *Provider) SetCommitStatus(block *crypto.Block, reg *Registry, r *Repo, 
 }
 
 // Repos get's the repositories from the current provider's API endpoint. The
-// given crypto.Block is used to decrypt the access token that is used to
+// given crypto.AESGCM is used to decrypt the access token that is used to
 // authenticate against the API. The given page is used to get the repositories
 // on that given page.
-func (p *Provider) Repos(block *crypto.Block, reg *Registry, page int64) ([]*Repo, database.Paginator, error) {
+func (p *Provider) Repos(crypto *crypto.AESGCM, reg *Registry, page int64) ([]*Repo, database.Paginator, error) {
 	paginator := database.Paginator{}
 
 	if !p.Connected {
@@ -184,7 +184,7 @@ func (p *Provider) Repos(block *crypto.Block, reg *Registry, page int64) ([]*Rep
 		return nil, paginator, errors.Err(err)
 	}
 
-	tok, err := block.Decrypt(p.AccessToken)
+	tok, err := crypto.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return nil, paginator, errors.Err(err)

@@ -32,13 +32,13 @@ type Repo struct {
 	web.Handler
 
 	redis     *redis.Client
-	block     *crypto.Block
+	block     *crypto.AESGCM
 	providers *provider.Registry
 }
 
 var cacheKey = "repos-%s-%v-%v"
 
-func NewRepo(h web.Handler, redis *redis.Client, block *crypto.Block, providers *provider.Registry) Repo {
+func NewRepo(h web.Handler, redis *redis.Client, block *crypto.AESGCM, providers *provider.Registry) Repo {
 	return Repo{
 		Handler:   h,
 		redis:     redis,

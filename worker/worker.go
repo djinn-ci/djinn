@@ -49,9 +49,9 @@ type Worker struct {
 	// worker on build failures.
 	Admin string
 
-	// Block is the block cipher to use for decrypting access tokens when
+	// Crypto is the block cipher to use for decrypting access tokens when
 	// interacting with a provider's REST API.
-	Block *crypto.Block
+	Crypto *crypto.AESGCM
 
 	// Log is the logger implementation used for logging information about the
 	// running builds.
@@ -152,7 +152,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	if t.Type == build.Pull {
 		err := p.SetCommitStatus(
-			w.Block,
+			w.Crypto,
 			w.Providers,
 			r,
 			runner.Running,
@@ -215,7 +215,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	if t.Type == build.Pull {
 		err := p.SetCommitStatus(
-			w.Block,
+			w.Crypto,
 			w.Providers,
 			r,
 			status,
@@ -318,7 +318,7 @@ func (w *Worker) Run(ctx context.Context) error {
 func (w *Worker) Runner(b *build.Build) *Runner {
 	return &Runner{
 		db:        w.DB,
-		block:     w.Block,
+		crypto:    w.Crypto,
 		log:       w.Log,
 		build:     b,
 		objects:   w.Objects,

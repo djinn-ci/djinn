@@ -1059,7 +1059,7 @@ func (h WebhookUI) Redeliver(w http.ResponseWriter, r *http.Request) {
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["delivery"], 10, 64)
 
-	webhooks := namespace.NewWebhookStoreWithBlock(h.DB, h.block)
+	webhooks := namespace.NewWebhookStoreWithCrypto(h.DB, h.crypto)
 
 	d, err := webhooks.Delivery(wh.ID, id)
 

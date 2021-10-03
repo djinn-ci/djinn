@@ -73,7 +73,7 @@ type Server struct {
 
 	srv *server.Server
 
-	block  *crypto.Block
+	crypto *crypto.AESGCM
 	hasher *crypto.Hasher
 
 	db         *sqlx.DB
@@ -140,7 +140,7 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 
 	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
 
-	cfg.block, err = crypto.NewBlock(cfg.Crypto.Block, cfg.Crypto.Salt)
+	cfg.crypto, err = crypto.NewAESGCM(cfg.Crypto.Block, cfg.Crypto.Salt)
 
 	if err != nil {
 		return nil, err
@@ -427,7 +427,7 @@ func (s *Server) SessionStore() sessions.Store           { return s.session }
 func (s *Server) Images() Store                          { return s.images }
 func (s *Server) Artifacts() Store                       { return s.artifacts }
 func (s *Server) Objects() Store                         { return s.objects }
-func (s *Server) BlockCipher() *crypto.Block             { return s.block }
+func (s *Server) BlockCipher() *crypto.AESGCM            { return s.crypto }
 func (s *Server) Hasher() *crypto.Hasher                 { return s.hasher }
 func (s *Server) Log() *log.Logger                       { return s.log }
 func (s *Server) Producers() map[string]*curlyq.Producer { return s.producers }

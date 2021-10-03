@@ -52,16 +52,16 @@ type hookData struct {
 type Hook struct {
 	Build
 
-	block     *crypto.Block
+	crypto    *crypto.AESGCM
 	providers *provider.Registry
 }
 
 type manifestDecoder func(io.Reader) (manifest.Manifest, error)
 
-func NewHook(b Build, block *crypto.Block, providers *provider.Registry) Hook {
+func NewHook(b Build, crypto *crypto.AESGCM, providers *provider.Registry) Hook {
 	return Hook{
 		Build:     b,
-		block:     block,
+		crypto:    crypto,
 		providers: providers,
 	}
 }
@@ -135,7 +135,7 @@ func (h Hook) execute(ctx context.Context, host, name string, data hookData, get
 		return errors.Err(err)
 	}
 
-	b, err := h.block.Decrypt(p.AccessToken)
+	b, err := h.crypto.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return errors.Err(err)
@@ -182,7 +182,7 @@ func (h Hook) execute(ctx context.Context, host, name string, data hookData, get
 	if t.Type == build.Pull {
 		last := bb[len(bb)-1]
 
-		err = p.SetCommitStatus(h.block, h.providers, r, runner.Queued, host+last.Endpoint(), data.ref)
+		err = p.SetCommitStatus(h.crypto, h.providers, r, runner.Queued, host+last.Endpoint(), data.ref)
 
 		if err != nil {
 			return errors.Err(err)

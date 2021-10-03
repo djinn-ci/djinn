@@ -28,15 +28,15 @@ type Provider struct {
 	web.Handler
 
 	redis     *redis.Client
-	block     *crypto.Block
+	crypto    *crypto.AESGCM
 	providers *provider.Registry
 }
 
-func New(h web.Handler, redis *redis.Client, block *crypto.Block, providers *provider.Registry) Provider {
+func New(h web.Handler, redis *redis.Client, crypto *crypto.AESGCM, providers *provider.Registry) Provider {
 	return Provider{
 		Handler:   h,
 		redis:     redis,
-		block:     block,
+		crypto:    crypto,
 		providers: providers,
 	}
 }
@@ -79,7 +79,7 @@ func (h Provider) disableHooks(p *provider.Provider) error {
 		go func(r *provider.Repo) {
 			defer wg.Done()
 
-			if err := p.ToggleRepo(h.block, h.providers, r); err != nil {
+			if err := p.ToggleRepo(h.crypto, h.providers, r); err != nil {
 				cherrs <- err
 			}
 		}(r)
@@ -196,7 +196,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encAccess, err := h.block.Encrypt([]byte(access))
+	encAccess, err := h.crypto.Encrypt([]byte(access))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -209,7 +209,7 @@ func (h Provider) Auth(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	encRefresh, err := h.block.Encrypt([]byte(refresh))
+	encRefresh, err := h.crypto.Encrypt([]byte(refresh))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))

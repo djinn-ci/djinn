@@ -40,10 +40,10 @@ type Hasher struct {
 	Alphabet string
 }
 
-// Block is the type for encrypting and decrypting payloads of data. This uses
-// the AES block cipher, wrapped in Galois Counter Mode.
-type Block struct {
-	gcm cipher.AEAD
+// AESGCM provides authenticated encryption using AES as the cipher wrapped in
+// Galois Counter Mode.
+type AESGCM struct {
+	aead cipher.AEAD
 }
 
 // CheckCSPRNG will see if it's possible to generate a cryptographically secure
@@ -56,10 +56,13 @@ func CheckCSPRNG() {
 	}
 }
 
-// NewBlock returns a new block for encrypting and authenticating payloads
+// NewAESGCM returns a new block for encrypting and authenticating payloads
 // of data. The given password and salt are used to generate a key for
 // encryption.
-func NewBlock(password, salt []byte) (*Block, error) {
+
+// NewAESGCM returns a new block cipher for authenticated encryption. This
+// derives a HMAC-SHA-256 based PBKDF2 key from the given password and salt.
+func NewAESGCM(password, salt []byte) (*AESGCM, error) {
 	key := pbkdf2.Key(password, salt, 4096, 32, sha256.New)
 
 	ciph, err := aes.NewCipher(key)
@@ -74,14 +77,14 @@ func NewBlock(password, salt []byte) (*Block, error) {
 		return nil, errors.Err(err)
 	}
 
-	return &Block{
-		gcm: gcm,
+	return &AESGCM{
+		aead: gcm,
 	}, nil
 }
 
 // Decrypt returns the decrypted bytes of the given payload.
-func (b *Block) Decrypt(p []byte) ([]byte, error) {
-	size := b.gcm.NonceSize()
+func (a *AESGCM) Decrypt(p []byte) ([]byte, error) {
+	size := a.aead.NonceSize()
 
 	if len(p) < size {
 		return nil, errors.New("cipher text is too short")
@@ -90,18 +93,18 @@ func (b *Block) Decrypt(p []byte) ([]byte, error) {
 	nonce := p[:size]
 	text := p[size:]
 
-	d, err := b.gcm.Open(nil, nonce, text, nil)
+	d, err := a.aead.Open(nil, nonce, text, nil)
 	return d, errors.Err(err)
 }
 
 // Encrypt returns the encrypted bytes of the given payload.
-func (b *Block) Encrypt(p []byte) ([]byte, error) {
-	nonce := make([]byte, b.gcm.NonceSize())
+func (a *AESGCM) Encrypt(p []byte) ([]byte, error) {
+	nonce := make([]byte, a.aead.NonceSize())
 
 	if _, err := rand.Read(nonce); err != nil {
 		return nil, errors.Err(err)
 	}
-	return b.gcm.Seal(nonce, nonce, p, nil), nil
+	return a.aead.Seal(nonce, nonce, p, nil), nil
 }
 
 // Init initializes the hasher for hasing of numbers.

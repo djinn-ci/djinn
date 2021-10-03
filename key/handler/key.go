@@ -21,14 +21,14 @@ type Key struct {
 	web.Handler
 
 	loaders *database.Loaders
-	block   *crypto.Block
+	block   *crypto.AESGCM
 }
 
 func stripCRLF(s string) string {
 	return strings.Replace(s, "\r", "", -1)
 }
 
-func New(h web.Handler, block *crypto.Block) Key {
+func New(h web.Handler, block *crypto.AESGCM) Key {
 	loaders := database.NewLoaders()
 	loaders.Put("author", h.Users)
 	loaders.Put("namespace", namespace.NewStore(h.DB))
@@ -88,7 +88,7 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 		return nil, f, errors.New("no user in request context")
 	}
 
-	keys := key.NewStoreWithBlock(h.DB, h.block, u)
+	keys := key.NewStoreWithCrypto(h.DB, h.block, u)
 
 	f.Resource = namespace.Resource{
 		Author:     u,

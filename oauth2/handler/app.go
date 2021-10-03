@@ -25,14 +25,14 @@ import (
 type App struct {
 	web.Handler
 
-	block *crypto.Block
-	apps  *oauth2.AppStore
+	crypto *crypto.AESGCM
+	apps   *oauth2.AppStore
 }
 
-func NewApp(h web.Handler, block *crypto.Block) App {
+func NewApp(h web.Handler, crypto *crypto.AESGCM) App {
 	return App{
 		Handler: h,
-		block:   block,
+		crypto:  crypto,
 		apps:    oauth2.NewAppStore(h.DB),
 	}
 }
@@ -132,7 +132,7 @@ func (h App) Store(w http.ResponseWriter, r *http.Request) {
 		h.Log.Error.Println(r.Method, r.URL, "failed to get user from request context")
 	}
 
-	apps := oauth2.NewAppStoreWithBlock(h.DB, h.block, u)
+	apps := oauth2.NewAppStoreWithCrypto(h.DB, h.crypto, u)
 
 	f := &oauth2.AppForm{
 		Apps: apps,
@@ -201,7 +201,7 @@ func (h App) Show(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dec, err := h.block.Decrypt(a.ClientSecret)
+	dec, err := h.crypto.Decrypt(a.ClientSecret)
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -276,7 +276,7 @@ func (h App) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if base == "reset" {
-		if err := oauth2.NewAppStoreWithBlock(h.DB, h.block).Reset(a.ID); err != nil {
+		if err := oauth2.NewAppStoreWithCrypto(h.DB, h.crypto).Reset(a.ID); err != nil {
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			sess.AddFlash(template.Alert{
 				Level:   template.Danger,

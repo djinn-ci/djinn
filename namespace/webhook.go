@@ -76,8 +76,8 @@ type WebhookDelivery struct {
 type WebhookStore struct {
 	database.Store
 
-	block *crypto.Block
-	pool  *x509.CertPool
+	crypto *crypto.AESGCM
+	pool   *x509.CertPool
 
 	User      *user.User
 	Namespace *Namespace
@@ -156,9 +156,9 @@ func NewWebhookStore(db *sqlx.DB, mm ...database.Model) *WebhookStore {
 	return s
 }
 
-func NewWebhookStoreWithBlock(db *sqlx.DB, block *crypto.Block, mm ...database.Model) *WebhookStore {
+func NewWebhookStoreWithCrypto(db *sqlx.DB, crypto *crypto.AESGCM, mm ...database.Model) *WebhookStore {
 	s := NewWebhookStore(db, mm...)
-	s.block = block
+	s.crypto = crypto
 	return s
 }
 
@@ -307,11 +307,11 @@ func (s *WebhookStore) Create(authorId int64, payloadUrl *url.URL, secret string
 	)
 
 	if secret != "" {
-		if s.block == nil {
+		if s.crypto == nil {
 			return nil, errors.New("nil block cipher")
 		}
 
-		b, err = s.block.Encrypt([]byte(secret))
+		b, err = s.crypto.Encrypt([]byte(secret))
 
 		if err != nil {
 			return nil, errors.Err(err)
@@ -337,11 +337,11 @@ func (s *WebhookStore) Update(id int64, payloadUrl *url.URL, secret string, ssl 
 	)
 
 	if secret != "" {
-		if s.block == nil {
+		if s.crypto == nil {
 			return errors.New("nil block cipher")
 		}
 
-		b, err = s.block.Encrypt([]byte(secret))
+		b, err = s.crypto.Encrypt([]byte(secret))
 
 		if err != nil {
 			return errors.Err(err)
@@ -522,8 +522,8 @@ func (s *WebhookStore) createDelivery(hookId int64, typ event.Type, eventId uuid
 	var (
 		deliveryError sql.NullString
 
-		reqHeaders  sql.NullString
-		reqBody     sql.NullString
+		reqHeaders sql.NullString
+		reqBody    sql.NullString
 
 		respStatus  sql.NullInt64
 		respHeaders sql.NullString
@@ -607,11 +607,11 @@ func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) 
 	var signature string
 
 	if w.Secret != nil {
-		if s.block == nil {
+		if s.crypto == nil {
 			return nil, nil, 0, errors.New("nil block cipher")
 		}
 
-		secret, err := s.block.Decrypt(w.Secret)
+		secret, err := s.crypto.Decrypt(w.Secret)
 
 		if err != nil {
 			return nil, nil, 0, errors.Err(err)

@@ -7,6 +7,7 @@ import (
 	"runtime"
 	"strconv"
 
+	"djinn-ci.com/crypto"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
@@ -25,6 +26,8 @@ type consumerCfg struct {
 
 	Log logCfg
 
+	Crypto Crypto
+
 	Database databaseCfg
 	Redis    redisCfg
 
@@ -37,6 +40,8 @@ type Consumer struct {
 	parallelism int
 
 	log *log.Logger
+
+	crypto *crypto.AESGCM
 
 	consumer *curlyq.ConsumerOpts
 
@@ -163,6 +168,8 @@ func (c *consumerCfg) put(n *node) error {
 		c.Parallelism = int(i)
 	case "log":
 		return c.Log.put(n)
+	case "crypto":
+		return c.Crypto.put(n)
 	case "redis":
 		return c.Redis.put(n)
 	case "database":
@@ -189,6 +196,7 @@ func (c *Consumer) ConsumerOpts() *curlyq.ConsumerOpts { return c.consumer }
 func (c *Consumer) DB() *sqlx.DB                       { return c.db }
 func (c *Consumer) Redis() *redis.Client               { return c.redis }
 func (c *Consumer) Log() *log.Logger                   { return c.log }
+func (c *Consumer) BlockCipher() *crypto.AESGCM        { return c.crypto }
 
 func (c *Consumer) Store(name string) (fs.Store, bool) {
 	store, ok := c.stores[name]

@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"io"
+	"os"
 	"strings"
 )
 
@@ -202,6 +203,38 @@ func (p *parser) parse() []*node {
 	for p.tok != _EOF {
 		name := ""
 		label := ""
+
+		if p.tok == _Include {
+			p.next()
+
+			if p.tok != _Literal {
+				p.scanner.err("expected string literal")
+				p.next()
+				continue
+			}
+
+			if p.litKind != stringLit {
+				p.scanner.err("expected string literal")
+				p.next()
+				continue
+			}
+
+			f, err := os.Open(p.lit)
+
+			if err != nil {
+				p.scanner.err(err.Error())
+				p.next()
+				continue
+			}
+
+			defer f.Close()
+
+			p2 := newParser(f.Name(), f, p.errh)
+
+			nodes = append(nodes, p2.parse()...)
+			p.next()
+			continue
+		}
 
 		if p.tok == _Name {
 			name = p.lit

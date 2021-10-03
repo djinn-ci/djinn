@@ -26,6 +26,7 @@ const (
 	_EOF token = iota // eof
 
 	_Name    // name
+	_Include // include
 	_Literal // literal
 
 	_Semi  // newline
@@ -75,6 +76,10 @@ func (s *scanner) ident() {
 
 	s.tok = _Name
 	s.lit = s.stopLit()
+
+	if s.lit == "include" {
+		s.tok = _Include
+	}
 
 	if s.lit == "true" || s.lit == "false" {
 		s.tok = _Literal

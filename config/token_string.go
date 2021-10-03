@@ -10,18 +10,19 @@ func _() {
 	var x [1]struct{}
 	_ = x[_EOF-0]
 	_ = x[_Name-1]
-	_ = x[_Literal-2]
-	_ = x[_Semi-3]
-	_ = x[_Comma-4]
-	_ = x[_Lbrace-5]
-	_ = x[_Rbrace-6]
-	_ = x[_Lbrack-7]
-	_ = x[_Rbrack-8]
+	_ = x[_Include-2]
+	_ = x[_Literal-3]
+	_ = x[_Semi-4]
+	_ = x[_Comma-5]
+	_ = x[_Lbrace-6]
+	_ = x[_Rbrace-7]
+	_ = x[_Lbrack-8]
+	_ = x[_Rbrack-9]
 }
 
-const _token_name = "eofnameliteralnewline,{}[]"
+const _token_name = "eofnameincludeliteralnewline,{}[]"
 
-var _token_index = [...]uint8{0, 3, 7, 14, 21, 22, 23, 24, 25, 26}
+var _token_index = [...]uint8{0, 3, 7, 14, 21, 28, 29, 30, 31, 32, 33}
 
 func (i token) String() string {
 	if i >= token(len(_token_index)-1) {

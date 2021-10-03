@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"djinn-ci.com/crypto"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/oauth2"
 	"djinn-ci.com/serverutil"
@@ -75,6 +76,7 @@ var (
 	db     *sqlx.DB
 	redis  *goredis.Client
 	server *httptest.Server
+	aesgcm *crypto.AESGCM
 
 	imagestore  fs.Store
 	objectstore fs.Store
@@ -127,6 +129,14 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	logname := filepath.Join("testdata", "server.log")
+
+	if _, err := os.Stat(logname); err == nil {
+		if err := os.Truncate(logname, 0); err != nil {
+			fatalf("failed to truncate server log: %s\n", err)
+		}
+	}
+
 	api, config, ui, _ := serverutil.ParseFlags([]string{"djinn-server", "-config", cfgfile})
 
 	bgctx := context.Background()
@@ -145,6 +155,7 @@ func TestMain(m *testing.M) {
 	db = cfg.DB()
 	redis = cfg.Redis()
 	server = httptest.NewServer(srv.Server.Handler)
+	aesgcm = cfg.BlockCipher()
 	defer server.Close()
 
 	imagestore = cfg.Images().Store
@@ -211,9 +222,11 @@ func TestMain(m *testing.M) {
 
 		parts := strings.SplitN(line, " ", 4)
 
-		if parts[2] == "ERROR" {
-			fmt.Fprintf(os.Stderr, line)
-			code = 1
+		if len(parts) >= 3 {
+			if parts[2] == "ERROR" {
+				fmt.Fprintf(os.Stderr, line)
+				code = 1
+			}
 		}
 	}
 

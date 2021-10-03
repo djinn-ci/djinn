@@ -53,11 +53,11 @@ func InitInviteEvent(db *sqlx.DB, dis event.Dispatcher) queue.InitFunc {
 func (ev *InviteEvent) Name() string {
 	switch ev.Action {
 	case "accepted":
-		return "event:"+event.InviteAccepted.String()
+		return "event:" + event.InviteAccepted.String()
 	case "rejected":
-		return "event:"+event.InviteRejected.String()
+		return "event:" + event.InviteRejected.String()
 	case "sent":
-		return "event:"+event.InviteSent.String()
+		return "event:" + event.InviteSent.String()
 	default:
 		return "event:invite"
 	}

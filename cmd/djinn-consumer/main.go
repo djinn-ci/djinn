@@ -12,6 +12,7 @@ import (
 	"djinn-ci.com/config"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/image"
+	"djinn-ci.com/namespace"
 	"djinn-ci.com/queue"
 	"djinn-ci.com/version"
 )
@@ -68,8 +69,19 @@ func main() {
 
 	gob.Register(&image.DownloadJob{})
 
+	db := cfg.DB()
+
+	webhooks := namespace.NewWebhookStoreWithCrypto(db, cfg.BlockCipher())
+
+	opts := cfg.ConsumerOpts()
+
+	memq := queue.NewMemory(opts.ProcessorConcurrency, func(j queue.Job, err error) {
+		log.Error.Println("queue job failed:", j.Name(), err)
+	})
+	memq.InitFunc("event:images", image.InitEvent(webhooks))
+
 	q := queue.NewRedisConsumer(log, cfg.ConsumerOpts())
-	q.InitFunc("download_job", image.DownloadJobInit(cfg.DB(), cfg.Log(), store))
+	q.InitFunc("download_job", image.DownloadJobInit(db, memq, log, store))
 
 	go func() {
 		log.Info.Println("consuming jobs from", qname)

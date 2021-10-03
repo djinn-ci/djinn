@@ -2,6 +2,7 @@ package image
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
@@ -34,6 +35,7 @@ import (
 type DownloadJob struct {
 	db    *sqlx.DB    `gob:"-" msgpack:"-"`
 	log   *log.Logger `gob:"-" msgpack:"-"`
+	queue queue.Queue `gob:"-" msgpack:"-"`
 	store fs.Store    `gob:"-" msgpack:"-"`
 
 	ID      int64
@@ -186,10 +188,11 @@ func (s *DownloadStore) All(opts ...query.Option) ([]*Download, error) {
 
 // DownloadJobInit returns a callback for initializing a download job with the
 // given database connection and file store.
-func DownloadJobInit(db *sqlx.DB, log *log.Logger, store fs.Store) queue.InitFunc {
+func DownloadJobInit(db *sqlx.DB, q queue.Queue, log *log.Logger, store fs.Store) queue.InitFunc {
 	return func(j queue.Job) {
 		if d, ok := j.(*DownloadJob); ok {
 			d.db = db
+			d.queue = q
 			d.log = log
 			d.store = store
 		}
@@ -387,6 +390,11 @@ update:
 		d.log.Error.Println(errors.Err(err))
 		return errors.Err(err)
 	}
+
+	d.queue.Produce(context.Background(), &Event{
+		Image:  i,
+		Action: "downloaded",
+	})
 	return nil
 }
 

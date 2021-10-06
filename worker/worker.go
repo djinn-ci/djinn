@@ -129,35 +129,49 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	t, err := build.NewTriggerStore(w.DB, b).Get()
+	b.Trigger, err = build.NewTriggerStore(w.DB, b).Get()
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
-	p, err := provider.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(t.ProviderID)))
+	b.Namespace, err = namespace.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
+
+	if err != nil {
+		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
+	}
+
+	if b.Namespace != nil {
+		b.Namespace.User, err = user.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.Namespace.UserID)))
+
+		if err != nil {
+			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
+		}
+	}
+
+	p, err := provider.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.Trigger.ProviderID)))
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
-	r, err := provider.NewRepoStore(w.DB, p).Get(query.Where("id", "=", query.Arg(t.RepoID)))
+	r, err := provider.NewRepoStore(w.DB, p).Get(query.Where("id", "=", query.Arg(b.Trigger.RepoID)))
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
-	if t.Type == build.Pull {
+	if b.Trigger.Type == build.Pull {
 		err := p.SetCommitStatus(
 			w.Crypto,
 			w.Providers,
 			r,
 			runner.Running,
 			payload.Host+b.Endpoint(),
-			t.Data["sha"],
+			b.Trigger.Data["sha"],
 		)
 
 		if err != nil {
@@ -213,14 +227,14 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		Build: b,
 	})
 
-	if t.Type == build.Pull {
+	if b.Trigger.Type == build.Pull {
 		err := p.SetCommitStatus(
 			w.Crypto,
 			w.Providers,
 			r,
 			status,
 			payload.Host+b.Endpoint(),
-			t.Data["sha"],
+			b.Trigger.Data["sha"],
 		)
 
 		if err != nil {
@@ -287,7 +301,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	fmt.Fprintf(&buf, "Build: %s%s\n\n", payload.Host, b.Endpoint())
 	buf.WriteString("-----\n")
-	buf.WriteString(t.String())
+	buf.WriteString(b.Trigger.String())
 	buf.WriteString("-----\n")
 
 	if output != "" {

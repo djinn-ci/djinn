@@ -15,8 +15,8 @@ import (
 	"djinn-ci.com/database"
 	"djinn-ci.com/image"
 	"djinn-ci.com/integration/djinn"
-	"djinn-ci.com/namespace"
 	"djinn-ci.com/log"
+	"djinn-ci.com/namespace"
 	"djinn-ci.com/queue"
 
 	"github.com/mcmathja/curlyq"

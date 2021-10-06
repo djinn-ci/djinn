@@ -12,6 +12,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -93,6 +94,12 @@ func (h Cron) StoreModel(r *http.Request) (*cron.Cron, cron.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
+	c.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.AuthorID)))
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
 	h.Queues.Produce(ctx, "events", &cron.Event{
 		Cron:   c,
 		Action: "created",
@@ -162,6 +169,14 @@ func (h Cron) UpdateModel(r *http.Request) (*cron.Cron, *cron.Form, error) {
 	c.Schedule = f.Schedule
 	c.Manifest = f.Manifest
 
+	var err error
+
+	c.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.AuthorID)))
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
 	h.Queues.Produce(ctx, "events", &cron.Event{
 		Cron:   c,
 		Action: "updated",
@@ -180,6 +195,14 @@ func (h Cron) DeleteModel(r *http.Request) error {
 	}
 
 	if err := cron.NewStore(h.DB).Delete(c.ID); err != nil {
+		return errors.Err(err)
+	}
+
+	var err error
+
+	c.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(c.AuthorID)))
+
+	if err != nil {
 		return errors.Err(err)
 	}
 

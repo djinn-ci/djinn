@@ -15,6 +15,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -149,6 +150,12 @@ func (h Object) StoreModel(w http.ResponseWriter, r *http.Request) (*object.Obje
 		return nil, f, errors.Err(err)
 	}
 
+	o.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(o.AuthorID)))
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
 	h.Queues.Produce(ctx, "events", &object.Event{
 		Object: o,
 		Action: "created",
@@ -199,6 +206,12 @@ func (h Object) DeleteModel(r *http.Request) error {
 	}
 
 	if err := object.NewStoreWithBlockStore(h.DB, store).Delete(o.ID, o.Hash); err != nil {
+		return errors.Err(err)
+	}
+
+	o.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(o.AuthorID)))
+
+	if err != nil {
 		return errors.Err(err)
 	}
 

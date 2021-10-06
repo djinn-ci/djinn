@@ -12,6 +12,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -106,6 +107,12 @@ func (h Key) StoreModel(r *http.Request) (*key.Key, key.Form, error) {
 		return nil, f, errors.Err(err)
 	}
 
+	k.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(k.AuthorID)))
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
 	h.Queues.Produce(ctx, "events", &key.Event{
 		Key:    k,
 		Action: "created",
@@ -176,6 +183,12 @@ func (h Key) UpdateModel(r *http.Request) (*key.Key, key.Form, error) {
 
 	k.Config = f.Config
 
+	k.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(k.AuthorID)))
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
 	h.Queues.Produce(ctx, "events", &key.Event{
 		Key:    k,
 		Action: "updated",
@@ -194,6 +207,14 @@ func (h Key) DeleteModel(r *http.Request) error {
 	}
 
 	if err := key.NewStore(h.DB).Delete(k.ID); err != nil {
+		return errors.Err(err)
+	}
+
+	var err error
+
+	k.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(k.AuthorID)))
+
+	if err != nil {
 		return errors.Err(err)
 	}
 

@@ -13,6 +13,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -151,6 +152,12 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		}
 	}
 
+	i.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(i.AuthorID)))
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
 	h.Queues.Produce(ctx, "events", &image.Event{
 		Image:  i,
 		Action: "created",
@@ -201,6 +208,14 @@ func (h Image) DeleteModel(r *http.Request) error {
 	}
 
 	if err := image.NewStoreWithBlockStore(h.DB, h.store).Delete(i.ID, i.Driver, i.Hash); err != nil {
+		return errors.Err(err)
+	}
+
+	var err error
+
+	i.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(i.AuthorID)))
+
+	if err != nil {
 		return errors.Err(err)
 	}
 

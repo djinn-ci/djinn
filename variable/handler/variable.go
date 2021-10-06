@@ -10,6 +10,7 @@ import (
 	"djinn-ci.com/variable"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 )
 
@@ -100,6 +101,12 @@ func (h Variable) StoreModel(r *http.Request) (*variable.Variable, variable.Form
 		return nil, f, errors.Err(err)
 	}
 
+	v.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(v.AuthorID)))
+
+	if err != nil {
+		return nil, f, errors.Err(err)
+	}
+
 	h.Queues.Produce(ctx, "events", &variable.Event{
 		Variable: v,
 		Action:   "created",
@@ -119,6 +126,14 @@ func (h Variable) DeleteModel(r *http.Request) error {
 	}
 
 	if err := variable.NewStore(h.DB).Delete(v.ID); err != nil {
+		return errors.Err(err)
+	}
+
+	var err error
+
+	v.Author, err = user.NewStore(h.DB).Get(query.Where("id", "=", query.Arg(v.AuthorID)))
+
+	if err != nil {
 		return errors.Err(err)
 	}
 

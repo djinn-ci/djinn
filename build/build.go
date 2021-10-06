@@ -492,6 +492,7 @@ func (s *Store) Create(m manifest.Manifest, t *Trigger, tags ...string) (*Build,
 	tt, err := NewTagStore(s.DB, b).Create(b.UserID, tags...)
 
 	b.Tags = tt
+	b.Trigger = t
 	return b, errors.Err(err)
 }
 

@@ -296,6 +296,7 @@ func (s *Store) Create(authorId int64, name string, sched Schedule, m manifest.M
 	c.Schedule = sched
 	c.Manifest = m
 	c.NextRun = sched.Next()
+	c.CreatedAt = time.Now()
 
 	if m.Namespace != "" {
 		n, err := namespace.NewStore(s.DB, c.User).GetByPath(m.Namespace)

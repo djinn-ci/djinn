@@ -294,6 +294,6 @@ func (w *Worker) Redis() *redis.Client          { return w.redis }
 func (w *Worker) SMTP() (*mail.Client, string)  { return w.smtp, w.postmaster }
 func (w *Worker) Artifacts() fs.Store           { return w.artifacts }
 func (w *Worker) Objects() fs.Store             { return w.objects }
-func (w *Worker) BlockCipher() *crypto.AESGCM    { return w.block }
+func (w *Worker) BlockCipher() *crypto.AESGCM   { return w.block }
 func (w *Worker) Log() *log.Logger              { return w.log }
 func (w *Worker) Providers() *provider.Registry { return w.providers }

@@ -23,7 +23,7 @@ type Webhook struct {
 func NewWebhook(h web.Handler, crypto *crypto.AESGCM) Webhook {
 	return Webhook{
 		Handler: h,
-		crypto:   crypto,
+		crypto:  crypto,
 	}
 }
 
@@ -106,18 +106,18 @@ func (h Webhook) UpdateModel(r *http.Request) (*namespace.Webhook, namespace.Web
 
 	events, _ := event.UnmarshalType(f.Events...)
 
-	secret := f.Secret
+	if f.Secret == "" {
+		if !f.RemoveSecret {
+			secret, err := h.crypto.Decrypt(w.Secret)
 
-	if !f.RemoveSecret && secret == "" {
-		secret0, err := h.crypto.Decrypt(w.Secret)
-
-		if err != nil {
-			return nil, f, errors.Err(err)
+			if err != nil {
+				return nil, f, errors.Err(err)
+			}
+			f.Secret = string(secret)
 		}
-		secret = string(secret0)
 	}
 
-	if err := webhooks.Update(w.ID, url, secret, f.SSL, events, f.Active); err != nil {
+	if err := webhooks.Update(w.ID, url, f.Secret, f.SSL, events, f.Active); err != nil {
 		return nil, f, errors.Err(err)
 	}
 

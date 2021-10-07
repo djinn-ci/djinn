@@ -287,6 +287,7 @@ func (s *Store) Create(authorId int64, name, key, config string) (*Key, error) {
 	k.Key = b
 	k.Config = config
 	k.CreatedAt = time.Now()
+	k.UpdatedAt = k.CreatedAt
 
 	err = s.Store.Create(table, k)
 	return k, errors.Err(err)

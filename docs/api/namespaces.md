@@ -139,6 +139,7 @@ that was most recently submitted to the namespace.
         "builds_url": "{{index .Vars "apihost"}}/n/me/djinn/-/builds",
         "namespaces_url": "{{index .Vars "apihost"}}/n/me/djinn/-/namespaces",
         "images_url": "{{index .Vars "apihost"}}/n/me/djinn/-/images",
+        "invites_url": "{{index .Vars "apihost"}}/n/me/djinn/-/invites",
         "objects_url": "{{index .Vars "apihost"}}/n/me/djinn/-/objects",
         "variables_url": "{{index .Vars "apihost"}}/n/me/djinn/-/variables",
         "keys_url": "{{index .Vars "apihost"}}/n/me/djinn/-/keys",

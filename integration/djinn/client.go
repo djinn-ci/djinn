@@ -68,7 +68,7 @@ func NewClientWithLogger(tok, endpoint string, log Logger) (*Client, error) {
 // something like &djinn.Client{endpoint: endpoint, tok: tok}. This would
 // typically be used during logging.
 func (c *Client) String() string {
-	return "&djinn.Client{endpoint: "+c.endpoint.String()+", tok: "+c.tok+"}"
+	return "&djinn.Client{endpoint: " + c.endpoint.String() + ", tok: " + c.tok + "}"
 }
 
 func (c *Client) err(resp *http.Response) error {
@@ -202,6 +202,8 @@ func (c *Client) Post(url, contentType string, body io.Reader) (*http.Response, 
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Set("Accept", "application/json; charset=utf-8")
 
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)

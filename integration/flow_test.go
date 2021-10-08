@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"runtime/debug"
 	"testing"
 
@@ -25,6 +26,7 @@ var webhookSecret = "secret"
 func webhookHandler(t *testing.T, m map[string]struct{}) func(http.ResponseWriter, *http.Request) {
 	events := map[string]struct{}{
 		"build.submitted": {},
+		"build.tagged":    {},
 		"invite.sent":     {},
 		"invite.accepted": {},
 		"invite.rejected": {},
@@ -34,6 +36,12 @@ func webhookHandler(t *testing.T, m map[string]struct{}) func(http.ResponseWrite
 		"objects":         {},
 		"variables":       {},
 		"ssh_keys":        {},
+	}
+
+	f, err := os.OpenFile("webhook.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(0644))
+
+	if err != nil {
+		t.Fatal(err)
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +107,9 @@ func webhookHandler(t *testing.T, m map[string]struct{}) func(http.ResponseWrite
 			io.WriteString(w, msg)
 			return
 		}
+
+		io.WriteString(f, "Event: "+ev+"\n")
+		f.Write(b)
 
 		m[ev] = struct{}{}
 		w.WriteHeader(http.StatusNoContent)
@@ -191,7 +202,7 @@ func apertureFlow(t *testing.T) {
 	_, err = djinn.SubmitBuild(bloggs, djinn.BuildParams{
 		Manifest: djinn.Manifest{
 			Namespace: "aperture@doug.rattman",
-			Driver:    map[string]string{
+			Driver: map[string]string{
 				"type":      "docker",
 				"image":     "golang",
 				"workspace": "/go",
@@ -279,9 +290,9 @@ func blackMesaFlow(t *testing.T) {
 	}
 
 	v, err := djinn.CreateVariable(freeman, djinn.VariableParams{
-			Namespace: "blackmesa@wallace.breen",
-			Key:       "blackMesaFlow_Var",
-			Value:     "freeman",
+		Namespace: "blackmesa@wallace.breen",
+		Key:       "blackMesaFlow_Var",
+		Value:     "freeman",
 	})
 
 	if err != nil {
@@ -317,7 +328,7 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatalf("unexpected namespace id, expected=%d, got=%d\n", n.ID, k.NamespaceID.Int64)
 	}
 
-	_, err = djinn.CreateImage(breen, djinn.ImageParams{
+	img, err := djinn.CreateImage(breen, djinn.ImageParams{
 		Namespace: "blackmesa@wallace.breen",
 		Name:      "blackMesaFlow_Image",
 		Image:     bytes.NewBuffer(qcow2number),
@@ -326,6 +337,14 @@ func blackMesaFlow(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	rc, err := img.Data(freeman)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer rc.Close()
 
 	eli, _ := djinn.NewClientWithLogger(tokens.get("eli.vance").Token, apiEndpoint, t)
 
@@ -381,18 +400,18 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	rc, err := o.Data(freeman)
+	rc2, err := o.Data(freeman)
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	defer rc.Close()
+	defer rc2.Close()
 
 	b, err := djinn.SubmitBuild(freeman, djinn.BuildParams{
 		Manifest: djinn.Manifest{
 			Namespace: "blackmesa@wallace.breen",
-			Driver:    map[string]string{
+			Driver: map[string]string{
 				"type":      "docker",
 				"image":     "golang",
 				"workspace": "/go",
@@ -410,12 +429,16 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatalf("unexpected namespace id, expected=%d, got=%d\n", n.ID, b.NamespaceID.Int64)
 	}
 
+	if _, err := b.Tag(freeman, "freeman_tag"); err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = djinn.CreateCron(breen, djinn.CronParams{
 		Name:     "blackMesaFlow_Cron",
 		Schedule: djinn.Daily,
 		Manifest: djinn.Manifest{
 			Namespace: "blackmesa@wallace.breen",
-			Driver:    map[string]string{
+			Driver: map[string]string{
 				"type":      "docker",
 				"image":     "golang",
 				"workspace": "/go",
@@ -445,6 +468,25 @@ func blackMesaFlow(t *testing.T) {
 
 	if djinnerr.StatusCode != http.StatusNotFound {
 		t.Fatalf("unexpected status, expected=%q, got=%q\n", http.StatusText(http.StatusNotFound), http.StatusText(djinnerr.StatusCode))
+	}
+
+	if err := wh.Update(breen, djinn.WebhookParams{
+		PayloadURL:   wh.PayloadURL.String(),
+		RemoveSecret: true,
+		Active:       wh.Active,
+		Events:       wh.Events,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	var secret []byte
+
+	if err := db.QueryRow("SELECT secret FROM namespace_webhooks WHERE (id = $1)", wh.ID).Scan(&secret); err != nil {
+		t.Fatal(err)
+	}
+
+	if secret != nil {
+		t.Fatalf("expected webhook secret to be nil after updated, it was not\n")
 	}
 
 	for _, ev := range wh.Events {

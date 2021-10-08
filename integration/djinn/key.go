@@ -8,15 +8,15 @@ import (
 )
 
 type Key struct {
-	ID          int64  `json:"id"`
-	AuthorID    int64  `json:"author_id"`
-	UserID      int64  `json:"user_id"`
-	NamespaceID NullInt64  `json:"namespace_id"`
-	Name        string `json:"name"`
-	Config      string `json:"config"`
-	CreatedAt   Time   `json:"created_at"`
-	UpdatedAt   Time   `json:"updated_at"`
-	URL         URL    `json:"url"`
+	ID          int64     `json:"id"`
+	AuthorID    int64     `json:"author_id"`
+	UserID      int64     `json:"user_id"`
+	NamespaceID NullInt64 `json:"namespace_id"`
+	Name        string    `json:"name"`
+	Config      string    `json:"config"`
+	CreatedAt   Time      `json:"created_at"`
+	UpdatedAt   Time      `json:"updated_at"`
+	URL         URL       `json:"url"`
 }
 
 type KeyParams struct {

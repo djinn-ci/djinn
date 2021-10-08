@@ -52,6 +52,31 @@ type Webhook struct {
 	LastResponse *WebhookResponse `json:"last_response"`
 }
 
+func (wh *Webhook) Update(cli *Client, p WebhookParams) error {
+	var body bytes.Buffer
+
+	if err := json.NewEncoder(&body).Encode(p); err != nil {
+		return err
+	}
+
+	resp, err := cli.Patch(wh.URL.Path, "application/json; charset=utf=8", &body)
+
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return cli.err(resp)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(wh); err != nil {
+		return err
+	}
+	return nil
+}
+
 type WebhookResponse struct {
 	Error     NullString `json:"error"`
 	Code      int        `json:"code"`
@@ -70,6 +95,7 @@ type WebhookParams struct {
 
 var WebhookEvents = []string{
 	"build.submitted",
+	"build.tagged",
 	"invite.sent",
 	"invite.accepted",
 	"invite.rejected",
@@ -240,7 +266,7 @@ func (n *Namespace) Invite(cli *Client, handle string) (*Invite, error) {
 }
 
 func (n *Namespace) DeleteCollaborator(cli *Client, username string) error {
-	resp, err := cli.Delete(n.CollaboratorsURL.Path+"/"+username)
+	resp, err := cli.Delete(n.CollaboratorsURL.Path + "/" + username)
 
 	if err != nil {
 		return err

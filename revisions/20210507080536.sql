@@ -5,6 +5,7 @@ Author:   Andrew Pillar <me@andrewpillar.com>
 Create database users
 */
 
+CREATE USER djinn_consumer;
 CREATE USER djinn_curator;
 CREATE USER djinn_server;
 CREATE USER djinn_scheduler;
@@ -12,11 +13,14 @@ CREATE USER djinn_worker;
 
 GRANT CONNECT
 ON DATABASE djinn
-TO djinn_curator, djinn_scheduler, djinn_server, djinn_worker;
+TO djinn_consumer, djinn_curator, djinn_scheduler, djinn_server, djinn_worker;
 
 GRANT SELECT, UPDATE ON build_artifacts TO djinn_curator;
 GRANT SELECT ON users TO djinn_curator;
 GRANT SELECT, INSERT, UPDATE ON build_artifacts TO djinn_curator;
+
+GRANT SELECT ON images TO djinn_consumer;
+GRANT UPDATE ON images, image_downloads TO djinn_consumer;
 
 GRANT SELECT ON builds,
 	build_artifacts,

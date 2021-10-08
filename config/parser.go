@@ -21,11 +21,14 @@ type node struct {
 type parser struct {
 	*scanner
 
-	errc int
+	errc     int
+	includes map[string]string
 }
 
 func newParser(name string, r io.Reader, errh func(string, int, int, string)) *parser {
-	p := &parser{}
+	p := &parser{
+		includes: make(map[string]string),
+	}
 
 	src := newSource(name, r, func(name string, line, col int, msg string) {
 		p.errc++
@@ -219,6 +222,14 @@ func (p *parser) parse() []*node {
 				continue
 			}
 
+			if fname, ok := p.includes[p.lit]; ok {
+				p.scanner.err(p.lit + " already included by " + fname)
+				p.next()
+				continue
+			}
+
+			p.includes[p.lit] = p.name
+
 			f, err := os.Open(p.lit)
 
 			if err != nil {
@@ -230,6 +241,7 @@ func (p *parser) parse() []*node {
 			defer f.Close()
 
 			p2 := newParser(f.Name(), f, p.errh)
+			p2.includes = p.includes
 
 			nodes = append(nodes, p2.parse()...)
 			p.next()

@@ -39,3 +39,9 @@ Configure the logging and level for the process.
     log info "/var/log/djinn/server.log"
 
 *`level`* must be one of either `debug`, `info`, `warn`, or `error`.
+
+The `include` directive can be used to include other configuration files. This
+can be useful when multiple configuration file share the same configuration
+directives, such as SMTP connections, for example,
+
+    include "/etc/djinn/smtp.cfg"

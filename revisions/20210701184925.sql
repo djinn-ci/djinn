@@ -17,6 +17,7 @@ CREATE TABLE image_downloads (
 
 CREATE USER djinn_consumer;
 
+GRANT CONNECT ON DATABASE djinn TO djinn_consumer;
 GRANT SELECT, INSERT ON image_downloads TO djinn_server;
 GRANT USAGE ON SEQUENCE image_downloads_id_seq TO djinn_server;
 

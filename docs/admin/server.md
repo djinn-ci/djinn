@@ -42,116 +42,87 @@ This should match what is in the
 [scheduler configuration](/admin/scheduler#configuring-the-scheduler). This
 should only contain string literals.
 
-* **`net`** `{...}`
+* **`net`** `{...}` - Configuration details about how the server should be
+served over the network.
 
-Configuration details about how the server should be served over the network.
-
-* **`listen`** `string` - The address that should be used to serve over.
+  * **`listen`** `string` - The address that should be used to serve over.
 
 * **`ssl`** `{...}` - The SSL block directive if you want to seve over TLS.
 
   * **`cert`** `string` - The path to the certificate to use.
   * **`key`** `string` - The path to the key to use.
 
-* **`crypto`** `{...}`
+* **`crypto`** `{...}` - Configuration settings for the cryptography used
+throughout the server for encrypting data, generating hard to guess secrets,
+and protecting against CSRF attacks.
 
-Configuration settings for the cryptography used throughout the server for
-encrypting data, generating hard to guess secrets, and protecting against CSRF
-attacks.
+  * **`hash`** `string` -  The hash key is used to authenticate values using
+  HMAC. This must be either 32, or 64 characters in length.
+  * **`block`** `string` - The block key is required for encrypting data. This
+  must be either, 16, 24, or 32 characters in length.
+  * **`salt`** `string` -  Salt is used for generating hard to guess secrets,
+  and for generating the final key that is used for encrypting data.
+  * **`auth`** `string` -  The key to use to protect against CSRF attacks. This
+  must be 32 characters in length.
 
-* **`hash`** `string` -  The hash key is used to authenticate values using
-HMAC. This must be either 32, or 64 characters in length.
+* **`database`** `{...}` - Provides connection information to the PostgreSQL
+database. Below are the directives used by the `database` block directive.
 
-* **`block`** `string` - The block key is required for encrypting data. This
-must be either, 16, 24, or 32 characters in length.
+  * **`addr`** `string` - The address of the PostgreSQL server to connect to.
+  * **`name`** `string` - The name of the database to use.
+  * **`username`** `string` - The name of the database user.
+  * **`password`** `string` - The password of the database user.
+  
+  * **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
+  
+    * **`ca`** `string` - Path to the CA root to use.
+    * **`cert`** `string` - Path to the certificate to use.
+    * **`key`** `string` - Path to the key to use.
 
-* **`salt`** `string` -  Salt is used for generating hard to guess secrets,
-and for generating the final key that is used for encrypting data.
+* **`redis`** `{...}` - Provides connection information to the Redis database.
+Below are the directives used by the `redis` block directive.
 
-* **`auth`** `string` -  The key to use to protect against CSRF attacks. This
-must be 32 characters in length.
-
-* **`database`** `{...}`
-
-Provides connection information to the PostgreSQL database. Below are the
-directives used by the `database` block directive.
-
-* **`addr`** `string` - The address of the PostgreSQL server to connect to.
-
-* **`name`** `string` - The name of the database to use.
-
-* **`username`** `string` - The name of the database user.
-
-* **`password`** `string` - The password of the database user.
-
-* **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
-
-  * **`ca`** `string` - Path to the CA root to use.
-  * **`cert`** `string` - Path to the certificate to use.
-  * **`key`** `string` - Path to the key to use.
-
-* **`redis`** `{...}`
-
-Provides connection information to the Redis database. Below are the directives
-used by the `redis` block directive.
-
-* **`addr`** `string` - The address of the Redis server to connect to.
-
-* **`password`** `string` - The password used if the Redis server is
+  * **`addr`** `string` - The address of the Redis server to connect to.
+  * **`password`** `string` - The password used if the Redis server is
 password protected.
 
-* **`smtp`** `{...}`
+* **`smtp`** `{...}` - Provides connection information to an SMTP server to
+sending emails. Below are the directives used by the `smtp` block directive.
 
-Provides connection information to an SMTP server to sending emails. Below are
-the directives used by the `smtp` block directive.
+  * **`addr`** `string` - The address of the SMTP server.
+  * **`ca`** `string` - If connecting via TLS, then the path to the file that
+  contains a set of root certificate authorities.
+  * **`admin`** `string` - The email address to be used in the `From` field of
+  mails that are sent.
+  * **`username`** `string` - The username for authentication.
+  * **`password`** `string` - The password for authentication.
 
-* **`addr`** `string` - The address of the SMTP server.
+* **`store`** `identifier` `{...}` - Configuration directives for each of the
+file stores the server uses. There must be a store configured for each
+`artifacts`, `images`, and `objects`. Detailed below are the value directives
+used within a `store` block directive.
 
-* **`ca`** `string` - If connecting via TLS, then the path to the file that
-contains a set of root certificate authorities.
+  * **`type`** `string` - The type of the store to use for the files being
+  accessed. Must be `file`.
+  * **`path`** `string` - The location of where the files are.
+  * **`limit`** `int` - The maximum size of files being uploaded. This will only
+  be applied to objects being uploaded to the server.
 
-* **`admin`** `string` - The email address to be used in the `From` field of
-mails that are sent.
+* **`provider`** `identifier` `{...}` - Configuration directives for each 3rd
+party provider you want the server to integrate with. Detailed below are the
+value directives used within a `provider` block directive.
 
-* **`username`** `string` - The username for authentication.
+  * **`secret`** `string` - The secret used to authenticate incoming webhooks
+  from the provider.
+  * **`client_id`** `string` - The `client_id` of the provider being integrated
+  with.
+  * **`client_secret`** `string` - The `client_secret` of the provider being
+integrated with.
 
-* **`password`** `string` - The password for authentication.
-
-* **`store`** `identifier` `{...}`
-
-Configuration directives for each of the file stores the server uses. There must
-be a store configured for each `artifacts`, `images`, and `objects`.
-
-Detailed below are the value directives used within a `store` block directive.
-
-* **`type`** `string` - The type of the store to use for the files being
-accessed. Must be `file`.
-
-* **`path`** `string` - The location of where the files are.
-
-* **`limit`** `int` - The maximum size of files being uploaded. This will only
-be applied to objects being uploaded to the server.
-
-* **`provider`** `identifier` `{...}`
-
-Configuration directives for each 3rd party provider you want the server to
-integrate with. The `identifier` would be one of the supported providers
-detailed below,
+The `identifier` would be one of the supported providers detailed below,
 
 * `github`
 * `gitlab`
-
-Detailed below are the value directives used within a `provider` block
-directive.
-
-* **`secret`** `string` - The secret used to authenticate incoming webhooks
-from the provider.
-
-* **`client_id`** `string` - The `client_id` of the provider being integrated
-with.
-
-* **`client_secret`** `string` - The `client_secret` of the provider being
-integrated with.
 
 ## Environment Variables
 
@@ -212,7 +183,7 @@ source repository.
         addr "localhost:5432"
         name "djinn"
 
-        username "djinn-server"
+        username "djinn_server"
         password "secret"
     }
 

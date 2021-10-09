@@ -19,11 +19,11 @@ depending on the drivers you want to make available.
 Detailed below are the software dependencies that the worker needs in order
 to start and run,
 
-| Dependency  | Reason                                                    |
-|-------------|-----------------------------------------------------------|
-| PostgreSQL  | Primary data store for the server.                        |
-| Redis       | Data store for session data, and used as the build queue. |
-| SMTP Server | Used for sending emails on build failures.                |
+| Dependency  | Reason                                     |
+|-------------|--------------------------------------------|
+| PostgreSQL  | Primary data store for the server.         |
+| Redis       | Data store used as the build queue.        |
+| SMTP Server | Used for sending emails on build failures. |
 
 ### Driver Dependencies
 
@@ -58,91 +58,69 @@ you must specify `qemu-x86_64`.
 The duration after which builds should be killed. Valid time units are `ns`,
 `us`, `ms`, `s`, `m`, `h`.
 
-* **`crypto`** `{...}`
-
-Configuration settings for decrypting of data. The value directives used here
-should match what was put in the
+* **`crypto`** `{...}` - Configuration settings for decrypting of data. The
+value directives used here should match what was put in the
 [server configuration](/admin/server#configuring-the-server).
 
-* **`block`** `string` - The block key is required for encrypting data. This
+  * **`block`** `string` - The block key is required for encrypting data. This
 must be either, 16, 24, or 32 characters in length.
-
-* **`salt`** `string` -  Salt is used for generating hard to guess secrets,
+  * **`salt`** `string` -  Salt is used for generating hard to guess secrets,
 and for generating the final key that is used for encrypting data.
 
-* **`database`** `{...}`
+* **`database`** `{...}` - Provides connection information to the PostgreSQL
+database. Below are the directives used by the `database` block directive.
 
-Provides connection information to the PostgreSQL database. Below are the
-directives used by the `database` block directive.
+  * **`addr`** `string` - The address of the PostgreSQL server to connect to.
+  * **`name`** `string` - The name of the database to use.
+  * **`username`** `string` - The name of the database user.
+  * **`password`** `string` - The password of the database user.
 
-* **`addr`** `string` - The address of the PostgreSQL server to connect to.
+  * **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
 
-* **`name`** `string` - The name of the database to use.
+    * **`ca`** `string` - Path to the CA root to use.
+    * **`cert`** `string` - Path to the certificate to use.
+    * **`key`** `string` - Path to the key to use.
 
-* **`username`** `string` - The name of the database user.
+* **`redis`** `{...}` - Provides connection information to the Redis database.
+Below are the directives used by the `redis` block directive.
 
-* **`password`** `string` - The password of the database user.
-
-* **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
-
-  * **`ca`** `string` - Path to the CA root to use.
-  * **`cert`** `string` - Path to the certificate to use.
-  * **`key`** `string` - Path to the key to use.
-
-* **`redis`** `{...}`
-
-Provides connection information to the Redis database. Below are the directives
-used by the `redis` block directive.
-
-* **`addr`** `string` - The address of the Redis server to connect to.
-
-* **`password`** `string` - The password used if the Redis server is
+  * **`addr`** `string` - The address of the Redis server to connect to.
+  * **`password`** `string` - The password used if the Redis server is
 password protected.
 
-* **`smtp`** `{...}`
+* **`smtp`** `{...}` - Provides connection information to an SMTP server to
+sending emails. Below are the directives used by the `smtp` block directive.
 
-Provides connection information to an SMTP server to sending emails. Below are
-the directives used by the `smtp` block directive.
+  * **`addr`** `string` - The address of the SMTP server.
+  * **`ca`** `string` - If connecting via TLS, then the path to the file that
+  contains a set of root certificate authorities.
+  * **`admin`** `string` - The email address to be used in the `From` field of
+  mails that are sent.
+  * **`username`** `string` - The username for authentication.
+  * **`password`** `string` - The password for authentication.
 
-* **`addr`** `string` - The address of the SMTP server.
+* **`store`** `identifier` `{...}` - Configuration directives for each of the
+file stores the worker uses. There must be a store configured for each
+`artifacts`, `images`, and `objects`. Detailed below are the value directives
+used within a `store` block directive.
 
-* **`ca`** `string` - If connecting via TLS, then the path to the file that
-contains a set of root certificate authorities.
-
-* **`admin`** `string` - The email address to be used in the `From` field of
-mails that are sent.
-
-* **`username`** `string` - The username for authentication.
-
-* **`password`** `string` - The password for authentication.
-
-* **`store`** `identifier` `{...}`
-
-Configuration directives for each of the file stores the worker uses. There must
-be a store configured for each `artifacts`, `images`, and `objects`.
-
-Detailed below are the value directives used within a `store` block directive.
-
-* **`type`** `string` - The type of the store to use for the files being
+  * **`type`** `string` - The type of the store to use for the files being
 accessed. Must be `file`.
-
-* **`path`** `string` - The location of where the files are.
-
-* **`limit`** `int` - The maximum size of files being uploaded. This will only
+  * **`path`** `string` - The location of where the files are.
+  * **`limit`** `int` - The maximum size of files being uploaded. This will only
 be applied to artifacts collected from builds.
 
-* **`provider`** `identifier` `{...}`
-
-Configuration directives for each 3rd party provider we integrate with. These
-are used to handle updating commit statuses if a build was triggered via
-a pull request. The `identifier` would be one of the supported providers
-detailed below,
+* **`provider`** `identifier` `{...}` - Configuration directives for each 3rd
+party provider we integrate with. These are used to handle updating commit
+statuses if a build was triggered via a pull request. The `identifier` would be
+one of the supported providers detailed below,
 
 * `github`
 * `gitlab`
 
-unline in the `server.conf` file, we do not need to specify the client ID or
-secret for the configured providers.
+unlike in the [server configuration](/admin/server#configuring-the-server)
+file, we do not need to specify the client ID or secret for the configured
+providers.
 
 ## Example Worker Configuration
 
@@ -171,7 +149,7 @@ source repository.
         addr "localhost:5432"
         name "djinn"
 
-        username "djinn-worker"
+        username "djinn_worker"
         password "secret"
     }
 

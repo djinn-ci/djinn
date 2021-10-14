@@ -233,5 +233,8 @@ func TestMain(m *testing.M) {
 	if err := sc.Err(); err != nil {
 		fatalf("failed to scan log: %s\n", err)
 	}
-	os.Exit(code)
+
+	if code != 0 {
+		os.Exit(code)
+	}
 }

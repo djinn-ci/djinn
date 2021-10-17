@@ -739,6 +739,9 @@ build.
 This will get an individual artifact for the given build. This requires the
 explicit `build:read` permission.
 
+The artifact data itself can be downloaded by passing `application/octet-stream`
+to the `Accept` header of the request.
+
 **Returns**
 
 Returns the given [artifact](/api/builds#the-artifact-object).

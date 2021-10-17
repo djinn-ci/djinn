@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -10,6 +9,7 @@ import (
 	buildtemplate "djinn-ci.com/build/template"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/template"
 	"djinn-ci.com/user"
@@ -331,7 +331,7 @@ func (h UI) Download(w http.ResponseWriter, r *http.Request) {
 	rec, err := store.Open(a.Hash)
 
 	if err != nil {
-		if os.IsNotExist(errors.Cause(err)) {
+		if errors.Cause(err) == fs.ErrRecordNotFound {
 			web.HTMLError(w, "Not found", http.StatusNotFound)
 			return
 		}

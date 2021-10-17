@@ -123,7 +123,9 @@ func Gate(db *sqlx.DB) web.Gate {
 }
 
 func New(cfg *config.Server, h web.Handler, mw web.Middleware) *Router {
-	build := handler.New(h, cfg.Artifacts().Store, cfg.Redis(), cfg.Hasher(), cfg.Producers())
+	artifacts := cfg.Artifacts().Store
+
+	build := handler.New(h, artifacts, cfg.Redis(), cfg.Hasher(), cfg.Producers())
 
 	return &Router{
 		middleware: mw,
@@ -131,7 +133,7 @@ func New(cfg *config.Server, h web.Handler, mw web.Middleware) *Router {
 		job:        handler.NewJob(h),
 		tag:        handler.NewTag(h),
 		hook:       handler.NewHook(build, cfg.BlockCipher(), cfg.Providers()),
-		artifact:   handler.NewArtifact(h),
+		artifact:   handler.NewArtifact(h, artifacts),
 	}
 }
 

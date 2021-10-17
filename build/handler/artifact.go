@@ -6,6 +6,7 @@ import (
 	"djinn-ci.com/build"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
@@ -19,12 +20,13 @@ import (
 type Artifact struct {
 	web.Handler
 
-	loaders *database.Loaders
+	artifacts fs.Store
+	loaders   *database.Loaders
 
 	Prefix string
 }
 
-func NewArtifact(h web.Handler) Artifact {
+func NewArtifact(h web.Handler, artifacts fs.Store) Artifact {
 	loaders := database.NewLoaders()
 	loaders.Put("user", user.NewStore(h.DB))
 	loaders.Put("namespace", namespace.NewStore(h.DB))
@@ -32,8 +34,9 @@ func NewArtifact(h web.Handler) Artifact {
 	loaders.Put("build_trigger", build.NewTriggerStore(h.DB))
 
 	return Artifact{
-		Handler: h,
-		loaders: loaders,
+		Handler:   h,
+		artifacts: artifacts,
+		loaders:   loaders,
 	}
 }
 
@@ -93,6 +96,33 @@ func (h Artifact) Show(w http.ResponseWriter, r *http.Request) {
 
 	if a.IsZero() {
 		web.JSONError(w, "Not found", http.StatusNotFound)
+		return
+	}
+
+	if r.Header.Get("Accept") == "application/octet-stream" {
+		store, err := h.artifacts.Partition(b.UserID)
+
+		if err != nil {
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		rec, err := store.Open(a.Hash)
+
+		if err != nil {
+			if errors.Cause(err) == fs.ErrRecordNotFound {
+				web.JSONError(w, "Not found", http.StatusNotFound)
+				return
+			}
+
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+
+		defer rec.Close()
+		http.ServeContent(w, r, a.Name, a.CreatedAt, rec)
 		return
 	}
 	webutil.JSON(w, a.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)

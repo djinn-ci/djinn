@@ -444,6 +444,8 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		data.ref = push.HeadCommit.ID
 		data.comment = push.HeadCommit.Message
 		data.data = map[string]string{
+			"repo_id":  strconv.FormatInt(push.Repo.ID, 10),
+			"provider": "github",
 			"url":      push.HeadCommit.URL,
 			"ref":      push.Ref,
 			"sha":      push.HeadCommit.ID,
@@ -474,6 +476,8 @@ func (h Hook) GitHub(w http.ResponseWriter, r *http.Request) {
 		}
 
 		data.data = map[string]string{
+			"repo_id":  strconv.FormatInt(pull.PullRequest.Base.Repo.ID, 10),
+			"provider": "github",
 			"id":       strconv.FormatInt(pull.Number, 10),
 			"url":      pull.PullRequest.HTMLURL,
 			"ref":      pull.PullRequest.Base.Ref,
@@ -575,6 +579,8 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		data.ref = head.ID
 		data.comment = head.Message
 		data.data = map[string]string{
+			"repo_id":  strconv.FormatInt(push.Project.ID, 10),
+			"provider": "gitlab",
 			"url":      head.URL,
 			"ref":      push.Ref,
 			"sha":      head.ID,
@@ -598,6 +604,8 @@ func (h Hook) GitLab(w http.ResponseWriter, r *http.Request) {
 		data.ref = merge.Attrs.LastCommit.ID
 		data.comment = merge.Attrs.Title
 		data.data = map[string]string{
+			"repo_id":  strconv.FormatInt(merge.Attrs.TargetProjectID, 10),
+			"provider": "gitlab",
 			"id":       strconv.FormatInt(merge.Attrs.ID, 10),
 			"url":      merge.Attrs.URL,
 			"ref":      merge.Attrs.TargetBranch,

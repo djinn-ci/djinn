@@ -61,6 +61,7 @@ type MergeRequestEvent struct {
 		ID              int64  `json:"iid"`
 		TargetBranch    string `json:"target_branch"`
 		SourceProjectID int64  `json:"source_project_id"`
+		TargetProjectID int64  `json:"target_project_id"`
 		AuthorID        int64  `json:"author_id"`
 		Title           string
 		Source          struct {

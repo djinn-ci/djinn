@@ -80,7 +80,7 @@ func main() {
 	})
 	memq.InitFunc("event:images", image.InitEvent(webhooks))
 
-	q := queue.NewRedisConsumer(log, cfg.ConsumerOpts())
+	q := queue.NewRedisConsumer(log, opts)
 	q.InitFunc("download_job", image.DownloadJobInit(db, memq, log, store))
 
 	go func() {

@@ -10,6 +10,7 @@ import (
 	"djinn-ci.com/user"
 	"djinn-ci.com/web"
 
+	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/mux"
@@ -61,6 +62,12 @@ func (h Tag) StoreModel(r *http.Request) ([]*build.Tag, error) {
 	}
 
 	tt, err := build.NewTagStore(h.DB, b).Create(u.ID, f.Tags...)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	b.Trigger, err = build.NewTriggerStore(h.DB, b).Get(query.Where("build_id", "=", query.Arg(b.ID)))
 
 	if err != nil {
 		return nil, errors.Err(err)

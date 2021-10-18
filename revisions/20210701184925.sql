@@ -7,7 +7,7 @@ Create image_downloads table
 
 CREATE TABLE image_downloads (
 	id          SERIAL PRIMARY KEY,
-	image_id    INT NOT NULL REFERENCES images(id),
+	image_id    INT NOT NULL REFERENCES images(id) ON DELETE CASCADE,
 	source      VARCHAR NOT NULL,
 	error       VARCHAR NULL,
 	created_at  TIMESTAMP NOT NULL DEFAULT NOW(),

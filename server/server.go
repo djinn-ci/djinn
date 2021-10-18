@@ -208,6 +208,10 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 						"stack":   encodeStack(),
 					}
 
+					if err, ok := v.(error); ok {
+						s.Log.Error.Println(err)
+					}
+					s.Log.Error.Println(string(debug.Stack()))
 					webutil.JSON(w, data, http.StatusInternalServerError)
 					return
 				}
@@ -218,6 +222,10 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 						Message: "Fatal error, when submitting an issue please include the following",
 					},
 					Stack: encodeStack(),
+				}
+
+				if err, ok := v.(error); ok {
+					s.Log.Error.Println(err)
 				}
 				s.Log.Error.Println(string(debug.Stack()))
 				webutil.HTML(w, template.Render(p), p.Code)

@@ -14,6 +14,25 @@ type Dispatcher interface {
 	Dispatch(ev *Event) error
 }
 
+type multiDispatcher struct {
+	dispatchers []Dispatcher
+}
+
+func MultiDispatcher(dispatchers ...Dispatcher) Dispatcher {
+	return &multiDispatcher{
+		dispatchers: dispatchers,
+	}
+}
+
+func (md *multiDispatcher) Dispatch(ev *Event) error {
+	for _, d := range md.dispatchers {
+		if err := d.Dispatch(ev); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type Type uint
 
 type Event struct {

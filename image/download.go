@@ -363,8 +363,6 @@ func (d *DownloadJob) Perform() error {
 	}
 
 	if r != nil {
-		d.log.Debug.Println("downloading image from", d.Source)
-
 		dst, err := d.store.Create(filepath.Join(i.Driver.String(), i.Hash))
 
 		if err != nil {
@@ -384,12 +382,15 @@ update:
 		downloadTable,
 		query.Set("error", query.Arg(downloaderr)),
 		query.Set("finished_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(d.ID)),
 	)
 
 	if _, err := d.db.Exec(q.Build(), q.Args()...); err != nil {
 		d.log.Error.Println(errors.Err(err))
 		return errors.Err(err)
 	}
+
+	d.log.Debug.Println("dispatching 'downloaded' event")
 
 	d.queue.Produce(context.Background(), &Event{
 		Image:  i,

@@ -1,8 +1,8 @@
 /*
-Revision: 20210507080454
+Revision: schema/20211023122824
 Author:   Andrew Pillar <me@andrewpillar.com>
 
-Initial revision for Djinn CI.
+Initial revision for Djinn CI
 */
 
 CREATE TYPE visibility AS ENUM ('private', 'internal', 'public');

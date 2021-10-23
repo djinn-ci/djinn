@@ -1,5 +1,5 @@
 /*
-Revision: 20210701184925
+Revision: schema/20211023122908
 Author:   Andrew Pillar <me@andrewpillar.com>
 
 Create image_downloads table
@@ -14,12 +14,3 @@ CREATE TABLE image_downloads (
 	started_at  TIMESTAMP NULL,
 	finished_at TIMESTAMP NULL
 );
-
-CREATE USER djinn_consumer;
-
-GRANT CONNECT ON DATABASE djinn TO djinn_consumer;
-GRANT SELECT, INSERT ON image_downloads TO djinn_server;
-GRANT USAGE ON SEQUENCE image_downloads_id_seq TO djinn_server;
-
-GRANT SELECT ON images TO djinn_consumer;
-GRANT SELECT, UPDATE ON image_downloads TO djinn_consumer;

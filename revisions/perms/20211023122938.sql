@@ -1,8 +1,8 @@
 /*
-Revision: 20210507080536
+Revision: perms/20211023122938
 Author:   Andrew Pillar <me@andrewpillar.com>
 
-Create database users
+Grant initial database permissions
 */
 
 CREATE USER djinn_curator;
@@ -77,6 +77,9 @@ GRANT SELECT ON builds,
 	provider_repos,
 	users
 	TO djinn_worker;
+
+GRANT SELECT, INSERT ON build_tags TO djinn_worker;
+GRANT USAGE ON SEQUENCE build_tags_id_seq TO djinn_worker;
 
 GRANT UPDATE ON builds,
 	build_artifacts,

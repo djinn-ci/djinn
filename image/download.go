@@ -340,7 +340,7 @@ func (d *DownloadJob) Perform() error {
 		}
 
 		if !bytes.Equal(buf, qcow) {
-			downloaderr.String = "not a valid qcow2"
+			downloaderr.String = "not a valid qcow2 file"
 			downloaderr.Valid = true
 			break
 		}

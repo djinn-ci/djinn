@@ -141,6 +141,13 @@ the explicit `image:write` permission.
 
 **Parameters**
 
+The raw image file itself can either be POSTed directly in the request body, or
+a JSON payload can be sent to create a download for an image from a remote
+location.
+
+If the raw image file is being POSTed to the API directly, then the `name` and
+`namespace` fields should be passed to the request as query parameters.
+
 ---
 
 **`name`** `string` - The name of the image to create.
@@ -148,6 +155,10 @@ the explicit `image:write` permission.
 ---
 
 **`namespace`** `string` - The namespace to put the image in.
+
+---
+
+**`download_url`** `string` - The URL to download the image from.
 
 The contents of the image file should be sent in the body of the request. It
 must by a QCOW2 formatted image.
@@ -181,6 +192,12 @@ The body of this request should be the contents of the image file being created.
            -H "Authorization: Bearer 1a2b3c4d5f" \
            -d "@alpine.qcow2" \
            {{index .Vars "apihost"}}/images?name=alpine&namespace=djinn
+
+    $ curl -X POST \
+           -H "Authorization: Bearar 1a2b3c4d5f" \
+           -H "Content-Type: application/json" \
+           -d '{"name": "alpine", "namespace": "djinn", "download_url": "https://example.com/alpine"}'
+           {{index .Vars "apihost"}}/images
 
 </div>
 </div>

@@ -549,7 +549,7 @@ func (s *Store) Finished(id int64, output string, status runner.Status) error {
 	q := query.Update(
 		table,
 		query.Set("status", query.Arg(status)),
-		query.Set("output", query.Arg(output)),
+		query.Set("output", query.Arg(sanitize(output))),
 		query.Set("finished_at", query.Arg(time.Now())),
 		query.Where("id", "=", query.Arg(id)),
 	)

@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
@@ -252,13 +253,29 @@ func (s *JobStore) Started(id int64) error {
 	return errors.Err(err)
 }
 
+// sanitized ensures that the string is valid for UTF-8 encoding. In the case
+// when builds may produced binary output which can cause issues when storing
+// in the database.
+func sanitize(s string) string {
+	if utf8.ValidString(s) {
+		return s
+	}
+
+	sanitized := make([]rune, 0, len(s))
+
+	for _, r := range s {
+		sanitized = append(sanitized, r)
+	}
+	return string(sanitized)
+}
+
 // Finished marks the Job model with the given id as finished in the database,
 // with the given output and status.
 func (s *JobStore) Finished(id int64, output string, status runner.Status) error {
 	q := query.Update(
 		jobTable,
 		query.Set("status", query.Arg(status)),
-		query.Set("output", query.Arg(output)),
+		query.Set("output", query.Arg(sanitize(output))),
 		query.Set("finished_at", query.Arg(time.Now())),
 		query.Where("id", "=", query.Arg(id)),
 	)

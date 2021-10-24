@@ -30,6 +30,7 @@ jobs:
   - djinn/integration/testdata/server.log
   - djinn/integration/webhook.log
   - djinn/bin/djinn
+  - djinn/bin/djinn-consumer
   - djinn/bin/djinn-curator
   - djinn/bin/djinn-scheduler
   - djinn/bin/djinn-server

@@ -2,11 +2,13 @@ package integration
 
 import (
 	"bytes"
+	"crypto/rand"
 	"encoding/gob"
 	"testing"
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/integration/djinn"
+	"djinn-ci.com/runner"
 
 	"github.com/mcmathja/curlyq"
 
@@ -202,5 +204,35 @@ func Test_BuildTags(t *testing.T) {
 		if err := tag.Delete(cli); err != nil {
 			t.Fatalf("failed to delete tag %d - %s\n", i, err)
 		}
+	}
+}
+
+func Test_BuildBinaryOutput(t *testing.T) {
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
+		Manifest: djinn.Manifest{
+			Namespace: "",
+			Driver: map[string]string{
+				"type":      "docker",
+				"image":     "golang",
+				"workspace": "/go",
+			},
+		},
+		Comment: "Test_BuildBinaryOutput",
+	})
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	buf := make([]byte, 16)
+
+	if _, err := rand.Read(buf); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := build.NewStore(db).Finished(b.ID, string(buf), runner.Passed); err != nil {
+		t.Fatal(err)
 	}
 }

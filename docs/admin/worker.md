@@ -41,6 +41,9 @@ Detailed below are the [configuration](/admin/configuration) directives used by
 the worker. The worker also requires a `driver.conf` file to be configured, see
 details on how to do this [here](/user/offline-runner#configuring-drivers).
 
+>**Note:** The QEMU driver will look in the `<dir>/_base` directory when looking
+for the base images used by the CI.
+
 * **`parallelism`** `int`
 
 This specifies the parallelism to use when running multiple builds at one. Set

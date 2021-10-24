@@ -28,7 +28,7 @@ jobs:
   - ./make.sh
   artifacts:
   - djinn/integration/testdata/server.log
-  - djinn/integration/testdata/webhook.log
+  - djinn/integration/webhook.log
   - djinn/bin/djinn
   - djinn/bin/djinn-curator
   - djinn/bin/djinn-scheduler

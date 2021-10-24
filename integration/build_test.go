@@ -232,6 +232,9 @@ func Test_BuildBinaryOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Pad with NUL bytes to test sanitization more thoroughly.
+	buf = append(buf, 0x0, 0x0, 0x0)
+
 	if err := build.NewStore(db).Finished(b.ID, string(buf), runner.Passed); err != nil {
 		t.Fatal(err)
 	}

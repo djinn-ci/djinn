@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
@@ -257,13 +256,13 @@ func (s *JobStore) Started(id int64) error {
 // when builds may produced binary output which can cause issues when storing
 // in the database.
 func sanitize(s string) string {
-	if utf8.ValidString(s) {
-		return s
-	}
-
 	sanitized := make([]rune, 0, len(s))
 
 	for _, r := range s {
+		if r == 0 {
+			sanitized = append(sanitized, 'N', 'U', 'L')
+			continue
+		}
 		sanitized = append(sanitized, r)
 	}
 	return string(sanitized)

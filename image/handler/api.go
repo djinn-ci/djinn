@@ -122,6 +122,8 @@ func (h API) Show(w http.ResponseWriter, r *http.Request) {
 		}
 
 		defer rec.Close()
+
+		w.Header().Set("Content-Type", image.MimeTypeQEMU)
 		http.ServeContent(w, r, i.Name, i.CreatedAt, rec)
 		return
 	}

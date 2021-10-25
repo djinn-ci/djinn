@@ -15,6 +15,8 @@ import (
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
+
+	"github.com/gorilla/schema"
 )
 
 // Image is the base handler that provides shared logic for the UI and API
@@ -100,6 +102,8 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 	}
 	f.Images = images
 
+	var multierror schema.MultiError
+
 	if r.Header.Get("Content-Type") == image.MimeTypeQEMU {
 		q := r.URL.Query()
 
@@ -107,11 +111,28 @@ func (h Image) StoreModel(w http.ResponseWriter, r *http.Request) (*image.Image,
 		f.Name = q.Get("name")
 	} else {
 		if err := webutil.Unmarshal(&f, r); err != nil {
+			if errs, ok := err.(schema.MultiError); ok {
+				multierror = errs
+				goto validate
+			}
 			return nil, f, errors.Err(err)
 		}
 	}
 
+validate:
 	if err := f.Validate(); err != nil {
+		if ferrs, ok := err.(*webutil.Errors); ok {
+			// Merge in any errors we got from unmarshalling the form data.
+			// This way when presenting the errors to the user, we can ensure
+			// we get every field covered.
+			for field, err := range multierror {
+				if cerr, ok := err.(schema.ConversionError); ok {
+					err = errors.Cause(cerr.Err)
+				}
+				ferrs.Put(field, err)
+			}
+			return nil, f, errors.Err(err)
+		}
 		return nil, f, errors.Err(err)
 	}
 

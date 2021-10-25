@@ -21,6 +21,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/csrf v1.6.2
 	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.1
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4

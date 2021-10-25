@@ -87,5 +87,22 @@ func (h Tag) DeleteModel(r *http.Request) error {
 	if !ok {
 		return errors.New("failed to get build from context")
 	}
-	return errors.Err(build.NewTagStore(h.DB).Delete(b.ID, mux.Vars(r)["name"]))
+
+	tags := build.NewTagStore(h.DB, b)
+	name := mux.Vars(r)["name"]
+
+	t, err := tags.Get(query.Where("name", "=", query.Arg(name)))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if t.IsZero() {
+		return database.ErrNotFound
+	}
+
+	if err := tags.Delete(b.ID, name); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }

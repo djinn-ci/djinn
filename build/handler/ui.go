@@ -394,6 +394,11 @@ func (h TagUI) Destroy(w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := h.DeleteModel(r); err != nil {
+		if err == database.ErrNotFound {
+			web.HTMLError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Alert{
 			Level:   template.Danger,

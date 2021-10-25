@@ -183,7 +183,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/artifacts/{name}", build.Download).Methods("GET")
 	sr.HandleFunc("/tags", build.Show).Methods("GET")
 	sr.HandleFunc("/tags", tag.Store).Methods("POST")
-	sr.HandleFunc("/tags/{name}", tag.Destroy).Methods("DELETE")
+	sr.HandleFunc("/tags/{name:.+}", tag.Destroy).Methods("DELETE")
 	sr.Use(r.middleware.Gate(gates...), csrf)
 }
 
@@ -226,7 +226,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/artifacts/{name}", r.artifact.Show).Methods("GET")
 	sr.HandleFunc("/tags", tag.Index).Methods("GET")
 	sr.HandleFunc("/tags", tag.Store).Methods("POST")
-	sr.HandleFunc("/tags/{name}", tag.Show).Methods("GET")
-	sr.HandleFunc("/tags/{name}", tag.Destroy).Methods("DELETE")
+	sr.HandleFunc("/tags/{name:.+}", tag.Show).Methods("GET")
+	sr.HandleFunc("/tags/{name:.+}", tag.Destroy).Methods("DELETE")
 	sr.Use(r.middleware.Gate(gates...))
 }

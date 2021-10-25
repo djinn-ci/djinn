@@ -347,6 +347,11 @@ func (h TagAPI) Show(w http.ResponseWriter, r *http.Request) {
 // This serves no content as it's response.
 func (h TagAPI) Destroy(w http.ResponseWriter, r *http.Request) {
 	if err := h.DeleteModel(r); err != nil {
+		if err == database.ErrNotFound {
+			web.JSONError(w, "Not found", http.StatusNotFound)
+			return
+		}
+
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.JSONError(w, "Something went wrong", http.StatusInternalServerError)
 		return

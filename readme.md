@@ -44,4 +44,5 @@ accessible too.
 against for Djinn CI. Once the virtual machine is booted, you can run the
 following mgrt command,
 
-    $ mgrt run -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=djinn password=secret"
+    $ mgrt run -c schema -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=djinn password=secret"
+    $ mgrt run -c perms -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=djinn password=secret"

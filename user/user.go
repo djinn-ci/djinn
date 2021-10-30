@@ -359,7 +359,7 @@ func (s *Store) Delete(id int64, password []byte) error {
 		return ErrAuth
 	}
 
-	q := query.Update(table, query.Set("deleted_at", query.Arg(time.Now())))
+	q := query.Update(table, query.Set("deleted_at", query.Arg(time.Now())), query.Where("id", "=", query.Arg(id)))
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)

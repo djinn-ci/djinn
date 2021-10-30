@@ -218,6 +218,8 @@ func NewRegistry() *Registry {
 	}
 }
 
+func (r *Registry) Len() int { return len(r.imps) }
+
 // AuthURL implements the Client interface.
 func (c BaseClient) AuthURL() string { return c.AuthCodeURL(c.State) }
 

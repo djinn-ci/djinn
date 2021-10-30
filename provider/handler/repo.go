@@ -218,6 +218,10 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 	rr, p, pp, paginator, err := h.loadRepos(u, q.Get("provider"), page, false)
 
 	if err != nil {
+		// No providers configured, so display the page.
+		if h.providers.Len() == 0 {
+			goto resp
+		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		return
@@ -230,6 +234,7 @@ func (h Repo) Index(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+resp:
 	csrf := csrf.TemplateField(r)
 
 	pg := &providertemplate.RepoIndex{

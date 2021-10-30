@@ -84,12 +84,12 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/images", image.Index).Methods("GET")
 	auth.HandleFunc("/images/create", image.Create).Methods("GET")
 	auth.HandleFunc("/images", image.Store).Methods("POST")
-	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 
 	sr := mux.PathPrefix("/images").Subrouter()
 	sr.HandleFunc("/{image:[0-9]+}/download/{name}", image.Show).Methods("GET")
 	sr.HandleFunc("/{image:[0-9]+}", image.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI registers the API routes for working with images. The given
@@ -107,5 +107,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("", image.Store).Methods("POST")
 	sr.HandleFunc("/{image:[0-9]+}", image.Show).Methods("GET")
 	sr.HandleFunc("/{image:[0-9]+}", image.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 }

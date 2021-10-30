@@ -258,7 +258,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/invites", invite.Index).Methods("GET")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Update).Methods("PATCH")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Destroy).Methods("DELETE")
-	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 
 	sr := mux.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
 	sr.HandleFunc("", namespace.Show).Methods("GET")
@@ -283,7 +283,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI registers the API routes for working with namespaces. The given
@@ -317,7 +317,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	auth.HandleFunc("/invites", invite.Index).Methods("GET", "HEAD")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Update).Methods("PATCH")
 	auth.HandleFunc("/invites/{invite:[0-9]+}", invite.Destroy).Methods("DELETE")
-	auth.Use(r.middleware.Gate(gates...))
+	auth.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 
 	sr := mux.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
 	sr.HandleFunc("", namespace.Show).Methods("GET")
@@ -338,5 +338,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", webhook.Destroy).Methods("DELETE")
 	sr.HandleFunc("", namespace.Update).Methods("PATCH")
 	sr.HandleFunc("", namespace.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 }

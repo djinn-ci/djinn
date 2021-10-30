@@ -30,6 +30,7 @@ type EmailForm struct {
 	User  *User  `schema:"-"`
 	Users *Store `schema:"-"`
 
+	Token          string `schema:"token"`
 	Email          string `schema:"email"`
 	VerifyPassword string `schema:"verify_password"`
 }
@@ -211,11 +212,15 @@ func (f EmailForm) Validate() error {
 	}
 
 	if f.VerifyPassword == "" {
-		errs.Put("email_verify_password", webutil.ErrFieldRequired("Password"))
+		if f.Token == "" {
+			errs.Put("email_verify_password", webutil.ErrFieldRequired("Password"))
+		}
 	}
 
-	if err := bcrypt.CompareHashAndPassword(f.User.Password, []byte(f.VerifyPassword)); err != nil {
-		errs.Put("email_verify_password", errors.New("Invalid password"))
+	if f.Token == "" {
+		if err := bcrypt.CompareHashAndPassword(f.User.Password, []byte(f.VerifyPassword)); err != nil {
+			errs.Put("email_verify_password", errors.New("Invalid password"))
+		}
 	}
 	return errs.Err()
 }

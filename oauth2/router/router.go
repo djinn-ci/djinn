@@ -90,7 +90,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/connections", r.connection.Index).Methods("GET")
 	auth.HandleFunc("/connections/{id}", r.connection.Show).Methods("GET")
 	auth.HandleFunc("/connections/{id}", r.connection.Destroy).Methods("DELETE")
-	auth.Use(r.middleware.Auth, csrf)
+	auth.Use(r.middleware.Auth, csrf, r.middleware.CheckEmail)
 
 	tok := mux.PathPrefix("/settings/tokens").Subrouter()
 	tok.HandleFunc("", r.token.Index).Methods("GET")
@@ -101,7 +101,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	tok.HandleFunc("/{token}", r.token.Update).Methods("PATCH")
 	tok.HandleFunc("/{token}/regenerate", r.token.Update).Methods("PATCH")
 	tok.HandleFunc("/{token}", r.token.Destroy).Methods("DELETE")
-	tok.Use(r.middleware.Gate(gates...), csrf)
+	tok.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI is a stub method to implement the server.Router interface.

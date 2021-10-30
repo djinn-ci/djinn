@@ -42,7 +42,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	guest.HandleFunc("/login", r.user.Login).Methods("GET", "POST")
 	guest.HandleFunc("/password_reset", r.user.PasswordReset).Methods("GET", "POST")
 	guest.HandleFunc("/new_password", r.user.NewPassword).Methods("GET", "POST")
-	guest.Use(r.middleware.Guest, csrf)
+	guest.Use(r.middleware.Guest, csrf, r.middleware.CheckEmail)
 
 	auth := mux.PathPrefix("/").Subrouter()
 	auth.HandleFunc("/settings", r.user.Settings).Methods("GET")
@@ -52,7 +52,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/settings/password", r.user.Password).Methods("PATCH")
 	auth.HandleFunc("/settings/delete", r.user.Destroy).Methods("POST")
 	auth.HandleFunc("/logout", r.user.Logout).Methods("POST")
-	auth.Use(r.middleware.Auth, csrf)
+	auth.Use(r.middleware.Auth, csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI registers the only API route for a user, which is "/user". This
@@ -63,5 +63,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 		u, _ := user.FromContext(r.Context())
 		webutil.JSON(w, u.JSON(webutil.BaseAddress(r)+"/"+prefix), http.StatusOK)
 	})
-	auth.Use(r.middleware.Auth)
+	auth.Use(r.middleware.Auth, r.middleware.CheckEmail)
 }

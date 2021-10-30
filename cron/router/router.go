@@ -86,7 +86,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/{cron:[0-9]+}/edit", cron.Edit).Methods("GET")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Update).Methods("PATCH")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI registers the API routes for working with cron jobs. The given
@@ -106,5 +106,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/{cron:[0-9]+}/builds", cron.Show).Methods("GET")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Update).Methods("PATCH")
 	sr.HandleFunc("/{cron:[0-9]+}", cron.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 }

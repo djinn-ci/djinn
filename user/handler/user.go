@@ -317,11 +317,19 @@ func (h User) NewPassword(w http.ResponseWriter, r *http.Request) {
 
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
-		h.RedirectBack(w, r)
 		return
 	}
 
 	if err := h.Users.UpdatePassword(f.Token, []byte(f.Password)); err != nil {
+		if errors.Cause(err) == user.ErrTokenExpired {
+			sess.AddFlash(template.Alert{
+				Level:   template.Danger,
+				Close:   true,
+				Message: "Token expired",
+			})
+			h.RedirectBack(w, r)
+			return
+		}
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
 		h.RedirectBack(w, r)
@@ -682,6 +690,25 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 	u.Email = f.Email
 	u.UpdatedAt = time.Now()
 
+	if f.Token != "" {
+		if err := h.Users.UpdateEmail(f.Token, f.Email); err != nil {
+			if errors.Cause(err) == user.ErrTokenExpired {
+				sess.AddFlash(template.Alert{
+					Level:   template.Danger,
+					Close:   true,
+					Message: "Token expired",
+				}, "alert")
+				h.RedirectBack(w, r)
+				return
+			}
+
+			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+			web.HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+			return
+		}
+		goto resp
+	}
+
 	if err := h.Users.Update(u.ID, f.Email, u.Cleanup, []byte(f.VerifyPassword)); err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 		sess.AddFlash(template.Alert{
@@ -693,6 +720,7 @@ func (h User) Email(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+resp:
 	sess.AddFlash(template.Alert{
 		Level:   template.Success,
 		Close:   true,

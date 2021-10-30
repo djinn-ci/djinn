@@ -11,11 +11,14 @@ import (
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
+	"djinn-ci.com/template"
 	"djinn-ci.com/user"
+	usertemplate "djinn-ci.com/user/template"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
 
+	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 
 	"github.com/jmoiron/sqlx"
@@ -136,6 +139,55 @@ func (h Middleware) Guest(next http.Handler) http.Handler {
 				return
 			}
 			h.Redirect(w, r, "/")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// CheckEmail will prompt the user for their email address if they do not have one
+// set on their account. Situations like this can arrise if they have logged in
+// via a 3rd party provider, but we were unable to get their email as part of
+// the authentication flow.
+func (h Middleware) CheckEmail(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, ok := user.FromContext(r.Context())
+
+		if !ok {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if u.Email == "" && r.URL.Path != "/settings/email" && r.Method != "PATCH" {
+			if strings.HasPrefix(r.Header.Get("Accept"), "application/json") ||
+				strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+				webutil.JSON(w, map[string]string{
+					"message": "No email set on account, go to your Settings page to set it.",
+				}, http.StatusUnauthorized)
+			}
+
+			tok, err := h.Users.ResetEmail(u.ID)
+
+			if err != nil {
+				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+				HTMLError(w, "Something went wrong", http.StatusInternalServerError)
+				return
+			}
+
+			sess, save := h.Session(r)
+
+			p := &usertemplate.Email{
+				Form: template.Form{
+					CSRF:   csrf.TemplateField(r),
+					Errors: webutil.FormErrors(sess),
+					Fields: webutil.FormFields(sess),
+				},
+				User:  u,
+				Token: tok,
+			}
+
+			save(r, w)
+			webutil.HTML(w, template.Render(p), http.StatusOK)
 			return
 		}
 		next.ServeHTTP(w, r)

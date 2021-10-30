@@ -80,13 +80,13 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/objects", object.Index).Methods("GET")
 	auth.HandleFunc("/objects/create", object.Create).Methods("GET")
 	auth.HandleFunc("/objects", object.Store).Methods("POST")
-	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 
 	sr := mux.PathPrefix("/objects").Subrouter()
 	sr.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}/download/{name}", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI registers the API routes for working with objects. The given
@@ -105,5 +105,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/{object:[0-9]+}", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}/builds", object.Show).Methods("GET")
 	sr.HandleFunc("/{object:[0-9]+}", object.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 }

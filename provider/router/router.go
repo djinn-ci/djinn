@@ -99,7 +99,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/reload", r.repo.Update).Methods("PATCH")
 	sr.HandleFunc("/enable", r.repo.Store).Methods("POST")
 	sr.HandleFunc("/disable/{repo:[0-9]+}", r.repo.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI is a stub method to implement the server.Router interface.

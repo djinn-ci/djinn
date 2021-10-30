@@ -84,7 +84,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/{key:[0-9]+}/edit", key.Edit).Methods("GET")
 	sr.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
 	sr.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI registers the API routes for working with keys. The given
@@ -103,5 +103,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/{key:[0-9]+}", key.Show).Methods("GET")
 	sr.HandleFunc("/{key:[0-9]+}", key.Update).Methods("PATCH")
 	sr.HandleFunc("/{key:[0-9]+}", key.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 }

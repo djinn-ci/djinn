@@ -78,11 +78,11 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/variables", variable.Index).Methods("GET")
 	auth.HandleFunc("/variables/create", variable.Create).Methods("GET")
 	auth.HandleFunc("/variables", variable.Store).Methods("POST")
-	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 
 	sr := mux.PathPrefix("/variables").Subrouter()
 	sr.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI registers the API routes for working with variables. The given
@@ -100,5 +100,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("", variable.Store).Methods("POST")
 	sr.HandleFunc("/{variable:[0-9]+}", variable.Show).Methods("GET")
 	sr.HandleFunc("/{variable:[0-9]+}", variable.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 }

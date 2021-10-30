@@ -166,7 +166,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	auth.HandleFunc("/builds", build.Index).Methods("GET")
 	auth.HandleFunc("/builds/create", build.Create).Methods("GET")
 	auth.HandleFunc("/builds", build.Store).Methods("POST")
-	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf)
+	auth.Use(r.middleware.Auth, r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")
@@ -184,7 +184,7 @@ func (r *Router) RegisterUI(mux *mux.Router, csrf func(http.Handler) http.Handle
 	sr.HandleFunc("/tags", build.Show).Methods("GET")
 	sr.HandleFunc("/tags", tag.Store).Methods("POST")
 	sr.HandleFunc("/tags/{name:.+}", tag.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...), csrf)
+	sr.Use(r.middleware.Gate(gates...), csrf, r.middleware.CheckEmail)
 }
 
 // RegisterAPI registers the API routes for working with builds. The given
@@ -212,7 +212,7 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	auth := mux.PathPrefix("/builds").Subrouter()
 	auth.HandleFunc("", build.Index).Methods("GET", "HEAD")
 	auth.HandleFunc("", build.Store).Methods("POST")
-	auth.Use(r.middleware.Gate(gates...))
+	auth.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 
 	sr := mux.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", build.Show).Methods("GET")
@@ -228,5 +228,5 @@ func (r *Router) RegisterAPI(prefix string, mux *mux.Router, gates ...web.Gate) 
 	sr.HandleFunc("/tags", tag.Store).Methods("POST")
 	sr.HandleFunc("/tags/{name:.+}", tag.Show).Methods("GET")
 	sr.HandleFunc("/tags/{name:.+}", tag.Destroy).Methods("DELETE")
-	sr.Use(r.middleware.Gate(gates...))
+	sr.Use(r.middleware.Gate(gates...), r.middleware.CheckEmail)
 }

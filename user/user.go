@@ -44,9 +44,8 @@ var (
 	_ database.Binder = (*Store)(nil)
 	_ database.Loader = (*Store)(nil)
 
-	table             = "users"
-	tokenTable        = "account_tokens"
-	collaboratorTable = "collaborators"
+	table      = "users"
+	tokenTable = "account_tokens"
 
 	MaxAge = 5 * 365 * 86400
 
@@ -365,6 +364,26 @@ func (s *Store) Delete(id int64, password []byte) error {
 	return errors.Err(err)
 }
 
+func (s *Store) UpdateEmail(tok, email string) error {
+	id, err := s.flushAccountToken(tok, "email_reset")
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	q := query.Update(
+		table,
+		query.Set("email", query.Arg(email)),
+		query.Set("updated_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(id)),
+	)
+
+	if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
 func (s *Store) UpdatePassword(tok string, password []byte) error {
 	id, err := s.flushAccountToken(tok, "password_reset")
 
@@ -386,6 +405,11 @@ func (s *Store) UpdatePassword(tok string, password []byte) error {
 
 	_, err = s.DB.Exec(q.Build(), q.Args()...)
 	return errors.Err(err)
+}
+
+func (s *Store) ResetEmail(id int64) (string, error) {
+	tok, err := s.touchAccountToken(id, "email_reset")
+	return tok, errors.Err(err)
 }
 
 func (s *Store) ResetPassword(id int64) (string, error) {

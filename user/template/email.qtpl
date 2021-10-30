@@ -1,0 +1,57 @@
+{%
+import (
+	"djinn-ci.com/template"
+	"djinn-ci.com/user"
+)
+%}
+
+{% code
+type Email struct {
+	template.BasePage
+	template.Form
+
+	Alert template.Alert
+	User  *user.User
+	Token string
+}
+%}
+
+{% collapsespace %}
+{% func (p *Email) Title() %}
+	Change email - Djinn CI
+{% endfunc %}
+
+{% func (p *Email) Footer() %}
+	<style type="text/css">{% cat "../../static/auth.css" %}</style>
+{% endfunc %}
+
+{% func (p *Email) Body() %}
+	<div class="auth-page">
+		<div class="auth-form">
+			<div class="auth-header">
+				<div class="logo">
+					<div class="handle"></div>
+					<div class="lid"></div>
+					<div class="lantern"></div>
+				</div>
+				<h1>Set your email address</h1>
+				{%= template.RenderAlert(p.Alert, "") %}
+				<p>Your account has no email address set, please set one to continue.</p>
+			</div>
+			<form method="POST" action="/settings/email">
+				<input type="hidden" name="_method" value="PATCH"/>
+				{%v= p.CSRF %}
+				<input type="hidden" name="token" value="{%s p.Token %}"/>
+				<div class="input-field">
+					<label>Email</label>
+					<input class="text" type="text" name="email" value="{%s p.Fields["email"] %}" autocomplete="off"/>
+					{%= p.Error("email") %}
+				</div>
+				<div class="input-field">
+					<button type="submit" class="btn btn-primary">Update</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

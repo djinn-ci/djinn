@@ -111,7 +111,6 @@ func (h Provider) lookupUser(name string, userId int64, email, username string) 
 			query.Where("name", "=", query.Arg(name)),
 			query.Where("main_account", "=", query.Arg(true)),
 		)),
-		query.Where("email", "=", query.Arg(email)),
 	)
 
 	if err != nil {

@@ -7,6 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"database/sql"
 	"encoding/hex"
 	"encoding/pem"
 	"io"
@@ -15,10 +16,15 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime/debug"
 	"testing"
 
+	"djinn-ci.com/errors"
+	"djinn-ci.com/event"
 	"djinn-ci.com/integration/djinn"
+
+	"github.com/jackc/pgx/v4"
 )
 
 var webhookSecret = "secret"
@@ -38,7 +44,9 @@ func webhookHandler(t *testing.T, m map[string]struct{}) func(http.ResponseWrite
 		"ssh_keys":        {},
 	}
 
-	f, err := os.OpenFile("webhook.log", os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(0644))
+	log := filepath.Join("testdata", "log", "webhook.log")
+
+	f, err := os.OpenFile(log, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(0644))
 
 	if err != nil {
 		t.Fatal(err)
@@ -487,6 +495,35 @@ func blackMesaFlow(t *testing.T) {
 
 	if secret != nil {
 		t.Fatalf("expected webhook secret to be nil after updated, it was not\n")
+	}
+
+	rows, err := db.Query("SELECT error, event FROM namespace_webhook_deliveries")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var (
+		deliveryErr sql.NullString
+		ev          event.Type
+	)
+
+	for rows.Next() {
+		if err := rows.Scan(&deliveryErr, &ev); err != nil {
+			if !errors.Is(err, pgx.ErrNoRows) {
+				t.Fatal(err)
+			}
+		}
+
+		if deliveryErr.Valid {
+			t.Errorf("webhook delivery error for event %s: %v\n", ev.String(), deliveryErr.String)
+		}
+	}
+
+	if err := rows.Err(); err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			t.Fatal(err)
+		}
 	}
 
 	for _, ev := range wh.Events {

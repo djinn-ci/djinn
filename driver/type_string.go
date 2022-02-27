@@ -11,11 +11,12 @@ func _() {
 	_ = x[SSH-0]
 	_ = x[QEMU-1]
 	_ = x[Docker-2]
+	_ = x[OS-3]
 }
 
-const _Type_name = "sshqemudocker"
+const _Type_name = "sshqemudockeros"
 
-var _Type_index = [...]uint8{0, 3, 7, 13}
+var _Type_index = [...]uint8{0, 3, 7, 13, 15}
 
 func (i Type) String() string {
 	if i >= Type(len(_Type_index)-1) {

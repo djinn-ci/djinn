@@ -16,9 +16,6 @@ type Create struct {
 	<div class="panel">
 		<form class="panel-body slim" method="POST" action="/objects" enctype="multipart/form-data">
 			{%s= string(p.CSRF) %}
-			{% if p.Errors.First("object") != "" %}
-				{%= p.Error("object") %}
-			{% endif %}
 			<div class="form-field">
 				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
 				<input class="form-text" type="text" id="namespace" name="namespace" value="{%s p.Fields["namespace"] %}" autocomplete="off"/>

@@ -23,7 +23,7 @@ func main() {
 		return
 	}
 
-	w, _, close_, err := workerutil.Init(config, driver)
+	w, close_, err := workerutil.Init(config, driver)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))

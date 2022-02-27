@@ -52,10 +52,11 @@ type Keys struct {
 type Tags struct {
 	section
 
-	CSRF  htmltemplate.HTML
-	User  *user.User
-	Build *build.Build
-	Tags  []*build.Tag
+	CSRF      htmltemplate.HTML
+	User      *user.User
+	Build     *build.Build
+	CanModify bool
+	Tags      []*build.Tag
 }
 %}
 
@@ -226,7 +227,7 @@ type Tags struct {
 
 {% func (p *Tags) Body() %}
 	<div class="panel">
-		{% if !p.User.IsZero() %}
+		{% if p.CanModify %}
 			<div class="panel-header panel-body">
 				<form method="POST" action="{%s p.Build.Endpoint("tags") %}">
 					{%v= p.CSRF %}
@@ -254,7 +255,7 @@ type Tags struct {
 							<td><a href="/builds?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a></td>
 							<td>{%s t.User.Username %} &lt;{%s t.User.Email %}&gt;</td>
 							<td class="align-right">
-								{% if !p.User.IsZero() %}
+								{% if p.CanModify %}
 									<form method="POST" action="{%s t.Endpoint() %}">
 										{%v= p.CSRF %}
 										<input type="hidden" name="_method" value="DELETE">

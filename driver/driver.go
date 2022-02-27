@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 
+	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
 )
 
@@ -18,6 +19,34 @@ type Config interface {
 	// Merge in the given driver configuration from a build manifest, and return
 	// a copy of the original config with the merged in values.
 	Merge(m map[string]string) Config
+}
+
+type Error struct {
+	Driver string
+	Err    error
+}
+
+var (
+	errUnknown  = errors.New("unknown driver")
+	errDisabled = errors.New("driver disabled")
+)
+
+func ErrUnknown(name string) error {
+	return &Error{
+		Driver: name,
+		Err:    errUnknown,
+	}
+}
+
+func ErrDisabled(name string) error {
+	return &Error{
+		Driver: name,
+		Err:    errDisabled,
+	}
+}
+
+func (e *Error) Error() string {
+	return "driver error: " + e.Driver + " - " + e.Err.Error()
 }
 
 // Init is the function for fully initializing a driver with the given

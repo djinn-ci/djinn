@@ -29,7 +29,7 @@ type Show struct {
 	{% if p.Namespace.Parent != nil %}
 		<a class="back" href="{%s p.Namespace.Parent.Endpoint() %}">{%cat "../../static/svg/back.svg" %}</a>
 	{% else %}
-		{% if !p.User.IsZero() %}
+		{% if p.User != nil %}
 			<a class="back" href="/namespaces">{% cat "../../static/svg/back.svg" %}</a>
 		{% endif %}
 	{% endif %}

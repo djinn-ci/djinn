@@ -23,7 +23,9 @@ import (
 	"djinn-ci.com/runner"
 )
 
-type realpathFunc func(string, string) (string, error)
+// RealpathFunc is the function used for deriving the underlying path for an
+// image to be used for booting the QEMU machine.
+type RealpathFunc func(arch, image string) (string, error)
 
 // Config is the struct used for initializing a new QEMU driver for build
 // execution.
@@ -53,7 +55,7 @@ type Driver struct {
 
 	// Realpath is a function callback that will return the full path of the
 	// QCOW2 image to use when booting the Driver machine.
-	Realpath realpathFunc
+	Realpath RealpathFunc
 }
 
 var (
@@ -63,7 +65,7 @@ var (
 	tcpMaxPort int64 = 65535
 
 	archLookup = map[string]string{
-		"x86_64": "amd64",
+		"amd64": "x86_64",
 	}
 )
 
@@ -80,13 +82,13 @@ func Init(w io.Writer, cfg driver.Config) runner.Driver {
 }
 
 // GetExpectedArch returns the QEMU arch that would be expected for the GOARCH.
-func GetExpectedArch() string {
-	for k, v := range archLookup {
-		if v == runtime.GOARCH {
-			return k
-		}
+func GetExpectedArch() (string, error) {
+	arch, ok := archLookup[runtime.GOARCH]
+
+	if !ok {
+		return "", errors.New("qemu: unsupported architecture for qemu driver " + runtime.GOARCH)
 	}
-	return ""
+	return arch, nil
 }
 
 // MatchesGOARCH checks to see if the given QEMU arch matches the GOARCH. This
@@ -97,11 +99,11 @@ func MatchesGOARCH(arch string) bool {
 }
 
 func (cfg *Config) Merge(m map[string]string) driver.Config {
-	cfg1 := (*cfg)
-	cfg1.Image = m["image"]
-	cfg1.Arch = "x86_64"
+	cfg2 := (*cfg)
+	cfg2.Image = m["image"]
+	cfg2.Arch = m["arch"]
 
-	return &cfg1
+	return &cfg2
 }
 
 func (cfg *Config) Apply(d runner.Driver) {
@@ -219,7 +221,6 @@ func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 
 	fmt.Fprintf(q.Writer, "Running with Driver qemu...\n")
 	fmt.Fprintf(q.Writer, "Creating machine with arch %s...\n", q.Arch)
-
 	fmt.Fprintf(q.Writer, "Booting machine with image %s...\n", q.Image)
 
 	if err := q.runCmd(); err != nil {
@@ -257,7 +258,10 @@ func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 	err = q.ssh.PlaceObjects(objs, p)
 	q.ssh.Writer = ioutil.Discard
 
-	return errors.Err(err)
+	if err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 // Execute will perform the given job on the Driver machine via a call to the

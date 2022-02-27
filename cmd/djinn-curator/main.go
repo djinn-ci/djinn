@@ -59,8 +59,8 @@ func main() {
 		db.Close()
 		log.Close()
 
-		if pidfile != nil {
-			if err := os.RemoveAll(pidfile.Name()); err != nil {
+		if pidfile != "" {
+			if err := os.RemoveAll(pidfile); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 				os.Exit(1)
 			}

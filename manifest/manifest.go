@@ -8,7 +8,6 @@ import (
 	"io"
 	"strings"
 
-	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
 
@@ -71,26 +70,35 @@ func Decode(r io.Reader) (Manifest, error) {
 func Unmarshal(b []byte) (Manifest, error) {
 	var m Manifest
 
-	err := yaml.Unmarshal(b, &m)
-	return m, errors.Err(err)
+	if err := yaml.Unmarshal(b, &m); err != nil {
+		return m, errors.Err(err)
+	}
+	return m, nil
 }
 
 func (d Driver) Value() (driver.Value, error) { return driver.Value(d.String()), nil }
 
 func (d *Driver) Scan(val interface{}) error {
-	b, err := database.Scan(val)
+	v, err := driver.String.ConvertValue(val)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if len(b) == 0 {
+	b, ok := v.([]byte)
+
+	if !ok {
+		return errors.New("manifest: could not type assert Driver to byte slice")
+	}
+
+	if b == nil {
 		return nil
 	}
 
-	buf := bytes.NewBuffer(b)
-
-	return errors.Err(json.NewDecoder(buf).Decode(d))
+	if err := json.Unmarshal(b, d); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 func (d *Driver) String() string {
@@ -194,6 +202,8 @@ func (m *Manifest) Validate() error {
 		if m.Driver["address"] == "" {
 			return errors.New("driver ssh requires address")
 		}
+	case "os":
+		break
 	default:
 		return errors.New("invalid driver specified " + m.Driver["type"])
 	}

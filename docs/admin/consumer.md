@@ -24,25 +24,25 @@ to start and run,
 
 ## Configuring the Consumer
 
-Detailed below are the [configuration](/admin/configuration) directives used by
+Detailed below are the [configuration](/admin/configuration) parameters used by
 the consumer.
 
 * **`database`** `{...}` - Provides connection information to the PostgreSQL
-database. Below are the directives used by the `database` block directive.
+database, below are the parameters for this block.
 
   * **`addr`** `string` - The address of the PostgreSQL server to connect to.
   * **`name`** `string` - The name of the database to use.
   * **`username`** `string` - The name of the database user.
   * **`password`** `string` - The password of the database user.
 
-  * **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
+  * **`tls`** `{...}` - TLS block if you want to connect via TLS.
 
     * **`ca`** `string` - Path to the CA root to use.
     * **`cert`** `string` - Path to the certificate to use.
     * **`key`** `string` - Path to the key to use.
 
-* **`redis`** `{...}` - Provides connection information to the Redis database.
-Below are the directives user by the `redis` block directive.
+* **`redis`** `{...}` - Provides connection information to the Redis database,
+below are the parameters for this block,
 
   * **`addr`** `string` - The address of the Redis server to connect to.
   * **`password`** `string` - The password used if the Redis server is

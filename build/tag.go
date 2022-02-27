@@ -1,7 +1,6 @@
 package build
 
 import (
-	"database/sql"
 	"time"
 
 	"djinn-ci.com/database"
@@ -12,20 +11,82 @@ import (
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
-// Tag is the type that represents a tag on a build.
 type Tag struct {
-	ID        int64     `db:"id"`
-	UserID    int64     `db:"user_id"`
-	BuildID   int64     `db:"build_id"`
-	Name      string    `db:"name"`
-	CreatedAt time.Time `db:"created_at"`
+	ID        int64
+	UserID    int64
+	BuildID   int64
+	Name      string
+	CreatedAt time.Time
 
-	User  *user.User `db:"-"`
-	Build *Build     `db:"-"`
+	User  *user.User
+	Build *Build
+}
+
+var _ database.Model = (*Tag)(nil)
+
+func (t *Tag) Dest() []interface{} {
+	return []interface{}{
+		&t.ID,
+		&t.UserID,
+		&t.BuildID,
+		&t.Name,
+		&t.CreatedAt,
+	}
+}
+
+func (t *Tag) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *user.User:
+		if t.UserID == v.ID {
+			t.User = v
+		}
+	case *Build:
+		if t.BuildID == v.ID {
+			t.Build = v
+		}
+	}
+}
+
+func (t *Tag) Endpoint(uri ...string) string {
+	if t.Build == nil {
+		return ""
+	}
+	return t.Build.Endpoint("tags", t.Name)
+}
+
+func (t *Tag) JSON(addr string) map[string]interface{} {
+	if t == nil {
+		return nil
+	}
+
+	json := map[string]interface{}{
+		"id":         t.ID,
+		"user_id":    t.UserID,
+		"build_id":   t.BuildID,
+		"name":       t.Name,
+		"created_at": t.CreatedAt.Format(time.RFC3339),
+		"url":        addr + t.Endpoint(),
+	}
+
+	if t.User != nil {
+		json["user"] = t.User.JSON(addr)
+	}
+	if t.Build != nil {
+		json["build"] = t.Build.JSON(addr)
+	}
+	return json
+}
+
+func (t *Tag) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"id":         t.ID,
+		"user_id":    t.UserID,
+		"build_id":   t.BuildID,
+		"name":       t.Name,
+		"created_at": t.CreatedAt,
+	}
 }
 
 type TagEvent struct {
@@ -36,42 +97,6 @@ type TagEvent struct {
 	Tags  []*Tag
 }
 
-// TagStore is the type for creating and modifying Tag models in the database.
-type TagStore struct {
-	database.Store
-
-	User  *user.User
-	Build *Build
-}
-
-var (
-	_ database.Model  = (*Tag)(nil)
-	_ database.Binder = (*TagStore)(nil)
-	_ database.Loader = (*TagStore)(nil)
-
-	_ queue.Job = (*Event)(nil)
-
-	tagTable = "build_tags"
-)
-
-// NewTagStore returns a new TagStore for querying the build_tags table.
-// Each database passed to this function will be bound to the returned TagStore.
-func NewTagStore(db *sqlx.DB, mm ...database.Model) *TagStore {
-	s := &TagStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// TagModel is called along with database.ModelSlice to convert the given slice of
-// Tag models to a slice of database.Model interfaces.
-func TagModel(tt []*Tag) func(int) database.Model {
-	return func(i int) database.Model {
-		return tt[i]
-	}
-}
-
 func InitTagEvent(dis event.Dispatcher) queue.InitFunc {
 	return func(j queue.Job) {
 		if ev, ok := j.(*TagEvent); ok {
@@ -80,17 +105,17 @@ func InitTagEvent(dis event.Dispatcher) queue.InitFunc {
 	}
 }
 
-func (ev *TagEvent) Name() string { return "event:" + event.BuildTagged.String() }
+func (*TagEvent) Name() string { return "event:" + event.BuildTagged.String() }
 
-func (ev *TagEvent) Perform() error {
-	if ev.dis == nil {
+func (e *TagEvent) Perform() error {
+	if e.dis == nil {
 		return event.ErrNilDispatcher
 	}
 
-	tt := make([]map[string]interface{}, 0, len(ev.Tags))
+	tt := make([]map[string]interface{}, 0, len(e.Tags))
 
-	for _, t := range ev.Tags {
-		ev.Build.Tags = append(ev.Build.Tags, t)
+	for _, t := range e.Tags {
+		e.Build.Tags = append(e.Build.Tags, t)
 
 		tt = append(tt, map[string]interface{}{
 			"name": t.Name,
@@ -99,108 +124,62 @@ func (ev *TagEvent) Perform() error {
 	}
 
 	payload := map[string]interface{}{
-		"url":   ev.Build.Endpoint("tags"),
-		"build": ev.Build.JSON(env.DJINN_API_SERVER),
-		"user":  ev.User.JSON(env.DJINN_API_SERVER),
+		"url":   e.Build.Endpoint("tags"),
+		"build": e.Build.JSON(env.DJINN_API_SERVER),
+		"user":  e.User.JSON(env.DJINN_API_SERVER),
 		"tags":  tt,
 	}
-	return errors.Err(ev.dis.Dispatch(event.New(ev.Build.NamespaceID, event.BuildTagged, payload)))
-}
 
-// Bind implements the database.Binder interface. This will only bind the models
-// if they are pointers to either Build or user.User models.
-func (t *Tag) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			t.User = v
-		case *Build:
-			t.Build = v
-		}
+	ev := event.New(e.Build.NamespaceID, event.BuildTagged, payload)
+
+	if err := e.dis.Dispatch(ev); err != nil {
+		return errors.Err(err)
 	}
+	return nil
 }
 
-// Primary implements the database.Model interface.
-func (t Tag) Primary() (string, int64) { return "id", t.ID }
-
-// SetPrimary implements the database.Model interface.
-func (t *Tag) SetPrimary(i int64) { t.ID = i }
-
-// Endpoint implements the database.Model interface. If the current Tag has a
-// nil or zero value Tag bound model then an emtpy string is returned,
-// otherwise the full Build endpoint is returned, suffixed with the Tag
-// endpoint, for example,
-//
-//   /b/l.belardo/10/tags/qemu
-func (t Tag) Endpoint(uri ...string) string {
-	if t.Build == nil || t.Build.IsZero() {
-		return ""
-	}
-	return t.Build.Endpoint("tags", t.Name)
+type TagStore struct {
+	database.Pool
 }
 
-// IsZero implements the database.Model interface.
-func (t *Tag) IsZero() bool {
-	return t == nil || t.ID == 0 &&
-		t.UserID == 0 &&
-		t.BuildID == 0 &&
-		t.Name == "" &&
-		t.CreatedAt == time.Time{}
+type TagParams struct {
+	UserID  int64
+	BuildID int64
+	Tags    []string
 }
 
-// JSON implements the database.Model interface. This will return reutrn a map
-// with the current Tag's values under each key. If the User or Build bound
-// models are not zero, then the JSON representation of each will be in the
-// returned map under the user and build keys respectively.
-func (t *Tag) JSON(addr string) map[string]interface{} {
-	json := map[string]interface{}{
-		"id":         t.ID,
-		"user_id":    t.UserID,
-		"build_id":   t.BuildID,
-		"name":       t.Name,
-		"created_at": t.CreatedAt.Format(time.RFC3339),
-		"url":        addr + t.Endpoint(),
-	}
+var (
+	_ database.Loader = (*TagStore)(nil)
 
-	for name, m := range map[string]database.Model{
-		"user":  t.User,
-		"build": t.Build,
-	} {
-		if !m.IsZero() {
-			json[name] = m.JSON(addr)
-		}
-	}
-	return json
-}
+	_ queue.Job = (*Event)(nil)
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, build_id, and name.
-func (t *Tag) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"user_id":  t.UserID,
-		"build_id": t.BuildID,
-		"name":     t.Name,
-	}
-}
+	tagTable = "build_tags"
+)
 
-// Create takes the given names, and creates a Tag for each for the given build
-// ID, and user ID. A slice of the created Tag models are returned.
-func (s *TagStore) Create(userId int64, names ...string) ([]*Tag, error) {
-	if len(names) == 0 {
-		return []*Tag{}, nil
+func (s TagStore) Create(p TagParams) ([]*Tag, error) {
+	if len(p.Tags) == 0 {
+		return nil, nil
 	}
 
 	set := make(map[string]struct{})
-	vals := make([]interface{}, 0, len(names))
+	vals := make([]interface{}, 0, len(p.Tags))
 
-	for _, name := range names {
-		vals = append(vals, name)
+	for _, tag := range p.Tags {
+		set[tag] = struct{}{}
+	}
+
+	p.Tags = p.Tags[0:0]
+
+	for tag := range set {
+		p.Tags = append(p.Tags, tag)
+		vals = append(vals, tag)
+		delete(set, tag)
 	}
 
 	q := query.Select(
 		query.Columns("name"),
 		query.From(tagTable),
-		query.Where("build_id", "=", query.Arg(s.Build.ID)),
+		query.Where("build_id", "=", query.Arg(p.BuildID)),
 		query.Where("name", "IN", query.List(vals...)),
 	)
 
@@ -219,126 +198,93 @@ func (s *TagStore) Create(userId int64, names ...string) ([]*Tag, error) {
 		set[s] = struct{}{}
 	}
 
-	tt := make([]*Tag, 0, len(names))
+	tt := make([]*Tag, 0, len(p.Tags))
 
-	for _, name := range names {
-		if _, ok := set[name]; ok {
+	now := time.Now()
+
+	for _, tag := range p.Tags {
+		if _, ok := set[tag]; ok {
 			continue
 		}
 
-		if name == "" {
+		if tag == "" {
 			continue
 		}
 
-		t := s.New()
-		t.UserID = userId
-		t.Name = name
+		q = query.Insert(
+			tagTable,
+			query.Columns("user_id", "build_id", "name", "created_at"),
+			query.Values(p.UserID, p.BuildID, tag, now),
+			query.Returning("id"),
+		)
 
-		tt = append(tt, t)
-	}
+		var id int64
 
-	err = s.Store.Create(tagTable, database.ModelSlice(len(tt), TagModel(tt))...)
-	return tt, errors.Err(err)
-}
-
-func (s *TagStore) Delete(buildId int64, name string) error {
-	q := query.Delete(
-		tagTable,
-		query.Where("build_id", "=", query.Arg(buildId)),
-		query.Where("name", "=", query.Arg(name)),
-	)
-
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
-}
-
-// New returns a new Tag binding any non-nil models to it from the current
-// TagStore.
-func (s TagStore) New() *Tag {
-	t := &Tag{
-		User:  s.User,
-		Build: s.Build,
-	}
-
-	if s.Build != nil {
-		_, id := s.Build.Primary()
-		t.BuildID = id
-	}
-
-	if s.User != nil {
-		_, id := s.User.Primary()
-		t.UserID = id
-	}
-	return t
-}
-
-// Bind implements the database.Binder interface. This will only bind the models
-// if they are pointers to either Build or user.User models.
-func (s *TagStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
-		case *Build:
-			s.Build = v
+		if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+			return nil, errors.Err(err)
 		}
+		tt = append(tt, &Tag{
+			ID:        id,
+			UserID:    p.UserID,
+			BuildID:   p.BuildID,
+			Name:      tag,
+			CreatedAt: now,
+		})
 	}
+	return tt, nil
 }
 
-// All returns a slice of Tag models, applying each query.Option that is given.
+func (s TagStore) Delete(id int64) error {
+	q := query.Delete(tagTable, query.Where("id", "=", query.Arg(id)))
+
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s TagStore) Get(opts ...query.Option) (*Tag, bool, error) {
+	var t Tag
+
+	ok, err := s.Pool.Get(tagTable, &t, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &t, ok, nil
+}
+
 func (s TagStore) All(opts ...query.Option) ([]*Tag, error) {
 	tt := make([]*Tag, 0)
 
-	opts = append([]query.Option{
-		database.Where(s.Build, "build_id"),
-	}, opts...)
-
-	err := s.Store.All(&tt, tagTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		t := &Tag{}
+		tt = append(tt, t)
+		return t
 	}
 
-	for _, t := range tt {
-		t.Build = s.Build
+	if err := s.Pool.All(tagTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return tt, errors.Err(err)
+	return tt, nil
 }
 
-// Get returns a single Tag database, applying each query.Option that is given.
-func (s TagStore) Get(opts ...query.Option) (*Tag, error) {
-	t := &Tag{
-		Build: s.Build,
-		User:  s.User,
-	}
+func (s TagStore) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
 
-	opts = append([]query.Option{
-		database.Where(s.Build, "build_id"),
-		database.Where(s.User, "user_id"),
-	}, opts...)
-
-	err := s.Store.Get(t, tagTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return t, errors.Err(err)
-}
-
-// Load loads in a slice of Job models where the given key is in the list of
-// given vals. Each database is loaded individually via a call to the given load
-// callback. This method calls JobStore.All under the hood, so any bound models
-// will impact the models being loaded.
-func (s TagStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	tt, err := s.All(query.Where(key, "IN", database.List(vals...)))
+	tt, err := s.All(query.Where(pk, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	for i := range vals {
-		for _, t := range tt {
-			load(i, t)
+	for _, t := range tt {
+		for _, m := range mm {
+			m.Bind(t)
 		}
 	}
 	return nil

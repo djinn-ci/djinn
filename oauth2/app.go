@@ -3,7 +3,6 @@ package oauth2
 import (
 	"bytes"
 	"crypto/rand"
-	"database/sql"
 	"encoding/hex"
 	"strings"
 	"time"
@@ -14,124 +13,48 @@ import (
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
-// App is the type that represents an OAuth app created by a user.
 type App struct {
-	ID           int64     `db:"id"`
-	UserID       int64     `db:"user_id"`
-	ClientID     string    `db:"client_id"`
-	ClientSecret []byte    `db:"client_secret"`
-	Name         string    `db:"name"`
-	Description  string    `db:"description"`
-	HomeURI      string    `db:"home_uri"`
-	RedirectURI  string    `db:"redirect_uri"`
-	CreatedAt    time.Time `db:"created_at"`
+	ID           int64
+	UserID       int64
+	ClientID     string
+	ClientSecret []byte
+	Name         string
+	Description  string
+	HomeURI      string
+	RedirectURI  string
+	CreatedAt    time.Time
 
-	User *user.User `db:"-"`
-}
-
-// AppStore is the type for creating and modfiying App models in the database.
-// The AppStore type can have an underlying crypto.AESGCM for encrypting the
-// App's secret.
-type AppStore struct {
-	database.Store
-
-	crypto *crypto.AESGCM
-
-	// User is the bound user.User model. If not nil this will bind the
-	// user.User model to any App models that are created. If not nil this
-	// will append a WHERE clause on the user_id column for all SELECT queries
-	// performed.
 	User *user.User
 }
 
-var (
-	_ database.Model  = (*App)(nil)
-	_ database.Binder = (*AppStore)(nil)
+var _ database.Model = (*App)(nil)
 
-	appTable = "oauth_apps"
-
-	ErrAuth = errors.New("authentication failed")
-)
-
-// generateSecret generates a random 32 byte secret and encrypts it using the
-// given encryption function.
-func generateSecret(encrypt func([]byte) ([]byte, error)) ([]byte, error) {
-	secret := make([]byte, 32)
-
-	if _, err := rand.Read(secret); err != nil {
-		return nil, errors.Err(err)
-	}
-
-	b, err := encrypt(secret)
-	return b, errors.Err(err)
-}
-
-// NewAppStore returns a new AppStore for querying the oauth_apps table. Each
-// database passed to this function will be bound to the returned AppStore.
-func NewAppStore(db *sqlx.DB, mm ...database.Model) *AppStore {
-	s := &AppStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// NewAppStoreWithCrypto is functionally the same as NewAppStore, however it gets
-// the crypto.AESGCM to use on the returned AppStore. This will allow for
-// encryption of the App's secret.
-func NewAppStoreWithCrypto(db *sqlx.DB, crypto *crypto.AESGCM, mm ...database.Model) *AppStore {
-	s := NewAppStore(db, mm...)
-	s.crypto = crypto
-	return s
-}
-
-// AppModel is called along with database.ModelSlice to convert the given slice of App
-// models to a slice of database.Model interfaces.
-func AppModel(aa []*App) func(int) database.Model {
-	return func(i int) database.Model {
-		return aa[i]
+func (a *App) Dest() []interface{} {
+	return []interface{}{
+		&a.ID,
+		&a.UserID,
+		&a.ClientID,
+		&a.ClientSecret,
+		&a.Name,
+		&a.Description,
+		&a.HomeURI,
+		&a.RedirectURI,
+		&a.CreatedAt,
 	}
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to a user.User model.
-func (a *App) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
+func (a *App) Bind(m database.Model) {
+	if v, ok := m.(*user.User); ok {
+		if a.UserID == v.ID {
 			a.User = v
 		}
 	}
 }
 
-// SetPrimary implements the database.Model interface.
-func (a *App) SetPrimary(id int64) { a.ID = id }
+func (*App) JSON(_ string) map[string]interface{} { return nil }
 
-// Primary implements the database.Model interface.
-func (a *App) Primary() (string, int64) { return "id", a.ID }
-
-// IsZero implements the database.Model interface.
-func (a *App) IsZero() bool {
-	return a == nil || a.ID == 0 &&
-		a.UserID == 0 &&
-		len(a.ClientID) == 0 &&
-		len(a.ClientSecret) == 0 &&
-		a.Name == "" &&
-		a.Description == "" &&
-		a.HomeURI == "" &&
-		a.RedirectURI == ""
-}
-
-// JSON implements the database.Model interface. This is a stub method and
-// returns an empty map.
-func (*App) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
-
-// Endpoint returns the endpoint for the current App, and appends any of the
-// given uri parts to the returned endpoint.
 func (a *App) Endpoint(uri ...string) string {
 	if len(uri) > 0 {
 		return "/settings/apps/" + a.ClientID + "/" + strings.Join(uri, "/")
@@ -139,11 +62,9 @@ func (a *App) Endpoint(uri ...string) string {
 	return "/settings/apps/" + a.ClientID
 }
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, client_id, client_secret, name, description,
-// home_uri and redirect_uri.
 func (a *App) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"id":            a.ID,
 		"user_id":       a.UserID,
 		"client_id":     a.ClientID,
 		"client_secret": a.ClientSecret,
@@ -151,73 +72,97 @@ func (a *App) Values() map[string]interface{} {
 		"description":   a.Description,
 		"home_uri":      a.HomeURI,
 		"redirect_uri":  a.RedirectURI,
+		"created_at":    a.CreatedAt,
 	}
 }
 
-// New returns a new App binding any non-nil models to it from the current
-// AppStore.
-func (s *AppStore) New() *App {
-	a := &App{
-		User: s.User,
-	}
+type AppStore struct {
+	database.Pool
 
-	if s.User != nil {
-		a.UserID = s.User.ID
-	}
-	return a
+	AESGCM *crypto.AESGCM
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to a user.User model.
-func (s *AppStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
-		}
+var (
+	_ database.Loader = (*AppStore)(nil)
+
+	appTable = "oauth_apps"
+
+	ErrAuth = errors.New("authentication failed")
+)
+
+// generateSecret generates and encryptes a random 32 byte secret.
+func (s *AppStore) generateSecret() ([]byte, error) {
+	if s.AESGCM == nil {
+		return nil, crypto.ErrNilAESGCM
 	}
+
+	secret := make([]byte, 32)
+
+	if _, err := rand.Read(secret); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	b, err := s.AESGCM.Encrypt(secret)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return b, nil
 }
 
-// Create creates a new app with the given name and description, and homepage
-// and redirect URIs. This will generate a random ID for the newly created App,
-// and secret.
-func (s *AppStore) Create(name, description, homepage, redirect string) (*App, error) {
-	if s.crypto == nil {
-		return nil, errors.New("nil block cipher")
-	}
+type AppParams struct {
+	UserID      int64
+	Name        string
+	Description string
+	HomeURI     string
+	RedirectURI string
+}
 
-	secret, err := generateSecret(s.crypto.Encrypt)
+func (s *AppStore) Create(p AppParams) (*App, error) {
+	secret, err := s.generateSecret()
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	clientId := make([]byte, 16)
+	b := make([]byte, 16)
 
-	if _, err := rand.Read(clientId); err != nil {
+	if _, err := rand.Read(b); err != nil {
 		return nil, errors.Err(err)
 	}
 
-	a := s.New()
-	a.ClientID = hex.EncodeToString(clientId)
-	a.ClientSecret = secret
-	a.Name = name
-	a.Description = description
-	a.HomeURI = homepage
-	a.RedirectURI = redirect
+	clientId := hex.EncodeToString(b)
 
-	err = s.Store.Create(appTable, a)
-	return a, errors.Err(err)
-}
+	now := time.Now()
 
-// Reset generates a new secret for the App of the given id, and updates it in
-// the database. This will error if the underlying crypto.AESGCM is not set.
-func (s *AppStore) Reset(id int64) error {
-	if s.crypto == nil {
-		return errors.New("nil block cipher")
+	q := query.Insert(
+		appTable,
+		query.Columns("user_id", "client_id", "client_secret", "name", "description", "home_uri", "redirect_uri", "created_at"),
+		query.Values(p.UserID, clientId, secret, p.Name, p.Description, p.HomeURI, p.RedirectURI, now),
+		query.Returning("id"),
+	)
+
+	var id int64
+
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+		return nil, errors.Err(err)
 	}
 
-	secret, err := generateSecret(s.crypto.Encrypt)
+	return &App{
+		ID:           id,
+		UserID:       p.UserID,
+		ClientID:     clientId,
+		ClientSecret: secret,
+		Name:         p.Name,
+		Description:  p.Description,
+		HomeURI:      p.HomeURI,
+		RedirectURI:  p.RedirectURI,
+		CreatedAt:    now,
+	}, nil
+}
+
+func (s *AppStore) Reset(id int64) error {
+	secret, err := s.generateSecret()
 
 	if err != nil {
 		return errors.Err(err)
@@ -229,98 +174,92 @@ func (s *AppStore) Reset(id int64) error {
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Update updates the App of the given id, and updates the name, description,
-// homepage, and redirect properties in the database to what is given.
-func (s *AppStore) Update(id int64, name, description, homepage, redirect string) error {
+func (s *AppStore) Update(id int64, p AppParams) error {
 	q := query.Update(
 		appTable,
-		query.Set("name", query.Arg(name)),
-		query.Set("description", query.Arg(description)),
-		query.Set("home_uri", query.Arg(homepage)),
-		query.Set("redirect_uri", query.Arg(redirect)),
+		query.Set("name", query.Arg(p.Name)),
+		query.Set("description", query.Arg(p.Description)),
+		query.Set("home_uri", query.Arg(p.HomeURI)),
+		query.Set("redirect_uri", query.Arg(p.RedirectURI)),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Delete delets the Apps of the given ids from the database.
-func (s *AppStore) Delete(ids ...int64) error {
-	vals := make([]interface{}, 0, len(ids))
+func (s *AppStore) Delete(id int64) error {
+	q := query.Delete(appTable, query.Where("id", "=", query.Arg(id)))
 
-	for _, id := range ids {
-		vals = append(vals, id)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *AppStore) Get(opts ...query.Option) (*App, bool, error) {
+	var a App
+
+	ok, err := s.Pool.Get(appTable, &a, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
 	}
 
-	q := query.Delete(appTable, query.Where("id", "IN", query.List(vals...)))
-
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if !ok {
+		return nil, false, nil
+	}
+	return &a, ok, nil
 }
 
-// All returns a slice of App models, applying each query.Option that is
-// given. The database.Where option is applied to the bound User database.
 func (s *AppStore) All(opts ...query.Option) ([]*App, error) {
 	aa := make([]*App, 0)
 
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-	}, opts...)
-
-	err := s.Store.All(&aa, appTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		a := &App{}
+		aa = append(aa, a)
+		return a
 	}
 
-	for _, a := range aa {
-		a.User = s.User
+	if err := s.Pool.All(appTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return aa, errors.Err(err)
+	return aa, nil
 }
 
-// Get returns a single App database, applying each query.Option that is given.
-// The database.Where option is applied to the bound User database.
-func (s *AppStore) Get(opts ...query.Option) (*App, error) {
-	a := &App{
-		User: s.User,
-	}
-
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-	}, opts...)
-
-	err := s.Store.Get(a, appTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return a, errors.Err(err)
-}
-
-// Auth finds the App database for the given client ID and checks that the given
-// client secret matches what is in the database. If it matches, then the App
-// database is returned. If authentication fails then ErrAuth is returned, if any
-// other errors occur then they are wrapped via errors.Err.
+// Auth attempts to authenticate the OAuth app for the given client ID using
+// the secret. If it matches, then the App is returned. If authentication
+// fails, then ErrAuth is returned.
 func (s *AppStore) Auth(id, secret string) (*App, error) {
+	if s.AESGCM == nil {
+		return nil, crypto.ErrNilAESGCM
+	}
+
 	realSecret, err := hex.DecodeString(secret)
 
 	if err != nil {
 		return nil, ErrAuth
 	}
 
-	a, err := s.Get(query.Where("client_id", "=", query.Arg(id)))
+	a, ok, err := s.Get(query.Where("client_id", "=", query.Arg(id)))
 
 	if err != nil {
-		return a, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	dec, err := s.crypto.Decrypt(a.ClientSecret)
+	if !ok {
+		return nil, database.ErrNotFound
+	}
+
+	dec, err := s.AESGCM.Decrypt(a.ClientSecret)
 
 	if err != nil {
 		return a, errors.Err(err)
@@ -330,4 +269,21 @@ func (s *AppStore) Auth(id, secret string) (*App, error) {
 		return a, ErrAuth
 	}
 	return a, nil
+}
+
+func (s *AppStore) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
+
+	aa, err := s.All(query.Where(pk, "IN", database.List(vals...)))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, a := range aa {
+		for _, m := range mm {
+			m.Bind(a)
+		}
+	}
+	return nil
 }

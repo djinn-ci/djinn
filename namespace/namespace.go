@@ -1,12 +1,8 @@
-// Package namespace provides database implementations for the Namespace entity
-// and its related entities.
 package namespace
 
 import (
-	"context"
 	"database/sql"
 	"net/url"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -19,268 +15,170 @@ import (
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
-// Namespace is the type that represents a namespace in the system for grouping
-// related resources together.
 type Namespace struct {
-	ID          int64         `db:"id"`
-	UserID      int64         `db:"user_id"`
-	RootID      sql.NullInt64 `db:"root_id"`
-	ParentID    sql.NullInt64 `db:"parent_id"`
-	Name        string        `db:"name"`
-	Path        string        `db:"path"`
-	Description string        `db:"description"`
-	Level       int64         `db:"level"`
-	Visibility  Visibility    `db:"visibility"`
-	CreatedAt   time.Time     `db:"created_at"`
+	ID          int64
+	UserID      int64
+	RootID      sql.NullInt64
+	ParentID    sql.NullInt64
+	Name        string
+	Path        string
+	Description string
+	Level       int64
+	Visibility  Visibility
+	CreatedAt   time.Time
 
-	User          *user.User         `db:"-"`
-	Parent        *Namespace         `db:"-"`
-	Build         database.Model     `db:"-"`
-	Collaborators map[int64]struct{} `db:"-"`
+	User   *user.User
+	Parent *Namespace
+	Build  database.Model
+
+	collabtab map[int64]struct{}
 }
 
-type Event struct {
-	dis event.Dispatcher
+var _ database.Model = (*Namespace)(nil)
 
-	Namespace *Namespace
-	Action    string
-}
-
-func InitEvent(dis event.Dispatcher) queue.InitFunc {
-	return func(j queue.Job) {
-		if ev, ok := j.(*Event); ok {
-			ev.dis = dis
-		}
+func Relations(db database.Pool) []database.RelationFunc {
+	return []database.RelationFunc{
+		database.Relation("user_id", "id", user.Store{Pool: db}),
 	}
 }
 
-// Resource is the type that represents a model that can exist within a
-// Namespace, such as an object, image, variable, or key.
-type Resource struct {
-	Owner  *user.User `schema:"-"` // Owner is who the resource belongs to once authored
-	Author *user.User `schema:"-"` // Author is the original author of the resource
+func ResourceRelations(db database.Pool) []database.RelationFunc {
+	users := user.Store{Pool: db}
 
-	Namespaces *Store `schema:"-"`
-	Namespace  string `schema:"namespace"`
-}
-
-// Store is the type for creating and modifying Namespace models in the
-// database.
-type Store struct {
-	database.Store
-
-	// User is the bound User model. If not nil this will bind the User model to
-	// any Namespace models that are created.
-	User *user.User
-
-	// Namespace is the bound Namespace model. If not nil this will bind the
-	// Namespace model to any Build models that are created. If not nil this
-	// will append a WHERE clause on the parent_id column for all SELECT
-	// queries performed.
-	Namespace *Namespace
-}
-
-var (
-	_ database.Model  = (*Namespace)(nil)
-	_ database.Loader = (*Store)(nil)
-	_ database.Binder = (*Store)(nil)
-
-	_ queue.Job = (*Event)(nil)
-
-	table  = "namespaces"
-	rename = regexp.MustCompile("^[a-zA-Z0-9]+$")
-
-	MaxDepth      int64 = 20
-	ErrOwner            = errors.New("invalid namespace owner")
-	ErrDepth            = errors.New("namespace cannot exceed depth of 20")
-	ErrName             = errors.New("namespace name can only contain letters and numbers")
-	ErrPermission       = errors.New("namespace permissions invalid")
-	ErrDeleteSelf       = errors.New("cannot delete self from namespace")
-)
-
-// NewStore returns a new Store for querying the namespaces table. Each database
-// passed to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
-	s := &Store{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// FromContext returns the Namespace model from the given context, if any.
-func FromContext(ctx context.Context) (*Namespace, bool) {
-	n, ok := ctx.Value("namespace").(*Namespace)
-	return n, ok
-}
-
-// Model is called along with database.ModelSlice to convert the given slice of
-// Namespace models to a slice of database.Model interfaces.
-func Model(nn []*Namespace) func(int) database.Model {
-	return func(i int) database.Model {
-		return nn[i]
+	return []database.RelationFunc{
+		database.Relation("user_id", "id", users),
+		database.Relation("author_id", "id", users),
 	}
 }
 
-// SelectRootId returns query.Query that will return the root_id of the
-// Namespace by the given id.
-func SelectRootID(id int64) query.Query {
-	return query.Select(
-		query.Columns("root_id"),
-		query.From(table),
-		query.Where("id", "=", query.Arg(id)),
-	)
-}
+// Load the namespace and owner to the given models if they belong to a
+// namespace.
+func Load(db database.Pool, mm ...database.Model) error {
+	vals := database.Values("namespace_id", mm)
 
-// SharedWith expects the given database.Model to be of *user.User. This will
-// apply two WHERE clauses to the query, that will check if the given User
-// database either owns the Namespace, or is a collaborator for the Namespace. If
-// the given database.Model is not of *user.User, then the WHERE clauses are not
-// applied.
-func SharedWith(u *user.User) query.Option {
-	return func(q query.Query) query.Query {
-		if u == nil {
-			return q
-		}
+	namespaces := Store{Pool: db}
 
-		return query.Options(
-			query.Where("user_id", "=", query.Arg(u.ID)),
-			query.OrWhere("root_id", "IN",
-				query.Select(
-					query.Columns("namespace_id"),
-					query.From(collaboratorTable),
-					query.Where("user_id", "=", query.Arg(u.ID)),
-				),
-			),
-		)(q)
-	}
-}
-
-func (e *Event) Name() string { return "event:" + event.Namespaces.String() }
-
-func (e *Event) Perform() error {
-	if e.dis == nil {
-		return event.ErrNilDispatcher
-	}
-
-	payload := map[string]interface{}{
-		"namespace": e.Namespace.JSON(env.DJINN_API_SERVER),
-		"action":    e.Action,
-	}
-
-	namespaceId := sql.NullInt64{
-		Int64: e.Namespace.ID,
-		Valid: true,
-	}
-	return errors.Err(e.dis.Dispatch(event.New(namespaceId, event.Namespaces, payload)))
-}
-
-// Resolve will get the namespace and namespace owner for the current resource.
-// This will bind the namespace and namespace owner to the given
-// database.Binder. If the resource author cannot add the resource to the
-// namespace, then this return ErrPermission.
-func (r *Resource) Resolve(b database.Binder) error {
-	if r.Namespace == "" {
-		r.Owner = r.Author
-		return nil
-	}
-
-	n, err := r.Namespaces.GetByPath(r.Namespace)
+	nn, err := namespaces.All(query.Where("id", "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if n.Collaborators != nil {
-		if !n.CanAdd(r.Author) {
-			return ErrPermission
-		}
+	mm2 := make([]database.Model, 0, len(nn))
+
+	for _, n := range nn {
+		mm2 = append(mm2, n)
 	}
 
-	r.Owner = n.User
-	b.Bind(n, n.User)
+	rel := database.Relation("user_id", "id", user.Store{Pool: db})
+
+	if err := database.LoadRelations(mm2, rel); err != nil {
+		return errors.Err(err)
+	}
+
+	database.Bind("namespace_id", "id", mm2, mm)
 	return nil
 }
 
-// AccessibleBy assumes that the given database.Model is of type *user.User, and
-// checks that the given database.Model has access to the current Namespace,
-// depending on the Namespace's visibility. If the Namespace visibility is
-// Public, then this method will return true. If the Namespace visibility is
-// Private, then it will return true if the given database.Model is not zero. If
-// the visibility is Private, then it will check to see if the primary key of
-// the database.Model exists in the Namespace collaborators (this assumes the
-// collaborators have been previously loaded into the Namespace). If the given
-// database.Model is not of type *user.User then this method returns false.
-func (n *Namespace) AccessibleBy(m database.Model) bool {
-	if _, ok := m.(*user.User); !ok {
-		return false
+func LoadRelations(db database.Pool, nn ...*Namespace) error {
+	mm := make([]database.Model, 0, len(nn))
+
+	for _, n := range nn {
+		mm = append(mm, n)
 	}
 
-	_, id := m.Primary()
+	if err := database.LoadRelations(mm, Relations(db)...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
 
+// loadCollaborators loads the collaborators for the root of the namespace.
+func (n *Namespace) loadCollaborators(db database.Pool) error {
+	if n.collabtab != nil {
+		return nil
+	}
+
+	q := query.Select(
+		query.Columns("user_id"),
+		query.From(collaboratorTable),
+		query.Where("namespace_id", "=", query.Arg(n.RootID)),
+	)
+
+	rows, err := db.Query(q.Build(), q.Args()...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	n.collabtab = make(map[int64]struct{})
+
+	var id int64
+
+	for rows.Next() {
+		if err := rows.Scan(&id); err != nil {
+			return errors.Err(err)
+		}
+		n.collabtab[id] = struct{}{}
+	}
+	return nil
+}
+
+// IsCollaborator checks to see if the user is a collaborator in the current
+// namespace. This returns ErrPermission if the user is not a collaborator
+// or the namespace owner.
+func (n *Namespace) IsCollaborator(db database.Pool, userId int64) error {
+	if err := n.loadCollaborators(db); err != nil {
+		return errors.Err(err)
+	}
+
+	if _, ok := n.collabtab[userId]; !ok {
+		if n.UserID != userId {
+			return ErrPermission
+		}
+	}
+	return nil
+}
+
+// HasAccess checks to see if a user can access the current namespace. This
+// will return ErrPermission if the user cannot access the namespace. A
+// namespace can be accessed if,
+//
+// - It is public
+// - It is internal, and the user is logged in
+// - It is private, and the user is a collaborator in that namespace
+func (n *Namespace) HasAccess(db database.Pool, userId int64) error {
 	switch n.Visibility {
 	case Public:
-		return true
+		return nil
 	case Internal:
-		return !m.IsZero()
-	case Private:
-		_, ok := n.Collaborators[id]
-
-		if !ok {
-			ok = n.UserID == id
+		if userId > 0 {
+			return nil
 		}
-		return ok
+		return ErrPermission
+	case Private:
+		if err := n.loadCollaborators(db); err != nil {
+			return errors.Err(err)
+		}
+
+		if _, ok := n.collabtab[userId]; !ok {
+			if n.UserID != userId {
+				return ErrPermission
+			}
+		}
+		return nil
 	default:
-		return false
+		return ErrPermission
 	}
 }
 
-// CanAdd assumes that the given database.Model is of type *user.User, and checks
-// to see if that User either owns the Namespace, or is a Collaborator in that
-// Namespace. This assumes that the collaborators have been previously loaded
-// into the Namespace.
-func (n *Namespace) CanAdd(m database.Model) bool {
-	if m.IsZero() {
-		return false
-	}
-
-	if _, ok := m.(*user.User); !ok {
-		return false
-	}
-
-	_, id := m.Primary()
-	_, ok := n.Collaborators[id]
-
-	if !ok {
-		ok = n.UserID == id
-	}
-	return ok
-}
-
-// IsZero implements the database.Model interface.
-func (n *Namespace) IsZero() bool {
-	return n == nil || n.ID == 0 &&
-		n.UserID == 0 &&
-		!n.ParentID.Valid &&
-		n.Name == "" &&
-		n.Path == "" &&
-		n.Description == "" &&
-		n.Level == 0 &&
-		n.Visibility == Visibility(0) &&
-		n.CreatedAt == time.Time{}
-}
-
-// JSON implements the database.Model interface. This will return a map with
-// the current Namespace values under each key. This will also include urls to
-// the Namespace's builds, namespaces, images, objects, variables, keys, and
-// collaborators. I any of the User, Parent, or Build models exist on the
-// Namespace then the JSON representation of these models will be in the
-// returned map, under the user, parent, and build keys respectively.
 func (n *Namespace) JSON(addr string) map[string]interface{} {
+	if n == nil {
+		return nil
+	}
+
 	json := map[string]interface{}{
 		"id":                n.ID,
 		"user_id":           n.UserID,
@@ -303,63 +201,56 @@ func (n *Namespace) JSON(addr string) map[string]interface{} {
 		"webhooks_url":      addr + n.Endpoint("webhooks"),
 	}
 
-	if n.ParentID.Valid {
-		json["parent_id"] = n.ParentID.Int64
+	if n.User != nil {
+		json["user"] = n.User.JSON(addr)
 	}
 
-	for name, m := range map[string]database.Model{
-		"user":   n.User,
-		"parent": n.Parent,
-		"build":  n.Build,
-	} {
-		if m != nil && !m.IsZero() {
-			json[name] = m.JSON(addr)
+	if n.Build != nil {
+		if v := n.Build.JSON(addr); v != nil {
+			json["build"] = v
+		}
+	}
+
+	if n.ParentID.Valid {
+		json["parent_id"] = n.ParentID.Int64
+
+		if n.Parent != nil {
+			json["parent"] = n.Parent.JSON(addr)
 		}
 	}
 	return json
 }
 
-// LoadCollaborators takes the given slice of Collaborator models and adds them
-// to the Collaborators map on the current Namespace, if the Namespace ID for
-// the Collaborator matches the current Namespace ID.
-func (n *Namespace) LoadCollaborators(cc []*Collaborator) {
-	if n.Collaborators == nil {
-		n.Collaborators = make(map[int64]struct{})
-	}
-
-	for _, c := range cc {
-		if c.NamespaceID != n.ID {
-			continue
-		}
-		n.Collaborators[c.UserID] = struct{}{}
+func (n *Namespace) Dest() []interface{} {
+	return []interface{}{
+		&n.ID,
+		&n.UserID,
+		&n.RootID,
+		&n.ParentID,
+		&n.Name,
+		&n.Path,
+		&n.Description,
+		&n.Level,
+		&n.Visibility,
+		&n.CreatedAt,
 	}
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if they are pointers to either user.User, or namespace.Namespace models.
-func (n *Namespace) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
+func (n *Namespace) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *user.User:
+		if n.UserID == v.ID {
 			n.User = v
-		case *Namespace:
+		}
+	case *Namespace:
+		if n.ID == v.ParentID.Int64 {
 			n.Parent = v
 		}
 	}
 }
 
-// SetPrimary implements the database.Model interface.
-func (n *Namespace) SetPrimary(id int64) { n.ID = id }
-
-// Primary implements the database.Model interface.
-func (n *Namespace) Primary() (string, int64) { return "id", n.ID }
-
-// Endpoint returns the endpoint for the current Namespace, appending the given
-// variadic URIs. The Namespace endpoint will contain the username of the bound
-// User database. If there is no bound User database, or the database IsZero, then an
-// empty string is returned.
 func (n *Namespace) Endpoint(uri ...string) string {
-	if n.User == nil || n.User.IsZero() {
+	if n.User == nil {
 		return ""
 	}
 
@@ -369,14 +260,9 @@ func (n *Namespace) Endpoint(uri ...string) string {
 	return "/n/" + n.User.Username + "/" + n.Path
 }
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, root_id, parent_id, name, path, description,
-// level, and visibility.
 func (n *Namespace) Values() map[string]interface{} {
-	if n == nil {
-		return map[string]interface{}{}
-	}
 	return map[string]interface{}{
+		"id":          n.ID,
 		"user_id":     n.UserID,
 		"root_id":     n.RootID,
 		"parent_id":   n.ParentID,
@@ -385,147 +271,189 @@ func (n *Namespace) Values() map[string]interface{} {
 		"description": n.Description,
 		"level":       n.Level,
 		"visibility":  n.Visibility,
+		"created_at":  n.CreatedAt,
 	}
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if they are pointers to either user.User, or namespace.Namespace models.
-func (s *Store) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
-		case *Namespace:
-			s.Namespace = v
+type Event struct {
+	dis event.Dispatcher
+
+	Namespace *Namespace
+	Action    string
+}
+
+var _ queue.Job = (*Event)(nil)
+
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
 		}
 	}
 }
 
-func (s *Store) getFromOwnerPath(path *string) (*Namespace, error) {
-	u := s.User
+func (e *Event) Name() string { return "event:" + event.Namespaces.String() }
 
-	namespaces := NewStore(s.DB)
-
-	if strings.Contains((*path), "@") {
-		var err error
-
-		parts := strings.Split((*path), "@")
-		(*path) = parts[0]
-
-		u, err = user.NewStore(s.DB).Get(
-			query.Where("username", "=", query.Arg(parts[1])),
-			query.Where("deleted_at", "IS", query.Lit("NULL")),
-		)
-
-		if err != nil {
-			return nil, errors.Err(err)
-		}
-
-		if u.IsZero() {
-			return nil, ErrOwner
-		}
+func (e *Event) Perform() error {
+	if e.dis == nil {
+		return event.ErrNilDispatcher
 	}
 
-	n, err := namespaces.Get(database.Where(u, "user_id"), query.Where("path", "=", query.Arg(path)))
-
-	if err != nil {
-		return n, errors.Err(err)
+	namespaceId := sql.NullInt64{
+		Int64: e.Namespace.ID,
+		Valid: true,
 	}
 
-	if n.IsZero() {
-		if !s.User.IsZero() {
-			// Attempt was made to lookup a non-existent namespace for a user
-			// other than the current one, return ErrPermission.
-			if u.ID != s.User.ID {
-				return nil, ErrPermission
-			}
-		}
-		return n, nil
+	ev := event.New(namespaceId, event.Namespaces, map[string]interface{}{
+		"namespace": e.Namespace.JSON(env.DJINN_API_SERVER),
+		"action":    e.Action,
+	})
+
+	if err := e.dis.Dispatch(ev); err != nil {
+		return errors.Err(err)
 	}
-
-	cc, err := NewCollaboratorStore(s.DB, n).All()
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	n.LoadCollaborators(cc)
-
-	if !n.CanAdd(s.User) {
-		return nil, ErrPermission
-	}
-
-	n.User = u
-	s.User = u
-	return n, nil
+	return nil
 }
 
-// Create creates a new namespace under the given parent, with the given name,
-// description, and visibility. The parent and description variables can be
-// empty.
-func (s *Store) Create(parent, name, description string, visibility Visibility) (*Namespace, error) {
-	p, err := s.Get(
-		database.Where(s.User, "user_id"),
-		query.Where("path", "=", query.Arg(parent)),
+type Store struct {
+	database.Pool
+}
+
+var (
+	_ database.Loader = (*Store)(nil)
+
+	table = "namespaces"
+
+	MaxDepth int64 = 20
+
+	ErrOwner      = errors.New("invalid namespace owner")
+	ErrDepth      = errors.New("namespace cannot exceed depth of 20")
+	ErrName       = errors.New("namespace name can only contain letters and numbers")
+	ErrPermission = errors.New("namespace permissions invalid")
+	ErrDeleteSelf = errors.New("cannot delete self from namespace")
+)
+
+// SelectRootId returns query.Query that will return the root_id of the
+// Namespace by the given id.
+func SelectRootID(id int64) query.Query {
+	return query.Select(
+		query.Columns("root_id"),
+		query.From(table),
+		query.Where("id", "=", query.Arg(id)),
+	)
+}
+
+func SharedWith(userId int64) query.Option {
+	return func(q query.Query) query.Query {
+		return query.Options(
+			query.Where("user_id", "=", query.Arg(userId)),
+			query.OrWhere("root_id", "IN",
+				query.Select(
+					query.Columns("namespace_id"),
+					query.From(collaboratorTable),
+					query.Where("user_id", "=", query.Arg(userId)),
+				),
+			),
+		)(q)
+	}
+}
+
+type Params struct {
+	UserID      int64
+	Parent      string
+	Name        string
+	Description string
+	Visibility  Visibility
+}
+
+func (s Store) Create(p Params) (*Namespace, error) {
+	parent, ok, err := s.Get(
+		query.Where("user_id", "=", query.Arg(p.UserID)),
+		query.Where("path", "=", query.Arg(p.Parent)),
 	)
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	if p.IsZero() && parent != "" {
+	if !ok && p.Parent != "" {
 		return nil, database.ErrNotFound
 	}
 
-	n := s.New()
-	n.Name = name
-	n.Path = name
-	n.Description = description
-	n.Visibility = visibility
-	n.CreatedAt = time.Now()
+	var (
+		rootId   sql.NullInt64
+		parentId sql.NullInt64
+		level    int64
+	)
 
-	if !p.IsZero() {
-		n.RootID = p.RootID
-		n.ParentID = sql.NullInt64{
-			Int64: p.ID,
+	path := p.Name
+
+	if ok {
+		rootId = parent.RootID
+		parentId = sql.NullInt64{
+			Int64: parent.ID,
 			Valid: true,
 		}
-		n.Path = strings.Join([]string{p.Path, name}, "/")
-		n.Level = p.Level + 1
-		n.Visibility = p.Visibility
-		n.Parent = p
+
+		level = parent.Level + 1
+		path = strings.Join([]string{parent.Path, p.Name}, "/")
+
+		p.Visibility = parent.Visibility
 	}
 
-	if n.Level >= MaxDepth {
+	if level >= MaxDepth {
 		return nil, ErrDepth
 	}
 
-	if err := s.Store.Create(table, n); err != nil {
+	now := time.Now()
+
+	q := query.Insert(
+		table,
+		query.Columns("user_id", "root_id", "parent_id", "name", "path", "description", "level", "visibility", "created_at"),
+		query.Values(p.UserID, rootId, parentId, p.Name, path, p.Description, level, p.Visibility, now),
+		query.Returning("id"),
+	)
+
+	var id int64
+
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
 		return nil, errors.Err(err)
 	}
 
-	if p.IsZero() {
-		n.RootID = sql.NullInt64{
-			Int64: n.ID,
+	if !ok {
+		rootId = sql.NullInt64{
+			Int64: id,
 			Valid: true,
 		}
 
-		q := query.Update(
+		q = query.Update(
 			table,
-			query.Set("root_id", query.Arg(n.RootID)),
-			query.Where("id", "=", query.Arg(n.ID)),
+			query.Set("root_id", query.Arg(rootId)),
+			query.Where("id", "=", query.Arg(id)),
 		)
-		_, err := s.DB.Exec(q.Build(), q.Args()...)
-		return n, errors.Err(err)
+
+		if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+			return nil, errors.Err(err)
+		}
 	}
-	return n, nil
+
+	return &Namespace{
+		ID:          id,
+		UserID:      p.UserID,
+		RootID:      rootId,
+		ParentID:    parentId,
+		Name:        p.Name,
+		Path:        path,
+		Description: p.Description,
+		Level:       level,
+		Visibility:  p.Visibility,
+		CreatedAt:   now,
+		Parent:      parent,
+	}, nil
 }
 
-// Update updates the namespace of the given id with the given name, description
-// and visibility. If the namespace is a root namespace, then the new visibility
-// is applied to all children.
-func (s *Store) Update(id int64, description string, visibility Visibility) error {
-	parent, err := s.Get(
+func (s Store) Update(id int64, p Params) error {
+	parent, ok, err := s.Get(
 		query.Where("id", "=", query.Select(
 			query.Columns("parent_id"),
 			query.From(table),
@@ -537,108 +465,89 @@ func (s *Store) Update(id int64, description string, visibility Visibility) erro
 		return errors.Err(err)
 	}
 
-	if !parent.IsZero() {
-		visibility = parent.Visibility
-	} else {
+	if ok {
+		p.Visibility = parent.Visibility
+	}
+
+	if !ok {
 		q := query.Update(
 			table,
-			query.Set("visibility", query.Arg(visibility)),
+			query.Set("visibility", query.Arg(p.Visibility)),
 			query.Where("root_id", "=", query.Arg(id)),
 		)
 
-		if _, err = s.DB.Exec(q.Build(), q.Args()...); err != nil {
+		if _, err = s.Exec(q.Build(), q.Args()...); err != nil {
 			return errors.Err(err)
 		}
 	}
 
 	q := query.Update(
 		table,
-		query.Set("description", query.Arg(description)),
-		query.Set("visibility", query.Arg(visibility)),
+		query.Set("description", query.Arg(p.Description)),
+		query.Set("visibility", query.Arg(p.Visibility)),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err = s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Delete deletes the namespace of the given id, and all of their children.
-func (s *Store) Delete(ids ...int64) error {
-	vals := make([]interface{}, 0, len(ids))
-
-	for _, id := range ids {
-		vals = append(vals, id)
-	}
-
+func (s Store) Delete(id int64) error {
 	q := query.Delete(
 		table,
-		query.Where("id", "IN", query.List(vals...)),
-		query.OrWhere("root_id", "IN", query.List(vals...)),
-		query.OrWhere("parent_id", "IN", query.List(vals...)),
+		query.Where("id", "=", query.Arg(id)),
+		query.OrWhere("root_id", "=", query.Arg(id)),
+		query.OrWhere("parent_id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Paginate returns the database.Paginator for the namespaces table for the given
-// page. This applies the SharedWith option on the bound User database, and the
-// database.Where option to the bound Namespace database on the "parent_id".
-func (s Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Store.Paginate(table, page, 25, opts...)
-	return paginator, errors.Err(err)
+func (s Store) Get(opts ...query.Option) (*Namespace, bool, error) {
+	var n Namespace
+
+	ok, err := s.Pool.Get(table, &n, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &n, ok, nil
 }
 
-// New returns a new Namespace binding any non-nil models to it from the current
-// Store.
-func (s *Store) New() *Namespace {
-	n := &Namespace{
-		User:   s.User,
-		Parent: s.Namespace,
-	}
-
-	if s.User != nil {
-		n.UserID = s.User.ID
-	}
-
-	if s.Namespace != nil {
-		n.ParentID = sql.NullInt64{
-			Int64: s.Namespace.ID,
-			Valid: true,
-		}
-	}
-	return n
-}
-
-// All returns a slice of Namespace models, applying each query.Option that is
-// given. The SharedWith option is applied to the bound User database, and the
-// database.Where option to the bound Namespace database on the "parent_id".
-func (s *Store) All(opts ...query.Option) ([]*Namespace, error) {
+func (s Store) All(opts ...query.Option) ([]*Namespace, error) {
 	nn := make([]*Namespace, 0)
 
-	opts = append([]query.Option{
-		SharedWith(s.User),
-		database.Where(s.Namespace, "parent_id"),
-	}, opts...)
-
-	err := s.Store.All(&nn, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		n := &Namespace{}
+		nn = append(nn, n)
+		return n
 	}
 
-	for _, n := range nn {
-		n.User = s.User
+	if err := s.Pool.All(table, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return nn, errors.Err(err)
+	return nn, nil
 }
 
-// Index returns the paginated results from the namespaces table depending on
-// the values that are present in url.Values. Detailed below are the values
-// that are used from the given url.Values,
-//
-// path - This applies the database.Search query.Option using the value os path
-func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, database.Paginator, error) {
+func (s Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
+	paginator, err := s.Pool.Paginate(table, page, limit, opts...)
+
+	if err != nil {
+		return paginator, errors.Err(err)
+	}
+	return paginator, nil
+}
+
+func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, database.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
 	if err != nil {
@@ -649,10 +558,10 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, data
 		database.Search("path", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, opts...)
+	paginator, err := s.Paginate(page, database.PageLimit, opts...)
 
 	if err != nil {
-		return []*Namespace{}, paginator, errors.Err(err)
+		return nil, paginator, errors.Err(err)
 	}
 
 	nn, err := s.All(append(
@@ -661,119 +570,28 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, data
 		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)...)
-	return nn, paginator, errors.Err(err)
-}
-
-// Get returns a single Namespace database, applying each query.Option that is
-// given. The SharedWith option is applied to the bound User database, and the
-// database.Where option to the bound Namespace database on the "parent_id".
-func (s *Store) Get(opts ...query.Option) (*Namespace, error) {
-	n := &Namespace{
-		User:   s.User,
-		Parent: s.Namespace,
-	}
-
-	opts = append([]query.Option{
-		database.Where(s.Namespace, "parent_id"),
-	}, opts...)
-
-	err := s.Store.Get(n, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return n, errors.Err(err)
-}
-
-// GetByPath returns a Namespace by the given path. If it does not exist then
-// it will be created, including all grandparents up to the maximum possible
-// depth for a Namespace. If any invalid names for a Namespace appear in the
-// path, then the child Namespaces will not be created beyong that point. If
-// a '@' is present in the given path, then the Namespace for that given user
-// will be returned if it exists, if not then nothing will be returned and a
-// Namespace will not be created.
-func (s *Store) GetByPath(path string) (*Namespace, error) {
-	n, err := s.getFromOwnerPath(&path)
 
 	if err != nil {
-		return nil, errors.Err(err)
+		return nil, paginator, errors.Err(err)
 	}
-
-	if !n.IsZero() {
-		return n, nil
-	}
-
-	p := &Namespace{}
-
-	parts := strings.Split(path, "/")
-
-	for i, name := range parts {
-		if p.Level+1 > MaxDepth {
-			break
-		}
-
-		if !rename.Match([]byte(name)) {
-			if i == 0 && len(parts) == 1 {
-				return n, ErrName
-			}
-			break
-		}
-
-		n = s.New()
-		n.Name = name
-		n.Path = name
-		n.Level = p.Level + 1
-		n.Visibility = Private
-
-		if !p.IsZero() {
-			n.RootID = p.RootID
-			n.ParentID = sql.NullInt64{
-				Int64: p.ID,
-				Valid: true,
-			}
-			n.Path = strings.Join([]string{p.Path, n.Name}, "/")
-		}
-
-		if err := s.Store.Create(table, n); err != nil {
-			return n, errors.Err(err)
-		}
-
-		if p.IsZero() {
-			n.RootID = sql.NullInt64{
-				Int64: n.ID,
-				Valid: true,
-			}
-
-			q := query.Update(
-				table,
-				query.Set("root_id", query.Arg(n.RootID)),
-				query.Where("id", "=", query.Arg(n.ID)),
-			)
-
-			if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
-				return n, errors.Err(err)
-			}
-		}
-		p = n
-	}
-	return n, nil
+	return nn, paginator, nil
 }
 
-// Load loads in a slice of Namespace models where the given key is in the list
-// of given vals. Each model is loaded individually via a call to the given
-// load callback. This method calls Store.All under the hood, so any
-// bound models will impact the models being loaded.
-func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	nn, err := s.All(query.Where(key, "IN", database.List(vals...)))
+func (s Store) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
+
+	nn, err := s.All(query.Where(pk, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	for i := range vals {
-		for _, n := range nn {
-			load(i, n)
-		}
+	loaded := make([]database.Model, 0, len(nn))
+
+	for _, n := range nn {
+		loaded = append(loaded, n)
 	}
+
+	database.Bind(fk, pk, loaded, mm)
 	return nil
 }

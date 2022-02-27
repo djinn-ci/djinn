@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"strings"
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/config"
@@ -17,73 +16,27 @@ import (
 	"djinn-ci.com/errors"
 	"djinn-ci.com/image"
 	"djinn-ci.com/key"
+	"djinn-ci.com/mail"
 	"djinn-ci.com/namespace"
-	"djinn-ci.com/oauth2"
 	"djinn-ci.com/object"
 	"djinn-ci.com/queue"
 	"djinn-ci.com/server"
-	"djinn-ci.com/user"
 	"djinn-ci.com/variable"
-	"djinn-ci.com/version"
-	"djinn-ci.com/web"
 
 	"github.com/andrewpillar/webutil"
 
-	"github.com/gorilla/csrf"
-	"github.com/gorilla/securecookie"
-
-	"github.com/jmoiron/sqlx"
-
 	"github.com/mcmathja/curlyq"
 
-	buildrouter "djinn-ci.com/build/router"
-	cronrouter "djinn-ci.com/cron/router"
-	imagerouter "djinn-ci.com/image/router"
-	keyrouter "djinn-ci.com/key/router"
-	namespacerouter "djinn-ci.com/namespace/router"
-	oauth2router "djinn-ci.com/oauth2/router"
-	objectrouter "djinn-ci.com/object/router"
-	providerrouter "djinn-ci.com/provider/router"
-	userrouter "djinn-ci.com/user/router"
-	variablerouter "djinn-ci.com/variable/router"
-)
-
-var (
-	uirouters = []string{
-		"auth",
-		"build",
-		"cron",
-		"image",
-		"key",
-		"namespace",
-		"oauth2",
-		"object",
-		"provider",
-		"variable",
-	}
-
-	apirouters = []string{
-		"auth",
-		"build",
-		"cron",
-		"image",
-		"key",
-		"namespace",
-		"object",
-		"variable",
-	}
-
-	DefaultGates = map[string]func(*sqlx.DB) web.Gate{
-		"build":     buildrouter.Gate,
-		"cron":      cronrouter.Gate,
-		"image":     imagerouter.Gate,
-		"key":       keyrouter.Gate,
-		"namespace": namespacerouter.Gate,
-		"oauth2":    oauth2router.Gate,
-		"object":    objectrouter.Gate,
-		"provider":  providerrouter.Gate,
-		"variable":  variablerouter.Gate,
-	}
+	buildhttp "djinn-ci.com/build/http"
+	cronhttp "djinn-ci.com/cron/http"
+	imagehttp "djinn-ci.com/image/http"
+	keyhttp "djinn-ci.com/key/http"
+	namespacehttp "djinn-ci.com/namespace/http"
+	oauth2http "djinn-ci.com/oauth2/http"
+	objecthttp "djinn-ci.com/object/http"
+	providerhttp "djinn-ci.com/provider/http"
+	userhttp "djinn-ci.com/user/http"
+	variablehttp "djinn-ci.com/variable/http"
 )
 
 func ParseFlags(args []string) (bool, string, bool, bool) {
@@ -105,96 +58,67 @@ func ParseFlags(args []string) (bool, string, bool, bool) {
 	return api, config, ui, version
 }
 
-func Init(ctx context.Context, path string) (*server.Server, *config.Server, func(), error) {
+func Init(ctx context.Context, path string) (*server.Server, func(), error) {
 	env.Load()
-
-	var cfg *config.Server
 
 	f, err := os.Open(path)
 
 	if err != nil {
-		return nil, cfg, nil, errors.Err(err)
+		return nil, nil, errors.Err(err)
 	}
 
 	defer f.Close()
 
-	cfg, err = config.DecodeServer(f.Name(), f)
+	cfg, err := config.DecodeServer(f.Name(), f)
 
 	if err != nil {
-		return nil, cfg, nil, errors.Err(err)
+		return nil, nil, errors.Err(err)
+	}
+
+	srv, err := server.New(cfg)
+
+	if err != nil {
+		return nil, nil, errors.Err(err)
 	}
 
 	pidfile := cfg.Pidfile()
 
-	db := cfg.DB()
-	redis := cfg.Redis()
-	smtp, postmaster := cfg.SMTP()
-
-	log := cfg.Log()
+	smtp, _ := cfg.SMTP()
 
 	close_ := func() {
-		db.Close()
-		redis.Close()
+		srv.DB.Close()
+		srv.Redis.Close()
 		smtp.Close()
-		log.Close()
+		srv.Log.Close()
 
-		if pidfile != nil {
-			if err := os.RemoveAll(pidfile.Name()); err != nil {
+		if pidfile != "" {
+			if err := os.RemoveAll(pidfile); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 				os.Exit(1)
 			}
 		}
 	}
 
-	for driver := range cfg.Producers() {
-		log.Info.Println("enabled build driver", driver)
+	for driver := range cfg.DriverQueues() {
+		srv.Log.Info.Println("enabled build driver", driver)
 	}
 
-	srv := cfg.Server()
-
-	srv.Router.NotFoundHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		accept := r.Header.Get("Accept")
-		contentType := r.Header.Get("Content-Type")
-
-		if strings.HasPrefix(accept, "application/json") || strings.HasPrefix(contentType, "application/json") {
-			web.JSONError(w, "Not found", http.StatusNotFound)
-			return
-		}
-		web.HTMLError(w, "Not found", http.StatusNotFound)
-	})
-
-	srv.Router.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		accept := r.Header.Get("Accept")
-		contentType := r.Header.Get("Content-Type")
-
-		if strings.HasPrefix(accept, "application/json") || strings.HasPrefix(accept, contentType) {
-			web.JSONError(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-		web.HTMLError(w, "Method not allowed", http.StatusMethodNotAllowed)
-	})
-
-	srv.Router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.Header.Get("Accept"), "application/json") {
-			webutil.JSON(w, map[string]string{"build": version.Build}, http.StatusOK)
-			return
-		}
-		webutil.Text(w, version.Build, http.StatusOK)
-	}).Methods("GET")
-
 	memq := queue.NewMemory(20, func(j queue.Job, err error) {
-		log.Error.Println("queue job failed:", j.Name(), err)
+		srv.Log.Error.Println("queue job failed:", j.Name(), err)
 	})
 
-	webhooks := namespace.NewWebhookStoreWithCrypto(db, cfg.BlockCipher())
+	webhooks := &namespace.WebhookStore{
+		Pool:   srv.DB,
+		AESGCM: srv.AESGCM,
+	}
 
 	memq.InitFunc("event:build.submitted", build.InitEvent(webhooks))
 	memq.InitFunc("event:build.started", build.InitEvent(webhooks))
 	memq.InitFunc("event:build.tagged", build.InitTagEvent(webhooks))
 	memq.InitFunc("event:build.finished", build.InitEvent(webhooks))
-	memq.InitFunc("event:invite.accepted", namespace.InitInviteEvent(db, webhooks))
-	memq.InitFunc("event:invite.rejected", namespace.InitInviteEvent(db, webhooks))
-	memq.InitFunc("event:invite.sent", namespace.InitInviteEvent(db, webhooks))
+	memq.InitFunc("event:invite.accepted", namespace.InitInviteEvent(srv.DB, webhooks))
+	memq.InitFunc("event:invite.rejected", namespace.InitInviteEvent(srv.DB, webhooks))
+	memq.InitFunc("event:invite.sent", namespace.InitInviteEvent(srv.DB, webhooks))
 	memq.InitFunc("event:namespaces", namespace.InitEvent(webhooks))
 	memq.InitFunc("event:cron", cron.InitEvent(webhooks))
 	memq.InitFunc("event:images", image.InitEvent(webhooks))
@@ -202,121 +126,89 @@ func Init(ctx context.Context, path string) (*server.Server, *config.Server, fun
 	memq.InitFunc("event:variables", variable.InitEvent(webhooks))
 	memq.InitFunc("event:ssh_keys", key.InitEvent(webhooks))
 
+	memq.InitFunc("email", mail.InitJob(srv.SMTP.Client))
+
 	gob.Register(&image.DownloadJob{})
 
-	queues := queue.NewSet()
-	queues.Add("events", memq)
-	queues.Add("jobs", queue.NewRedisProducer(log, &curlyq.ProducerOpts{
-		Client: redis,
+	srv.Queues.Add("email", memq)
+	srv.Queues.Add("events", memq)
+	srv.Queues.Add("jobs", queue.NewRedisProducer(srv.Log, &curlyq.ProducerOpts{
+		Client: srv.Redis,
 	}))
 
-	h := web.Handler{
-		DB:           db,
-		Log:          log,
-		Queues:       queues,
-		Store:        cfg.SessionStore(),
-		SecureCookie: securecookie.New(cfg.Crypto.Hash, cfg.Crypto.Block),
-		Users:        user.NewStore(db),
-		Tokens:       oauth2.NewTokenStore(db),
-	}
-
 	go memq.Consume(ctx)
+	go namespace.PruneWebhookDeliveries(ctx, srv.Log, srv.DB)
 
-	h.SMTP.Client = smtp
-	h.SMTP.From = postmaster
-
-	mw := web.Middleware{
-		Handler: h,
-	}
-
-	srv.AddRouter("auth", userrouter.New(cfg, h, mw))
-	srv.AddRouter("build", buildrouter.New(cfg, h, mw))
-	srv.AddRouter("cron", cronrouter.New(cfg, h, mw))
-	srv.AddRouter("image", imagerouter.New(cfg, h, mw))
-	srv.AddRouter("key", keyrouter.New(cfg, h, mw))
-	srv.AddRouter("namespace", namespacerouter.New(cfg, h, mw))
-	srv.AddRouter("oauth2", oauth2router.New(cfg, h, mw))
-	srv.AddRouter("object", objectrouter.New(cfg, h, mw))
-	srv.AddRouter("provider", providerrouter.New(cfg, h, mw))
-	srv.AddRouter("variable", variablerouter.New(cfg, h, mw))
-	srv.Init(h.SaveMiddleware)
-
-	return srv, cfg, close_, nil
+	return srv, close_, nil
 }
 
-func RegisterRoutes(cfg *config.Server, api, ui bool, srv *server.Server) {
-	gates := make(map[string][]web.Gate)
-
-	for name, fn := range DefaultGates {
-		gates[name] = []web.Gate{
-			fn(cfg.DB()),
-		}
-	}
-	RegisterRoutesWithGates(cfg, api, ui, srv, gates)
-}
-
-func RegisterRoutesWithGates(cfg *config.Server, api, ui bool, srv *server.Server, gates map[string][]web.Gate) {
+func RegisterRoutes(api, ui bool, srv *server.Server) {
 	if !api && !ui {
 		api = true
 		ui = true
 	}
 
 	if ui {
-		uisrv := server.UI{
-			Server: srv,
-			CSRF: csrf.Protect(
-				cfg.Crypto.Auth,
-				csrf.RequestHeader("X-CSRF-Token"),
-				csrf.FieldName("csrf_token"),
-			),
-		}
+		srv.Log.Debug.Println("registering ui routes")
 
-		uisrv.Init()
-
-		for _, router := range uirouters {
-			uisrv.Register(router, gates[router]...)
-		}
+		userhttp.RegisterUI(srv)
+		buildhttp.RegisterHooks(srv)
+		buildhttp.RegisterUI(srv)
+		cronhttp.RegisterUI(srv)
+		imagehttp.RegisterUI(srv)
+		keyhttp.RegisterUI(srv)
+		namespacehttp.RegisterUI(srv)
+		oauth2http.RegisterUI(srv)
+		objecthttp.RegisterUI(srv)
+		providerhttp.RegisterUI(srv)
+		variablehttp.RegisterUI(srv)
 	}
 
-	var prefix string
+	apiPrefix := "/"
 
 	if api {
-		route := "/"
-
 		if ui {
-			prefix = "/api"
-			route = prefix
+			apiPrefix = "/api"
 
-			srv.Log.Info.Println("api routes served under", srv.Server.Addr+prefix)
+			srv.Log.Info.Println("api routes served under", srv.Server.Addr+apiPrefix)
 		}
 
-		srv.Router.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
+		srv.Log.Debug.Println("registering api routes")
+
+		router := srv.Router
+
+		srv.Router = srv.Router.PathPrefix(apiPrefix).Subrouter()
+
+		userhttp.RegisterAPI(apiPrefix, srv)
+		buildhttp.RegisterAPI(apiPrefix, srv)
+		cronhttp.RegisterAPI(apiPrefix, srv)
+		imagehttp.RegisterAPI(apiPrefix, srv)
+		keyhttp.RegisterAPI(apiPrefix, srv)
+		namespacehttp.RegisterAPI(apiPrefix, srv)
+		objecthttp.RegisterAPI(apiPrefix, srv)
+		variablehttp.RegisterAPI(apiPrefix, srv)
+
+		srv.Router = router
+
+		srv.Router.HandleFunc(apiPrefix, func(w http.ResponseWriter, r *http.Request) {
 			addr := webutil.BaseAddress(r)
 
 			data := map[string]string{
-				"builds_url":     addr + "/builds",
-				"namespaces_url": addr + "/namespaces",
-				"cron_url":       addr + "/cron",
-				"invites_url":    addr + "/invites",
-				"images_url":     addr + "/images",
-				"objects_url":    addr + "/objects",
-				"variables_url":  addr + "/variables",
-				"keys_url":       addr + "/keys",
+				"builds_url":     addr + apiPrefix + "/builds",
+				"namespaces_url": addr + apiPrefix + "/namespaces",
+				"cron_url":       addr + apiPrefix + "/cron",
+				"invites_url":    addr + apiPrefix + "/invites",
+				"images_url":     addr + apiPrefix + "/images",
+				"objects_url":    addr + apiPrefix + "/objects",
+				"variables_url":  addr + apiPrefix + "/variables",
+				"keys_url":       addr + apiPrefix + "/keys",
 			}
 			webutil.JSON(w, data, http.StatusOK)
 		})
-
-		apisrv := server.API{
-			Server: srv,
-			Prefix: prefix,
-		}
-
-		apisrv.Init()
-
-		for _, router := range apirouters {
-			apisrv.Register(router, gates[router]...)
-		}
 	}
+
+	srv.Router.Use(srv.Save)
+	srv.Init()
 }
 
 // Start will start the server in a goroutine. If the server fails to start
@@ -335,6 +227,7 @@ func Start(srv *server.Server, ch chan os.Signal) {
 				}
 			}
 		}
-		srv.Log.Info.Println(os.Args[0], "started on", srv.Server.Addr)
 	}()
+
+	srv.Log.Info.Println(os.Args[0], "started on", srv.Server.Addr)
 }

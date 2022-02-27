@@ -15,48 +15,115 @@ import (
 	"djinn-ci.com/driver"
 	"djinn-ci.com/driver/qemu"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/image"
 	"djinn-ci.com/log"
 	"djinn-ci.com/runner"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
-// Runner is what's used for actually running the build retrieved from the
-// worker. This will handle updating the state of the build and its jobs in
-// the database whilst the build runs.
+type runnerJob struct {
+	id       int64
+	buf      *bytes.Buffer
+	finished bool
+}
+
 type Runner struct {
 	runner.Runner
 
-	initialized bool // if the underlying runner has been fully initialized
+	initialized bool
 
-	db *sqlx.DB
-
-	crypto *crypto.AESGCM
+	db     database.Pool
+	aesgcm *crypto.AESGCM
 	log    *log.Logger
+	buf    *bytes.Buffer
 
 	build *build.Build
 
-	objects   fs.Store
-	artifacts fs.Store
+	builds *build.Store
+	images *image.Store
+	vars   build.VariableStore
+	keys   build.KeyStore
+	stages build.StageStore
+	jobs   build.JobStore
 
-	driver string
-	init   driver.Init
-	config driver.Config
+	objects   *build.ObjectStore
+	artifacts *build.ArtifactStore
 
-	keycfg string            // the .ssh/config to place in to a build
-	keys   map[string][]byte // the encrypted private keys to place in to a build
+	driver     string
+	driverinit driver.Init
+	drivercfg  driver.Config
 
-	buf  *bytes.Buffer
-	bufs map[int64]*bytes.Buffer
-
-	jobs map[string]*build.Job
+	runnerJobs map[string]runnerJob
+	driverJob  *runnerJob
 }
 
-func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, string) (string, error) {
+// loadAndAddJobs get's all of the jobs for the runner's underlying build and
+// adds them to the respective stage in the given map. The jobs that are loaded
+// are stored in the runnerJobs map using the stage name and job name as the
+// key.
+func (r *Runner) loadAndAddJobs(stages map[int64]*runner.Stage) error {
+	jj, err := r.jobs.All(
+		query.Where("build_id", "=", query.Arg(r.build.ID)),
+		query.OrderAsc("created_at"),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	mm := make([]database.Model, 0, len(jj))
+
+	for _, j := range jj {
+		mm = append(mm, j)
+	}
+
+	if err := r.artifacts.Load("id", "job_id", mm...); err != nil {
+		return errors.Err(err)
+	}
+
+	if r.runnerJobs == nil {
+		r.runnerJobs = make(map[string]runnerJob)
+	}
+
+	for _, j := range jj {
+		artifacts := runner.Passthrough{}
+
+		for _, a := range j.Artifacts {
+			artifacts.Set(a.Source, a.Name)
+		}
+
+		job := runnerJob{
+			id:  j.ID,
+			buf: &bytes.Buffer{},
+		}
+
+		stage := stages[j.StageID]
+
+		if j.Name == "create-driver" && strings.HasPrefix(stage.Name, "setup - #") {
+			r.driverJob = &job
+		}
+
+		r.runnerJobs[stage.Name+j.Name] = job
+
+		stage.Add(&runner.Job{
+			Writer:    io.MultiWriter(r.buf, job.buf),
+			Name:      j.Name,
+			Commands:  strings.Split(j.Commands, "\n"),
+			Artifacts: artifacts,
+		})
+	}
+	return nil
+}
+
+// qemuRealpath returns the RealpathFunc to use for resolving the path to the
+// image to use for the given build. If the given build is in a namespace then
+// the search for the image will be performed within that namespace. Otherwise
+// the search will be done for the owner of the build.
+//
+// If an image could not be found for either the owner of the build or the
+// namespace, then the path to the QEMU base images will be returned.
+func (r *Runner) qemuRealpath(b *build.Build, diskdir string) qemu.RealpathFunc {
 	return func(arch, name string) (string, error) {
 		col := "user_id"
 		arg := query.Arg(b.UserID)
@@ -68,7 +135,7 @@ func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, strin
 			arg = query.Arg(b.NamespaceID)
 		}
 
-		i, err := image.NewStore(r.db).Get(
+		i, ok, err := r.images.Get(
 			query.Where(col, "=", arg),
 			query.Where("name", "=", query.Arg(name)),
 		)
@@ -77,7 +144,7 @@ func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, strin
 			return "", errors.Err(err)
 		}
 
-		if i.IsZero() {
+		if !ok {
 			name = filepath.Join(strings.Split(name, "/")...)
 			return filepath.Join(diskdir, "_base", "qemu", arch, name), nil
 		}
@@ -85,70 +152,78 @@ func (r *Runner) qemuRealpath(b *build.Build, diskdir string) func(string, strin
 	}
 }
 
-func (r *Runner) updateJobs(status runner.Status) error {
-	jobs := build.NewJobStore(r.db, r.build)
-
-	jj, err := jobs.All(query.Where("finished_at", "IS", query.Lit("NULL")))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, j := range jj {
-		output := ""
-
-		if buf, ok := r.bufs[j.ID]; ok {
-			output = buf.String()
-		}
-
-		if err := jobs.Finished(j.ID, output, status); err != nil {
-			return errors.Err(err)
-		}
-	}
-	return nil
-}
-
-// Init initializes the underlying runner.Runner for build execution with
-// the build data from the database.
-func (r *Runner) Init() error {
-	vv, err := build.NewVariableStore(r.db, r.build).All()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	r.Runner.Env = make([]string, 0, len(vv))
+// envvars turns the given slice of build variables into a slice of environment
+// variables in the format of key=value.
+func envvars(vv []*build.Variable) []string {
+	env := make([]string, 0, len(vv))
 
 	for _, v := range vv {
-		r.Runner.Env = append(r.Runner.Env, v.Key+"="+v.Value)
+		env = append(env, v.Key+"="+v.Value)
+	}
+	return env
+}
+
+// runnerStages gets all of the stages for the underlying build being run,
+// and returns them as a map of stages that can be added to the underlying
+// Runner. The stages in the map will be under their respective ID from the
+// database.
+func (r *Runner) runnerStages() (map[int64]*runner.Stage, []int64, error) {
+	ss, err := r.stages.All(
+		query.Where("build_id", "=", query.Arg(r.build.ID)),
+		query.OrderAsc("created_at"),
+	)
+
+	if err != nil {
+		return nil, nil, errors.Err(err)
 	}
 
-	kk, err := build.NewKeyStore(r.db, r.build).All()
+	stages := make(map[int64]*runner.Stage)
+	order := make([]int64, 0, len(ss))
+
+	for _, s := range ss {
+		stages[s.ID] = &runner.Stage{
+			Name:    s.Name,
+			CanFail: s.CanFail,
+		}
+		order = append(order, s.ID)
+	}
+	return stages, order, nil
+}
+
+var (
+	ErrInitialized    = errors.New("worker: runner initialized")
+	ErrNotInitialized = errors.New("worker: runner not initialized")
+)
+
+// Init initializes the underlying Runner for running the build. If the runner
+// has already been initialized then ErrInitialized is returned.
+func (r *Runner) Init() error {
+	if r.initialized {
+		return ErrInitialized
+	}
+
+	vv, err := r.vars.All(query.Where("build_id", "=", query.Arg(r.build.ID)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	keycfg := bytes.NewBufferString(`StrictHostKeyChecking no
-UserKnownHostsFile /dev/null
-`)
+	r.Runner.Env = envvars(vv)
 
-	r.keys = make(map[string][]byte)
+	kk, err := r.keys.All(query.Where("build_id", "=", query.Arg(r.build.ID)))
 
-	for _, k := range kk {
-		r.keys["key:"+k.Name] = k.Key
-
-		keycfg.WriteString(k.Config)
-		r.Runner.Objects.Set("key:"+k.Name, "/root/.ssh/"+k.Name)
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	r.keycfg = keycfg.String()
-
 	if len(kk) > 0 {
+		for _, k := range kk {
+			r.Runner.Objects.Set("key:"+k.Name, "/root/.ssh/"+k.Name)
+		}
 		r.Runner.Objects.Set("/root/.ssh/config", "/root/.ssh/config")
 	}
 
-	oo, err := build.NewObjectStore(r.db, r.build).All()
+	oo, err := r.objects.All(query.Where("build_id", "=", query.Arg(r.build.ID)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -158,115 +233,25 @@ UserKnownHostsFile /dev/null
 		r.Runner.Objects.Set(o.Source, o.Name)
 	}
 
-	ss, err := build.NewStageStore(r.db, r.build).All(query.OrderAsc("created_at"))
+	stages, order, err := r.runnerStages()
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	stages := make(map[int64]*runner.Stage)
-
-	for _, s := range ss {
-		stages[s.ID] = s.Stage()
-	}
-
-	jj, err := build.NewJobStore(r.db, r.build).All(query.OrderAsc("created_at"))
-
-	if err != nil {
+	if err := r.loadAndAddJobs(stages); err != nil {
 		return errors.Err(err)
 	}
 
-	mm := database.ModelSlice(len(jj), build.JobModel(jj))
-
-	err = build.NewArtifactStore(r.db, r.build).Load(
-		"job_id", database.MapKey("id", mm), database.Bind("id", "job_id", mm...),
-	)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, j := range jj {
-		stage := stages[j.StageID]
-
-		r.jobs[stage.Name+j.Name] = j
-		r.bufs[j.ID] = &bytes.Buffer{}
-
-		stage.Add(j.Job(io.MultiWriter(r.buf, r.bufs[j.ID])))
-	}
-
-	for _, s := range ss {
-		r.Runner.Add(stages[s.ID])
-	}
-
-	placer, err := r.Placer()
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	collector, err := r.Collector()
-
-	if err != nil {
-		return errors.Err(err)
+	for _, id := range order {
+		r.Runner.Add(stages[id])
 	}
 
 	r.Runner.Writer = r.buf
-	r.Runner.Placer = placer
-	r.Runner.Collector = collector
+	r.Runner.Placer = r.objects.Placer(r.build, r.aesgcm, kk)
+	r.Runner.Collector = r.artifacts.Collector(r.build)
 
 	r.initialized = true
-
-	return nil
-}
-
-// Collector returns the configured runner.Collector implementation to use for
-// collecting build artifacts.
-func (r *Runner) Collector() (runner.Collector, error) {
-	store, err := r.artifacts.Partition(r.build.UserID)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	return build.NewArtifactStoreWithCollector(r.db, store, r.build), nil
-}
-
-// Placer returns the configured runner.Placer implementation to use for
-// placing build objects and keys into a build.
-func (r *Runner) Placer() (runner.Placer, error) {
-	store, err := r.objects.Partition(r.build.UserID)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	return &placer{
-		crypto: r.crypto,
-		keycfg: []byte(r.keycfg),
-		keys:   r.keys,
-		placer: build.NewObjectStoreWithPlacer(r.db, store, r.build),
-	}, nil
-}
-
-// DriverJob returns the build pseudo-job that was added to the build for
-// tracking the progress of driver creation.
-func (r *Runner) DriverJob() *build.Job {
-	for _, j := range r.jobs {
-		if j.Name == "create-driver" {
-			return j
-		}
-	}
-	return nil
-}
-
-// DriverBuffer returns the buffer for the job that created the driver for the
-// build's runner. If one cannot be found then nil is returned.
-func (r *Runner) DriverBuffer() *bytes.Buffer {
-	if j := r.DriverJob(); j != nil {
-		if buf, ok := r.bufs[j.ID]; ok {
-			return buf
-		}
-	}
 	return nil
 }
 
@@ -280,48 +265,63 @@ func (r *Runner) Tail() string {
 	return strings.Join(parts, "\n")
 }
 
-// Run runs the build with the given driver. This will return the underlying
-// status of the runner upon completion, along with any errors that may occur.
-// If an underyling error does occur then the returned status will always be
-// runner.Failed.
-func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner.Status, error) {
-	if !r.initialized {
-		return runner.Failed, errors.New("runner not initialized")
+func (r *Runner) updateUnfinishedJobs(ctx context.Context, status runner.Status) error {
+	tx, err := r.db.Begin(ctx)
+
+	if err != nil {
+		return errors.Err(err)
 	}
 
-	builds := build.NewStore(r.db)
-	jobs := build.NewJobStore(r.db)
+	defer tx.Rollback(ctx)
+
+	for _, job := range r.runnerJobs {
+		if job.finished {
+			continue
+		}
+
+		if err := r.jobs.FinishedTx(ctx, tx, job.id, job.buf.String(), status); err != nil {
+			return errors.Err(err)
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner.Status, error) {
+	if !r.initialized {
+		return runner.Failed, ErrNotInitialized
+	}
 
 	if r.build.StartedAt.Valid {
-		if err := builds.Orphan(r.build); err != nil {
+		if err := r.builds.Orphan(r.build.ID, r.build.UserID); err != nil {
+			r.log.Error.Println(jobId, "failed to orphan build", err)
 			return runner.Failed, errors.Err(err)
 		}
 	}
 
 	typ := d.Config["type"]
 
-	if typ == "qemu" {
-		typ += "-" + qemu.GetExpectedArch()
-	}
-
 	if typ != r.driver {
-		fmt.Fprintf(r.buf, "driver %s has not been configured for the worker\n", d.Config["type"])
+		fmt.Fprintf(r.buf, "driver %s has not been configured for the worker\n", typ)
 		fmt.Fprintf(r.buf, "killing build...\n")
 
-		if err := builds.Finished(r.build.ID, r.buf.String(), runner.Killed); err != nil {
+		if err := r.builds.Finished(r.build.ID, r.buf.String(), runner.Killed); err != nil {
 			r.log.Error.Println(jobId, "failed to mark build as finished", err)
 			return runner.Killed, errors.Err(err)
 		}
 
-		if err := r.updateJobs(runner.Killed); err != nil {
+		if err := r.updateUnfinishedJobs(ctx, runner.Killed); err != nil {
 			r.log.Error.Println(jobId, "failed to update build jobs", err)
 		}
 		return runner.Killed, nil
 	}
 
-	cfg := r.config.Merge(d.Config)
+	cfg := r.drivercfg.Merge(d.Config)
 
-	driver := r.init(io.MultiWriter(r.buf, r.DriverBuffer()), cfg)
+	driver := r.driverinit(io.MultiWriter(r.buf, r.driverJob.buf), cfg)
 
 	if q, ok := driver.(*qemu.Driver); ok {
 		qemucfg := cfg.(*qemu.Config)
@@ -333,10 +333,8 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 	}
 
 	r.Runner.HandleDriverCreate(func() {
-		j := r.DriverJob()
-
-		if err := jobs.Started(j.ID); err != nil {
-			r.log.Error.Println("failed to handle driver creation", j.ID, errors.Err(err))
+		if err := r.jobs.Started(r.driverJob.id); err != nil {
+			r.log.Error.Println("failed to handle driver creation", jobId, errors.Err(err))
 		}
 	})
 
@@ -345,35 +343,39 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 			return
 		}
 
-		j := r.jobs[job.Stage+job.Name]
+		j := r.runnerJobs[job.Stage+job.Name]
 
-		if err := jobs.Started(j.ID); err != nil {
-			r.log.Error.Println("failed to handle job start", j.ID, errors.Err(err))
+		if err := r.jobs.Started(j.id); err != nil {
+			r.log.Error.Println("failed to handle job start", jobId, errors.Err(err))
 		}
 	})
 
 	r.Runner.HandleJobComplete(func(job runner.Job) {
-		j := r.jobs[job.Stage+job.Name]
-		buf := r.bufs[j.ID]
+		j := r.runnerJobs[job.Stage+job.Name]
+		j.finished = true
 
-		if err := jobs.Finished(j.ID, buf.String(), job.Status); err != nil {
-			r.log.Error.Println("failed to handle job finish", j.ID, errors.Err(err))
+		r.runnerJobs[job.Stage+job.Name] = j
+
+		if err := r.jobs.Finished(j.id, j.buf.String(), job.Status); err != nil {
+			r.log.Error.Println("failed to handle job finish", jobId, errors.Err(err))
 		}
 	})
 
-	if err := builds.Started(r.build.ID); err != nil {
+	if err := r.builds.Started(r.build.ID); err != nil {
 		r.log.Error.Println(jobId, "failed to mark build as started", err)
 		return runner.Failed, errors.Err(err)
 	}
 
 	r.Runner.Run(ctx, driver)
 
-	if err := builds.Finished(r.build.ID, r.buf.String(), r.Runner.Status); err != nil {
+	if err := r.builds.Finished(r.build.ID, r.buf.String(), r.Runner.Status); err != nil {
 		r.log.Error.Println(jobId, "failed to mark build as finished", err)
 		return r.Runner.Status, errors.Err(err)
 	}
 
-	if err := r.updateJobs(r.Runner.Status); err != nil {
+	// Use different context for updating the jobs, as the build may have been
+	// killed via the context passed to this method.
+	if err := r.updateUnfinishedJobs(context.Background(), r.Runner.Status); err != nil {
 		r.log.Error.Println(jobId, "failed to update build jobs", err)
 		return r.Runner.Status, errors.Err(err)
 	}

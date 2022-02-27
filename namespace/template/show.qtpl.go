@@ -136,7 +136,7 @@ func (p *Show) StreamHeader(qw422016 *qt422016.Writer) {
 //line namespace/template/show.qtpl:31
 		qw422016.N().S(` `)
 //line namespace/template/show.qtpl:32
-		if !p.User.IsZero() {
+		if p.User != nil {
 //line namespace/template/show.qtpl:32
 			qw422016.N().S(` <a class="back" href="/namespaces">`)
 //line namespace/template/show.qtpl:33

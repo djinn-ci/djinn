@@ -1,10 +1,13 @@
 package provider
 
 import (
-	"context"
+	"bytes"
 	"database/sql"
+	"encoding/gob"
+	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
@@ -12,113 +15,55 @@ import (
 
 	"github.com/andrewpillar/query"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/go-redis/redis"
 )
 
-// Repo is the type that represents a Repo from a remote Git hosting provider.
 type Repo struct {
-	ID             int64         `db:"id"`
-	UserID         int64         `db:"user_id"`
-	ProviderID     int64         `db:"provider_id"`
-	ProviderUserID int64         `db:"-"`
-	HookID         sql.NullInt64 `db:"hook_id"`
-	RepoID         int64         `db:"repo_id"`
-	ProviderName   string        `db:"provider_name"`
-	Enabled        bool          `db:"enabled"`
-	Name           string        `db:"name"`
-	Href           string        `db:"href"`
+	ID             int64
+	UserID         int64
+	ProviderID     int64 `gob:"-"`
+	ProviderUserID int64
+	HookID         sql.NullInt64
+	RepoID         int64
+	ProviderName   string
+	Enabled        bool
+	Name           string
+	Href           string
 
-	User     *user.User `db:"-"`
-	Provider *Provider  `db:"-"`
+	User     *user.User `gob:"-"`
+	Provider *Provider  `gob:"-"`
 }
 
-// RepoStore is the type for creating and modifying Repo models in the database.
-type RepoStore struct {
-	database.Store
+var _ database.Model = (*Repo)(nil)
 
-	// User is the bound user.User model. If not nil this will bind the
-	// user.User model to any Repo models that are created. If not nil this
-	// will append a WHERE clause on the user_id column for all SELECT queries
-	// performed.
-	User *user.User
-
-	// Provider is the bound Provider model. If not nil this will bind the
-	// Provider model to any Repo models that are created. If not nil this will
-	// append a WHERE clause on the provider_id column for all SELECT queries
-	// performed.
-	Provider *Provider
-}
-
-var (
-	_ database.Model  = (*Repo)(nil)
-	_ database.Binder = (*RepoStore)(nil)
-
-	repoTable = "provider_repos"
-	relations = map[string]database.RelationFunc{
-		"user":     database.Relation("user_id", "id"),
-		"provider": database.Relation("provider_id", "id"),
-	}
-)
-
-// NewRepoStore returns a new RepoStore for querying the provider_repos table. Each
-// database passed to this function will be bound to the returned RepoStore.
-func NewRepoStore(db *sqlx.DB, mm ...database.Model) *RepoStore {
-	s := &RepoStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// RepoFromContext returns the Repo model from the given context, if any.
-func RepoFromContext(ctx context.Context) (*Repo, bool) {
-	r, ok := ctx.Value("repo").(*Repo)
-	return r, ok
-}
-
-// RepoModel is called along with database.ModelSlice to convert the given
-// slice of Repo models to a slice of database.Model interfaces.
-func RepoModel(rr []*Repo) func(int) database.Model {
-	return func(i int) database.Model {
-		return rr[i]
+func (r *Repo) Dest() []interface{} {
+	return []interface{}{
+		&r.ID,
+		&r.UserID,
+		&r.ProviderID,
+		&r.HookID,
+		&r.RepoID,
+		&r.ProviderName,
+		&r.Enabled,
+		&r.Name,
+		&r.Href,
 	}
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to either a user.User model or Provider model.
-func (r *Repo) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
+func (r *Repo) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *user.User:
+		if r.UserID == v.ID {
 			r.User = v
-		case *Provider:
+		}
+	case *Provider:
+		if r.ProviderID == v.ID {
 			r.Provider = v
 		}
 	}
 }
+func (*Repo) JSON(_ string) map[string]interface{} { return nil }
 
-// SetPrimary implements the database.Model interface.
-func (r *Repo) SetPrimary(id int64) { r.ID = id }
-
-// Primary implements the database.Model interface.
-func (r *Repo) Primary() (string, int64) { return "id", r.ID }
-
-// IsZero implements the database.Model interface.
-func (r *Repo) IsZero() bool {
-	return r == nil || r.ID == 0 &&
-		r.UserID == 0 &&
-		r.ProviderID == 0 &&
-		!r.HookID.Valid &&
-		r.RepoID == 0 &&
-		!r.Enabled
-}
-
-// JSON implements the database.Model interface. This is a stub method and
-// returns an empty map.
-func (*Repo) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
-
-// Endpoint returns the endpoint to the current Repo, and appends any of the
-// given URI parts.
 func (r *Repo) Endpoint(uri ...string) string {
 	if len(uri) > 0 {
 		return "/repos/" + strconv.FormatInt(r.ID, 10) + "/" + strings.Join(uri, "/")
@@ -126,10 +71,9 @@ func (r *Repo) Endpoint(uri ...string) string {
 	return "/repos/" + strconv.FormatInt(r.ID, 10)
 }
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, provider_id, hook_id, repo_id, and enabled.
 func (r *Repo) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"id":            r.ID,
 		"user_id":       r.UserID,
 		"provider_id":   r.ProviderID,
 		"hook_id":       r.HookID,
@@ -141,108 +85,155 @@ func (r *Repo) Values() map[string]interface{} {
 	}
 }
 
-// New returns a new Repo binding any non-nil models to it from the current
-// RepoStore.
-func (s *RepoStore) New() *Repo {
-	r := &Repo{
-		User:     s.User,
-		Provider: s.Provider,
-	}
-
-	if s.User != nil {
-		r.UserID = s.User.ID
-	}
-
-	if s.Provider != nil {
-		r.ProviderID = s.Provider.ID
-	}
-	return r
+type RepoStore struct {
+	database.Pool
 }
 
-// Touch will create the given Repo if it does not exist, otherwise it will
-// update it.
-func (s *RepoStore) Touch(r *Repo) error {
+var repoTable = "provider_repos"
+
+func (s RepoStore) Touch(r *Repo) error {
 	if r.ID == 0 {
-		r1 := s.New()
+		q := query.Insert(
+			repoTable,
+			query.Columns("user_id", "provider_id", "hook_id", "repo_id", "provider_name", "enabled", "name", "href"),
+			query.Values(r.UserID, r.ProviderID, r.HookID, r.RepoID, r.ProviderName, r.Enabled, r.Name, r.Href),
+		)
 
-		r.UserID = r1.UserID
-		r.ProviderID = r1.ProviderID
-
-		return errors.Err(s.Store.Create(repoTable, r))
-	}
-	return errors.Err(s.Store.Update(repoTable, r))
-}
-
-// Update updates the given Repo models in the providers table.
-func (s *RepoStore) Update(rr ...*Repo) error {
-	mm := database.ModelSlice(len(rr), RepoModel(rr))
-	return errors.Err(s.Store.Update(repoTable, mm...))
-}
-
-// Delete deletes the repos from the database with the given ids.
-func (s *RepoStore) Delete(ids ...int64) error {
-	vals := make([]interface{}, 0, len(ids))
-
-	for _, id := range ids {
-		vals = append(vals, id)
-	}
-
-	q := query.Delete(repoTable, query.Where("id", "IN", query.List(vals...)))
-
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
-}
-
-// Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to either a user.User model or Provider model.
-func (s *RepoStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
-		case *Provider:
-			s.Provider = v
+		if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+			return errors.Err(err)
 		}
+		return nil
 	}
+
+	q := query.Update(
+		repoTable,
+		query.Set("hook_id", query.Arg(r.HookID)),
+		query.Set("enabled", query.Arg(r.Enabled)),
+		query.Where("id", "=", query.Arg(r.ID)),
+	)
+
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Get returns a single Repo database, applying each query.Option that is given.
-// The database.Where option is applied to the *user.User and *Provider
-// bound models.
-func (s *RepoStore) Get(opts ...query.Option) (*Repo, error) {
-	r := &Repo{
-		User:     s.User,
-		Provider: s.Provider,
+func (s RepoStore) Delete(id int64) error {
+	q := query.Delete(repoTable, query.Where("id", "=", query.Arg(id)))
+
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
 	}
-
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-		database.Where(s.Provider, "provider_id"),
-	}, opts...)
-
-	err := s.Store.Get(r, repoTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return r, errors.Err(err)
+	return nil
 }
 
-// All returns a slice Repo models, applying each query.Option that is given.
-// The database.Where option is applied to the *user.User and *Provider
-// bound models.
-func (s *RepoStore) All(opts ...query.Option) ([]*Repo, error) {
+func (s RepoStore) Get(opts ...query.Option) (*Repo, bool, error) {
+	var r Repo
+
+	ok, err := s.Pool.Get(repoTable, &r, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &r, ok, nil
+}
+
+func (s RepoStore) All(opts ...query.Option) ([]*Repo, error) {
 	rr := make([]*Repo, 0)
 
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-		database.Where(s.Provider, "provider_id"),
-	}, opts...)
-
-	err := s.Store.All(&rr, repoTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		r := &Repo{}
+		rr = append(rr, r)
+		return r
 	}
-	return rr, errors.Err(err)
+
+	if err := s.Pool.All(repoTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
+	}
+	return rr, nil
+}
+
+type RepoCache struct {
+	redis *redis.Client
+}
+
+var repoCacheKey = "repos-%s-%v-%v"
+
+func NewRepoCache(redis *redis.Client) RepoCache {
+	return RepoCache{
+		redis: redis,
+	}
+}
+
+func (c RepoCache) key(p *Provider, page int64) string {
+	return fmt.Sprintf(repoCacheKey, p.Name, p.UserID, page)
+}
+
+func (c RepoCache) Put(p *Provider, rr []*Repo, paginator database.Paginator) error {
+	var buf bytes.Buffer
+
+	enc := gob.NewEncoder(&buf)
+
+	if err := enc.Encode(rr); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := enc.Encode(paginator); err != nil {
+		return errors.Err(err)
+	}
+
+	if _, err := c.redis.Set(c.key(p, paginator.Page), buf.String(), time.Hour).Result(); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (c RepoCache) Get(p *Provider, page int64) ([]*Repo, database.Paginator, error) {
+	var paginator database.Paginator
+
+	rr := make([]*Repo, 0)
+
+	s, err := c.redis.Get(c.key(p, page)).Result()
+
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, paginator, nil
+		}
+		return nil, paginator, errors.Err(err)
+	}
+
+	dec := gob.NewDecoder(strings.NewReader(s))
+
+	if err := dec.Decode(&rr); err != nil {
+		return nil, paginator, errors.Err(err)
+	}
+
+	if err := dec.Decode(&paginator); err != nil {
+		return nil, paginator, errors.Err(err)
+	}
+	return rr, paginator, nil
+}
+
+func (c RepoCache) Purge(p *Provider) error {
+	page := int64(1)
+
+	for {
+		key := c.key(p, page)
+
+		n, err := c.redis.Del(key).Result()
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		if n == 0 {
+			break
+		}
+		page++
+	}
+	return nil
 }

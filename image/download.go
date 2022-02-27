@@ -12,7 +12,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -21,11 +20,8 @@ import (
 	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/queue"
-	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 
 	"github.com/pkg/sftp"
 
@@ -33,49 +29,18 @@ import (
 )
 
 type DownloadJob struct {
-	db    *sqlx.DB    `gob:"-" msgpack:"-"`
-	log   *log.Logger `gob:"-" msgpack:"-"`
-	queue queue.Queue `gob:"-" msgpack:"-"`
-	store fs.Store    `gob:"-" msgpack:"-"`
+	log   *log.Logger `msgpack:"-"`
+	queue queue.Queue `msgpack:"-"`
+	store *Store      `msgpack:"-"`
 
 	ID      int64
 	ImageID int64
 	Source  DownloadURL
 }
 
-type Download struct {
-	ID         int64          `db:"id"`
-	ImageID    int64          `db:"image_id"`
-	Source     DownloadURL    `db:"source"`
-	Error      sql.NullString `db:"error"`
-	CreatedAt  time.Time      `db:"created_at"`
-	StartedAt  sql.NullTime   `db:"started_at"`
-	FinishedAt sql.NullTime   `db:"finished_at"`
-
-	User  *user.User `db:"-"`
-	Image *Image     `db:"-"`
-}
-
-type DownloadURL struct {
-	*url.URL
-}
-
-type DownloadStore struct {
-	database.Store
-
-	User  *user.User
-	Image *Image
-}
-
 var (
-	_ database.Binder = (*DownloadStore)(nil)
-
-	_ sql.Scanner   = (*DownloadURL)(nil)
-	_ driver.Valuer = (*DownloadURL)(nil)
-
 	_ queue.Job = (*DownloadJob)(nil)
 
-	downloadTable   = "image_downloads"
 	downloadSchemes = map[string]struct{}{
 		"http":  {},
 		"https": {},
@@ -84,12 +49,11 @@ var (
 
 	MimeTypeQEMU = "application/x-qemu-disk"
 
-	ErrInvalidScheme = errors.New("invalid url scheme")
+	ErrInvalidScheme   = errors.New("invalid url scheme")
+	ErrMissingPassword = errors.New("missing password in url")
 )
 
-// NewDownloadJob creates the underlying Download for the given Image and
-// returns it as a queue.Job for background processing.
-func NewDownloadJob(db *sqlx.DB, i *Image, url DownloadURL) (queue.Job, error) {
+func NewDownloadJob(db database.Pool, i *Image, url DownloadURL) (queue.Job, error) {
 	q := query.Insert(
 		downloadTable,
 		query.Columns("image_id", "source", "created_at"),
@@ -109,102 +73,23 @@ func NewDownloadJob(db *sqlx.DB, i *Image, url DownloadURL) (queue.Job, error) {
 	}, nil
 }
 
-func NewDownloadStore(db *sqlx.DB, mm ...database.Model) *DownloadStore {
-	s := &DownloadStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-func (s *DownloadStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
-		case *Image:
-			s.Image = v
-		}
-	}
-}
-
-func (s *DownloadStore) Get(opts ...query.Option) (*Download, error) {
-	d := &Download{
-		User:  s.User,
-		Image: s.Image,
-	}
-
-	opts = append([]query.Option{
-		database.Where(s.Image, "image_id"),
-	}, opts...)
-
-	if s.User != nil {
-		opts = append([]query.Option{
-			query.Where("image_id", "IN", query.Select(
-				query.Columns("id"),
-				query.From(table),
-				query.Where("user_id", "=", query.Arg(s.User.ID)),
-			)),
-		}, opts...)
-	}
-
-	err := s.Store.Get(d, downloadTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return d, errors.Err(err)
-}
-
-func (s *DownloadStore) All(opts ...query.Option) ([]*Download, error) {
-	dd := make([]*Download, 0)
-
-	opts = append([]query.Option{
-		database.Where(s.Image, "image_id"),
-	}, opts...)
-
-	if s.User != nil {
-		opts = append([]query.Option{
-			query.Where("image_id", "IN", query.Select(
-				query.Columns("id"),
-				query.From(table),
-				query.Where("user_id", "=", query.Arg(s.User.ID)),
-			)),
-		}, opts...)
-	}
-
-	err := s.Store.All(&dd, downloadTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, d := range dd {
-		d.User = s.User
-		d.Image = s.Image
-	}
-	return dd, errors.Err(err)
-}
-
-// DownloadJobInit returns a callback for initializing a download job with the
-// given database connection and file store.
-func DownloadJobInit(db *sqlx.DB, q queue.Queue, log *log.Logger, store fs.Store) queue.InitFunc {
+func DownloadJobInit(db database.Pool, q queue.Queue, log *log.Logger, store fs.Store) queue.InitFunc {
 	return func(j queue.Job) {
 		if d, ok := j.(*DownloadJob); ok {
-			d.db = db
+			d.store = &Store{
+				Pool:  db,
+				Store: store,
+			}
 			d.queue = q
 			d.log = log
-			d.store = store
 		}
 	}
 }
 
-// Name implements the queue.Job interface.
 func (d *DownloadJob) Name() string { return "download_job" }
 
-// Perform implements the queue.Job interface. This will attempt to download
-// the image from the remote URL. This will fail if the URL does not have a
-// valid scheme such as, http, https, or sftp.
+var QCOW2Sig = []byte{0x51, 0x46, 0x49, 0xFB}
+
 func (d *DownloadJob) Perform() error {
 	now := time.Now()
 
@@ -216,7 +101,7 @@ func (d *DownloadJob) Perform() error {
 
 	d.log.Debug.Println("image download started at", now)
 
-	if _, err := d.db.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := d.store.Exec(q.Build(), q.Args()...); err != nil {
 		d.log.Error.Println(errors.Err(err))
 		return errors.Err(err)
 	}
@@ -339,7 +224,7 @@ func (d *DownloadJob) Perform() error {
 			break
 		}
 
-		if !bytes.Equal(buf, qcow) {
+		if !bytes.Equal(buf, QCOW2Sig) {
 			downloaderr.String = "not a valid qcow2 file"
 			downloaderr.Valid = true
 			break
@@ -355,7 +240,7 @@ func (d *DownloadJob) Perform() error {
 		return ErrInvalidScheme
 	}
 
-	i, err := NewStore(d.db).Get(query.Where("id", "=", query.Arg(d.ImageID)))
+	i, _, err := d.store.Get(query.Where("id", "=", query.Arg(d.ImageID)))
 
 	if err != nil {
 		d.log.Error.Println(errors.Err(err))
@@ -363,7 +248,14 @@ func (d *DownloadJob) Perform() error {
 	}
 
 	if r != nil {
-		dst, err := d.store.Create(filepath.Join(i.Driver.String(), i.Hash))
+		store, err := d.store.Partition(i.UserID)
+
+		if err != nil {
+			d.log.Error.Println(errors.Err(err))
+			return errors.Err(err)
+		}
+
+		dst, err := store.Create(i.path())
 
 		if err != nil {
 			downloaderr.String = errors.Cause(err).Error()
@@ -385,7 +277,7 @@ update:
 		query.Where("id", "=", query.Arg(d.ID)),
 	)
 
-	if _, err := d.db.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := d.store.Exec(q.Build(), q.Args()...); err != nil {
 		d.log.Error.Println(errors.Err(err))
 		return errors.Err(err)
 	}
@@ -398,6 +290,15 @@ update:
 	})
 	return nil
 }
+
+type DownloadURL struct {
+	*url.URL
+}
+
+var (
+	_ sql.Scanner   = (*DownloadURL)(nil)
+	_ driver.Valuer = (*DownloadURL)(nil)
+)
 
 func (u *DownloadURL) GobEncode() ([]byte, error) {
 	var buf bytes.Buffer
@@ -426,19 +327,29 @@ func (u *DownloadURL) String() string {
 	return ""
 }
 
-func (u *DownloadURL) Scan(v interface{}) error {
-	if v == nil {
+func (u *DownloadURL) Scan(val interface{}) error {
+	if val == nil {
 		return nil
 	}
 
-	b, err := database.Scan(v)
+	v, err := driver.String.ConvertValue(val)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	u.URL, err = url.Parse(string(b))
-	return errors.Err(err)
+	s, ok := v.(string)
+
+	if !ok {
+		return errors.New("image: could not type assert DownloadURL to string")
+	}
+
+	u.URL, err = url.Parse(s)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 func (u *DownloadURL) UnmarshalText(b []byte) error {
@@ -457,6 +368,12 @@ func (u *DownloadURL) UnmarshalText(b []byte) error {
 	if _, ok := downloadSchemes[u.Scheme]; !ok {
 		return ErrInvalidScheme
 	}
+
+	if u.Scheme == "sftp" {
+		if _, ok := u.User.Password(); !ok {
+			return ErrMissingPassword
+		}
+	}
 	return nil
 }
 
@@ -468,3 +385,102 @@ func (u *DownloadURL) Validate() error {
 }
 
 func (u DownloadURL) Value() (driver.Value, error) { return strings.ToLower(u.Redacted()), nil }
+
+type Download struct {
+	ID         int64
+	ImageID    int64
+	Source     DownloadURL
+	Error      sql.NullString
+	CreatedAt  time.Time
+	StartedAt  sql.NullTime
+	FinishedAt sql.NullTime
+}
+
+var _ database.Model = (*Download)(nil)
+
+func (d *Download) Dest() []interface{} {
+	return []interface{}{
+		&d.ID,
+		&d.ImageID,
+		&d.Source,
+		&d.Error,
+		&d.CreatedAt,
+		&d.StartedAt,
+		&d.FinishedAt,
+	}
+}
+
+func (*Download) Bind(_ database.Model) {}
+
+func (*Download) JSON(_ string) map[string]interface{} { return nil }
+
+func (*Download) Endpoint(_ ...string) string { return "" }
+
+func (d *Download) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"id":          d.ID,
+		"image_id":    d.ImageID,
+		"source":      d.Source,
+		"error":       d.Error,
+		"created_at":  d.CreatedAt,
+		"started_at":  d.StartedAt,
+		"finished_at": d.FinishedAt,
+	}
+}
+
+type DownloadStore struct {
+	database.Pool
+}
+
+var (
+	_ database.Loader = (*DownloadStore)(nil)
+
+	downloadTable = "image_downloads"
+)
+
+func (s DownloadStore) Get(opts ...query.Option) (*Download, bool, error) {
+	var d Download
+
+	ok, err := s.Pool.Get(downloadTable, &d, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &d, ok, nil
+}
+
+func (s DownloadStore) All(opts ...query.Option) ([]*Download, error) {
+	dd := make([]*Download, 0)
+
+	new := func() database.Model {
+		d := &Download{}
+		dd = append(dd, d)
+		return d
+	}
+
+	if err := s.Pool.All(downloadTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
+	}
+	return dd, nil
+}
+
+func (s DownloadStore) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
+
+	dd, err := s.All(query.Where(pk, "IN", database.List(vals...)))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, d := range dd {
+		for _, m := range mm {
+			m.Bind(d)
+		}
+	}
+	return nil
+}

@@ -12,45 +12,12 @@ import (
 	"djinn-ci.com/errors"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type TriggerType uint8
 
-type triggerData map[string]string
-
-// Trigger is the type that represents what triggered a build.
-type Trigger struct {
-	ID         int64         `db:"id"`
-	BuildID    int64         `db:"build_id"`
-	ProviderID sql.NullInt64 `db:"provider_id"`
-	RepoID     sql.NullInt64 `db:"repo_id"`
-	Type       TriggerType   `db:"type"`
-	Comment    string        `db:"comment"`
-	Data       triggerData   `db:"data"`
-	CreatedAt  time.Time     `db:"created_at"`
-
-	Build *Build `db:"-" gob:"-"`
-}
-
-// TriggerStore is the type for creating and modifying Trigger models in the
-// database.
-type TriggerStore struct {
-	database.Store
-
-	Build *Build
-}
-
 //go:generate stringer -type TriggerType -linecomment
 const (
-	// There are three different trigger types for a build trigger,
-	// Manual - for when a build was manually submitted for either via the API
-	// or UI.
-	//
-	// Push     - for when a build was triggered via a commit hook.
-	// Pull     - for when a build was triggered via a pull-request hook.
-	// Schedule - for when a build was triggered via a cron.
 	Manual   TriggerType = iota // manual
 	Push                        // push
 	Pull                        // pull
@@ -58,18 +25,10 @@ const (
 )
 
 var (
-	_ database.Model  = (*Trigger)(nil)
-	_ database.Binder = (*TriggerStore)(nil)
-	_ database.Loader = (*TriggerStore)(nil)
-
-	_ sql.Scanner   = (*triggerData)(nil)
-	_ driver.Valuer = (*triggerData)(nil)
-
 	_ sql.Scanner   = (*TriggerType)(nil)
 	_ driver.Valuer = (*TriggerType)(nil)
 
-	triggerTable = "build_triggers"
-	triggersMap  = map[string]TriggerType{
+	triggersMap = map[string]TriggerType{
 		"manual":   Manual,
 		"push":     Push,
 		"pull":     Pull,
@@ -77,40 +36,23 @@ var (
 	}
 )
 
-// NewTriggerStore returns a new TriggerStore for querying the build_triggers
-// table. Each database passed to this function will be bound to the returned
-// TriggerStore.
-func NewTriggerStore(db *sqlx.DB, mm ...database.Model) *TriggerStore {
-	s := &TriggerStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// NewTriggerData returns an empty set of data for a build trigger.
-func NewTriggerData() triggerData { return triggerData(make(map[string]string)) }
-
-// TriggerModel is called along with database.ModelSlice to convert the given slice of
-// Trigger models to a slice of database.Model interfaces.
-func TriggerModel(tt []*Trigger) func(int) database.Model {
-	return func(i int) database.Model {
-		return tt[i]
-	}
-}
-
 func (t *TriggerType) Scan(val interface{}) error {
-	b, err := database.Scan(val)
+	v, err := driver.String.ConvertValue(val)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if len(b) == 0 {
-		(*t) = TriggerType(0)
-		return nil
+	s, ok := v.(string)
+
+	if !ok {
+		return errors.New("build: could not type assert Trigger to string")
 	}
-	return errors.Err(t.UnmarshalText(b))
+
+	if err := t.UnmarshalText([]byte(s)); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 func (t *TriggerType) UnmarshalText(b []byte) error {
@@ -127,20 +69,36 @@ func (t *TriggerType) UnmarshalText(b []byte) error {
 
 func (t TriggerType) Value() (driver.Value, error) { return driver.Value(t.String()), nil }
 
+type triggerData map[string]string
+
+var (
+	_ sql.Scanner   = (*triggerData)(nil)
+	_ driver.Valuer = (*triggerData)(nil)
+)
+
+func NewTriggerData() triggerData { return triggerData(make(map[string]string)) }
+
 func (d *triggerData) Scan(val interface{}) error {
-	b, err := database.Scan(val)
+	v, err := driver.String.ConvertValue(val)
 
 	if err != nil {
 		return errors.Err(err)
+	}
+
+	b, ok := v.([]byte)
+
+	if !ok {
+		return errors.New("build: could not type assert triggerData to byte slice")
 	}
 
 	if len(b) == 0 {
 		return nil
 	}
 
-	buf := bytes.NewBuffer(b)
-	dec := json.NewDecoder(buf)
-	return errors.Err(dec.Decode(d))
+	if err := json.Unmarshal(b, d); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 func (d *triggerData) Set(key, val string) {
@@ -158,34 +116,47 @@ func (d *triggerData) String() string {
 
 func (d triggerData) Value() (driver.Value, error) { return driver.Value(d.String()), nil }
 
-// Bind implements the database.Binder interface. This will only bind the models
-// if they are pointers to a Build model.
-func (t *Trigger) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *Build:
-			t.Build = v
+type Trigger struct {
+	ID         int64
+	BuildID    int64
+	ProviderID sql.NullInt64
+	RepoID     sql.NullInt64
+	Type       TriggerType
+	Comment    string
+	Data       triggerData
+	CreatedAt  time.Time
+
+	Build *Build
+}
+
+var _ database.Model = (*Trigger)(nil)
+
+func (t *Trigger) Dest() []interface{} {
+	return []interface{}{
+		&t.ID,
+		&t.BuildID,
+		&t.ProviderID,
+		&t.RepoID,
+		&t.Type,
+		&t.Comment,
+		&t.Data,
+		&t.CreatedAt,
+	}
+}
+
+func (t *Trigger) Bind(m database.Model) {
+	if b, ok := m.(*Build); ok {
+		if t.BuildID == b.ID {
+			t.Build = b
 		}
 	}
 }
 
-func (t *Trigger) SetPrimary(i int64) { t.ID = i }
-
-func (t Trigger) Primary() (string, int64) { return "id", t.ID }
-
-// IsZero implements the database.Model interface.
-func (t *Trigger) IsZero() bool {
-	return t == nil || t.ID == 0 &&
-		t.BuildID == 0 &&
-		t.Type == TriggerType(0) &&
-		t.Comment == "" &&
-		len(t.Data) == 0 &&
-		t.CreatedAt == time.Time{}
-}
-
-// JSON implements the database.Model interface. This will return a map with
-// the current Trigger's values under each key.
 func (t *Trigger) JSON(_ string) map[string]interface{} {
+	if t == nil {
+		return nil
+	}
+
 	return map[string]interface{}{
 		"type":    t.Type.String(),
 		"comment": t.Comment,
@@ -193,74 +164,62 @@ func (t *Trigger) JSON(_ string) map[string]interface{} {
 	}
 }
 
-// Endpoint is a stub to fulfill the database.Model interface. It returns an empty
-// string.
 func (*Trigger) Endpoint(_ ...string) string { return "" }
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, build_id, provider_id, type, comment, and data.
 func (t Trigger) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"id":          t.ID,
 		"build_id":    t.BuildID,
 		"provider_id": t.ProviderID,
 		"repo_id":     t.RepoID,
 		"type":        t.Type,
 		"comment":     t.Comment,
 		"data":        t.Data,
+		"created_at":  t.CreatedAt,
 	}
 }
 
-// CommentBody parses the trigger comment to get the body of the comment. This
-// will typically return the lines of the comment that appear after the first
-// newline character that is found. If there is no newline character, and the
-// trigger comment itself is less than 72 characters in length, then nothing
-// is returned. The first 72 characters are summed to be the title of the
-// comment.
-func (t Trigger) CommentBody() string {
+func (t *Trigger) CommentBody() string {
 	i := strings.Index(t.Comment, "\n")
+	wrap := false
 
 	if i == -1 {
 		if len(t.Comment) <= 72 {
 			return ""
 		}
 		i = 72
+		wrap = true
 	}
 
 	body := strings.TrimSpace(t.Comment[i:])
 
-	if strings.TrimSpace(t.Comment[:i]) != "" && body != "" {
+	if i > 72 || wrap {
 		return "..." + body
 	}
 	return body
 }
 
-// CommentTitle parses the trigger comment to get the title of the comment.
-// This treats the first line of the trigger comment as the title. If that
-// first line is longer than 72 characters, then only the first 72 characters
-// will be returned.
-func (t Trigger) CommentTitle() string {
+func (t *Trigger) CommentTitle() string {
 	i := strings.Index(t.Comment, "\n")
+	wrap := false
 
 	if i == -1 {
 		if len(t.Comment) <= 72 {
 			return t.Comment
 		}
-
 		i = 72
+		wrap = true
 	}
 
 	title := strings.TrimSpace(t.Comment[:i])
 
-	if strings.TrimSpace(t.Comment[i:]) != "" {
+	if i > 72 || wrap {
 		return title + "..."
 	}
 	return title
 }
 
-// String returns a formatted string of the trigger itself, this will detail the
-// user who submitted it, if not nil, and format the comment into the title and
-// body.
-func (t Trigger) String() string {
+func (t *Trigger) String() string {
 	buf := bytes.Buffer{}
 
 	var username, email string
@@ -286,75 +245,58 @@ func (t Trigger) String() string {
 	return buf.String()
 }
 
-// Bind implements the database.Binder interface. This will only bind the models
-// if they are pointers to a Build model.
-func (s *TriggerStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *Build:
-			s.Build = v
-		}
-	}
+type TriggerStore struct {
+	database.Pool
 }
 
-func (s *TriggerStore) Create(tt ...*Trigger) error {
-	mm := database.ModelSlice(len(tt), TriggerModel(tt))
-	return errors.Err(s.Store.Create(triggerTable, mm...))
-}
+var (
+	_ database.Loader = (*TriggerStore)(nil)
 
-func (s TriggerStore) Get(opts ...query.Option) (*Trigger, error) {
-	t := &Trigger{
-		Build: s.Build,
-	}
+	triggerTable = "build_triggers"
+)
 
-	opts = append([]query.Option{
-		database.Where(s.Build, "build_id"),
-	}, opts...)
-
-	err := s.Store.Get(t, triggerTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return t, errors.Err(err)
-}
-
-// All returns a slice of Trigger models, applying each query.Option that is
-// given. The database.Where option is used on the Build bound database to limit the
-// query to those relations.
 func (s TriggerStore) All(opts ...query.Option) ([]*Trigger, error) {
 	tt := make([]*Trigger, 0)
 
-	opts = append([]query.Option{
-		database.Where(s.Build, "build_id"),
-	}, opts...)
-
-	err := s.Store.All(&tt, triggerTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		t := &Trigger{}
+		tt = append(tt, t)
+		return t
 	}
 
-	for _, t := range tt {
-		t.Build = s.Build
+	if err := s.Pool.All(triggerTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return tt, errors.Err(err)
+	return tt, nil
 }
 
-// Load loads in a slice of Trigger models where the given key is in the list of
-// given vals. Each database is loaded individually via a call to the given load
-// callback. This method calls StageStore.All under the hood, so any bound
-// models will impact the models being loaded.
-func (s TriggerStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	tt, err := s.All(query.Where(key, "IN", database.List(vals...)))
+func (s TriggerStore) Get(opts ...query.Option) (*Trigger, bool, error) {
+	var t Trigger
+
+	ok, err := s.Pool.Get(triggerTable, &t, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &t, ok, nil
+}
+
+func (s TriggerStore) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
+
+	tt, err := s.All(query.Where(pk, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	for i := range vals {
-		for _, t := range tt {
-			load(i, t)
+	for _, t := range tt {
+		for _, m := range mm {
+			m.Bind(t)
 		}
 	}
 	return nil

@@ -1,7 +1,6 @@
 package oauth2
 
 import (
-	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -14,129 +13,65 @@ import (
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
-// Token is the type that represents an OAuth Token in the database.
 type Token struct {
-	ID        int64         `db:"id"`
-	UserID    int64         `db:"user_id"`
-	AppID     sql.NullInt64 `db:"app_id"`
-	Name      string        `db:"name"`
-	Token     string        `db:"token"`
-	Scope     Scope         `db:"scope"`
-	CreatedAt time.Time     `db:"created_at"`
-	UpdatedAt time.Time     `db:"updated_at"`
+	ID        int64
+	UserID    int64
+	AppID     sql.NullInt64
+	Name      string
+	Token     string
+	Scope     Scope
+	CreatedAt time.Time
+	UpdatedAt time.Time
 
-	User *user.User `db:"-"`
-	App  *App       `db:"-"`
-}
-
-// TokenStore is the type for creating and modifying Token models in the
-// database.
-type TokenStore struct {
-	database.Store
-
-	// User is the bound user.User model. If not nil this will bind the
-	// user.User model to any Token models that are created. If not nil this
-	// will append a WHERE clause on the user_id column for all SELECT queries
-	// performed.
 	User *user.User
-
-	// App is the bound App model. If not nil this will bind the App model to
-	// any Token models that are created. If not nil this will append a WHERE
-	// clause on the app_id column for all SELECT queries performed.
-	App *App
+	App  *App
 }
 
-var (
-	_ database.Model  = (*Token)(nil)
-	_ database.Binder = (*TokenStore)(nil)
+var _ database.Model = (*Token)(nil)
 
-	tokenTable = "oauth_tokens"
-)
-
-// NewTokenStore returns a new TokenStore for querying the oauth_tokens table.
-// Each database passed to this function will be bound to the returned TokenStore.
-func NewTokenStore(db *sqlx.DB, mm ...database.Model) *TokenStore {
-	s := &TokenStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// TokenFromContext returns the Token model from the given context, if any.
-func TokenFromContext(ctx context.Context) (*Token, bool) {
-	t, ok := ctx.Value("token").(*Token)
-	return t, ok
-}
-
-// TokenModel is called along with database.ModelSlice to convert the given slice of
-// Token models to a slice of database.Model interfaces.
-func TokenModel(tt []*Token) func(int) database.Model {
-	return func(i int) database.Model {
-		return tt[i]
+func (t *Token) Dest() []interface{} {
+	return []interface{}{
+		&t.ID,
+		&t.UserID,
+		&t.AppID,
+		&t.Name,
+		&t.Token,
+		&t.Scope,
+		&t.CreatedAt,
+		&t.UpdatedAt,
 	}
 }
 
-// SelectToken returns SELECT query that will select the given column from the
-// oauth_tokens table with the given query options applied.
-func SelectToken(col string, opts ...query.Option) query.Query {
-	return query.Select(query.Columns(col), append([]query.Option{query.From(tokenTable)}, opts...)...)
-}
-
-// Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to either a user.User model or an App model.
-func (t *Token) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
+func (t *Token) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *user.User:
+		if t.UserID == v.ID {
 			t.User = v
-		case *App:
+		}
+	case *App:
+		if t.AppID.Int64 == v.ID {
 			t.App = v
 		}
 	}
 }
 
-// SetPrimary implements the database.Model interface.
-func (t *Token) SetPrimary(id int64) { t.ID = id }
+func (*Token) JSON(_ string) map[string]interface{} { return nil }
 
-// Primary implements the database.Model interface.
-func (t *Token) Primary() (string, int64) { return "id", t.ID }
-
-// IsZero implements the database.Model interface.
-func (t *Token) IsZero() bool {
-	return t.ID == 0 &&
-		t.UserID == 0 &&
-		!t.AppID.Valid &&
-		t.Name == "" &&
-		len(t.Token) == 0 &&
-		len(t.Scope) == 0 &&
-		t.CreatedAt == time.Time{} &&
-		t.UpdatedAt == time.Time{}
-}
-
-// JSON implements the database.Model interface. This is a stub method and
-// returns an empty map.
-func (*Token) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
-
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, app_id, name, token, scope, and updated_at.
 func (t *Token) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"id":         t.ID,
 		"user_id":    t.UserID,
 		"app_id":     t.AppID,
 		"name":       t.Name,
 		"token":      t.Token,
 		"scope":      t.Scope,
+		"created_at": t.CreatedAt,
 		"updated_at": t.UpdatedAt,
 	}
 }
 
-// Endpoint returns the endpoint for the current Token with the appended URI
-// parts.
 func (t *Token) Endpoint(uri ...string) string {
 	if len(uri) > 0 {
 		return "/settings/tokens/" + strconv.FormatInt(t.ID, 10) + "/" + strings.Join(uri, "/")
@@ -169,150 +104,140 @@ func (t *Token) Permissions() map[string]struct{} {
 	return m
 }
 
-// New returns a new Token binding any non-nil models to it from the current
-// TokenStore.
-func (s *TokenStore) New() *Token {
-	t := &Token{
-		User: s.User,
-		App:  s.App,
-	}
-
-	if s.User != nil {
-		t.UserID = s.User.ID
-	}
-
-	if s.App != nil {
-		t.AppID = sql.NullInt64{
-			Int64: s.App.ID,
-			Valid: true,
-		}
-	}
-	return t
+type TokenStore struct {
+	database.Pool
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to either a user.User model or an App model.
-func (s *TokenStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
-		case *App:
-			s.App = v
-		}
-	}
+var tokenTable = "oauth_tokens"
+
+func SelectToken(col string, opts ...query.Option) query.Query {
+	return query.Select(query.Columns(col), append([]query.Option{query.From(tokenTable)}, opts...)...)
 }
 
-// All returns a slice Token models, applying each query.Option that is given.
-// The database.Where option is applied to the bound User database and bound App
-// database.
-func (s *TokenStore) All(opts ...query.Option) ([]*Token, error) {
+func (s TokenStore) Get(opts ...query.Option) (*Token, bool, error) {
+	var t Token
+
+	ok, err := s.Pool.Get(tokenTable, &t, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &t, ok, nil
+}
+
+func (s TokenStore) All(opts ...query.Option) ([]*Token, error) {
 	tt := make([]*Token, 0)
 
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-		database.Where(s.App, "app_id"),
-	}, opts...)
-
-	err := s.Store.All(&tt, tokenTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		t := &Token{}
+		tt = append(tt, t)
+		return t
 	}
 
-	for _, t := range tt {
-		t.User = s.User
-		t.App = s.App
+	if err := s.Pool.All(tokenTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return tt, errors.Err(err)
+	return tt, nil
 }
 
-// Get returns a single Token database, applying each query.Option that is given.
-// The database.Where option is applied to the bound User database and bound App
-// database.
-func (s *TokenStore) Get(opts ...query.Option) (*Token, error) {
-	t := &Token{
-		User: s.User,
-		App:  s.App,
-	}
-
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-		database.Where(s.App, "app_id"),
-	}, opts...)
-
-	err := s.Store.Get(t, tokenTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return t, errors.Err(err)
+type TokenParams struct {
+	UserID int64
+	AppID  int64
+	Name   string
+	Scope  Scope
 }
 
-// Create creates a new token with the given name, and scopes.
-func (s *TokenStore) Create(name string, sc Scope) (*Token, error) {
-	var err error
+func (s TokenStore) Create(p TokenParams) (*Token, error) {
+	b := make([]byte, 16)
 
-	tok := make([]byte, 16)
-
-	if _, err := rand.Read(tok); err != nil {
+	if _, err := rand.Read(b); err != nil {
 		return nil, errors.Err(err)
 	}
 
-	t := s.New()
-	t.Name = name
-	t.Token = hex.EncodeToString(tok)
-	t.Scope = sc
+	appId := sql.NullInt64{
+		Int64: p.AppID,
+		Valid: p.AppID > 0,
+	}
 
-	err = s.Store.Create(tokenTable, t)
-	return t, errors.Err(err)
+	tok := hex.EncodeToString(b)
+	now := time.Now()
+
+	q := query.Insert(
+		tokenTable,
+		query.Columns("user_id", "app_id", "name", "token", "scope", "created_at", "updated_at"),
+		query.Values(p.UserID, appId, p.Name, tok, p.Scope, now, now),
+		query.Returning("id"),
+	)
+
+	var id int64
+
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return &Token{
+		ID:        id,
+		UserID:    p.UserID,
+		AppID:     appId,
+		Name:      p.Name,
+		Token:     tok,
+		Scope:     p.Scope,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil
 }
 
-// Reset generates a new token value for the Token of the given id.
-func (s *TokenStore) Reset(id int64) error {
-	token := make([]byte, 16)
+func (s TokenStore) Reset(id int64) error {
+	b := make([]byte, 16)
 
-	if _, err := rand.Read(token); err != nil {
+	if _, err := rand.Read(b); err != nil {
 		return errors.Err(err)
 	}
 
 	q := query.Update(
 		tokenTable,
-		query.Set("token", query.Arg(hex.EncodeToString(token))),
+		query.Set("token", query.Arg(hex.EncodeToString(b))),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Update updates a Token for the given id with the new name and scope.
-func (s *TokenStore) Update(id int64, name string, sc Scope) error {
+func (s TokenStore) Update(id int64, p TokenParams) error {
 	q := query.Update(
 		tokenTable,
-		query.Set("name", query.Arg(name)),
-		query.Set("scope", query.Arg(sc)),
+		query.Set("name", query.Arg(p.Name)),
+		query.Set("scope", query.Arg(p.Scope)),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Revoke deletes all of the tokens for the given appId.
-func (s *TokenStore) Revoke(appId int64) error {
+func (s TokenStore) Revoke(appId int64) error {
 	q := query.Delete(tokenTable, query.Where("app_id", "=", query.Arg(appId)))
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Delete deletes the token of the given ids from the database.
-func (s *TokenStore) Delete(ids ...int64) error {
-	mm := make([]database.Model, 0, len(ids))
+func (s *TokenStore) Delete(id int64) error {
+	q := query.Delete(tokenTable, query.Where("id", "=", query.Arg(id)))
 
-	for _, id := range ids {
-		mm = append(mm, &Token{ID: id})
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
 	}
-	return errors.Err(s.Store.Delete(tokenTable, mm...))
+	return nil
 }

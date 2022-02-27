@@ -27,7 +27,7 @@ func main() {
 	qctx, qcancel := context.WithCancel(context.Background())
 	defer qcancel()
 
-	srv, cfg, close_, err := serverutil.Init(qctx, config)
+	srv, close_, err := serverutil.Init(qctx, config)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
@@ -38,7 +38,7 @@ func main() {
 
 	c := make(chan os.Signal, 1)
 
-	serverutil.RegisterRoutes(cfg, api, ui, srv)
+	serverutil.RegisterRoutes(api, ui, srv)
 	serverutil.Start(srv, c)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(time.Second*15))

@@ -22,74 +22,257 @@ import (
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/event"
+	"djinn-ci.com/log"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 
 	"github.com/google/uuid"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/jackc/pgx/v4"
 )
 
 type hookURL struct {
 	*url.URL
 }
 
-type Webhook struct {
-	ID          int64      `db:"id"`
-	UserID      int64      `db:"user_id"`
-	AuthorID    int64      `db:"author_id"`
-	NamespaceID int64      `db:"namespace_id"`
-	PayloadURL  hookURL    `db:"payload_url"`
-	Secret      []byte     `db:"secret"`
-	SSL         bool       `db:"ssl"`
-	Events      event.Type `db:"events"`
-	Active      bool       `db:"active"`
-	CreatedAt   time.Time  `db:"created_at"`
+var (
+	_ sql.Scanner   = (*hookURL)(nil)
+	_ driver.Valuer = (*hookURL)(nil)
+)
 
-	User         *user.User       `db:"-"`
-	Namespace    *Namespace       `db:"-"`
-	LastDelivery *WebhookDelivery `db:"-"`
+func WebhookURL(url *url.URL) hookURL {
+	return hookURL{
+		URL: url,
+	}
+}
+
+func (u hookURL) Value() (driver.Value, error) { return strings.ToLower(u.String()), nil }
+
+func (u *hookURL) Scan(val interface{}) error {
+	v, err := driver.String.ConvertValue(val)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	s, ok := v.(string)
+
+	if !ok {
+		return errors.New("namespace: could not type assert hookURL to string")
+	}
+
+	u.URL, err = url.Parse(s)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+type Webhook struct {
+	ID          int64
+	UserID      int64
+	AuthorID    int64
+	NamespaceID int64
+	PayloadURL  hookURL
+	Secret      []byte
+	SSL         bool
+	Events      event.Type
+	Active      bool
+	CreatedAt   time.Time
+
+	User         *user.User
+	Namespace    *Namespace
+	LastDelivery *WebhookDelivery
+}
+
+var _ database.Model = (*Webhook)(nil)
+
+func (w *Webhook) Dest() []interface{} {
+	return []interface{}{
+		&w.ID,
+		&w.UserID,
+		&w.AuthorID,
+		&w.NamespaceID,
+		&w.PayloadURL,
+		&w.Secret,
+		&w.SSL,
+		&w.Events,
+		&w.Active,
+		&w.CreatedAt,
+	}
+}
+
+// PruneWebhookDeliveries will delete all webhook deliveries that are older than
+// 30 days. This is a continuous process, and will stop when the given context
+// is cancelled.
+func PruneWebhookDeliveries(ctx context.Context, log *log.Logger, db database.Pool) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(time.Minute):
+			q := query.Delete(
+				webhookDeliveryTable,
+				query.Where("id", "IN", query.Select(
+					query.Columns("id"),
+					query.From(webhookDeliveryTable),
+					query.Where("created_at", ">", query.Lit("CURRENT_DATE + INTERVAL '30 days'")),
+				)),
+			)
+
+			res, err := db.Exec(q.Build(), q.Args()...)
+
+			if err != nil {
+				log.Error.Println("failed to prune old webhook deliveries", err)
+				continue
+			}
+			log.Debug.Println("deleted", res.RowsAffected(), "old webhook deliveries")
+		}
+	}
+}
+
+func (w *Webhook) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *Namespace:
+		if w.NamespaceID == v.ID {
+			w.Namespace = v
+		}
+	case *user.User:
+		if w.UserID == v.ID {
+			w.User = v
+		}
+	}
+}
+
+func (w *Webhook) Endpoint(uri ...string) string {
+	if w.Namespace == nil {
+		return ""
+	}
+	return w.Namespace.Endpoint(append([]string{"webhooks", strconv.FormatInt(w.ID, 10)}, uri...)...)
+}
+
+func (w *Webhook) JSON(addr string) map[string]interface{} {
+	if w == nil {
+		return nil
+	}
+
+	events := make([]string, 0, len(event.Types))
+
+	for _, ev := range event.Types {
+		if w.Events.Has(ev) {
+			events = append(events, ev.String())
+		}
+	}
+
+	json := map[string]interface{}{
+		"id":           w.ID,
+		"user_id":      w.UserID,
+		"author_id":    w.AuthorID,
+		"namespace_id": w.NamespaceID,
+		"payload_url":  w.PayloadURL.String(),
+		"ssl":          w.SSL,
+		"events":       events,
+		"active":       w.Active,
+		"url":          addr + w.Endpoint(),
+	}
+
+	if w.Namespace != nil {
+		if v := w.Namespace.JSON(addr); v != nil {
+			json["namespace"] = w.Namespace.JSON(addr)
+		}
+	}
+
+	if w.LastDelivery != nil {
+		var deliveryError interface{} = nil
+
+		if w.LastDelivery.Error.Valid {
+			deliveryError = w.LastDelivery.Error.String
+		}
+
+		json["last_response"] = map[string]interface{}{
+			"error":      deliveryError,
+			"code":       w.LastDelivery.ResponseCode,
+			"duration":   w.LastDelivery.Duration,
+			"created_at": w.LastDelivery.CreatedAt.Format(time.RFC3339),
+		}
+	}
+	return json
+}
+
+func (w *Webhook) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"id":           w.ID,
+		"user_id":      w.UserID,
+		"author_id":    w.AuthorID,
+		"namespace_id": w.NamespaceID,
+		"payload_url":  w.PayloadURL,
+		"secret":       w.Secret,
+		"ssl":          w.SSL,
+		"events":       w.Events,
+		"active":       w.Active,
+		"created_at":   w.CreatedAt,
+	}
 }
 
 type WebhookDelivery struct {
-	ID              int64                  `db:"id"`
-	WebhookID       int64                  `db:"webhook_id"`
-	EventID         uuid.UUID              `db:"event_id"`
-	NamespaceID     sql.NullInt64          `db:"-"`
-	Error           sql.NullString         `db:"error"`
-	Event           event.Type             `db:"event"`
-	Redelivery      bool                   `db:"redelivery"`
-	RequestHeaders  sql.NullString         `db:"request_headers"`
-	RequestBody     sql.NullString         `db:"request_body"`
-	ResponseCode    sql.NullInt64          `db:"response_code"`
-	ResponseStatus  string                 `db:"-"`
-	ResponseHeaders sql.NullString         `db:"response_headers"`
-	ResponseBody    sql.NullString         `db:"response_body"`
-	Payload         map[string]interface{} `db:"-"`
-	Duration        time.Duration          `db:"duration"`
-	CreatedAt       time.Time              `db:"created_at"`
+	ID              int64
+	WebhookID       int64
+	EventID         uuid.UUID
+	NamespaceID     sql.NullInt64
+	Error           sql.NullString
+	Event           event.Type
+	Redelivery      bool
+	RequestHeaders  sql.NullString
+	RequestBody     sql.NullString
+	ResponseCode    sql.NullInt64
+	ResponseStatus  string
+	ResponseHeaders sql.NullString
+	ResponseBody    sql.NullString
+	Payload         map[string]interface{}
+	Duration        time.Duration
+	CreatedAt       time.Time
 
-	Webhook *Webhook `db:"-"`
+	Webhook *Webhook
+}
+
+var _ database.Model = (*WebhookDelivery)(nil)
+
+func (d *WebhookDelivery) Dest() []interface{} {
+	return []interface{}{
+		&d.ID,
+		&d.WebhookID,
+		&d.EventID,
+		&d.Error,
+		&d.Event,
+		&d.Redelivery,
+		&d.RequestHeaders,
+		&d.RequestBody,
+		&d.ResponseCode,
+		&d.ResponseHeaders,
+		&d.ResponseBody,
+		&d.Duration,
+		&d.CreatedAt,
+	}
+}
+
+func (*WebhookDelivery) Bind(_ database.Model)                {}
+func (*WebhookDelivery) JSON(_ string) map[string]interface{} { return nil }
+func (*WebhookDelivery) Values() map[string]interface{}       { return nil }
+
+func (d *WebhookDelivery) Endpoint(_ ...string) string {
+	return d.Webhook.Endpoint("deliveries", strconv.FormatInt(d.ID, 10))
 }
 
 type WebhookStore struct {
-	database.Store
+	database.Pool
 
-	crypto *crypto.AESGCM
-	pool   *x509.CertPool
-
-	User      *user.User
-	Namespace *Namespace
+	AESGCM   *crypto.AESGCM
+	CertPool *x509.CertPool
 }
 
 var (
-	_ database.Model  = (*Webhook)(nil)
-	_ database.Binder = (*WebhookStore)(nil)
-
-	_ sql.Scanner   = (*hookURL)(nil)
-	_ driver.Valuer = (*hookURL)(nil)
-
 	webhookTable         = "namespace_webhooks"
 	webhookDeliveryTable = "namespace_webhook_deliveries"
 
@@ -126,7 +309,6 @@ func decodeHeaders(s string) http.Header {
 		default:
 			buf = append(buf, r)
 		}
-
 		r0 = r
 	}
 
@@ -142,206 +324,85 @@ func encodeHeaders(headers http.Header) string {
 	return buf.String()
 }
 
-func WebhookURL(url *url.URL) hookURL {
-	return hookURL{
-		URL: url,
-	}
+type WebhookParams struct {
+	UserID      int64
+	NamespaceID int64
+	PayloadURL  *url.URL
+	Secret      string
+	SSL         bool
+	Events      event.Type
+	Active      bool
 }
 
-func NewWebhookStore(db *sqlx.DB, mm ...database.Model) *WebhookStore {
-	s := &WebhookStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-func NewWebhookStoreWithCrypto(db *sqlx.DB, crypto *crypto.AESGCM, mm ...database.Model) *WebhookStore {
-	s := NewWebhookStore(db, mm...)
-	s.crypto = crypto
-	return s
-}
-
-func WebhookFromContext(ctx context.Context) (*Webhook, bool) {
-	w, ok := ctx.Value("webhook").(*Webhook)
-	return w, ok
-}
-
-func (e *WebhookDelivery) Endpoint(_ ...string) string {
-	return e.Webhook.Endpoint("deliveries", strconv.FormatInt(e.ID, 10))
-}
-
-func (u hookURL) Value() (driver.Value, error) { return strings.ToLower(u.String()), nil }
-
-func (u *hookURL) Scan(v interface{}) error {
-	b, err := database.Scan(v)
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	u.URL, err = url.Parse(string(b))
-
-	return errors.Err(err)
-}
-
-func (w *Webhook) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *Namespace:
-			w.Namespace = v
-		case *user.User:
-			w.User = v
-		}
-	}
-}
-
-func (w *Webhook) Endpoint(uri ...string) string {
-	if w.Namespace.IsZero() {
-		return ""
-	}
-	return w.Namespace.Endpoint(append([]string{"webhooks", strconv.FormatInt(w.ID, 10)}, uri...)...)
-}
-
-func (w *Webhook) IsZero() bool {
-	return w == nil || w.ID == 0 &&
-		w.AuthorID == 0 &&
-		w.NamespaceID == 0 &&
-		w.PayloadURL.URL == nil &&
-		w.Secret == nil &&
-		!w.SSL &&
-		w.Events == event.Type(0) &&
-		w.CreatedAt == time.Time{}
-}
-
-func (w *Webhook) JSON(addr string) map[string]interface{} {
-	json := map[string]interface{}{
-		"id":           w.ID,
-		"user_id":      w.UserID,
-		"author_id":    w.AuthorID,
-		"namespace_id": w.NamespaceID,
-		"payload_url":  w.PayloadURL.String(),
-		"ssl":          w.SSL,
-		"active":       w.Active,
-		"url":          addr + w.Endpoint(),
-	}
-
-	events := make([]string, 0, len(event.Types))
-
-	for _, ev := range event.Types {
-		if w.Events.Has(ev) {
-			events = append(events, ev.String())
-		}
-	}
-
-	json["events"] = events
-
-	if !w.Namespace.IsZero() {
-		json["namespace"] = w.Namespace.JSON(addr)
-	}
-
-	if w.LastDelivery != nil {
-		var deliveryError interface{} = nil
-
-		if w.LastDelivery.Error.Valid {
-			deliveryError = w.LastDelivery.Error.String
-		}
-
-		json["last_response"] = map[string]interface{}{
-			"error":      deliveryError,
-			"code":       w.LastDelivery.ResponseCode,
-			"duration":   w.LastDelivery.Duration,
-			"created_at": w.LastDelivery.CreatedAt.Format(time.RFC3339),
-		}
-	}
-	return json
-}
-
-func (w *Webhook) Primary() (string, int64) { return "id", w.ID }
-
-func (w *Webhook) SetPrimary(id int64) { w.ID = id }
-
-func (w *Webhook) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"user_id":      w.UserID,
-		"author_id":    w.AuthorID,
-		"namespace_id": w.NamespaceID,
-		"payload_url":  w.PayloadURL,
-		"secret":       w.Secret,
-		"ssl":          w.SSL,
-		"events":       w.Events,
-		"active":       w.Active,
-	}
-}
-
-func (s *WebhookStore) New() *Webhook {
-	w := &Webhook{
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	if s.User != nil {
-		w.UserID = s.User.ID
-	}
-	if s.Namespace != nil {
-		w.NamespaceID = s.Namespace.ID
-	}
-	return w
-}
-
-func (s *WebhookStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *Namespace:
-			s.Namespace = v
-		case *user.User:
-			s.User = v
-		}
-	}
-}
-
-func (s *WebhookStore) Create(authorId int64, payloadUrl *url.URL, secret string, ssl bool, events event.Type, active bool) (*Webhook, error) {
+func (s *WebhookStore) Create(p WebhookParams) (*Webhook, error) {
 	var (
 		b   []byte
 		err error
 	)
 
-	if secret != "" {
-		if s.crypto == nil {
-			return nil, errors.New("nil block cipher")
+	if p.Secret != "" {
+		if s.AESGCM == nil {
+			return nil, crypto.ErrNilAESGCM
 		}
 
-		b, err = s.crypto.Encrypt([]byte(secret))
+		b, err = s.AESGCM.Encrypt([]byte(p.Secret))
 
 		if err != nil {
 			return nil, errors.Err(err)
 		}
 	}
 
-	w := s.New()
-	w.AuthorID = authorId
-	w.PayloadURL = hookURL{URL: payloadUrl}
-	w.Secret = b
-	w.SSL = ssl
-	w.Events = events
-	w.Active = active
+	ownerId, err := getNamespaceOwnerId(s.Pool, p.NamespaceID)
 
-	err = s.Store.Create(webhookTable, w)
-	return w, errors.Err(err)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	now := time.Now()
+
+	url := hookURL{
+		URL: p.PayloadURL,
+	}
+
+	q := query.Insert(
+		webhookTable,
+		query.Columns("user_id", "author_id", "namespace_id", "payload_url", "secret", "ssl", "events", "active", "created_at"),
+		query.Values(ownerId, p.UserID, p.NamespaceID, url, b, p.SSL, p.Events, p.Active, now),
+		query.Returning("id"),
+	)
+
+	var id int64
+
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return &Webhook{
+		ID:          id,
+		UserID:      ownerId,
+		AuthorID:    p.UserID,
+		NamespaceID: p.NamespaceID,
+		PayloadURL:  url,
+		Secret:      b,
+		SSL:         p.SSL,
+		Events:      p.Events,
+		Active:      p.Active,
+		CreatedAt:   now,
+	}, nil
 }
 
-func (s *WebhookStore) Update(id int64, payloadUrl *url.URL, secret string, ssl bool, events event.Type, active bool) error {
+func (s *WebhookStore) Update(id int64, p WebhookParams) error {
 	var (
 		b   []byte
 		err error
 	)
 
-	if secret != "" {
-		if s.crypto == nil {
-			return errors.New("nil block cipher")
+	if p.Secret != "" {
+		if s.AESGCM == nil {
+			return crypto.ErrNilAESGCM
 		}
 
-		b, err = s.crypto.Encrypt([]byte(secret))
+		b, err = s.AESGCM.Encrypt([]byte(p.Secret))
 
 		if err != nil {
 			return errors.Err(err)
@@ -350,57 +411,69 @@ func (s *WebhookStore) Update(id int64, payloadUrl *url.URL, secret string, ssl 
 
 	q := query.Update(
 		webhookTable,
-		query.Set("payload_url", query.Arg(hookURL{URL: payloadUrl})),
+		query.Set("payload_url", query.Arg(hookURL{URL: p.PayloadURL})),
 		query.Set("secret", query.Arg(b)),
-		query.Set("ssl", query.Arg(ssl)),
-		query.Set("events", query.Arg(events)),
-		query.Set("active", query.Arg(active)),
+		query.Set("ssl", query.Arg(p.SSL)),
+		query.Set("events", query.Arg(p.Events)),
+		query.Set("active", query.Arg(p.Active)),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *WebhookStore) Get(opts ...query.Option) (*Webhook, bool, error) {
+	var wh Webhook
+
+	ok, err := s.Pool.Get(webhookTable, &wh, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &wh, ok, nil
 }
 
 func (s *WebhookStore) All(opts ...query.Option) ([]*Webhook, error) {
 	ww := make([]*Webhook, 0)
 
-	opts = append([]query.Option{
-		WhereCollaborator(s.User),
-		database.Where(s.Namespace, "namespace_id"),
-	}, opts...)
-
-	err := s.Store.All(&ww, webhookTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		wh := &Webhook{}
+		ww = append(ww, wh)
+		return wh
 	}
 
-	for _, w := range ww {
-		w.User = s.User
-		w.Namespace = s.Namespace
+	if err := s.Pool.All(webhookTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return ww, errors.Err(err)
+	return ww, nil
 }
 
-func (s *WebhookStore) Delivery(hookId, id int64) (*WebhookDelivery, error) {
-	d := &WebhookDelivery{}
+func (s *WebhookStore) Delivery(hookId, id int64) (*WebhookDelivery, bool, error) {
+	var d WebhookDelivery
 
 	opts := []query.Option{
 		query.Where("id", "=", query.Arg(id)),
 		query.Where("webhook_id", "=", query.Arg(hookId)),
 	}
 
-	err := s.Store.Get(d, webhookDeliveryTable, opts...)
+	ok, err := s.Pool.Get(webhookDeliveryTable, &d, opts...)
 
-	if err == sql.ErrNoRows {
-		err = nil
+	if err != nil {
+		return nil, false, errors.Err(err)
 	}
 
 	if d.ResponseCode.Valid {
-		d.ResponseStatus = strconv.FormatInt(d.ResponseCode.Int64, 10) + " " + http.StatusText(int(d.ResponseCode.Int64))
+		status := strconv.FormatInt(d.ResponseCode.Int64, 10) + " " + http.StatusText(int(d.ResponseCode.Int64))
+		d.ResponseStatus = status
 	}
-	return d, errors.Err(err)
+	return &d, ok, nil
 }
 
 func (s *WebhookStore) Deliveries(id int64) ([]*WebhookDelivery, error) {
@@ -412,37 +485,29 @@ func (s *WebhookStore) Deliveries(id int64) ([]*WebhookDelivery, error) {
 		query.Limit(25),
 	}
 
-	err := s.Store.All(&dd, webhookDeliveryTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		d := &WebhookDelivery{}
+		dd = append(dd, d)
+		return d
 	}
-
-	w := &Webhook{
-		ID:        id,
-		Namespace: s.Namespace,
+	if err := s.Pool.All(webhookDeliveryTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-
-	for _, d := range dd {
-		d.Webhook = w
-	}
-	return dd, errors.Err(err)
+	return dd, nil
 }
 
 func (s *WebhookStore) LastDelivery(id int64) (*WebhookDelivery, error) {
-	d := &WebhookDelivery{}
+	var d WebhookDelivery
 
 	opts := []query.Option{
 		query.Where("webhook_id", "=", query.Arg(id)),
 		query.OrderDesc("created_at"),
 	}
 
-	err := s.Store.Get(d, webhookDeliveryTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	if _, err := s.Pool.Get(webhookDeliveryTable, &d, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return d, errors.Err(err)
+	return &d, nil
 }
 
 func (s *WebhookStore) LoadLastDeliveries(ww ...*Webhook) error {
@@ -452,52 +517,34 @@ func (s *WebhookStore) LoadLastDeliveries(ww ...*Webhook) error {
 		mm = append(mm, w)
 	}
 
-	ids := database.MapKey("id", mm)
+	ids := database.Values("id", mm)
 
 	opts := []query.Option{
 		query.Where("webhook_id", "IN", database.List(ids...)),
 		query.OrderDesc("created_at"),
 	}
 
-	dd := make([]*WebhookDelivery, 0, len(ww))
+	deliveries := make(map[int64]*WebhookDelivery)
+	dd := make([]*WebhookDelivery, 0)
 
-	err := s.Store.All(&dd, webhookDeliveryTable, opts...)
+	new := func() database.Model {
+		d := &WebhookDelivery{}
+		dd = append(dd, d)
+		return d
+	}
 
-	if err != nil {
+	if err := s.Pool.All(webhookDeliveryTable, new, opts...); err != nil {
 		return errors.Err(err)
 	}
 
-	deliveries := make(map[int64]*WebhookDelivery)
-
 	for _, d := range dd {
-		if _, ok := deliveries[d.WebhookID]; !ok {
-			deliveries[d.WebhookID] = d
-		}
+		deliveries[d.WebhookID] = d
 	}
 
 	for _, w := range ww {
 		w.LastDelivery = deliveries[w.ID]
 	}
 	return nil
-}
-
-func (s *WebhookStore) Get(opts ...query.Option) (*Webhook, error) {
-	w := &Webhook{
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	opts = append([]query.Option{
-		WhereCollaborator(s.User),
-		database.Where(s.Namespace, "namespace_id"),
-	}, opts...)
-
-	err := s.Store.Get(w, webhookTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return w, errors.Err(err)
 }
 
 // createDelivery records the given webhook delivery in the database. derr
@@ -513,7 +560,7 @@ func (s *WebhookStore) createDelivery(hookId int64, typ event.Type, eventId uuid
 		query.Where("event_id", "=", query.Arg(eventId)),
 	)
 
-	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
 		return errors.Err(err)
 	}
 
@@ -576,8 +623,10 @@ func (s *WebhookStore) createDelivery(hookId int64, typ event.Type, eventId uuid
 		),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) (*http.Request, *http.Response, time.Duration, error) {
@@ -587,19 +636,19 @@ func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) 
 	}
 
 	if w.SSL {
-		if s.pool == nil {
+		if s.CertPool == nil {
 			pool, err := x509.SystemCertPool()
 
 			if err != nil {
 				return nil, nil, 0, errors.Err(err)
 			}
-			s.pool = pool
+			s.CertPool = pool
 		}
 
 		cli.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName: w.PayloadURL.Host,
-				RootCAs:    s.pool,
+				RootCAs:    s.CertPool,
 			},
 		}
 	}
@@ -607,11 +656,11 @@ func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) 
 	var signature string
 
 	if w.Secret != nil {
-		if s.crypto == nil {
-			return nil, nil, 0, errors.New("nil block cipher")
+		if s.AESGCM == nil {
+			return nil, nil, 0, crypto.ErrNilAESGCM
 		}
 
-		secret, err := s.crypto.Decrypt(w.Secret)
+		secret, err := s.AESGCM.Decrypt(w.Secret)
 
 		if err != nil {
 			return nil, nil, 0, errors.Err(err)
@@ -657,13 +706,13 @@ func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) 
 }
 
 func (s *WebhookStore) Redeliver(id int64, eventId uuid.UUID) error {
-	w, err := s.Get(query.Where("id", "=", query.Arg(id)))
+	w, ok, err := s.Get(query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if w.IsZero() {
+	if !ok {
 		return database.ErrNotFound
 	}
 
@@ -679,8 +728,8 @@ func (s *WebhookStore) Redeliver(id int64, eventId uuid.UUID) error {
 		query.Where("event_id", "=", query.Arg(eventId)),
 	)
 
-	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&headers, &body); err != nil {
-		if err == sql.ErrNoRows {
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&headers, &body); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return database.ErrNotFound
 		}
 		return errors.Err(err)
@@ -696,7 +745,11 @@ func (s *WebhookStore) Redeliver(id int64, eventId uuid.UUID) error {
 	if req != nil {
 		req.Body = io.NopCloser(strings.NewReader(body))
 	}
-	return s.createDelivery(w.ID, event, eventId, req, resp, dur, derr)
+
+	if err := s.createDelivery(w.ID, event, eventId, req, resp, dur, derr); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 func (s *WebhookStore) Dispatch(ev *event.Event) error {
@@ -746,6 +799,8 @@ func (s *WebhookStore) Dispatch(ev *event.Event) error {
 func (s *WebhookStore) Delete(id int64) error {
 	q := query.Delete(webhookTable, query.Where("id", "=", query.Arg(id)))
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }

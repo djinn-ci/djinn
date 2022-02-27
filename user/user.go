@@ -1,8 +1,6 @@
-// Package user provides the database implementation for the User entity.
 package user
 
 import (
-	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -13,35 +11,84 @@ import (
 
 	"github.com/andrewpillar/query"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/jackc/pgconn"
+	"github.com/jackc/pgx/v4"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-// User represents a user account in the database. This will either be created
-// through registration, or sign-on via an OAuth provider.
 type User struct {
-	ID        int64        `db:"id"`
-	Email     string       `db:"email"`
-	Username  string       `db:"username"`
-	Password  []byte       `db:"password"`
-	Verified  bool         `db:"verified"`
-	Cleanup   bool         `db:"cleanup"`
-	CreatedAt time.Time    `db:"created_at"`
-	UpdatedAt time.Time    `db:"updated_at"`
-	DeletedAt sql.NullTime `db:"deleted_at"`
-
-	Permissions map[string]struct{} `db:"-"`
+	ID          int64
+	Email       string
+	Username    string
+	Password    []byte
+	Verified    bool
+	Cleanup     bool
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
+	DeletedAt   sql.NullTime
+	Permissions map[string]struct{}
 }
 
-// Store is the type for creating and modifying User models in the database.
+var _ database.Model = (*User)(nil)
+
+func (u *User) Dest() []interface{} {
+	return []interface{}{
+		&u.ID,
+		&u.Email,
+		&u.Username,
+		&u.Password,
+		&u.Verified,
+		&u.Cleanup,
+		&u.CreatedAt,
+		&u.UpdatedAt,
+		&u.DeletedAt,
+	}
+}
+
+func (*User) Bind(database.Model) {}
+
+func (*User) Endpoint(...string) string { return "" }
+
+func (u *User) JSON(string) map[string]interface{} {
+	if u == nil {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"id":         u.ID,
+		"email":      u.Email,
+		"username":   u.Username,
+		"created_at": u.CreatedAt.Format(time.RFC3339),
+	}
+}
+
+func (u *User) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"id":         u.ID,
+		"email":      u.Email,
+		"username":   u.Username,
+		"password":   u.Password,
+		"verified":   u.Verified,
+		"cleanup":    u.Cleanup,
+		"created_at": u.CreatedAt,
+		"updated_at": u.UpdatedAt,
+		"deleted_at": u.DeletedAt,
+	}
+}
+
+func (u *User) SetPermission(perm string) {
+	if u.Permissions == nil {
+		u.Permissions = make(map[string]struct{})
+	}
+	u.Permissions[perm] = struct{}{}
+}
+
 type Store struct {
-	database.Store
+	database.Pool
 }
 
 var (
-	_ database.Model  = (*User)(nil)
-	_ database.Binder = (*Store)(nil)
 	_ database.Loader = (*Store)(nil)
 
 	table      = "users"
@@ -54,106 +101,39 @@ var (
 	ErrTokenExpired = errors.New("token expired")
 )
 
-// NewStore returns a new Store for querying the users table. Each database
-// passed to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
-	s := &Store{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
+func WhereID(id int64) query.Option {
+	return query.Options(
+		query.Where("id", "=", query.Arg(id)),
+		query.Where("deleted_at", "IS", query.Lit("NULL")),
+	)
 }
 
-// FromContext returns the *User database from the given context value, if any.
-func FromContext(ctx context.Context) (*User, bool) {
-	u, ok := ctx.Value("user").(*User)
-	return u, ok
+func WhereEmail(email string) query.Option {
+	return query.Options(
+		query.Where("email", "=", query.Arg(email)),
+		query.Where("deleted_at", "IS", query.Lit("NULL")),
+	)
 }
 
-// Select returns a query that selects the given column from the users table,
-// with each given query.Option applied to the returned query.
-func Select(col string, opts ...query.Option) query.Query {
-	return query.Select(query.Columns(col), append([]query.Option{query.From(table)}, opts...)...)
+func WhereUsername(username string) query.Option {
+	return query.Options(
+		query.Where("username", "=", query.Arg(username)),
+		query.Where("deleted_at", "IS", query.Lit("NULL")),
+	)
 }
 
-// WhereHandle returns a query.Option that when applied to a query will add two
-// WHERE clauses that will check the given handle against the email column or
-// the username column.
 func WhereHandle(handle string) query.Option {
 	return query.Options(
 		query.Where("email", "=", query.Arg(handle)),
 		query.OrWhere("username", "=", query.Arg(handle)),
+		query.Where("deleted_at", "IS", query.Lit("NULL")),
 	)
 }
 
-// Model is called along with database.ModelSlice to convert the given slice of User
-// models to a slice of database.Model interfaces.
-func Model(uu []*User) func(int) database.Model {
-	return func(i int) database.Model {
-		return uu[i]
-	}
-}
+func (s Store) touchAccountToken(id int64, purpose string) (string, error) {
+	b := make([]byte, 16)
 
-// Bind implements the database.Model interface. This does nothing.
-func (*User) Bind(_ ...database.Model) {}
-
-// Endpoint implements the database.Model interface. This returns an empty
-// string.
-func (*User) Endpoint(_ ...string) string { return "" }
-
-// SetPrimary implements the database.Model interface.
-func (u *User) SetPrimary(id int64) { u.ID = id }
-
-// Primary implements the database.Model interface.
-func (u *User) Primary() (string, int64) { return "id", u.ID }
-
-// IsZero implements the database.Model interface.
-func (u *User) IsZero() bool {
-	return u == nil || u.ID == 0 &&
-		u.Email == "" &&
-		u.Username == "" &&
-		len(u.Password) == 0 &&
-		u.CreatedAt == time.Time{} &&
-		!u.DeletedAt.Valid
-}
-
-// JSON implements the database.Model interface. This will return a map with
-// the values of the current user under each key. This will not include the
-// password field.
-func (u *User) JSON(_ string) map[string]interface{} {
-	return map[string]interface{}{
-		"id":         u.ID,
-		"email":      u.Email,
-		"username":   u.Username,
-		"created_at": u.CreatedAt.Format(time.RFC3339),
-	}
-}
-
-// Values implements the databae.Model interface. This will return a map with
-// the following values, email, username, password, updated_at, and deleted_at.
-func (u *User) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"email":      u.Email,
-		"username":   u.Username,
-		"password":   u.Password,
-		"updated_at": u.UpdatedAt,
-		"deleted_at": u.DeletedAt,
-	}
-}
-
-// SetPermission set's the given permission in the underlying Permissions map
-// of the current User. If the map is nil then it will be initialized.
-func (u *User) SetPermission(perm string) {
-	if u.Permissions == nil {
-		u.Permissions = make(map[string]struct{})
-	}
-	u.Permissions[perm] = struct{}{}
-}
-
-func (s *Store) touchAccountToken(id int64, purpose string) (string, error) {
-	tok := make([]byte, 16)
-
-	if _, err := rand.Read(tok); err != nil {
+	if _, err := rand.Read(b); err != nil {
 		return "", errors.Err(err)
 	}
 
@@ -166,40 +146,44 @@ func (s *Store) touchAccountToken(id int64, purpose string) (string, error) {
 		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
-	if err := s.DB.QueryRow(q0.Build(), q0.Args()...).Scan(&count); err != nil {
+	if err := s.QueryRow(q0.Build(), q0.Args()...).Scan(&count); err != nil {
 		return "", errors.Err(err)
 	}
 
-	var q query.Query
-
+	tok := hex.EncodeToString(b)
 	now := time.Now()
 
 	if count == 0 {
-		q = query.Insert(
+		q := query.Insert(
 			tokenTable,
 			query.Columns("user_id", "token", "purpose", "created_at", "expires_at"),
-			query.Values(id, hex.EncodeToString(tok), purpose, now, now.Add(time.Minute)),
+			query.Values(id, tok, purpose, now, now.Add(time.Minute)),
 		)
-	} else {
-		q = query.Update(
-			tokenTable,
-			query.Set("token", query.Arg(hex.EncodeToString(tok))),
-			query.Set("expires_at", query.Arg(now.Add(time.Minute))),
-			query.Where("user_id", "=", query.Arg(id)),
-		)
+
+		if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+			return "", errors.Err(err)
+		}
+		return tok, nil
 	}
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return hex.EncodeToString(tok), errors.Err(err)
+	q := query.Update(
+		tokenTable,
+		query.Set("token", query.Arg(tok)),
+		query.Set("expires_at", query.Arg(now.Add(time.Minute))),
+		query.Where("user_id", "=", query.Arg(id)),
+	)
+
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return "", errors.Err(err)
+	}
+	return tok, nil
 }
 
-func (s *Store) flushAccountToken(tok string, purpose string) (int64, error) {
+func (s Store) flushAccountToken(tok, purpose string) (int64, error) {
 	var (
 		id     int64
 		expiry time.Time
 	)
-
-	now := time.Now()
 
 	q := query.Select(
 		query.Columns("user_id", "expires_at"),
@@ -208,100 +192,154 @@ func (s *Store) flushAccountToken(tok string, purpose string) (int64, error) {
 		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
-	if err := s.DB.QueryRow(q.Build(), q.Args()...).Scan(&id, &expiry); err != nil {
-		if err == sql.ErrNoRows {
-			return 0, database.ErrNotFound
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id, &expiry); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return -1, database.ErrNotFound
 		}
-		return 0, errors.Err(err)
+		return -1, errors.Err(err)
 	}
 
-	if id == 0 {
-		return 0, database.ErrNotFound
-	}
-
-	q1 := query.Delete(
+	q = query.Delete(
 		tokenTable,
 		query.Where("user_id", "=", query.Arg(id)),
 		query.Where("token", "=", query.Arg(tok)),
 		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
-	if _, err := s.DB.Exec(q1.Build(), q1.Args()...); err != nil {
-		return 0, errors.Err(err)
-	}
-
-	if expiry.Before(now) {
-		return 0, ErrTokenExpired
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return -1, errors.Err(err)
 	}
 	return id, nil
 }
 
-// Bind implements the database.Model interface. This does nothing.
-func (s *Store) Bind(_ ...database.Model) {}
-
-// All returns a slice of User models, applying each query.Option that is
-// given.
-func (s *Store) All(opts ...query.Option) ([]*User, error) {
-	uu := make([]*User, 0)
-
-	err := s.Store.All(&uu, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return uu, errors.Err(err)
+type Params struct {
+	Email    string
+	Username string
+	Password string
+	Cleanup  bool
 }
 
-// Load loads in a slice of User models where the given key is in the list
-// of given vals. Each database is loaded individually via a call to the given
-// load callback.
-func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	uu, err := s.All(query.Where(key, "IN", database.List(vals...)))
+func (s Store) Create(p Params) (*User, string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
+
+	if err != nil {
+		return nil, "", errors.Err(err)
+	}
+
+	now := time.Now()
+
+	q := query.Insert(
+		table,
+		query.Columns("email", "username", "password", "created_at"),
+		query.Values(p.Email, p.Username, hash, now),
+		query.Returning("id"),
+	)
+
+	var id int64
+
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+		if perr, ok := err.(*pgconn.PgError); ok {
+			// 23505 unique_violation
+			// Can occur when creating an account via OAuth2 login and a
+			// username or email is already taken.
+			if perr.Code == "23505" {
+				return nil, "", ErrExists
+			}
+		}
+		return nil, "", errors.Err(err)
+	}
+
+	tok, err := s.touchAccountToken(id, "verify_account")
+
+	if err != nil {
+		return nil, "", errors.Err(err)
+	}
+
+	return &User{
+		ID:        id,
+		Email:     p.Email,
+		Username:  p.Username,
+		Password:  hash,
+		CreatedAt: now,
+	}, tok, nil
+}
+
+func (s Store) Get(opts ...query.Option) (*User, bool, error) {
+	var u User
+
+	ok, err := s.Pool.Get(table, &u, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &u, ok, nil
+}
+
+func (s Store) All(opts ...query.Option) ([]*User, error) {
+	uu := make([]*User, 0)
+
+	new := func() database.Model {
+		u := &User{}
+		uu = append(uu, u)
+		return u
+	}
+
+	if err := s.Pool.All(table, new, opts...); err != nil {
+		return nil, errors.Err(err)
+	}
+	return uu, nil
+}
+
+func (s Store) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
+
+	uu, err := s.All(query.Where(pk, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	for i := range vals {
-		for _, u := range uu {
-			load(i, u)
-		}
+	loaded := make([]database.Model, 0, len(uu))
+
+	for _, u := range uu {
+		loaded = append(loaded, u)
 	}
+
+	database.Bind(fk, pk, loaded, mm)
 	return nil
 }
 
-// New returns a new zero-value User model.
-func (*Store) New() *User { return &User{} }
-
-// Create creates a new user with the given email, username and password. The
-// given password is hashed via bcrypt using the default cost.
-func (s *Store) Create(email, username string, password []byte) (*User, string, error) {
-	hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+func (s Store) Auth(handle, password string) (*User, error) {
+	u, ok, err := s.Get(WhereHandle(handle))
 
 	if err != nil {
-		return nil, "", errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	u := s.New()
-	u.Email = email
-	u.Username = username
-	u.Password = hash
-	u.UpdatedAt = time.Now()
-
-	if err := s.Store.Create(table, u); err != nil {
-		return nil, "", errors.Err(err)
+	if !ok {
+		return nil, ErrAuth
 	}
 
-	tok, err := s.touchAccountToken(u.ID, "verify_account")
-	return u, tok, errors.Err(err)
+	if err := bcrypt.CompareHashAndPassword(u.Password, []byte(password)); err != nil {
+		return nil, ErrAuth
+	}
+	return u, nil
 }
 
-func (s *Store) RequestVerify(id int64) (string, error) {
+func (s Store) RequestVerify(id int64) (string, error) {
 	tok, err := s.touchAccountToken(id, "verify_account")
-	return tok, errors.Err(err)
+
+	if err != nil {
+		return "", errors.Err(err)
+	}
+	return tok, nil
 }
 
-func (s *Store) Verify(tok string) error {
+func (s Store) Verify(tok string) error {
 	id, err := s.flushAccountToken(tok, "verify_account")
 
 	if err != nil {
@@ -309,62 +347,41 @@ func (s *Store) Verify(tok string) error {
 	}
 
 	q := query.Update(
-		table,
-		query.Set("verified", query.Arg(true)),
-		query.Where("id", "=", query.Arg(id)),
+		table, query.Set("verified", query.Arg(true)), query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Update sets the email, cleanup, and password fields for the given user to
-// the given values. If the given password is nil, then this will not be
-// updated, otherwise a new hash is generated for it.
-func (s *Store) Update(id int64, email string, cleanup bool, password []byte) error {
+func (s Store) Update(id int64, p Params) error {
 	opts := []query.Option{
-		query.Set("email", query.Arg(email)),
-		query.Set("cleanup", query.Arg(cleanup)),
+		query.Set("email", query.Arg(p.Email)),
+		query.Set("cleanup", query.Arg(p.Cleanup)),
 		query.Set("updated_at", query.Arg(time.Now())),
 	}
 
-	if password != nil {
-		hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+	if p.Password != "" {
+		hash, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
 
 		if err != nil {
 			return errors.Err(err)
 		}
-
 		opts = append(opts, query.Set("password", query.Arg(hash)))
 	}
 	opts = append(opts, query.Where("id", "=", query.Arg(id)))
 
 	q := query.Update(table, opts...)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
-}
-
-// Delete the user with the given id. This will set the deleted_at field in the
-// table to the time at which this method was called.
-func (s *Store) Delete(id int64, password []byte) error {
-	u, err := s.Get(query.Where("id", "=", query.Arg(id)), query.Where("deleted_at", "IS", query.Lit("NULL")))
-
-	if err != nil {
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
 		return errors.Err(err)
 	}
-
-	if err := bcrypt.CompareHashAndPassword(u.Password, password); err != nil {
-		return ErrAuth
-	}
-
-	q := query.Update(table, query.Set("deleted_at", query.Arg(time.Now())), query.Where("id", "=", query.Arg(id)))
-
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	return nil
 }
 
-func (s *Store) UpdateEmail(tok, email string) error {
+func (s Store) UpdateEmail(tok, email string) error {
 	id, err := s.flushAccountToken(tok, "email_reset")
 
 	if err != nil {
@@ -378,20 +395,20 @@ func (s *Store) UpdateEmail(tok, email string) error {
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	if _, err := s.DB.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s *Store) UpdatePassword(tok string, password []byte) error {
+func (s Store) UpdatePassword(tok, password string) error {
 	id, err := s.flushAccountToken(tok, "password_reset")
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	hash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	if err != nil {
 		return errors.Err(err)
@@ -400,50 +417,43 @@ func (s *Store) UpdatePassword(tok string, password []byte) error {
 	q := query.Update(
 		table,
 		query.Set("password", query.Arg(hash)),
+		query.Set("updated_at", query.Arg(time.Now())),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
-}
-
-func (s *Store) ResetEmail(id int64) (string, error) {
-	tok, err := s.touchAccountToken(id, "email_reset")
-	return tok, errors.Err(err)
-}
-
-func (s *Store) ResetPassword(id int64) (string, error) {
-	tok, err := s.touchAccountToken(id, "password_reset")
-	return tok, errors.Err(err)
-}
-
-// Get returns a single User database, applying each query.Option that is given.
-func (s *Store) Get(opts ...query.Option) (*User, error) {
-	u := &User{}
-
-	err := s.Store.Get(u, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	if _, err = s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
 	}
-	return u, errors.Err(err)
+	return nil
 }
 
-// Auth looks up the user by the given handle, and checks that the given
-// password matches the hash in the database.
-func (s *Store) Auth(handle, password string) (*User, error) {
-	u, err := s.Get(WhereHandle(handle), query.Where("deleted_at", "IS", query.Lit("NULL")))
+func (s Store) ResetEmail(id int64) (string, error) {
+	tok, err := s.touchAccountToken(id, "email_reset")
 
 	if err != nil {
-		return nil, errors.Err(err)
+		return tok, errors.Err(err)
 	}
+	return tok, nil
+}
 
-	if u.IsZero() {
-		return nil, ErrAuth
-	}
+func (s Store) ResetPassword(id int64) (string, error) {
+	tok, err := s.touchAccountToken(id, "password_reset")
 
-	if err := bcrypt.CompareHashAndPassword(u.Password, []byte(password)); err != nil {
-		return nil, ErrAuth
+	if err != nil {
+		return tok, errors.Err(err)
 	}
-	return u, nil
+	return tok, nil
+}
+
+func (s Store) Delete(id int64) error {
+	q := query.Update(
+		table,
+		query.Set("deleted_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(id)),
+	)
+
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }

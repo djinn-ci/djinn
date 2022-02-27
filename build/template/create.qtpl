@@ -16,9 +16,6 @@ type Create struct {
 	<div class="panel">
 		<form class="panel-body slim" method="POST" action="/builds">
 			{%s= string(p.CSRF) %}
-			{% if p.Errors.First("build") != "" %}
-				{%= p.Error("build") %}
-			{% endif %}
 			<div class="form-field">
 				<label class="label" for="manifest">Manifest</label>
 				<textarea class="form-text form-code" id="manifest" name="manifest">{%s p.Fields["manifest"] %}</textarea>

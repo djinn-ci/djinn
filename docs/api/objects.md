@@ -6,6 +6,7 @@
 * [List objects for the authenticated user](#list-objects-for-the-authenticated-user)
 * [Create an object for the authenticated user](#create-an-object-for-the-authenticated-user)
 * [Get an individual object](#get-an-individual-object)
+* [List the builds the object was placed on](#list-the-builds-the-object-was-placed-on)
 * [Delete an object](#delete-an-object)
 
 ## The object object
@@ -60,6 +61,10 @@ was created.
 ---
 
 **`url`** `string` - The API URL for the object itself.
+
+---
+
+**`builds_url`** `string` - The API URL for the builds the object was placed on.
 
 ---
 
@@ -247,6 +252,55 @@ the object itself.
            -H "Content-Type: application/json" \
            -H "Authorization: Bearer 1a2b3c4d5f" \
            {{index .Vars "apihost"}}/objects/1
+
+</div>
+</div>
+
+## List the builds the object was placed on
+
+<div class="api-section">
+<div class="api-doc">
+
+This will get the builds the given object was place on. This requires the
+explicit `object:read` permission.
+
+**Parameters**
+
+---
+
+**`tag`** `string` *optional* - Get the builds with the given tag name.
+
+---
+
+**`search`** `string` *optional* - Get the builds with tags like the given value.
+
+---
+
+**`status`** `string` *optional* - Get the builds with the given status.
+
+**Returns**
+
+Returns a list of [builds](/api/builds#the-build-object). The list will be
+paginated to 25 builds per page and will be ordered by the most recently
+submitted builds first. If the builds were paginated, then the pagination
+information will be in the response header `Link` like so,
+
+    Link: <{{index .Vars "apihost"}}/objects/1/builds?page=1>; rel="prev",
+          <{{index .Vars "apihost"}}/objects/1/builds?page=3>; rel="next"
+
+</div>
+<div class="api-example">
+
+**Request**
+
+    GET /objects/:object/builds
+
+**Examples**
+
+    $ curl -X GET \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Bearer 1a2b3c4d5f" \
+           {{index .Vars "apihost"}}/objects/1/builds
 
 </div>
 </div>

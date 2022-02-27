@@ -2,13 +2,12 @@ package integration
 
 import (
 	"bytes"
-	"crypto/rand"
 	"encoding/gob"
+	"encoding/json"
 	"testing"
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/integration/djinn"
-	"djinn-ci.com/runner"
 
 	"github.com/mcmathja/curlyq"
 
@@ -82,7 +81,7 @@ var buildQueue = "builds_docker:data"
 func Test_BuildSubmit(t *testing.T) {
 	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
-	tags := []string{"build_test", "Test_BuildSubmit"}
+	tags := []string{"Test_BuildSubmit", "build_test"}
 
 	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
 		Manifest: djinn.Manifest{
@@ -188,10 +187,35 @@ func Test_BuildTags(t *testing.T) {
 			},
 		},
 		Comment: "Test_BuildTags",
+		Tags:    []string{"tag1", "tag1", "tag2", "tag3"},
 	})
 
 	if err != nil {
 		t.Fatal(err)
+	}
+
+	resp, err := cli.Get(b.TagsURL.Path, "application/json")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer resp.Body.Close()
+
+	tt0 := make([]*djinn.BuildTag, 0)
+
+	if err := json.NewDecoder(resp.Body).Decode(&tt0); err != nil {
+		t.Fatal(err)
+	}
+
+	if l := len(tt0); l != 3 {
+		t.Fatalf("unexpected number of tags on build, expected=%d, got=%d\n", 3, l)
+	}
+
+	for _, tag := range tt0 {
+		if err := tag.Delete(cli); err != nil {
+			t.Fatalf("failed to delete tag %q - %s\n", tag.Name, err)
+		}
 	}
 
 	tt, err := b.Tag(cli, "build_test", "Test_BuildTags")
@@ -200,42 +224,9 @@ func Test_BuildTags(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for i, tag := range tt {
+	for _, tag := range tt {
 		if err := tag.Delete(cli); err != nil {
-			t.Fatalf("failed to delete tag %d - %s\n", i, err)
+			t.Fatalf("failed to delete tag %q - %s\n", tag.Name, err)
 		}
-	}
-}
-
-func Test_BuildBinaryOutput(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
-
-	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
-		Manifest: djinn.Manifest{
-			Namespace: "",
-			Driver: map[string]string{
-				"type":      "docker",
-				"image":     "golang",
-				"workspace": "/go",
-			},
-		},
-		Comment: "Test_BuildBinaryOutput",
-	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	buf := make([]byte, 16)
-
-	if _, err := rand.Read(buf); err != nil {
-		t.Fatal(err)
-	}
-
-	// Pad with NUL bytes to test sanitization more thoroughly.
-	buf = append(buf, 0x0, 0x0, 0x0)
-
-	if err := build.NewStore(db).Finished(b.ID, string(buf), runner.Passed); err != nil {
-		t.Fatal(err)
 	}
 }

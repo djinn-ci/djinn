@@ -37,7 +37,7 @@ to execute a build via that driver.
 
 ## Configuring the worker
 
-Detailed below are the [configuration](/admin/configuration) directives used by
+Detailed below are the [configuration](/admin/configuration) parameters used by
 the worker. The worker also requires a `driver.conf` file to be configured, see
 details on how to do this [here](/user/offline-runner#configuring-drivers).
 
@@ -51,10 +51,7 @@ this to `0` to use the number of CPU cores available.
 
 * **`driver`** `string`
 
-The driver we want to use when executing builds with the worker. To use all
-drivers then set to `*`. For the `qemu` driver the arch must match the host
-arch. For example, if running on amd64 and you want to use the qemu driver then
-you must specify `qemu-x86_64`.
+The driver we want to use when executing builds with the worker.
 
 * **`timeout`** `string`
 
@@ -62,7 +59,7 @@ The duration after which builds should be killed. Valid time units are `ns`,
 `us`, `ms`, `s`, `m`, `h`.
 
 * **`crypto`** `{...}` - Configuration settings for decrypting of data. The
-value directives used here should match what was put in the
+value parameters used here should match what was put in the
 [server configuration](/admin/server#configuring-the-server).
 
   * **`block`** `string` - The block key is required for encrypting data. This
@@ -71,28 +68,28 @@ must be either, 16, 24, or 32 characters in length.
 and for generating the final key that is used for encrypting data.
 
 * **`database`** `{...}` - Provides connection information to the PostgreSQL
-database. Below are the directives used by the `database` block directive.
+database, below are the parameters for this block.
 
   * **`addr`** `string` - The address of the PostgreSQL server to connect to.
   * **`name`** `string` - The name of the database to use.
   * **`username`** `string` - The name of the database user.
   * **`password`** `string` - The password of the database user.
 
-  * **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
+  * **`tls`** `{...}` - TLS block if you want to connect via TLS.
 
     * **`ca`** `string` - Path to the CA root to use.
     * **`cert`** `string` - Path to the certificate to use.
     * **`key`** `string` - Path to the key to use.
 
-* **`redis`** `{...}` - Provides connection information to the Redis database.
-Below are the directives used by the `redis` block directive.
+* **`redis`** `{...}` - Provides connection information to the Redis database,
+below are the parameters for this block,
 
   * **`addr`** `string` - The address of the Redis server to connect to.
   * **`password`** `string` - The password used if the Redis server is
 password protected.
 
 * **`smtp`** `{...}` - Provides connection information to an SMTP server to
-sending emails. Below are the directives used by the `smtp` block directive.
+sending emails, below are the parameters for this block,
 
   * **`addr`** `string` - The address of the SMTP server.
   * **`ca`** `string` - If connecting via TLS, then the path to the file that
@@ -102,10 +99,10 @@ sending emails. Below are the directives used by the `smtp` block directive.
   * **`username`** `string` - The username for authentication.
   * **`password`** `string` - The password for authentication.
 
-* **`store`** `identifier` `{...}` - Configuration directives for each of the
-file stores the worker uses. There must be a store configured for each
-`artifacts`, `images`, and `objects`. Detailed below are the value directives
-used within a `store` block directive.
+* **`store`** `identifier` `{...}` - Configuration parameters for each of the
+file stores the server uses. There must be a store configured for each
+`artifacts`, `images`, and `objects`. Detailed below are the parameters for
+a `store` block,
 
   * **`type`** `string` - The type of the store to use for the files being
 accessed. Must be `file`.
@@ -113,7 +110,7 @@ accessed. Must be `file`.
   * **`limit`** `int` - The maximum size of files being uploaded. This will only
 be applied to artifacts collected from builds.
 
-* **`provider`** `identifier` `{...}` - Configuration directives for each 3rd
+* **`provider`** `identifier` `{...}` - Configuration parameters for each 3rd
 party provider we integrate with. These are used to handle updating commit
 statuses if a build was triggered via a pull request. The `identifier` would be
 one of the supported providers detailed below,
@@ -121,9 +118,11 @@ one of the supported providers detailed below,
 * `github`
 * `gitlab`
 
-unlike in the [server configuration](/admin/server#configuring-the-server)
-file, we do not need to specify the client ID or secret for the configured
-providers.
+the worker does not need the client ID or secret in order to work, so empty
+blocks can be used instead,
+
+    provider github {}
+    provider gitlab {}
 
 ## Example Worker Configuration
 

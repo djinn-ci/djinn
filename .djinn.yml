@@ -6,7 +6,7 @@ sources:
 - https://github.com/djinn-ci/djinn dev
 env:
 - LDFLAGS=-s -w
-- INTEGRATION_CONFIG=testdata/server.conf
+- INTEGRATION_CONFIG_DIR=testdata
 stages:
 - setup
 - make
@@ -17,6 +17,7 @@ jobs:
   - cd djinn
   - mgrt run -c schema -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
   - mgrt run -c perms -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
+  - sudo -u postgres psql -c "ALTER TYPE driver_type ADD VALUE 'os'" -d djinn
   - sudo -u postgres psql -c "ALTER USER djinn_consumer WITH PASSWORD 'secret'"
   - sudo -u postgres psql -c "ALTER USER djinn_curator WITH PASSWORD 'secret'"
   - sudo -u postgres psql -c "ALTER USER djinn_scheduler WITH PASSWORD 'secret'"
@@ -27,8 +28,9 @@ jobs:
   - cd djinn
   - ./make.sh
   artifacts:
-  - djinn/integration/testdata/server.log
-  - djinn/integration/webhook.log
+  - djinn/integration/testdata/log/server.log
+  - djinn/integration/testdata/log/webhook.log
+  - djinn/integration/testdata/log/worker.log
   - djinn/bin/djinn
   - djinn/bin/djinn-consumer
   - djinn/bin/djinn-curator

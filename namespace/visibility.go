@@ -5,7 +5,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 
-	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 
 	"github.com/andrewpillar/webutil"
@@ -43,17 +42,27 @@ var (
 // turn it into the correct Visibility value. If it succeeds then it set's it
 // on the current Visibility, otherwise an error is returned.
 func (v *Visibility) Scan(val interface{}) error {
-	b, err := database.Scan(val)
+	i, err := driver.String.ConvertValue(val)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if len(b) == 0 {
+	s, ok := i.(string)
+
+	if !ok {
+		return errors.New("namespace: could not type assert Visibility to string")
+	}
+
+	if s == "" {
 		(*v) = Visibility(0)
 		return nil
 	}
-	return errors.Err(v.UnmarshalText(b))
+
+	if err := v.UnmarshalText([]byte(s)); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 // UnmarshalJSON takes the given byte slice, and attempts to unmarshal it to a

@@ -31,7 +31,7 @@ func ParseFlags(args []string) (string, string, bool) {
 	return config, driver, version
 }
 
-func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func(), error) {
+func Init(workerPath, driverPath string) (*worker.Worker, func(), error) {
 	env.Load()
 
 	var cfg *config.Worker
@@ -39,7 +39,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 	f1, err := os.Open(workerPath)
 
 	if err != nil {
-		return nil, cfg, nil, errors.Err(err)
+		return nil, nil, errors.Err(err)
 	}
 
 	defer f1.Close()
@@ -47,25 +47,43 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 	cfg, err = config.DecodeWorker(f1.Name(), f1)
 
 	if err != nil {
-		return nil, cfg, nil, errors.Err(err)
+		return nil, nil, errors.Err(err)
 	}
-
-	pidfile := cfg.Pidfile()
-
-	db := cfg.DB()
-	redis := cfg.Redis()
-	smtp, postmaster := cfg.SMTP()
 
 	log := cfg.Log()
 
-	close_ := func() {
-		db.Close()
-		redis.Close()
-		smtp.Close()
-		log.Close()
+	driverName := cfg.Driver()
 
-		if pidfile != nil {
-			if err := os.RemoveAll(pidfile.Name()); err != nil {
+	if driverName == "os" {
+		log.Warn.Println("the os driver should only be used if you trust the builds being submitted, or for testing")
+	}
+
+	f2, err := os.Open(driverPath)
+
+	if err != nil {
+		return nil, nil, errors.Err(err)
+	}
+
+	defer f2.Close()
+
+	driverInit, drivercfg, err := config.DecodeDriver(driverName, f2.Name(), f2)
+
+	if err != nil {
+		return nil, nil, errors.Err(err)
+	}
+
+	worker := worker.New(cfg, drivercfg, driverInit)
+
+	pidfile := cfg.Pidfile()
+
+	close_ := func() {
+		worker.DB.Close()
+		worker.Redis.Close()
+		worker.SMTP.Close()
+		worker.Log.Close()
+
+		if pidfile != "" {
+			if err := os.RemoveAll(pidfile); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 				os.Exit(1)
 			}
@@ -74,51 +92,24 @@ func Init(workerPath, driverPath string) (*worker.Worker, *config.Worker, func()
 
 	parallelism := cfg.Parallelism()
 
-	log.Info.Println("consuming from queue:", cfg.Queue())
-	log.Info.Println("enabled build driver", cfg.Driver())
-	log.Info.Println("using parallelism of:", parallelism)
+	worker.Log.Info.Println("consuming from queue:", cfg.Queue())
+	worker.Log.Info.Println("enabled build driver", worker.Driver)
+	worker.Log.Info.Println("using parallelism of:", parallelism)
 
-	f2, err := os.Open(driverPath)
-
-	if err != nil {
-		return nil, cfg, nil, errors.Err(err)
+	webhooks := namespace.WebhookStore{
+		Pool:   worker.DB,
+		AESGCM: worker.AESGCM,
 	}
-
-	defer f2.Close()
-
-	driverName := cfg.Driver()
-
-	driverInit, driverCfg, err := config.DecodeDriver(driverName, f2.Name(), f2)
-
-	if err != nil {
-		return nil, cfg, nil, errors.Err(err)
-	}
-
-	webhooks := namespace.NewWebhookStore(db)
 
 	memq := queue.NewMemory(parallelism, func(j queue.Job, err error) {
 		log.Error.Println("queue job failed:", j.Name(), err)
 	})
-	memq.InitFunc("event:build.started", build.InitEvent(webhooks))
-	memq.InitFunc("event:build.finished", build.InitEvent(webhooks))
+	memq.InitFunc("event:build.started", build.InitEvent(&webhooks))
+	memq.InitFunc("event:build.finished", build.InitEvent(&webhooks))
 
-	return &worker.Worker{
-		DB:        db,
-		Redis:     redis,
-		SMTP:      smtp,
-		Admin:     postmaster,
-		Crypto:    cfg.BlockCipher(),
-		Log:       log,
-		Consumer:  cfg.Consumer(),
-		Queue:     memq,
-		Timeout:   cfg.Timeout(),
-		Driver:    driverName,
-		Init:      driverInit,
-		Config:    driverCfg,
-		Providers: cfg.Providers(),
-		Objects:   cfg.Objects(),
-		Artifacts: cfg.Artifacts(),
-	}, cfg, close_, nil
+	worker.Queue = memq
+
+	return worker, close_, nil
 }
 
 func Start(ctx context.Context, w *worker.Worker) {

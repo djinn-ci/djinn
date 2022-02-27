@@ -9,7 +9,22 @@ import (
 	"github.com/mcmathja/curlyq"
 )
 
-type level uint8
+type Level uint8
+
+//go:generate stringer -type Level -linecomment
+const (
+	Debug Level = iota + 1 // DEBUG
+	Info                   // INFO
+	Warn                   // WARN
+	Error                  // ERROR
+)
+
+var Levels = map[string]Level{
+	"debug": Debug,
+	"info":  Info,
+	"warn":  Warn,
+	"error": Error,
+}
 
 // Logger is the type for logging information at different levels of severity.
 // The Logger has three states representing each level that can be logged at,
@@ -31,34 +46,17 @@ type Queue struct {
 
 type state struct {
 	logger *log.Logger
-	level  level
-	actual level
+	level  Level
+	actual Level
 }
 
-//go:generate stringer -type level -linecomment
-const (
-	debug level = iota // DEBUG
-	info               // INFO
-	warn               // WARN
-	err                // ERROR
-)
-
-var (
-	_ curlyq.Logger = (*Queue)(nil)
-
-	levels = map[string]level{
-		"debug": debug,
-		"info":  info,
-		"warn":  warn,
-		"error": err,
-	}
-)
+var _ curlyq.Logger = (*Queue)(nil)
 
 // New returns a new Logger that will write to the given io.Writer. This will
 // use the stdlib's logger with the log.Ldate, log.Ltime, and log.LUTC flags
 // set. The default level of the returned Logger is info.
 func New(wc io.WriteCloser) *Logger {
-	defaultLevel := info
+	defaultLevel := Info
 	logger := log.New(wc, "", log.Ldate|log.Ltime|log.LUTC)
 
 	return &Logger{
@@ -66,22 +64,22 @@ func New(wc io.WriteCloser) *Logger {
 		Debug: state{
 			logger: logger,
 			level:  defaultLevel,
-			actual: debug,
+			actual: Debug,
 		},
 		Info: state{
 			logger: logger,
 			level:  defaultLevel,
-			actual: info,
+			actual: Info,
 		},
 		Warn: state{
 			logger: logger,
 			level:  defaultLevel,
-			actual: warn,
+			actual: Warn,
 		},
 		Error: state{
 			logger: logger,
 			level:  defaultLevel,
-			actual: err,
+			actual: Error,
 		},
 	}
 }
@@ -90,7 +88,7 @@ func New(wc io.WriteCloser) *Logger {
 // "info", or "error". If the given string is none of these values then the
 // logger's level will be unchanged.
 func (l *Logger) SetLevel(s string) {
-	if lvl, ok := levels[strings.ToLower(s)]; ok {
+	if lvl, ok := Levels[strings.ToLower(s)]; ok {
 		l.Debug.level = lvl
 		l.Info.level = lvl
 		l.Error.level = lvl

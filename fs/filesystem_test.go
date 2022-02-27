@@ -2,6 +2,7 @@ package fs
 
 import (
 	"crypto/rand"
+	iofs "io/fs"
 	"os"
 	"strconv"
 	"testing"
@@ -50,8 +51,8 @@ func Test_Filesystem(t *testing.T) {
 				return
 			}
 
-			if err != ErrRecordExists {
-				t.Errorf("tests[%d] - expected ErrRecordExists, got=%T\n", i, errors.Cause(err))
+			if !errors.Is(err, iofs.ErrExist) {
+				t.Errorf("tests[%d] - expected io/fs.ErrExist, got=%T\n", i, errors.Cause(err))
 				return
 			}
 
@@ -68,7 +69,7 @@ func Test_Filesystem(t *testing.T) {
 			if len(b) > n {
 				cause := errors.Cause(err)
 
-				if cause != ErrWriteLimit {
+				if !errors.Is(err, ErrWriteLimit) {
 					t.Errorf("tests[%d] - expected ErrWriteLimit, got=%T %s\n", i, cause, cause)
 					return
 				}
@@ -92,20 +93,20 @@ func Test_Filesystem(t *testing.T) {
 			}
 
 			if _, err := r.Write([]byte{}); err != nil {
-				if err != ErrRecordClosed {
-					t.Errorf("tests[%d] - expected ErrRecordClosedd from Write, got=%T\n", i, errors.Cause(err))
+				if !errors.Is(err, iofs.ErrClosed) {
+					t.Errorf("tests[%d] - expected io/fs.ErrClosed from Write, got=%T\n", i, errors.Cause(err))
 				}
 			}
 
 			if _, err := r.Read([]byte{}); err != nil {
-				if err != ErrRecordClosed {
-					t.Errorf("tests[%d] - expected ErrRecordClosedd from Read, got=%T\n", i, errors.Cause(err))
+				if !errors.Is(err, iofs.ErrClosed) {
+					t.Errorf("tests[%d] - expected io/fs.ErrClosed from Read, got=%T\n", i, errors.Cause(err))
 				}
 			}
 
 			if _, err := r.Seek(0, 0); err != nil {
-				if err != ErrRecordClosed {
-					t.Errorf("tests[%d] - expected ErrRecordClosedd from Seek, got=%T\n", i, errors.Cause(err))
+				if !errors.Is(err, iofs.ErrClosed) {
+					t.Errorf("tests[%d] - expected io/fs.ErrClosed from Seek, got=%T\n", i, errors.Cause(err))
 				}
 			}
 		}(i)

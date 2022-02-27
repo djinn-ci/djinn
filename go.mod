@@ -9,8 +9,9 @@ require (
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4
-	github.com/andrewpillar/webutil v0.0.0-20210921111926-1bf352928edc
+	github.com/andrewpillar/config v0.0.0-20220213201933-b38b905742d8 // indirect
+	github.com/andrewpillar/query v0.0.0-20220127183121-0af49c6ce2aa
+	github.com/andrewpillar/webutil v0.0.0-20220219222643-e79f3d917492
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -18,14 +19,14 @@ require (
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/gogo/protobuf v1.3.0 // indirect
 	github.com/golang/protobuf v1.4.3 // indirect
-	github.com/google/uuid v1.3.0 // indirect
+	github.com/google/uuid v1.3.0
 	github.com/gorilla/csrf v1.6.2
 	github.com/gorilla/mux v1.7.4
-	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.1
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4
-	github.com/jackc/pgx/v4 v4.9.2
+	github.com/jackc/pgconn v1.10.1
+	github.com/jackc/pgx/v4 v4.14.1
 	github.com/jmoiron/sqlx v1.2.0
 	github.com/mcmathja/curlyq v0.4.0
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
@@ -35,7 +36,7 @@ require (
 	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/valyala/quicktemplate v1.4.1
 	github.com/vmihailenco/msgpack/v4 v4.3.12
-	golang.org/x/crypto v0.0.0-20210813211128-0a44fdfbc16e
+	golang.org/x/crypto v0.0.0-20211117183948-ae814b36b871
 	golang.org/x/oauth2 v0.0.0-20200902213428-5d25da1a8d43
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/appengine v1.6.7 // indirect

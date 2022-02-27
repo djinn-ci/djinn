@@ -61,8 +61,8 @@ func main() {
 		redis.Close()
 		log.Close()
 
-		if pidfile != nil {
-			if err := os.RemoveAll(pidfile.Name()); err != nil {
+		if pidfile != "" {
+			if err := os.RemoveAll(pidfile); err != nil {
 				fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 				os.Exit(1)
 			}
@@ -79,7 +79,7 @@ func main() {
 	d := cfg.Interval()
 	t := time.NewTicker(d)
 
-	producers := cfg.Producers()
+	queues := cfg.DriverQueues()
 	batchsize := cfg.BatchSize()
 
 	hasher := cfg.Hasher()
@@ -97,7 +97,7 @@ loop:
 					}
 				}()
 
-				batcher := cron.NewBatcher(db, hasher, batchsize, func(err error) {
+				batcher := cron.NewBatcher(db, hasher, queues, batchsize, func(err error) {
 					log.Error.Println(err)
 				})
 
@@ -106,7 +106,7 @@ loop:
 				for batcher.Load() {
 					log.Debug.Println("scheduled", len(batcher.Batch()), "cron job(s)")
 
-					n := batcher.Invoke(ctx, producers)
+					n := batcher.Invoke(ctx)
 
 					log.Debug.Println("submitted", n, "build(s)")
 				}

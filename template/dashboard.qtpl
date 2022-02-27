@@ -3,6 +3,7 @@ import (
 	"net/url"
 	"html/template"
 
+	"djinn-ci.com/alert"
 	"djinn-ci.com/env"
 	"djinn-ci.com/user"
 )
@@ -40,28 +41,13 @@ interface Section {
 type baseDashboard struct {
 	Dashboard
 
-	alert    Alert
+	alert    alert.Alert
 	apiDocs  string
 	userDocs string
 	URL      *url.URL
 	User     *user.User
 	CSRF     template.HTML
 }
-
-type Alert struct {
-	Level   Level
-	Close   bool
-	HTML    bool
-	Message string
-}
-
-type Level uint8
-
-const (
-	Success Level = iota
-	Warn
-	Danger
-)
 
 var (
 	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
@@ -72,7 +58,7 @@ var (
 	RepositoriesURI = "\\/repos\\/?"
 )
 
-func NewDashboard(d Dashboard, url *url.URL, u *user.User, a Alert, csrf template.HTML) *baseDashboard {
+func NewDashboard(d Dashboard, url *url.URL, u *user.User, a alert.Alert, csrf template.HTML) *baseDashboard {
 	return &baseDashboard{
 		Dashboard: d,
 		alert:     a,
@@ -83,48 +69,18 @@ func NewDashboard(d Dashboard, url *url.URL, u *user.User, a Alert, csrf templat
 		CSRF:      csrf,
 	}
 }
-
-func (l Level) String() string {
-	switch l {
-	case Success:
-		return "success"
-	case Warn:
-		return "warn"
-	case Danger:
-		return "danger"
-	default:
-		return "Level(0)"
-	}
-}
 %}
 
 {% collapsespace %}
-{% func RenderAlert(a Alert, url string) %}
-	{% if a.Message != "" %}
-		<div class="alert alert-{%s a.Level.String() %}">
-			<div class="alert-message">
-				{% if a.HTML %}
-					{%s= a.Message %}
-				{% else %}
-					{%s a.Message %}
-				{% endif %}
-			</div>
-			{% if a.Close %}
-				<a href="{%s url %}" class="alert-close">{% cat "../static/svg/close.svg" %}</a>
-			{% endif %}
-		</div>
-	{% endif %}
-{% endfunc %}
-
 {% func (p *baseDashboard) Body() %}
 	<div class="dashboard">
 		<div class="dashboard-content">
-			{% if !p.User.IsZero() && !p.User.Verified %}
+			{% if p.User.ID != 0 && !p.User.Verified %}
 				<div class="alert alert-warn">
 					<div class="alert-message">Your account is not verified, go to your <a href="/settings">settings</a> to verify it.</div>
 				</div>
 			{% endif %}
-			{%= RenderAlert(p.alert, p.URL.Path) %}
+			{%= alert.Render(p.alert, p.URL.Path) %}
 			<div class="dashboard-wrap">
 				<div class="dashboard-header">
 					<div class="overflow">
@@ -145,7 +101,7 @@ func (l Level) String() string {
 				</div>
 				<h2>Djinn CI</h2>
 			</div>
-			{% if p.User.IsZero() %}
+			{% if p.User.ID == 0 %}
 				<div class="sidebar-auth">
 					<a class="login" href="/login">Login</a>
 					<a class="register" href="/register">Register</a>

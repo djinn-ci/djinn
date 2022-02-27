@@ -3,6 +3,8 @@ package config
 import (
 	"strings"
 	"testing"
+
+	"github.com/andrewpillar/config"
 )
 
 func Test_DecodeServer(t *testing.T) {
@@ -20,7 +22,7 @@ drivers [
 net {
 	listen "localhost:8080"
 
-	ssl {
+	tls {
 		cert "/var/lib/ssl/server.crt"
 		key  "/var/lib/ssl/server.key"
 	}
@@ -84,12 +86,11 @@ provider gitlab {
 	client_secret "123456"
 }`)
 
-	p := newParser(t.Name(), r, func(name string, line, col int, msg string) {
-		t.Errorf("%s,%d:%d - %s\n", name, line, col, msg)
-	})
-	p.parse()
+	dec := config.NewDecoder(t.Name(), decodeOpts...)
 
-	if err := p.err(); err != nil {
+	var cfg serverCfg
+
+	if err := dec.Decode(&cfg, r); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -37,6 +37,8 @@ func NewNull() *Null {
 	}
 }
 
+func (nl *Null) Limit() int64 { return -1 }
+
 // Collect will copy everything from the given io.Reader to ioutil.Discard.
 func (nl *Null) Collect(_ string, r io.Reader) (int64, error) {
 	n, err := io.Copy(nl.w, r)

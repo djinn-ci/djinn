@@ -51,18 +51,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	if pidfile := cfg.Pidfile(); pidfile != nil {
-		defer os.RemoveAll(pidfile.Name())
+	if pidfile := cfg.Pidfile(); pidfile != "" {
+		defer os.RemoveAll(pidfile)
 	}
 
 	log := cfg.Log()
-
-	store, ok := cfg.Store("images")
-
-	if !ok {
-		fmt.Fprintf(os.Stderr, "%s: image store not defined\n", os.Args[0])
-		os.Exit(1)
-	}
+	store := cfg.Images()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -71,7 +65,10 @@ func main() {
 
 	db := cfg.DB()
 
-	webhooks := namespace.NewWebhookStoreWithCrypto(db, cfg.BlockCipher())
+	webhooks := &namespace.WebhookStore{
+		Pool:   db,
+		AESGCM: cfg.AESGCM(),
+	}
 
 	opts := cfg.ConsumerOpts()
 

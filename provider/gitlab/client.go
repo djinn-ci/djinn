@@ -27,17 +27,20 @@ type Client struct {
 }
 
 type Repo struct {
-	ID        int64
-	Name      string `json:"path_with_namespace"`
-	URL       string
-	WebURL    string `json:"web_url"`
-	Namespace struct {
+	ID     int64
+	Name   string `json:"path_with_namespace"`
+	URL    string
+	WebURL string `json:"web_url"`
+	Owner  struct {
 		ID int64
+	}
+	Namespace struct {
+		ID   int64
+		Kind string
 	}
 }
 
 type PushEvent struct {
-	After   string
 	Ref     string
 	UserID  int64 `json:"user_id"`
 	Project Repo
@@ -75,6 +78,19 @@ type MergeRequestEvent struct {
 	} `json:"object_attributes"`
 }
 
+// Error reports an error that occurred when interacting with the GitLab API.
+// This captures the status code received from the API, and the body of the
+// response.
+type Error struct {
+	StatusCode int
+	Body       io.Reader
+}
+
+func (e *Error) Error() string {
+	b, _ := io.ReadAll(e.Body)
+	return string(b)
+}
+
 var (
 	_ provider.Client = (*Client)(nil)
 
@@ -89,23 +105,25 @@ var (
 	}
 )
 
+const defaultEndpoint = "https://gitlab.com/api/v4"
+
 // New returns a new Client to the GitLab REST API. If the given endpoint is
 // empty then the default "https://gitlab.com/api/v4" will be used. This will
 // set the following scopes to request: "api".
-func New(host, endpoint, secret, clientId, clientSecret string) *Client {
-	if endpoint == "" {
-		endpoint = "https://gitlab.com/api/v4"
+func New(p provider.ClientParams) *Client {
+	if p.Endpoint == "" {
+		p.Endpoint = defaultEndpoint
 	}
 
-	url := strings.Replace(endpoint, "/api/v4", "", 1)
+	url := strings.Replace(p.Endpoint, "/api/v4", "", 1)
 
 	b := make([]byte, 16)
 	rand.Read(b)
 
 	cfg := oauth2.Config{
-		ClientID:     clientId,
-		ClientSecret: clientSecret,
-		RedirectURL:  host + "/oauth/gitlab",
+		ClientID:     p.ClientID,
+		ClientSecret: p.ClientSecret,
+		RedirectURL:  p.Host + "/oauth/gitlab",
 		Scopes:       []string{"api"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  url + "/oauth/authorize",
@@ -116,10 +134,10 @@ func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 	return &Client{
 		BaseClient: provider.BaseClient{
 			Config:      cfg,
-			Host:        host,
-			APIEndpoint: endpoint,
+			Host:        p.Host,
+			APIEndpoint: p.Endpoint,
 			State:       hex.EncodeToString(b),
-			Secret:      secret,
+			Secret:      p.Secret,
 		},
 	}
 }
@@ -138,7 +156,7 @@ func (g *Client) VerifyRequest(r io.Reader, signature string) ([]byte, error) {
 func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Paginator, error) {
 	spage := strconv.FormatInt(page, 10)
 
-	resp, err := g.Get(tok, "/projects?&membership=true&simple=true&order_by=updated_at&page="+spage)
+	resp, err := g.Get(tok, "/projects?&membership=true&order_by=updated_at&page="+spage)
 
 	if err != nil {
 		return nil, database.Paginator{}, errors.Err(err)
@@ -153,8 +171,14 @@ func (g *Client) Repos(tok string, page int64) ([]*provider.Repo, database.Pagin
 	rr := make([]*provider.Repo, 0, len(repos))
 
 	for _, r := range repos {
+		providerUserId := r.Namespace.ID
+
+		if r.Namespace.Kind == "user" {
+			providerUserId = r.Owner.ID
+		}
+
 		rr = append(rr, &provider.Repo{
-			ProviderUserID: r.Namespace.ID,
+			ProviderUserID: providerUserId,
 			RepoID:         r.ID,
 			Name:           r.Name,
 			Href:           r.WebURL,
@@ -249,8 +273,13 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 		defer resp.Body.Close()
 
 		if resp.StatusCode != http.StatusCreated {
-			b, _ := ioutil.ReadAll(resp.Body)
-			return errors.New(string(b))
+			var buf bytes.Buffer
+			buf.ReadFrom(resp.Body)
+
+			return &Error{
+				StatusCode: resp.StatusCode,
+				Body:       &buf,
+			}
 		}
 
 		hook := struct {
@@ -276,8 +305,13 @@ func (g *Client) ToggleRepo(tok string, r *provider.Repo) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusNoContent {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return errors.New(string(b))
+		var buf bytes.Buffer
+		buf.ReadFrom(resp.Body)
+
+		return &Error{
+			StatusCode: resp.StatusCode,
+			Body:       &buf,
+		}
 	}
 
 	r.HookID = sql.NullInt64{
@@ -296,13 +330,14 @@ func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 		"state":       states[status],
 		"target_url":  url,
 		"description": provider.StatusDescriptions[status],
+		"context":     "continuous-integration/djinn-ci",
 	}
 
-	buf := &bytes.Buffer{}
+	var buf bytes.Buffer
 
-	json.NewEncoder(buf).Encode(body)
+	json.NewEncoder(&buf).Encode(body)
 
-	resp, err := g.Post(tok, "/projects/"+strconv.FormatInt(r.RepoID, 10)+"/statuses/"+sha, buf)
+	resp, err := g.Post(tok, "/projects/"+strconv.FormatInt(r.RepoID, 10)+"/statuses/"+sha, &buf)
 
 	if err != nil {
 		return errors.Err(err)
@@ -311,8 +346,13 @@ func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusCreated {
-		b, _ := ioutil.ReadAll(resp.Body)
-		return errors.New(string(b))
+		var buf bytes.Buffer
+		buf.ReadFrom(resp.Body)
+
+		return &Error{
+			StatusCode: resp.StatusCode,
+			Body:       &buf,
+		}
 	}
 	return nil
 }

@@ -1,8 +1,6 @@
-// Package image provides the database.Model implementation for the Image entity.
 package image
 
 import (
-	"context"
 	"database/sql"
 	"io"
 	"net/url"
@@ -11,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
 	"djinn-ci.com/env"
@@ -22,25 +21,189 @@ import (
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
-// Image is the type that represents an image that has been uploaded by a user.
 type Image struct {
-	ID          int64         `db:"id"`
-	UserID      int64         `db:"user_id"`
-	AuthorID    int64         `db:"author_id"`
-	NamespaceID sql.NullInt64 `db:"namespace_id"`
-	Driver      driver.Type   `db:"driver"`
-	Hash        string        `db:"hash"`
-	Name        string        `db:"name"`
-	CreatedAt   time.Time     `db:"created_at"`
+	ID          int64
+	UserID      int64
+	AuthorID    int64
+	NamespaceID sql.NullInt64
+	Driver      driver.Type
+	Hash        string
+	Name        string
+	CreatedAt   time.Time
 
-	Author    *user.User           `db:"-" gob:"-"`
-	User      *user.User           `db:"-" gob:"-"`
-	Download  *Download            `db:"-" gob:"-"`
-	Namespace *namespace.Namespace `db:"-" gob:"-"`
+	Author    *user.User
+	User      *user.User
+	Download  *Download
+	Namespace *namespace.Namespace
+}
+
+var _ database.Model = (*Image)(nil)
+
+func Relations(db database.Pool) []database.RelationFunc {
+	rels := namespace.ResourceRelations(db)
+
+	return append(rels, database.Relation("id", "image_id", DownloadStore{Pool: db}))
+}
+
+func LoadNamespaces(db database.Pool, ii ...*Image) error {
+	mm := make([]database.Model, 0, len(ii))
+
+	for _, i := range ii {
+		mm = append(mm, i)
+	}
+
+	if err := namespace.Load(db, mm...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func LoadRelations(db database.Pool, ii ...*Image) error {
+	mm := make([]database.Model, 0, len(ii))
+
+	for _, i := range ii {
+		mm = append(mm, i)
+	}
+
+	if err := database.LoadRelations(mm, Relations(db)...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (i *Image) path() string {
+	return filepath.Join(i.Driver.String(), i.Hash)
+}
+
+func (i *Image) Data(store fs.Store) (fs.Record, error) {
+	store, err := store.Partition(i.UserID)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	rec, err := store.Open(i.path())
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return rec, nil
+}
+
+func (i *Image) Dest() []interface{} {
+	return []interface{}{
+		&i.ID,
+		&i.UserID,
+		&i.AuthorID,
+		&i.NamespaceID,
+		&i.Driver,
+		&i.Hash,
+		&i.Name,
+		&i.CreatedAt,
+	}
+}
+
+func (i *Image) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *Download:
+		if i.ID == v.ImageID {
+			i.Download = v
+		}
+	case *user.User:
+		i.Author = v
+
+		if i.UserID == v.ID {
+			i.User = v
+		}
+	case *namespace.Namespace:
+		if i.NamespaceID.Int64 == v.ID {
+			i.Namespace = v
+		}
+	}
+}
+
+func (i *Image) Downloaded() bool {
+	if i.Download != nil {
+		return !i.Download.Error.Valid && i.Download.FinishedAt.Valid
+	}
+	return true
+}
+
+func (i *Image) JSON(addr string) map[string]interface{} {
+	if i == nil {
+		return nil
+	}
+
+	json := map[string]interface{}{
+		"id":           i.ID,
+		"author_id":    i.AuthorID,
+		"user_id":      i.UserID,
+		"namespace_id": nil,
+		"driver":       i.Driver.String(),
+		"name":         i.Name,
+		"created_at":   i.CreatedAt.Format(time.RFC3339),
+		"url":          addr + i.Endpoint(),
+	}
+
+	if i.Author != nil {
+		json["author"] = i.Author.JSON(addr)
+	}
+
+	if i.User != nil {
+		json["user"] = i.User.JSON(addr)
+	}
+
+	if i.NamespaceID.Valid {
+		json["namespace_id"] = i.NamespaceID.Int64
+
+		if i.Namespace != nil {
+			json["namespace"] = i.Namespace.JSON(addr)
+		}
+	}
+
+	if i.Download != nil {
+		download := map[string]interface{}{
+			"source":      i.Download.Source.String(),
+			"error":       nil,
+			"created_at":  i.Download.CreatedAt.Format(time.RFC3339),
+			"started_at":  nil,
+			"finished_at": nil,
+		}
+
+		if i.Download.Error.Valid {
+			download["error"] = i.Download.Error.String
+		}
+		if i.Download.StartedAt.Valid {
+			download["started_at"] = i.Download.StartedAt.Time.Format(time.RFC3339)
+		}
+		if i.Download.FinishedAt.Valid {
+			download["finished_at"] = i.Download.FinishedAt.Time.Format(time.RFC3339)
+		}
+		json["download"] = download
+	}
+	return json
+}
+
+func (i *Image) Endpoint(uri ...string) string {
+	if len(uri) > 0 {
+		return "/images/" + strconv.FormatInt(i.ID, 10) + "/" + strings.Join(uri, "/")
+	}
+	return "/images/" + strconv.FormatInt(i.ID, 10)
+}
+
+func (i *Image) Values() map[string]interface{} {
+	return map[string]interface{}{
+		"id":           i.ID,
+		"user_id":      i.UserID,
+		"author_id":    i.AuthorID,
+		"namespace_id": i.NamespaceID,
+		"driver":       i.Driver,
+		"hash":         i.Hash,
+		"name":         i.Name,
+		"created_at":   i.CreatedAt,
+	}
 }
 
 type Event struct {
@@ -48,85 +211,6 @@ type Event struct {
 
 	Image  *Image
 	Action string
-}
-
-// Store is the type for creating and modifying Image models in the
-// database. The Store type can have an underlying fs.Store implementation
-// that is used for storing the contents of an image.
-type Store struct {
-	database.Store
-
-	blockStore fs.Store
-
-	// User is the bound user.User model. If not nil this will bind the
-	// user.User model to any Image models that are created. If not nil this
-	// will append a WHERE clause on the user_id column for all SELECT queries
-	// performed.
-	User *user.User
-
-	// Namespace is the bound namespace.Namespace model. If not nil this will
-	// bind the namespace.Namespace model to any Image models that are created.
-	// If not nil this will append a WHERE clause on the namespace_id column for
-	// all SELECT queries performed.
-	Namespace *namespace.Namespace
-}
-
-var (
-	_ database.Model  = (*Image)(nil)
-	_ database.Loader = (*Store)(nil)
-	_ database.Binder = (*Store)(nil)
-
-	_ queue.Job = (*Event)(nil)
-
-	table = "images"
-
-	relations = map[string]database.RelationFunc{
-		"author":    database.Relation("author_id", "id"),
-		"user":      database.Relation("user_id", "id"),
-		"namespace": database.Relation("namespace_id", "id"),
-	}
-)
-
-// NewStore returns a new Store for querying the images table. Each model passed
-// to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
-	s := &Store{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// NewStoreWithBlockStore is functionally the same as NewStore, however it sets
-// the fs.Store to use on the returned Store. This will allow for an image
-// file to be stored.
-func NewStoreWithBlockStore(db *sqlx.DB, blockStore fs.Store, mm ...database.Model) *Store {
-	s := NewStore(db, mm...)
-	s.blockStore = blockStore
-	return s
-}
-
-func (s *Store) SetBlockStore(store fs.Store) { s.blockStore = store }
-
-// FromContext returns the Image model from the given context, if any.
-func FromContext(ctx context.Context) (*Image, bool) {
-	i, ok := ctx.Value("image").(*Image)
-	return i, ok
-}
-
-// LoadRelations loads all of the available relations for the given Image models
-// using the given loaders available.
-func LoadRelations(loaders *database.Loaders, ii ...*Image) error {
-	mm := database.ModelSlice(len(ii), Model(ii))
-	return database.LoadRelations(relations, loaders, mm...)
-}
-
-// Model is called along with database.ModelSlice to convert the given slice of
-// Image models to a slice of database.Model interfaces.
-func Model(ii []*Image) func(int) database.Model {
-	return func(i int) database.Model {
-		return ii[i]
-	}
 }
 
 func InitEvent(dis event.Dispatcher) queue.InitFunc {
@@ -151,146 +235,88 @@ func (ev *Event) Perform() error {
 	return errors.Err(ev.dis.Dispatch(event.New(ev.Image.NamespaceID, event.Images, data)))
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if they are pointers to either user.User or namespace.Namespace.
-func (i *Image) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			i.Author = v
+var _ queue.Job = (*Event)(nil)
 
-			if i.UserID == v.ID {
-				i.User = v
-			}
-		case *namespace.Namespace:
-			i.Namespace = v
-		}
-	}
+type Store struct {
+	database.Pool
+	fs.Store
+
+	Hasher *crypto.Hasher
 }
 
-// Downloaded returns whether the image was downloaded successfully. If the
-// image has no associated download, then this returns true.
-func (i *Image) Downloaded() bool {
-	if i.Download != nil {
-		return !i.Download.Error.Valid && i.Download.FinishedAt.Valid
+var (
+	_ database.Loader = (*Store)(nil)
+
+	table = "images"
+)
+
+func Chown(db database.Pool, from, to int64) error {
+	if err := database.Chown(db, table, from, to); err != nil {
+		return errors.Err(err)
 	}
-	return true
+	return nil
 }
 
-// SetPrimary implements the database.Model interface.
-func (i *Image) SetPrimary(id int64) { i.ID = id }
-
-// Primary implements the database.Model interface.
-func (i *Image) Primary() (string, int64) { return "id", i.ID }
-
-// IsZero implements the database.Model interface.
-func (i *Image) IsZero() bool {
-	return i == nil || i.ID == 0 &&
-		i.UserID == 0 &&
-		!i.NamespaceID.Valid &&
-		i.Driver == driver.Type(0) &&
-		i.Hash == "" &&
-		i.Name == "" &&
-		i.CreatedAt == time.Time{}
+type Params struct {
+	UserID    int64
+	Namespace namespace.Path
+	Name      string
+	Driver    driver.Type
+	Image     io.Reader
 }
 
-// JSON implements the database.Model interface. This will return a map with the
-// current Image values under each key. If any of the User, or Namespace bound
-// models exist on the Image, then the JSON representation of these models
-// will be in the returned map, under the user, and namespace keys respectively.
-func (i *Image) JSON(addr string) map[string]interface{} {
-	json := map[string]interface{}{
-		"id":           i.ID,
-		"author_id":    i.AuthorID,
-		"user_id":      i.UserID,
-		"namespace_id": nil,
-		"driver":       i.Driver.String(),
-		"name":         i.Name,
-		"created_at":   i.CreatedAt.Format(time.RFC3339),
-		"url":          addr + i.Endpoint(),
-	}
+func (s *Store) Create(p Params) (*Image, error) {
+	u, n, err := p.Namespace.ResolveOrCreate(s.Pool, p.UserID)
 
-	if i.NamespaceID.Valid {
-		json["namespace_id"] = i.NamespaceID.Int64
-	}
-
-	if i.Download != nil {
-		download := map[string]interface{}{
-			"source":      i.Download.Source.String(),
-			"error":       nil,
-			"created_at":  i.Download.CreatedAt.Format(time.RFC3339),
-			"started_at":  nil,
-			"finished_at": nil,
-		}
-
-		if i.Download.Error.Valid {
-			download["error"] = i.Download.Error.String
-		}
-		if i.Download.StartedAt.Valid {
-			download["started_at"] = i.Download.StartedAt.Time.Format(time.RFC3339)
-		}
-		if i.Download.FinishedAt.Valid {
-			download["finished_at"] = i.Download.FinishedAt.Time.Format(time.RFC3339)
-		}
-		json["download"] = download
-	}
-
-	for name, m := range map[string]database.Model{
-		"author":    i.Author,
-		"user":      i.User,
-		"namespace": i.Namespace,
-	} {
-		if !m.IsZero() {
-			json[name] = m.JSON(addr)
+	if err != nil {
+		if !errors.Is(err, namespace.ErrInvalidPath) {
+			return nil, errors.Err(err)
 		}
 	}
-	return json
-}
 
-// Endpoint implements the database.Model interface. This will return the
-// endpoint to the current Image model.
-func (i *Image) Endpoint(uri ...string) string {
-	if len(uri) > 0 {
-		return "/images/" + strconv.FormatInt(i.ID, 10) + "/" + strings.Join(uri, "/")
-	}
-	return "/images/" + strconv.FormatInt(i.ID, 10)
-}
+	userId := p.UserID
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, namespace_id, driver, hash, name, and
-// created_at.
-func (i *Image) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"user_id":      i.UserID,
-		"author_id":    i.AuthorID,
-		"namespace_id": i.NamespaceID,
-		"driver":       i.Driver,
-		"hash":         i.Hash,
-		"name":         i.Name,
-		"created_at":   i.CreatedAt,
-	}
-}
+	var namespaceId sql.NullInt64
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if they are pointers to either user.User or namespace.Namespace.
-func (s *Store) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
-		case *namespace.Namespace:
-			s.Namespace = v
+	if u != nil {
+		n.User = u
+
+		userId = u.ID
+		namespaceId = sql.NullInt64{
+			Int64: n.ID,
+			Valid: true,
+		}
+
+		if err := n.IsCollaborator(s.Pool, p.UserID); err != nil {
+			return nil, errors.Err(err)
 		}
 	}
-}
 
-// Create creates a new image with the given name for the given driver.Type.
-// The given io.Reader is used to copy the contents of the image to the
-// underlying fs.Store. It is expected for the Store to have a fs.Store
-// set on it, otherwise it will error.
-func (s *Store) Create(authorId int64, hash, name string, t driver.Type, r io.Reader) (*Image, error) {
-	if s.blockStore != nil && r != nil {
-		dst, err := s.blockStore.Create(filepath.Join(t.String(), hash))
+	hash, err := s.Hasher.HashNow()
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	i := Image{
+		UserID:      userId,
+		AuthorID:    p.UserID,
+		NamespaceID: namespaceId,
+		Driver:      p.Driver,
+		Hash:        hash,
+		Name:        p.Name,
+		CreatedAt:   time.Now(),
+		Namespace:   n,
+	}
+
+	if p.Image != nil {
+		store, err := s.Partition(i.UserID)
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+
+		dst, err := store.Create(i.path())
 
 		if err != nil {
 			return nil, errors.Err(err)
@@ -298,73 +324,91 @@ func (s *Store) Create(authorId int64, hash, name string, t driver.Type, r io.Re
 
 		defer dst.Close()
 
-		if _, err := io.Copy(dst, r); err != nil {
+		if _, err := io.Copy(dst, p.Image); err != nil {
 			return nil, errors.Err(err)
 		}
 	}
 
-	i := s.New()
-	i.AuthorID = authorId
-	i.Driver = t
-	i.Hash = hash
-	i.Name = name
-	i.CreatedAt = time.Now()
+	q := query.Insert(
+		table,
+		query.Columns("user_id", "author_id", "namespace_id", "driver", "hash", "name", "created_at"),
+		query.Values(i.UserID, i.AuthorID, i.NamespaceID, i.Driver, i.Hash, i.Name, i.CreatedAt),
+		query.Returning("id"),
+	)
 
-	err := s.Store.Create(table, i)
-	return i, errors.Err(err)
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&i.ID); err != nil {
+		return nil, errors.Err(err)
+	}
+	return &i, nil
 }
 
-func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(table, from, to)) }
-
-// Delete deletes the given Image from the database, and removes the underlying
-// image file. It is expected for the Store to have a fs.Store set on it,
-// otherwise it will error.
-func (s *Store) Delete(id int64, t driver.Type, hash string) error {
-	if s.blockStore == nil {
-		return errors.New("nil block store")
+func (s *Store) Chown(from, to int64) error {
+	if err := database.Chown(s.Pool, table, from, to); err != nil {
+		return errors.Err(err)
 	}
+	return nil
+}
 
-	if err := s.Store.Delete(table, &Image{ID: id}); err != nil {
+func (s *Store) Delete(i *Image) error {
+	q := query.Delete(table, query.Where("id", "=", query.Arg(i.ID)))
+
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
 		return errors.Err(err)
 	}
 
-	if err := s.blockStore.Remove(filepath.Join(t.String(), hash)); err != nil {
-		if !errors.Is(err, fs.ErrRecordNotFound) {
+	store, err := s.Partition(i.UserID)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if err := store.Remove(i.path()); err != nil {
+		if !errors.Is(err, fs.ErrNotExist) {
 			return errors.Err(err)
 		}
 	}
 	return nil
 }
 
-// All returns a slice of Image models, applying each query.Option that is
-// given.
+func (s *Store) Get(opts ...query.Option) (*Image, bool, error) {
+	var i Image
+
+	ok, err := s.Pool.Get(table, &i, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &i, ok, nil
+}
+
 func (s *Store) All(opts ...query.Option) ([]*Image, error) {
 	ii := make([]*Image, 0)
 
-	opts = append([]query.Option{
-		namespace.WhereCollaborator(s.User),
-		database.Where(s.Namespace, "namespace_id"),
-	}, opts...)
-
-	err := s.Store.All(&ii, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		i := &Image{}
+		ii = append(ii, i)
+		return i
 	}
 
-	for _, i := range ii {
-		i.User = s.User
-		i.Namespace = s.Namespace
+	if err := s.Pool.All(table, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return ii, errors.Err(err)
+	return ii, nil
 }
 
-// Index returns the paginated results from the images table depending on the
-// values that are present in url.Values. Detailed below are the values that
-// are used from the given url.Values,
-//
-// search - This applies the database.Search query.Option using the value of
-// name
+func (s *Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
+	paginator, err := s.Pool.Paginate(table, page, limit, opts...)
+
+	if err != nil {
+		return paginator, errors.Err(err)
+	}
+	return paginator, nil
+}
+
 func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, database.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
@@ -376,10 +420,10 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, database
 		database.Search("name", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, opts...)
+	paginator, err := s.Paginate(page, database.PageLimit, opts...)
 
 	if err != nil {
-		return []*Image{}, paginator, errors.Err(err)
+		return nil, paginator, errors.Err(err)
 	}
 
 	ii, err := s.All(append(
@@ -388,74 +432,26 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, database
 		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)...)
-	return ii, paginator, errors.Err(err)
+
+	if err != nil {
+		return nil, paginator, errors.Err(err)
+	}
+	return ii, paginator, nil
 }
 
-// Load loads in a slice of Image models where the given key is in the list
-// of given vals. Each database is loaded individually via a call to the given
-// load callback. This method calls Store.All under the hood, so any
-// bound models will impact the models being loaded.
-func (s *Store) Load(key string, vals []interface{}, fn database.LoaderFunc) error {
-	ii, err := s.All(query.Where(key, "IN", database.List(vals...)))
+func (s *Store) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
+
+	ii, err := s.All(query.Where(pk, "IN", database.List(vals...)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	for j := range vals {
-		for _, i := range ii {
-			fn(j, i)
+	for _, i := range ii {
+		for _, m := range mm {
+			m.Bind(i)
 		}
 	}
 	return nil
-}
-
-// Get returns a single Image model, applying each query.Option that is given.
-func (s *Store) Get(opts ...query.Option) (*Image, error) {
-	i := &Image{
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	opts = append([]query.Option{
-		namespace.WhereCollaborator(s.User),
-		database.Where(s.Namespace, "namespace_id"),
-	}, opts...)
-
-	err := s.Store.Get(i, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return i, errors.Err(err)
-}
-
-// New returns a new Image binding any non-nil models to it from the current
-// Store.
-func (s *Store) New() *Image {
-	i := &Image{
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	if s.User != nil {
-		_, id := s.User.Primary()
-		i.UserID = id
-	}
-
-	if s.Namespace != nil {
-		_, id := s.Namespace.Primary()
-		i.NamespaceID = sql.NullInt64{
-			Int64: id,
-			Valid: true,
-		}
-	}
-	return i
-}
-
-// Paginate returns the database.Paginator for the images table for the given
-// page.
-func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Store.Paginate(table, page, 25, opts...)
-	return paginator, errors.Err(err)
 }

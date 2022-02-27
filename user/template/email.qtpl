@@ -1,5 +1,6 @@
 {%
 import (
+	"djinn-ci.com/alert"
 	"djinn-ci.com/template"
 	"djinn-ci.com/user"
 )
@@ -10,9 +11,10 @@ type Email struct {
 	template.BasePage
 	template.Form
 
-	Alert template.Alert
-	User  *user.User
-	Token string
+	Alert       alert.Alert
+	User        *user.User
+	Token       string
+	RedirectURI string
 }
 %}
 
@@ -35,12 +37,15 @@ type Email struct {
 					<div class="lantern"></div>
 				</div>
 				<h1>Set your email address</h1>
-				{%= template.RenderAlert(p.Alert, "") %}
+				{%= alert.Render(p.Alert, "") %}
 				<p>Your account has no email address set, please set one to continue.</p>
 			</div>
 			<form method="POST" action="/settings/email">
 				<input type="hidden" name="_method" value="PATCH"/>
 				{%v= p.CSRF %}
+				{% if p.RedirectURI != "" %}
+					<input type="hidden" name="redirect_uri" value="{%s p.RedirectURI %}"/>
+				{% endif %}
 				<input type="hidden" name="token" value="{%s p.Token %}"/>
 				<div class="input-field">
 					<label>Email</label>
@@ -55,3 +60,4 @@ type Email struct {
 	</div>
 {% endfunc %}
 {% endcollapsespace %}
+

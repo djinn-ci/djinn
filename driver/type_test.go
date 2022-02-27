@@ -4,14 +4,14 @@ import "testing"
 
 func Test_Type(t *testing.T) {
 	tests := []struct {
-		val         []byte
+		val         string
 		expected    Type
 		shouldError bool
 	}{
-		{[]byte("ssh"), SSH, false},
-		{[]byte("qemu"), QEMU, false},
-		{[]byte("docker"), Docker, false},
-		{[]byte("foo"), Type(0), true},
+		{"ssh", SSH, false},
+		{"qemu", QEMU, false},
+		{"docker", Docker, false},
+		{"foo", Type(0), true},
 	}
 
 	for i, test := range tests {

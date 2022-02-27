@@ -1,5 +1,6 @@
 {%
 import (
+	"djinn-ci.com/alert"
 	"djinn-ci.com/provider"
 	"djinn-ci.com/template"
 )
@@ -10,7 +11,7 @@ type Login struct {
 	template.BasePage
 	template.Form
 
-	Alert       template.Alert
+	Alert       alert.Alert
 	RedirectURI string
 	Providers   []*provider.Provider
 }
@@ -40,7 +41,7 @@ var providerNames = map[string]string{
 					<div class="lantern"></div>
 				</div>
 				<h1>Login to Djinn CI</h1>
-				{%= template.RenderAlert(p.Alert, "") %}
+				{%= alert.Render(p.Alert, "") %}
 			</div>
 			<form method="POST" action="/login">
 				{%s= string(p.CSRF) %}

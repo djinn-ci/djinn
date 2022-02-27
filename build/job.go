@@ -1,6 +1,7 @@
 package build
 
 import (
+	"context"
 	"database/sql"
 	"io"
 	"net/url"
@@ -13,111 +14,91 @@ import (
 
 	"github.com/andrewpillar/query"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/jackc/pgx/v4"
 )
 
-// Job is the type that represents a job that is either running, or has been
-// run during a build.
+// Job represents a single build Job.
 type Job struct {
-	ID         int64          `db:"id"`
-	BuildID    int64          `db:"build_id"`
-	StageID    int64          `db:"stage_id"`
-	Name       string         `db:"name"`
-	Commands   string         `db:"commands"`
-	Status     runner.Status  `db:"status"`
-	Output     sql.NullString `db:"output"`
-	CreatedAt  time.Time      `db:"created_at"`
-	StartedAt  sql.NullTime   `db:"started_at"`
-	FinishedAt sql.NullTime   `db:"finished_at"`
+	ID         int64
+	BuildID    int64
+	StageID    int64
+	Name       string
+	Commands   string
+	Status     runner.Status
+	Output     sql.NullString
+	CreatedAt  time.Time
+	StartedAt  sql.NullTime
+	FinishedAt sql.NullTime
 
-	Build     *Build      `db:"-"`
-	Stage     *Stage      `db:"-"`
-	Artifacts []*Artifact `db:"-"`
+	Build     *Build
+	Stage     *Stage
+	Artifacts []*Artifact
 }
 
-// JobStore is the type for creating and modifying Job models in the database.
-type JobStore struct {
-	database.Store
+var _ database.Model = (*Job)(nil)
 
-	Build *Build
-	Stage *Stage
-}
-
-var (
-	_ database.Model  = (*Job)(nil)
-	_ database.Binder = (*JobStore)(nil)
-	_ database.Loader = (*JobStore)(nil)
-
-	jobTable     = "build_jobs"
-	jobRelations = map[string]database.RelationFunc{
-		"build_stage":    database.Relation("stage_id", "id"),
-		"build_artifact": database.Relation("id", "job_id"),
-	}
-)
-
-// NewJobStore returns a new JobStore for querying the build_jobs table. Each
-// database passed to this function will be bound to the returned JobStore.
-func NewJobStore(db *sqlx.DB, mm ...database.Model) *JobStore {
-	s := &JobStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// JobModel is called along with database.ModelSlice to convert the given slice of
-// Job models to a slice of database.Model interfaces.
-func JobModel(jj []*Job) func(int) database.Model {
-	return func(i int) database.Model {
-		return jj[i]
+func JobRelations(db database.Pool) []database.RelationFunc {
+	return []database.RelationFunc{
+		database.Relation("stage_id", "id", StageStore{Pool: db}),
+		database.Relation("id", "job_id", &ArtifactStore{Pool: db}),
 	}
 }
 
-// LoadRelations loads all of the available relations for the given Job models
-// using the given loaders available.
-func LoadJobRelations(loaders *database.Loaders, jj ...*Job) error {
-	mm := database.ModelSlice(len(jj), JobModel(jj))
-	return database.LoadRelations(jobRelations, loaders, mm...)
+func LoadJobRelations(db database.Pool, jj ...*Job) error {
+	mm := make([]database.Model, 0, len(jj))
+
+	for _, j := range jj {
+		mm = append(mm, j)
+	}
+
+	if err := database.LoadRelations(mm, JobRelations(db)...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Bind implements the database.Binder interface. This will only bind the models
-// if they are pointers to either Build, Stage, or Artifact models.
-func (j *Job) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *Build:
+func (j *Job) Dest() []interface{} {
+	return []interface{}{
+		&j.ID,
+		&j.BuildID,
+		&j.StageID,
+		&j.Name,
+		&j.Commands,
+		&j.Output,
+		&j.Status,
+		&j.CreatedAt,
+		&j.StartedAt,
+		&j.FinishedAt,
+	}
+}
+
+// Bind the given Model to the current Job if it is one of Build, Stage, or
+// Artifact, and if there is a direct relation between the two.
+func (j *Job) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *Build:
+		if j.BuildID == v.ID {
 			j.Build = v
-		case *Stage:
+		}
+	case *Stage:
+		if j.StageID == v.ID {
 			j.Stage = v
-		case *Artifact:
-			v.Build = j.Build
+		}
+	case *Artifact:
+		if j.ID == v.JobID {
 			j.Artifacts = append(j.Artifacts, v)
 		}
 	}
 }
 
-// SetPrimary implements the database.Model interface.
-func (j *Job) SetPrimary(id int64) { j.ID = id }
-
-// Primary implements the database.Model interface.
-func (j *Job) Primary() (string, int64) { return "id", j.ID }
-
-// IsZero implements the database.Model interface.
-func (j *Job) IsZero() bool {
-	return j == nil || j.ID == 0 &&
-		j.BuildID == 0 &&
-		j.StageID == 0 &&
-		j.Name == "" &&
-		j.Commands == "" &&
-		j.Status == runner.Status(0) &&
-		!j.Output.Valid &&
-		!j.StartedAt.Valid &&
-		!j.FinishedAt.Valid
-}
-
-// JSON implements the database.Model interface. This will return a map with
-// the current Job's values under each key.
+// JSON returns a map[string]interface{} representation of the current Job.
+// This will include the Build model if it is non-nil. If the Stage model
+// is non-nil, then the name of the stage will be set.
 func (j *Job) JSON(addr string) map[string]interface{} {
+	if j == nil {
+		return nil
+	}
+
 	json := map[string]interface{}{
 		"id":          j.ID,
 		"build_id":    j.BuildID,
@@ -140,50 +121,56 @@ func (j *Job) JSON(addr string) map[string]interface{} {
 	if j.FinishedAt.Valid {
 		json["finished_at"] = j.FinishedAt.Time.Format(time.RFC3339)
 	}
-
-	if !j.Build.IsZero() {
+	if j.Build != nil {
 		json["build"] = j.Build.JSON(addr)
 	}
-	if !j.Stage.IsZero() {
+	if j.Stage != nil {
 		json["stage"] = j.Stage.Name
 	}
 	return json
 }
 
-// Endpoint implements the database.Model interface. If the current Job has a
-// nil or zero value Build bound model then an empty string is returned,
-// otherwise the full Build endpoint is returned, suffixed with the Job
-// endpoint, for example,
-//
-//   /b/l.belardo/10/jobs/create-driver
+// Endpoint returns the endpoint for the current Job. this will only return an
+// endpoint if the current Job has a non-nil build. The given uris are appended
+// to the returned endpoint.
 func (j *Job) Endpoint(uri ...string) string {
-	if j.Build == nil || j.Build.IsZero() {
+	if j.Build == nil {
 		return ""
 	}
 	return j.Build.Endpoint(append([]string{"jobs", j.Name}, uri...)...)
 }
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, build_id, stage_id, name, commands, status, output,
-// started_at, and finished_at.
+// Values returns all of the values for the current Job.
 func (j *Job) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"id":          j.ID,
 		"build_id":    j.BuildID,
 		"stage_id":    j.StageID,
 		"name":        j.Name,
 		"commands":    j.Commands,
 		"status":      j.Status,
 		"output":      j.Output,
+		"created_at":  j.CreatedAt,
 		"started_at":  j.StartedAt,
 		"finished_at": j.FinishedAt,
 	}
 }
 
-// Job returns the underlying runner.Job of the current Job. This can then be
-// passed to a runner.Driver for execution. It is expected for the Job's
-// Artifact slice to be already loaded onto the current database.
+// ArtifactStore allows for the retrieval and management of build Jobs.
+type JobStore struct {
+	database.Pool
+}
+
+var (
+	_ database.Loader = (*JobStore)(nil)
+
+	jobTable = "build_jobs"
+)
+
+// Job returns a runner.Job for the current Job for execution during a build.
+// The given io.Writer is used for capturing the output of the Job.
 func (j *Job) Job(w io.Writer) *runner.Job {
-	artifacts := runner.Passthrough{}
+	var artifacts runner.Passthrough
 
 	for _, a := range j.Artifacts {
 		artifacts.Set(a.Source, a.Name)
@@ -197,50 +184,8 @@ func (j *Job) Job(w io.Writer) *runner.Job {
 	}
 }
 
-// New returns a new Job binding any non-nil models to it from the current
-// JobStore.
-func (s *JobStore) New() *Job {
-	j := &Job{
-		Build: s.Build,
-		Stage: s.Stage,
-	}
-
-	if s.Build != nil {
-		j.BuildID = s.Build.ID
-	}
-
-	if s.Stage != nil {
-		j.StageID = s.Stage.ID
-	}
-	return j
-}
-
-// Bind implements the database.Binder interface. This will only bind the models
-// if they are pointers to either Build, Stage, or Artifact.
-func (s *JobStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *Build:
-			s.Build = v
-		case *Stage:
-			s.Stage = v
-		}
-	}
-}
-
-// Create creates a new Job model in the database with the given name and
-// commands.
-func (s *JobStore) Create(name, commands string) (*Job, error) {
-	j := s.New()
-	j.Name = name
-	j.Commands = commands
-
-	err := s.Store.Create(jobTable, j)
-	return j, errors.Err(err)
-}
-
-// Started marks the Job model with the given id as started in the database.
-func (s *JobStore) Started(id int64) error {
+// Started sets the status of the Job with the given id to running.
+func (s JobStore) Started(id int64) error {
 	q := query.Update(
 		jobTable,
 		query.Set("status", query.Arg(runner.Running)),
@@ -248,13 +193,15 @@ func (s *JobStore) Started(id int64) error {
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// sanitized ensures that the string is valid for UTF-8 encoding. In the case
-// when builds may produced binary output which can cause issues when storing
-// in the database.
+// sanitized will sanitize any NUL bytes found in the given string by replacing
+// then with the string NUL. This ensures the string is safe for UTF-8 encoding
+// during database insertion.
 func sanitize(s string) string {
 	sanitized := make([]rune, 0, len(s))
 
@@ -268,9 +215,9 @@ func sanitize(s string) string {
 	return string(sanitized)
 }
 
-// Finished marks the Job model with the given id as finished in the database,
-// with the given output and status.
-func (s *JobStore) Finished(id int64, output string, status runner.Status) error {
+// Finished marks the Job with the given id as finished, setting the output
+// and status of the Build respectively.
+func (s JobStore) Finished(id int64, output string, status runner.Status) error {
 	q := query.Update(
 		jobTable,
 		query.Set("status", query.Arg(status)),
@@ -279,59 +226,67 @@ func (s *JobStore) Finished(id int64, output string, status runner.Status) error
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Get returns a single Job database, applying each query.Option that is given.
-func (s *JobStore) Get(opts ...query.Option) (*Job, error) {
-	j := &Job{
-		Build: s.Build,
-		Stage: s.Stage,
+// FinishedTx functions the same as Finished, however it performs the update
+// as part of a transaction.
+func (s JobStore) FinishedTx(ctx context.Context, tx pgx.Tx, id int64, output string, status runner.Status) error {
+	q := query.Update(
+		jobTable,
+		query.Set("status", query.Arg(status)),
+		query.Set("output", query.Arg(sanitize(output))),
+		query.Set("finished_at", query.Arg(time.Now())),
+		query.Where("id", "=", query.Arg(id)),
+	)
+
+	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
 	}
-
-	opts = append([]query.Option{
-		database.Where(s.Build, "build_id"),
-		database.Where(s.Stage, "stage_id"),
-	}, opts...)
-
-	err := s.Store.Get(j, jobTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return j, errors.Err(err)
+	return nil
 }
 
-// All returns a slice of Job models, applying each query.Option that is given.
-func (s *JobStore) All(opts ...query.Option) ([]*Job, error) {
+// Get returns the singular build Job that can be found with the given query
+// options applied, along with whether or not one could be found.
+func (s JobStore) Get(opts ...query.Option) (*Job, bool, error) {
+	var j Job
+
+	ok, err := s.Pool.Get(jobTable, &j, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &j, ok, nil
+}
+
+// All returns all of the build Jobs that can be found with the given query
+// options applied.
+func (s JobStore) All(opts ...query.Option) ([]*Job, error) {
 	jj := make([]*Job, 0)
 
-	opts = append([]query.Option{
-		database.Where(s.Build, "build_id"),
-		database.Where(s.Stage, "stage_id"),
-	}, opts...)
-
-	err := s.Store.All(&jj, jobTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		j := &Job{}
+		jj = append(jj, j)
+		return j
 	}
 
-	for _, j := range jj {
-		j.Build = s.Build
-		j.Stage = s.Stage
+	if err := s.Pool.All(jobTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return jj, errors.Err(err)
+	return jj, nil
 }
 
-// Index returns the results from the jobs table depending on the values that
-// are present in url.Values. Detailed below are the values that are used from
-// the given url.Values,
-//
-// name   - This applies the database.Search query.Option using the value of name
-// status - This applied the WhereStatus query.Option using the value of status
-func (s *JobStore) Index(vals url.Values, opts ...query.Option) ([]*Job, error) {
+// Index returns the Jobs with the given query options applied. The given
+// url.Values are used to apply the database.Search, and WhereStatus query
+// options if the name, and search values are present in the underlying map.
+func (s JobStore) Index(vals url.Values, opts ...query.Option) ([]*Job, error) {
 	opts = append([]query.Option{
 		database.Search("name", vals.Get("name")),
 		WhereStatus(vals.Get("status")),
@@ -341,24 +296,28 @@ func (s *JobStore) Index(vals url.Values, opts ...query.Option) ([]*Job, error) 
 		opts,
 		query.OrderAsc("created_at"),
 	)...)
-	return jj, errors.Err(err)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return jj, nil
 }
 
-// Load loads in a slice of Job models where the given key is in the list of
-// given vals. Each database is loaded individually via a call to the given load
-// callback. This method calls JobStore.All under the hood, so any bound models
-// will impact the models being loaded.
-func (s *JobStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	jj, err := s.All(query.Where(key, "IN", database.List(vals...)), query.OrderAsc("created_at"))
+func (s JobStore) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
+
+	jj, err := s.All(query.Where(pk, "IN", database.List(vals...)), query.OrderAsc("created_at"))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	for i := range vals {
-		for _, j := range jj {
-			load(i, j)
-		}
+	loaded := make([]database.Model, 0, len(jj))
+
+	for _, j := range jj {
+		loaded = append(loaded, j)
 	}
+
+	database.Bind(fk, pk, loaded, mm)
 	return nil
 }

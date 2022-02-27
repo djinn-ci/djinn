@@ -32,11 +32,28 @@ type BasePage struct {
 
 type Form struct {
 	CSRF   template.HTML
-	Errors *webutil.Errors
+	Errors webutil.ValidationErrors
 	Fields map[string]string
 }
 
 func pattern(name string) string { return "(^\\/" + name + "\\/?[a-z0-9\\/?]*$)" }
+
+func LinkToQuery(url *url.URL, query map[string]string) string {
+	q := url.Query()
+
+	for k, v := range query {
+		if v == "" {
+			delete(q, k)
+			continue
+		}
+		q.Set(k, v)
+	}
+
+	url2 := (*url)
+	url2.RawQuery = q.Encode()
+
+	return url2.String()
+}
 
 func Active(condition bool) string {
 	if condition {
@@ -112,7 +129,11 @@ func pageURL(url *url.URL, page int64) string {
 {% endfunc %}
 {% endstripspace %}
 
-{% func (f Form) Error(field string) %} <div class="form-error">{%s f.Errors.First(field) %}</div> {% endfunc %}
+{% func (f Form) Error(field string) %}
+	<div class="form-error">
+		{% if err := f.Errors.First(field); err != "" %}{%s err %}{% endif %}
+	</div>
+{% endfunc %}
 
 {% func (p *BasePage) Title() %} Djinn CI {% endfunc %}
 {% func (p *BasePage) Body() %}{% endfunc %}

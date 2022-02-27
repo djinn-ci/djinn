@@ -54,7 +54,7 @@ type Show struct {
 
 {% func (p *Show) Header() %}
 	<a href="/cron" class="back">{% cat "../../static/svg/back.svg" %}</a>
-	{% if !p.Cron.Namespace.IsZero() %}
+	{% if p.Cron.Namespace != nil %}
 		<a href="{%s p.Cron.Namespace.Endpoint() %}">{%s p.Cron.Namespace.Name %}</a> /
 	{% endif %}
 	{%s p.Cron.Name %}

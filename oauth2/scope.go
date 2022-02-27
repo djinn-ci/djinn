@@ -4,7 +4,6 @@ import (
 	"database/sql/driver"
 	"strings"
 
-	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 )
 
@@ -228,14 +227,20 @@ func (sc *Scope) Scan(val interface{}) error {
 		(*sc) = Scope(make([]scopeItem, 0))
 	}
 
-	b, err := database.Scan(val)
+	v, err := driver.String.ConvertValue(val)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
+	b, ok := v.([]byte)
+
+	if !ok {
+		return errors.New("oauth2: could not type assert Scope to byte slice")
+	}
+
 	if len(b)%2 != 0 {
-		return errors.New("invalid scope bytes")
+		return errors.New("oauth2: invalid scope bytes")
 	}
 
 	i := 0

@@ -53,7 +53,7 @@ type Show struct {
 
 {% func (p *Show) Header() %}
 	<a href="/objects" class="back">{% cat "../../static/svg/back.svg" %}</a>
-	{% if !p.Object.Namespace.IsZero() %}
+	{% if p.Object.Namespace != nil %}
 		<a href="{%s p.Object.Namespace.Endpoint() %}">{%s p.Object.Namespace.Name %}</a> /
 	{% endif %}
 	{%s p.Object.Name %}

@@ -151,7 +151,7 @@ func (p *Show) StreamHeader(qw422016 *qt422016.Writer) {
 //line cron/template/show.qtpl:56
 	qw422016.N().S(`</a> `)
 //line cron/template/show.qtpl:57
-	if !p.Cron.Namespace.IsZero() {
+	if p.Cron.Namespace != nil {
 //line cron/template/show.qtpl:57
 		qw422016.N().S(` <a href="`)
 //line cron/template/show.qtpl:58

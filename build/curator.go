@@ -8,8 +8,6 @@ import (
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
 type curationRecord struct {
@@ -21,19 +19,22 @@ type curationRecord struct {
 // the configured limit.
 type Curator struct {
 	limit     int64
-	artifacts fs.Store
-	store     *ArtifactStore
-	users     *user.Store
+	store     fs.Store
+	artifacts *ArtifactStore
+	users     user.Store
 }
 
 // NewCurator creates a new curator for cleaning up old artifacts from the
 // given block store.
-func NewCurator(db *sqlx.DB, artifacts fs.Store, limit int64) Curator {
+func NewCurator(db database.Pool, store fs.Store, limit int64) Curator {
 	return Curator{
-		limit:     limit,
-		artifacts: artifacts,
-		store:     NewArtifactStore(db),
-		users:     user.NewStore(db),
+		limit: limit,
+		store: store,
+		artifacts: &ArtifactStore{
+			Pool:  db,
+			Store: store,
+		},
+		users: user.Store{Pool: db},
 	}
 }
 
@@ -47,11 +48,15 @@ func (c *Curator) Invoke(log *log.Logger) error {
 		return errors.Err(err)
 	}
 
-	mm := database.ModelSlice(len(uu), user.Model(uu))
+	userIds := make([]interface{}, 0, len(uu))
 
-	aa, err := c.store.All(
+	for _, u := range uu {
+		userIds = append(userIds, u.ID)
+	}
+
+	aa, err := c.artifacts.All(
 		query.Where("size", ">", query.Arg(0)),
-		query.Where("user_id", "IN", database.List(database.MapKey("id", mm)...)),
+		query.Where("user_id", "IN", database.List(userIds...)),
 		query.Where("deleted_at", "IS", query.Lit("NULL")),
 		query.OrderDesc("created_at"),
 	)
@@ -78,7 +83,7 @@ func (c *Curator) Invoke(log *log.Logger) error {
 	}
 
 	for userId, records := range curated {
-		part, err := c.artifacts.Partition(userId)
+		part, err := c.store.Partition(userId)
 
 		if err != nil {
 			log.Error.Println("failed to partition artifact store", err)
@@ -96,7 +101,7 @@ func (c *Curator) Invoke(log *log.Logger) error {
 		}
 	}
 
-	if err := c.store.Deleted(deleted...); err != nil {
+	if err := c.artifacts.Deleted(deleted...); err != nil {
 		return errors.Err(err)
 	}
 	return err

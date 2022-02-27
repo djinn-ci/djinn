@@ -1,6 +1,7 @@
 {%
 import (
 	"fmt"
+	"net/url"
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/template"
@@ -8,41 +9,41 @@ import (
 %}
 
 {% collapsespace %}
-{% func RenderStatusNav(uri, status string) %}
+{% func RenderStatusNav(url *url.URL, tag, status string) %}
 	{% stripspace %}
 		<ul class="panel-nav">
 			<li>
-				<a href="{%s uri %}" {% if status == "" %}class="active"{% endif %}>
+				<a href="{%s template.LinkToQuery(url, map[string]string{"status": "", "tag": tag}) %}" {% if status == "" %}class="active"{% endif %}>
 					{% cat "../../static/svg/build.svg" %}<span>All</span>
 				</a>
 			</li>
 			<li>
-				<a href="?status=queued" {% if status == "queued" %}class="active"{% endif %}>
+				<a href="{%s template.LinkToQuery(url, map[string]string{"status": "queued", "tag": tag}) %}" {% if status == "queued" %}class="active"{% endif %}>
 					{% cat "../../static/svg/hourglass.svg" %}<span>Queued</span>
 				</a>
 			</li>
 			<li>
-				<a href="?status=running" {% if status == "running" %}class="active"{% endif %}>
+				<a href="{%s template.LinkToQuery(url, map[string]string{"status": "running", "tag": tag}) %}" {% if status == "running" %}class="active"{% endif %}>
 					{% cat "../../static/svg/timer.svg" %}<span>Running</span>
 				</a>
 			</li>
 			<li>
-				<a href="?status=passed" {% if status == "passed" %}class="active"{% endif %}>
+				<a href="{%s template.LinkToQuery(url, map[string]string{"status": "passed", "tag": tag}) %}" {% if status == "passed" %}class="active"{% endif %}>
 					{% cat "../../static/svg/check.svg" %}<span>Passed</span>
 				</a>
 			</li>
 			<li>
-				<a href="?status=failed" {% if status == "failed" %}class="active"{% endif %}>
+				<a href="{%s template.LinkToQuery(url, map[string]string{"status": "failed", "tag": tag}) %}" {% if status == "failed" %}class="active"{% endif %}>
 					{% cat "../../static/svg/close.svg" %}<span>Failed</span>
 				</a>
 			</li>
 			<li>
-				<a href="?status=killed" {% if status == "killed" %}class="active"{% endif %}>
+				<a href="{%s template.LinkToQuery(url, map[string]string{"status": "killed", "tag": tag}) %}" {% if status == "killed" %}class="active"{% endif %}>
 					{% cat "../../static/svg/stop.svg" %}<span>Killed</span>
 				</a>
 			</li>
 			<li>
-				<a href="?status=timed_out" {% if status == "timed_out" %}class="active"{% endif %}>
+				<a href="{%s template.LinkToQuery(url, map[string]string{"status": "timed_out", "tag": tag}) %}" {% if status == "timed_out" %}class="active"{% endif %}>
 					{% cat "../../static/svg/stopwatch.svg" %}<span>Timed Out</span>
 				</a>
 			</li>

@@ -91,13 +91,6 @@ var (
 		runner.Killed:             "failure",
 		runner.TimedOut:           "failure",
 	}
-
-	PullRequestActions = map[string]struct{}{
-		"opened":      {},
-		"reopened":    {},
-		"unlocked":    {},
-		"synchronize": {},
-	}
 )
 
 func decodeError(r io.Reader) Error {
@@ -106,23 +99,37 @@ func decodeError(r io.Reader) Error {
 	return err
 }
 
+const defaultEndpoint = "https://api.github.com"
+
+func IsValidPullRequestAction(action string) bool {
+	actions := map[string]struct{}{
+		"opened":      {},
+		"reopened":    {},
+		"unlocked":    {},
+		"synchronize": {},
+	}
+
+	_, ok := actions[action]
+	return ok
+}
+
 // New returns a new Client to the GitHub REST API. If the given endpoint is
 // empty then the default "https://api.github.com" will be used. This will
 // set the following scopes to request: "admin:repo_hook", "read:org", "repo".
-func New(host, endpoint, secret, clientId, clientSecret string) *Client {
-	if endpoint == "" {
-		endpoint = "https://api.github.com"
+func New(p provider.ClientParams) *Client {
+	if p.Endpoint == "" {
+		p.Endpoint = defaultEndpoint
 	}
 
-	url := strings.Replace(endpoint, "api.", "", 1)
+	url := strings.Replace(p.Endpoint, "api.", "", 1)
 
 	b := make([]byte, 16)
 	rand.Read(b)
 
 	cfg := oauth2.Config{
-		ClientID:     clientId,
-		ClientSecret: clientSecret,
-		RedirectURL:  host + "/oauth/github",
+		ClientID:     p.ClientID,
+		ClientSecret: p.ClientSecret,
+		RedirectURL:  p.Host + "/oauth/github",
 		Scopes:       []string{"admin:repo_hook", "read:org", "repo"},
 		Endpoint: oauth2.Endpoint{
 			AuthURL:  url + "/login/oauth/authorize",
@@ -133,10 +140,10 @@ func New(host, endpoint, secret, clientId, clientSecret string) *Client {
 	return &Client{
 		BaseClient: provider.BaseClient{
 			Config:      cfg,
-			Host:        host,
-			APIEndpoint: endpoint,
+			Host:        p.Host,
+			APIEndpoint: p.Endpoint,
 			State:       hex.EncodeToString(b),
-			Secret:      secret,
+			Secret:      p.Secret,
 		},
 	}
 }
@@ -353,11 +360,11 @@ func (g *Client) SetCommitStatus(tok string, r *provider.Repo, status runner.Sta
 		"context":     "continuous-integration/djinn-ci",
 	}
 
-	buf := &bytes.Buffer{}
+	var buf bytes.Buffer
 
-	json.NewEncoder(buf).Encode(body)
+	json.NewEncoder(&buf).Encode(body)
 
-	resp, err := g.Post(tok, "/repos/"+r.Name+"/statuses/"+sha, buf)
+	resp, err := g.Post(tok, "/repos/"+r.Name+"/statuses/"+sha, &buf)
 
 	if err != nil {
 		return errors.Err(err)

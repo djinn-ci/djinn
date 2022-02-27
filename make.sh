@@ -15,7 +15,7 @@ module="$(head -1 go.mod | awk '{ print $2 }')"
 version="$(_version)"
 
 if [ "$version" = "" ]; then
-	version="devel $(git log -n 1 --format='format: +%h %cd' HEAD)"
+	version="devel $(git log -n 1 --format='format:%h %cd' HEAD)"
 fi
 
 default_tags="netgo osusergo"
@@ -56,8 +56,9 @@ yarn_() {
 
 ui() {
 	yarn_
+
 	if [ -z "$1" ]; then
-		find . -name template -type d -exec qtc -dir {} \;
+		qtc
 	else
 		dir="$1/template"
 

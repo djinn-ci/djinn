@@ -1,11 +1,17 @@
 package config
 
 import (
+	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
+	"io"
 	"net"
+	"net/smtp"
 	"os"
 	"strconv"
 
+	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
@@ -15,19 +21,196 @@ import (
 	"djinn-ci.com/provider/github"
 	"djinn-ci.com/provider/gitlab"
 
+	"github.com/andrewpillar/config"
+
 	"github.com/go-redis/redis"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/mcmathja/curlyq"
 )
 
-type sslCfg struct {
+var (
+	decodeOpts = []config.Option{
+		config.Envvars,
+		config.Includes,
+	}
+
+	defaultBuildQueue = "builds"
+)
+
+// driverQueues returns a map containing each of the queues that builds would be
+// produced to, based on the driver being used for that build.
+func driverQueues(l *log.Logger, redis *redis.Client, drivers []string) map[string]*curlyq.Producer {
+	queues := make(map[string]*curlyq.Producer)
+
+	for _, driver := range drivers {
+		queues[driver] = curlyq.NewProducer(&curlyq.ProducerOpts{
+			Client: redis,
+			Queue:  defaultBuildQueue + "_" + driver,
+			Logger: log.Queue{Logger: l},
+		})
+	}
+	return queues
+}
+
+// mkpidfile creates a file at the given path, and writes the current PID to
+// that file. If the given path is empty, then nothing happens, otherwise if
+// the file is created successfully, then the full path to that file is
+// returned.
+func mkpidfile(path string) (string, error) {
+	if path == "" {
+		return "", nil
+	}
+
+	pidfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+
+	if err != nil {
+		return "", err
+	}
+
+	if _, err := io.WriteString(pidfile, strconv.FormatInt(int64(os.Getpid()), 10)); err != nil {
+		return "", err
+	}
+
+	pidfile.Close()
+	return pidfile.Name(), nil
+}
+
+type cryptoCfg struct {
+	Auth  string
+	Block string
+	Hash  string
+	Salt  string
+}
+
+func (cfg *cryptoCfg) aesgcm() (*crypto.AESGCM, error) {
+	if l := len(cfg.Block); l != 16 && l != 24 && l != 32 {
+		return nil, errors.New("crypto block must be 16, 24, or 32 characters in length")
+	}
+
+	if len(cfg.Salt) == 0 {
+		return nil, errors.New("crypto salt is required for AES-GCM encryption")
+	}
+
+	aesgcm, err := crypto.NewAESGCM([]byte(cfg.Block), []byte(cfg.Salt))
+
+	if err != nil {
+		return nil, err
+	}
+	return aesgcm, nil
+}
+
+// values simply returns all of the underlying configuration parameters for
+// crypto. These are returned in lexical order, so, auth, block, hash, then
+// salt.
+func (cfg *cryptoCfg) values() ([]byte, []byte, []byte, []byte) {
+	return []byte(cfg.Auth), []byte(cfg.Block), []byte(cfg.Hash), []byte(cfg.Salt)
+}
+
+// Hasher configures a new crypto.Hasher using the salt parameter set on the
+// given crypto configuration.
+func (cfg *cryptoCfg) hasher() (*crypto.Hasher, error) {
+	if len(cfg.Salt) == 0 {
+		return nil, errors.New("crypto salt is required for hashing")
+	}
+
+	hasher := &crypto.Hasher{
+		Salt:   cfg.Salt,
+		Length: 8,
+	}
+
+	if err := hasher.Init(); err != nil {
+		return nil, err
+	}
+	return hasher, nil
+}
+
+var logmask = os.O_WRONLY | os.O_APPEND | os.O_CREATE
+
+func logger(logtab map[string]string) (*log.Logger, error) {
+	var (
+		level log.Level
+		file  string
+	)
+
+	for label, val := range logtab {
+		lvl, ok := log.Levels[label]
+
+		if !ok {
+			return nil, errors.New("unknown log level " + label)
+		}
+
+		if lvl <= level || level == 0 {
+			level = lvl
+			file = val
+		}
+	}
+
+	log := log.New(os.Stdout)
+	log.SetLevel(level.String())
+
+	if file != os.Stdout.Name() {
+		f, err := os.OpenFile(file, logmask, 0640)
+
+		if err != nil {
+			return nil, err
+		}
+		log.SetWriter(f)
+	}
+
+	log.Info.Println("logging initialized, writing to", file, "at level", level.String())
+
+	return log, nil
+}
+
+type tlsCfg struct {
 	CA   string
 	Cert string
 	Key  string
 }
 
+// Config configurates a new tls.Config based on the given ssl configuration.
+func (cfg *tlsCfg) config() (*tls.Config, error) {
+	var (
+		rootCAs *x509.CertPool
+		certs   []tls.Certificate
+	)
+
+	if cfg.CA != "" {
+		b, err := os.ReadFile(cfg.CA)
+
+		if err != nil {
+			return nil, err
+		}
+
+		pool := x509.NewCertPool()
+
+		if !pool.AppendCertsFromPEM(b) {
+			return nil, errors.New("failed to append certificates from PEM, please check if valid")
+		}
+		rootCAs = pool
+	}
+
+	if cfg.Cert != "" && cfg.Key != "" {
+		cert, err := tls.LoadX509KeyPair(cfg.Cert, cfg.Key)
+
+		if err != nil {
+			return nil, err
+		}
+		certs = append(certs, cert)
+	}
+
+	if rootCAs != nil || len(certs) > 0 {
+		return &tls.Config{
+			RootCAs:      rootCAs,
+			Certificates: certs,
+		}, nil
+	}
+	return nil, nil
+}
+
 type databaseCfg struct {
-	SSL sslCfg
+	TLS tlsCfg
+	SSL tlsCfg `config:"ssl,deprecated:tls"`
 
 	Addr     string
 	Name     string
@@ -35,21 +218,50 @@ type databaseCfg struct {
 	Password string
 }
 
-type Crypto struct {
-	Hash  []byte
-	Block []byte
-	Salt  []byte
-	Auth  []byte
-}
+var dsnfmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s %s"
 
-type logCfg struct {
-	Level string
-	File  string
-}
+func (cfg *databaseCfg) connect(log *log.Logger) (database.Pool, error) {
+	var pool database.Pool
 
-type redisCfg struct {
-	Addr     string
-	Password string
+	host, port, err := net.SplitHostPort(cfg.Addr)
+
+	if err != nil {
+		return pool, err
+	}
+
+	sslmode := "disable"
+	sslconf := ""
+	sslcert := cfg.SSL.Cert
+	sslkey := cfg.SSL.Key
+	sslrootcert := cfg.SSL.CA
+
+	if cfg.TLS.Cert != "" {
+		sslcert = cfg.TLS.Cert
+	}
+	if cfg.TLS.Key != "" {
+		sslcert = cfg.TLS.Key
+	}
+	if cfg.TLS.CA != "" {
+		sslcert = cfg.TLS.CA
+	}
+
+	if sslcert != "" && sslkey != "" && sslrootcert != "" {
+		sslmode = "verify-full"
+		sslconf = fmt.Sprintf("sslcert=%s sslkey=%s sslrootcert=%s", sslcert, sslkey, sslrootcert)
+	}
+
+	dsn := fmt.Sprintf(dsnfmt, host, port, cfg.Name, cfg.Username, cfg.Password, sslmode, sslconf)
+
+	log.Debug.Println("connecting to postgresql database with:", dsn)
+
+	db, err := database.Connect(context.Background(), dsn)
+
+	if err != nil {
+		return pool, err
+	}
+
+	log.Info.Println("connected to postgresql database")
+	return db, nil
 }
 
 type smtpCfg struct {
@@ -60,73 +272,57 @@ type smtpCfg struct {
 	Password string
 }
 
-type storeCfg struct {
-	name string
+func (cfg *smtpCfg) connect(log *log.Logger) (*mail.Client, string, error) {
+	log.Debug.Println("connecting to smtp addr", cfg.Addr)
 
-	Type  string
-	Path  string
-	Limit int64
-}
-
-var (
-	blockstores = map[string]func(string, int64) fs.Store{
-		"file": func(dsn string, limit int64) fs.Store {
-			return fs.NewFilesystemWithLimit(dsn, limit)
-		},
-	}
-
-	providerFactories = map[string]provider.Factory{
-		"github": func(host, endpoint, secret, clientId, clientSecret string) provider.Client {
-			return github.New(host, endpoint, secret, clientId, clientSecret)
-		},
-		"gitlab": func(host, endpoint, secret, clientId, clientSecret string) provider.Client {
-			return gitlab.New(host, endpoint, secret, clientId, clientSecret)
-		},
-	}
-)
-
-func connectdb(log *log.Logger, cfg databaseCfg) (*sqlx.DB, error) {
-	host, port, err := net.SplitHostPort(cfg.Addr)
+	host, _, err := net.SplitHostPort(cfg.Addr)
 
 	if err != nil {
-		return nil, errors.Err(err)
+		return nil, "", err
 	}
 
-	sslmode := "disable"
-	sslconf := ""
-	sslcert := cfg.SSL.Cert
-	sslkey := cfg.SSL.Key
-	sslrootcert := cfg.SSL.CA
-
-	if sslcert != "" && sslkey != "" && sslrootcert != "" {
-		sslmode = "verify-full"
-		sslconf = fmt.Sprintf("sslcert=%s sslkey=%s sslrootcert=%s", sslcert, sslkey, sslrootcert)
+	tlscfg0 := tlsCfg{
+		CA: cfg.CA,
 	}
 
-	dsn := fmt.Sprintf(
-		"host=%s port=%s dbname=%s user=%s password=%s sslmode=%s %s",
-		host,
-		port,
-		cfg.Name,
-		cfg.Username,
-		cfg.Password,
-		sslmode,
-		sslconf,
-	)
+	var auth smtp.Auth
 
-	log.Debug.Println("connecting to postgresql database with:", dsn)
+	if cfg.Username != "" && cfg.Password != "" {
+		log.Debug.Println("using plain auth username =", cfg.Username, "password =", cfg.Password)
 
-	db, err := database.Connect(dsn)
+		auth = smtp.PlainAuth("", cfg.Username, cfg.Password, host)
+	}
+
+	tlscfg, err := tlscfg0.config()
 
 	if err != nil {
-		return nil, errors.Err(err)
+		return nil, "", err
 	}
 
-	log.Info.Println("connected to postgresql database")
-	return db, nil
+	if tlscfg != nil {
+		tlscfg.ServerName = host
+	}
+
+	cli := &mail.Client{
+		Addr:      cfg.Addr,
+		Auth:      auth,
+		TLSConfig: tlscfg,
+	}
+
+	if err := cli.Dial(); err != nil {
+		return nil, "", err
+	}
+
+	log.Info.Println("connected to smtp server")
+	return cli, cfg.Admin, nil
 }
 
-func connectredis(log *log.Logger, cfg redisCfg) (*redis.Client, error) {
+type redisCfg struct {
+	Addr     string
+	Password string
+}
+
+func (cfg *redisCfg) connect(log *log.Logger) (*redis.Client, error) {
 	redis := redis.NewClient(&redis.Options{
 		Addr:     cfg.Addr,
 		Password: cfg.Password,
@@ -135,371 +331,56 @@ func connectredis(log *log.Logger, cfg redisCfg) (*redis.Client, error) {
 	log.Debug.Println("connecting to redis database with:", cfg.Addr, cfg.Password)
 
 	if _, err := redis.Ping().Result(); err != nil {
-		return nil, errors.Err(err)
+		return nil, err
 	}
 
 	log.Info.Println("connected to redis database")
 	return redis, nil
 }
 
-func connectsmtp(log *log.Logger, cfg smtpCfg) (*mail.Client, error) {
-	log.Debug.Println("connecting to smtp addr", cfg.Addr)
-
-	if cfg.Username != "" && cfg.Password != "" {
-		log.Debug.Println("using plain auth username =", cfg.Username, "password =", cfg.Password)
-	}
-
-	if cfg.CA != "" {
-		log.Debug.Println("connecting to smtp with tls")
-	}
-
-	smtp, err := mail.NewClient(mail.ClientConfig{
-		CA:       cfg.CA,
-		Addr:     cfg.Addr,
-		Username: cfg.Username,
-		Password: cfg.Password,
-	})
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	log.Info.Println("connected to smtp server")
-	return smtp, nil
+type storeCfg struct {
+	Name  string
+	Type  string
+	Path  string
+	Limit int64
 }
 
-func mkpidfile(path string) (*os.File, error) {
-	if path == "" {
-		return nil, nil
+func (cfg *storeCfg) store() (fs.Store, error) {
+	switch cfg.Type {
+	case "file":
+		store := fs.NewFilesystemWithLimit(cfg.Path, cfg.Limit)
+
+		if err := store.Init(); err != nil {
+			return nil, err
+		}
+		return store, nil
+	default:
+		return nil, errors.New("unknown store type: " + cfg.Type)
 	}
-
-	pidfile, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0644)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	pidfile.Write([]byte(strconv.FormatInt(int64(os.Getpid()), 10)))
-	pidfile.Close()
-
-	return pidfile, nil
 }
 
-func (cfg *Crypto) put(n *node) error {
-	if n.body == nil {
-		return n.err("crypto must be a configuration block")
-	}
-
-	var walkerr error
-
-	n.body.walk(func(n *node) {
-		if n.body != nil {
-			walkerr = n.err("unexpected configuration block")
-			return
-		}
-		if n.list != nil {
-			walkerr = n.err("unexpected array")
-			return
-		}
-
-		switch n.name {
-		case "hash":
-			cfg.Hash = []byte(n.value)
-		case "block":
-			cfg.Block = []byte(n.value)
-		case "salt":
-			cfg.Salt = []byte(n.value)
-		case "auth":
-			cfg.Auth = []byte(n.value)
-		default:
-			walkerr = n.err("unknown crypto configuration parameter: " + n.name)
-		}
-	})
-
-	if walkerr != nil {
-		return walkerr
-	}
-	return cfg.validate()
+type providerCfg struct {
+	Secret       string
+	Endpoint     string
+	ClientID     string `config:"client_id"`
+	ClientSecret string `config:"client_secret"`
 }
 
-func (cfg *Crypto) validate() error {
-	if len(cfg.Hash) != 32 && len(cfg.Hash) != 64 {
-		println(len(cfg.Hash))
-		return errors.New("crypto hash must be 32 or 64 characters in length")
-	}
-	if len(cfg.Block) != 16 && len(cfg.Block) != 24 && len(cfg.Block) != 32 {
-		return errors.New("crypto block must be 16, 24, or 32 characters in length")
-	}
-	if len(cfg.Salt) == 0 {
-		return errors.New("crypto salt is required")
-	}
-	if len(cfg.Auth) != 32 {
-		return errors.New("crypto auth must be 32 characters in length")
-	}
-	return nil
-}
-
-func (cfg *logCfg) put(n *node) error {
-	levels := map[string]struct{}{
-		"debug": {},
-		"info":  {},
-		"warn":  {},
-		"error": {},
+func (cfg *providerCfg) client(name, host string) (provider.Client, error) {
+	params := provider.ClientParams{
+		Host:         host,
+		Endpoint:     cfg.Endpoint,
+		Secret:       cfg.Secret,
+		ClientID:     cfg.ClientID,
+		ClientSecret: cfg.ClientSecret,
 	}
 
-	if n.label == "" {
-		return n.err("log level not set")
+	switch name {
+	case "github":
+		return github.New(params), nil
+	case "gitlab":
+		return gitlab.New(params), nil
+	default:
+		return nil, errors.New("unknown provider: " + name)
 	}
-
-	if _, ok := levels[n.label]; !ok {
-		return n.err("unknown log level: " + n.label)
-	}
-
-	if n.label == "" {
-		n.label = "info"
-	}
-	if n.value == "" {
-		n.value = os.Stdout.Name()
-	}
-
-	cfg.Level = n.label
-	cfg.File = n.value
-	return nil
-}
-
-func (cfg *sslCfg) put(n *node) error {
-	if n.body == nil {
-		return n.err("ssl must be a configuration block")
-	}
-
-	var walkerr error
-
-	n.body.walk(func(n *node) {
-		if n.body != nil {
-			walkerr = n.err("unexpected configuration block")
-			return
-		}
-		if n.list != nil {
-			walkerr = n.err("unexpected array")
-			return
-		}
-
-		switch n.name {
-		case "ca":
-			cfg.CA = n.value
-		case "cert":
-			cfg.Cert = n.value
-		case "key":
-			cfg.Key = n.value
-		default:
-			walkerr = n.err("unknown ssl configuration parameter: " + n.name)
-		}
-	})
-	return walkerr
-}
-
-func (cfg *databaseCfg) put(n *node) error {
-	if n.body == nil {
-		return n.err("database must be a configuration block")
-	}
-
-	var walkerr error
-
-	n.body.walk(func(n *node) {
-		if n.body != nil {
-			walkerr = n.err("unexpected configuration block")
-			return
-		}
-		if n.list != nil {
-			walkerr = n.err("unexpected array")
-			return
-		}
-
-		switch n.name {
-		case "addr":
-			cfg.Addr = n.value
-		case "name":
-			cfg.Name = n.value
-		case "username":
-			cfg.Username = n.value
-		case "password":
-			cfg.Password = n.value
-		case "ssl":
-			walkerr = cfg.SSL.put(n)
-		case "ca", "cert", "key":
-			return
-		default:
-			walkerr = n.err("unknown database configuration parameter: " + n.name)
-		}
-	})
-
-	if walkerr != nil {
-		return walkerr
-	}
-	return cfg.validate()
-}
-
-func (cfg *databaseCfg) validate() error {
-	if cfg.Addr == "" {
-		return errors.New("database address not configured")
-	}
-
-	if _, _, err := net.SplitHostPort(cfg.Addr); err != nil {
-		return err
-	}
-
-	if cfg.Name == "" {
-		return errors.New("database name not configured")
-	}
-	if cfg.Username == "" {
-		return errors.New("database username not configured")
-	}
-	if cfg.Password == "" {
-		return errors.New("database user password not configured")
-	}
-	return nil
-}
-
-func (cfg *smtpCfg) put(n *node) error {
-	if n.body == nil {
-		return n.err("smtp must be a configuration block")
-	}
-
-	var walkerr error
-
-	n.body.walk(func(n *node) {
-		if n.body != nil {
-			walkerr = n.err("unexpected configuration block")
-			return
-		}
-		if n.list != nil {
-			walkerr = n.err("unexpected array")
-			return
-		}
-
-		switch n.name {
-		case "addr":
-			cfg.Addr = n.value
-		case "ca":
-			cfg.CA = n.value
-		case "admin":
-			cfg.Admin = n.value
-		case "username":
-			cfg.Username = n.value
-		case "password":
-			cfg.Password = n.value
-		default:
-			walkerr = n.err("unknown smtp configuration parameter: " + n.name)
-		}
-	})
-
-	if walkerr != nil {
-		return walkerr
-	}
-	return cfg.validate()
-}
-
-func (cfg *smtpCfg) validate() error {
-	if cfg.Addr == "" {
-		return errors.New("smtp address not configured")
-	}
-
-	if cfg.Admin == "" {
-		return errors.New("smtp admin email not configured")
-	}
-	return nil
-}
-
-func (cfg *redisCfg) put(n *node) error {
-	if n.body == nil {
-		return n.err("redis must be a configuration block")
-	}
-
-	var walkerr error
-
-	n.body.walk(func(n *node) {
-		if n.body != nil {
-			walkerr = n.err("unexpected configuration block")
-			return
-		}
-		if n.list != nil {
-			walkerr = n.err("unexpected array")
-			return
-		}
-
-		switch n.name {
-		case "addr":
-			cfg.Addr = n.value
-		case "password":
-			cfg.Password = n.value
-		default:
-			walkerr = n.err("unknown redis configuration parameter: " + n.name)
-		}
-	})
-	return walkerr
-}
-
-func (cfg *redisCfg) validate() error {
-	if cfg.Addr == "" {
-		return errors.New("redis address not configured")
-	}
-	return nil
-}
-
-func (cfg *storeCfg) put(n *node) error {
-	if n.body == nil {
-		return n.err("store must be a configuration block")
-	}
-	if n.label == "" {
-		return n.err("unlabeled store")
-	}
-
-	cfg.name = n.label
-
-	var walkerr error
-
-	n.body.walk(func(n *node) {
-		if n.body != nil {
-			walkerr = n.err("unexpected configuration block")
-			return
-		}
-		if n.list != nil {
-			walkerr = n.err("unexpected array")
-			return
-		}
-
-		switch n.name {
-		case "type":
-			cfg.Type = n.value
-		case "path":
-			cfg.Path = n.value
-		case "limit":
-			if n.lit != numberLit {
-				walkerr = n.err("store limit is not a valid integer")
-				return
-			}
-
-			i, err := strconv.ParseInt(n.value, 10, 64)
-
-			if err != nil {
-				walkerr = n.err("store limit is not a valid integer")
-				return
-			}
-			cfg.Limit = i
-		default:
-			walkerr = n.err("unknown store configuration parameter: " + n.name)
-		}
-	})
-
-	if walkerr != nil {
-		return walkerr
-	}
-	return cfg.validate()
-}
-
-func (cfg *storeCfg) validate() error {
-	if cfg.Type == "" {
-		return errors.New(cfg.name + " store type not configured")
-	}
-	return nil
 }

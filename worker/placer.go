@@ -4,87 +4,64 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
-	"djinn-ci.com/crypto"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/key"
 	"djinn-ci.com/runner"
 )
 
-type info struct {
-	name    string
-	size    int64
-	modTime time.Time
-}
-
 type placer struct {
-	crypto *crypto.AESGCM
-	keycfg []byte
-	keys   map[string][]byte
+	chain  *key.Chain
 	placer runner.Placer
 }
 
-var (
-	_ runner.Placer = (*placer)(nil)
-	_ os.FileInfo   = (*info)(nil)
-)
-
-func (i *info) Name() string       { return i.name }
-func (i *info) Size() int64        { return i.size }
-func (*info) Mode() os.FileMode    { return os.FileMode(0600) }
-func (i *info) ModTime() time.Time { return i.modTime }
-func (i *info) IsDir() bool        { return false }
-func (i *info) Sys() interface{}   { return nil }
+var _ runner.Placer = (*placer)(nil)
 
 func (p *placer) Place(name string, w io.Writer) (int64, error) {
-	if name == "/root/.ssh/config" {
-		n, err := w.Write(p.keycfg)
-		return int64(n), errors.Err(err)
-	}
-
-	if strings.HasPrefix(name, "key:") {
-		enc, ok := p.keys[name]
-
-		if !ok {
-			return 0, nil
-		}
-
-		dec, err := p.crypto.Decrypt(enc)
+	if name == p.chain.ConfigName() {
+		n, err := io.WriteString(w, p.chain.Config())
 
 		if err != nil {
 			return 0, errors.Err(err)
 		}
-
-		n, err := w.Write(dec)
-		return int64(n), errors.Err(err)
-	}
-
-	n, err := p.placer.Place(name, w)
-	return int64(n), errors.Err(err)
-}
-
-func (p *placer) Stat(name string) (os.FileInfo, error) {
-	if strings.HasPrefix(name, "keycfg:") {
-		return &info{
-			name:    "/root/.ssh/config",
-			size:    int64(len(p.keycfg)),
-			modTime: time.Now(),
-		}, nil
+		return int64(n), nil
 	}
 
 	if strings.HasPrefix(name, "key:") {
-		k, ok := p.keys[name]
+		n, err := p.chain.Place(strings.TrimPrefix(name, "key:"), w)
 
-		if !ok {
-			return nil, errors.New("no such key")
+		if err != nil {
+			return 0, errors.Err(err)
 		}
-		return &info{
-			name:    name,
-			size:    int64(len(k)),
-			modTime: time.Now(),
-		}, nil
+		return n, nil
+	}
+
+	n, err := p.placer.Place(name, w)
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+	return int64(n), nil
+}
+
+func (p *placer) Stat(name string) (os.FileInfo, error) {
+	if name == p.chain.ConfigName() {
+		return p.chain.ConfigFileInfo(), nil
+	}
+
+	if strings.HasPrefix(name, "key:") {
+		info, err := p.chain.Stat(strings.TrimPrefix(name, "key:"))
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+		return info, nil
 	}
 
 	info, err := p.placer.Stat(name)
-	return info, errors.Err(err)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return info, nil
 }

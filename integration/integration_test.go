@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"djinn-ci.com/crypto"
+	"djinn-ci.com/database"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/oauth2"
 	"djinn-ci.com/serverutil"
 	"djinn-ci.com/user"
+	"djinn-ci.com/workerutil"
 
 	goredis "github.com/go-redis/redis"
-
-	"github.com/jmoiron/sqlx"
 )
 
 var (
@@ -73,7 +73,7 @@ func (m *tokenmap) get(name string) *oauth2.Token {
 }
 
 var (
-	db     *sqlx.DB
+	db     database.Pool
 	redis  *goredis.Client
 	server *httptest.Server
 	aesgcm *crypto.AESGCM
@@ -89,8 +89,14 @@ func fatalf(format string, a ...interface{}) {
 	os.Exit(1)
 }
 
-func mkuser(db *sqlx.DB, username, email string, password []byte) *user.User {
-	u, _, err := user.NewStore(db).Create(username, email, password)
+func mkuser(db database.Pool, email, username string, password []byte) *user.User {
+	users := user.Store{Pool: db}
+
+	u, _, err := users.Create(user.Params{
+		Email:    email,
+		Username: username,
+		Password: string(password),
+	})
 
 	if err != nil {
 		fatalf("mkuser error: %s\n", err)
@@ -98,14 +104,20 @@ func mkuser(db *sqlx.DB, username, email string, password []byte) *user.User {
 	return u
 }
 
-func mktoken(db *sqlx.DB, u *user.User, name, scope string) *oauth2.Token {
+func mktoken(db database.Pool, u *user.User, name, scope string) *oauth2.Token {
 	sc, err := oauth2.UnmarshalScope(scope)
 
 	if err != nil {
 		fatalf("mktoken error: %s\n", err)
 	}
 
-	tok, err := oauth2.NewTokenStore(db, u).Create(name, sc)
+	tokens := oauth2.TokenStore{Pool: db}
+
+	tok, err := tokens.Create(oauth2.TokenParams{
+		UserID: u.ID,
+		Name:   name,
+		Scope:  sc,
+	})
 
 	if err != nil {
 		fatalf("mktoken error: %s\n", err)
@@ -113,55 +125,25 @@ func mktoken(db *sqlx.DB, u *user.User, name, scope string) *oauth2.Token {
 	return tok
 }
 
-func TestMain(m *testing.M) {
-	cfgfile := os.Getenv("INTEGRATION_CONFIG")
-
-	if cfgfile == "" {
-		fmt.Println("skipping integration tests, INTEGRATION_CONFIG not set")
-		return
-	}
-
-	tmp := os.TempDir()
-
-	for _, dir := range []string{"artifacts", "images", "objects"} {
-		if err := os.MkdirAll(filepath.Join(tmp, dir), os.FileMode(0755)); err != nil {
-			fatalf("failed to create directory %s: %s\n", dir, err)
-		}
-	}
-
-	logname := filepath.Join("testdata", "server.log")
-
-	if _, err := os.Stat(logname); err == nil {
-		if err := os.Truncate(logname, 0); err != nil {
-			fatalf("failed to truncate server log: %s\n", err)
-		}
-	}
+// setupServer sets up the server for integration testing. This returns a
+// callback for cleaning up the resources used by the server.
+func setupServer(cfgdir string) func() {
+	cfgfile := filepath.Join(cfgdir, "server.conf")
 
 	api, config, ui, _ := serverutil.ParseFlags([]string{"djinn-server", "-config", cfgfile})
 
 	bgctx := context.Background()
 
 	qctx, qcancel := context.WithCancel(bgctx)
-	defer qcancel()
 
-	srv, cfg, close_, err := serverutil.Init(qctx, config)
+	srv, close, err := serverutil.Init(qctx, config)
 
 	if err != nil {
 		fatalf("failed to initialize server: %s\n", err)
 	}
 
-	defer close_()
-
-	db = cfg.DB()
-	redis = cfg.Redis()
-	server = httptest.NewServer(srv.Server.Handler)
-	aesgcm = cfg.BlockCipher()
-	defer server.Close()
-
-	imagestore = cfg.Images().Store
-	objectstore = cfg.Objects().Store
-
-	apiEndpoint = server.URL + "/api"
+	db = srv.DB
+	redis = srv.Redis
 
 	users = &usermap{
 		mu: &sync.RWMutex{},
@@ -199,39 +181,117 @@ func TestMain(m *testing.M) {
 
 	ch := make(chan os.Signal, 1)
 
-	serverutil.RegisterRoutes(cfg, api, ui, srv)
+	serverutil.RegisterRoutes(api, ui, srv)
 	serverutil.Start(srv, ch)
 
+	server = httptest.NewServer(srv.Server.Handler)
+	aesgcm = srv.AESGCM
+
+	imagestore = srv.Images
+	objectstore = srv.Objects
+
+	apiEndpoint = server.URL + "/api"
+
 	ctx, cancel := context.WithTimeout(bgctx, time.Duration(time.Second*15))
-	defer cancel()
 
-	code := m.Run()
+	return func() {
+		defer qcancel()
+		defer close()
+		defer cancel()
+		defer server.Close()
+		defer srv.Shutdown(ctx)
+	}
+}
 
-	srv.Shutdown(ctx)
+func setupWorker(cfgdir string) func() {
+	cfgfile := filepath.Join(cfgdir, "worker.conf")
 
-	f, err := os.Open(filepath.Join("testdata", "server.log"))
+	config, driver, _ := workerutil.ParseFlags([]string{
+		"djinn-worker", "-config", cfgfile, "-driver", filepath.Join(cfgdir, "driver.conf"),
+	})
+
+	w, close, err := workerutil.Init(config, driver)
 
 	if err != nil {
-		fatalf("failed to open server log: %s\n", err)
+		fatalf("failed to initialize worker: %s\n", err)
 	}
 
-	sc := bufio.NewScanner(f)
+	ctx, cancel := context.WithCancel(context.Background())
 
-	for sc.Scan() {
-		line := sc.Text()
+	workerutil.Start(ctx, w)
 
-		parts := strings.SplitN(line, " ", 4)
+	return func() {
+		defer close()
+		defer cancel()
+	}
+}
 
-		if len(parts) >= 3 {
-			if parts[2] == "ERROR" {
-				fmt.Fprintf(os.Stderr, line)
-				code = 1
+func TestMain(m *testing.M) {
+	cfgdir := os.Getenv("INTEGRATION_CONFIG_DIR")
+
+	if cfgdir == "" {
+		fmt.Println("skipping integration tests, INTEGRATION_CONFIGR_DIR not set")
+		return
+	}
+
+	tmp := os.TempDir()
+
+	for _, dir := range []string{"artifacts", "images", "objects"} {
+		if err := os.MkdirAll(filepath.Join(tmp, dir), os.FileMode(0755)); err != nil {
+			fatalf("failed to create directory %s: %s\n", dir, err)
+		}
+	}
+
+	logs := []string{
+		filepath.Join("testdata", "log", "server.log"),
+		filepath.Join("testdata", "log", "worker.log"),
+	}
+
+	for _, log := range logs {
+		if _, err := os.Stat(log); err == nil {
+			if err := os.Truncate(log, 0); err != nil {
+				fatalf("failed to truncate %s log: %s\n", log, err)
 			}
 		}
 	}
 
-	if err := sc.Err(); err != nil {
-		fatalf("failed to scan log: %s\n", err)
+	srvcleanup := setupServer(cfgdir)
+	wrkcleanup := setupWorker(cfgdir)
+
+	defer srvcleanup()
+	defer wrkcleanup()
+
+	code := m.Run()
+
+	for _, log := range logs {
+		func(log string) {
+			f, err := os.Open(log)
+
+			if err != nil {
+				fatalf("failed to open log: %s\n", err)
+			}
+
+			defer f.Close()
+
+			sc := bufio.NewScanner(f)
+
+			for sc.Scan() {
+				line := sc.Text()
+
+				parts := strings.SplitN(line, " ", 4)
+
+				if len(parts) >= 3 {
+					if parts[2] == "ERROR" {
+						fmt.Fprintf(os.Stderr, "error in %s: %s\n", log, line)
+						code = 1
+					}
+				}
+			}
+
+			if err := sc.Err(); err != nil {
+				fatalf("failed to scan log: %s\n", err)
+			}
+		}(log)
 	}
 
 	if code != 0 {

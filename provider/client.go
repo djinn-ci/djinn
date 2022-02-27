@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -88,11 +89,13 @@ type Client interface {
 	VerifyRequest(io.Reader, string) ([]byte, error)
 }
 
-// Factory is the type for creating a new Client for a provider. This takes the
-// host of the server acting as an OAuth client, the endpoint of the provider
-// for accessing the API, the secret for verifying webhooks, and finally the
-// client ID, and client secret for the app we'll be granting access to.
-type Factory func(string, string, string, string, string) Client
+type ClientParams struct {
+	Host         string
+	Endpoint     string
+	Secret       string
+	ClientID     string
+	ClientSecret string
+}
 
 type User struct {
 	ID       int64  // ID of the user from the provider.
@@ -105,6 +108,7 @@ var (
 	ErrInvalidSignature = errors.New("invalid signature")
 	ErrStateMismatch    = errors.New("state mismatch")
 	ErrLocalhost        = errors.New("cannot use localhost for webhook URL")
+	ErrNilRegistry      = errors.New("nil client registry")
 
 	StatusDescriptions = map[runner.Status]string{
 		runner.Queued:             "Build is queued.",
@@ -121,6 +125,18 @@ var (
 // (RFC-5988, RFC-8288). The rel for each of these links is used as the key,
 // and if duplicate rels are provided then the values are simply appended to
 // the respective string slice in the returned map.
+//
+// For example, the following,
+//
+//   Link: <https://example.org/>; rel="start",
+//         <https://example.org/index>; rel="index"
+//
+// would be parsed into the following map,
+//
+//   map[string][]string{
+//       "start": []string{"https://example.org"},
+//       "index": []string{"https://example.org/index"},
+//   }
 func parseLink(link string) map[string][]string {
 	m := make(map[string][]string)
 	parts := strings.Split(link, ",")
@@ -218,14 +234,58 @@ func NewRegistry() *Registry {
 	}
 }
 
+// Names returns a lexically ordered list of provider names.
+func (r *Registry) Names() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	names := make([]string, 0, len(r.imps))
+
+	for name := range r.imps {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+	return names
+}
+
 func (r *Registry) Len() int { return len(r.imps) }
+
+// All returns all Client implementations in the current Registry.
+func (r *Registry) All() map[string]Client { return r.imps }
+
+// Register the given Client implementation against the given name. If an
+// implementation is already registered this will panic.
+func (r *Registry) Register(name string, imp Client) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.imps[name]; ok {
+		panic("provider already registered: " + name)
+	}
+	r.imps[name] = imp
+}
+
+// Get returns a Client implementation for the given name. If no implementation
+// is found then nil is returned along with an error.
+func (r *Registry) Get(name string) (Client, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	imp, ok := r.imps[name]
+
+	if !ok {
+		return nil, errors.New("unknown provider: " + name)
+	}
+	return imp, nil
+}
 
 // AuthURL implements the Client interface.
 func (c BaseClient) AuthURL() string { return c.AuthCodeURL(c.State) }
 
 // Auth implements the Client interface.
 func (c BaseClient) Auth(ctx context.Context, v url.Values) (string, string, User, error) {
-	u := User{}
+	var u User
 
 	if state := v.Get("state"); state != "" {
 		if state != c.State {
@@ -276,17 +336,25 @@ func (c BaseClient) do(method, tok, endpoint string, r io.Reader) (*http.Respons
 	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 
-	cli := &http.Client{}
+	var cli http.Client
 
 	resp, err := cli.Do(req)
-	return resp, errors.Err(err)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return resp, nil
 }
 
 // Get performs a GET request to the given endpoint using the given token
 // string as the authentication token.
 func (c BaseClient) Get(tok, endpoint string) (*http.Response, error) {
 	resp, err := c.do("GET", tok, endpoint, nil)
-	return resp, errors.Err(err)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return resp, nil
 }
 
 // Post performs a POST request to the given endpoint using the given token
@@ -294,41 +362,20 @@ func (c BaseClient) Get(tok, endpoint string) (*http.Response, error) {
 // request body.
 func (c BaseClient) Post(tok, endpoint string, r io.Reader) (*http.Response, error) {
 	resp, err := c.do("POST", tok, endpoint, r)
-	return resp, errors.Err(err)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return resp, nil
 }
 
 // Delete performs a DELETE request to the given endpoint using the given token
 // string as the authentication token.
 func (c BaseClient) Delete(tok, endpoint string) (*http.Response, error) {
 	resp, err := c.do("DELETE", tok, endpoint, nil)
-	return resp, errors.Err(err)
-}
 
-// All returns all Client implementations in the current Registry.
-func (r *Registry) All() map[string]Client { return r.imps }
-
-// Register the given Client implementation against the given name. If an
-// implementation is already registered this will panic.
-func (r *Registry) Register(name string, imp Client) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if _, ok := r.imps[name]; ok {
-		panic("provider already registered: " + name)
+	if err != nil {
+		return nil, errors.Err(err)
 	}
-	r.imps[name] = imp
-}
-
-// Get returns a Client implementation for the given name. If no implementation
-// is found then nil is returned along with an error.
-func (r *Registry) Get(name string) (Client, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	imp, ok := r.imps[name]
-
-	if !ok {
-		return nil, errors.New("unknown provider: " + name)
-	}
-	return imp, nil
+	return resp, nil
 }

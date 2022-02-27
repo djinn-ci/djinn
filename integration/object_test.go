@@ -11,7 +11,11 @@ import (
 	"io"
 	"testing"
 
+	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/integration/djinn"
+
+	"github.com/andrewpillar/query"
 )
 
 // blusqr encodes a PNG of a blue square into the given writer.
@@ -119,19 +123,40 @@ func Test_ObjectDelete(t *testing.T) {
 
 	blusqr(&data)
 
-	origmd5 := md5.New()
-	tr := io.TeeReader(&data, origmd5)
-
 	o, err := djinn.CreateObject(cli, djinn.ObjectParams{
 		Name:   "Test_ObjectDelete",
-		Object: tr,
+		Object: &data,
 	})
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	var hash string
+
+	q := query.Select(
+		query.Columns("hash"),
+		query.From("objects"),
+		query.Where("id", "=", query.Arg(o.ID)),
+	)
+
+	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&hash); err != nil {
+		t.Fatal(err)
+	}
+
 	if err := o.Delete(cli); err != nil {
 		t.Fatal(err)
+	}
+
+	store, err := objectstore.Partition(o.UserID)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = store.Open(hash)
+
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("store.Open(%q), unexpected error, expected=%q, got=%q\n", hash, fs.ErrNotExist, err)
 	}
 }

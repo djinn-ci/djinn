@@ -26,7 +26,7 @@ start and run,
 
 ## Configuring the Server
 
-Detailed below are the [configuration](/admin/configuration) directives used by
+Detailed below are the [configuration](/admin/configuration) parameters used by
 the server.
 
 * **`host`** `string`
@@ -47,7 +47,7 @@ served over the network.
 
   * **`listen`** `string` - The address that should be used to serve over.
 
-* **`ssl`** `{...}` - The SSL block directive if you want to seve over TLS.
+* **`tls`** `{...}` - The TLS block if you want to seve over TLS.
 
   * **`cert`** `string` - The path to the certificate to use.
   * **`key`** `string` - The path to the key to use.
@@ -66,28 +66,28 @@ and protecting against CSRF attacks.
   must be 32 characters in length.
 
 * **`database`** `{...}` - Provides connection information to the PostgreSQL
-database. Below are the directives used by the `database` block directive.
+database, below are the parameters for this block.
 
   * **`addr`** `string` - The address of the PostgreSQL server to connect to.
   * **`name`** `string` - The name of the database to use.
   * **`username`** `string` - The name of the database user.
   * **`password`** `string` - The password of the database user.
-  
-  * **`ssl`** `{...}` - SSL block directive if you want to connect via TLS.
-  
+
+  * **`tls`** `{...}` - TLS block if you want to connect via TLS.
+
     * **`ca`** `string` - Path to the CA root to use.
     * **`cert`** `string` - Path to the certificate to use.
     * **`key`** `string` - Path to the key to use.
 
-* **`redis`** `{...}` - Provides connection information to the Redis database.
-Below are the directives used by the `redis` block directive.
+* **`redis`** `{...}` - Provides connection information to the Redis database,
+below are the parameters for this block,
 
   * **`addr`** `string` - The address of the Redis server to connect to.
   * **`password`** `string` - The password used if the Redis server is
 password protected.
 
 * **`smtp`** `{...}` - Provides connection information to an SMTP server to
-sending emails. Below are the directives used by the `smtp` block directive.
+sending emails, below are the parameters for this block,
 
   * **`addr`** `string` - The address of the SMTP server.
   * **`ca`** `string` - If connecting via TLS, then the path to the file that
@@ -97,10 +97,10 @@ sending emails. Below are the directives used by the `smtp` block directive.
   * **`username`** `string` - The username for authentication.
   * **`password`** `string` - The password for authentication.
 
-* **`store`** `identifier` `{...}` - Configuration directives for each of the
+* **`store`** `identifier` `{...}` - Configuration parameters for each of the
 file stores the server uses. There must be a store configured for each
-`artifacts`, `images`, and `objects`. Detailed below are the value directives
-used within a `store` block directive.
+`artifacts`, `images`, and `objects`. Detailed below are the parameters for
+a `store` block,
 
   * **`type`** `string` - The type of the store to use for the files being
   accessed. Must be `file`.
@@ -108,9 +108,9 @@ used within a `store` block directive.
   * **`limit`** `int` - The maximum size of files being uploaded. This will only
   be applied to objects being uploaded to the server.
 
-* **`provider`** `identifier` `{...}` - Configuration directives for each 3rd
+* **`provider`** `identifier` `{...}` - Configuration parameters for each 3rd
 party provider you want the server to integrate with. Detailed below are the
-value directives used within a `provider` block directive.
+parameters used within a `provider` block,
 
   * **`secret`** `string` - The secret used to authenticate incoming webhooks
   from the provider.

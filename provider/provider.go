@@ -1,11 +1,8 @@
-// Package provider provides the database.Model implementation for the Provider
-// entity that represents an external provider a user has connected to
-// (GitHub, GitLab, etc.).
 package provider
 
 import (
+	"context"
 	"database/sql"
-	"time"
 
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
@@ -15,110 +12,58 @@ import (
 
 	"github.com/andrewpillar/query"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/jackc/pgx/v4"
 )
 
-// Provider is the type that represents an external Git hosting provider that
-// has been connected to a user's account.
 type Provider struct {
-	ID             int64         `db:"id"`
-	UserID         int64         `db:"user_id"`
-	ProviderUserID sql.NullInt64 `db:"provider_user_id"`
-	Name           string        `db:"name"`
-	AccessToken    []byte        `db:"access_token"`
-	RefreshToken   []byte        `db:"refresh_token"`
-	Connected      bool          `db:"connected"`
-	MainAccount    bool          `db:"main_account"`
-	ExpiresAt      time.Time     `db:"expires_at"`
-	AuthURL        string        `db:"-"`
+	aesgcm  *crypto.AESGCM
+	clients *Registry
 
-	User *user.User `db:"-"`
-}
+	ID             int64
+	UserID         int64
+	ProviderUserID sql.NullInt64
+	Name           string
+	AccessToken    []byte
+	RefreshToken   []byte
+	Connected      bool
+	MainAccount    bool
+	ExpiresAt      sql.NullTime
+	AuthURL        string
 
-// Store is the type for creating and modifying Provider models in the database.
-type Store struct {
-	database.Store
-
-	// User is the bound user.User model. If not nil this will bind the
-	// user.User model to any Provider models that are created. If not nil this
-	// will append a WHERE clause on the user_id column for all SELECT queries
-	// performed.
 	User *user.User
 }
 
-var (
-	_ database.Model  = (*Provider)(nil)
-	_ database.Binder = (*Provider)(nil)
+var _ database.Model = (*Provider)(nil)
 
-	table = "providers"
-)
-
-// NewStore returns a new Store for querying the providers table. Each database
-// passed to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
-	s := &Store{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// Model is called along with database.ModelSlice to convert the given slice of
-// Provider models to a slice of database.Model interfaces.
-func Model(pp []*Provider) func(int) database.Model {
-	return func(i int) database.Model {
-		return pp[i]
+func (p *Provider) Dest() []interface{} {
+	return []interface{}{
+		&p.ID,
+		&p.UserID,
+		&p.ProviderUserID,
+		&p.Name,
+		&p.AccessToken,
+		&p.RefreshToken,
+		&p.Connected,
+		&p.MainAccount,
+		&p.ExpiresAt,
 	}
 }
 
-// Select returns a query that selects the given column from the providers
-// table, with each given query.Option applied to the returned query.
-func Select(col string, opts ...query.Option) query.Query {
-	return query.Select(query.Columns(col), append([]query.Option{query.From(table)}, opts...)...)
-}
-
-// Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to a user.User model.
-func (p *Provider) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
+func (p *Provider) Bind(m database.Model) {
+	if v, ok := m.(*user.User); ok {
+		if p.UserID == v.ID {
 			p.User = v
 		}
 	}
 }
 
-// SetPrimary implements the database.Model interface.
-func (p *Provider) SetPrimary(id int64) { p.ID = id }
-
-// Primary implements the database.Model interface.
-func (p *Provider) Primary() (string, int64) { return "id", p.ID }
-
-// Endpoint implements the database.Model interface. This is a stub method and
-// returns an empty string.
 func (*Provider) Endpoint(_ ...string) string { return "" }
 
-// IsZero implements the database.Model interface.
-func (p *Provider) IsZero() bool {
-	return p == nil || p.ID == 0 &&
-		p.UserID == 0 &&
-		!p.ProviderUserID.Valid &&
-		p.Name == "" &&
-		len(p.AccessToken) == 0 &&
-		len(p.RefreshToken) == 0 &&
-		!p.Connected &&
-		p.ExpiresAt == time.Time{}
-}
+func (*Provider) JSON(_ string) map[string]interface{} { return nil }
 
-// JSON implements the database.Model interface. This is a stub method and
-// returns an empty map.
-func (*Provider) JSON(_ string) map[string]interface{} { return map[string]interface{}{} }
-
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, provider_user_id, name, access_token,
-// refresh_token, connected, and expires_at.
 func (p *Provider) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"id":               p.ID,
 		"user_id":          p.UserID,
 		"provider_user_id": p.ProviderUserID,
 		"name":             p.Name,
@@ -130,61 +75,82 @@ func (p *Provider) Values() map[string]interface{} {
 	}
 }
 
-// ToggleRepo will with add or remove a hook for the given repository hosted on
-// the current provider. This will either set/unset the HookID field on the
-// given Repo struct, and will toggle the Enabled field depending on whether a
-// hook was added or removed.
-func (p *Provider) ToggleRepo(crypto *crypto.AESGCM, reg *Registry, r *Repo) error {
-	cli, err := reg.Get(p.Name)
+func (p *Provider) ToggleRepo(r *Repo) error {
+	if p.aesgcm == nil {
+		return crypto.ErrNilAESGCM
+	}
+
+	if p.clients == nil {
+		return ErrNilRegistry
+	}
+
+	cli, err := p.clients.Get(p.Name)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	tok, err := crypto.Decrypt(p.AccessToken)
+	tok, err := p.aesgcm.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return errors.Err(err)
 	}
-	return errors.Err(cli.ToggleRepo(string(tok), r))
+
+	if err := cli.ToggleRepo(string(tok), r); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// SetCommitStatus will set the given status for the given commit sha on the
-// current provider. This assumes the given commit sha is part of a merge/pull
-// request.
-func (p *Provider) SetCommitStatus(crypto *crypto.AESGCM, reg *Registry, r *Repo, status runner.Status, url, sha string) error {
-	cli, err := reg.Get(p.Name)
+func (p *Provider) SetCommitStatus(r *Repo, status runner.Status, url, sha string) error {
+	if p.aesgcm == nil {
+		return crypto.ErrNilAESGCM
+	}
+
+	if p.clients == nil {
+		return ErrNilRegistry
+	}
+
+	cli, err := p.clients.Get(p.Name)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	tok, err := crypto.Decrypt(p.AccessToken)
+	tok, err := p.aesgcm.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return errors.Err(err)
 	}
-	return errors.Err(cli.SetCommitStatus(string(tok), r, status, url, sha))
+
+	if err := cli.SetCommitStatus(string(tok), r, status, url, sha); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Repos get's the repositories from the current provider's API endpoint. The
-// given crypto.AESGCM is used to decrypt the access token that is used to
-// authenticate against the API. The given page is used to get the repositories
-// on that given page.
-func (p *Provider) Repos(crypto *crypto.AESGCM, reg *Registry, page int64) ([]*Repo, database.Paginator, error) {
-	paginator := database.Paginator{}
+func (p *Provider) Repos(page int64) ([]*Repo, database.Paginator, error) {
+	if p.aesgcm == nil {
+		return nil, database.Paginator{}, crypto.ErrNilAESGCM
+	}
+
+	if p.clients == nil {
+		return nil, database.Paginator{}, ErrNilRegistry
+	}
+
+	var paginator database.Paginator
 
 	if !p.Connected {
 		return nil, paginator, nil
 	}
 
-	cli, err := reg.Get(p.Name)
+	cli, err := p.clients.Get(p.Name)
 
 	if err != nil {
 		return nil, paginator, errors.Err(err)
 	}
 
-	tok, err := crypto.Decrypt(p.AccessToken)
+	tok, err := p.aesgcm.Decrypt(p.AccessToken)
 
 	if err != nil {
 		return nil, paginator, errors.Err(err)
@@ -202,108 +168,364 @@ func (p *Provider) Repos(crypto *crypto.AESGCM, reg *Registry, page int64) ([]*R
 	return rr, paginator, nil
 }
 
-// New returns a new Provider binding any non-nil models to it from the current
-// Store.
-func (s *Store) New() *Provider {
-	p := &Provider{
-		User: s.User,
-	}
+type Store struct {
+	database.Pool
 
-	if s.User != nil {
-		p.UserID = s.User.ID
-	}
-	return p
+	AESGCM *crypto.AESGCM
+
+	Clients *Registry
+
+	Cache RepoCache
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if it is a pointer to a user.User model.
-func (s *Store) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
+type Params struct {
+	UserID         int64
+	ProviderUserID int64
+	Name           string
+	AccessToken    string
+	RefreshToken   string
+	Connected      bool
+	MainAccount    bool
+}
+
+var table = "providers"
+
+func Select(col string, opts ...query.Option) query.Query {
+	return query.Select(query.Columns(col), append([]query.Option{query.From(table)}, opts...)...)
+}
+
+func (s *Store) Create(p Params) (*Provider, error) {
+	if s.AESGCM == nil {
+		return nil, crypto.ErrNilAESGCM
+	}
+
+	providerUserId := sql.NullInt64{
+		Int64: p.ProviderUserID,
+		Valid: p.ProviderUserID > 0,
+	}
+
+	access, err := s.AESGCM.Encrypt([]byte(p.AccessToken))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	refresh, err := s.AESGCM.Encrypt([]byte(p.RefreshToken))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	q := query.Insert(
+		table,
+		query.Columns("user_id", "provider_user_id", "name", "access_token", "refresh_token", "connected", "main_account"),
+		query.Values(p.UserID, providerUserId, p.Name, access, refresh, p.Connected, p.MainAccount),
+		query.Returning("id"),
+	)
+
+	var id int64
+
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return &Provider{
+		aesgcm:         s.AESGCM,
+		clients:        s.Clients,
+		ID:             id,
+		UserID:         p.UserID,
+		ProviderUserID: providerUserId,
+		Name:           p.Name,
+		AccessToken:    access,
+		RefreshToken:   refresh,
+		Connected:      p.Connected,
+		MainAccount:    p.MainAccount,
+	}, nil
+}
+
+func (s *Store) Update(id int64, p Params) error {
+	if s.AESGCM == nil {
+		return crypto.ErrNilAESGCM
+	}
+
+	providerUserId := sql.NullInt64{
+		Int64: p.ProviderUserID,
+		Valid: p.ProviderUserID > 0,
+	}
+
+	var (
+		access  []byte
+		refresh []byte
+	)
+
+	if p.AccessToken != "" {
+		b, err := s.AESGCM.Encrypt([]byte(p.AccessToken))
+
+		if err != nil {
+			return errors.Err(err)
 		}
+		access = b
 	}
-}
 
-// Create creates a new provider of the given name, and with the given access
-// and refresh tokens. The given userId parameter should be the ID of the user's
-// account from the provider we're connecting to.
-func (s *Store) Create(userId int64, name string, access, refresh []byte, main, connected bool) (*Provider, error) {
-	p := s.New()
-	p.ProviderUserID = sql.NullInt64{
-		Int64: userId,
-		Valid: userId > 0,
+	if p.RefreshToken != "" {
+		b, err := s.AESGCM.Encrypt([]byte(p.RefreshToken))
+
+		if err != nil {
+			return errors.Err(err)
+		}
+		refresh = b
 	}
-	p.Name = name
-	p.AccessToken = access
-	p.RefreshToken = refresh
-	p.MainAccount = main
-	p.Connected = connected
 
-	err := s.Store.Create(table, p)
-	return p, errors.Err(err)
-}
-
-// Update updates the provider in the database for the given id. This will set
-// the userId, name, tokens, and connected status to the given values.
-func (s *Store) Update(id, userId int64, name string, access, refresh []byte, main, connected bool) error {
 	q := query.Update(
 		table,
-		query.Set("provider_user_id", query.Arg(sql.NullInt64{
-			Int64: userId,
-			Valid: userId > 0,
-		})),
-		query.Set("name", query.Arg(name)),
+		query.Set("provider_user_id", query.Arg(providerUserId)),
+		query.Set("name", query.Arg(p.Name)),
 		query.Set("access_token", query.Arg(access)),
 		query.Set("refresh_token", query.Arg(refresh)),
-		query.Set("connected", query.Arg(connected)),
-		query.Set("main_account", query.Arg(main)),
+		query.Set("connected", query.Arg(p.Connected)),
+		query.Set("main_account", query.Arg(p.MainAccount)),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Delete deletes the given Provider models from the providers table.
-func (s *Store) Delete(pp ...*Provider) error {
-	mm := database.ModelSlice(len(pp), Model(pp))
-	return errors.Err(s.Store.Delete(table, mm...))
-}
-
-// Get returns a single Provider model, applying each query.Option that is
-// given. The database.Where option is applied to the *user.User bound database.
-func (s *Store) Get(opts ...query.Option) (*Provider, error) {
-	p := &Provider{
-		User: s.User,
+func (s *Store) DeleteAll(ids ...int64) error {
+	if len(ids) == 0 {
+		return nil
 	}
 
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-	}, opts...)
+	vals := make([]interface{}, 0, len(ids))
 
-	err := s.Store.Get(p, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	for _, id := range ids {
+		vals = append(vals, id)
 	}
-	return p, errors.Err(err)
+
+	q := query.Delete(table, query.Where("id", "IN", query.List(vals...)))
+
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// All returns a slice of Provider models, applying each query.Option that is
-// given. The database.Where option is applied to the *user.User bound database.
+// Delete deletes the provider with the given name for the given user. This
+// will also delete all of the repos for that provider too.
+func (s *Store) Delete(ctx context.Context, name string, userId int64) error {
+	tx, err := s.Begin(ctx)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer tx.Rollback(ctx)
+
+	q := query.Delete(
+		repoTable,
+		query.Where("provider_id", "IN", query.Select(
+			query.Columns("id"),
+			query.From(table),
+			query.Where("user_id", "=", query.Arg(userId)),
+			query.Where("name", "=", query.Arg(name)),
+		)),
+	)
+
+	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+
+	q = query.Delete(
+		table,
+		query.Where("user_id", "=", query.Arg(userId)),
+		query.Where("name", "=", query.Arg(name)),
+	)
+
+	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *Store) Connected(userId int64) (bool, error) {
+	var connected bool
+
+	q := query.Select(
+		query.Columns("connected"),
+		query.From(table),
+		query.Where("user_id", "=", query.Arg(userId)),
+		query.Where("connected", "=", query.Arg(true)),
+	)
+
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&connected); err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return false, errors.Err(err)
+		}
+	}
+	return connected, nil
+}
+
+func (s *Store) Get(opts ...query.Option) (*Provider, bool, error) {
+	var p Provider
+
+	ok, err := s.Pool.Get(table, &p, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+
+	p.aesgcm = s.AESGCM
+	p.clients = s.Clients
+	return &p, ok, nil
+}
+
 func (s *Store) All(opts ...query.Option) ([]*Provider, error) {
 	pp := make([]*Provider, 0)
 
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-	}, opts...)
-
-	err := s.Store.All(&pp, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		p := &Provider{
+			aesgcm:  s.AESGCM,
+			clients: s.Clients,
+		}
+		pp = append(pp, p)
+		return p
 	}
+
+	if err := s.Pool.All(table, new, opts...); err != nil {
+		return nil, errors.Err(err)
+	}
+
 	return pp, nil
+}
+
+// LoadRepos will load all of the user's repositories for the provider with the
+// given name. If no name is given, then the first connected provider that is
+// found whilst sorting lexically is used. This will first check the underlying
+// cache for repos, if the cache is empty, then the API for the respective
+// provider is hit, then the repos are cached.
+func (s *Store) LoadRepos(userId int64, name string, page int64) (*Provider, []*Repo, database.Paginator, error) {
+	var paginator database.Paginator
+
+	opts := []query.Option{
+		query.Where("user_id", "=", query.Arg(userId)),
+	}
+
+	if name != "" {
+		opts = append(opts, query.Where("name", "=", query.Arg(name)))
+	} else {
+		opts = append(opts,
+			query.Where("connected", "=", query.Arg(true)),
+			query.OrderAsc("name"),
+		)
+	}
+
+	pp, err := s.All(opts...)
+
+	if err != nil {
+		return nil, nil, paginator, errors.Err(err)
+	}
+
+	// No providers connected, so exit early.
+	if len(pp) == 0 {
+		return nil, nil, paginator, nil
+	}
+
+	var mainProvider *Provider
+
+	providers := make(map[int64]*Provider)
+
+	for _, p := range pp {
+		if p.MainAccount {
+			if mainProvider == nil {
+				mainProvider = p
+			}
+		}
+		providers[p.ProviderUserID.Int64] = p
+	}
+
+	rr, paginator, err := s.Cache.Get(mainProvider, page)
+
+	if err != nil {
+		return nil, nil, paginator, errors.Err(err)
+	}
+
+	if len(rr) == 0 {
+		rr, paginator, err = mainProvider.Repos(page)
+
+		if err != nil {
+			return nil, nil, paginator, errors.Err(err)
+		}
+
+		if len(rr) > 0 {
+			if err := s.Cache.Put(mainProvider, rr, paginator); err != nil {
+				return nil, nil, paginator, errors.Err(err)
+			}
+		}
+	}
+
+	q := query.Select(
+		query.Columns("id", "provider_id", "repo_id"),
+		query.From(repoTable),
+		query.Where("user_id", "=", query.Arg(userId)),
+		query.Where("enabled", "=", query.Arg(true)),
+	)
+
+	rows, err := s.Query(q.Build(), q.Args()...)
+
+	if err != nil {
+		return nil, nil, paginator, errors.Err(err)
+	}
+
+	type enabledkey struct {
+		providerId int64
+		repoId     int64
+	}
+
+	// Store the IDs of enabled repos under a key that is made up of the
+	// provider ID, and the ID of the repo from the provider's side.
+	enabled := make(map[enabledkey]int64)
+
+	var (
+		id  int64
+		key enabledkey
+	)
+
+	for rows.Next() {
+		if err := rows.Scan(&id, &key.providerId, &key.repoId); err != nil {
+			return nil, nil, paginator, errors.Err(err)
+		}
+		enabled[key] = id
+	}
+
+	for _, r := range rr {
+		p, ok := providers[r.ProviderUserID]
+
+		if !ok {
+			continue
+		}
+
+		r.Provider = p
+		r.ProviderID = p.ID
+
+		key := enabledkey{
+			providerId: r.ProviderID,
+			repoId:     r.RepoID,
+		}
+
+		if id, ok := enabled[key]; ok {
+			r.ID = id
+			r.Enabled = true
+		}
+	}
+	return mainProvider, rr, paginator, nil
 }

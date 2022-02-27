@@ -46,6 +46,8 @@ type AESGCM struct {
 	aead cipher.AEAD
 }
 
+var ErrNilAESGCM = errors.New("nil AESGCM")
+
 // CheckCSPRNG will see if it's possible to generate a cryptographically secure
 // pseudorandom number. If not then this will panic.
 func CheckCSPRNG() {

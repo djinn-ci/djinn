@@ -130,7 +130,7 @@ func (p *WebhookForm) Field(field string) string {
 				{% if p.Namespace != nil %}
 					<input type="hidden" name="_method" value="PATCH"/>
 				{% endif %}
-				{% if p.Parent != nil && !p.Parent.IsZero() %}
+				{% if p.Parent != nil %}
 					<input type="hidden" name="parent" value="{%s p.Parent.Path %}"/>
 				{% endif %}
 				{% if p.Namespace == nil %}
@@ -201,7 +201,7 @@ func (p *WebhookForm) Field(field string) string {
 		<a class="back" href="{%s p.Namespace.Endpoint() %}">{% cat "../../static/svg/back.svg" %}</a>
 		{%= renderPath(p.Namespace.User.Username, p.Namespace.Path) %} - Edit
 	{% else %}
-		{% if p.Parent != nil && !p.Parent.IsZero() %}
+		{% if p.Parent != nil %}
 			<a class="back" href="{%s p.Parent.Endpoint() %}">{% cat "../../static/svg/back.svg" %}</a>
 			{%= renderPath(p.Parent.User.Username, p.Parent.Path) %} - Create Sub-namespace
 		{% else %}

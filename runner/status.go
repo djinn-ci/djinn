@@ -3,7 +3,6 @@ package runner
 import (
 	"database/sql/driver"
 
-	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 )
 
@@ -34,17 +33,26 @@ var statusMap = map[string]Status{
 // scans into an empty byte slice, then the Status is set to Queued, otherwise
 // UnmarshalText is used to attempt to try and get the Status.
 func (s *Status) Scan(val interface{}) error {
-	b, err := database.Scan(val)
+	v, err := driver.String.ConvertValue(val)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if len(b) == 0 {
-		(*s) = Status(0)
+	str, ok := v.(string)
+
+	if !ok {
+		return errors.New("runner: could not type assert Status to string")
+	}
+
+	if str == "" {
 		return nil
 	}
-	return errors.Err(s.UnmarshalText(b))
+
+	if err := s.UnmarshalText([]byte(str)); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 // UnmarshalText unmarshals the given byte slice into the current Status, if it
@@ -57,7 +65,7 @@ func (s *Status) UnmarshalText(b []byte) error {
 	(*s), ok = statusMap[str]
 
 	if !ok {
-		return errors.New("unknown status " + str)
+		return errors.New("runner: unknown status " + str)
 	}
 	return nil
 }

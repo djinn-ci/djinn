@@ -2,22 +2,26 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"encoding/gob"
 	"io"
-	//	"net"
 	"net/http"
 	"net/http/httptest"
-	//	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"djinn-ci.com/database"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/image"
 	"djinn-ci.com/integration/djinn"
 	"djinn-ci.com/log"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/queue"
+
+	"github.com/andrewpillar/query"
 
 	"github.com/mcmathja/curlyq"
 
@@ -182,16 +186,12 @@ func Test_ImageCreateDownload(t *testing.T) {
 		t.Fatalf("could not find download job for image %d in queue %s\n", i.ID, jobQueue)
 	}
 
-	store, err := imagestore.Partition(i.UserID)
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	log := log.New(os.Stdout)
 	log.SetLevel("DEBUG")
 
-	db2, err := database.Connect("host=localhost port=5432 dbname=djinn user=djinn_consumer password=secret sslmode=disable")
+	ctx := context.Background()
+
+	db2, err := database.Connect(ctx, "host=localhost port=5432 dbname=djinn user=djinn_consumer password=secret sslmode=disable")
 
 	if err != nil {
 		t.Fatal(err)
@@ -199,7 +199,10 @@ func Test_ImageCreateDownload(t *testing.T) {
 
 	defer db2.Close()
 
-	webhooks := namespace.NewWebhookStoreWithCrypto(db, aesgcm)
+	webhooks := &namespace.WebhookStore{
+		Pool:   db,
+		AESGCM: aesgcm,
+	}
 
 	memq := queue.NewMemory(1, func(j queue.Job, err error) {
 		t.Error("queue job failed:", j.Name(), err)
@@ -208,7 +211,7 @@ func Test_ImageCreateDownload(t *testing.T) {
 
 	// Directly call the init function since we are not processing it on the
 	// queue where this would have otherwise been invoked.
-	image.DownloadJobInit(db2, memq, log, store)(job)
+	image.DownloadJobInit(db2, memq, log, imagestore)(job)
 
 	if err := job.Perform(); err != nil {
 		t.Fatal(err)
@@ -241,7 +244,33 @@ func Test_ImageDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var hash string
+
+	q := query.Select(
+		query.Columns("hash"),
+		query.From("images"),
+		query.Where("id", "=", query.Arg(i.ID)),
+	)
+
+	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&hash); err != nil {
+		t.Fatal(err)
+	}
+
 	if err := i.Delete(cli); err != nil {
 		t.Fatal(err)
+	}
+
+	store, err := imagestore.Partition(i.UserID)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	path := filepath.Join(i.Driver.String(), hash)
+
+	_, err = store.Open(path)
+
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Fatalf("store.Open(%q), unexpected error, expected=%q, got=%q\n", path, fs.ErrNotExist, err)
 	}
 }

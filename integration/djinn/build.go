@@ -35,6 +35,21 @@ type Build struct {
 	Namespace    *Namespace    `json:"namespace"`
 }
 
+type Artifact struct {
+	ID        int64      `json:"id"`
+	UserID    int64      `json:"user_id"`
+	BuildID   int64      `json:"build_id"`
+	JobID     int64      `json:"job_id"`
+	Source    string     `json:"source"`
+	Name      string     `json:"name"`
+	Size      NullInt64  `json:"size"`
+	MD5       NullString `json:"md5"`
+	SHA256    NullString `json:"sha256"`
+	CreatedAt Time       `json:"created_at"`
+	DeletedAt NullTime   `json:"deleted_at"`
+	URL       URL        `json:"url"`
+}
+
 type BuildTrigger struct {
 	Type    string            `json:"type"`
 	Comment string            `json:"comment"`
@@ -101,6 +116,9 @@ func (m ManifestPassthrough) MarshalYAML() (interface{}, error) {
 	ss := make([]string, 0, len(m))
 
 	for k, v := range m {
+		if v == "" {
+			v = filepath.Base(k)
+		}
 		ss = append(ss, k+" => "+v)
 	}
 	return ss, nil

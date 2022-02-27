@@ -1,204 +1,135 @@
 package config
 
 import (
-	"fmt"
 	"io"
-	"os"
 	"runtime"
-	"strconv"
 
 	"djinn-ci.com/crypto"
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 
-	"github.com/mcmathja/curlyq"
+	"github.com/andrewpillar/config"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/mcmathja/curlyq"
 
 	"github.com/go-redis/redis"
 )
 
 type consumerCfg struct {
-	Pidfile     string
+	Pidfile string
+
 	Attempts    int
 	Parallelism int
 
-	Log logCfg
+	Log map[string]string
 
-	Crypto Crypto
+	Crypto cryptoCfg
 
 	Database databaseCfg
 	Redis    redisCfg
 
-	Stores map[string]storeCfg
+	Store map[string]storeCfg
 }
 
 type Consumer struct {
-	pidfile *os.File
+	pidfile string
 
 	parallelism int
 
 	log *log.Logger
 
-	crypto *crypto.AESGCM
+	aesgcm *crypto.AESGCM
 
 	consumer *curlyq.ConsumerOpts
 
-	db    *sqlx.DB
+	db    database.Pool
 	redis *redis.Client
 
-	stores map[string]fs.Store
+	images fs.Store
 }
 
+func (c *Consumer) Pidfile() string                    { return c.pidfile }
+func (c *Consumer) ConsumerOpts() *curlyq.ConsumerOpts { return c.consumer }
+func (c *Consumer) DB() database.Pool                  { return c.db }
+func (c *Consumer) Redis() *redis.Client               { return c.redis }
+func (c *Consumer) Log() *log.Logger                   { return c.log }
+func (c *Consumer) AESGCM() *crypto.AESGCM             { return c.aesgcm }
+func (c *Consumer) Images() fs.Store                   { return c.images }
+
 func DecodeConsumer(name string, r io.Reader) (*Consumer, error) {
-	errh := func(name string, line, col int, msg string) {
-		fmt.Fprintf(os.Stderr, "%s,%d:%d - %s\n", name, line, col, msg)
-	}
+	var cfg consumerCfg
 
-	p := newParser(name, r, errh)
+	dec := config.NewDecoder(name, decodeOpts...)
 
-	nodes := p.parse()
-
-	if err := p.err(); err != nil {
+	if err := dec.Decode(&cfg, r); err != nil {
 		return nil, err
 	}
 
-	var cfg0 consumerCfg
-
-	for _, n := range nodes {
-		if err := cfg0.put(n); err != nil {
-			return nil, err
-		}
-	}
+	consumer := &Consumer{}
 
 	var err error
 
-	cfg := &Consumer{}
-	cfg.pidfile, err = mkpidfile(cfg0.Pidfile)
+	consumer.pidfile, err = mkpidfile(cfg.Pidfile)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	consumer.aesgcm, err = cfg.Crypto.aesgcm()
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	consumer.log, err = logger(cfg.Log)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if cfg.Attempts == 0 {
+		cfg.Attempts = 5
+	}
+
+	consumer.parallelism = cfg.Parallelism
+
+	if consumer.parallelism == 0 {
+		consumer.parallelism = int(runtime.NumCPU())
+	}
+
+	consumer.db, err = cfg.Database.connect(consumer.log)
 
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.log = log.New(os.Stdout)
-	cfg.log.SetLevel(cfg0.Log.Level)
-
-	if cfg0.Log.File != "/dev/stdout" {
-		f, err := os.OpenFile(cfg0.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
-
-		if err != nil {
-			return nil, err
-		}
-		cfg.log.SetWriter(f)
-	}
-
-	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
-
-	if cfg0.Attempts == 0 {
-		cfg0.Attempts = 5
-	}
-
-	cfg.parallelism = cfg0.Parallelism
-
-	if cfg.parallelism == 0 {
-		cfg.parallelism = int(runtime.NumCPU())
-	}
-
-	cfg.db, err = connectdb(cfg.log, cfg0.Database)
+	consumer.redis, err = cfg.Redis.connect(consumer.log)
 
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.redis, err = connectredis(cfg.log, cfg0.Redis)
+	s, ok := cfg.Store["images"]
+
+	if !ok {
+		return nil, errors.New("images store not configured")
+	}
+
+	consumer.images, err = s.store()
 
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.consumer = &curlyq.ConsumerOpts{
-		Client: cfg.redis,
+	consumer.consumer = &curlyq.ConsumerOpts{
+		Client: consumer.redis,
 		Logger: log.Queue{
-			Logger: cfg.log,
+			Logger: consumer.log,
 		},
-		ProcessorConcurrency: cfg.parallelism,
-		JobMaxAttempts:       cfg0.Attempts,
+		ProcessorConcurrency: consumer.parallelism,
+		JobMaxAttempts:       cfg.Attempts,
 	}
-
-	cfg.stores = make(map[string]fs.Store)
-
-	for name, storecfg := range cfg0.Stores {
-		if _, ok := blockstores[storecfg.Type]; !ok {
-			return nil, errors.New("unknown store type: " + storecfg.Type)
-		}
-		cfg.stores[name] = blockstores[storecfg.Type](storecfg.Path, storecfg.Limit)
-	}
-	return cfg, nil
-}
-
-func (c *consumerCfg) put(n *node) error {
-	switch n.name {
-	case "pidfile":
-		if n.lit != stringLit {
-			return n.err("pidfile must be a string")
-		}
-		c.Pidfile = n.value
-	case "attempts":
-		if n.lit != numberLit {
-			return n.err("attempts must be an integer")
-		}
-
-		i, err := strconv.ParseInt(n.value, 10, 64)
-
-		if err != nil {
-			return n.err("parallelism is not a valid integer")
-		}
-		c.Attempts = int(i)
-	case "parallelism":
-		if n.lit != numberLit {
-			return n.err("parallelism must be an integer")
-		}
-
-		i, err := strconv.ParseInt(n.value, 10, 64)
-
-		if err != nil {
-			return n.err("parallelism is not a valid integer")
-		}
-		c.Parallelism = int(i)
-	case "log":
-		return c.Log.put(n)
-	case "crypto":
-		return c.Crypto.put(n)
-	case "redis":
-		return c.Redis.put(n)
-	case "database":
-		return c.Database.put(n)
-	case "store":
-		var cfg storeCfg
-
-		if err := cfg.put(n); err != nil {
-			return err
-		}
-
-		if c.Stores == nil {
-			c.Stores = make(map[string]storeCfg)
-		}
-		c.Stores[n.label] = cfg
-	default:
-		return n.err("unknown configuration parameter: " + n.name)
-	}
-	return nil
-}
-
-func (c *Consumer) Pidfile() *os.File                  { return c.pidfile }
-func (c *Consumer) ConsumerOpts() *curlyq.ConsumerOpts { return c.consumer }
-func (c *Consumer) DB() *sqlx.DB                       { return c.db }
-func (c *Consumer) Redis() *redis.Client               { return c.redis }
-func (c *Consumer) Log() *log.Logger                   { return c.log }
-func (c *Consumer) BlockCipher() *crypto.AESGCM        { return c.crypto }
-
-func (c *Consumer) Store(name string) (fs.Store, bool) {
-	store, ok := c.stores[name]
-	return store, ok
+	return consumer, nil
 }

@@ -122,60 +122,43 @@ codepaths that are taken to get the component started and ready for execution.
 
 **`djinn-server`**
 
-From `cmd/djinn-server/main.go` a call to `serverutil.ParseFlags` is made, this
-will parse the flags given to the `djinn-server` binary and returns the result
-of these flags. The path to the configuration file to use is then given to
-`serverutil.Init`, from here the configuration is fully initialized and used to
-register the different entity routers against the underlying HTTP server. Some
-additional handlers are also registered for handling 404 and 405 responses.
-Once the routes have been registered the server is returned along with a
-function for cleaning up the resources being used by the server. We then begin
-serving requests and wait til a cancellation signal is received.
+The main entrypoint for the server is `cmd/djinn-server/main.go`, which sets
+up the server, the in memory queue for webhook dispatching, and registering of
+routes. This all occurs in `serverutil/serverutil.go`.
 
 **`djinn-worker`**
 
-From `cmd/djinn-worker/main.go` a call to `workerutil.ParseFlags` is made, this
-will parse the flags given to the `djinn-worker` binary and returns the result
-of these flags. The path to the configuration and driver file to use are then
-given to `workerutil.Init`, from here the configuration for the worker and
-driver's are fully initialized. We return the fully configuration
-`worker.Worker`, this is then passed to `workerutil.Start` which starts the
-worker in a goroutine. We then wait til a cancellation signal is received.
+The main entrypoint for the worker is `cmd/djinn-worker/worker.go`, which
+sets up the worker, the in memory queue for webhook dispatching, and the
+primary mechanism for consuming from the queue. This all occurs in
+`workerutil/workerutil.go`.
 
 **`djinn-scheduler`**
 
-From `cmd/djinn-scheduler/main.go` we parse the program's flags, and
-initialize configuration for the scheduler. A ticker is then created that
-ticks on a 1 minute interval. Every time this interval passes we load in the
-cron jobs to be scheduled via the `cron.Batcher` and have them invoked. We then
-do this continuously until a cancellation signal is received.
+The main entrypoint for the scheduler is `cmd/djinn-scheduler/main.go`. In here
+a loop runs on a configured interval, during which the cron jobs are performed
+in batches of the configured size, by default 1000. The batching of the job is
+handled via the `cron.Batcher` in `cron/batcher.go`.
 
 **`djinn-curator`**
 
-From `cmd/djinn-curator/main.go` we parse the program's flags, and initialize
-configuration for the curator. A ticker is then created that ticks on a 1
-minute interval. Every time this interval passes we load in the old artifacts
-to clear our via the `build.Curator` and delete them from disk. We then do this
-continuously until a cancellation signal is received.
+The main entrypoint for the curator is `cmd/djinn-curator/main.go`. In here a
+loop runs on a 1 minute interval (non-configurable), during which old artifacts
+that exceed the limit for a user are removed. The removal of the artifacts is
+handled by the `build.Curator` in `build/curator.go`.
 
 ## Code overview
 
-The logic for an entity within Djinn CI is grouped within its own directory,
-along with the handler, router, and templates for said entity. For example
-the logic for handling the creation, and viewing of builds is within the
-`build` directory, what with the router existing in `build/router` and the
-handler in `build/handler`.
+The logic for Djinn CI is grouped on a responsibility basis. For example, the
+logic for the HTTP handlers exist in the `http` directories depending on the
+entity that logic is for. Within each of these directories will be an `api.go`
+and `ui.go` file, which will contain the logic for handling requests to the
+API server and UI server respectively, what with shared logic between the two
+being in the `handler.go` file.
 
-Most entities will have an `api.go`, and `ui.go` file in their `handler`
-directory. These are the handlers that would handle API and UI requests
-from the server respectively. The core logic for an entity is stored in
-the entity handler itself. For example the `build` handler exists in
-`build/handler/build.go`, this is then embedded by the `api.go` and `ui.go`
-handlers.
-
-[valyala/quicktemplate](https://github.com/valyala/quicktemplate) is used for
-templating the views that `djinn-server` serves via the UI. This allows for
-these views to be compiled directly into the final binary itself.
+[valyala/quicktemplate][0] is used for templating the views that `djinn-server`
+serves via the UI. This allows for these views to be compiled directly into the
+final binary itself.
 
 ## Code map
 
@@ -195,11 +178,11 @@ component for execution.
 
 ### config
 
-`config` is the package that handles the parsing and unmarshalling of the
-various configuration files for Djinn CI. Each configuration file is a TOML
-file. The configuration structs for each component do not represent a
-one-to-one mapping of what's in the file, instead they are structs that contain
-the necessary resources for that component to function.
+`config` is the package that handles the decoding of configuration files for
+Djinn CI. Each configuration file uses a block-based configuration format,
+where blocks of configuration are wrapped between `{ }`. The configuration
+structs do no represent a one-to-one mapping of what's in the file, instead
+they expose for necessary resources for a component to function.
 
 For example, the `config.Server` struct will contain an underlying database
 connection to the database that is being connected to. These config structs
@@ -216,14 +199,10 @@ hashes.
 `database` provides a basic interface for modelling data from the database,
 along with utility functions for working with relationships between entities.
 
-`djinn-server` makes heavy use of the `Loader` interface during bootstrapping
-of an entity's router to define which relationships should be loaded onto an
-entity during querying.
-
-The `database.Store` struct that is exported offers a low-level way of handling
-common CRUD operations on a table. This makes heavy use of the
-[andrewpillar/query](https://github.com/andrewpillar/query) library for query
-building.
+The `database.Pool` struct is a wrapper around the `pgxpool.Pool` struct. This
+provides a light wrapper around common queries performed throughout the
+components. This makes heavy use of the [andrewpillar/query][1] library for
+query building.
 
 ### driver
 
@@ -265,9 +244,7 @@ the `djinn-worker` to alert of failed builds.
 ### oauth2
 
 `oauth2` provides the implementations required for the `djinn-server` to act
-as an OAuth2 server. The routes for OAuth2 authentication are registered via
-the router in `oauth2/router`. The handlers themselves exist in
-`oauth2/handler`, and the templates exists in `oauth2/template`.
+as an OAuth2 server.
 
 ### provider
 
@@ -311,15 +288,6 @@ too.
 `version` contains version information about `djinn-server`. This is set during
 the linking stage of the build by the linker.
 
-### web
-
-`web` provides utility functions for working with HTTP requests, and responses.
-This also exports the `web.Handler` struct that is used throughout the
-`djinn-server` and provides an easy way of getting the current user from an
-incoming request. The `web.Middleware` provides middleware for checking for
-guest/authenticated users, and provides a way of determining the amount of
-access user has to an endpoint via the use of `web.Gate`.
-
 ### worker
 
 `worker` contains the logic of the `djinn-worker`. This is what handles the
@@ -334,3 +302,6 @@ build as it runs, and fires off any emails should a build fail.
 handling build execution. Similar to `serverutil`, this will handle the parsing
 of flags that are passed to the `djinn-worker` binary, and the initialization
 of the worker's configuration.
+
+[0]: https://github.com/valyala/quicktemplate
+[1]: https://github.com/andrewpillar/query

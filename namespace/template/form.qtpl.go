@@ -196,7 +196,7 @@ func (p *Form) StreamBody(qw422016 *qt422016.Writer) {
 //line namespace/template/form.qtpl:132
 	qw422016.N().S(` `)
 //line namespace/template/form.qtpl:133
-	if p.Parent != nil && !p.Parent.IsZero() {
+	if p.Parent != nil {
 //line namespace/template/form.qtpl:133
 		qw422016.N().S(` <input type="hidden" name="parent" value="`)
 //line namespace/template/form.qtpl:134
@@ -377,7 +377,7 @@ func (p *Form) StreamHeader(qw422016 *qt422016.Writer) {
 //line namespace/template/form.qtpl:203
 		qw422016.N().S(` `)
 //line namespace/template/form.qtpl:204
-		if p.Parent != nil && !p.Parent.IsZero() {
+		if p.Parent != nil {
 //line namespace/template/form.qtpl:204
 			qw422016.N().S(` <a class="back" href="`)
 //line namespace/template/form.qtpl:205

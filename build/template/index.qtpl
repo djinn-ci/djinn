@@ -33,7 +33,7 @@ type Index struct {
 			<div class="panel-message muted">No builds have been submitted yet.</div>
 		{% else %}
 			<div class="panel-header">
-				{%= RenderStatusNav(p.URL.Path, p.Status) %}
+				{%= RenderStatusNav(p.URL, p.Tag, p.Status) %}
 				{%= template.RenderSearch(p.URL.Path, p.Search, "Find a build...") %}
 			</div>
 			{% if len(p.Builds) == 0 && p.Search != "" %}
@@ -72,7 +72,7 @@ type Index struct {
 									<a title="Build tags" class="pill pill-light" href="{%s b.Endpoint("tags") %}">...</a>
 								{% else %}
 									{% for _, t := range b.Tags %}
-										<a class="pill pill-light" href="?tag={%s t.Name %}">{%s t.Name %}</a>
+										<a class="pill pill-light" href="{%s template.LinkToQuery(p.URL, map[string]string{"tag": t.Name}) %}">{%s t.Name %}</a>
 									{% endfor %}
 								{% endif %}
 							</td>
@@ -105,7 +105,7 @@ type Index struct {
 {% func (p *Index) Header() %}
 	Builds
 	{% if p.Tag != "" %}
-		<span class="pill pill-light">{%s p.Tag %}<a href="{%s p.URL.Path %}">{% cat "../../static/svg/close.svg" %}</a></span>
+		<span class="pill pill-light">{%s p.Tag %}<a href="{%s template.LinkToQuery(p.URL, map[string]string{"tag": ""}) %}">{% cat "../../static/svg/close.svg" %}</a></span>
 	{% endif %}
 {% endfunc %}
 

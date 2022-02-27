@@ -1,8 +1,6 @@
-// Package key providers the database.Model implementation for the Key entity.
 package key
 
 import (
-	"context"
 	"database/sql"
 	"net/url"
 	"strconv"
@@ -19,155 +17,80 @@ import (
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
-// Key is the type that represents an SSH key that can be placed in the build
-// environment.
 type Key struct {
-	ID          int64         `db:"id"`
-	UserID      int64         `db:"user_id"`
-	AuthorID    int64         `db:"author_id"`
-	NamespaceID sql.NullInt64 `db:"namespace_id"`
-	Name        string        `db:"name"`
-	Key         []byte        `db:"key"`
-	Config      string        `db:"config"`
-	CreatedAt   time.Time     `db:"created_at"`
-	UpdatedAt   time.Time     `db:"updated_at"`
+	ID          int64
+	UserID      int64
+	AuthorID    int64
+	NamespaceID sql.NullInt64
+	Name        string
+	Key         []byte
+	Config      string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 
-	Author    *user.User           `db:"-"`
-	User      *user.User           `db:"-"`
-	Namespace *namespace.Namespace `db:"-"`
-}
-
-type Event struct {
-	dis event.Dispatcher
-
-	Key    *Key
-	Action string
-}
-
-// Store is the type for creating and modifying Key models in the database. The
-// Store type can have an underlying crypto.AESGCM for encrypting the SSH keys
-// that are stored.
-type Store struct {
-	database.Store
-
-	crypto *crypto.AESGCM
-
-	// User is the bound user.User model. If not nil this will bind the
-	// user.User model to any Image models that are created. If not nil this
-	// will append a WHERE clause on the user_id column for all SELECT queries
-	// performed.
-	User *user.User
-
-	// Namespace is the bound namespace.Namespace model. If not nil this will
-	// bind the namespace.Namespace model to any Image models that are created.
-	// If not nil this will append a WHERE clause on the namespace_id column for
-	// all SELECT queries performed.
+	Author    *user.User
+	User      *user.User
 	Namespace *namespace.Namespace
 }
 
-var (
-	_ database.Model  = (*Key)(nil)
-	_ database.Binder = (*Store)(nil)
-	_ database.Loader = (*Store)(nil)
+var _ database.Model = (*Key)(nil)
 
-	_ queue.Job = (*Event)(nil)
+func LoadNamespaces(db database.Pool, kk ...*Key) error {
+	mm := make([]database.Model, 0, len(kk))
 
-	table     = "keys"
-	relations = map[string]database.RelationFunc{
-		"author":    database.Relation("author_id", "id"),
-		"user":      database.Relation("user_id", "id"),
-		"namespace": database.Relation("namespace_id", "id"),
+	for _, k := range kk {
+		mm = append(mm, k)
 	}
-)
 
-// NewStore returns a new Store for querying the keys table. Each model passed
-// to this function will be bound to the returned Store.
-func NewStore(db *sqlx.DB, mm ...database.Model) *Store {
-	s := &Store{
-		Store: database.Store{DB: db},
+	if err := namespace.Load(db, mm...); err != nil {
+		return errors.Err(err)
 	}
-	s.Bind(mm...)
-	return s
+	return nil
 }
 
-// NewStoreWithCrypto is functionally the same as NewStore, however it sets the
-// crypto.AESGCM to use on the returned Store. This will allow for encryption of
-// keys during creation.
-func NewStoreWithCrypto(db *sqlx.DB, crypto *crypto.AESGCM, mm ...database.Model) *Store {
-	s := NewStore(db, mm...)
-	s.crypto = crypto
-	return s
+func LoadRelations(db database.Pool, kk ...*Key) error {
+	mm := make([]database.Model, 0, len(kk))
+
+	for _, k := range kk {
+		mm = append(mm, k)
+	}
+
+	if err := database.LoadRelations(mm, namespace.ResourceRelations(db)...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// FromContext returns the Key model from the given context, if any.
-func FromContext(ctx context.Context) (*Key, bool) {
-	k, ok := ctx.Value("key").(*Key)
-	return k, ok
-}
-
-// LoadRelations loads all of the available relations for the given Key models
-// using the given loaders available.
-func LoadRelations(loaders *database.Loaders, kk ...*Key) error {
-	mm := database.ModelSlice(len(kk), Model(kk))
-	return errors.Err(database.LoadRelations(relations, loaders, mm...))
-}
-
-// Model is called along with database.ModelSlice to convert the given slice of
-// Key models to a slice of database.Model interfaces.
-func Model(kk []*Key) func(int) database.Model {
-	return func(i int) database.Model {
-		return kk[i]
+func (k *Key) Dest() []interface{} {
+	return []interface{}{
+		&k.ID,
+		&k.UserID,
+		&k.AuthorID,
+		&k.NamespaceID,
+		&k.Name,
+		&k.Key,
+		&k.Config,
+		&k.CreatedAt,
+		&k.UpdatedAt,
 	}
 }
 
-func InitEvent(dis event.Dispatcher) queue.InitFunc {
-	return func(j queue.Job) {
-		if ev, ok := j.(*Event); ok {
-			ev.dis = dis
+func (k *Key) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *user.User:
+		k.Author = v
+
+		if k.UserID == v.ID {
+			k.User = v
 		}
-	}
-}
-
-func (ev *Event) Name() string { return "event:" + event.SSHKeys.String() }
-
-func (ev *Event) Perform() error {
-	if ev.dis == nil {
-		return event.ErrNilDispatcher
-	}
-
-	payload := map[string]interface{}{
-		"key":    ev.Key.JSON(env.DJINN_API_SERVER),
-		"action": ev.Action,
-	}
-	return errors.Err(ev.dis.Dispatch(event.New(ev.Key.NamespaceID, event.SSHKeys, payload)))
-}
-
-// Bind implements the database.Binder interface. This will only bind the model
-// if they are pointers to either user.User or namespace.Namespace.
-func (k *Key) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			k.Author = v
-
-			if k.UserID == v.ID {
-				k.User = v
-			}
-		case *namespace.Namespace:
+	case *namespace.Namespace:
+		if k.NamespaceID.Int64 == v.ID {
 			k.Namespace = v
 		}
 	}
 }
-
-// SetPrimary implements the database.Model interface.
-func (k *Key) SetPrimary(id int64) { k.ID = id }
-
-// Primary implements the database.Model interface.
-func (k *Key) Primary() (string, int64) { return "id", k.ID }
 
 func (k *Key) Endpoint(uri ...string) string {
 	if len(uri) > 0 {
@@ -176,22 +99,11 @@ func (k *Key) Endpoint(uri ...string) string {
 	return "/keys/" + strconv.FormatInt(k.ID, 10)
 }
 
-// IsZero implements the database.Model interface.
-func (k *Key) IsZero() bool {
-	return k == nil || k.ID == 0 &&
-		k.UserID == 0 &&
-		!k.NamespaceID.Valid &&
-		k.Name == "" &&
-		len(k.Key) == 0 &&
-		k.Config == "" &&
-		k.CreatedAt == time.Time{}
-}
-
-// JSON implements the database.Model interface. This will return a map with the
-// current Image values under each key. If any of the User, or Namespace bound
-// models exist on the Artifact, then the JSON representation of these models
-// will be in the returned map, under the user, and namespace keys respectively.
 func (k *Key) JSON(addr string) map[string]interface{} {
+	if k == nil {
+		return nil
+	}
+
 	json := map[string]interface{}{
 		"id":           k.ID,
 		"author_id":    k.AuthorID,
@@ -204,155 +116,230 @@ func (k *Key) JSON(addr string) map[string]interface{} {
 		"url":          addr + k.Endpoint(),
 	}
 
-	if k.NamespaceID.Valid {
-		json["namespace_id"] = k.NamespaceID.Int64
+	if k.Author != nil {
+		json["author"] = k.Author.JSON(addr)
 	}
 
-	for name, m := range map[string]database.Model{
-		"author":    k.Author,
-		"user":      k.User,
-		"namespace": k.Namespace,
-	} {
-		if !m.IsZero() {
-			json[name] = m.JSON(addr)
+	if k.User != nil {
+		json["user"] = k.User.JSON(addr)
+	}
+
+	if k.NamespaceID.Valid {
+		json["namespace_id"] = k.NamespaceID.Int64
+
+		if k.Namespace != nil {
+			json["namespace"] = k.Namespace.JSON(addr)
 		}
 	}
 	return json
 }
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, namespace_id, name, key, and config.
 func (k *Key) Values() map[string]interface{} {
 	return map[string]interface{}{
+		"id":           k.ID,
 		"user_id":      k.UserID,
 		"author_id":    k.AuthorID,
 		"namespace_id": k.NamespaceID,
 		"name":         k.Name,
 		"key":          k.Key,
 		"config":       k.Config,
+		"created_at":   k.CreatedAt,
+		"updated_at":   k.UpdatedAt,
 	}
 }
 
-// New returns a new Key binding any non-nil models to it from the current Store.
-func (s *Store) New() *Key {
-	k := &Key{
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
+type Event struct {
+	dis event.Dispatcher
 
-	if s.User != nil {
-		k.UserID = s.User.ID
-	}
-
-	if s.Namespace != nil {
-		k.NamespaceID = sql.NullInt64{
-			Int64: s.Namespace.ID,
-			Valid: true,
-		}
-	}
-	return k
+	Key    *Key
+	Action string
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if they are pointers to either user.User or namespace.Namespace.
-func (s *Store) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *user.User:
-			s.User = v
-		case *namespace.Namespace:
-			s.Namespace = v
+var _ queue.Job = (*Event)(nil)
+
+func InitEvent(dis event.Dispatcher) queue.InitFunc {
+	return func(j queue.Job) {
+		if ev, ok := j.(*Event); ok {
+			ev.dis = dis
 		}
 	}
 }
 
-// Create creates a new key with the given name and config. The given key string
-// should be the contents of the key itself, this will be encrypted with the
-// underlying crypto.AESGCM that is set on the Store. If no crypto.AESGCM is set
-// on the Store then this will error.
-func (s *Store) Create(authorId int64, name, key, config string) (*Key, error) {
-	if s.crypto == nil {
-		return nil, errors.New("nil block cipher")
+func (e *Event) Name() string { return "event:" + event.SSHKeys.String() }
+
+func (e *Event) Perform() error {
+	if e.dis == nil {
+		return event.ErrNilDispatcher
 	}
 
-	b, err := s.crypto.Encrypt([]byte(key))
+	ev := event.New(e.Key.NamespaceID, event.SSHKeys, map[string]interface{}{
+		"key":    e.Key.JSON(env.DJINN_API_SERVER),
+		"action": e.Action,
+	})
+
+	if err := e.dis.Dispatch(ev); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+type Store struct {
+	database.Pool
+
+	AESGCM *crypto.AESGCM
+}
+
+var table = "keys"
+
+func Chown(db database.Pool, from, to int64) error {
+	if err := database.Chown(db, table, from, to); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+type Params struct {
+	UserID    int64
+	Namespace namespace.Path
+	Name      string
+	Key       string
+	Config    string
+}
+
+func stripCRLF(s string) string {
+	return strings.Replace(s, "\r", "", -1)
+}
+
+func (s *Store) Create(p Params) (*Key, error) {
+	if s.AESGCM == nil {
+		return nil, crypto.ErrNilAESGCM
+	}
+
+	key := []byte(stripCRLF(p.Key))
+
+	b, err := s.AESGCM.Encrypt(key)
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	k := s.New()
-	k.AuthorID = authorId
-	k.Name = strings.Replace(name, " ", "_", -1)
-	k.Key = b
-	k.Config = config
-	k.CreatedAt = time.Now()
-	k.UpdatedAt = k.CreatedAt
+	u, n, err := p.Namespace.ResolveOrCreate(s.Pool, p.UserID)
 
-	err = s.Store.Create(table, k)
-	return k, errors.Err(err)
+	if err != nil {
+		if !errors.Is(err, namespace.ErrInvalidPath) {
+			return nil, errors.Err(err)
+		}
+	}
+
+	userId := p.UserID
+
+	var namespaceId sql.NullInt64
+
+	if u != nil {
+		n.User = u
+
+		userId = u.ID
+		namespaceId = sql.NullInt64{
+			Int64: n.ID,
+			Valid: true,
+		}
+
+		if err := n.IsCollaborator(s.Pool, p.UserID); err != nil {
+			return nil, errors.Err(err)
+		}
+	}
+
+	now := time.Now()
+
+	q := query.Insert(
+		table,
+		query.Columns("user_id", "author_id", "namespace_id", "name", "key", "config", "created_at", "updated_at"),
+		query.Values(userId, p.UserID, namespaceId, p.Name, b, p.Config, now, now),
+		query.Returning("id"),
+	)
+
+	var id int64
+
+	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	return &Key{
+		ID:          id,
+		UserID:      userId,
+		AuthorID:    p.UserID,
+		NamespaceID: namespaceId,
+		Name:        p.Name,
+		Key:         b,
+		Config:      p.Config,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+		Namespace:   n,
+	}, nil
 }
 
-func (s *Store) Chown(from, to int64) error { return errors.Err(s.Store.Chown(table, from, to)) }
-
-// Update updates the key with the given id, and set's the new namespace for
-// the key, and the new config to use.
-func (s *Store) Update(id int64, config string) error {
+func (s *Store) Update(id int64, p Params) error {
 	q := query.Update(
 		table,
-		query.Set("config", query.Arg(config)),
+		query.Set("config", query.Arg(p.Config)),
 		query.Set("updated_at", query.Arg(time.Now())),
 		query.Where("id", "=", query.Arg(id)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
-}
-
-// Delete removes all of the keys from the database with the given list of ids.
-func (s *Store) Delete(ids ...int64) error {
-	mm := make([]database.Model, 0, len(ids))
-
-	for _, id := range ids {
-		mm = append(mm, &Key{ID: id})
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
 	}
-	return errors.Err(s.Store.Delete(table, mm...))
+	return nil
 }
 
-// Paginate returns the database.Paginator for the keys table for the given page.
-func (s *Store) Paginate(page int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Store.Paginate(table, page, 25, opts...)
-	return paginator, errors.Err(err)
+func (s *Store) Delete(id int64) error {
+	q := query.Delete(table, query.Where("id", "=", query.Arg(id)))
+
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// All returns a slice of Key models, applying each query.Option that is given.
+func (s *Store) Get(opts ...query.Option) (*Key, bool, error) {
+	var k Key
+
+	ok, err := s.Pool.Get(table, &k, opts...)
+
+	if err != nil {
+		return nil, false, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, false, nil
+	}
+	return &k, ok, nil
+}
+
 func (s *Store) All(opts ...query.Option) ([]*Key, error) {
 	kk := make([]*Key, 0)
 
-	opts = append([]query.Option{
-		namespace.WhereCollaborator(s.User),
-		database.Where(s.Namespace, "namespace_id"),
-	}, opts...)
-
-	err := s.Store.All(&kk, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
+	new := func() database.Model {
+		k := &Key{}
+		kk = append(kk, k)
+		return k
 	}
 
-	for _, k := range kk {
-		k.User = s.User
-		k.Namespace = s.Namespace
+	if err := s.Pool.All(table, new, opts...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return kk, errors.Err(err)
+	return kk, nil
 }
 
-// Index returns the paginated results from the keys table depending on the
-// values that are present in url.Values. Detailed below are the values that
-// are used from the given url.Values,
-//
-// search - This applies the database.Search query.Option using the value of
-// name
+func (s *Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
+	paginator, err := s.Pool.Paginate(table, page, limit, opts...)
+
+	if err != nil {
+		return paginator, errors.Err(err)
+	}
+	return paginator, nil
+}
+
 func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Key, database.Paginator, error) {
 	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
 
@@ -364,56 +351,21 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Key, database.P
 		database.Search("name", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, opts...)
+	paginator, err := s.Paginate(page, database.PageLimit, opts...)
 
 	if err != nil {
-		return []*Key{}, paginator, errors.Err(err)
+		return nil, paginator, errors.Err(err)
 	}
 
 	kk, err := s.All(append(
 		opts,
-		query.OrderAsc("key"),
+		query.OrderAsc("name"),
 		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
 	)...)
-	return kk, paginator, errors.Err(err)
-}
-
-// Get returns a single Key model, applying each query.Option that is given.
-func (s *Store) Get(opts ...query.Option) (*Key, error) {
-	k := &Key{
-		User:      s.User,
-		Namespace: s.Namespace,
-	}
-
-	opts = append([]query.Option{
-		namespace.WhereCollaborator(s.User),
-		database.Where(s.Namespace, "namespace_id"),
-	}, opts...)
-
-	err := s.Store.Get(k, table, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return k, errors.Err(err)
-}
-
-// Load loads in a slice of Key models where the given key is in the list
-// of given vals. Each database is loaded individually via a call to the given
-// load callback. This method calls Store.All under the hood, so any
-// bound models will impact the models being loaded.
-func (s *Store) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	kk, err := s.All(query.Where(key, "IN", database.List(vals...)))
 
 	if err != nil {
-		return errors.Err(err)
+		return nil, paginator, errors.Err(err)
 	}
-
-	for i := range vals {
-		for _, k := range kk {
-			load(i, k)
-		}
-	}
-	return nil
+	return kk, paginator, nil
 }

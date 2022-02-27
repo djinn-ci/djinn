@@ -3,6 +3,8 @@ package config
 import (
 	"strings"
 	"testing"
+
+	"github.com/andrewpillar/config"
 )
 
 func Test_DecodeWorker(t *testing.T) {
@@ -14,10 +16,10 @@ log info "/var/log/djinn/worker.log"
 
 driver "qemu-x86_64"
 
-timeout "30m"
+timeout 30m
 
-provider github
-provider gitlab
+provider github {}
+provider gitlab {}
 
 crypto {
 	block "0000000000000000"
@@ -44,7 +46,7 @@ redis {
 store artifacts {
 	type  "file"
 	path  "/var/lib/djinn/artifacts"
-	limit 52428800
+	limit 50MB
 }
 
 store images {
@@ -58,17 +60,12 @@ store objects {
 }
 `)
 
-	p := newParser(t.Name(), r, func(name string, line, col int, msg string) {
-		t.Errorf("%s,%d:%d - %s\n", name, line, col, msg)
-	})
+	dec := config.NewDecoder(t.Name(), decodeOpts...)
 
 	var cfg workerCfg
 
-	nodes := p.parse()
-
-	for _, node := range nodes {
-		if err := cfg.put(node); err != nil {
-			t.Fatal(err)
-		}
+	if err := dec.Decode(&cfg, r); err != nil {
+		t.Fatal(err)
 	}
+	t.Log(cfg)
 }

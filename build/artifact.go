@@ -10,138 +10,78 @@ import (
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/fs"
 	"djinn-ci.com/runner"
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
-
-	"github.com/jmoiron/sqlx"
 )
 
-// Artifact is the type that represents a file that has been collected from a
-// build environment for a given build. This contains metadata about the file
-// that was collected.
+// Artifact represents a file that has been collected from a job.
 type Artifact struct {
-	ID        int64         `db:"id"`
-	UserID    int64         `db:"user_id"`
-	BuildID   int64         `db:"build_id"`
-	JobID     int64         `db:"job_id"`
-	Hash      string        `db:"hash"`
-	Source    string        `db:"source"`
-	Name      string        `db:"name"`
-	Size      sql.NullInt64 `db:"size"`
-	MD5       []byte        `db:"md5"`
-	SHA256    []byte        `db:"sha256"`
-	CreatedAt time.Time     `db:"created_at"`
-	DeletedAt sql.NullTime  `db:"deleted_at"`
+	ID        int64
+	UserID    int64
+	BuildID   int64
+	JobID     int64
+	Hash      string
+	Source    string
+	Name      string
+	Size      sql.NullInt64
+	MD5       []byte
+	SHA256    []byte
+	CreatedAt time.Time
+	DeletedAt sql.NullTime
 
-	Build *Build     `db:"-"`
-	Job   *Job       `db:"-"`
-	User  *user.User `db:"-"`
-}
-
-// ArtifactStore is the type for creating and modifying Artifact models in the
-// database. The ArtifactStore type can have an underlying runner.Collector
-// implementation that can allow for it to be used for collecting artifacts
-// from a build environment.
-type ArtifactStore struct {
-	database.Store
-
-	collector runner.Collector
-
-	// Build is the bound Build model. If not nil this will bind the Build
-	// model to any Artifact models that are created. If not nil this will
-	// append a WHERE clause on the build_id column for all SELECT queries
-	// performed.
 	Build *Build
-
-	// Job is the bound Job model. If not nil this will bind the Job model to
-	// any Artifact models that are created. If not nil this will append a
-	// WHERE clause on the job_id column for all SELECT queries performed.
-	Job *Job
-
-	User *user.User
+	Job   *Job
+	User  *user.User
 }
 
-var (
-	_ database.Model   = (*Artifact)(nil)
-	_ database.Binder  = (*ArtifactStore)(nil)
-	_ database.Loader  = (*ArtifactStore)(nil)
-	_ runner.Collector = (*ArtifactStore)(nil)
+var _ database.Model = (*Artifact)(nil)
 
-	artifactTable = "build_artifacts"
-)
-
-// NewArtifactStore returns a new ArtifactStore for querying the build_artifacts
-// table. Each model passed to this function will be bound to the returned
-// ArtifactStore.
-func NewArtifactStore(db *sqlx.DB, mm ...database.Model) *ArtifactStore {
-	s := &ArtifactStore{
-		Store: database.Store{DB: db},
-	}
-	s.Bind(mm...)
-	return s
-}
-
-// NewArtifactStoreWithCollector returns a new ArtifactStore with the given
-// runner.Collector. This allows for the ArtifactStore to be used as a
-// runner.Collector during a build run. Each collected artifact will be
-// updated in the database, with the actual collection being deferred to the
-// given runner.Collector.
-func NewArtifactStoreWithCollector(db *sqlx.DB, c runner.Collector, mm ...database.Model) *ArtifactStore {
-	s := NewArtifactStore(db, mm...)
-	s.collector = c
-	return s
-}
-
-// ArtifactModel is called along with database.ModelSlice to convert the given slice of
-// Artifact models to a slice of database.Model interfaces.
-func ArtifactModel(aa []*Artifact) func(int) database.Model {
-	return func(i int) database.Model {
-		return aa[i]
+func (a *Artifact) Dest() []interface{} {
+	return []interface{}{
+		&a.ID,
+		&a.UserID,
+		&a.BuildID,
+		&a.JobID,
+		&a.Hash,
+		&a.Source,
+		&a.Name,
+		&a.Size,
+		&a.MD5,
+		&a.SHA256,
+		&a.CreatedAt,
+		&a.DeletedAt,
 	}
 }
 
-// Bind implements the database.Binder interface. This will only bind the models
-// if they are pointers to either Build or Job models.
-func (a *Artifact) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *Build:
+// Bind the given Model to the current Artifact if it is one of Build, Job, or
+// User, and if there is a direct relation between the two.
+func (a *Artifact) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *Build:
+		if a.BuildID == v.ID {
 			a.Build = v
-		case *Job:
+		}
+	case *Job:
+		if a.JobID == v.ID {
 			a.Job = v
-		case *user.User:
+		}
+	case *user.User:
+		if a.UserID == v.ID {
 			a.User = v
 		}
 	}
 }
 
-// SetPrimary implements the database.Model interface.
-func (a *Artifact) SetPrimary(id int64) { a.ID = id }
-
-// Primary implements the database.Model interface.
-func (a *Artifact) Primary() (string, int64) { return "id", a.ID }
-
-// IsZero implements the database.Model interface.
-func (a *Artifact) IsZero() bool {
-	return a == nil || a.ID == 0 &&
-		a.UserID == 0 &&
-		a.BuildID == 0 &&
-		a.JobID == 0 &&
-		a.Hash == "" &&
-		a.Source == "" &&
-		a.Name == "" &&
-		!a.Size.Valid &&
-		len(a.MD5) == 0 &&
-		len(a.SHA256) == 0
-}
-
-// JSON implements the database.Model interface. This will return a map with the
-// current Artifacts values under each key. If any of the Build, or Job bound
-// models exist on the Artifact, then the JSON representation of these models
-// will be in the returned map, under the build, and job keys respectively.
+// JSON returns a map[string]interface{} representation of the current Artifact.
+// This will include the User, Build, and Job models if they are non-nil.
 func (a *Artifact) JSON(addr string) map[string]interface{} {
+	if a == nil {
+		return nil
+	}
+
 	json := map[string]interface{}{
 		"id":         a.ID,
 		"user_id":    a.UserID,
@@ -172,26 +112,25 @@ func (a *Artifact) JSON(addr string) map[string]interface{} {
 		json["deleted_at"] = a.DeletedAt.Time.Format(time.RFC3339)
 	}
 
-	for name, m := range map[string]database.Model{
-		"user":  a.User,
-		"build": a.Build,
-		"job":   a.Job,
-	} {
-		if !m.IsZero() {
-			json[name] = m.JSON(addr)
-		}
+	if a.User != nil {
+		json["user"] = a.User.JSON(addr)
+	}
+
+	if a.Build != nil {
+		json["build"] = a.Build.JSON(addr)
+	}
+
+	if a.Job != nil {
+		json["job"] = a.Job.JSON(addr)
 	}
 	return json
 }
 
-// Endpoint implements the database.Model interface. If the current Artifact
-// has a nil or zero value Build bound model then an empty string is returned,
-// otherwise the fulld Build endpoint is returned, suffixed with the Artifact
-// endpoint, for example,
-//
-//   /b/l.belardo/10/artifacts/os-release
+// Endpoint returns the endpoint for the current Artifact. this will only
+// return an endpoint if the current Artifact has a non-nil build. The given
+// uris are appended to the returned endpoint.
 func (a *Artifact) Endpoint(uris ...string) string {
-	if a.Build == nil || a.Build.IsZero() {
+	if a.Build == nil {
 		return ""
 	}
 
@@ -199,71 +138,74 @@ func (a *Artifact) Endpoint(uris ...string) string {
 	return a.Build.Endpoint(uris...)
 }
 
-// Values implements the database.Model interface. This will return a map with
-// the following values, user_id, build_id, job_id, hash, source, name, size,
-// md5, and sha256.
+// Values returns all of the values for the current Artifact.
 func (a *Artifact) Values() map[string]interface{} {
 	return map[string]interface{}{
-		"user_id":  a.UserID,
-		"build_id": a.BuildID,
-		"job_id":   a.JobID,
-		"hash":     a.Hash,
-		"source":   a.Source,
-		"name":     a.Name,
-		"size":     a.Size,
-		"md5":      a.MD5,
-		"sha256":   a.SHA256,
+		"id":         a.ID,
+		"user_id":    a.UserID,
+		"build_id":   a.BuildID,
+		"job_id":     a.JobID,
+		"hash":       a.Hash,
+		"source":     a.Source,
+		"name":       a.Name,
+		"size":       a.Size,
+		"md5":        a.MD5,
+		"sha256":     a.SHA256,
+		"created_at": a.CreatedAt,
+		"deleted_at": a.DeletedAt,
 	}
 }
 
-// Bind implements the database.Binder interface. This will only bind the model
-// if they are pointers to either Build or Job models.
-func (s *ArtifactStore) Bind(mm ...database.Model) {
-	for _, m := range mm {
-		switch v := m.(type) {
-		case *Build:
-			s.Build = v
-		case *Job:
-			s.Job = v
-		case *user.User:
-			s.User = v
-		}
-	}
+// ArtifactStore allows for the retrieval of build Artifacts. This makes use of
+// the fs.Store interface for collecting Artifacts from a build.
+type ArtifactStore struct {
+	database.Pool
+	fs.Store
 }
 
-// Load implements the database.Loader interface. Any models that are bound to
-// the ArtifactStore will be applied during querying.
-func (s *ArtifactStore) Load(key string, vals []interface{}, load database.LoaderFunc) error {
-	aa, err := s.All(query.Where(key, "IN", database.List(vals...)))
+var (
+	_ database.Loader  = (*ArtifactStore)(nil)
+	_ runner.Collector = (*ArtifactStore)(nil)
+
+	artifactTable = "build_artifacts"
+)
+
+// Get returns the singular build Artifact that can be found with the given
+// query options applied, along with whether or not one could be found.
+func (s *ArtifactStore) Get(opts ...query.Option) (*Artifact, bool, error) {
+	var a Artifact
+
+	ok, err := s.Pool.Get(artifactTable, &a, opts...)
 
 	if err != nil {
-		return errors.Err(err)
+		return nil, false, errors.Err(err)
 	}
 
-	for i := range vals {
-		for _, a := range aa {
-			load(i, a)
-		}
+	if !ok {
+		return nil, false, nil
 	}
-	return nil
+	return &a, ok, nil
 }
 
-// Create creates a new Artifact model in the database. The given hash should
-// be unique across all Artifact models created. The src should be the verbatim
-// name of the Artifact from the build environment. The dst should be the name
-// that is used for collecting the Artifact.
-func (s *ArtifactStore) Create(hash, src, dst string) (*Artifact, error) {
-	a := s.New()
-	a.Hash = hash
-	a.Source = src
-	a.Name = dst
+// All returns all of the build Artifacts that can be found with the given
+// query options applied.
+func (s *ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
+	aa := make([]*Artifact, 0)
 
-	err := s.Store.Create(artifactTable, a)
-	return a, errors.Err(err)
+	new := func() database.Model {
+		a := &Artifact{}
+		aa = append(aa, a)
+		return a
+	}
+
+	if err := s.Pool.All(artifactTable, new, opts...); err != nil {
+		return nil, errors.Err(err)
+	}
+	return aa, nil
 }
 
-// Deleted marks all of the artifacts in the given list of ids as deleted. This
-// will set the deleted_at column to the result of time.Now when this is called.
+// Deleted marks all of the Artifacts in the given list of ids as deleted. This
+// will not remove records from the table, but will simply zero-out the columns.
 func (s *ArtifactStore) Deleted(ids ...int64) error {
 	if len(ids) == 0 {
 		return nil
@@ -284,110 +226,51 @@ func (s *ArtifactStore) Deleted(ids ...int64) error {
 		query.Where("id", "IN", query.List(vals...)),
 	)
 
-	_, err := s.DB.Exec(q.Build(), q.Args()...)
-	return errors.Err(err)
+	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// New returns a new Artifact binding any non-nil models to it from the current
-// ArtifactStore.
-func (s *ArtifactStore) New() *Artifact {
-	a := &Artifact{
-		User:  s.User,
-		Build: s.Build,
-		Job:   s.Job,
-	}
-
-	if s.User != nil {
-		a.UserID = s.User.ID
-	}
-
-	if s.Build != nil {
-		a.BuildID = s.Build.ID
-	}
-
-	if s.Job != nil {
-		a.JobID = s.Job.ID
-	}
-	return a
+// collector is for collecting Artifacts for the specified build.
+type collector struct {
+	store   *ArtifactStore
+	userId  int64
+	buildId int64
 }
 
-// All returns a slice of Artifact models, applying each query.Option that is
-// given.
-func (s *ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
-	aa := make([]*Artifact, 0)
-
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-		database.Where(s.Build, "build_id"),
-		database.Where(s.Job, "job_id"),
-	}, opts...)
-
-	err := s.Store.All(&aa, artifactTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-
-	for _, a := range aa {
-		a.Build = s.Build
-		a.Job = s.Job
-	}
-	return aa, errors.Err(err)
-}
-
-// Get returns a single Artifact model, applying each query.Option that is
-// given.
-func (s *ArtifactStore) Get(opts ...query.Option) (*Artifact, error) {
-	a := &Artifact{
-		Build: s.Build,
-		Job:   s.Job,
-	}
-
-	opts = append([]query.Option{
-		database.Where(s.User, "user_id"),
-		database.Where(s.Build, "build_id"),
-		database.Where(s.Job, "job_id"),
-	}, opts...)
-
-	err := s.Store.Get(a, artifactTable, opts...)
-
-	if err == sql.ErrNoRows {
-		err = nil
-	}
-	return a, errors.Err(err)
-}
-
-// Collect looks up the Artifact by the given name, and updates it with the
-// size, md5, and sha256 once the underlying runner.Collector has been
-// successfully invoked. If no underlying collector has been set for the
-// ArtifactStore then it immediately errors.
-func (s *ArtifactStore) Collect(name string, r io.Reader) (int64, error) {
-	if s.collector == nil {
-		return 0, errors.New("cannot collect artifact: nil collector")
-	}
-
-	a, err := s.Get(query.Where("name", "=", query.Arg(name)))
+func (c *collector) Collect(name string, r io.Reader) (int64, error) {
+	part, err := c.store.Partition(c.userId)
 
 	if err != nil {
 		return 0, errors.Err(err)
 	}
 
-	if a.IsZero() {
-		return 0, nil
+	a, ok, err := c.store.Get(
+		query.Where("build_id", "=", query.Arg(c.buildId)),
+		query.Where("name", "=", query.Arg(name)),
+	)
+
+	if err != nil {
+		return 0, errors.Err(err)
+	}
+
+	if !ok {
+		return 0, &fs.PathError{
+			Op:   "collect",
+			Path: name,
+			Err:  fs.ErrNotExist,
+		}
 	}
 
 	md5 := md5.New()
 	sha256 := sha256.New()
 	tee := io.TeeReader(r, io.MultiWriter(md5, sha256))
 
-	n, err := s.collector.Collect(a.Hash, tee)
-
-	if errors.Cause(err) == io.EOF {
-		err = nil
-	}
+	n, err := part.Collect(a.Hash, tee)
 
 	if err != nil {
-		return n, errors.Err(err)
+		return 0, errors.Err(err)
 	}
 
 	q := query.Update(
@@ -398,6 +281,38 @@ func (s *ArtifactStore) Collect(name string, r io.Reader) (int64, error) {
 		query.Where("id", "=", query.Arg(a.ID)),
 	)
 
-	_, err = s.DB.Exec(q.Build(), q.Args()...)
-	return n, errors.Err(err)
+	if _, err := c.store.Exec(q.Build(), q.Args()...); err != nil {
+		return 0, errors.Err(err)
+	}
+	return n, nil
+}
+
+// Collector will configure a collector for storing artifacts collected from
+// the given build. The underlying store will be patitioned using the ID of the
+// user who owns the given build.
+func (s *ArtifactStore) Collector(b *Build) runner.Collector {
+	return &collector{
+		store:   s,
+		userId:  b.UserID,
+		buildId: b.ID,
+	}
+}
+
+func (s *ArtifactStore) Load(fk, pk string, mm ...database.Model) error {
+	vals := database.Values(fk, mm)
+
+	aa, err := s.All(query.Where(pk, "IN", database.List(vals...)))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	loaded := make([]database.Model, 0, len(aa))
+
+	for _, a := range aa {
+		loaded = append(loaded, a)
+	}
+
+	database.Bind(fk, pk, loaded, mm)
+	return nil
 }

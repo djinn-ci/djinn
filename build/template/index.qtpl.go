@@ -85,7 +85,7 @@ func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
 //line build/template/index.qtpl:34
 		qw422016.N().S(` <div class="panel-header"> `)
 //line build/template/index.qtpl:36
-		StreamRenderStatusNav(qw422016, p.URL.Path, p.Status)
+		StreamRenderStatusNav(qw422016, p.URL, p.Tag, p.Status)
 //line build/template/index.qtpl:36
 		qw422016.N().S(` `)
 //line build/template/index.qtpl:37
@@ -183,9 +183,9 @@ func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
 //line build/template/index.qtpl:74
 					for _, t := range b.Tags {
 //line build/template/index.qtpl:74
-						qw422016.N().S(` <a class="pill pill-light" href="?tag=`)
+						qw422016.N().S(` <a class="pill pill-light" href="`)
 //line build/template/index.qtpl:75
-						qw422016.E().S(t.Name)
+						qw422016.E().S(template.LinkToQuery(p.URL, map[string]string{"tag": t.Name}))
 //line build/template/index.qtpl:75
 						qw422016.N().S(`">`)
 //line build/template/index.qtpl:75
@@ -327,7 +327,7 @@ func (p *Index) StreamHeader(qw422016 *qt422016.Writer) {
 //line build/template/index.qtpl:108
 		qw422016.N().S(`<a href="`)
 //line build/template/index.qtpl:108
-		qw422016.E().S(p.URL.Path)
+		qw422016.E().S(template.LinkToQuery(p.URL, map[string]string{"tag": ""}))
 //line build/template/index.qtpl:108
 		qw422016.N().S(`">`)
 //line build/template/index.qtpl:108

@@ -14,7 +14,6 @@ type RepoIndex struct {
 
 	CSRF      htmltemplate.HTML
 	Paginator database.Paginator
-	Connected bool
 	Repos     []*provider.Repo
 	Provider  *provider.Provider
 	Providers []*provider.Provider
@@ -37,27 +36,25 @@ var providerNames = map[string]string{
 
 {% func (p *RepoIndex) Body() %}
 	<div class="panel">
-		{% if p.Connected %}
-			<div class="panel-header">
-				{% stripspace %}
-				<ul class="panel-nav">
-					{% for _, prv := range p.Providers %}
-						<li>
-							<a href="{%s p.URL.Path %}?provider={%s prv.Name %}" {% if p.Provider.Name == prv.Name %}class="active"{% endif %}>{%s providerNames[prv.Name] %}</a>
-						</li>
-					{% endfor %}
-				</ul>
-				{% endstripspace %}
-			</div>
-		{% endif %}
+		<div class="panel-header">
+			{% stripspace %}
+			<ul class="panel-nav">
+				{% for _, prv := range p.Providers %}
+					<li>
+						<a href="{%s p.URL.Path %}?provider={%s prv.Name %}" {% if p.Provider.Name == prv.Name %}class="active"{% endif %}>{%s providerNames[prv.Name] %}</a>
+					</li>
+				{% endfor %}
+			</ul>
+			{% endstripspace %}
+		</div>
 		{% if len(p.Providers) == 0 %}
 			<div class="panel-message muted">
 				No 3rd party Git providers have been configured to connect to.
 			</div>
 		{% else %}
-			{% if !p.Connected %}
+			{% if !p.Provider.Connected %}
 				<div class="panel-message muted">
-					Connect to a Git provider to trigger builds on pushes, and pull requests. Get started by connecting from your account <a href="/settings">settings</a>.
+					Connect to {%s providerNames[p.Provider.Name] %} from your account <a href="/settings">settings</a>.
 				</div>
 			{% elseif len(p.Repos) == 0 %}
 				<div class="panel-message muted">No {%s providerNames[p.Provider.Name] %} repositories.</div>

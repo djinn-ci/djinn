@@ -1,129 +1,82 @@
 package config
 
 import (
-	"fmt"
 	"io"
-	"os"
 
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 
-	"github.com/jmoiron/sqlx"
+	"github.com/andrewpillar/config"
 )
 
 type curatorCfg struct {
 	Pidfile string
 
-	Log logCfg
+	Log map[string]string
 
 	Database databaseCfg
-	Stores   map[string]storeCfg
+
+	Store map[string]storeCfg
 }
 
 type Curator struct {
-	pidfile *os.File
+	pidfile string
 
 	log *log.Logger
 
-	db *sqlx.DB
+	db database.Pool
 
 	artifacts fs.Store
 }
 
+func (c *Curator) Pidfile() string     { return c.pidfile }
+func (c *Curator) DB() database.Pool   { return c.db }
+func (c *Curator) Artifacts() fs.Store { return c.artifacts }
+func (c *Curator) Log() *log.Logger    { return c.log }
+
 func DecodeCurator(name string, r io.Reader) (*Curator, error) {
-	errh := func(name string, line, col int, msg string) {
-		fmt.Fprintf(os.Stderr, "%s,%d:%d - %s\n", name, line, col, msg)
-	}
+	var cfg curatorCfg
 
-	p := newParser(name, r, errh)
+	dec := config.NewDecoder(name, decodeOpts...)
 
-	nodes := p.parse()
-
-	if err := p.err(); err != nil {
+	if err := dec.Decode(&cfg, r); err != nil {
 		return nil, err
 	}
 
-	var cfg0 curatorCfg
-
-	for _, n := range nodes {
-		if err := cfg0.put(n); err != nil {
-			return nil, err
-		}
-	}
+	curator := &Curator{}
 
 	var err error
 
-	cfg := &Curator{}
-	cfg.pidfile, err = mkpidfile(cfg0.Pidfile)
+	curator.pidfile, err = mkpidfile(cfg.Pidfile)
 
 	if err != nil {
 		return nil, err
 	}
 
-	cfg.log = log.New(os.Stdout)
-	cfg.log.SetLevel(cfg0.Log.Level)
-
-	if cfg0.Log.File != "/dev/stdout" {
-		f, err := os.OpenFile(cfg0.Log.File, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
-
-		if err != nil {
-			return nil, err
-		}
-		cfg.log.SetWriter(f)
-	}
-
-	cfg.log.Info.Println("logging initialized, writing to", cfg0.Log.File)
-
-	cfg.db, err = connectdb(cfg.log, cfg0.Database)
+	curator.log, err = logger(cfg.Log)
 
 	if err != nil {
 		return nil, err
 	}
 
-	store, ok := cfg0.Stores["artifacts"]
+	curator.db, err = cfg.Database.connect(curator.log)
+
+	if err != nil {
+		return nil, err
+	}
+
+	s, ok := cfg.Store["artifacts"]
 
 	if !ok {
-		return nil, errors.New("artifact store not configured")
+		return nil, errors.New("artifacts store not configured")
 	}
 
-	cfg.artifacts = blockstores[store.Type](store.Path, store.Limit)
+	curator.artifacts, err = s.store()
 
-	if err := cfg.artifacts.Init(); err != nil {
+	if err != nil {
 		return nil, err
 	}
-	return cfg, nil
+	return curator, nil
 }
-
-func (c *curatorCfg) put(n *node) error {
-	switch n.name {
-	case "pidfile":
-		if n.lit != stringLit {
-			return n.err("pidfile must be a string")
-		}
-		c.Pidfile = n.value
-	case "log":
-		return c.Log.put(n)
-	case "database":
-		return c.Database.put(n)
-	case "store":
-		var cfg storeCfg
-
-		if err := cfg.put(n); err != nil {
-			return err
-		}
-
-		if c.Stores == nil {
-			c.Stores = make(map[string]storeCfg)
-		}
-		c.Stores[n.label] = cfg
-	default:
-		return n.err("unknown configuration parameter: " + n.name)
-	}
-	return nil
-}
-
-func (c *Curator) Pidfile() *os.File   { return c.pidfile }
-func (c *Curator) DB() *sqlx.DB        { return c.db }
-func (c *Curator) Artifacts() fs.Store { return c.artifacts }
-func (c *Curator) Log() *log.Logger    { return c.log }

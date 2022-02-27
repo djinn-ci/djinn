@@ -24,7 +24,8 @@ type Show struct {
 type Job struct {
 	template.BasePage
 
-	Job *build.Job
+	Build *build.Build
+	Job   *build.Job
 }
 
 var timeFormat = "Jan 02, 2006, at 15:04:05"
@@ -51,16 +52,14 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 	<div class="panel">
 		<div class="panel-body">
 			<div class="comment-header">
-				<div class="comment-title">
-					{%= template.RenderShortStatus(b.Status) %}
-					{% if b.Trigger.Comment != "" %}
-						<strong>{%s title %}</strong>
-					{% else %}
-						<em class="muted">No build comment.</em>
-					{% endif %}
-				</div>
+				{%= template.RenderShortStatus(b.Status) %}
+				{% if b.Trigger.Comment != "" %}
+					<strong class="inline-block mt-5 middle">{%s title %}</strong>
+				{% else %}
+					<em class="inline-block mt-5 middle muted">No build comment.</em>
+				{% endif %}
 			</div>
-			{% if b.Trigger.Comment != "" %}<pre>{%s comment %}</pre>{% endif %}
+			{% if comment != "" %}<br/><pre>{%s comment %}</pre>{% endif %}
 		</div>
 		<div class="panel-footer">
 			<strong>{%s b.Trigger.Data["username"] %}</strong>
@@ -177,7 +176,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 
 {% func (p *Show) Header() %}
 	<a href="/" class="back">{% cat "../../static/svg/back.svg" %}</a>
-	{% if !p.Build.Namespace.IsZero() %}
+	{% if p.Build.Namespace != nil %}
 		<a href="{%s p.Build.Namespace.Endpoint() %}">{%s p.Build.Namespace.Name %}</a> /
 	{% endif %}
 	Build #{%v p.Build.Number %}
@@ -282,7 +281,7 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 			</div>
 		</div>
 		<div class="col-75 col-right">
-			{%= RenderTrigger(p.Job.Build) %}
+			{%= RenderTrigger(p.Build) %}
 			<div class="panel">
 				{% if p.Job.Output.Valid %}
 					<div class="panel-header">
@@ -309,11 +308,11 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 {% endfunc %}
 
 {% func (p *Job) Header() %}
-	<a href="{%s p.Job.Build.Endpoint() %}" class="back">{% cat "../../static/svg/back.svg" %}</a>
-	{% if !p.Job.Build.Namespace.IsZero() %}
-		<a href="{%s p.Job.Build.Namespace.Endpoint() %}">{%v p.Job.Build.Namespace.Values()["name"] %}</a> /
+	<a href="{%s p.Build.Endpoint() %}" class="back">{% cat "../../static/svg/back.svg" %}</a>
+	{% if p.Build.Namespace != nil %}
+		<a href="{%s p.Build.Namespace.Endpoint() %}">{%v p.Build.Namespace.Name %}</a> /
 	{% endif %}
- 	Build #{%v p.Job.Build.Number %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
+ 	Build #{%v p.Build.Number %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
 {% endfunc %}
 
 {% func (p *Job) Actions() %}{% endfunc %}

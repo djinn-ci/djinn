@@ -2,6 +2,7 @@ package fs
 
 import (
 	"io"
+	"io/fs"
 
 	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
@@ -12,6 +13,8 @@ type limitedWriter struct {
 	l int64
 	n int64
 }
+
+type PathError = fs.PathError
 
 // Record represents an arbitrary record of data that can be held in a Store. A
 // Record can be used as an io.Writer, io.Reader, io.Seeker, and io.Closer.
@@ -60,23 +63,31 @@ type Store interface {
 	Partition(int64) (Store, error)
 
 	// Create creates a new Record in the store with the given name. If a Record
-	// of any given name already exists then ErrRecordExists should be returned.
+	// of any given name already exists then ErrExists should be returned.
 	Create(string) (Record, error)
 
 	// Open returns an existing Record from the Store with the given name. If
-	// Record does not exist, then ErrRecordNotFound should be returned.
+	// Record does not exist, then ErrNotExist should be returned.
 	Open(string) (Record, error)
 
 	// Remove removes an existing Record from the Store with the given name. If
-	// the Record does not exist, then ErrRecordNotFound should be returned.
+	// the Record does not exist, then ErrNotExist should be returned.
 	Remove(string) error
+
+	// Limit returns the maximum number of bytes a Record can be in a Store.
+	// This should return 0 if there is no limit.
+	Limit() int64
 }
 
 var (
-	ErrRecordExists   = errors.New("record exists")
-	ErrRecordNotFound = errors.New("record not found")
-	ErrRecordClosed   = errors.New("record closed")
-	ErrWriteLimit     = errors.New("write limit reached")
+	// Drop in compatibility with io/fs.
+	ErrInvalid    = fs.ErrInvalid
+	ErrPermission = fs.ErrPermission
+	ErrExist      = fs.ErrExist
+	ErrNotExist   = fs.ErrNotExist
+	ErrClosed     = fs.ErrClosed
+
+	ErrWriteLimit = errors.New("write limit reached")
 )
 
 // NewLimitedWriter wraps the given io.Writer, and applies a limit of l to the

@@ -13,33 +13,39 @@ import (
 
 	"github.com/andrewpillar/query"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/mcmathja/curlyq"
 )
 
 // Batcher provides a way of retrieving batches of cron jobs that are ready
 // to be executed.
 type Batcher struct {
-	err    error
-	atEOF  bool
-	page   int64
-	limit  int64
-	store  *Store
-	builds *build.Store
-	batch  []*Cron
-	errh   func(error)
+	err        error
+	atEOF      bool
+	page       int64
+	limit      int64
+	crons      Store
+	builds     *build.Store
+	users      user.Store
+	namespaces namespace.Store
+	batch      []*Cron
+	errh       func(error)
 }
 
 // NewBatcher returns a new Batcher using the given Store to retrieve cron jobs
 // from, and setting the size of each batch to the given limit.
-func NewBatcher(db *sqlx.DB, hasher *crypto.Hasher, limit int64, errh func(error)) *Batcher {
+func NewBatcher(db database.Pool, hasher *crypto.Hasher, drivers map[string]*curlyq.Producer, limit int64, errh func(error)) *Batcher {
 	return &Batcher{
-		store:  NewStore(db),
-		builds: build.NewStoreWithHasher(db, hasher),
-		errh:   errh,
-		page:   1,
-		limit:  limit,
+		crons: Store{Pool: db},
+		builds: &build.Store{
+			Pool:         db,
+			Hasher:       hasher,
+			DriverQueues: drivers,
+		},
+		users:      user.Store{Pool: db},
+		namespaces: namespace.Store{Pool: db},
+		errh:       errh,
+		page:       1,
+		limit:      limit,
 	}
 }
 
@@ -54,14 +60,14 @@ func (b *Batcher) Load() bool {
 		return false
 	}
 
-	paginator, err := b.store.Paginate(b.page, b.limit, query.Where("NOW()", ">=", query.Lit("next_run")))
+	paginator, err := b.crons.Paginate(b.page, b.limit, query.Where("NOW()", ">=", query.Lit("next_run")))
 
 	if err != nil {
 		b.err = errors.Err(err)
 		return false
 	}
 
-	cc, err := b.store.All(
+	cc, err := b.crons.All(
 		query.Where("NOW()", ">=", query.Lit("next_run")),
 		query.Limit(paginator.Limit),
 		query.Offset(paginator.Offset),
@@ -76,9 +82,13 @@ func (b *Batcher) Load() bool {
 		return false
 	}
 
-	mm := database.ModelSlice(len(cc), Model(cc))
+	userIds := make([]interface{}, 0, len(cc))
 
-	uu, err := user.NewStore(b.store.DB).All(query.Where("id", "IN", query.List(database.MapKey("user_id", mm)...)))
+	for _, c := range cc {
+		userIds = append(userIds, c.UserID)
+	}
+
+	uu, err := b.users.All(query.Where("id", "IN", query.List(userIds...)))
 
 	if err != nil {
 		b.err = errors.Err(err)
@@ -109,22 +119,19 @@ func (b *Batcher) Batch() []*Cron { return b.batch }
 func (b *Batcher) Err() error { return b.err }
 
 // Invoke will submit a build for each job in the current batch.
-func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Producer) int {
-	namespaces := namespace.NewStore(b.store.DB)
-	users := user.NewStore(b.store.DB)
-
+func (b *Batcher) Invoke(ctx context.Context) int {
 	n := 0
 
 	for _, c := range b.batch {
 		if c.NamespaceID.Valid {
-			n, err := namespaces.Get(query.Where("id", "=", query.Arg(c.NamespaceID.Int64)))
+			n, _, err := b.namespaces.Get(query.Where("id", "=", query.Arg(c.NamespaceID.Int64)))
 
 			if err != nil {
 				b.errh(fmt.Errorf("failed to get namespace: %v", errors.Err(err)))
 				continue
 			}
 
-			u, err := users.Get(query.Where("user_id", "=", query.Arg(n.UserID)))
+			u, _, err := b.users.Get(query.Where("user_id", "=", query.Arg(n.UserID)))
 
 			if err != nil {
 				b.errh(fmt.Errorf("failed to get namespace owner: %v", errors.Err(err)))
@@ -133,7 +140,7 @@ func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Produ
 			c.Manifest.Namespace = n.Path + "@" + u.Username
 		}
 
-		build, err := b.store.Invoke(c)
+		build, err := b.crons.Invoke(c)
 
 		if err != nil {
 			b.errh(fmt.Errorf("failed to invoke cron: %v", errors.Err(err)))
@@ -147,14 +154,7 @@ func (b *Batcher) Invoke(ctx context.Context, producers map[string]*curlyq.Produ
 			typ += "-" + arch
 		}
 
-		queue, ok := producers[typ]
-
-		if !ok {
-			b.errh(fmt.Errorf("invalid build driver: %v", build.Manifest.Driver["type"]))
-			continue
-		}
-
-		if err := b.builds.Submit(ctx, queue, "djinn-scheduler", build); err != nil {
+		if err := b.builds.Submit(ctx, "djinn-scheduler", build); err != nil {
 			b.errh(fmt.Errorf("failed to submit build: %v", errors.Err(err)))
 			continue
 		}

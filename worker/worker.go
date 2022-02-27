@@ -12,10 +12,13 @@ import (
 	"time"
 
 	"djinn-ci.com/build"
+	"djinn-ci.com/config"
 	"djinn-ci.com/crypto"
+	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
+	"djinn-ci.com/image"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/namespace"
@@ -28,14 +31,12 @@ import (
 
 	"github.com/go-redis/redis"
 
-	"github.com/jmoiron/sqlx"
-
 	"github.com/mcmathja/curlyq"
 )
 
 type Worker struct {
 	// DB is the client to the SQL database.
-	DB *sqlx.DB
+	DB database.Pool
 
 	// Redis is the client to the Redis database from where submitted builds
 	// will be processed from.
@@ -49,9 +50,9 @@ type Worker struct {
 	// worker on build failures.
 	Admin string
 
-	// Crypto is the block cipher to use for decrypting access tokens when
+	// AESGCM is the block cipher to use for decrypting access tokens when
 	// interacting with a provider's REST API.
-	Crypto *crypto.AESGCM
+	AESGCM *crypto.AESGCM
 
 	// Log is the logger implementation used for logging information about the
 	// running builds.
@@ -65,8 +66,8 @@ type Worker struct {
 	Driver  string        // Driver is the name of the driver the worker is configured for.
 	Timeout time.Duration // Timeout is the maximum duration a build can run for.
 
-	Init   driver.Init   // Init is the initialization function for the worker's driver.
-	Config driver.Config // Config is the global configuration for the worker's driver.
+	DriverInit   driver.Init   // DriverInit is the initialization function for the worker's driver.
+	DriverConfig driver.Config // DriverConfig is the global configuration for the worker's driver.
 
 	// Providers is the registry containing the provider client implementations
 	// used for updating a build's commit status, if submitted via a pull
@@ -82,6 +83,27 @@ var passedStatuses = map[runner.Status]struct{}{
 	runner.Running:            {},
 	runner.Passed:             {},
 	runner.PassedWithFailures: {},
+}
+
+func New(cfg *config.Worker, drivercfg driver.Config, fn driver.Init) *Worker {
+	smtp, smtpadmin := cfg.SMTP()
+
+	return &Worker{
+		DB:           cfg.DB(),
+		Redis:        cfg.Redis(),
+		SMTP:         smtp,
+		Admin:        smtpadmin,
+		AESGCM:       cfg.AESGCM(),
+		Log:          cfg.Log(),
+		Consumer:     cfg.Consumer(),
+		Timeout:      cfg.Timeout(),
+		Driver:       cfg.Driver(),
+		DriverInit:   fn,
+		DriverConfig: drivercfg,
+		Providers:    cfg.Providers(),
+		Objects:      cfg.Objects(),
+		Artifacts:    cfg.Artifacts(),
+	}
 }
 
 func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
@@ -111,7 +133,9 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	w.Log.Debug.Println("build id:", payload.BuildID)
 
-	b, err := build.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(payload.BuildID)))
+	builds := build.Store{Pool: w.DB}
+
+	b, _, err := builds.Get(query.Where("id", "=", query.Arg(payload.BuildID)))
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
@@ -122,61 +146,77 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return nil
 	}
 
-	b.User, err = user.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.UserID)))
+	users := user.Store{Pool: w.DB}
+
+	b.User, _, err = users.Get(query.Where("id", "=", query.Arg(b.UserID)))
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
-	b.Trigger, err = build.NewTriggerStore(w.DB, b).Get()
+	triggers := build.TriggerStore{Pool: w.DB}
+
+	b.Trigger, _, err = triggers.Get()
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
-	b.Namespace, err = namespace.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
+	namespaces := namespace.Store{Pool: w.DB}
+
+	b.Namespace, _, err = namespaces.Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 	}
 
 	if b.Namespace != nil {
-		b.Namespace.User, err = user.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.Namespace.UserID)))
+		b.Namespace.User, _, err = users.Get(query.Where("id", "=", query.Arg(b.Namespace.UserID)))
 
 		if err != nil {
 			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		}
 	}
 
-	p, err := provider.NewStore(w.DB).Get(query.Where("id", "=", query.Arg(b.Trigger.ProviderID)))
+	providers := provider.Store{
+		Pool:    w.DB,
+		AESGCM:  w.AESGCM,
+		Clients: w.Providers,
+	}
+
+	p, fromProvider, err := providers.Get(query.Where("id", "=", query.Arg(b.Trigger.ProviderID)))
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
-	r, err := provider.NewRepoStore(w.DB, p).Get(query.Where("id", "=", query.Arg(b.Trigger.RepoID)))
+	var repo *provider.Repo
 
-	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-		return errors.Err(err)
-	}
+	if fromProvider {
+		repos := provider.RepoStore{Pool: w.DB}
 
-	if b.Trigger.Type == build.Pull {
-		err := p.SetCommitStatus(
-			w.Crypto,
-			w.Providers,
-			r,
-			runner.Running,
-			payload.Host+b.Endpoint(),
-			b.Trigger.Data["sha"],
+		r, _, err := repos.Get(
+			query.Where("id", "=", query.Arg(b.Trigger.RepoID)),
+			query.Where("provider_id", "=", query.Arg(p.ID)),
 		)
 
 		if err != nil {
 			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 			return errors.Err(err)
+		}
+
+		repo = r
+
+		if b.Trigger.Type == build.Pull {
+			url := payload.Host + b.Endpoint()
+
+			if err := p.SetCommitStatus(repo, runner.Running, url, b.Trigger.Data["sha"]); err != nil {
+				w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
+				return errors.Err(err)
+			}
 		}
 	}
 
@@ -201,7 +241,9 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	d, err := build.NewDriverStore(w.DB, b).Get()
+	drivers := build.DriverStore{Pool: w.DB}
+
+	d, _, err := drivers.Get(query.Where("build_id", "=", query.Arg(b.ID)))
 
 	if err != nil {
 		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
@@ -223,23 +265,16 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	b.Status = status
 
-	w.Queue.Produce(ctx, &build.Event{
-		Build: b,
-	})
+	w.Queue.Produce(ctx, &build.Event{Build: b})
 
-	if b.Trigger.Type == build.Pull {
-		err := p.SetCommitStatus(
-			w.Crypto,
-			w.Providers,
-			r,
-			status,
-			payload.Host+b.Endpoint(),
-			b.Trigger.Data["sha"],
-		)
+	if fromProvider {
+		if b.Trigger.Type == build.Pull {
+			url := payload.Host + b.Endpoint()
 
-		if err != nil {
-			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-			return errors.Err(err)
+			if err := p.SetCommitStatus(repo, status, url, b.Trigger.Data["sha"]); err != nil {
+				w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
+				return errors.Err(err)
+			}
 		}
 	}
 
@@ -251,20 +286,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return nil
 	}
 
-	to := make([]string, 0)
-
-	users := user.NewStore(w.DB)
-
-	u, err := users.Get(query.Where("id", "=", query.Arg(b.UserID)))
-
-	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-		return errors.Err(err)
-	}
-
-	b.User = u
-
-	to = append(to, u.Email)
+	to := []string{b.User.Email}
 
 	if b.NamespaceID.Valid {
 		uu, err := users.All(
@@ -325,23 +347,37 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 // Run begins the worker for handling builds.
 func (w *Worker) Run(ctx context.Context) error {
 	gob.Register(build.Payload{})
-	return errors.Err(w.Consumer.ConsumeCtx(ctx, w.handle))
+
+	if err := w.Consumer.ConsumeCtx(ctx, w.handle); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 // Runner configures a new runner for running the given build.
 func (w *Worker) Runner(b *build.Build) *Runner {
 	return &Runner{
-		db:        w.DB,
-		crypto:    w.Crypto,
-		log:       w.Log,
-		build:     b,
-		objects:   w.Objects,
-		artifacts: w.Artifacts,
-		driver:    w.Driver,
-		init:      w.Init,
-		config:    w.Config,
-		buf:       &bytes.Buffer{},
-		bufs:      make(map[int64]*bytes.Buffer),
-		jobs:      make(map[string]*build.Job),
+		db:     w.DB,
+		aesgcm: w.AESGCM,
+		log:    w.Log,
+		buf:    &bytes.Buffer{},
+		build:  b,
+		builds: &build.Store{Pool: w.DB},
+		images: &image.Store{Pool: w.DB},
+		vars:   build.VariableStore{Pool: w.DB},
+		keys:   build.KeyStore{Pool: w.DB},
+		stages: build.StageStore{Pool: w.DB},
+		jobs:   build.JobStore{Pool: w.DB},
+		objects: &build.ObjectStore{
+			Pool:  w.DB,
+			Store: w.Objects,
+		},
+		artifacts: &build.ArtifactStore{
+			Pool:  w.DB,
+			Store: w.Artifacts,
+		},
+		driver:     w.Driver,
+		driverinit: w.DriverInit,
+		drivercfg:  w.DriverConfig,
 	}
 }

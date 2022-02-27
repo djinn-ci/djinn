@@ -3,6 +3,7 @@ package errors
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -13,7 +14,7 @@ var skip = 1
 
 // Slice implements the builtin error interface. This captures a slice of
 // errors.
-type Slice []error
+type Slice []string
 
 // Error implements the builtin error interface. This captures information
 // about the underlying error itself, and where the error occurred.
@@ -33,18 +34,10 @@ func New(s string) error {
 	return &e
 }
 
-// MultiError returns a concatenation of the given errors.
-func MultiError(err ...error) error {
-	e := Slice(err)
-	return &e
-}
-
 // Cause recurses down the given error, if it is Error, to find the underlying
 // Err that triggered it.
 func Cause(err error) error {
-	e, ok := err.(*Error)
-
-	if ok {
+	if e, ok := err.(*Error); ok {
 		return Cause(e.Err)
 	}
 	return err
@@ -112,10 +105,8 @@ func (e Slice) Err() error {
 // Error returns a formatted string of the errors in the slice. Each error will
 // be on a separate line in the returned string.
 func (e Slice) Error() string {
-	buf := &bytes.Buffer{}
+	var buf bytes.Buffer
 
-	for _, err := range e {
-		buf.WriteString(err.Error() + "\n")
-	}
+	json.NewEncoder(&buf).Encode(e)
 	return buf.String()
 }

@@ -230,5 +230,8 @@ func (c *Client) Delete(url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	req.Header.Set("Accept", "application/json; charset=utf-8")
+
 	return c.Do(req)
 }

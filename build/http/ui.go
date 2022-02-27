@@ -88,44 +88,30 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
+		errs := webutil.NewValidationErrors()
+
+		switch err := cause.(type) {
+		case webutil.ValidationErrors:
+			if errs, ok := err["fatal"]; ok {
 				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
 				alert.Flash(sess, alert.Danger, "Failed to submit build")
 				h.RedirectBack(w, r)
 				return
 			}
-
-			webutil.FlashFormWithErrors(sess, f, verrs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		errs := webutil.NewValidationErrors()
-
-		if derr, ok := cause.(*driver.Error); ok {
-			errs.Add("manifest", derr)
-
-			webutil.FlashFormWithErrors(sess, f, errs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		switch cause {
-		case namespace.ErrName:
-			errs.Add("manifest", cause)
-
-			webutil.FlashFormWithErrors(sess, f, errs)
-			h.RedirectBack(w, r)
-		case namespace.ErrPermission, namespace.ErrOwner:
-			alert.Flash(sess, alert.Danger, "Failed to create build: could not add to namespace")
-			sess.AddFlash(f.Fields(), "form_fields")
-			h.RedirectBack(w, r)
+			errs = err
+		case *namespace.PathError:
+			errs.Add("namespace", err)
+		case *driver.Error:
+			errs.Add("manifest", err)
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			alert.Flash(sess, alert.Danger, "Failed to submit build")
 			h.RedirectBack(w, r)
+			return
 		}
+
+		webutil.FlashFormWithErrors(sess, f, errs)
+		h.RedirectBack(w, r)
 		return
 	}
 

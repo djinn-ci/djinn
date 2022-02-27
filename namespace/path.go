@@ -184,7 +184,7 @@ func (p *Path) ResolveOrCreate(db database.Pool, userId int64) (*user.User, *Nam
 	u, n, err := p.Resolve(db, userId)
 
 	if err != nil {
-		return nil, nil, errors.Err(err)
+		return nil, nil, err
 	}
 
 	if n != nil {

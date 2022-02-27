@@ -23,6 +23,7 @@ type Create struct {
 			<div class="form-field">
 				<label class="label" for="namespace">Namespace <small>(optional)</small></label>
 				<input class="form-text" type="text" id="namescpace" name="namespace" value="{%s p.Fields["namespace"] %}" autocomplete="off"/>
+				{%= p.Error("namespace") %}
 			</div>
 			<div class="form-field">
 				<label class="label" for="name">Name</label>

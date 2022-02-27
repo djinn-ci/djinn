@@ -86,36 +86,28 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
+		errs := webutil.NewValidationErrors()
+
+		switch err := cause.(type) {
+		case webutil.ValidationErrors:
+			if errs, ok := err["fatal"]; ok {
 				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
 				alert.Flash(sess, alert.Danger, "Failed to create cron job")
 				h.RedirectBack(w, r)
 				return
 			}
-
-			webutil.FlashFormWithErrors(sess, f, verrs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		errs := webutil.NewValidationErrors()
-
-		switch cause {
-		case namespace.ErrName:
-			errs.Add("namespace", cause)
-
-			sess.AddFlash(f.Fields(), "form_fields")
-			sess.AddFlash(errs, "form_errors")
-			h.RedirectBack(w, r)
-		case namespace.ErrPermission, namespace.ErrOwner:
-			alert.Flash(sess, alert.Danger, "Failed to create cron job: could not add to namespace")
-			h.RedirectBack(w, r)
+			errs = err
+		case *namespace.PathError:
+			errs.Add("namespace", err)
 		default:
 			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
 			alert.Flash(sess, alert.Danger, "Failed to create cron job")
 			h.RedirectBack(w, r)
+			return
 		}
+
+		webutil.FlashFormWithErrors(sess, f, errs)
+		h.RedirectBack(w, r)
 		return
 	}
 

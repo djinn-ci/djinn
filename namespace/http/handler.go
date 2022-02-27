@@ -244,7 +244,16 @@ func (h *Handler) CanAccessResource(name string, get database.GetModelFunc, u *u
 		return false, errors.Err(err)
 	}
 
-	if err := root.HasAccess(h.DB, u.ID); err != nil {
+	if r.Method == "GET" {
+		if err := root.HasAccess(h.DB, u.ID); err != nil {
+			if errors.Is(err, namespace.ErrPermission) {
+				return false, nil
+			}
+			return false, errors.Err(err)
+		}
+	}
+
+	if err := root.IsCollaborator(h.DB, u.ID); err != nil {
 		if errors.Is(err, namespace.ErrPermission) {
 			return false, nil
 		}

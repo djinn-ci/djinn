@@ -45,20 +45,15 @@ func (h API) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		errs := webutil.NewValidationErrors()
-
-		switch cause {
-		case namespace.ErrName:
-			errs.Add("namespace", cause)
-
-			webutil.JSON(w, errs, http.StatusBadRequest)
-		case namespace.ErrPermission, namespace.ErrOwner:
-			webutil.JSON(w, map[string][]string{"namespace": {"Could not find namespace"}}, http.StatusBadRequest)
+		switch err := cause.(type) {
+		case webutil.ValidationErrors:
+			if errs, ok := err["fatal"]; ok {
+				h.InternalServerError(w, r, errors.Slice(errs))
+				return
+			}
+			webutil.JSON(w, err, http.StatusBadRequest)
+		case *namespace.PathError:
+			webutil.JSON(w, map[string][]string{"namespace": {err.Error()}}, http.StatusBadRequest)
 		default:
 			h.InternalServerError(w, r, errors.Err(err))
 		}

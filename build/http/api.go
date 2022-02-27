@@ -51,31 +51,20 @@ func (h API) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
+		errs := webutil.NewValidationErrors()
+
+		switch err := cause.(type) {
+		case webutil.ValidationErrors:
+			if errs, ok := err["fatal"]; ok {
 				h.InternalServerError(w, r, errors.Slice(errs))
 				return
 			}
-
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		errs := webutil.NewValidationErrors()
-
-		if derr, ok := cause.(*driver.Error); ok {
-			errs.Add("manifest", derr)
+			webutil.JSON(w, err, http.StatusBadRequest)
+		case *namespace.PathError:
+			webutil.JSON(w, map[string][]string{"namespace": {err.Error()}}, http.StatusBadRequest)
+		case *driver.Error:
+			errs.Add("manifest", err)
 			webutil.JSON(w, errs, http.StatusBadRequest)
-			return
-		}
-
-		switch cause {
-		case namespace.ErrName:
-			errs.Add("manifest", cause)
-
-			webutil.JSON(w, errs, http.StatusBadRequest)
-		case namespace.ErrPermission, namespace.ErrOwner:
-			webutil.JSON(w, map[string][]string{"namespace": {"Could not find namespace"}}, http.StatusBadRequest)
 		default:
 			h.InternalServerError(w, r, errors.Err(err))
 		}

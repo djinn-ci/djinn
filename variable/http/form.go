@@ -53,6 +53,19 @@ func (v Validator) Validate(errs webutil.ValidationErrors) {
 		_, n, err := v.Form.Namespace.ResolveOrCreate(v.Variables.Pool, v.UserID)
 
 		if err != nil {
+			if perr, ok := err.(*namespace.PathError); ok {
+				errs.Add("namespace", perr)
+				return
+			}
+			errs.Add("fatal", err)
+			return
+		}
+
+		if err := n.IsCollaborator(v.Variables.Pool, v.UserID); err != nil {
+			if errors.Is(err, namespace.ErrPermission) {
+				errs.Add("namespace", err)
+				return
+			}
 			errs.Add("fatal", err)
 			return
 		}

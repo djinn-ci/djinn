@@ -82,50 +82,36 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		cause := errors.Cause(err)
 
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
+		errs := webutil.NewValidationErrors()
+
+		switch err := cause.(type) {
+		case webutil.ValidationErrors:
+			if errs, ok := err["fatal"]; ok {
 				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
 				alert.Flash(sess, alert.Danger, "Failed to create image")
 				h.RedirectBack(w, r)
 				return
 			}
-
-			webutil.FlashFormWithErrors(sess, f, verrs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		errs := webutil.NewValidationErrors()
-
-		switch cause {
-		case image.ErrInvalidScheme:
-			errs.Add("download_url", cause)
-
-			sess.AddFlash(errs, "form_errors")
-			h.RedirectBack(w, r)
-			return
-		case image.ErrMissingPassword:
-			errs.Add("download_url", cause)
-
-			sess.AddFlash(errs, "form_errors")
-			h.RedirectBack(w, r)
-			return
-		case namespace.ErrName:
-			errs.Add("namespace", cause)
-
-			sess.AddFlash(errs, "form_errors")
-			h.RedirectBack(w, r)
-			return
-		case namespace.ErrPermission, namespace.ErrOwner:
-			alert.Flash(sess, alert.Danger, "Failed to create image: could not add to namespace")
-			h.RedirectBack(w, r)
-			return
+			errs = err
+		case *namespace.PathError:
+			errs.Add("namespace", err)
 		default:
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to create image")
-			h.RedirectBack(w, r)
-			return
+			switch cause {
+			case image.ErrInvalidScheme:
+				errs.Add("download_url", cause)
+			case image.ErrMissingPassword:
+				errs.Add("download_url", cause)
+			default:
+				h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+				alert.Flash(sess, alert.Danger, "Failed to create image")
+				h.RedirectBack(w, r)
+				return
+			}
 		}
+
+		webutil.FlashFormWithErrors(sess, f, errs)
+		h.RedirectBack(w, r)
+		return
 	}
 
 	alert.Flash(sess, alert.Success, "Image has been added: "+i.Name)

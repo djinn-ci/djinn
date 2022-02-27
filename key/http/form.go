@@ -1,6 +1,7 @@
 package http
 
 import (
+	"djinn-ci.com/errors"
 	"djinn-ci.com/key"
 	"djinn-ci.com/namespace"
 
@@ -59,6 +60,19 @@ func (v *Validator) Validate(errs webutil.ValidationErrors) {
 			_, n, err := v.Form.Namespace.ResolveOrCreate(v.Keys.Pool, v.UserID)
 
 			if err != nil {
+				if perr, ok := err.(*namespace.PathError); ok {
+					errs.Add("namespace", perr)
+					return
+				}
+				errs.Add("fatal", err)
+				return
+			}
+
+			if err := n.IsCollaborator(v.Keys.Pool, v.UserID); err != nil {
+				if errors.Is(err, namespace.ErrPermission) {
+					errs.Add("namespace", err)
+					return
+				}
 				errs.Add("fatal", err)
 				return
 			}

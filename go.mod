@@ -11,7 +11,7 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/andrewpillar/config v0.0.0-20220213201933-b38b905742d8 // indirect
 	github.com/andrewpillar/query v0.0.0-20220127183121-0af49c6ce2aa
-	github.com/andrewpillar/webutil v0.0.0-20220219222643-e79f3d917492
+	github.com/andrewpillar/webutil v0.0.0-20220227170840-e74846c9f4bd
 	github.com/docker/distribution v2.7.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -22,6 +22,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/csrf v1.6.2
 	github.com/gorilla/mux v1.7.4
+	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.1
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4

@@ -53,6 +53,25 @@ func CreateObject(cli *Client, p ObjectParams) (*Object, error) {
 	return &o, nil
 }
 
+func (o *Object) Get(cli *Client) error {
+	resp, err := cli.Get(o.URL.Path, "application/json; charset=utf-8")
+
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return cli.err(resp)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(o); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (o *Object) Data(cli *Client) (io.ReadCloser, error) {
 	resp, err := cli.Get(o.URL.Path, o.Type)
 

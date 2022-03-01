@@ -7,22 +7,23 @@ package template
 //line variable/template/create.qtpl:2
 import (
 	"djinn-ci.com/template"
+	"djinn-ci.com/variable"
 )
 
-//line variable/template/create.qtpl:7
+//line variable/template/create.qtpl:8
 import (
 	qtio422016 "io"
 
 	qt422016 "github.com/valyala/quicktemplate"
 )
 
-//line variable/template/create.qtpl:7
+//line variable/template/create.qtpl:8
 var (
 	_ = qtio422016.Copy
 	_ = qt422016.AcquireByteBuffer
 )
 
-//line variable/template/create.qtpl:8
+//line variable/template/create.qtpl:9
 type Create struct {
 	template.BasePage
 	template.Form
@@ -31,199 +32,207 @@ type Create struct {
 	Value string
 }
 
-//line variable/template/create.qtpl:18
+//line variable/template/create.qtpl:19
 func (p *Create) StreamTitle(qw422016 *qt422016.Writer) {
-//line variable/template/create.qtpl:18
+//line variable/template/create.qtpl:19
 	qw422016.N().S(` Create Variable - Djinn CI `)
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 }
 
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 func (p *Create) WriteTitle(qq422016 qtio422016.Writer) {
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 	p.StreamTitle(qw422016)
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 }
 
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 func (p *Create) Title() string {
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 	p.WriteTitle(qb422016)
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 	qs422016 := string(qb422016.B)
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 	return qs422016
-//line variable/template/create.qtpl:20
+//line variable/template/create.qtpl:21
 }
 
-//line variable/template/create.qtpl:22
+//line variable/template/create.qtpl:23
 func (p *Create) StreamBody(qw422016 *qt422016.Writer) {
-//line variable/template/create.qtpl:22
+//line variable/template/create.qtpl:23
 	qw422016.N().S(` <div class="panel"> <form class="panel-body slim" method="POST" action="/variables"> `)
-//line variable/template/create.qtpl:25
+//line variable/template/create.qtpl:26
 	qw422016.N().S(string(p.CSRF))
-//line variable/template/create.qtpl:25
+//line variable/template/create.qtpl:26
 	qw422016.N().S(` <div class="form-field"> <label class="label" for="namespace">Namespace <small>(optional)</small></label> <input class="form-text" type="text" id="namespace" name="namespace" value="`)
-//line variable/template/create.qtpl:28
+//line variable/template/create.qtpl:29
 	qw422016.E().S(p.Fields["namespace"])
-//line variable/template/create.qtpl:28
-	qw422016.N().S(`" autocomplete="off"/> `)
 //line variable/template/create.qtpl:29
+	qw422016.N().S(`" autocomplete="off"/> `)
+//line variable/template/create.qtpl:30
 	p.StreamError(qw422016, "namespace")
-//line variable/template/create.qtpl:29
+//line variable/template/create.qtpl:30
 	qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="key">Key</label> <input class="form-text" type="text" id="key" name="key" value="`)
-//line variable/template/create.qtpl:33
+//line variable/template/create.qtpl:34
 	qw422016.E().S(p.Fields["key"])
-//line variable/template/create.qtpl:33
-	qw422016.N().S(`" autocomplete="off"/> `)
 //line variable/template/create.qtpl:34
+	qw422016.N().S(`" autocomplete="off"/> `)
+//line variable/template/create.qtpl:35
 	p.StreamError(qw422016, "key")
-//line variable/template/create.qtpl:34
+//line variable/template/create.qtpl:35
 	qw422016.N().S(` </div> <div class="form-field"> <label class="label" for="value">Value</label> <input class="form-text" type="text" id="value" name="value" value="`)
-//line variable/template/create.qtpl:38
+//line variable/template/create.qtpl:39
 	qw422016.E().S(p.Fields["value"])
-//line variable/template/create.qtpl:38
+//line variable/template/create.qtpl:39
 	qw422016.N().S(`" autocomplete="off"/> `)
-//line variable/template/create.qtpl:39
+//line variable/template/create.qtpl:40
 	p.StreamError(qw422016, "value")
-//line variable/template/create.qtpl:39
-	qw422016.N().S(` </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Create</button> </div> </form> </div> `)
+//line variable/template/create.qtpl:40
+	qw422016.N().S(` </div> <div class="form-field"> <label class="form-option"> <input class="form-selector" type="checkbox" name="mask" checked="`)
+//line variable/template/create.qtpl:44
+	qw422016.E().S(p.Fields["mask"])
+//line variable/template/create.qtpl:44
+	qw422016.N().S(`"/> <strong>Mask variable</strong> <div class="form-desc">Mask the variable value and replace it with <span class="code">`)
 //line variable/template/create.qtpl:46
+	qw422016.E().S(variable.MaskString)
+//line variable/template/create.qtpl:46
+	qw422016.N().S(` in the build logs</div> </label> </div> <div class="form-field"> <button type="submit" class="btn btn-primary">Create</button> </div> </form> </div> `)
+//line variable/template/create.qtpl:54
 }
 
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 func (p *Create) WriteBody(qq422016 qtio422016.Writer) {
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 	p.StreamBody(qw422016)
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 }
 
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 func (p *Create) Body() string {
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 	p.WriteBody(qb422016)
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 	qs422016 := string(qb422016.B)
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 	return qs422016
-//line variable/template/create.qtpl:46
+//line variable/template/create.qtpl:54
 }
 
-//line variable/template/create.qtpl:48
+//line variable/template/create.qtpl:56
 func (p *Create) StreamHeader(qw422016 *qt422016.Writer) {
-//line variable/template/create.qtpl:48
+//line variable/template/create.qtpl:56
 	qw422016.N().S(` <a class="back" href="/variables">`)
-//line variable/template/create.qtpl:49
+//line variable/template/create.qtpl:57
 	qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M20.016 11.016v1.969h-12.188l5.578 5.625-1.406 1.406-8.016-8.016 8.016-8.016 1.406 1.406-5.578 5.625h12.188z"></path>
 </svg>
 `)
-//line variable/template/create.qtpl:49
+//line variable/template/create.qtpl:57
 	qw422016.N().S(`</a> Create Variable `)
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 }
 
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 func (p *Create) WriteHeader(qq422016 qtio422016.Writer) {
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 	p.StreamHeader(qw422016)
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 }
 
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 func (p *Create) Header() string {
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 	p.WriteHeader(qb422016)
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 	qs422016 := string(qb422016.B)
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 	return qs422016
-//line variable/template/create.qtpl:50
+//line variable/template/create.qtpl:58
 }
 
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 func (p *Create) StreamActions(qw422016 *qt422016.Writer) {
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 }
 
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 func (p *Create) WriteActions(qq422016 qtio422016.Writer) {
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 	p.StreamActions(qw422016)
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 }
 
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 func (p *Create) Actions() string {
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 	p.WriteActions(qb422016)
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 	qs422016 := string(qb422016.B)
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 	return qs422016
-//line variable/template/create.qtpl:52
+//line variable/template/create.qtpl:60
 }
 
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 func (p *Create) StreamNavigation(qw422016 *qt422016.Writer) {
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 }
 
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 func (p *Create) WriteNavigation(qq422016 qtio422016.Writer) {
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 	p.StreamNavigation(qw422016)
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 }
 
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 func (p *Create) Navigation() string {
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 	p.WriteNavigation(qb422016)
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 	qs422016 := string(qb422016.B)
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 	return qs422016
-//line variable/template/create.qtpl:53
+//line variable/template/create.qtpl:61
 }

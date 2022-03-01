@@ -32,6 +32,21 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	flashes := sess.Flashes("variable_id")
+
+	var unmaskId int64
+
+	if len(flashes) > 0 {
+		unmaskId, _ = flashes[0].(int64)
+	}
+
+	for _, v := range vv {
+		if v.ID == unmaskId && v.Masked {
+			continue
+		}
+		v.Value = variable.MaskString
+	}
+
 	if err := variable.LoadNamespaces(h.DB, vv...); err != nil {
 		h.InternalServerError(w, r, errors.Err(err))
 		return
@@ -108,6 +123,12 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/variables")
 }
 
+func (h UI) Unmask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+	sess.AddFlash(v.ID, "variable_id")
+	h.RedirectBack(w, r)
+}
+
 func (h UI) Destroy(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -132,6 +153,7 @@ func RegisterUI(srv *server.Server) {
 	sr.HandleFunc("", user.WithUser(ui.Index)).Methods("GET")
 	sr.HandleFunc("/create", user.WithUser(ui.Create)).Methods("GET")
 	sr.HandleFunc("", user.WithUser(ui.Store)).Methods("POST")
+	sr.HandleFunc("/{variable:[0-9]+}/unmask", user.WithUser(ui.WithVariable(ui.Unmask))).Methods("PATCH")
 	sr.HandleFunc("/{variable:[0-9]+}", user.WithUser(ui.WithVariable(ui.Destroy))).Methods("DELETE")
 	sr.Use(srv.CSRF)
 }

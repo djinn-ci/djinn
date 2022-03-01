@@ -175,167 +175,183 @@ func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
 //line variable/template/index.qtpl:65
 				qw422016.N().S(` </td> <td class="align-right"> `)
 //line variable/template/index.qtpl:68
-				if p.User.ID == v.UserID || v.Namespace != nil && v.Namespace.UserID == p.User.ID {
+				if v.Masked && p.User.ID == v.UserID {
 //line variable/template/index.qtpl:68
 					qw422016.N().S(` <form method="POST" action="`)
 //line variable/template/index.qtpl:69
-					qw422016.E().S(v.Endpoint())
+					qw422016.E().S(v.Endpoint("unmask"))
 //line variable/template/index.qtpl:69
 					qw422016.N().S(`"> `)
 //line variable/template/index.qtpl:70
 					qw422016.N().V(p.CSRF)
 //line variable/template/index.qtpl:70
-					qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> `)
+					qw422016.N().S(` <input type="hidden" name="_method" value="PATCH"/> <button type="submit" class="btn btn-primary">Unmask</button> </form> `)
 //line variable/template/index.qtpl:74
 				}
 //line variable/template/index.qtpl:74
+				qw422016.N().S(` `)
+//line variable/template/index.qtpl:75
+				if p.User.ID == v.UserID || v.Namespace != nil && v.Namespace.UserID == p.User.ID {
+//line variable/template/index.qtpl:75
+					qw422016.N().S(` <form method="POST" action="`)
+//line variable/template/index.qtpl:76
+					qw422016.E().S(v.Endpoint())
+//line variable/template/index.qtpl:76
+					qw422016.N().S(`"> `)
+//line variable/template/index.qtpl:77
+					qw422016.N().V(p.CSRF)
+//line variable/template/index.qtpl:77
+					qw422016.N().S(` <input type="hidden" name="_method" value="DELETE"/> <button type="submit" class="btn btn-danger">Delete</button> </form> `)
+//line variable/template/index.qtpl:81
+				}
+//line variable/template/index.qtpl:81
 				qw422016.N().S(` </td> </tr> `)
-//line variable/template/index.qtpl:77
+//line variable/template/index.qtpl:84
 			}
-//line variable/template/index.qtpl:77
+//line variable/template/index.qtpl:84
 			qw422016.N().S(` </tbody> </table> `)
-//line variable/template/index.qtpl:80
+//line variable/template/index.qtpl:87
 		}
-//line variable/template/index.qtpl:80
+//line variable/template/index.qtpl:87
 		qw422016.N().S(` `)
-//line variable/template/index.qtpl:81
+//line variable/template/index.qtpl:88
 	}
-//line variable/template/index.qtpl:81
+//line variable/template/index.qtpl:88
 	qw422016.N().S(` </div> `)
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 }
 
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 func (p *Index) WriteBody(qq422016 qtio422016.Writer) {
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 	p.StreamBody(qw422016)
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 }
 
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 func (p *Index) Body() string {
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 	p.WriteBody(qb422016)
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 	qs422016 := string(qb422016.B)
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 	return qs422016
-//line variable/template/index.qtpl:83
+//line variable/template/index.qtpl:90
 }
 
-//line variable/template/index.qtpl:85
+//line variable/template/index.qtpl:92
 func (p *Index) StreamSection(qw422016 *qt422016.Writer) {
-//line variable/template/index.qtpl:85
+//line variable/template/index.qtpl:92
 	qw422016.N().S(` `)
-//line variable/template/index.qtpl:86
+//line variable/template/index.qtpl:93
 	p.StreamBody(qw422016)
-//line variable/template/index.qtpl:86
+//line variable/template/index.qtpl:93
 	qw422016.N().S(` `)
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 }
 
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 func (p *Index) WriteSection(qq422016 qtio422016.Writer) {
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 	p.StreamSection(qw422016)
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 }
 
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 func (p *Index) Section() string {
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 	p.WriteSection(qb422016)
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 	qs422016 := string(qb422016.B)
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 	return qs422016
-//line variable/template/index.qtpl:87
+//line variable/template/index.qtpl:94
 }
 
-//line variable/template/index.qtpl:89
+//line variable/template/index.qtpl:96
 func (p *Index) StreamActions(qw422016 *qt422016.Writer) {
-//line variable/template/index.qtpl:89
+//line variable/template/index.qtpl:96
 	qw422016.N().S(` `)
-//line variable/template/index.qtpl:90
+//line variable/template/index.qtpl:97
 	if _, ok := p.User.Permissions["variable:write"]; ok {
-//line variable/template/index.qtpl:90
+//line variable/template/index.qtpl:97
 		qw422016.N().S(` <li><a href="/variables/create" class="btn btn-primary">Create</a></li> `)
-//line variable/template/index.qtpl:92
+//line variable/template/index.qtpl:99
 	}
-//line variable/template/index.qtpl:92
+//line variable/template/index.qtpl:99
 	qw422016.N().S(` `)
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 }
 
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 func (p *Index) WriteActions(qq422016 qtio422016.Writer) {
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 	p.StreamActions(qw422016)
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 }
 
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 func (p *Index) Actions() string {
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 	p.WriteActions(qb422016)
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 	qs422016 := string(qb422016.B)
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 	return qs422016
-//line variable/template/index.qtpl:93
+//line variable/template/index.qtpl:100
 }
 
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 func (p *Index) StreamNavigation(qw422016 *qt422016.Writer) {
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 }
 
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 func (p *Index) WriteNavigation(qq422016 qtio422016.Writer) {
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 	p.StreamNavigation(qw422016)
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 	qt422016.ReleaseWriter(qw422016)
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 }
 
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 func (p *Index) Navigation() string {
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 	qb422016 := qt422016.AcquireByteBuffer()
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 	p.WriteNavigation(qb422016)
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 	qs422016 := string(qb422016.B)
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 	qt422016.ReleaseByteBuffer(qb422016)
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 	return qs422016
-//line variable/template/index.qtpl:95
+//line variable/template/index.qtpl:102
 }

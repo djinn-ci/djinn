@@ -65,6 +65,13 @@ type Index struct {
 									{% endif %}
 								</td>
 								<td class="align-right">
+									{% if v.Masked && p.User.ID == v.UserID %}
+									<form method="POST" action="{%s v.Endpoint("unmask") %}">
+										{%v= p.CSRF %}
+										<input type="hidden" name="_method" value="PATCH"/>
+										<button type="submit" class="btn btn-primary">Unmask</button>
+									</form>
+									{% endif %}
 									{% if p.User.ID == v.UserID || v.Namespace != nil && v.Namespace.UserID == p.User.ID %}
 									<form method="POST" action="{%s v.Endpoint() %}">
 										{%v= p.CSRF %}

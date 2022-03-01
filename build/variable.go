@@ -11,25 +11,27 @@ import (
 )
 
 type Variable struct {
+	*variable.Variable
+
 	ID         int64
 	BuildID    int64
 	VariableID sql.NullInt64
-	Key        string
-	Value      string
 
-	Build    *Build
-	Variable *variable.Variable
+	Build *Build
 }
 
 var _ database.Model = (*Variable)(nil)
 
 func (v *Variable) Dest() []interface{} {
+	v.Variable = &variable.Variable{}
+
 	return []interface{}{
 		&v.ID,
 		&v.BuildID,
 		&v.VariableID,
 		&v.Key,
 		&v.Value,
+		&v.Masked,
 	}
 }
 
@@ -51,11 +53,18 @@ func (v *Variable) JSON(addr string) map[string]interface{} {
 		return nil
 	}
 
+	value := variable.MaskString
+
+	if !v.Masked {
+		value = v.Value
+	}
+
 	json := map[string]interface{}{
 		"id":       v.ID,
 		"build_id": v.BuildID,
 		"key":      v.Key,
-		"value":    v.Value,
+		"value":    value,
+		"masked":   v.Masked,
 	}
 
 	if v.Build != nil {

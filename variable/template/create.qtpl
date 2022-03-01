@@ -1,6 +1,7 @@
 {%
 import (
 	"djinn-ci.com/template"
+	"djinn-ci.com/variable"
 )
 %}
 
@@ -37,6 +38,13 @@ type Create struct {
 				<label class="label" for="value">Value</label>
 				<input class="form-text" type="text" id="value" name="value" value="{%s p.Fields["value"] %}" autocomplete="off"/>
 				{%= p.Error("value") %}
+			</div>
+			<div class="form-field">
+				<label class="form-option">
+					<input class="form-selector" type="checkbox" name="mask" checked="{%s p.Fields["mask"] %}"/>
+					<strong>Mask variable</strong>
+					<div class="form-desc">Mask the variable value and replace it with <span class="code">{%s variable.MaskString %} in the build logs</div>
+				</label>
 			</div>
 			<div class="form-field">
 				<button type="submit" class="btn btn-primary">Create</button>

@@ -22,6 +22,7 @@ type VariableParams struct {
 	Namespace string `json:"namespace"`
 	Key       string `json:"key"`
 	Value     string `json:"value"`
+	Mask      bool   `json:"mask"`
 }
 
 func CreateVariable(cli *Client, p VariableParams) (*Variable, error) {

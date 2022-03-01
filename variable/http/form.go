@@ -59,7 +59,7 @@ func (v Validator) Validate(errs webutil.ValidationErrors) {
 
 	if v.Form.Mask {
 		if len(v.Form.Value) < variable.MaskLen {
-			errs.Add("value", fmt.Errorf("Masked variable length cannot be shorted than %d characters", variable.MaskLen))
+			errs.Add("value", fmt.Errorf("Masked variable length cannot be shorter than %d characters", variable.MaskLen))
 		}
 	}
 

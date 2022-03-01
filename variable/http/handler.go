@@ -108,6 +108,7 @@ func (h *Handler) StoreModel(u *user.User, r *http.Request) (*variable.Variable,
 		Namespace: f.Namespace,
 		Key:       f.Key,
 		Value:     f.Value,
+		Masked:    f.Mask,
 	})
 
 	if err != nil {

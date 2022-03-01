@@ -296,6 +296,7 @@ func (s Store) Create(p Params) (*Variable, error) {
 		NamespaceID: namespaceId,
 		Key:         p.Key,
 		Value:       p.Value,
+		Masked:      p.Masked,
 		CreatedAt:   now,
 		Namespace:   n,
 	}, nil

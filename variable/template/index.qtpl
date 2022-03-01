@@ -14,6 +14,7 @@ type Index struct {
 
 	CSRF      htmltemplate.HTML
 	Paginator database.Paginator
+	Unmasked  map[int64]struct{}
 	Variables []*variable.Variable
 	Search    string
 }
@@ -65,7 +66,14 @@ type Index struct {
 									{% endif %}
 								</td>
 								<td class="align-right">
-									{% if v.Masked && p.User.ID == v.UserID %}
+									{% if _, ok := p.Unmasked[v.ID]; ok && p.User.ID == v.UserID %}
+									<form method="POST" action="{%s v.Endpoint("mask") %}">
+										{%v= p.CSRF %}
+										<input type="hidden" name="_method" value="PATCH"/>
+										<button type="submit" class="btn btn-primary">Mask</button>
+									</form>
+									{% endif %}
+									{% if _, ok := p.Unmasked[v.ID]; !ok && v.Masked && p.User.ID == v.UserID %}
 									<form method="POST" action="{%s v.Endpoint("unmask") %}">
 										{%v= p.CSRF %}
 										<input type="hidden" name="_method" value="PATCH"/>

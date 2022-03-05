@@ -3,7 +3,7 @@ driver:
   type: qemu
   image: djinn-dev
 sources:
-- https://github.com/djinn-ci/djinn dev
+- https://github.com/djinn-ci/djinn
 env:
 - LDFLAGS=-s -w
 - INTEGRATION_CONFIG_DIR=testdata

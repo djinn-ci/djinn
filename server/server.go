@@ -103,9 +103,6 @@ func New(cfg *config.Server) (*Server, error) {
 	}
 
 	store.KeyPrefix("session_")
-	store.KeyGen(func() (string, error) {
-		return string(block), nil
-	})
 	store.Options(sessions.Options{
 		Path:   "/",
 		Domain: url.Hostname(),

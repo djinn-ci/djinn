@@ -38,7 +38,10 @@ type Artifacts struct {
 type Variables struct {
 	section
 
+	CSRF      htmltemplate.HTML
+	User      *user.User
 	Build     *build.Build
+	Unmasked  map[int64]struct{}
 	Variables []*build.Variable
 }
 
@@ -176,6 +179,7 @@ type Tags struct {
 						<th>KEY</th>
 						<th>VALUE</th>
 						<th>FROM MANIFEST</th>
+						<th></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -184,6 +188,18 @@ type Tags struct {
 							<td><span class="code">{%s v.Key %}</span></td>
 							<td><span class="code">{%s v.Value %}</span></td>
 							<td>{% if v.VariableID.Valid %}False{% else %}True{% endif %}</td>
+							<td class="align-right">
+								{% if _, ok := p.Unmasked[v.Variable.ID]; ok && p.User.ID == v.UserID %}
+									<form method="POST" action="{%s v.Variable.Endpoint("mask") %}">
+										{%v= p.CSRF %}
+										<input type="hidden" name="_method" value="PATCH"/>
+										<button type="submit" class="btn btn-primary">Mask</button>
+									</form>
+								{% endif %}
+								{% if _, ok := p.Unmasked[v.Variable.ID]; !ok && v.Masked && p.User.ID == v.UserID %}
+									<a class="btn btn-primary" href="{%s v.Variable.Endpoint("unmask") %}">Unmask</a>
+								{% endif %}
+							</td>
 						</tr>
 					{% endfor %}
 				</tbody>

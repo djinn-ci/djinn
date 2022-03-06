@@ -17,6 +17,8 @@ import (
 	"djinn-ci.com/template"
 	"djinn-ci.com/user"
 	userhttp "djinn-ci.com/user/http"
+	"djinn-ci.com/variable"
+	variablehttp "djinn-ci.com/variable/http"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
@@ -203,8 +205,27 @@ func (h UI) Show(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Re
 			return
 		}
 
+		unmasked := variablehttp.Unmasked(sess)
+
+		for _, v := range vv {
+			if _, ok := unmasked[v.VariableID.Int64]; ok && v.Masked {
+				if err := variable.Unmask(h.AESGCM, v.Variable); err != nil {
+					alert.Flash(sess, alert.Danger, "Could not unmask variable")
+					h.Log.Error.Println(r.Method, r.URL, "could not unmask variable", errors.Err(err))
+				}
+				continue
+			}
+
+			if v.Masked {
+				v.Value = variable.MaskString
+			}
+		}
+
 		p.Section = &buildtemplate.Variables{
+			CSRF:      csrf,
+			User:      u,
 			Build:     b,
+			Unmasked:  unmasked,
 			Variables: vv,
 		}
 	case "keys":

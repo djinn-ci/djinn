@@ -164,6 +164,16 @@ func (h *Handler) WithSudo(fn HandlerFunc) http.HandlerFunc {
 
 				if time.Now().Before(t) {
 					h.Log.Debug.Println(r.Method, r.URL, "sudo still in session")
+
+					if v, ok := sess.Values[sudoReferer]; ok {
+						delete(sess.Values, sudoReferer)
+
+						if ref, ok := v.(string); ok {
+							h.Log.Debug.Println(r.Method, r.URL, "sudo referer", ref)
+							r.Header.Set("Referer", ref)
+						}
+					}
+
 					fn(u, w, r)
 					return
 				}
@@ -175,8 +185,11 @@ func (h *Handler) WithSudo(fn HandlerFunc) http.HandlerFunc {
 
 		tok := h.generateSudoToken()
 
+		ref := r.Header.Get("Referer")
+
 		sess.Values[sudoToken] = tok
 		sess.Values[sudoUrl] = r.URL.String()
+		sess.Values[sudoReferer] = ref
 
 		p := &usertemplate.Sudo{
 			Form: template.Form{
@@ -184,10 +197,11 @@ func (h *Handler) WithSudo(fn HandlerFunc) http.HandlerFunc {
 				Errors: webutil.FormErrors(sess),
 				Fields: webutil.FormFields(sess),
 			},
-			Alert:     alert.First(sess),
-			User:      u,
-			SudoURL:   r.URL.String(),
-			SudoToken: tok,
+			Alert:       alert.First(sess),
+			User:        u,
+			SudoURL:     r.URL.String(),
+			SudoReferer: ref,
+			SudoToken:   tok,
 		}
 
 		save(r, w)

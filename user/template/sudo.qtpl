@@ -11,10 +11,11 @@ type Sudo struct {
 	template.BasePage
 	template.Form
 
-	Alert     alert.Alert
-	User      *user.User
-	SudoURL   string
-	SudoToken string
+	Alert       alert.Alert
+	User        *user.User
+	SudoURL     string
+	SudoReferer string
+	SudoToken   string
 }
 %}
 
@@ -42,6 +43,7 @@ type Sudo struct {
 			<form method="POST" action="/sudo">
 				{%v= p.CSRF %}
 				<input type="hidden" name="sudo_url" value="{%s p.SudoURL %}"/>
+				<input type="hidden" name="sudo_referer" value="{%s p.SudoReferer %}"/>
 				<input type="hidden" name="sudo_token" value="{%s p.SudoToken %}"/>
 				<div class="input-field">
 					<label>Password</label>

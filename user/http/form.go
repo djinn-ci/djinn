@@ -308,6 +308,7 @@ func (v DeleteValidator) Validate(errs webutil.ValidationErrors) {
 type SudoForm struct {
 	Token    string `schema:"sudo_token"`
 	URL      string `schema:"sudo_url"`
+	Referer  string `schema:"sudo_referer"`
 	Password string
 }
 

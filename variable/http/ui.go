@@ -43,7 +43,10 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		}
-		v.Value = variable.MaskString
+
+		if v.Masked {
+			v.Value = variable.MaskString
+		}
 	}
 
 	if err := variable.LoadNamespaces(h.DB, vv...); err != nil {
@@ -176,7 +179,7 @@ func (h UI) Unmask(u *user.User, v *variable.Variable, w http.ResponseWriter, r 
 	sess, _ := h.Session(r)
 
 	UnmaskVariable(sess, v)
-	h.Redirect(w, r, "/variables")
+	h.RedirectBack(w, r)
 }
 
 func (h UI) Destroy(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {

@@ -401,6 +401,7 @@ var (
 	sudoTimestamp = "sudo_timestamp"
 	sudoToken     = "sudo_token"
 	sudoUrl       = "sudo_url"
+	sudoReferer   = "sudo_referer"
 )
 
 func (h UI) Sudo(u *user.User, w http.ResponseWriter, r *http.Request) {
@@ -420,10 +421,18 @@ func (h UI) Sudo(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	ref0, ok := sess.Values[sudoReferer]
+
+	if !ok {
+		h.NotFound(w, r)
+		return
+	}
+
 	delete(sess.Values, sudoToken)
 
 	tok, _ := tok0.(string)
 	url, _ := url0.(string)
+	ref, _ := ref0.(string)
 
 	if r.Method == "GET" {
 		println("tok =", tok)
@@ -435,10 +444,11 @@ func (h UI) Sudo(u *user.User, w http.ResponseWriter, r *http.Request) {
 				Errors: webutil.FormErrors(sess),
 				Fields: webutil.FormFields(sess),
 			},
-			Alert:     alert.First(sess),
-			User:      u,
-			SudoURL:   url,
-			SudoToken: tok,
+			Alert:       alert.First(sess),
+			User:        u,
+			SudoURL:     url,
+			SudoReferer: ref,
+			SudoToken:   tok,
 		}
 
 		save(r, w)

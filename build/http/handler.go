@@ -317,6 +317,24 @@ func (h *Handler) StoreTagModel(u *user.User, b *build.Build, r *http.Request) (
 		return nil, errors.Err(err)
 	}
 
+	b.User = u
+
+	if b.UserID != u.ID {
+		if err := h.Users.Load("user_id", "id", b); err != nil {
+			return nil, errors.Err(err)
+		}
+	}
+
+	if b.NamespaceID.Valid {
+		if err := h.Namespaces.Load("namespace_id", "id", b); err != nil {
+			return nil, errors.Err(err)
+		}
+	}
+
+	for _, t := range tt {
+		t.Build = b
+	}
+
 	h.Queues.Produce(r.Context(), "events", &build.TagEvent{
 		Build: b,
 		User:  u,

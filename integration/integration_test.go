@@ -14,6 +14,7 @@ import (
 
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/fs"
 	"djinn-ci.com/oauth2"
 	"djinn-ci.com/serverutil"
@@ -191,6 +192,7 @@ func setupServer(cfgdir string) func() {
 	objectstore = srv.Objects
 
 	apiEndpoint = server.URL + "/api"
+	env.DJINN_API_SERVER = apiEndpoint
 
 	ctx, cancel := context.WithTimeout(bgctx, time.Duration(time.Second*15))
 

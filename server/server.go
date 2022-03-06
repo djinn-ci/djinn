@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"runtime/debug"
 	"strings"
+	"time"
 
 	"djinn-ci.com/alert"
 	"djinn-ci.com/config"
@@ -240,8 +241,10 @@ func spoofHandler(h http.Handler) http.HandlerFunc {
 
 func (s *Server) Init() {
 	gob.Register(map[string]string{})
+	gob.Register(map[int64]struct{}{})
 
 	gob.Register(alert.Alert{})
+	gob.Register(time.Time{})
 	gob.Register(webutil.ValidationErrors{})
 
 	s.Server.Handler = s.recoverHandler(spoofHandler(s.Router))

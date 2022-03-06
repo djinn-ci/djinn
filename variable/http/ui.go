@@ -16,6 +16,7 @@ import (
 	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
+	"github.com/gorilla/sessions"
 )
 
 type UI struct {
@@ -32,25 +33,14 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	flashes := sess.Flashes("variable_id")
-
-	var unmaskId int64
-
-	if len(flashes) > 0 {
-		unmaskId, _ = flashes[0].(int64)
-	}
-
-	unmasked := make(map[int64]struct{})
+	unmasked := Unmasked(sess)
 
 	for _, v := range vv {
-		if v.ID == unmaskId && v.Masked {
+		if _, ok := unmasked[v.ID]; ok && v.Masked {
 			if err := variable.Unmask(h.AESGCM, v); err != nil {
 				alert.Flash(sess, alert.Danger, "Could not unmask variable")
 				h.Log.Error.Println(r.Method, r.URL, "could not unmask variable", errors.Err(err))
-				continue
 			}
-
-			unmasked[v.ID] = struct{}{}
 			continue
 		}
 		v.Value = variable.MaskString
@@ -133,17 +123,60 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/variables")
 }
 
+var variableMaskKey = "unmask_variable_id"
+
+func Unmasked(sess *sessions.Session) map[int64]struct{} {
+	v, ok := sess.Values[variableMaskKey]
+
+	if !ok {
+		return nil
+	}
+
+	set, _ := v.(map[int64]struct{})
+	return set
+}
+
+func UnmaskVariable(sess *sessions.Session, v *variable.Variable) {
+	val, ok := sess.Values[variableMaskKey]
+
+	if !ok {
+		sess.Values[variableMaskKey] = make(map[int64]struct{})
+		val = sess.Values[variableMaskKey]
+	}
+
+	set, _ := val.(map[int64]struct{})
+	set[v.ID] = struct{}{}
+}
+
+func MaskVariable(sess *sessions.Session, v *variable.Variable) {
+	val, ok := sess.Values[variableMaskKey]
+
+	if ok {
+		set, _ := val.(map[int64]struct{})
+
+		if _, ok := set[v.ID]; ok {
+			delete(set, v.ID)
+		}
+		sess.Values[variableMaskKey] = set
+	}
+}
+
 // Mask is essentially a no-op, the information to unmask a variable in the UI
 // is flashed to the session. We simply want to redirect back to flush out what
 // we flashed.
 func (h UI) Mask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	MaskVariable(sess, v)
 	h.RedirectBack(w, r)
 }
 
 func (h UI) Unmask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
+	h.Log.Debug.Println(r.Method, r.URL, "unmasking variable", v.ID)
 	sess, _ := h.Session(r)
-	sess.AddFlash(v.ID, "variable_id")
-	h.RedirectBack(w, r)
+
+	UnmaskVariable(sess, v)
+	h.Redirect(w, r, "/variables")
 }
 
 func (h UI) Destroy(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
@@ -171,7 +204,7 @@ func RegisterUI(srv *server.Server) {
 	sr.HandleFunc("/create", user.WithUser(ui.Create)).Methods("GET")
 	sr.HandleFunc("", user.WithUser(ui.Store)).Methods("POST")
 	sr.HandleFunc("/{variable:[0-9]+}/mask", user.WithUser(ui.WithVariable(ui.Mask))).Methods("PATCH")
-	sr.HandleFunc("/{variable:[0-9]+}/unmask", user.WithUser(ui.WithVariable(ui.Unmask))).Methods("PATCH")
+	sr.HandleFunc("/{variable:[0-9]+}/unmask", user.WithSudo(ui.WithVariable(ui.Unmask))).Methods("GET")
 	sr.HandleFunc("/{variable:[0-9]+}", user.WithUser(ui.WithVariable(ui.Destroy))).Methods("DELETE")
 	sr.Use(srv.CSRF)
 }

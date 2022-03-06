@@ -1,8 +1,8 @@
 package variable
 
 import (
-	"encoding/base64"
 	"database/sql"
+	"encoding/base64"
 	"net/url"
 	"strconv"
 	"strings"

@@ -40,7 +40,7 @@ func Test_VariableCreateMasked(t *testing.T) {
 	derr, ok := err.(*djinn.Error)
 
 	if !ok {
-		t.Fatalf("unexpected error from djinn.CreateVariable, expected=%T, got=%T(%q)\n", &djinn.Error{}, err, err) 
+		t.Fatalf("unexpected error from djinn.CreateVariable, expected=%T, got=%T(%q)\n", &djinn.Error{}, err, err)
 	}
 
 	msg, ok := derr.Params["value"]

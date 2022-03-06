@@ -482,7 +482,7 @@ func (h UI) Sudo(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	expires := time.Now().Add(time.Minute*30)
+	expires := time.Now().Add(time.Minute * 30)
 
 	h.Log.Debug.Println(r.Method, r.URL, "sudo request authorized, expires at", expires)
 

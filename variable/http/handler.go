@@ -31,11 +31,11 @@ func NewHandler(srv *server.Server) *Handler {
 		Server:     srv,
 		Namespace:  namespacehttp.NewHandler(srv),
 		Namespaces: namespace.Store{Pool: srv.DB},
-		Variables:  variable.Store{
+		Variables: variable.Store{
 			Pool:   srv.DB,
 			AESGCM: srv.AESGCM,
 		},
-		Users:      user.Store{Pool: srv.DB},
+		Users: user.Store{Pool: srv.DB},
 	}
 }
 

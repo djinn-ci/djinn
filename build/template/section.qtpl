@@ -197,7 +197,7 @@ type Tags struct {
 									</form>
 								{% endif %}
 								{% if _, ok := p.Unmasked[v.Variable.ID]; !ok && v.Masked && p.User.ID == v.UserID %}
-									<a class="btn btn-primary" href="{%s v.Variable.Endpoint("unmask") %}">Unmask</a>
+									<a class="btn btn-primary inline-block" href="{%s v.Variable.Endpoint("unmask") %}">Unmask</a>
 								{% endif %}
 							</td>
 						</tr>

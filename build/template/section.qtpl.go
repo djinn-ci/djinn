@@ -588,7 +588,7 @@ func (p *Variables) StreamBody(qw422016 *qt422016.Writer) {
 //line build/template/section.qtpl:199
 			if _, ok := p.Unmasked[v.Variable.ID]; !ok && v.Masked && p.User.ID == v.UserID {
 //line build/template/section.qtpl:199
-				qw422016.N().S(` <a class="btn btn-primary" href="`)
+				qw422016.N().S(` <a class="btn btn-primary inline-block" href="`)
 //line build/template/section.qtpl:200
 				qw422016.E().S(v.Variable.Endpoint("unmask"))
 //line build/template/section.qtpl:200

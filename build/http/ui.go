@@ -346,6 +346,8 @@ func (h UI) ShowJob(u *user.User, b *build.Build, w http.ResponseWriter, r *http
 		return
 	}
 
+	j.Build = b
+
 	p := &buildtemplate.Job{
 		BasePage: template.BasePage{URL: r.URL},
 		Build:    b,

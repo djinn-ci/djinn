@@ -663,10 +663,10 @@ func copyvars(ctx context.Context, tx pgx.Tx, buildId int64, vv []*variable.Vari
 			Int64: v.ID,
 			Valid: v.ID > 0,
 		}
-		opts = append(opts, query.Values(buildId, id, v.Key, v.Value))
+		opts = append(opts, query.Values(buildId, id, v.Key, v.Value, v.Masked))
 	}
 
-	q := query.Insert(variableTable, query.Columns("build_id", "variable_id", "key", "value"), opts...)
+	q := query.Insert(variableTable, query.Columns("build_id", "variable_id", "key", "value", "masked"), opts...)
 
 	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		return errors.Err(err)

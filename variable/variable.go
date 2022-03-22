@@ -206,7 +206,7 @@ func Chown(db database.Pool, from, to int64) error {
 
 var (
 	MaskString = "xxxxxx"
-	MaskLen    = 6
+	MaskLen    = len(MaskString)
 )
 
 func Unmask(aesgcm *crypto.AESGCM, v *Variable) error {

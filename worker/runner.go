@@ -18,8 +18,11 @@ import (
 	"djinn-ci.com/image"
 	"djinn-ci.com/log"
 	"djinn-ci.com/runner"
+	"djinn-ci.com/variable"
 
 	"github.com/andrewpillar/query"
+
+	"golang.org/x/text/transform"
 )
 
 type runnerJob struct {
@@ -49,6 +52,8 @@ type Runner struct {
 
 	objects   *build.ObjectStore
 	artifacts *build.ArtifactStore
+
+	masker transform.Transformer
 
 	driver     string
 	driverinit driver.Init
@@ -107,7 +112,7 @@ func (r *Runner) loadAndAddJobs(stages map[int64]*runner.Stage) error {
 		r.runnerJobs[stage.Name+j.Name] = job
 
 		stage.Add(&runner.Job{
-			Writer:    io.MultiWriter(r.buf, job.buf),
+			Writer:    transform.NewWriter(io.MultiWriter(r.buf, job.buf), r.masker),
 			Name:      j.Name,
 			Commands:  strings.Split(j.Commands, "\n"),
 			Artifacts: artifacts,
@@ -207,6 +212,20 @@ func (r *Runner) Init() error {
 	if err != nil {
 		return errors.Err(err)
 	}
+
+	maskChain := make([]transform.Transformer, 0, len(vv))
+
+	for _, v := range vv {
+		if err := variable.Unmask(r.aesgcm, v.Variable); err != nil {
+			return errors.Err(err)
+		}
+
+		if v.Masked {
+			maskChain = append(maskChain, variable.Masker(v.Value))
+		}
+	}
+
+	r.masker = transform.Chain(maskChain...)
 
 	r.Runner.Env = envvars(vv)
 
@@ -321,7 +340,7 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 
 	cfg := r.drivercfg.Merge(d.Config)
 
-	driver := r.driverinit(io.MultiWriter(r.buf, r.driverJob.buf), cfg)
+	driver := r.driverinit(transform.NewWriter(io.MultiWriter(r.buf, r.driverJob.buf), r.masker), cfg)
 
 	if q, ok := driver.(*qemu.Driver); ok {
 		qemucfg := cfg.(*qemu.Config)

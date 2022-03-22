@@ -26,8 +26,11 @@ import (
 )
 
 type runnerJob struct {
-	id       int64
-	buf      *bytes.Buffer
+	id  int64
+	buf *bytes.Buffer
+
+	// flushes underlying transform.Writer used for masking variables.
+	flush    func() error
 	finished bool
 }
 
@@ -98,9 +101,14 @@ func (r *Runner) loadAndAddJobs(stages map[int64]*runner.Stage) error {
 			artifacts.Set(a.Source, a.Name)
 		}
 
+		var buf bytes.Buffer
+
+		wc := transform.NewWriter(io.MultiWriter(r.buf, &buf), r.masker)
+
 		job := runnerJob{
-			id:  j.ID,
-			buf: &bytes.Buffer{},
+			id:    j.ID,
+			buf:   &buf,
+			flush: wc.Close,
 		}
 
 		stage := stages[j.StageID]
@@ -112,7 +120,7 @@ func (r *Runner) loadAndAddJobs(stages map[int64]*runner.Stage) error {
 		r.runnerJobs[stage.Name+j.Name] = job
 
 		stage.Add(&runner.Job{
-			Writer:    transform.NewWriter(io.MultiWriter(r.buf, job.buf), r.masker),
+			Writer:    wc,
 			Name:      j.Name,
 			Commands:  strings.Split(j.Commands, "\n"),
 			Artifacts: artifacts,
@@ -340,7 +348,7 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 
 	cfg := r.drivercfg.Merge(d.Config)
 
-	driver := r.driverinit(transform.NewWriter(io.MultiWriter(r.buf, r.driverJob.buf), r.masker), cfg)
+	driver := r.driverinit(io.MultiWriter(r.buf, r.driverJob.buf), cfg)
 
 	if q, ok := driver.(*qemu.Driver); ok {
 		qemucfg := cfg.(*qemu.Config)
@@ -371,6 +379,7 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 
 	r.Runner.HandleJobComplete(func(job runner.Job) {
 		j := r.runnerJobs[job.Stage+job.Name]
+		j.flush()
 		j.finished = true
 
 		r.runnerJobs[job.Stage+job.Name] = j

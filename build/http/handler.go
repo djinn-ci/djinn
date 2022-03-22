@@ -204,8 +204,8 @@ validate:
 	}
 
 	if err := webutil.Validate(&v); err != nil {
-		err.(webutil.ValidationErrors).Merge(verrs)
-		return nil, f, errors.Err(err)
+		verrs.Merge(err.(webutil.ValidationErrors))
+		return nil, f, verrs
 	}
 
 	b, err := h.Builds.Create(build.Params{

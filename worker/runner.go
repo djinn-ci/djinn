@@ -348,6 +348,9 @@ func (r *Runner) Run(ctx context.Context, jobId string, d *build.Driver) (runner
 
 	cfg := r.drivercfg.Merge(d.Config)
 
+	// We don't use a transformer here because the io.Writer given to driverinit
+	// will only contain the output of driver creation which would not contain
+	// any variables.
 	driver := r.driverinit(io.MultiWriter(r.buf, r.driverJob.buf), cfg)
 
 	if q, ok := driver.(*qemu.Driver); ok {

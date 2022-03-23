@@ -948,11 +948,11 @@ func (s *Store) Submit(ctx context.Context, host string, b *Build) error {
 		return driver.ErrUnknown(driverType)
 	}
 
-	if _, err := driverq.PerformCtx(ctx, curlyq.Job{Data: buf.Bytes()}); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return errors.Err(err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	if _, err := driverq.PerformCtx(ctx, curlyq.Job{Data: buf.Bytes()}); err != nil {
 		return errors.Err(err)
 	}
 	return nil

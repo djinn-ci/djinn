@@ -75,8 +75,8 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 		}
 
 		cmd := exec.Command(args[0], args[1:]...)
-		cmd.Stdout = d.Writer
-		cmd.Stderr = d.Writer
+		cmd.Stdout = j.Writer
+		cmd.Stderr = j.Writer
 
 		if err := cmd.Run(); err != nil {
 			j.Failed(err)

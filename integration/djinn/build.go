@@ -35,6 +35,19 @@ type Build struct {
 	Namespace    *Namespace    `json:"namespace"`
 }
 
+type BuildJob struct {
+	ID         int64      `json:"id"`
+	BuildID    int64      `json:"id"`
+	Name       string     `json:"name"`
+	Commands   string     `json:"commands"`
+	Status     Status     `json:"status"`
+	Output     NullString `json:"output"`
+	CreatedAt  Time       `json:"created_at"`
+	StartedAt  NullTime   `json:"started_at"`
+	FinishedAt NullTime   `json:"finished_at"`
+	URL        URL        `json:"url"`
+}
+
 type Artifact struct {
 	ID        int64      `json:"id"`
 	UserID    int64      `json:"user_id"`
@@ -319,6 +332,27 @@ func (b *Build) Get(cli *Client) error {
 		return err
 	}
 	return nil
+}
+
+func (b *Build) GetJobs(cli *Client) ([]*BuildJob, error) {
+	resp, err := cli.Get(b.JobsURL.Path, "application/json; charset=utf-8")
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, cli.err(resp)
+	}
+
+	jj := make([]*BuildJob, 0)
+
+	if err := json.NewDecoder(resp.Body).Decode(&jj); err != nil {
+		return nil, err
+	}
+	return jj, nil
 }
 
 func (b *Build) Tag(cli *Client, tags ...string) ([]*BuildTag, error) {

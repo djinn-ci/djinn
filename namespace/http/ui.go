@@ -85,11 +85,11 @@ func (h UI) Create(u *user.User, w http.ResponseWriter, r *http.Request) {
 			h.NotFound(w, r)
 			return
 		}
-	}
 
-	if err := h.Users.Load("user_id", "id", parent); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
+		if err := h.Users.Load("user_id", "id", parent); err != nil {
+			h.InternalServerError(w, r, errors.Err(err))
+			return
+		}
 	}
 
 	csrf := csrf.TemplateField(r)

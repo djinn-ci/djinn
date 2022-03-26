@@ -215,6 +215,10 @@ func (h UI) Show(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Re
 				}
 				continue
 			}
+
+			if v.Masked {
+				v.Value = variable.MaskString
+			}
 		}
 
 		p.Section = &buildtemplate.Variables{

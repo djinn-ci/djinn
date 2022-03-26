@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -699,6 +700,18 @@ type Payload struct {
 	BuildID int64  // ID of the Build.
 }
 
+var (
+	reslug = regexp.MustCompile("[^a-zA-Z0-9.]")
+	redup  = regexp.MustCompile("-{2,}")
+)
+
+func slug(s string) string {
+	s = strings.TrimSpace(s)
+	s = reslug.ReplaceAllString(s, "-")
+	s = redup.ReplaceAllString(s, "-")
+	return strings.ToLower(strings.TrimPrefix(strings.TrimSuffix(s, "-"), "-"))
+}
+
 // Submit the given Build to the underlying queue. If the Build has an invalid
 // driver configured, then *driver.Error is returned.
 func (s *Store) Submit(ctx context.Context, host string, b *Build) error {
@@ -899,6 +912,8 @@ func (s *Store) Submit(ctx context.Context, host string, b *Build) error {
 		if job.Name == "" {
 			job.Name = job.Stage + "." + strconv.FormatInt(jobNumber, 10)
 		}
+
+		job.Name = slug(job.Name)
 
 		q = query.Insert(
 			jobTable,

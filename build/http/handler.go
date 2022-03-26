@@ -178,10 +178,9 @@ func (h *Handler) IndexWithRelations(u *user.User, r *http.Request) ([]*build.Bu
 }
 
 func (h *Handler) StoreModel(u *user.User, r *http.Request) (*build.Build, Form, error) {
-	var (
-		f     Form
-		verrs webutil.ValidationErrors
-	)
+	var f Form
+
+	verrs := make(webutil.ValidationErrors)
 
 	if err := webutil.UnmarshalForm(&f, r); err != nil {
 		if verrs0, ok := err.(webutil.ValidationErrors); ok {
@@ -204,8 +203,8 @@ validate:
 	}
 
 	if err := webutil.Validate(&v); err != nil {
-		err.(webutil.ValidationErrors).Merge(verrs)
-		return nil, f, errors.Err(err)
+		verrs.Merge(err.(webutil.ValidationErrors))
+		return nil, f, verrs
 	}
 
 	b, err := h.Builds.Create(build.Params{

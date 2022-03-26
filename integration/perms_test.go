@@ -9,8 +9,8 @@ import (
 	"net/http"
 	"testing"
 
-	"djinn-ci.com/namespace"
 	"djinn-ci.com/integration/djinn"
+	"djinn-ci.com/namespace"
 )
 
 func Test_UserPerms(t *testing.T) {
@@ -81,7 +81,7 @@ func Test_UserPerms(t *testing.T) {
 
 	breen, _ := djinn.NewClientWithLogger(tokens.get("wallace.breen").Token, apiEndpoint, t)
 
-	deletes := map[string]func(*djinn.Client) error {
+	deletes := map[string]func(*djinn.Client) error{
 		"delete variable": v.Delete,
 		"delete object":   o.Delete,
 		"delete image":    i.Delete,
@@ -106,7 +106,7 @@ func Test_UserPerms(t *testing.T) {
 		}
 	}
 
-	gets := map[string]func(*djinn.Client) error {
+	gets := map[string]func(*djinn.Client) error{
 		"get variable": v.Get,
 		"get object":   o.Get,
 		"get image":    i.Get,

@@ -304,3 +304,34 @@ func (v DeleteValidator) Validate(errs webutil.ValidationErrors) {
 		errs.Add("delete_password", errors.New("Invalid password"))
 	}
 }
+
+type SudoForm struct {
+	Token    string `schema:"sudo_token"`
+	URL      string `schema:"sudo_url"`
+	Referer  string `schema:"sudo_referer"`
+	Password string
+}
+
+var _ webutil.Form = (*SudoForm)(nil)
+
+func (f SudoForm) Fields() map[string]string { return nil }
+
+type SudoValidator struct {
+	Form  SudoForm
+	User  *user.User
+	Token string
+}
+
+func (v SudoValidator) Validate(errs webutil.ValidationErrors) {
+	if v.Form.Password == "" {
+		errs.Add("password", webutil.ErrFieldRequired("Password"))
+	}
+
+	if err := bcrypt.CompareHashAndPassword(v.User.Password, []byte(v.Form.Password)); err != nil {
+		errs.Add("password", errors.New("Invalid password"))
+	}
+
+	if v.Form.Token != v.Token {
+		errs.Add("password", errors.New("Token mismatch"))
+	}
+}

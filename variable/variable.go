@@ -2,11 +2,13 @@ package variable
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
@@ -25,6 +27,7 @@ type Variable struct {
 	NamespaceID sql.NullInt64
 	Key         string
 	Value       string
+	Masked      bool
 	CreatedAt   time.Time
 
 	Author    *user.User
@@ -69,6 +72,7 @@ func (v *Variable) Dest() []interface{} {
 		&v.Key,
 		&v.Value,
 		&v.CreatedAt,
+		&v.Masked,
 	}
 }
 
@@ -99,13 +103,20 @@ func (v *Variable) JSON(addr string) map[string]interface{} {
 		return nil
 	}
 
+	val := v.Value
+
+	if v.Masked {
+		val = MaskString
+	}
+
 	json := map[string]interface{}{
 		"id":           v.ID,
 		"author_id":    v.AuthorID,
 		"user_id":      v.UserID,
 		"namespace_id": nil,
 		"key":          v.Key,
-		"value":        v.Value,
+		"value":        val,
+		"masked":       v.Masked,
 		"created_at":   v.CreatedAt.Format(time.RFC3339),
 		"url":          addr + v.Endpoint(),
 	}
@@ -177,6 +188,7 @@ func (e *Event) Perform() error {
 
 type Store struct {
 	database.Pool
+	*crypto.AESGCM
 }
 
 var (
@@ -192,11 +204,55 @@ func Chown(db database.Pool, from, to int64) error {
 	return nil
 }
 
+var (
+	MaskString = "xxxxxx"
+	MaskLen    = len(MaskString)
+
+	variableMaskKey = "unmask_variable_id"
+)
+
+func PutUnmasked(sessvals map[interface{}]interface{}, set map[int64]struct{}) {
+	sessvals[variableMaskKey] = set
+}
+
+func GetUnmasked(sessvals map[interface{}]interface{}) map[int64]struct{} {
+	v, ok := sessvals[variableMaskKey]
+
+	if !ok {
+		v = make(map[int64]struct{})
+	}
+
+	set, _ := v.(map[int64]struct{})
+	return set
+}
+
+func Unmask(aesgcm *crypto.AESGCM, v *Variable) error {
+	if !v.Masked {
+		return nil
+	}
+
+	dec, err := base64.StdEncoding.DecodeString(v.Value)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	b, err := aesgcm.Decrypt([]byte(dec))
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	v.Value = string(b)
+	return nil
+}
+
 type Params struct {
 	UserID    int64
 	Namespace namespace.Path
 	Key       string
 	Value     string
+	Masked    bool
 }
 
 func (s Store) Create(p Params) (*Variable, error) {
@@ -226,12 +282,21 @@ func (s Store) Create(p Params) (*Variable, error) {
 		}
 	}
 
+	if p.Masked {
+		b, err := s.AESGCM.Encrypt([]byte(p.Value))
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+		p.Value = base64.StdEncoding.EncodeToString(b)
+	}
+
 	now := time.Now()
 
 	q := query.Insert(
 		table,
-		query.Columns("user_id", "author_id", "namespace_id", "key", "value", "created_at"),
-		query.Values(userId, p.UserID, namespaceId, p.Key, p.Value, now),
+		query.Columns("user_id", "author_id", "namespace_id", "key", "value", "masked", "created_at"),
+		query.Values(userId, p.UserID, namespaceId, p.Key, p.Value, p.Masked, now),
 		query.Returning("id"),
 	)
 
@@ -248,6 +313,7 @@ func (s Store) Create(p Params) (*Variable, error) {
 		NamespaceID: namespaceId,
 		Key:         p.Key,
 		Value:       p.Value,
+		Masked:      p.Masked,
 		CreatedAt:   now,
 		Namespace:   n,
 	}, nil

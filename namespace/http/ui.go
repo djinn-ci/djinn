@@ -21,6 +21,7 @@ import (
 	"djinn-ci.com/template"
 	"djinn-ci.com/user"
 	userhttp "djinn-ci.com/user/http"
+	"djinn-ci.com/variable"
 	variabletemplate "djinn-ci.com/variable/template"
 
 	"github.com/andrewpillar/query"
@@ -82,6 +83,11 @@ func (h UI) Create(u *user.User, w http.ResponseWriter, r *http.Request) {
 
 		if parent.UserID != u.ID && path != "" {
 			h.NotFound(w, r)
+			return
+		}
+
+		if err := h.Users.Load("user_id", "id", parent); err != nil {
+			h.InternalServerError(w, r, errors.Err(err))
 			return
 		}
 	}
@@ -234,8 +240,22 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 			return
 		}
 
+		unmasked := variable.GetUnmasked(sess.Values)
+
 		for _, v := range vv {
 			v.Namespace = n
+
+			if _, ok := unmasked[v.ID]; ok && v.Masked {
+				if err := variable.Unmask(h.AESGCM, v); err != nil {
+					alert.Flash(sess, alert.Danger, "Could not unmask variable")
+					h.Log.Error.Println(r.Method, r.URL, "could not unmask variable", errors.Err(err))
+				}
+				continue
+			}
+
+			if v.Masked {
+				v.Value = variable.MaskString
+			}
 		}
 
 		p.Section = &variabletemplate.Index{
@@ -243,6 +263,7 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 			CSRF:      csrf,
 			Paginator: paginator,
 			Variables: vv,
+			Unmasked:  unmasked,
 			Search:    q.Get("search"),
 		}
 	case "keys":

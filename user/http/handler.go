@@ -1,20 +1,27 @@
 package http
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"djinn-ci.com/alert"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/oauth2"
 	"djinn-ci.com/provider"
 	"djinn-ci.com/server"
+	"djinn-ci.com/template"
 	"djinn-ci.com/user"
+	usertemplate "djinn-ci.com/user/template"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
+
+	"github.com/gorilla/csrf"
 )
 
 type HandlerFunc func(*user.User, http.ResponseWriter, *http.Request)
@@ -109,6 +116,97 @@ cookie:
 		}
 	}
 	return u, ok, nil
+}
+
+func (h *Handler) generateSudoToken() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func (h *Handler) WithSudo(fn HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if server.IsJSON(r) {
+			webutil.JSON(w, map[string]interface{}{"message": "Unauthorized"}, http.StatusUnauthorized)
+			return
+		}
+
+		u, ok, err := h.UserFromRequest(r)
+
+		if err != nil {
+			msg := errors.Cause(err).Error()
+
+			if !strings.Contains(msg, "expired timestamp") && !strings.Contains(msg, "invalid timestamp") {
+				h.InternalServerError(w, r, errors.Err(err))
+				return
+			}
+
+			http.SetCookie(w, &http.Cookie{
+				Name:     "user",
+				HttpOnly: true,
+				Path:     "/",
+				Expires:  time.Unix(0, 0),
+			})
+		}
+
+		if !ok {
+			uri := url.PathEscape(webutil.BaseAddress(r) + r.URL.String())
+
+			h.Redirect(w, r, "/login?redirect_uri="+uri)
+			return
+		}
+
+		sess, save := h.Session(r)
+
+		if v, ok := sess.Values[sudoTimestamp]; ok {
+			if t, ok := v.(time.Time); ok {
+				h.Log.Debug.Println(r.Method, r.URL, "sudo timestamp =", t.String())
+
+				if time.Now().Before(t) {
+					h.Log.Debug.Println(r.Method, r.URL, "sudo still in session")
+
+					if v, ok := sess.Values[sudoReferer]; ok {
+						delete(sess.Values, sudoReferer)
+
+						if ref, ok := v.(string); ok {
+							h.Log.Debug.Println(r.Method, r.URL, "sudo referer", ref)
+							r.Header.Set("Referer", ref)
+						}
+					}
+
+					fn(u, w, r)
+					return
+				}
+				delete(sess.Values, sudoTimestamp)
+			}
+		}
+
+		h.Log.Debug.Println(r.Method, r.URL, "generating sudo token")
+
+		tok := h.generateSudoToken()
+
+		ref := r.Header.Get("Referer")
+
+		sess.Values[sudoToken] = tok
+		sess.Values[sudoUrl] = r.URL.String()
+		sess.Values[sudoReferer] = ref
+
+		p := &usertemplate.Sudo{
+			Form: template.Form{
+				CSRF:   csrf.TemplateField(r),
+				Errors: webutil.FormErrors(sess),
+				Fields: webutil.FormFields(sess),
+			},
+			Alert:       alert.First(sess),
+			User:        u,
+			SudoURL:     r.URL.String(),
+			SudoReferer: ref,
+			SudoToken:   tok,
+		}
+
+		save(r, w)
+		webutil.HTML(w, template.Render(p), http.StatusOK)
+	}
 }
 
 func (h *Handler) WithUser(fn HandlerFunc) http.HandlerFunc {

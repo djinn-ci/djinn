@@ -1,6 +1,7 @@
 package http
 
 import (
+	"fmt"
 	"regexp"
 
 	"djinn-ci.com/errors"
@@ -15,15 +16,22 @@ type Form struct {
 	Namespace namespace.Path
 	Key       string
 	Value     string
+	Mask      bool
 }
 
 var _ webutil.Form = (*Form)(nil)
 
 func (f Form) Fields() map[string]string {
+	masktab := map[bool]string{
+		true:  "true",
+		false: "false",
+	}
+
 	return map[string]string{
 		"namespace": f.Namespace.String(),
 		"key":       f.Key,
 		"value":     f.Value,
+		"mask":      masktab[f.Mask],
 	}
 }
 
@@ -47,6 +55,12 @@ func (v Validator) Validate(errs webutil.ValidationErrors) {
 	opts := []query.Option{
 		query.Where("user_id", "=", query.Arg(v.UserID)),
 		query.Where("key", "=", query.Arg(v.Form.Key)),
+	}
+
+	if v.Form.Mask {
+		if len(v.Form.Value) < variable.MaskLen {
+			errs.Add("value", fmt.Errorf("Masked variable length cannot be shorter than %d characters", variable.MaskLen))
+		}
 	}
 
 	if v.Form.Namespace.Valid {

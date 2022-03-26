@@ -3,19 +3,27 @@ driver:
   type: qemu
   image: djinn-dev
 sources:
-- https://github.com/djinn-ci/djinn
+- https://github.com/djinn-ci/djinn dev.varmask
+- https://github.com/andrewpillar/mgrt v3
 env:
 - LDFLAGS=-s -w
 - INTEGRATION_CONFIG_DIR=testdata
 stages:
+- deps
 - setup
 - make
 jobs:
+- stage: deps
+  commands:
+  - cd mgrt
+  - ./make.sh
+  - cp bin/mgrt /usr/local/bin/mgrt
 - stage: setup
   commands:
   - printf "127.0.0.1\tlocal.dev\n" | tee -a /etc/hosts
   - cd djinn
   - mgrt run -c schema -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
+  - mgrt run -c dev -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
   - mgrt run -c perms -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
   - sudo -u postgres psql -c "ALTER TYPE driver_type ADD VALUE 'os'" -d djinn
   - sudo -u postgres psql -c "ALTER USER djinn_consumer WITH PASSWORD 'secret'"

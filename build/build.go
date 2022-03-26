@@ -11,6 +11,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net/url"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -663,10 +664,10 @@ func copyvars(ctx context.Context, tx pgx.Tx, buildId int64, vv []*variable.Vari
 			Int64: v.ID,
 			Valid: v.ID > 0,
 		}
-		opts = append(opts, query.Values(buildId, id, v.Key, v.Value))
+		opts = append(opts, query.Values(buildId, id, v.Key, v.Value, v.Masked))
 	}
 
-	q := query.Insert(variableTable, query.Columns("build_id", "variable_id", "key", "value"), opts...)
+	q := query.Insert(variableTable, query.Columns("build_id", "variable_id", "key", "value", "masked"), opts...)
 
 	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		return errors.Err(err)
@@ -697,6 +698,18 @@ func copykeys(ctx context.Context, tx pgx.Tx, buildId int64, kk []*key.Key) erro
 type Payload struct {
 	Host    string // Host from which the Build was submitted.
 	BuildID int64  // ID of the Build.
+}
+
+var (
+	reslug = regexp.MustCompile("[^a-zA-Z0-9.]")
+	redup  = regexp.MustCompile("-{2,}")
+)
+
+func slug(s string) string {
+	s = strings.TrimSpace(s)
+	s = reslug.ReplaceAllString(s, "-")
+	s = redup.ReplaceAllString(s, "-")
+	return strings.ToLower(strings.TrimPrefix(strings.TrimSuffix(s, "-"), "-"))
 }
 
 // Submit the given Build to the underlying queue. If the Build has an invalid
@@ -900,6 +913,8 @@ func (s *Store) Submit(ctx context.Context, host string, b *Build) error {
 			job.Name = job.Stage + "." + strconv.FormatInt(jobNumber, 10)
 		}
 
+		job.Name = slug(job.Name)
+
 		q = query.Insert(
 			jobTable,
 			query.Columns("build_id", "stage_id", "name", "commands", "created_at"),
@@ -948,11 +963,11 @@ func (s *Store) Submit(ctx context.Context, host string, b *Build) error {
 		return driver.ErrUnknown(driverType)
 	}
 
-	if _, err := driverq.PerformCtx(ctx, curlyq.Job{Data: buf.Bytes()}); err != nil {
+	if err := tx.Commit(ctx); err != nil {
 		return errors.Err(err)
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	if _, err := driverq.PerformCtx(ctx, curlyq.Job{Data: buf.Bytes()}); err != nil {
 		return errors.Err(err)
 	}
 	return nil

@@ -32,6 +32,22 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	unmasked := variable.GetUnmasked(sess.Values)
+
+	for _, v := range vv {
+		if _, ok := unmasked[v.ID]; ok && v.Masked {
+			if err := variable.Unmask(h.AESGCM, v); err != nil {
+				alert.Flash(sess, alert.Danger, "Could not unmask variable")
+				h.Log.Error.Println(r.Method, r.URL, "could not unmask variable", errors.Err(err))
+			}
+			continue
+		}
+
+		if v.Masked {
+			v.Value = variable.MaskString
+		}
+	}
+
 	if err := variable.LoadNamespaces(h.DB, vv...); err != nil {
 		h.InternalServerError(w, r, errors.Err(err))
 		return
@@ -47,6 +63,7 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 		CSRF:      csrf,
 		Search:    r.URL.Query().Get("search"),
 		Paginator: paginator,
+		Unmasked:  unmasked,
 		Variables: vv,
 	}
 	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
@@ -108,6 +125,39 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/variables")
 }
 
+func (h UI) Mask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	if u.ID != v.AuthorID {
+		h.RedirectBack(w, r)
+		return
+	}
+
+	unmasked := variable.GetUnmasked(sess.Values)
+
+	if _, ok := unmasked[v.ID]; ok {
+		delete(unmasked, v.ID)
+		variable.PutUnmasked(sess.Values, unmasked)
+	}
+
+	h.RedirectBack(w, r)
+}
+
+func (h UI) Unmask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
+	h.Log.Debug.Println(r.Method, r.URL, "unmasking variable", v.ID)
+	sess, _ := h.Session(r)
+
+	if u.ID != v.AuthorID {
+		h.RedirectBack(w, r)
+		return
+	}
+
+	unmasked := variable.GetUnmasked(sess.Values)
+	unmasked[v.ID] = struct{}{}
+
+	h.RedirectBack(w, r)
+}
+
 func (h UI) Destroy(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -132,6 +182,8 @@ func RegisterUI(srv *server.Server) {
 	sr.HandleFunc("", user.WithUser(ui.Index)).Methods("GET")
 	sr.HandleFunc("/create", user.WithUser(ui.Create)).Methods("GET")
 	sr.HandleFunc("", user.WithUser(ui.Store)).Methods("POST")
+	sr.HandleFunc("/{variable:[0-9]+}/mask", user.WithUser(ui.WithVariable(ui.Mask))).Methods("PATCH")
+	sr.HandleFunc("/{variable:[0-9]+}/unmask", user.WithSudo(ui.WithVariable(ui.Unmask))).Methods("GET")
 	sr.HandleFunc("/{variable:[0-9]+}", user.WithUser(ui.WithVariable(ui.Destroy))).Methods("DELETE")
 	sr.Use(srv.CSRF)
 }

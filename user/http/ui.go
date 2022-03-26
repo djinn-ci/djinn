@@ -397,6 +397,99 @@ func (h UI) getProviders(u *user.User) ([]*provider.Provider, error) {
 	return pp, nil
 }
 
+var (
+	sudoTimestamp = "sudo_timestamp"
+	sudoToken     = "sudo_token"
+	sudoUrl       = "sudo_url"
+	sudoReferer   = "sudo_referer"
+)
+
+func (h UI) Sudo(u *user.User, w http.ResponseWriter, r *http.Request) {
+	sess, save := h.Session(r)
+
+	tok0, ok := sess.Values[sudoToken]
+
+	if !ok {
+		h.NotFound(w, r)
+		return
+	}
+
+	url0, ok := sess.Values[sudoUrl]
+
+	if !ok {
+		h.NotFound(w, r)
+		return
+	}
+
+	ref0, ok := sess.Values[sudoReferer]
+
+	if !ok {
+		h.NotFound(w, r)
+		return
+	}
+
+	delete(sess.Values, sudoToken)
+
+	tok, _ := tok0.(string)
+	url, _ := url0.(string)
+	ref, _ := ref0.(string)
+
+	if r.Method == "GET" {
+		println("tok =", tok)
+		sess.Values[sudoToken] = tok
+
+		p := &usertemplate.Sudo{
+			Form: template.Form{
+				CSRF:   csrf.TemplateField(r),
+				Errors: webutil.FormErrors(sess),
+				Fields: webutil.FormFields(sess),
+			},
+			Alert:       alert.First(sess),
+			User:        u,
+			SudoURL:     url,
+			SudoReferer: ref,
+			SudoToken:   tok,
+		}
+
+		save(r, w)
+		webutil.HTML(w, template.Render(p), http.StatusOK)
+		return
+	}
+
+	var f SudoForm
+
+	if err := webutil.UnmarshalForm(&f, r); err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		alert.Flash(sess, alert.Danger, "Unexpected error occurred during authorization")
+		sess.Values[sudoToken] = h.generateSudoToken()
+		h.Redirect(w, r, "/sudo")
+		return
+	}
+
+	h.Log.Debug.Println(r.Method, r.URL, "authorizing sudo request")
+
+	v := SudoValidator{
+		Form:  f,
+		User:  u,
+		Token: tok,
+	}
+
+	if err := webutil.Validate(v); err != nil {
+		verrs := err.(webutil.ValidationErrors)
+		webutil.FlashFormWithErrors(sess, f, verrs)
+		sess.Values[sudoToken] = h.generateSudoToken()
+		h.Redirect(w, r, "/sudo")
+		return
+	}
+
+	expires := time.Now().Add(time.Minute * 30)
+
+	h.Log.Debug.Println(r.Method, r.URL, "sudo request authorized, expires at", expires)
+
+	sess.Values[sudoTimestamp] = expires
+	h.Redirect(w, r, f.URL)
+}
+
 func (h UI) Settings(u *user.User, w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -756,6 +849,7 @@ func RegisterUI(srv *server.Server) {
 	guest.Use(ui.Guest, srv.CSRF)
 
 	auth := srv.Router.PathPrefix("/").Subrouter()
+	auth.HandleFunc("/sudo", ui.WithUser(ui.Sudo)).Methods("GET", "POST")
 	auth.HandleFunc("/settings", ui.WithUser(ui.Settings)).Methods("GET")
 	auth.HandleFunc("/settings/verify", ui.WithUser(ui.Verify)).Methods("GET", "POST")
 	auth.HandleFunc("/settings/cleanup", ui.WithUser(ui.Cleanup)).Methods("PATCH")

@@ -16,7 +16,6 @@ import (
 	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
-	"github.com/gorilla/sessions"
 )
 
 type UI struct {
@@ -33,7 +32,7 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	unmasked := Unmasked(sess)
+	unmasked := variable.GetUnmasked(sess.Values)
 
 	for _, v := range vv {
 		if _, ok := unmasked[v.ID]; ok && v.Masked {
@@ -126,47 +125,6 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/variables")
 }
 
-var variableMaskKey = "unmask_variable_id"
-
-func Unmasked(sess *sessions.Session) map[int64]struct{} {
-	v, ok := sess.Values[variableMaskKey]
-
-	if !ok {
-		return nil
-	}
-
-	set, _ := v.(map[int64]struct{})
-	return set
-}
-
-func UnmaskVariable(sess *sessions.Session, v *variable.Variable) {
-	val, ok := sess.Values[variableMaskKey]
-
-	if !ok {
-		sess.Values[variableMaskKey] = make(map[int64]struct{})
-		val = sess.Values[variableMaskKey]
-	}
-
-	set, _ := val.(map[int64]struct{})
-	set[v.ID] = struct{}{}
-}
-
-func MaskVariable(sess *sessions.Session, v *variable.Variable) {
-	val, ok := sess.Values[variableMaskKey]
-
-	if ok {
-		set, _ := val.(map[int64]struct{})
-
-		if _, ok := set[v.ID]; ok {
-			delete(set, v.ID)
-		}
-		sess.Values[variableMaskKey] = set
-	}
-}
-
-// Mask is essentially a no-op, the information to unmask a variable in the UI
-// is flashed to the session. We simply want to redirect back to flush out what
-// we flashed.
 func (h UI) Mask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -175,7 +133,13 @@ func (h UI) Mask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *h
 		return
 	}
 
-	MaskVariable(sess, v)
+	unmasked := variable.GetUnmasked(sess.Values)
+
+	if _, ok := unmasked[v.ID]; ok {
+		delete(unmasked, v.ID)
+		variable.PutUnmasked(sess.Values, unmasked)
+	}
+
 	h.RedirectBack(w, r)
 }
 
@@ -188,7 +152,9 @@ func (h UI) Unmask(u *user.User, v *variable.Variable, w http.ResponseWriter, r 
 		return
 	}
 
-	UnmaskVariable(sess, v)
+	unmasked := variable.GetUnmasked(sess.Values)
+	unmasked[v.ID] = struct{}{}
+
 	h.RedirectBack(w, r)
 }
 

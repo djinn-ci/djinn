@@ -18,7 +18,6 @@ import (
 	"djinn-ci.com/user"
 	userhttp "djinn-ci.com/user/http"
 	"djinn-ci.com/variable"
-	variablehttp "djinn-ci.com/variable/http"
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
@@ -205,7 +204,7 @@ func (h UI) Show(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Re
 			return
 		}
 
-		unmasked := variablehttp.Unmasked(sess)
+		unmasked := variable.GetUnmasked(sess.Values)
 
 		for _, v := range vv {
 			if _, ok := unmasked[v.VariableID.Int64]; ok && v.Masked {

@@ -207,7 +207,24 @@ func Chown(db database.Pool, from, to int64) error {
 var (
 	MaskString = "xxxxxx"
 	MaskLen    = len(MaskString)
+
+	variableMaskKey = "unmask_variable_id"
 )
+
+func PutUnmasked(sessvals map[interface{}]interface{}, set map[int64]struct{}) {
+	sessvals[variableMaskKey] = set
+}
+
+func GetUnmasked(sessvals map[interface{}]interface{}) map[int64]struct{} {
+	v, ok := sessvals[variableMaskKey]
+
+	if !ok {
+		v = make(map[int64]struct{})
+	}
+
+	set, _ := v.(map[int64]struct{})
+	return set
+}
 
 func Unmask(aesgcm *crypto.AESGCM, v *Variable) error {
 	if !v.Masked {

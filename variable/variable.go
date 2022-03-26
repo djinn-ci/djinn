@@ -21,6 +21,11 @@ import (
 )
 
 type Variable struct {
+	// realval stores the real value for a masked variable. This would be the
+	// base64 encoded bytes of the encrypted data. The Value field would then
+	// store the human readable MaskString.
+	realval string
+
 	ID          int64
 	UserID      int64
 	AuthorID    int64
@@ -103,19 +108,13 @@ func (v *Variable) JSON(addr string) map[string]interface{} {
 		return nil
 	}
 
-	value := MaskString
-
-	if !v.Masked {
-		value = v.Value
-	}
-
 	json := map[string]interface{}{
 		"id":           v.ID,
 		"author_id":    v.AuthorID,
 		"user_id":      v.UserID,
 		"namespace_id": nil,
 		"key":          v.Key,
-		"value":        value,
+		"value":        v.Value,
 		"masked":       v.Masked,
 		"created_at":   v.CreatedAt.Format(time.RFC3339),
 		"url":          addr + v.Endpoint(),
@@ -214,7 +213,7 @@ func Unmask(aesgcm *crypto.AESGCM, v *Variable) error {
 		return nil
 	}
 
-	dec, err := base64.StdEncoding.DecodeString(v.Value)
+	dec, err := base64.StdEncoding.DecodeString(v.realval)
 
 	if err != nil {
 		return errors.Err(err)
@@ -323,6 +322,12 @@ func (s Store) Get(opts ...query.Option) (*Variable, bool, error) {
 	if !ok {
 		return nil, false, nil
 	}
+
+	v.realval = v.Value
+
+	if v.Masked {
+		v.Value = MaskString
+	}
 	return &v, ok, nil
 }
 
@@ -337,6 +342,14 @@ func (s Store) All(opts ...query.Option) ([]*Variable, error) {
 
 	if err := s.Pool.All(table, new, opts...); err != nil {
 		return nil, errors.Err(err)
+	}
+
+	for _, v := range vv {
+		v.realval = v.Value
+
+		if v.Masked {
+			v.Value = MaskString
+		}
 	}
 	return vv, nil
 }

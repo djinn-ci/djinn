@@ -43,10 +43,6 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		}
-
-		if v.Masked {
-			v.Value = variable.MaskString
-		}
 	}
 
 	if err := variable.LoadNamespaces(h.DB, vv...); err != nil {
@@ -170,6 +166,11 @@ func MaskVariable(sess *sessions.Session, v *variable.Variable) {
 func (h UI) Mask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
+	if u.ID != v.AuthorID {
+		h.RedirectBack(w, r)
+		return
+	}
+
 	MaskVariable(sess, v)
 	h.RedirectBack(w, r)
 }
@@ -177,6 +178,11 @@ func (h UI) Mask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *h
 func (h UI) Unmask(u *user.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
 	h.Log.Debug.Println(r.Method, r.URL, "unmasking variable", v.ID)
 	sess, _ := h.Session(r)
+
+	if u.ID != v.AuthorID {
+		h.RedirectBack(w, r)
+		return
+	}
 
 	UnmaskVariable(sess, v)
 	h.RedirectBack(w, r)

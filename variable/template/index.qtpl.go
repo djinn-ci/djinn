@@ -176,7 +176,7 @@ func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
 //line variable/template/index.qtpl:66
 				qw422016.N().S(` </td> <td class="align-right"> `)
 //line variable/template/index.qtpl:69
-				if _, ok := p.Unmasked[v.ID]; ok && p.User.ID == v.UserID {
+				if _, ok := p.Unmasked[v.ID]; ok && p.User.ID == v.AuthorID {
 //line variable/template/index.qtpl:69
 					qw422016.N().S(` <form method="POST" action="`)
 //line variable/template/index.qtpl:70
@@ -192,7 +192,7 @@ func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
 //line variable/template/index.qtpl:75
 				qw422016.N().S(` `)
 //line variable/template/index.qtpl:76
-				if _, ok := p.Unmasked[v.ID]; !ok && v.Masked && p.User.ID == v.UserID {
+				if _, ok := p.Unmasked[v.ID]; !ok && v.Masked && p.User.ID == v.AuthorID {
 //line variable/template/index.qtpl:76
 					qw422016.N().S(` <a class="btn btn-primary" href="`)
 //line variable/template/index.qtpl:77

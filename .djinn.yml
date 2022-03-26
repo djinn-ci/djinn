@@ -4,13 +4,20 @@ driver:
   image: djinn-dev
 sources:
 - https://github.com/djinn-ci/djinn dev.varmask
+- https://github.com/andrewpillar/mgrt
 env:
 - LDFLAGS=-s -w
 - INTEGRATION_CONFIG_DIR=testdata
 stages:
+- deps
 - setup
 - make
 jobs:
+- stage: deps
+  commands:
+  - cd mgrt
+  - ./make.sh
+  - cp bin/mgrt /usr/local/bin/mgrt
 - stage: setup
   commands:
   - printf "127.0.0.1\tlocal.dev\n" | tee -a /etc/hosts

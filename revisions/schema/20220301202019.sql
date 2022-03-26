@@ -1,5 +1,5 @@
 /*
-Revision: dev/20220301202019
+Revision: schema/20220301202019
 Author:   Andrew Pillar <me@andrewpillar.com>
 
 Add columns for variable masking

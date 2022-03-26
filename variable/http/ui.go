@@ -43,6 +43,10 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 			}
 			continue
 		}
+
+		if v.Masked {
+			v.Value = variable.MaskString
+		}
 	}
 
 	if err := variable.LoadNamespaces(h.DB, vv...); err != nil {

@@ -38,9 +38,14 @@ to if any.
 
 ---
 
-**`value`** `string` - The value of the variable.
+**`value`** `string` - The value of the variable. A masked variable will have
+the value of `xxxxxx`.
 
 ---
+
+**`masked`** `bool` - Whether the variable has been masked.
+
+--
 
 **`created_at`** `timestamp` - The RFC3339 formatted string at which the
 variable was created.
@@ -76,6 +81,7 @@ any.
         "namespace_id": null,
         "key": "PGADDR",
         "value": "host=localhost port=5432 dbname=dev user=root password=secret sslmode=disable",
+        "masked": false,
         "created_at": "2006-01-02T15:04:05Z",
         "url": "{{index .Vars "apihost"}}/variables/2",
         "user": {
@@ -178,6 +184,11 @@ explicit `variable:write` permission.
 ---
 
 **`value`** `string` - The value of the variable.
+
+--
+
+**`mask`** `bool` - Whether the variable should be masked. Variable value must
+be at least 6 characters long.
 
 ---
 

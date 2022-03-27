@@ -6,6 +6,7 @@ Variables can not only be set in build manifest files, but also as "global"
 variables to be used across multiple builds.
 
 * [Creating a variable](#creating-a-variable)
+* [Masked variables](#masked-variables)
 * [Using a variable](#using-a-variable)
 
 ## Creating a variable
@@ -19,6 +20,15 @@ can be anything.
 
 Variables can be grouped into a namespace, doing this will mean all builds
 submitted to that namespace will have the given variable set on it.
+
+## Masked variables
+
+A variable can be masked by simply selecting the *Mask* checkbox during
+creation. This will encrypt the variable's value in the backend, and will
+replace any occurrence of the variable's value in build logs with `xxxxxx`.
+
+Only the author of a variable can unmask a masked variable via the UI so see
+its original value.
 
 ## Using a variable
 

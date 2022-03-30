@@ -10,7 +10,7 @@ require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/andrewpillar/config v0.0.0-20220213201933-b38b905742d8
-	github.com/andrewpillar/query v0.0.0-20220127183121-0af49c6ce2aa
+	github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd
 	github.com/andrewpillar/webutil v0.0.0-20220227170840-e74846c9f4bd
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/docker v1.13.1

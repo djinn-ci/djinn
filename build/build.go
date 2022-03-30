@@ -399,6 +399,32 @@ func (s *Store) Get(opts ...query.Option) (*Build, bool, error) {
 	return &b, ok, nil
 }
 
+func (s *Store) Distinct(cols []string, opts ...query.Option) ([]*Build, error) {
+	opts = append([]query.Option{
+		query.From(table),
+	}, opts...)
+
+	q := query.SelectDistinctOn(cols, query.Columns("*"), opts...)
+
+	rows, err := s.Pool.Query(q.Build(), q.Args()...)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	bb := make([]*Build, 0)
+
+	for rows.Next() {
+		b := &Build{}
+
+		if err := rows.Scan(b.Dest()...); err != nil {
+			return nil, errors.Err(err)
+		}
+		bb = append(bb, b)
+	}
+	return bb, nil
+}
+
 // All returns all of the Builds that can be found with the given query options
 // applied.
 func (s *Store) All(opts ...query.Option) ([]*Build, error) {

@@ -55,6 +55,8 @@ github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4 h1:aNiK7dzPXmJX
 github.com/andrewpillar/query v0.0.0-20201129150753-29c78792aba4/go.mod h1:wVXd1kOpBy58bZVPn+lx7dVv/bN4jxzdYzZSaSG4ymw=
 github.com/andrewpillar/query v0.0.0-20220127183121-0af49c6ce2aa h1:iW/ayJmtkysAb5gMaWjlaXyYAGpQgRkGxVb+2xO46Ww=
 github.com/andrewpillar/query v0.0.0-20220127183121-0af49c6ce2aa/go.mod h1:HPfDGOYrl5T2JxmtgCV79agF1acEv8s2HsjeZ631rGU=
+github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd h1:FI7/h4AfdrvTdUq/kgIrfj/LAlnx7fv0DbipWyYMY9Q=
+github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd/go.mod h1:HPfDGOYrl5T2JxmtgCV79agF1acEv8s2HsjeZ631rGU=
 github.com/andrewpillar/webutil v0.0.0-20211204225449-cf8de2dd0972 h1:34t1k6wMQa1thXADeFhR0x4WSeuYqBtkwALDjpkcB7c=
 github.com/andrewpillar/webutil v0.0.0-20211204225449-cf8de2dd0972/go.mod h1:dkuC/wXNKz0uG9wAYHNvMuANdmrG0KMQeOjtnTeGrRg=
 github.com/andrewpillar/webutil v0.0.0-20220219222643-e79f3d917492 h1:FqtY5RBEYI7NinKiGIIM8AZvp1mrAvqMo5clcoXHOic=

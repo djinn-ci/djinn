@@ -95,9 +95,10 @@ func (h *Handler) loadLastBuild(nn []*namespace.Namespace) error {
 		mm = append(mm, n)
 	}
 
-	bb, err := h.Builds.All(
+	bb, err := h.Builds.Distinct(
+		[]string{"namespace_id"},
 		query.Where("namespace_id", "IN", database.List(database.Values("id", mm)...)),
-		query.OrderDesc("created_at"),
+		query.OrderDesc("namespace_id", "created_at"),
 	)
 
 	if err != nil {

@@ -23,7 +23,7 @@ func main() {
 	)
 
 	fs := flag.CommandLine
-	fs.Int64Var(&limit, "limit", 1<<30, "the limit in bytes after which old artifacts should be removed")
+	fs.Int64Var(&limit, "limit", 0, "the limit in bytes after which old artifacts should be removed (deprecated)")
 	fs.StringVar(&configfile, "config", "djinn-curator.conf", "the config file to use")
 	fs.BoolVar(&showversion, "version", false, "show the version and exit")
 	fs.Parse(os.Args[1:])
@@ -31,6 +31,10 @@ func main() {
 	if showversion {
 		fmt.Printf("%s %s %s/%s\n", os.Args[0], version.Build, runtime.GOOS, runtime.GOARCH)
 		return
+	}
+
+	if limit > 0 {
+		fmt.Fprintln(os.Stderr, "the limit flag has been deprecated in favor of per-user cleanup thresholds")
 	}
 
 	f, err := os.Open(configfile)
@@ -71,9 +75,13 @@ func main() {
 
 	signal.Notify(c, os.Interrupt)
 
-	t := time.NewTicker(time.Minute)
+	interval := cfg.Interval()
+
+	t := time.NewTicker(interval)
 
 	artifacts := cfg.Artifacts()
+
+	log.Info.Println(os.Args[0], "started with interval of", interval)
 
 loop:
 	for {
@@ -88,7 +96,9 @@ loop:
 					}
 				}()
 
-				curator := build.NewCurator(db, artifacts, limit)
+				log.Debug.Println("starting curation")
+
+				curator := build.NewCurator(db, artifacts)
 
 				if err := curator.Invoke(log); err != nil {
 					log.Error.Println(err)

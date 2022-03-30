@@ -2,6 +2,7 @@ package config
 
 import (
 	"io"
+	"time"
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
@@ -16,6 +17,8 @@ type curatorCfg struct {
 
 	Log map[string]string
 
+	Interval time.Duration
+
 	Database databaseCfg
 
 	Store map[string]storeCfg
@@ -26,6 +29,8 @@ type Curator struct {
 
 	log *log.Logger
 
+	interval time.Duration
+
 	db database.Pool
 
 	artifacts fs.Store
@@ -35,6 +40,7 @@ func (c *Curator) Pidfile() string     { return c.pidfile }
 func (c *Curator) DB() database.Pool   { return c.db }
 func (c *Curator) Artifacts() fs.Store { return c.artifacts }
 func (c *Curator) Log() *log.Logger    { return c.log }
+func (c *Curator) Interval() time.Duration { return c.interval }
 
 func DecodeCurator(name string, r io.Reader) (*Curator, error) {
 	var cfg curatorCfg
@@ -60,6 +66,12 @@ func DecodeCurator(name string, r io.Reader) (*Curator, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	if cfg.Interval == 0 {
+		cfg.Interval = time.Minute * 5
+	}
+
+	curator.interval = cfg.Interval
 
 	curator.db, err = cfg.Database.connect(curator.log)
 

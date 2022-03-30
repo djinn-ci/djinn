@@ -206,6 +206,8 @@ func (s *ArtifactStore) All(opts ...query.Option) ([]*Artifact, error) {
 
 // Deleted marks all of the Artifacts in the given list of ids as deleted. This
 // will not remove records from the table, but will simply zero-out the columns.
+// This will also delete each artifact marked as deleted from the underlying
+// file store.
 func (s *ArtifactStore) Deleted(ids ...int64) error {
 	if len(ids) == 0 {
 		return nil
@@ -224,7 +226,35 @@ func (s *ArtifactStore) Deleted(ids ...int64) error {
 		query.Set("sha256", query.Arg(nil)),
 		query.Set("deleted_at", query.Arg(time.Now())),
 		query.Where("id", "IN", query.List(vals...)),
+		query.Returning("user_id", "hash"),
 	)
+
+	rows, err := s.Query(q.Build(), q.Args()...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	var (
+		userId int64
+		hash   string
+	)
+
+	for rows.Next() {
+		if err := rows.Scan(&userId, &hash); err != nil {
+			return errors.Err(err)
+		}
+
+		part, err := s.Partition(userId)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		if err := part.Remove(hash); err != nil {
+			return errors.Err(err)
+		}
+	}
 
 	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
 		return errors.Err(err)

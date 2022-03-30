@@ -1,6 +1,8 @@
 package build
 
 import (
+	"database/sql"
+
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/fs"
@@ -18,7 +20,6 @@ type curationRecord struct {
 // Curator is used for removing old build artifacts whose total size exceed
 // the configured limit.
 type Curator struct {
-	limit     int64
 	store     fs.Store
 	artifacts *ArtifactStore
 	users     user.Store
@@ -26,9 +27,8 @@ type Curator struct {
 
 // NewCurator creates a new curator for cleaning up old artifacts from the
 // given block store.
-func NewCurator(db database.Pool, store fs.Store, limit int64) Curator {
+func NewCurator(db database.Pool, store fs.Store) Curator {
 	return Curator{
-		limit: limit,
 		store: store,
 		artifacts: &ArtifactStore{
 			Pool:  db,
@@ -42,7 +42,7 @@ func NewCurator(db database.Pool, store fs.Store, limit int64) Curator {
 // limit. This will only do it for users who have "cleanup" enabled on their
 // account.
 func (c *Curator) Invoke(log *log.Logger) error {
-	uu, err := c.users.All(query.Where("cleanup", "=", query.Arg(true)))
+	uu, err := c.users.All(query.Where("cleanup", ">", query.Arg(0)))
 
 	if err != nil {
 		return errors.Err(err)
@@ -50,58 +50,55 @@ func (c *Curator) Invoke(log *log.Logger) error {
 
 	userIds := make([]interface{}, 0, len(uu))
 
+	cleanups := make(map[int64]int64)
+
 	for _, u := range uu {
+		log.Debug.Println("cleanup limit for user", u.Username, "is", u.Cleanup)
+
 		userIds = append(userIds, u.ID)
+		cleanups[u.ID] = u.Cleanup
 	}
 
-	aa, err := c.artifacts.All(
+	q := query.Select(
+		query.Columns("id", "user_id", "size"),
+		query.From(artifactTable),
 		query.Where("size", ">", query.Arg(0)),
 		query.Where("user_id", "IN", database.List(userIds...)),
 		query.Where("deleted_at", "IS", query.Lit("NULL")),
 		query.OrderDesc("created_at"),
 	)
 
+	rows, err := c.artifacts.Query(q.Build(), q.Args()...)
+
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	sums := make(map[int64]int64)
-	curated := make(map[int64][]curationRecord)
-	deleted := make([]int64, 0, len(aa))
+	curated := make([]int64, 0)
+	sumtab := make(map[int64]int64)
 
-	for _, a := range aa {
-		sum := sums[a.UserID]
-		sum += a.Size.Int64
+	var (
+		id, userId int64
+		size       sql.NullInt64
+	)
 
-		if sum >= c.limit {
-			curated[a.UserID] = append(curated[a.UserID], curationRecord{
-				artifact: a.ID,
-				hash:     a.Hash,
-			})
+	for rows.Next() {
+		if err := rows.Scan(&id, &userId, &size); err != nil {
+			return errors.Err(err)
 		}
-		sums[a.UserID] = sum
+
+		sum := sumtab[userId]
+		sum += size.Int64
+
+		if limit, ok := cleanups[userId]; ok && sum >= limit {
+			log.Debug.Println("curating artifact", id, "for user", userId)
+
+			curated = append(curated, id)
+		}
+		sumtab[userId] = sum
 	}
 
-	for userId, records := range curated {
-		part, err := c.store.Partition(userId)
-
-		if err != nil {
-			log.Error.Println("failed to partition artifact store", err)
-			continue
-		}
-
-		for _, r := range records {
-			log.Debug.Println("removing artifact", r.hash)
-
-			if err := part.Remove(r.hash); err != nil {
-				log.Error.Println("failed to remove artifact", r.hash, err)
-				continue
-			}
-			deleted = append(deleted, r.artifact)
-		}
-	}
-
-	if err := c.artifacts.Deleted(deleted...); err != nil {
+	if err := c.artifacts.Deleted(curated...); err != nil {
 		return errors.Err(err)
 	}
 	return err

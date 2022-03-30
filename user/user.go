@@ -23,7 +23,7 @@ type User struct {
 	Username    string
 	Password    []byte
 	Verified    bool
-	Cleanup     bool
+	Cleanup     int64
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 	DeletedAt   sql.NullTime
@@ -216,7 +216,7 @@ type Params struct {
 	Email    string
 	Username string
 	Password string
-	Cleanup  bool
+	Cleanup  int64
 }
 
 func (s Store) Create(p Params) (*User, string, error) {

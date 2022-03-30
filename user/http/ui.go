@@ -579,6 +579,44 @@ resp:
 	h.RedirectBack(w, r)
 }
 
+func parseSize(s string) (int64, error) {
+	siztab := map[string]int64{
+		"B":  1,
+		"KB": 1<<10,
+		"MB": 1<<20,
+		"GB": 1<<30,
+	}
+
+	pos := -1
+
+	for i, r := range s {
+		if '0' <= r && r <= '9' {
+			continue
+		}
+		pos = i
+		break
+	}
+
+	mult := int64(1)
+
+	if pos > -1 {
+		var ok bool
+		mult, ok = siztab[s[pos:]]
+
+		if !ok {
+			return 0, errors.New("invalid size")
+		}
+		s = s[:pos]
+	}
+
+	i, err := strconv.ParseInt(s, 10, 64)
+
+	if err != nil {
+		return 0, err
+	}
+	return i*mult, nil
+}
+
 func (h UI) Cleanup(u *user.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
@@ -589,9 +627,21 @@ func (h UI) Cleanup(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cleanup, err := parseSize(r.PostForm.Get("cleanup"))
+
+	if err != nil {
+		errs := make(webutil.ValidationErrors)
+		errs.Add("cleanup", err)
+
+		sess.AddFlash(errs, "form_errors")
+
+		h.RedirectBack(w, r)
+		return
+	}
+
 	params := user.Params{
 		Email:   u.Email,
-		Cleanup: r.PostForm.Get("cleanup") == "on",
+		Cleanup: cleanup,
 	}
 
 	if err := h.Users.Update(u.ID, params); err != nil {

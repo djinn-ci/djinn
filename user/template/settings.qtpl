@@ -1,5 +1,7 @@
 {%
 import (
+	"strings"
+
 	"djinn-ci.com/provider"
 	"djinn-ci.com/template"
 )
@@ -77,16 +79,15 @@ type Settings struct {
 					{%v= p.CSRF %}
 					<input type="hidden" name="_method" value="PATCH"/>
 					<div class="form-field">
-						<label class="form-option">
-							{% if p.User.Cleanup %}
-								<input class="form-selector" type="checkbox" name="cleanup" checked="true"/>
-							{% else %}
-								<input class="form-selector" type="checkbox" name="cleanup"/>
-							{% endif %}
-							<strong>Cleanup artifacts</strong>
-							<span class="left">{% cat "../../static/svg/bin.svg" %}</span>
-							<div class="form-desc">Clean up old artifacts</div>
-						</label>
+						{% if p.User.Cleanup == 0 %}
+							<div class="alert alert-warn">
+								No artifacts will be cleaned up when the threshold is 0.
+							</div>
+						{% endif %}
+						<label class="label" for="cleanup">Cleanup threshold</label>
+						<div class="form-desc">The size threshold after which old artifacts should be deleted</div>
+						<input class="form-text" type="text" id="cleanup" name="cleanup" value="{%s strings.Replace(template.RenderSize(p.User.Cleanup), " ", "", -1) %}" autocomplete="off"/>
+						{%= p.Error("cleanup") %}
 					</div>
 					<div class="form-field">
 						<button type="submit" class="btn btn-primary">Update</button>

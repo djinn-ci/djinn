@@ -31,6 +31,9 @@ type serverCfg struct {
 	Net struct {
 		Listen string
 
+		WriteTimeout time.Duration `config:"write_timeout"`
+		ReadTimeout  time.Duration `config:"read_timeout"`
+
 		TLS tlsCfg
 		SSL tlsCfg `config:"ssl,deprecated:tls"`
 	}
@@ -129,8 +132,8 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 
 	srv.srv = &http.Server{
 		Addr:         cfg.Net.Listen,
-		WriteTimeout: 15 * time.Second,
-		ReadTimeout:  15 * time.Second,
+		WriteTimeout: cfg.Net.WriteTimeout,
+		ReadTimeout:  cfg.Net.ReadTimeout,
 	}
 
 	srv.srv.TLSConfig, err = cfg.Net.TLS.config()

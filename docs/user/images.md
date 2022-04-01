@@ -11,9 +11,18 @@ images.
 specify any image for this driver to use, and as long as the Djinn Server can
 talk to the Docker Hub, that image will be downloaded and used.
 
+* [Default images](#default-images)
 * [Creating an image](#creating-an-image)
   * [Preparing a QEMU image](#preparing-a-qemu-image)
 * [Using a custom image](#using-a-custom-image)
+
+## Default images
+
+Djinn CI comes with a set of default images for the QEMU driver that can be
+used. The full list of these images can be found on the Djinn CI
+[image server][0].
+
+[0]: {{index .Vars "imgsrv"}}
 
 ## Creating an image
 

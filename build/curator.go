@@ -15,15 +15,20 @@ import (
 // Curator is used for removing old build artifacts whose total size exceed
 // the configured limit.
 type Curator struct {
+	log       *log.Logger
 	store     fs.Store
 	artifacts *ArtifactStore
 	users     user.Store
+
+	// The users we're curating artifacts for.
+	uu []*user.User
 }
 
 // NewCurator creates a new curator for cleaning up old artifacts from the
 // given block store.
-func NewCurator(db database.Pool, store fs.Store) Curator {
+func NewCurator(log *log.Logger, db database.Pool, store fs.Store) Curator {
 	return Curator{
+		log:   log,
 		store: store,
 		artifacts: &ArtifactStore{
 			Pool:  db,
@@ -33,22 +38,32 @@ func NewCurator(db database.Pool, store fs.Store) Curator {
 	}
 }
 
+// Users returns the slice of users that artifacts will be curated for.
+func (c *Curator) Users() []*user.User { return c.uu }
+
 // Invoke will remove any artifacts whose total size exceeds the configured
 // limit. This will only do it for users who have "cleanup" enabled on their
 // account.
-func (c *Curator) Invoke(log *log.Logger) error {
+func (c *Curator) Invoke() error {
+	if c.uu == nil {
+		c.uu = make([]*user.User, 0)
+	}
+
 	uu, err := c.users.All(query.Where("cleanup", ">", query.Arg(0)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
+	c.uu = c.uu[0:0]
+	copy(c.uu, uu)
+
 	userIds := make([]interface{}, 0, len(uu))
 
 	cleanups := make(map[int64]int64)
 
-	for _, u := range uu {
-		log.Debug.Println("cleanup limit for user", u.Username, "is", u.Cleanup)
+	for _, u := range c.uu {
+		c.log.Debug.Println("cleanup limit for user", u.Username, "is", u.Cleanup)
 
 		userIds = append(userIds, u.ID)
 		cleanups[u.ID] = u.Cleanup
@@ -86,7 +101,7 @@ func (c *Curator) Invoke(log *log.Logger) error {
 		sum += size.Int64
 
 		if limit, ok := cleanups[userId]; ok && sum >= limit {
-			log.Debug.Println("curating artifact", id, "for user", userId)
+			c.log.Debug.Println("curating artifact", id, "for user", userId)
 
 			curated = append(curated, id)
 		}

@@ -83,6 +83,8 @@ func main() {
 
 	log.Info.Println(os.Args[0], "started with interval of", interval)
 
+	curator := build.NewCurator(db, artifacts)
+
 loop:
 	for {
 		select {
@@ -97,8 +99,6 @@ loop:
 				}()
 
 				log.Debug.Println("starting curation")
-
-				curator := build.NewCurator(db, artifacts)
 
 				if err := curator.Invoke(log); err != nil {
 					log.Error.Println(err)

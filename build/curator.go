@@ -12,11 +12,6 @@ import (
 	"github.com/andrewpillar/query"
 )
 
-type curationRecord struct {
-	artifact int64
-	hash     string
-}
-
 // Curator is used for removing old build artifacts whose total size exceed
 // the configured limit.
 type Curator struct {

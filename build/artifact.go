@@ -252,7 +252,9 @@ func (s *ArtifactStore) Deleted(ids ...int64) error {
 		}
 
 		if err := part.Remove(hash); err != nil {
-			return errors.Err(err)
+			if !errors.Is(err, fs.ErrNotExist) {
+				return errors.Err(err)
+			}
 		}
 	}
 

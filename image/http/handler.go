@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"djinn-ci.com/database"
@@ -17,6 +18,8 @@ import (
 
 	"github.com/andrewpillar/query"
 	"github.com/andrewpillar/webutil"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
@@ -47,23 +50,27 @@ func NewHandler(srv *server.Server) *Handler {
 }
 
 func (h *Handler) WithImage(fn HandlerFunc) userhttp.HandlerFunc {
+	namespaces := namespace.Store{
+		Pool: h.DB,
+	}
+
 	return func(u *user.User, w http.ResponseWriter, r *http.Request) {
-		var (
-			i   *image.Image
-			ok  bool
-			err error
-		)
+		var hasPermission bool
 
-		get := func(id int64) (database.Model, bool, error) {
-			i, ok, err = h.Images.Get(query.Where("id", "=", query.Arg(id)))
-
-			if err != nil {
-				return nil, false, errors.Err(err)
-			}
-			return i, ok, nil
+		switch r.Method {
+		case "GET":
+			_, hasPermission = u.Permissions["image:read"]
+		case "POST", "PATCH":
+			_, hasPermission = u.Permissions["image:write"]
+		case "DELETE":
+			_, hasPermission = u.Permissions["image:delete"]
 		}
 
-		ok, err = h.Namespace.CanAccessResource("image", get, u, r)
+		vars := mux.Vars(r)
+
+		id, _ := strconv.ParseInt(vars["image"], 10, 64)
+
+		i, ok, err := h.Images.Get(query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
 			h.InternalServerError(w, r, errors.Err(err))
@@ -71,6 +78,63 @@ func (h *Handler) WithImage(fn HandlerFunc) userhttp.HandlerFunc {
 		}
 
 		if !ok {
+			h.NotFound(w, r)
+			return
+		}
+
+		if !i.NamespaceID.Valid {
+			if u.ID == i.UserID && hasPermission {
+				fn(u, i, w, r)
+				return
+			}
+
+			h.NotFound(w, r)
+			return
+		}
+
+		root, _, err := namespaces.Get(
+			query.Where("root_id", "=", namespace.SelectRootID(i.NamespaceID.Int64)),
+			query.Where("id", "=", namespace.SelectRootID(i.NamespaceID.Int64)),
+		)
+
+		if err != nil {
+			h.InternalServerError(w, r, errors.Err(err))
+			return
+		}
+
+		if r.Method == "GET" {
+			parts := strings.Split(r.URL.Path, "/")
+
+			// Allow downloading of images from public namespaces.
+			if parts[len(parts)-2] == "download" {
+				if root.Visibility == namespace.Public {
+					fn(u, i, w, r)
+					return
+				}
+			}
+
+			if err := root.HasAccess(h.DB, u.ID); err != nil {
+				if errors.Is(err, namespace.ErrPermission) {
+					h.NotFound(w, r)
+					return
+				}
+
+				h.InternalServerError(w, r, errors.Err(err))
+				return
+			}
+		}
+
+		if err := root.IsCollaborator(h.DB, u.ID); err != nil {
+			if errors.Is(err, namespace.ErrPermission) {
+				h.NotFound(w, r)
+				return
+			}
+
+			h.InternalServerError(w, r, errors.Err(err))
+			return
+		}
+
+		if !hasPermission {
 			h.NotFound(w, r)
 			return
 		}

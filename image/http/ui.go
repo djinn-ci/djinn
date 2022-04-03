@@ -181,7 +181,7 @@ func RegisterUI(srv *server.Server) {
 	sr.HandleFunc("", user.WithUser(ui.Index)).Methods("GET")
 	sr.HandleFunc("/create", user.WithUser(ui.Create)).Methods("GET")
 	sr.HandleFunc("", user.WithUser(ui.Store)).Methods("POST")
-	sr.HandleFunc("/{image:[0-9]+}/download/{name}", user.WithUser(ui.WithImage(ui.Show))).Methods("GET")
+	sr.HandleFunc("/{image:[0-9]+}/download/{name}", user.WithOptionalUser(ui.WithImage(ui.Show))).Methods("GET")
 	sr.HandleFunc("/{image:[0-9]+}", user.WithUser(ui.WithImage(ui.Destroy))).Methods("DELETE")
 	sr.Use(srv.CSRF)
 }

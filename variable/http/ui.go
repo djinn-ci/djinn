@@ -155,6 +155,8 @@ func (h UI) Unmask(u *user.User, v *variable.Variable, w http.ResponseWriter, r 
 	unmasked := variable.GetUnmasked(sess.Values)
 	unmasked[v.ID] = struct{}{}
 
+	variable.PutUnmasked(sess.Values, unmasked)
+
 	h.RedirectBack(w, r)
 }
 

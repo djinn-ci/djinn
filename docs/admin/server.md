@@ -12,6 +12,7 @@ so there is no need to worry about where assets will exist on disk.
 * [Environment Variables](#environment-variables)
 * [Example Server Configuration](#example-server-configuration)
 * [Running the Server](#running-the-server)
+* [Proxying behind NGINX](#proxying-behind-nginx)
 * [Configuring the Server Daemon](#configuring-the-server-daemon)
 
 ## External Dependencies
@@ -46,6 +47,12 @@ should only contain string literals.
 served over the network.
 
   * **`listen`** `string` - The address that should be used to serve over.
+
+  * **`write_timeout`** `duration` - The maximum duration before timing out
+  writes of a response. Set to zero for no timeout.
+
+  * **`read_timeout`** `duration` - The maximum duration before timing out
+  reads of a request. Set to zero for no timeout.
 
 * **`tls`** `{...}` - The TLS block if you want to seve over TLS.
 
@@ -259,6 +266,19 @@ the `/api` prefix,
 **Serving just the UI**
 
     $ djinn-server -config /etc/djinn/server.conf -ui
+
+## Proxying behind NGINX
+
+It is recommended that you deploy Djinn CI behind an NGINX proxy. This will
+give you more fine grained control over any timeouts that may occur when
+uploading/downloading build images. An example NGINX configuration can be
+found in the `dist` directory.
+
+In the future, this may no longer be necessary should `net/http` support
+configuring read/write timeouts on a per handler basis, see
+[go/golang/issues/16100][0].
+
+[0]: https://github.com/golang/go/issues/16100
 
 ## Configuring the Server Daemon
 

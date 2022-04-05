@@ -45,7 +45,7 @@ the value of `xxxxxx`.
 
 **`masked`** `bool` - Whether the variable has been masked.
 
---
+---
 
 **`created_at`** `timestamp` - The RFC3339 formatted string at which the
 variable was created.

@@ -204,16 +204,26 @@ func (s *Store) Create(p Params) (*Provider, error) {
 		Valid: p.ProviderUserID > 0,
 	}
 
-	access, err := s.AESGCM.Encrypt([]byte(p.AccessToken))
+	var (
+		access  []byte
+		refresh []byte
+		err     error
+	)
 
-	if err != nil {
-		return nil, errors.Err(err)
+	if p.AccessToken != "" {
+		access, err = s.AESGCM.Encrypt([]byte(p.AccessToken))
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
 	}
 
-	refresh, err := s.AESGCM.Encrypt([]byte(p.RefreshToken))
+	if p.RefreshToken != "" {
+		refresh, err = s.AESGCM.Encrypt([]byte(p.RefreshToken))
 
-	if err != nil {
-		return nil, errors.Err(err)
+		if err != nil {
+			return nil, errors.Err(err)
+		}
 	}
 
 	q := query.Insert(

@@ -46,14 +46,7 @@ func (h UI) getUserOrCreate(name string, providerUserId int64, email, username s
 		return u, nil
 	}
 
-	u, ok, err = h.Users.Get(
-		query.Where("id", "=", provider.Select(
-			"user_id",
-			query.Where("name", "=", query.Arg(name)),
-			query.Where("main_account", "=", query.Arg(true)),
-		)),
-		query.Where("email", "=", query.Arg(email)),
-	)
+	_, ok, err = h.Users.Get(query.Where("email", "=", query.Arg(email)))
 
 	if err != nil {
 		return nil, errors.Err(err)

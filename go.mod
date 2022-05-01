@@ -6,12 +6,11 @@ replace github.com/docker/docker => github.com/docker/engine v0.0.0-201811061931
 
 require (
 	github.com/Azure/go-ansiterm v0.0.0-20170929234023-d6e3b3328b78 // indirect
-	github.com/DATA-DOG/go-sqlmock v1.5.0 // indirect
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
-	github.com/andrewpillar/config v0.0.0-20220213201933-b38b905742d8
+	github.com/andrewpillar/config v1.0.0
 	github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd
-	github.com/andrewpillar/webutil v0.0.0-20220227170840-e74846c9f4bd
+	github.com/andrewpillar/webutil v1.0.0
 	github.com/docker/distribution v2.8.1+incompatible // indirect
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
@@ -22,13 +21,11 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/csrf v1.6.2
 	github.com/gorilla/mux v1.7.4
-	github.com/gorilla/schema v1.2.0 // indirect
 	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.1
 	github.com/hako/durafmt v0.0.0-20191009132224-3f39dc1ed9f4
 	github.com/jackc/pgconn v1.10.1
 	github.com/jackc/pgx/v4 v4.14.1
-	github.com/jmoiron/sqlx v1.2.0 // indirect
 	github.com/mcmathja/curlyq v0.4.0
 	github.com/opencontainers/go-digest v1.0.0-rc1 // indirect
 	github.com/opencontainers/image-spec v1.0.2 // indirect

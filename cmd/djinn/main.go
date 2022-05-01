@@ -74,6 +74,14 @@ func main() {
 		exiterr(errors.Cause(err))
 	}
 
+	typ := m.Driver["type"]
+
+	// Force to x86_64 for now since this is all we support for the QEMU driver.
+	// Down the line we perhaps may want to use the host arch as a default.
+	if typ == "qemu" {
+		m.Driver["arch"] = "x86_64"
+	}
+
 	f2, err := os.Open(driverfile)
 
 	if err != nil {
@@ -82,7 +90,7 @@ func main() {
 
 	defer f2.Close()
 
-	driverInit, driverCfg, err := config.DecodeDriver(m.Driver["type"], f2.Name(), f2)
+	driverInit, driverCfg, err := config.DecodeDriver(typ, f2.Name(), f2)
 
 	if err != nil {
 		exiterr(errors.Cause(err))

@@ -215,6 +215,19 @@ func encodeStack() string {
 	return buf.String()
 }
 
+func headersHandler(h http.Handler) http.HandlerFunc {
+	headers := map[string]string{
+		"X-Frame-Options": "deny",
+	}
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range headers {
+			w.Header().Set(k, v)
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
 func spoofHandler(h http.Handler) http.HandlerFunc {
 	methods := map[string]struct{}{
 		"PATCH":  {},
@@ -247,7 +260,7 @@ func (s *Server) Init() {
 	gob.Register(time.Time{})
 	gob.Register(webutil.ValidationErrors{})
 
-	s.Server.Handler = s.recoverHandler(spoofHandler(s.Router))
+	s.Server.Handler = s.recoverHandler(headersHandler(spoofHandler(s.Router)))
 }
 
 // Serve will bind the server to the given address. If the server has a

@@ -39,11 +39,11 @@ notation to submit a build to a namespace that you are a collaborator in.
 
 **Namespace with owner**
 
-    namespace: owner@project
+    namespace: project@owner
 
 **Namespace with owner and child**
 
-    namespace: owner@project/child
+    namespace: project@owner/child
 
 ## Driver
 

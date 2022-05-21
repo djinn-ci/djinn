@@ -10,6 +10,7 @@
 .vimrc
 bin/
 node_modules/
+djinn-dev
 ./driver.conf
 ./worker.conf
 ./server.conf

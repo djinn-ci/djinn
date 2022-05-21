@@ -23,14 +23,9 @@ jobs:
   - printf "127.0.0.1\tlocal.dev\n" | tee -a /etc/hosts
   - cd djinn
   - mgrt run -c schema -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
-  - mgrt run -c dev -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
   - mgrt run -c perms -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
+  - mgrt run -c dev -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
   - sudo -u postgres psql -c "ALTER TYPE driver_type ADD VALUE 'os'" -d djinn
-  - sudo -u postgres psql -c "ALTER USER djinn_consumer WITH PASSWORD 'secret'"
-  - sudo -u postgres psql -c "ALTER USER djinn_curator WITH PASSWORD 'secret'"
-  - sudo -u postgres psql -c "ALTER USER djinn_scheduler WITH PASSWORD 'secret'"
-  - sudo -u postgres psql -c "ALTER USER djinn_server WITH PASSWORD 'secret'"
-  - sudo -u postgres psql -c "ALTER USER djinn_worker WITH PASSWORD 'secret'"
 - stage: make
   commands:
   - cd djinn

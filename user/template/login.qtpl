@@ -63,7 +63,7 @@ var providerNames = map[string]string{
 				</div>
 				{% for _, prv := range p.Providers %}
 					<div class="input-field">
-						<a href="{%s prv.AuthURL %}" class="btn provider-btn provider-{%s prv.Name %}">
+						<a href="/login/{%s prv.Name %}" class="btn provider-btn provider-{%s prv.Name %}">
 							{% switch prv.Name %}
 							{% case "github" %}
 								{% cat "../../static/svg/github.svg" %}

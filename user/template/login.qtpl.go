@@ -148,9 +148,9 @@ func (p *Login) StreamBody(qw422016 *qt422016.Writer) {
 //line user/template/login.qtpl:64
 	for _, prv := range p.Providers {
 //line user/template/login.qtpl:64
-		qw422016.N().S(` <div class="input-field"> <a href="`)
+		qw422016.N().S(` <div class="input-field"> <a href="/login/`)
 //line user/template/login.qtpl:66
-		qw422016.E().S(prv.AuthURL)
+		qw422016.E().S(prv.Name)
 //line user/template/login.qtpl:66
 		qw422016.N().S(`" class="btn provider-btn provider-`)
 //line user/template/login.qtpl:66

@@ -21,6 +21,7 @@ import (
 	"github.com/andrewpillar/webutil"
 
 	"github.com/gorilla/csrf"
+	"github.com/gorilla/mux"
 )
 
 type UI struct {
@@ -134,17 +135,32 @@ func (h UI) Login(w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
 	if r.Method == "GET" {
+		if provider := mux.Vars(r)["provider"]; provider != "" {
+			h.Log.Debug.Println(r.Method, r.URL, "provider =", provider)
+
+			cli, err := h.Server.Providers.Get(provider)
+
+			if err != nil {
+				alert.Flash(sess, alert.Warn, "Unknown provider: " + provider)
+				h.Redirect(w, r, "/login")
+				return
+			}
+
+			url := cli.AuthURL()
+
+			h.Log.Debug.Println(r.Method, r.URL, "auth_url =", url)
+
+			http.Redirect(w, r, url, http.StatusSeeOther)
+			return
+		}
+
 		names := h.Server.Providers.Names()
-		clients := h.Server.Providers.All()
 
 		pp := make([]*provider.Provider, 0, len(names))
 
 		for _, name := range names {
-			cli := clients[name]
-
 			pp = append(pp, &provider.Provider{
 				Name:    name,
-				AuthURL: cli.AuthURL(),
 			})
 		}
 
@@ -894,6 +910,7 @@ func RegisterUI(srv *server.Server) {
 	guest := srv.Router.PathPrefix("/").Subrouter()
 	guest.HandleFunc("/register", ui.Register).Methods("GET", "POST")
 	guest.HandleFunc("/login", ui.Login).Methods("GET", "POST")
+	guest.HandleFunc("/login/{provider}", ui.Login).Methods("GET")
 	guest.HandleFunc("/password_reset", ui.PasswordReset).Methods("GET", "POST")
 	guest.HandleFunc("/new_password", ui.NewPassword).Methods("GET", "POST")
 	guest.Use(ui.Guest, srv.CSRF)

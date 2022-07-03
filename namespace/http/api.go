@@ -249,9 +249,16 @@ func (h API) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r
 		}
 
 		data := make([]map[string]interface{}, 0, len(ww))
+		mm := make([]database.Model, 0, len(ww))
 
 		for _, w := range ww {
 			data = append(data, w.JSON(addr))
+			mm = append(mm, w)
+		}
+
+		if err := h.Users.Load("author_id", "id", mm...); err != nil {
+			h.InternalServerError(w, r, errors.Err(err))
+			return
 		}
 		webutil.JSON(w, data, http.StatusOK)
 	default:

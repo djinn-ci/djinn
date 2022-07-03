@@ -191,6 +191,7 @@ type WebhookIndex struct {
 									<td class="hook-status hook-status-err">{% cat "../../static/svg/close.svg" %}</td>
 								{% endif %}
 							{% endif %}
+							<td>{%s w.Author.Username %}</td>
 							<td>
 								<a href="{%s w.Endpoint() %}">{%s w.PayloadURL.String() %}</a>
 							</td>

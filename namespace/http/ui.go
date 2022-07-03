@@ -352,8 +352,16 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 			return
 		}
 
+		mm := make([]database.Model, 0, len(ww))
+
 		for _, w := range ww {
 			w.Namespace = n
+			mm = append(mm, w)
+		}
+
+		if err := h.Users.Load("author_id", "id", mm...); err != nil {
+			h.InternalServerError(w, r, errors.Err(err))
+			return
 		}
 
 		if err := h.Webhooks.LoadLastDeliveries(ww...); err != nil {

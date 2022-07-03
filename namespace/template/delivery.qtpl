@@ -34,9 +34,7 @@ type ShowDelivery struct {
 				{% if !p.Delivery.RequestHeaders.Valid %}
 					<div class="panel-message muted">None</div>
 				{% else %}
-					<div class="panel-body">
-						<pre class="code">{%s p.Delivery.RequestHeaders.String %}</pre>
-					</div>
+					<pre class="code">{%s p.Delivery.RequestHeaders.String %}</pre>
 				{% endif %}
 			</div>
 			<div class="panel">
@@ -44,9 +42,7 @@ type ShowDelivery struct {
 				{% if !p.Delivery.RequestHeaders.Valid %}
 					<div class="panel-message muted">None</div>
 				{% else %}
-					<div class="panel-body">
-						<pre class="code">{%s template.IndentJSON(p.Delivery.RequestBody.String) %}</pre>
-					</div>
+					<pre class="code">{%s template.IndentJSON(p.Delivery.RequestBody.String) %}</pre>
 				{% endif %}
 			</div>
 		</div>
@@ -56,7 +52,7 @@ type ShowDelivery struct {
 					<table class="table">
 						<tr>
 							<td><strong>Status</strong></td>
-							<td class="right"><code class="code">{%s p.Delivery.ResponseStatus %}</code></td>
+							<td class="right code"><code>{%s p.Delivery.ResponseStatus %}</code></td>
 						</tr>
 					</table>
 				</div>
@@ -66,9 +62,7 @@ type ShowDelivery struct {
 				{% if !p.Delivery.ResponseHeaders.Valid %}
 					<div class="panel-message muted">None</div>
 				{% else %}
-					<div class="panel-body">
-						<pre class="code">{%s p.Delivery.ResponseHeaders.String %}</pre>
-					</div>
+					<pre class="code">{%s p.Delivery.ResponseHeaders.String %}</pre>
 				{% endif %}
 			</div>
 			<div class="panel">
@@ -76,9 +70,7 @@ type ShowDelivery struct {
 				{% if !p.Delivery.ResponseBody.Valid %}
 					<div class="panel-message muted">None</div>
 				{% else %}
-					<div class="panel-body">
-						<pre class="code">{%s p.Delivery.ResponseBody.String %}</pre>
-					</div>
+					<pre class="code">{%s p.Delivery.ResponseBody.String %}</pre>
 				{% endif %}
 			</div>
 		</div>

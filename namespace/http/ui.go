@@ -164,8 +164,9 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		User: u,
 	}
 	p := &namespacetemplate.Show{
-		BasePage:  bp,
-		Namespace: n,
+		BasePage:       bp,
+		Namespace:      n,
+		IsCollaborator: n.IsCollaborator(h.DB, u.ID) == nil,
 	}
 
 	switch base {

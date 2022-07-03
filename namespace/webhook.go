@@ -82,6 +82,7 @@ type Webhook struct {
 	Active      bool
 	CreatedAt   time.Time
 
+	Author       *user.User
 	User         *user.User
 	Namespace    *Namespace
 	LastDelivery *WebhookDelivery
@@ -140,6 +141,8 @@ func (w *Webhook) Bind(m database.Model) {
 			w.Namespace = v
 		}
 	case *user.User:
+		w.Author = v
+
 		if w.UserID == v.ID {
 			w.User = v
 		}

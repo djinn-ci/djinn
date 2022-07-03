@@ -129,7 +129,6 @@ func (h *Handler) WithNamespace(fn HandlerFunc) userhttp.HandlerFunc {
 	ownerPaths := map[string]struct{}{
 		"collaborators": {},
 		"invites":       {},
-		"webhooks":      {},
 	}
 
 	return func(u *user.User, w http.ResponseWriter, r *http.Request) {
@@ -177,11 +176,17 @@ func (h *Handler) WithNamespace(fn HandlerFunc) userhttp.HandlerFunc {
 
 		n.User = owner
 
-		if _, ok := ownerPaths[webutil.BasePath(r.URL.Path)]; ok {
+		base := webutil.BasePath(r.URL.Path)
+
+		if _, ok := ownerPaths[base]; ok {
 			if u.ID != owner.ID {
 				h.NotFound(w, r)
 				return
 			}
+		}
+
+		if r.Method == "POST" && base == "webhooks" {
+			goto checkAccess
 		}
 
 		if r.Method == "POST" || r.Method == "PATCH" || r.Method == "DELETE" {
@@ -191,6 +196,7 @@ func (h *Handler) WithNamespace(fn HandlerFunc) userhttp.HandlerFunc {
 			}
 		}
 
+checkAccess:
 		if err := n.HasAccess(h.DB, u.ID); err != nil {
 			if !errors.Is(err, namespace.ErrPermission) {
 				h.InternalServerError(w, r, errors.Err(err))

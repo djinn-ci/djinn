@@ -10,9 +10,10 @@ type Show struct {
 	template.BasePage
 	template.Section
 
-	Namespace *namespace.Namespace
-	CSRF      string
-	Tag       string
+	Namespace      *namespace.Namespace
+	IsCollaborator bool
+	CSRF           string
+	Tag            string
 }
 %}
 
@@ -91,6 +92,8 @@ type Show struct {
 				{% cat "../../static/svg/users.svg" %}<span>Collaborators</span>
 			</a>
 		</li>
+	{% endif %}
+	{% if p.IsCollaborator %}
 		<li>
 			<a href="{%s p.Namespace.Endpoint("webhooks") %}" class="{%s template.Active(p.Namespace.Endpoint("webhooks") == p.URL.Path) %}">
 				{% cat "../../static/svg/all_out.svg" %}<span>Webhooks</span>

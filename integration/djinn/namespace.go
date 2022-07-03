@@ -199,6 +199,27 @@ func (n *Namespace) Get(cli *Client) error {
 	return nil
 }
 
+func (n *Namespace) ListWebhooks(cli *Client) ([]*Webhook, error) {
+	resp, err := cli.Get(n.WebhooksURL.Path, "application/json; charset=utf-8")
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, cli.err(resp)
+	}
+
+	hooks := make([]*Webhook, 0)
+
+	if err := json.NewDecoder(resp.Body).Decode(&hooks); err != nil {
+		return nil, err
+	}
+	return hooks, nil
+}
+
 func (n *Namespace) CreateWebhook(cli *Client, p WebhookParams) (*Webhook, error) {
 	var body bytes.Buffer
 

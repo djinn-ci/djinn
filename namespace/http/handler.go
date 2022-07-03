@@ -126,6 +126,12 @@ func (h *Handler) loadLastBuild(nn []*namespace.Namespace) error {
 }
 
 func (h *Handler) WithNamespace(fn HandlerFunc) userhttp.HandlerFunc {
+	ownerPaths := map[string]struct{}{
+		"collaborators": {},
+		"invites":       {},
+		"webhooks":      {},
+	}
+
 	return func(u *user.User, w http.ResponseWriter, r *http.Request) {
 		var ok bool
 
@@ -170,6 +176,13 @@ func (h *Handler) WithNamespace(fn HandlerFunc) userhttp.HandlerFunc {
 		}
 
 		n.User = owner
+
+		if _, ok := ownerPaths[webutil.BasePath(r.URL.Path)]; ok {
+			if u.ID != owner.ID {
+				h.NotFound(w, r)
+				return
+			}
+		}
 
 		if r.Method == "POST" || r.Method == "PATCH" || r.Method == "DELETE" {
 			if u.ID != owner.ID {

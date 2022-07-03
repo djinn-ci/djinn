@@ -261,11 +261,15 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	freeman, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+
+	if _, err := n.ListWebhooks(freeman); err == nil {
+		t.Fatalf("expected n.ListWebhooks(%s) to error, it did not\n", freeman.String())
+	}
+
 	if err := n.Update(breen, djinn.NamespaceParams{Description: "Black Mesa"}); err != nil {
 		t.Fatal(err)
 	}
-
-	freeman, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
 	_, err = djinn.GetNamespace(freeman, n.User.Username, n.Path)
 
@@ -295,6 +299,10 @@ func blackMesaFlow(t *testing.T) {
 
 	if err := i.Accept(freeman); err != nil {
 		t.Fatal(err)
+	}
+
+	if _, err := n.ListWebhooks(freeman); err == nil {
+		t.Fatalf("expected n.ListWebhooks(%s) to error, it did not\n", freeman.String())
 	}
 
 	v, err := djinn.CreateVariable(freeman, djinn.VariableParams{

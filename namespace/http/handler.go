@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -18,6 +19,7 @@ import (
 	"djinn-ci.com/mail"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/object"
+	"djinn-ci.com/runner"
 	"djinn-ci.com/server"
 	"djinn-ci.com/user"
 	userhttp "djinn-ci.com/user/http"
@@ -357,6 +359,87 @@ validate:
 		Action:    "created",
 	})
 	return n, f, nil
+}
+
+func (h *Handler) Badge(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+
+	owner, ok, err := h.Users.Get(query.Where("username", "=", query.Arg(vars["username"])))
+
+	if err != nil {
+		h.InternalServerError(w, r, errors.Err(err))
+		return
+	}
+
+	if !ok {
+		h.NotFound(w, r)
+		return
+	}
+
+	path := strings.TrimSuffix(vars["namespace"], "/")
+
+	n, ok, err := h.Namespaces.Get(
+		query.Where("user_id", "=", query.Arg(owner.ID)),
+		query.Where("path", "=", query.Arg(path)),
+	)
+
+	if err != nil {
+		h.InternalServerError(w, r, errors.Err(err))
+		return
+	}
+
+	if !ok {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, badgeUnknown)
+		return
+	}
+
+	if n.Visibility == namespace.Internal || n.Visibility == namespace.Private {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, badgeUnknown)
+		return
+	}
+
+	b, ok, err := h.Builds.Get(
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+		query.OrderDesc("created_at"),
+	)
+
+	if err != nil {
+		h.InternalServerError(w, r, errors.Err(err))
+		return
+	}
+
+	if !ok {
+		w.Header().Set("Content-Type", "image/svg+xml")
+		w.WriteHeader(http.StatusOK)
+		io.WriteString(w, badgeUnknown)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.WriteHeader(http.StatusOK)
+
+	switch b.Status {
+	case runner.Queued:
+		io.WriteString(w, badgeQueued)
+	case runner.Running:
+		io.WriteString(w, badgeRunning)
+	case runner.Passed:
+		io.WriteString(w, badgePassed)
+	case runner.PassedWithFailures:
+		io.WriteString(w, badgePassedWithFailures)
+	case runner.Failed:
+		io.WriteString(w, badgeFailed)
+	case runner.Killed:
+		io.WriteString(w, badgeKilled)
+	case runner.TimedOut:
+		io.WriteString(w, badgeTimedOut)
+	default:
+		io.WriteString(w, badgeUnknown)
+	}
 }
 
 func (h *Handler) UpdateModel(n *namespace.Namespace, r *http.Request) (*namespace.Namespace, Form, error) {

@@ -548,6 +548,7 @@ func RegisterAPI(prefix string, srv *server.Server) {
 
 	sr := srv.Router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
 	sr.HandleFunc("", user.WithUser(api.WithNamespace(api.Show))).Methods("GET")
+	sr.HandleFunc("/-/badge.svg", api.Badge).Methods("GET")
 	sr.HandleFunc("/-/namespaces", user.WithOptionalUser(api.WithNamespace(api.Show))).Methods("GET")
 	sr.HandleFunc("/-/images", user.WithOptionalUser(api.WithNamespace(api.Show))).Methods("GET")
 	sr.HandleFunc("/-/objects", user.WithOptionalUser(api.WithNamespace(api.Show))).Methods("GET")

@@ -1,7 +1,6 @@
 package http
 
 import (
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	"djinn-ci.com/namespace"
 	namespacetemplate "djinn-ci.com/namespace/template"
 	objecttemplate "djinn-ci.com/object/template"
-	"djinn-ci.com/runner"
 	"djinn-ci.com/server"
 	"djinn-ci.com/template"
 	"djinn-ci.com/user"
@@ -433,87 +431,6 @@ func (h UI) DestroyCollab(u *user.User, n *namespace.Namespace, w http.ResponseW
 
 	alert.Flash(sess, alert.Success, "Collaborator removed")
 	h.RedirectBack(w, r)
-}
-
-func (h UI) Badge(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-
-	owner, ok, err := h.Users.Get(query.Where("username", "=", query.Arg(vars["username"])))
-
-	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	if !ok {
-		h.NotFound(w, r)
-		return
-	}
-
-	path := strings.TrimSuffix(vars["namespace"], "/")
-
-	n, ok, err := h.Namespaces.Get(
-		query.Where("user_id", "=", query.Arg(owner.ID)),
-		query.Where("path", "=", query.Arg(path)),
-	)
-
-	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	if !ok {
-		w.Header().Set("Content-Type", "image/svg+xml")
-		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, badgeUnknown)
-		return
-	}
-
-	if n.Visibility == namespace.Internal || n.Visibility == namespace.Private {
-		w.Header().Set("Content-Type", "image/svg+xml")
-		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, badgeUnknown)
-		return
-	}
-
-	b, ok, err := h.Builds.Get(
-		query.Where("namespace_id", "=", query.Arg(n.ID)),
-		query.OrderDesc("created_at"),
-	)
-
-	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	if !ok {
-		w.Header().Set("Content-Type", "image/svg+xml")
-		w.WriteHeader(http.StatusOK)
-		io.WriteString(w, badgeUnknown)
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.WriteHeader(http.StatusOK)
-
-	switch b.Status {
-	case runner.Queued:
-		io.WriteString(w, badgeQueued)
-	case runner.Running:
-		io.WriteString(w, badgeRunning)
-	case runner.Passed:
-		io.WriteString(w, badgePassed)
-	case runner.PassedWithFailures:
-		io.WriteString(w, badgePassedWithFailures)
-	case runner.Failed:
-		io.WriteString(w, badgeFailed)
-	case runner.Killed:
-		io.WriteString(w, badgeKilled)
-	case runner.TimedOut:
-		io.WriteString(w, badgeTimedOut)
-	default:
-		io.WriteString(w, badgeUnknown)
-	}
 }
 
 func (h UI) Edit(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {

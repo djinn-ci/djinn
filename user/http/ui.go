@@ -451,7 +451,6 @@ func (h UI) Sudo(u *user.User, w http.ResponseWriter, r *http.Request) {
 	ref, _ := ref0.(string)
 
 	if r.Method == "GET" {
-		println("tok =", tok)
 		sess.Values[sudoToken] = tok
 
 		p := &usertemplate.Sudo{

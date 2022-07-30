@@ -84,9 +84,9 @@ func (p *Settings) streamrenderProvider(qw422016 *qt422016.Writer, prv *provider
 //line user/template/settings.qtpl:26
 	if !prv.Connected {
 //line user/template/settings.qtpl:26
-		qw422016.N().S(` <a href="`)
+		qw422016.N().S(` <a href="/login/`)
 //line user/template/settings.qtpl:27
-		qw422016.E().S(prv.AuthURL)
+		qw422016.E().S(prv.Name)
 //line user/template/settings.qtpl:27
 		qw422016.N().S(`" class="provider-btn provider-`)
 //line user/template/settings.qtpl:27

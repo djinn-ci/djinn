@@ -24,7 +24,7 @@ type Settings struct {
 
 {% func (p *Settings) renderProvider(prv *provider.Provider) %}
 	{% if !prv.Connected %}
-		<a href="{%s prv.AuthURL %}" class="provider-btn provider-{%s prv.Name %}">
+		<a href="/login/{%s prv.Name %}" class="provider-btn provider-{%s prv.Name %}">
 			{% switch prv.Name %}
 			{% case "github" %}
 				{% cat "../../static/svg/github.svg" %}

@@ -134,7 +134,23 @@ func (h *Handler) WithBuild(fn HandlerFunc) userhttp.HandlerFunc {
 
 		root := n
 
+		n.User = owner
 		b.Namespace = n
+
+		if n.UserID != owner.ID {
+			u, ok, err := h.Users.Get(query.Where("id", "=", query.Arg(n.UserID)))
+
+			if err != nil {
+				h.InternalServerError(w, r, errors.Err(err))
+				return
+			}
+
+			if !ok {
+				h.Log.Error.Println(r.Method, r.URL, "could not find owner for namespace", n.Path)
+				return
+			}
+			n.User = u
+		}
 
 		if n.RootID.Int64 != n.ID {
 			root0, ok, err := h.Namespaces.Get(query.Where("id", "=", query.Arg(n.RootID)))

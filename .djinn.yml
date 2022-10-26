@@ -23,9 +23,9 @@ jobs:
   commands:
   - printf "127.0.0.1\tlocal.dev\n" | tee -a /etc/hosts
   - cd djinn
-  - mgrt run -c schema -type postgresql -dsn $PGDSN
-  - mgrt run -c perms -type postgresql -dsn $PGDSN
-  - mgrt run -c dev -type postgresql -dsn $PGDSN
+  - mgrt run -c schema -type postgresql -dsn "$PGDSN"
+  - mgrt run -c perms -type postgresql -dsn "$PGDSN"
+  - mgrt run -c dev -type postgresql -dsn "$PGDSN"
 - stage: make
   commands:
   - cd djinn

@@ -1,6 +1,6 @@
 module djinn-ci.com
 
-go 1.15
+go 1.17
 
 replace github.com/docker/docker => github.com/docker/engine v0.0.0-20181106193140-f5749085e9cb
 

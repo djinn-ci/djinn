@@ -96,6 +96,8 @@ type WebhookParams struct {
 var WebhookEvents = []string{
 	"build.submitted",
 	"build.tagged",
+	"build.pinned",
+	"build.unpinned",
 	"invite.sent",
 	"invite.accepted",
 	"invite.rejected",

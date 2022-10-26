@@ -33,6 +33,8 @@ func webhookHandler(t *testing.T, m map[string]struct{}) func(http.ResponseWrite
 	events := map[string]struct{}{
 		"build.submitted": {},
 		"build.tagged":    {},
+		"build.pinned":    {},
+		"build.unpinned":  {},
 		"invite.sent":     {},
 		"invite.accepted": {},
 		"invite.rejected": {},
@@ -449,6 +451,10 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	if err := b.Pin(breen); err != nil {
+		t.Fatal(err)
+	}
+
 	_, err = djinn.CreateCron(breen, djinn.CronParams{
 		Name:     "blackMesaFlow_Cron",
 		Schedule: djinn.Daily,
@@ -482,8 +488,24 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatalf("unexpected error type, expected=%T, got=%T\n", &djinn.Error{}, err)
 	}
 
+	err = b.Unpin(freeman)
+
+	if err == nil {
+		t.Fatalf("expected call to b.Unpin(%s) to error, it did not\n", freeman)
+	}
+
+	djinnerr, ok = err.(*djinn.Error)
+
+	if !ok {
+		t.Fatalf("unexpected error type, expected=%T, got=%T\n", &djinn.Error{}, err)
+	}
+
 	if djinnerr.StatusCode != http.StatusNotFound {
 		t.Fatalf("unexpected status, expected=%q, got=%q\n", http.StatusText(http.StatusNotFound), http.StatusText(djinnerr.StatusCode))
+	}
+
+	if err := b.Unpin(breen); err != nil {
+		t.Fatal(err)
 	}
 
 	if err := wh.Update(breen, djinn.WebhookParams{

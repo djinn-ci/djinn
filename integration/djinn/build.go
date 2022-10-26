@@ -21,6 +21,7 @@ type Build struct {
 	Status       Status        `json:"status"`
 	Output       NullString    `json:"output"`
 	Tags         []string      `json:"tags"`
+	Pinned       bool          `json:"pinned"`
 	CreatedAt    Time          `json:"created_at"`
 	StartedAt    NullTime      `json:"started_at"`
 	FinishedAt   NullTime      `json:"finished_at"`
@@ -380,6 +381,44 @@ func (b *Build) Tag(cli *Client, tags ...string) ([]*BuildTag, error) {
 		return nil, err
 	}
 	return tt, nil
+}
+
+func (b *Build) Pin(cli *Client) error {
+	if b.Pinned {
+		return nil
+	}
+
+	resp, err := cli.Patch(b.URL.Path + "/pin", "", nil)
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return cli.err(resp)
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(b); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (b *Build) Unpin(cli *Client) error {
+	if !b.Pinned {
+		return nil
+	}
+
+	resp, err := cli.Patch(b.URL.Path + "/unpin", "", nil)
+
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return cli.err(resp)
+	}
+	return nil
 }
 
 func (b *Build) Kill(cli *Client) error {

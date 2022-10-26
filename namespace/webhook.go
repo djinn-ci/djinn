@@ -541,7 +541,9 @@ func (s *WebhookStore) LoadLastDeliveries(ww ...*Webhook) error {
 	}
 
 	for _, d := range dd {
-		deliveries[d.WebhookID] = d
+		if _, ok := deliveries[d.WebhookID]; !ok {
+			deliveries[d.WebhookID] = d
+		}
 	}
 
 	for _, w := range ww {

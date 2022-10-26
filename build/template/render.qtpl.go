@@ -27,17 +27,17 @@ var (
 )
 
 //line build/template/render.qtpl:12
-func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, tag, status string) {
+func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, q url.Values) {
 //line build/template/render.qtpl:12
 	qw422016.N().S(` `)
 //line build/template/render.qtpl:13
 	qw422016.N().S(`<ul class="panel-nav"><li><a href="`)
 //line build/template/render.qtpl:16
-	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "", "tag": tag}))
+	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "", "tag": q.Get("tag")}))
 //line build/template/render.qtpl:16
 	qw422016.N().S(`"`)
 //line build/template/render.qtpl:16
-	if status == "" {
+	if !q.Has("status") {
 //line build/template/render.qtpl:16
 		qw422016.N().S(`class="active"`)
 //line build/template/render.qtpl:16
@@ -53,11 +53,11 @@ func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, tag, status 
 //line build/template/render.qtpl:17
 	qw422016.N().S(`<span>All</span></a></li><li><a href="`)
 //line build/template/render.qtpl:21
-	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "queued", "tag": tag}))
+	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "queued", "tag": q.Get("tag")}))
 //line build/template/render.qtpl:21
 	qw422016.N().S(`"`)
 //line build/template/render.qtpl:21
-	if status == "queued" {
+	if q.Get("status") == "queued" {
 //line build/template/render.qtpl:21
 		qw422016.N().S(`class="active"`)
 //line build/template/render.qtpl:21
@@ -73,11 +73,11 @@ func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, tag, status 
 //line build/template/render.qtpl:22
 	qw422016.N().S(`<span>Queued</span></a></li><li><a href="`)
 //line build/template/render.qtpl:26
-	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "running", "tag": tag}))
+	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "running", "tag": q.Get("tag")}))
 //line build/template/render.qtpl:26
 	qw422016.N().S(`"`)
 //line build/template/render.qtpl:26
-	if status == "running" {
+	if q.Get("status") == "running" {
 //line build/template/render.qtpl:26
 		qw422016.N().S(`class="active"`)
 //line build/template/render.qtpl:26
@@ -93,11 +93,11 @@ func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, tag, status 
 //line build/template/render.qtpl:27
 	qw422016.N().S(`<span>Running</span></a></li><li><a href="`)
 //line build/template/render.qtpl:31
-	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "passed", "tag": tag}))
+	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "passed", "tag": q.Get("tag")}))
 //line build/template/render.qtpl:31
 	qw422016.N().S(`"`)
 //line build/template/render.qtpl:31
-	if status == "passed" {
+	if q.Get("status") == "passed" {
 //line build/template/render.qtpl:31
 		qw422016.N().S(`class="active"`)
 //line build/template/render.qtpl:31
@@ -113,11 +113,11 @@ func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, tag, status 
 //line build/template/render.qtpl:32
 	qw422016.N().S(`<span>Passed</span></a></li><li><a href="`)
 //line build/template/render.qtpl:36
-	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "failed", "tag": tag}))
+	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "failed", "tag": q.Get("tag")}))
 //line build/template/render.qtpl:36
 	qw422016.N().S(`"`)
 //line build/template/render.qtpl:36
-	if status == "failed" {
+	if q.Get("status") == "failed" {
 //line build/template/render.qtpl:36
 		qw422016.N().S(`class="active"`)
 //line build/template/render.qtpl:36
@@ -133,11 +133,11 @@ func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, tag, status 
 //line build/template/render.qtpl:37
 	qw422016.N().S(`<span>Failed</span></a></li><li><a href="`)
 //line build/template/render.qtpl:41
-	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "killed", "tag": tag}))
+	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "killed", "tag": q.Get("tag")}))
 //line build/template/render.qtpl:41
 	qw422016.N().S(`"`)
 //line build/template/render.qtpl:41
-	if status == "killed" {
+	if q.Get("status") == "killed" {
 //line build/template/render.qtpl:41
 		qw422016.N().S(`class="active"`)
 //line build/template/render.qtpl:41
@@ -153,11 +153,11 @@ func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, tag, status 
 //line build/template/render.qtpl:42
 	qw422016.N().S(`<span>Killed</span></a></li><li><a href="`)
 //line build/template/render.qtpl:46
-	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "timed_out", "tag": tag}))
+	qw422016.E().S(template.LinkToQuery(url, map[string]string{"status": "timed_out", "tag": q.Get("tag")}))
 //line build/template/render.qtpl:46
 	qw422016.N().S(`"`)
 //line build/template/render.qtpl:46
-	if status == "timed_out" {
+	if q.Get("status") == "timed_out" {
 //line build/template/render.qtpl:46
 		qw422016.N().S(`class="active"`)
 //line build/template/render.qtpl:46
@@ -178,22 +178,22 @@ func StreamRenderStatusNav(qw422016 *qt422016.Writer, url *url.URL, tag, status 
 }
 
 //line build/template/render.qtpl:52
-func WriteRenderStatusNav(qq422016 qtio422016.Writer, url *url.URL, tag, status string) {
+func WriteRenderStatusNav(qq422016 qtio422016.Writer, url *url.URL, q url.Values) {
 //line build/template/render.qtpl:52
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line build/template/render.qtpl:52
-	StreamRenderStatusNav(qw422016, url, tag, status)
+	StreamRenderStatusNav(qw422016, url, q)
 //line build/template/render.qtpl:52
 	qt422016.ReleaseWriter(qw422016)
 //line build/template/render.qtpl:52
 }
 
 //line build/template/render.qtpl:52
-func RenderStatusNav(url *url.URL, tag, status string) string {
+func RenderStatusNav(url *url.URL, q url.Values) string {
 //line build/template/render.qtpl:52
 	qb422016 := qt422016.AcquireByteBuffer()
 //line build/template/render.qtpl:52
-	WriteRenderStatusNav(qb422016, url, tag, status)
+	WriteRenderStatusNav(qb422016, url, q)
 //line build/template/render.qtpl:52
 	qs422016 := string(qb422016.B)
 //line build/template/render.qtpl:52

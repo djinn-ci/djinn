@@ -158,8 +158,9 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 	csrf := csrf.TemplateField(r)
 
 	bp := template.BasePage{
-		URL:  r.URL,
-		User: u,
+		URL:   r.URL,
+		Query: q,
+		User:  u,
 	}
 	p := &namespacetemplate.Show{
 		BasePage:       bp,
@@ -396,9 +397,6 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 			BasePage:  bp,
 			Paginator: paginator,
 			Builds:    bb,
-			Search:    q.Get("search"),
-			Status:    q.Get("status"),
-			Tag:       q.Get("tag"),
 		}
 	}
 

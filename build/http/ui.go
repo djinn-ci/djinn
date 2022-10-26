@@ -45,18 +45,14 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	q := r.URL.Query()
-
 	p := &buildtemplate.Index{
 		BasePage: template.BasePage{
-			URL:  r.URL,
-			User: u,
+			URL:   r.URL,
+			Query: r.URL.Query(),
+			User:  u,
 		},
 		Paginator: paginator,
 		Builds:    bb,
-		Search:    q.Get("search"),
-		Status:    q.Get("status"),
-		Tag:       q.Get("tag"),
 	}
 	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf.TemplateField(r))
 	save(r, w)
@@ -301,6 +297,37 @@ func (h UI) Destroy(u *user.User, b *build.Build, w http.ResponseWriter, r *http
 	h.RedirectBack(w, r)
 }
 
+func (h UI) TogglePin(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	base := webutil.BasePath(r.URL.Path)
+
+	var (
+		err error
+		msg string
+	)
+
+	switch base {
+	case "pin":
+		err = b.Pin(h.DB)
+		msg = "Build pinned"
+	case "unpin":
+		err = b.Unpin(h.DB)
+		msg = "Build unpinned"
+	}
+
+	if err != nil {
+		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
+		alert.Flash(sess, alert.Danger, "Failed to update pin")
+		h.RedirectBack(w, r)
+	}
+
+	h.Queues.Produce(r.Context(), "events", &build.PinEvent{Build: b})
+
+	alert.Flash(sess, alert.Success, msg)
+	h.RedirectBack(w, r)
+}
+
 func (h UI) ShowJob(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
 	sess, save := h.Session(r)
 
@@ -446,6 +473,8 @@ func RegisterUI(srv *server.Server) {
 	sr := srv.Router.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
 	sr.HandleFunc("", user.WithUser(ui.WithBuild(ui.Destroy))).Methods("DELETE")
+	sr.HandleFunc("/pin", user.WithUser(ui.WithBuild(ui.TogglePin))).Methods("PATCH")
+	sr.HandleFunc("/unpin", user.WithUser(ui.WithBuild(ui.TogglePin))).Methods("PATCH")
 	sr.HandleFunc("/manifest", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
 	sr.HandleFunc("/manifest/raw", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
 	sr.HandleFunc("/output/raw", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")

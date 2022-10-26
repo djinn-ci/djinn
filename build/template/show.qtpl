@@ -180,17 +180,37 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 		<a href="{%s p.Build.Namespace.Endpoint() %}">{%s p.Build.Namespace.Name %}</a> /
 	{% endif %}
 	Build #{%v p.Build.Number %}
+	{% if p.Build.Pinned %}
+		<span class="muted" title="Pinned">{% cat "../../static/svg/pushpin.svg" %}
+	{% endif %}
 {% endfunc %}
 
 {% func (p *Show) Actions() %}
-	{% if p.User.ID == p.Build.UserID && p.Build.Status == runner.Running %}
-	<li>
-		<form method="POST" action="{%s p.Build.Endpoint() %}">
-			{%v= p.CSRF %}
-			<input type="hidden" name="_method" value="DELETE">
-			<button type="submit" class="btn btn-danger">Kill</button>
-		</form>
-	</li>
+	{% if p.User.ID == p.Build.UserID %}
+		<li>
+			{% if p.Build.Pinned %}
+				<form method="POST" action="{%s p.Build.Endpoint("unpin") %}">
+			{% else %}
+				<form method="POST" action="{%s p.Build.Endpoint("pin") %}">
+			{% endif %}
+				{%v= p.CSRF %}
+				<input type="hidden" name="_method" value="PATCH">
+				{% if p.Build.Pinned %}
+					<button type="submit" class="btn btn-primary">Unpin</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Pin</button>
+				{% endif %}
+			</form>
+		</li>
+		{% if p.Build.Status == runner.Running %}
+			<li>
+				<form method="POST" action="{%s p.Build.Endpoint() %}">
+					{%v= p.CSRF %}
+					<input type="hidden" name="_method" value="DELETE">
+					<button type="submit" class="btn btn-danger">Kill</button>
+				</form>
+			</li>
+		{% endif %}
 	{% endif %}
 {% endfunc %}
 
@@ -313,6 +333,9 @@ var timeFormat = "Jan 02, 2006, at 15:04:05"
 		<a href="{%s p.Build.Namespace.Endpoint() %}">{%v p.Build.Namespace.Name %}</a> /
 	{% endif %}
  	Build #{%v p.Build.Number %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
+	{% if p.Build.Pinned %}
+		<span class="muted" title="Pinned">{% cat "../../static/svg/pushpin.svg" %}
+	{% endif %}
 {% endfunc %}
 
 {% func (p *Job) Actions() %}{% endfunc %}

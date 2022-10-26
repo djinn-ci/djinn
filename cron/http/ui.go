@@ -140,8 +140,9 @@ func (h UI) Show(u *user.User, c *cron.Cron, w http.ResponseWriter, r *http.Requ
 	csrf := csrf.TemplateField(r)
 
 	bp := template.BasePage{
-		URL:  r.URL,
-		User: u,
+		URL:   r.URL,
+		Query: q,
+		User:  u,
 	}
 	p := &crontemplate.Show{
 		BasePage: bp,
@@ -151,9 +152,6 @@ func (h UI) Show(u *user.User, c *cron.Cron, w http.ResponseWriter, r *http.Requ
 			BasePage:  bp,
 			Paginator: paginator,
 			Builds:    bb,
-			Search:    q.Get("search"),
-			Status:    q.Get("status"),
-			Tag:       q.Get("tag"),
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)

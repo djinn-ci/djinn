@@ -171,13 +171,12 @@ func (h UI) Show(u *user.User, o *object.Object, w http.ResponseWriter, r *http.
 		return
 	}
 
-	q := r.URL.Query()
-
 	csrf := csrf.TemplateField(r)
 
 	bp := template.BasePage{
-		URL:  r.URL,
-		User: u,
+		URL:   r.URL,
+		Query: r.URL.Query(),
+		User:  u,
 	}
 	p := &objecttemplate.Show{
 		BasePage: bp,
@@ -187,9 +186,6 @@ func (h UI) Show(u *user.User, o *object.Object, w http.ResponseWriter, r *http.
 			BasePage:  bp,
 			Paginator: paginator,
 			Builds:    bb,
-			Search:    q.Get("search"),
-			Status:    q.Get("status"),
-			Tag:       q.Get("tag"),
 		},
 	}
 	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)

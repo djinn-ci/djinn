@@ -16,9 +16,6 @@ type Index struct {
 
 	Paginator database.Paginator
 	Builds    []*build.Build
-	Search    string
-	Status    string
-	Tag       string
 }
 %}
 
@@ -29,17 +26,17 @@ type Index struct {
 
 {% func (p *Index) Body() %}
 	<div class="panel">
-		{% if len(p.Builds) == 0 && p.Search == "" && p.Status == "" %}
+		{% if len(p.Builds) == 0 && !p.Query.Has("search") && !p.Query.Has("status") %}
 			<div class="panel-message muted">No builds have been submitted yet.</div>
 		{% else %}
 			<div class="panel-header">
-				{%= RenderStatusNav(p.URL, p.Tag, p.Status) %}
-				{%= template.RenderSearch(p.URL.Path, p.Search, "Find a build...") %}
+				{%= RenderStatusNav(p.URL, p.Query) %}
+				{%= template.RenderSearch(p.URL.Path, p.Query.Get("search"), "Find a build...") %}
 			</div>
-			{% if len(p.Builds) == 0 && p.Search != "" %}
+			{% if len(p.Builds) == 0 && p.Query.Has("search") %}
 				<div class="panel-message muted">No results found.</div>
-			{% elseif len(p.Builds) == 0 && p.Status != "" %}
-				<div class="panel-message muted">No {%s strings.Replace(p.Status, "_", " ", -1) %} builds.</div>
+			{% elseif len(p.Builds) == 0 && p.Query.Has("status") %}
+				<div class="panel-message muted">No {%s strings.Replace(p.Query.Get("status"), "_", " ", -1) %} builds.</div>
 			{% else %}
 				<table class="table">
 					<thead>
@@ -84,6 +81,17 @@ type Index struct {
 								{% endif %}
 							</td>
 							<td class="align-right">
+								{% if b.Pinned %}
+									{% if p.Query.Has("pinned") %}
+										<a href="{%s template.LinkToQuery(p.URL, map[string]string{"pinned": ""}) %}" class="muted active">
+											<span title="Pinned">{% cat "../../static/svg/pushpin.svg" %}</span>
+										</a>
+									{% else %}
+										<a href="{%s template.LinkToQuery(p.URL, map[string]string{"pinned": "true"}) %}" class="muted">
+											<span class="muted" title="Pinned">{% cat "../../static/svg/pushpin.svg" %}</span>
+										</a>
+									{% endif %}
+								{% endif %}
 								{% if p.User.ID != b.UserID %}
 									<span class="muted">{% cat "../../static/svg/users.svg" %}</span>
 								{% endif %}
@@ -104,8 +112,8 @@ type Index struct {
 
 {% func (p *Index) Header() %}
 	Builds
-	{% if p.Tag != "" %}
-		<span class="pill pill-light">{%s p.Tag %}<a href="{%s template.LinkToQuery(p.URL, map[string]string{"tag": ""}) %}">{% cat "../../static/svg/close.svg" %}</a></span>
+	{% if p.Query.Has("tag") %}
+		<span class="pill pill-light">{%s p.Query.Get("tag") %}<a href="{%s template.LinkToQuery(p.URL, map[string]string{"tag": ""}) %}">{% cat "../../static/svg/close.svg" %}</a></span>
 	{% endif %}
 {% endfunc %}
 

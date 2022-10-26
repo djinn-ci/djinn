@@ -34,411 +34,452 @@ type Index struct {
 
 	Paginator database.Paginator
 	Builds    []*build.Build
-	Search    string
-	Status    string
-	Tag       string
 }
 
-//line build/template/index.qtpl:26
+//line build/template/index.qtpl:23
 func (p *Index) StreamTitle(qw422016 *qt422016.Writer) {
-//line build/template/index.qtpl:26
+//line build/template/index.qtpl:23
 	qw422016.N().S(` Builds - Djinn CI `)
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 }
 
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 func (p *Index) WriteTitle(qq422016 qtio422016.Writer) {
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 	p.StreamTitle(qw422016)
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 }
 
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 func (p *Index) Title() string {
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 	p.WriteTitle(qb422016)
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 	qs422016 := string(qb422016.B)
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 	return qs422016
-//line build/template/index.qtpl:28
+//line build/template/index.qtpl:25
 }
 
-//line build/template/index.qtpl:30
+//line build/template/index.qtpl:27
 func (p *Index) StreamBody(qw422016 *qt422016.Writer) {
-//line build/template/index.qtpl:30
+//line build/template/index.qtpl:27
 	qw422016.N().S(` <div class="panel"> `)
-//line build/template/index.qtpl:32
-	if len(p.Builds) == 0 && p.Search == "" && p.Status == "" {
-//line build/template/index.qtpl:32
+//line build/template/index.qtpl:29
+	if len(p.Builds) == 0 && !p.Query.Has("search") && !p.Query.Has("status") {
+//line build/template/index.qtpl:29
 		qw422016.N().S(` <div class="panel-message muted">No builds have been submitted yet.</div> `)
-//line build/template/index.qtpl:34
+//line build/template/index.qtpl:31
 	} else {
-//line build/template/index.qtpl:34
+//line build/template/index.qtpl:31
 		qw422016.N().S(` <div class="panel-header"> `)
-//line build/template/index.qtpl:36
-		StreamRenderStatusNav(qw422016, p.URL, p.Tag, p.Status)
-//line build/template/index.qtpl:36
+//line build/template/index.qtpl:33
+		StreamRenderStatusNav(qw422016, p.URL, p.Query)
+//line build/template/index.qtpl:33
 		qw422016.N().S(` `)
-//line build/template/index.qtpl:37
-		template.StreamRenderSearch(qw422016, p.URL.Path, p.Search, "Find a build...")
-//line build/template/index.qtpl:37
+//line build/template/index.qtpl:34
+		template.StreamRenderSearch(qw422016, p.URL.Path, p.Query.Get("search"), "Find a build...")
+//line build/template/index.qtpl:34
 		qw422016.N().S(` </div> `)
-//line build/template/index.qtpl:39
-		if len(p.Builds) == 0 && p.Search != "" {
-//line build/template/index.qtpl:39
+//line build/template/index.qtpl:36
+		if len(p.Builds) == 0 && p.Query.Has("search") {
+//line build/template/index.qtpl:36
 			qw422016.N().S(` <div class="panel-message muted">No results found.</div> `)
-//line build/template/index.qtpl:41
-		} else if len(p.Builds) == 0 && p.Status != "" {
-//line build/template/index.qtpl:41
+//line build/template/index.qtpl:38
+		} else if len(p.Builds) == 0 && p.Query.Has("status") {
+//line build/template/index.qtpl:38
 			qw422016.N().S(` <div class="panel-message muted">No `)
-//line build/template/index.qtpl:42
-			qw422016.E().S(strings.Replace(p.Status, "_", " ", -1))
-//line build/template/index.qtpl:42
+//line build/template/index.qtpl:39
+			qw422016.E().S(strings.Replace(p.Query.Get("status"), "_", " ", -1))
+//line build/template/index.qtpl:39
 			qw422016.N().S(` builds.</div> `)
-//line build/template/index.qtpl:43
+//line build/template/index.qtpl:40
 		} else {
-//line build/template/index.qtpl:43
+//line build/template/index.qtpl:40
 			qw422016.N().S(` <table class="table"> <thead> <tr> <th>STATUS</th> <th>BUILD</th> <th>NAMESPACE</th> <th class="hide-mobile"></th> <th></th> <th></th> </tr> </thead> <tbody> `)
-//line build/template/index.qtpl:56
+//line build/template/index.qtpl:53
 			for _, b := range p.Builds {
-//line build/template/index.qtpl:56
+//line build/template/index.qtpl:53
 				qw422016.N().S(` <tr> <td>`)
-//line build/template/index.qtpl:58
+//line build/template/index.qtpl:55
 				template.StreamRenderStatus(qw422016, b.Status)
-//line build/template/index.qtpl:58
+//line build/template/index.qtpl:55
 				qw422016.N().S(`</td> <td><a href="`)
-//line build/template/index.qtpl:59
+//line build/template/index.qtpl:56
 				qw422016.E().S(b.Endpoint())
-//line build/template/index.qtpl:59
+//line build/template/index.qtpl:56
 				qw422016.N().S(`">#`)
-//line build/template/index.qtpl:59
+//line build/template/index.qtpl:56
 				qw422016.E().V(b.Number)
-//line build/template/index.qtpl:59
+//line build/template/index.qtpl:56
 				if b.Trigger.Comment != "" {
-//line build/template/index.qtpl:59
+//line build/template/index.qtpl:56
 					qw422016.N().S(` - `)
-//line build/template/index.qtpl:59
+//line build/template/index.qtpl:56
 					qw422016.E().S(b.Trigger.CommentTitle())
-//line build/template/index.qtpl:59
+//line build/template/index.qtpl:56
 				}
-//line build/template/index.qtpl:59
+//line build/template/index.qtpl:56
 				qw422016.N().S(`</a></td> <td> `)
-//line build/template/index.qtpl:61
+//line build/template/index.qtpl:58
 				if b.Namespace != nil {
-//line build/template/index.qtpl:61
+//line build/template/index.qtpl:58
 					qw422016.N().S(` <a href="`)
-//line build/template/index.qtpl:62
+//line build/template/index.qtpl:59
 					qw422016.E().S(b.Namespace.Endpoint())
-//line build/template/index.qtpl:62
+//line build/template/index.qtpl:59
 					qw422016.N().S(`">`)
-//line build/template/index.qtpl:62
+//line build/template/index.qtpl:59
 					qw422016.E().V(b.Namespace.Values()["path"])
-//line build/template/index.qtpl:62
+//line build/template/index.qtpl:59
 					qw422016.N().S(`</a> `)
-//line build/template/index.qtpl:63
+//line build/template/index.qtpl:60
 				} else {
-//line build/template/index.qtpl:63
+//line build/template/index.qtpl:60
 					qw422016.N().S(` <span class="muted">--</span> `)
-//line build/template/index.qtpl:65
+//line build/template/index.qtpl:62
 				}
-//line build/template/index.qtpl:65
+//line build/template/index.qtpl:62
 				qw422016.N().S(` </td> <td class="align-right hide-mobile"> `)
-//line build/template/index.qtpl:68
+//line build/template/index.qtpl:65
 				if len(b.Tags) > 3 {
-//line build/template/index.qtpl:68
+//line build/template/index.qtpl:65
 					qw422016.N().S(` `)
-//line build/template/index.qtpl:69
+//line build/template/index.qtpl:66
 					for _, t := range b.Tags[:3] {
-//line build/template/index.qtpl:69
+//line build/template/index.qtpl:66
 						qw422016.N().S(` <a class="pill pill-light" href="?tag=`)
-//line build/template/index.qtpl:70
+//line build/template/index.qtpl:67
 						qw422016.E().S(t.Name)
-//line build/template/index.qtpl:70
+//line build/template/index.qtpl:67
 						qw422016.N().S(`">`)
-//line build/template/index.qtpl:70
+//line build/template/index.qtpl:67
 						qw422016.E().S(t.Name)
-//line build/template/index.qtpl:70
+//line build/template/index.qtpl:67
 						qw422016.N().S(`</a> `)
-//line build/template/index.qtpl:71
+//line build/template/index.qtpl:68
 					}
-//line build/template/index.qtpl:71
+//line build/template/index.qtpl:68
 					qw422016.N().S(` <a title="Build tags" class="pill pill-light" href="`)
-//line build/template/index.qtpl:72
+//line build/template/index.qtpl:69
 					qw422016.E().S(b.Endpoint("tags"))
-//line build/template/index.qtpl:72
+//line build/template/index.qtpl:69
 					qw422016.N().S(`">...</a> `)
-//line build/template/index.qtpl:73
+//line build/template/index.qtpl:70
 				} else {
-//line build/template/index.qtpl:73
+//line build/template/index.qtpl:70
 					qw422016.N().S(` `)
-//line build/template/index.qtpl:74
+//line build/template/index.qtpl:71
 					for _, t := range b.Tags {
-//line build/template/index.qtpl:74
+//line build/template/index.qtpl:71
 						qw422016.N().S(` <a class="pill pill-light" href="`)
-//line build/template/index.qtpl:75
+//line build/template/index.qtpl:72
 						qw422016.E().S(template.LinkToQuery(p.URL, map[string]string{"tag": t.Name}))
-//line build/template/index.qtpl:75
+//line build/template/index.qtpl:72
 						qw422016.N().S(`">`)
-//line build/template/index.qtpl:75
+//line build/template/index.qtpl:72
 						qw422016.E().S(t.Name)
-//line build/template/index.qtpl:75
+//line build/template/index.qtpl:72
 						qw422016.N().S(`</a> `)
-//line build/template/index.qtpl:76
+//line build/template/index.qtpl:73
 					}
-//line build/template/index.qtpl:76
+//line build/template/index.qtpl:73
 					qw422016.N().S(` `)
-//line build/template/index.qtpl:77
+//line build/template/index.qtpl:74
 				}
-//line build/template/index.qtpl:77
+//line build/template/index.qtpl:74
 				qw422016.N().S(` </td> <td class="align-right"> `)
-//line build/template/index.qtpl:80
+//line build/template/index.qtpl:77
 				if !b.FinishedAt.Valid || !b.StartedAt.Valid {
-//line build/template/index.qtpl:80
+//line build/template/index.qtpl:77
 					qw422016.N().S(` <span class="muted">--</span> `)
-//line build/template/index.qtpl:82
+//line build/template/index.qtpl:79
 				} else {
-//line build/template/index.qtpl:82
+//line build/template/index.qtpl:79
 					qw422016.N().S(` `)
-//line build/template/index.qtpl:83
+//line build/template/index.qtpl:80
 					qw422016.E().V(durafmt.Parse(b.FinishedAt.Time.Sub(b.StartedAt.Time)).LimitFirstN(1))
-//line build/template/index.qtpl:83
+//line build/template/index.qtpl:80
 					qw422016.N().S(` `)
-//line build/template/index.qtpl:84
+//line build/template/index.qtpl:81
 				}
-//line build/template/index.qtpl:84
+//line build/template/index.qtpl:81
 				qw422016.N().S(` </td> <td class="align-right"> `)
+//line build/template/index.qtpl:84
+				if b.Pinned {
+//line build/template/index.qtpl:84
+					qw422016.N().S(` `)
+//line build/template/index.qtpl:85
+					if p.Query.Has("pinned") {
+//line build/template/index.qtpl:85
+						qw422016.N().S(` <a href="`)
+//line build/template/index.qtpl:86
+						qw422016.E().S(template.LinkToQuery(p.URL, map[string]string{"pinned": ""}))
+//line build/template/index.qtpl:86
+						qw422016.N().S(`" class="muted active"> <span title="Pinned">`)
 //line build/template/index.qtpl:87
+						qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M12.75 0l-2.25 2.25 2.25 2.25-5.25 6h-5.25l4.125 4.125-6.375 8.452v0.923h0.923l8.452-6.375 4.125 4.125v-5.25l6-5.25 2.25 2.25 2.25-2.25-11.25-11.25zM10.5 12.75l-1.5-1.5 5.25-5.25 1.5 1.5-5.25 5.25z"></path>
+</svg>
+`)
+//line build/template/index.qtpl:87
+						qw422016.N().S(`</span> </a> `)
+//line build/template/index.qtpl:89
+					} else {
+//line build/template/index.qtpl:89
+						qw422016.N().S(` <a href="`)
+//line build/template/index.qtpl:90
+						qw422016.E().S(template.LinkToQuery(p.URL, map[string]string{"pinned": "true"}))
+//line build/template/index.qtpl:90
+						qw422016.N().S(`" class="muted"> <span class="muted" title="Pinned">`)
+//line build/template/index.qtpl:91
+						qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M12.75 0l-2.25 2.25 2.25 2.25-5.25 6h-5.25l4.125 4.125-6.375 8.452v0.923h0.923l8.452-6.375 4.125 4.125v-5.25l6-5.25 2.25 2.25 2.25-2.25-11.25-11.25zM10.5 12.75l-1.5-1.5 5.25-5.25 1.5 1.5-5.25 5.25z"></path>
+</svg>
+`)
+//line build/template/index.qtpl:91
+						qw422016.N().S(`</span> </a> `)
+//line build/template/index.qtpl:93
+					}
+//line build/template/index.qtpl:93
+					qw422016.N().S(` `)
+//line build/template/index.qtpl:94
+				}
+//line build/template/index.qtpl:94
+				qw422016.N().S(` `)
+//line build/template/index.qtpl:95
 				if p.User.ID != b.UserID {
-//line build/template/index.qtpl:87
+//line build/template/index.qtpl:95
 					qw422016.N().S(` <span class="muted">`)
-//line build/template/index.qtpl:88
+//line build/template/index.qtpl:96
 					qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M15.984 12.984c2.344 0 7.031 1.172 7.031 3.516v2.484h-6v-2.484c0-1.5-0.797-2.625-1.969-3.469 0.328-0.047 0.656-0.047 0.938-0.047zM8.016 12.984c2.344 0 6.984 1.172 6.984 3.516v2.484h-14.016v-2.484c0-2.344 4.688-3.516 7.031-3.516zM8.016 11.016c-1.641 0-3-1.359-3-3s1.359-3 3-3 2.953 1.359 2.953 3-1.313 3-2.953 3zM15.984 11.016c-1.641 0-3-1.359-3-3s1.359-3 3-3 3 1.359 3 3-1.359 3-3 3z"></path>
 </svg>
 `)
-//line build/template/index.qtpl:88
+//line build/template/index.qtpl:96
 					qw422016.N().S(`</span> `)
-//line build/template/index.qtpl:89
+//line build/template/index.qtpl:97
 				}
-//line build/template/index.qtpl:89
+//line build/template/index.qtpl:97
 				qw422016.N().S(` </td> </tr> `)
-//line build/template/index.qtpl:92
+//line build/template/index.qtpl:100
 			}
-//line build/template/index.qtpl:92
+//line build/template/index.qtpl:100
 			qw422016.N().S(` </tbody> </table> `)
-//line build/template/index.qtpl:95
+//line build/template/index.qtpl:103
 		}
-//line build/template/index.qtpl:95
+//line build/template/index.qtpl:103
 		qw422016.N().S(` `)
-//line build/template/index.qtpl:96
+//line build/template/index.qtpl:104
 	}
-//line build/template/index.qtpl:96
+//line build/template/index.qtpl:104
 	qw422016.N().S(` </div> `)
-//line build/template/index.qtpl:98
+//line build/template/index.qtpl:106
 	template.StreamRenderPaginator(qw422016, p.URL, p.Paginator)
-//line build/template/index.qtpl:98
+//line build/template/index.qtpl:106
 	qw422016.N().S(` `)
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 }
 
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 func (p *Index) WriteBody(qq422016 qtio422016.Writer) {
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 	p.StreamBody(qw422016)
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 }
 
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 func (p *Index) Body() string {
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 	p.WriteBody(qb422016)
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 	qs422016 := string(qb422016.B)
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 	return qs422016
-//line build/template/index.qtpl:99
+//line build/template/index.qtpl:107
 }
 
-//line build/template/index.qtpl:101
+//line build/template/index.qtpl:109
 func (p *Index) StreamSection(qw422016 *qt422016.Writer) {
-//line build/template/index.qtpl:101
+//line build/template/index.qtpl:109
 	qw422016.N().S(` `)
-//line build/template/index.qtpl:102
+//line build/template/index.qtpl:110
 	p.StreamBody(qw422016)
-//line build/template/index.qtpl:102
+//line build/template/index.qtpl:110
 	qw422016.N().S(` `)
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 }
 
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 func (p *Index) WriteSection(qq422016 qtio422016.Writer) {
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 	p.StreamSection(qw422016)
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 }
 
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 func (p *Index) Section() string {
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 	p.WriteSection(qb422016)
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 	qs422016 := string(qb422016.B)
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 	return qs422016
-//line build/template/index.qtpl:103
+//line build/template/index.qtpl:111
 }
 
-//line build/template/index.qtpl:105
+//line build/template/index.qtpl:113
 func (p *Index) StreamHeader(qw422016 *qt422016.Writer) {
-//line build/template/index.qtpl:105
+//line build/template/index.qtpl:113
 	qw422016.N().S(` Builds `)
-//line build/template/index.qtpl:107
-	if p.Tag != "" {
-//line build/template/index.qtpl:107
+//line build/template/index.qtpl:115
+	if p.Query.Has("tag") {
+//line build/template/index.qtpl:115
 		qw422016.N().S(` <span class="pill pill-light">`)
-//line build/template/index.qtpl:108
-		qw422016.E().S(p.Tag)
-//line build/template/index.qtpl:108
+//line build/template/index.qtpl:116
+		qw422016.E().S(p.Query.Get("tag"))
+//line build/template/index.qtpl:116
 		qw422016.N().S(`<a href="`)
-//line build/template/index.qtpl:108
+//line build/template/index.qtpl:116
 		qw422016.E().S(template.LinkToQuery(p.URL, map[string]string{"tag": ""}))
-//line build/template/index.qtpl:108
+//line build/template/index.qtpl:116
 		qw422016.N().S(`">`)
-//line build/template/index.qtpl:108
+//line build/template/index.qtpl:116
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M18.984 6.422l-5.578 5.578 5.578 5.578-1.406 1.406-5.578-5.578-5.578 5.578-1.406-1.406 5.578-5.578-5.578-5.578 1.406-1.406 5.578 5.578 5.578-5.578z"></path>
 </svg>
 `)
-//line build/template/index.qtpl:108
+//line build/template/index.qtpl:116
 		qw422016.N().S(`</a></span> `)
-//line build/template/index.qtpl:109
+//line build/template/index.qtpl:117
 	}
-//line build/template/index.qtpl:109
+//line build/template/index.qtpl:117
 	qw422016.N().S(` `)
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 }
 
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 func (p *Index) WriteHeader(qq422016 qtio422016.Writer) {
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 	p.StreamHeader(qw422016)
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 }
 
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 func (p *Index) Header() string {
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 	p.WriteHeader(qb422016)
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 	qs422016 := string(qb422016.B)
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 	return qs422016
-//line build/template/index.qtpl:110
+//line build/template/index.qtpl:118
 }
 
-//line build/template/index.qtpl:112
+//line build/template/index.qtpl:120
 func (p *Index) StreamActions(qw422016 *qt422016.Writer) {
-//line build/template/index.qtpl:112
+//line build/template/index.qtpl:120
 	qw422016.N().S(` `)
-//line build/template/index.qtpl:113
+//line build/template/index.qtpl:121
 	if _, ok := p.User.Permissions["build:write"]; ok {
-//line build/template/index.qtpl:113
+//line build/template/index.qtpl:121
 		qw422016.N().S(` <li><a href="/builds/create" class="btn btn-primary">Submit</a></li> `)
-//line build/template/index.qtpl:115
+//line build/template/index.qtpl:123
 	}
-//line build/template/index.qtpl:115
+//line build/template/index.qtpl:123
 	qw422016.N().S(` `)
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 }
 
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 func (p *Index) WriteActions(qq422016 qtio422016.Writer) {
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 	p.StreamActions(qw422016)
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 }
 
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 func (p *Index) Actions() string {
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 	p.WriteActions(qb422016)
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 	qs422016 := string(qb422016.B)
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 	return qs422016
-//line build/template/index.qtpl:116
+//line build/template/index.qtpl:124
 }
 
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 func (p *Index) StreamNavigation(qw422016 *qt422016.Writer) {
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 }
 
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 func (p *Index) WriteNavigation(qq422016 qtio422016.Writer) {
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 	p.StreamNavigation(qw422016)
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 	qt422016.ReleaseWriter(qw422016)
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 }
 
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 func (p *Index) Navigation() string {
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 	qb422016 := qt422016.AcquireByteBuffer()
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 	p.WriteNavigation(qb422016)
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 	qs422016 := string(qb422016.B)
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 	qt422016.ReleaseByteBuffer(qb422016)
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 	return qs422016
-//line build/template/index.qtpl:118
+//line build/template/index.qtpl:126
 }

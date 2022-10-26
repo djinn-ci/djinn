@@ -26,8 +26,9 @@ interface Page {
 
 {% code
 type BasePage struct {
-	URL  *url.URL
-	User *user.User
+	URL   *url.URL
+	Query url.Values
+	User  *user.User
 }
 
 type Form struct {

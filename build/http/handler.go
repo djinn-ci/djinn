@@ -109,6 +109,8 @@ func (h *Handler) WithBuild(fn HandlerFunc) userhttp.HandlerFunc {
 			return
 		}
 
+		b.User = owner
+
 		// Not in a namespace, so check to see if the current user is the owner
 		// of the build then defer to the handler.
 		if !b.NamespaceID.Valid {

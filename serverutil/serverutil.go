@@ -193,6 +193,11 @@ func RegisterRoutes(api, ui bool, srv *server.Server) {
 		srv.Router = router
 
 		srv.Router.HandleFunc(apiPrefix, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != "GET" {
+				w.WriteHeader(http.StatusMethodNotAllowed)
+				return
+			}
+
 			addr := webutil.BaseAddress(r)
 
 			data := map[string]string{

@@ -1,0 +1,18 @@
+
+
+[Unit]
+Description=Djinn CI Server (%i)
+After=network-online.target
+
+[Service]
+Restart=on-failure
+Type=simple
+User=djinn
+Group=djinn
+PIDFile=/var/run/djinn/%i.pid
+ExecStart=/usr/bin/djinn-server -config /etc/djinn/%i.conf -%i
+KillMode=mixed
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

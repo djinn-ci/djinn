@@ -61,6 +61,11 @@ func (c *Curator) Invoke() error {
 		query.From(artifactTable),
 		query.Where("size", ">", query.Arg(0)),
 		query.Where("user_id", "IN", database.List(userIds...)),
+		query.Where("build_id", "NOT IN", query.Select(
+			query.Columns("id"),
+			query.From(table),
+			query.Where("pinned", "=", query.Arg(true)),
+		)),
 		query.Where("deleted_at", "IS", query.Lit("NULL")),
 		query.OrderDesc("created_at"),
 	)

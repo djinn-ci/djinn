@@ -8,6 +8,7 @@ sources:
 env:
 - LDFLAGS=-s -w
 - INTEGRATION_CONFIG_DIR=testdata
+- PGDSN=host=localhost port=5432 dbname=djinn user=mgrt password=secret
 stages:
 - deps
 - setup
@@ -22,9 +23,9 @@ jobs:
   commands:
   - printf "127.0.0.1\tlocal.dev\n" | tee -a /etc/hosts
   - cd djinn
-  - mgrt run -c schema -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
-  - mgrt run -c perms -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
-  - mgrt run -c dev -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
+  - mgrt run -c schema -type postgresql -dsn $PGDSN
+  - mgrt run -c perms -type postgresql -dsn $PGDSN
+  - mgrt run -c dev -type postgresql -dsn $PGDSN
 - stage: make
   commands:
   - cd djinn

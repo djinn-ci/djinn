@@ -25,7 +25,6 @@ jobs:
   - mgrt run -c schema -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
   - mgrt run -c perms -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
   - mgrt run -c dev -type postgresql -dsn "host=localhost port=5432 dbname=djinn user=mgrt password=secret"
-  - sudo -u postgres psql -c "ALTER TYPE driver_type ADD VALUE 'os'" -d djinn
 - stage: make
   commands:
   - cd djinn

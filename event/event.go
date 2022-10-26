@@ -58,6 +58,8 @@ const (
 	Objects                         // objects
 	Variables                       // variables
 	SSHKeys                         // ssh_keys
+	BuildPinned                     // build.pinned
+	BuildUnpinned                   // build.unpinned
 )
 
 var (
@@ -69,6 +71,8 @@ var (
 		"build.started":   BuildStarted,
 		"build.finished":  BuildFinished,
 		"build.tagged":    BuildTagged,
+		"build.pinned":    BuildPinned,
+		"build.unpinned":  BuildUnpinned,
 		"invite.sent":     InviteSent,
 		"invite.accepted": InviteAccepted,
 		"invite.rejected": InviteRejected,
@@ -85,6 +89,8 @@ var (
 		BuildStarted,
 		BuildFinished,
 		BuildTagged,
+		BuildPinned,
+		BuildUnpinned,
 		InviteSent,
 		InviteAccepted,
 		Namespaces,

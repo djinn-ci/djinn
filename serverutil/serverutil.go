@@ -116,6 +116,8 @@ func Init(ctx context.Context, path string) (*server.Server, func(), error) {
 	memq.InitFunc("event:build.started", build.InitEvent(webhooks))
 	memq.InitFunc("event:build.tagged", build.InitTagEvent(webhooks))
 	memq.InitFunc("event:build.finished", build.InitEvent(webhooks))
+	memq.InitFunc("event:build.pinned", build.InitEvent(webhooks))
+	memq.InitFunc("event:build.unpinned", build.InitEvent(webhooks))
 	memq.InitFunc("event:invite.accepted", namespace.InitInviteEvent(srv.DB, webhooks))
 	memq.InitFunc("event:invite.rejected", namespace.InitInviteEvent(srv.DB, webhooks))
 	memq.InitFunc("event:invite.sent", namespace.InitInviteEvent(srv.DB, webhooks))

@@ -237,6 +237,28 @@ func (h API) Destroy(u *user.User, b *build.Build, w http.ResponseWriter, r *htt
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h API) TogglePin(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+	base := webutil.BasePath(r.URL.Path)
+
+	var err error
+
+	switch base {
+	case "pin":
+		err = b.Pin(h.DB)
+	case "unpin":
+		err = b.Unpin(h.DB)
+	}
+
+	if err != nil {
+		h.InternalServerError(w, r, errors.Err(err))
+		return
+	}
+
+	h.Queues.Produce(r.Context(), "events", &build.PinEvent{Build: b})
+
+	webutil.JSON(w, b.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+}
+
 func (h API) Download(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 
@@ -352,6 +374,8 @@ func RegisterAPI(prefix string, srv *server.Server) {
 	sr := srv.Router.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
 	sr.HandleFunc("", user.WithUser(api.WithBuild(api.Show))).Methods("GET")
 	sr.HandleFunc("", user.WithUser(api.WithBuild(api.Destroy))).Methods("DELETE")
+	sr.HandleFunc("/pin", user.WithUser(api.WithBuild(api.TogglePin))).Methods("PATCH")
+	sr.HandleFunc("/unpin", user.WithUser(api.WithBuild(api.TogglePin))).Methods("PATCH")
 	sr.HandleFunc("/objects", user.WithUser(api.WithBuild(api.Show))).Methods("GET")
 	sr.HandleFunc("/variables", user.WithUser(api.WithBuild(api.Show))).Methods("GET")
 	sr.HandleFunc("/keys", user.WithUser(api.WithBuild(api.Show))).Methods("GET")

@@ -51,6 +51,7 @@ type Build struct {
 	Status      runner.Status
 	Output      sql.NullString
 	Secret      sql.NullString
+	Pinned      bool
 	CreatedAt   time.Time
 	StartedAt   sql.NullTime
 	FinishedAt  sql.NullTime
@@ -152,6 +153,43 @@ func (b *Build) Kill(redis *redis.Client) error {
 	return nil
 }
 
+func (b *Build) togglePin(db database.Pool) error {
+	b.Pinned = !b.Pinned
+
+	q := query.Update(
+		table,
+		query.Set("pinned", query.Arg(b.Pinned)),
+		query.Where("id", "=", query.Arg(b.ID)),
+	)
+
+	if _, err := db.Exec(q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (b *Build) Pin(db database.Pool) error {
+	if b.Pinned {
+		return nil
+	}
+
+	if err := b.togglePin(db); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (b *Build) Unpin(db database.Pool) error {
+	if !b.Pinned {
+		return nil
+	}
+
+	if err := b.togglePin(db); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
 func (b *Build) Dest() []interface{} {
 	return []interface{}{
 		&b.ID,
@@ -165,6 +203,7 @@ func (b *Build) Dest() []interface{} {
 		&b.CreatedAt,
 		&b.StartedAt,
 		&b.FinishedAt,
+		&b.Pinned,
 	}
 }
 
@@ -225,6 +264,7 @@ func (b *Build) JSON(addr string) map[string]interface{} {
 		"status":        b.Status.String(),
 		"output":        nil,
 		"tags":          tags,
+		"pinned":        b.Pinned,
 		"created_at":    b.CreatedAt.Format(time.RFC3339),
 		"started_at":    nil,
 		"finished_at":   nil,
@@ -301,14 +341,20 @@ type Event struct {
 	Build *Build
 }
 
-var _ queue.Job = (*Event)(nil)
+var (
+	_ queue.Job = (*Event)(nil)
+	_ queue.Job = (*PinEvent)(nil)
+)
 
 // InitEvent returns a queue.InitFunc that will initialize the queue Job with
 // the given event Dispatcher if that queue Job is for a build Event.
 func InitEvent(dis event.Dispatcher) queue.InitFunc {
 	return func(j queue.Job) {
-		if ev, ok := j.(*Event); ok {
-			ev.dis = dis
+		switch v := j.(type) {
+		case *Event:
+			v.dis = dis
+		case *PinEvent:
+			v.dis = dis
 		}
 	}
 }
@@ -368,6 +414,40 @@ func (e *Event) Perform() error {
 	}
 	return nil
 }
+
+type PinEvent struct {
+	dis event.Dispatcher
+
+	Build *Build
+}
+
+func (e *PinEvent) Name() string {
+	if e.Build.Pinned {
+		return "event:" + event.BuildPinned.String()
+	}
+	return "event:" + event.BuildUnpinned.String()
+}
+
+func (e *PinEvent) Perform() error {
+	if e.dis == nil {
+		return event.ErrNilDispatcher
+	}
+
+	typ := event.BuildPinned
+
+	if !e.Build.Pinned {
+		typ = event.BuildUnpinned
+	}
+
+	ev := event.New(e.Build.NamespaceID, typ, e.Build.JSON(env.DJINN_API_SERVER))
+
+	if err := e.dis.Dispatch(ev); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+var _ queue.Job = (*Event)(nil)
 
 // Store allows for the management of Builds. This includes their creation,
 // submission, and updating of during runs.
@@ -476,6 +556,16 @@ func WhereStatus(status string) query.Option {
 	}
 }
 
+// WherePinned returns a query option for getting Builds that are pinned.
+func WherePinned(pinned bool) query.Option {
+	return func(q query.Query) query.Query {
+		if !pinned {
+			return q
+		}
+		return query.Where("pinned", "=", query.Arg(true))(q)
+	}
+}
+
 // WhereTag returns a query option for getting Builds with the given tag. Unlike
 // WhereSearch, this is strict.
 func WhereTag(tag string) query.Option {
@@ -517,6 +607,7 @@ func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Build, database
 		WhereTag(vals.Get("tag")),
 		WhereSearch(vals.Get("search")),
 		WhereStatus(vals.Get("status")),
+		WherePinned(vals.Has("pinned")),
 	)
 
 	paginator, err := s.Paginate(page, database.PageLimit, opts...)

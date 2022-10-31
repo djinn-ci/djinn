@@ -5,6 +5,7 @@ package os
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
 	"io"
 	"os"
@@ -68,9 +69,12 @@ func (d *Driver) Create(_ context.Context, env []string, objs runner.Passthrough
 
 func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 	for _, cmdline := range j.Commands {
-		args := strings.Split(cmdline, " ")
+		r := csv.NewReader(strings.NewReader(cmdline))
+		r.Comma = ' '
 
-		if args[0] == "" {
+		args, _ := r.Read()
+
+		if args == nil || args[0] == "" {
 			continue
 		}
 

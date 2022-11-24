@@ -48,7 +48,7 @@ func (p Passthrough) MarshalYAML() (interface{}, error) {
 //   [source] => [destination]
 //
 // The [destination] is optional, and if not provided the based of the [source]
-// will be used intstead.
+// will be used instead.
 func (p *Passthrough) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	if p.Values == nil {
 		p.Values = make(map[string]string)

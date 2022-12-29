@@ -44,10 +44,18 @@ func Test_CurationOfPinnedBuild(t *testing.T) {
 					Stage:     "collect-artifact",
 					Commands:  []string{
 						"/bin/sh -c pwd",
-						`/bin/sh -c "head -c 1048576 /dev/urandom > rand.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > mb0.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > mb1.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > mb2.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > mb3.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > mb4.dat"`,
 					},
 					Artifacts: djinn.ManifestPassthrough{
-						"rand.dat": "",
+						"mb0.dat": "",
+						"mb1.dat": "",
+						"mb2.dat": "",
+						"mb3.dat": "",
+						"mb4.dat": "",
 					},
 				},
 			},
@@ -96,7 +104,7 @@ func Test_CurationOfPinnedBuild(t *testing.T) {
 
 	q := query.Update(
 		"users",
-		query.Set("cleanup", query.Arg(1024)),
+		query.Set("cleanup", query.Arg(3*1<<20)),
 		query.Where("id", "=", query.Arg(u.ID)),
 	)
 
@@ -110,21 +118,31 @@ func Test_CurationOfPinnedBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// Make sure only the artifacts we want remain.
 	q = query.Select(
-		query.Columns("deleted_at"),
+		query.Columns("id"),
 		query.From("build_artifacts"),
 		query.Where("build_id", "=", query.Arg(b.ID)),
-		query.Where("name", "=", query.Arg("rand.dat")),
+		query.Where("deleted_at", "IS NOT", query.Lit("NULL")),
 	)
 
-	var deletedAt sql.NullTime
+	ids := make([]string, 0)
 
-	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&deletedAt); err != nil {
+	rows, err := db.QueryRow(q.Build(), q.Args()
+
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	// Make sure artifact has not been deleted as it belongs to a pinned build.
-	if deletedAt.Valid {
-		t.Fatal("expected artifact of pinned build to not be deleted")
+	var id string
+
+	for rows.Next() {
+		if err := row.Scan(&id); err != nil {
+			ids = append(ids, id)
+		}
+	}
+
+	if len(ids) != 2 {
+		t.Fatalf("unexpected artifacts after curation, expected=%d, got=%d\n", 2, len(ids))
 	}
 }

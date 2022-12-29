@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 
 	"djinn-ci.com/driver"
@@ -130,7 +129,7 @@ func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 
 		defer rc.Close()
 
-		io.Copy(ioutil.Discard, rc)
+		io.Copy(io.Discard, rc)
 		done <- struct{}{}
 	}()
 
@@ -155,6 +154,41 @@ func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 	return d.placeObjects(objs, p)
 }
 
+func (d *Driver) collectArtifact(ctx context.Context, w io.Writer, c runner.Collector, id, src, dst string) error {
+	fmt.Fprintf(w, "Collecting artifact %s => %s\n", src, dst)
+
+	rc, _, err := d.client.CopyFromContainer(ctx, id, d.Workspace + "/" + src)
+
+	if err != nil {
+		return err
+	}
+
+	defer rc.Close()
+
+	tr := tar.NewReader(rc)
+
+	for {
+		header, err := tr.Next()
+
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				return err
+			}
+			break
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			break
+		case tar.TypeReg:
+			if _, err := c.Collect(dst, tr); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // Execute performs the given runner.Job in a Driver container. Each job is
 // turned into a shell script and placed onto an initial container. A
 // subsequent container is then created, and the previously placed script is
@@ -173,7 +207,7 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 
 	ctx := context.Background()
 
-	ctr, err := d.client.ContainerCreate(ctx, cfg, hostCfg, nil, "")
+	ctr, err := d.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, "")
 
 	if err != nil {
 		j.Failed(err)
@@ -216,7 +250,7 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 	cfg.Env = d.env
 	cfg.Entrypoint = []string{script}
 
-	ctr, err = d.client.ContainerCreate(ctx, cfg, hostCfg, nil, "")
+	ctr, err = d.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, "")
 
 	if err != nil {
 		j.Failed(err)
@@ -237,20 +271,6 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 		Follow:     true,
 	}
 
-	go func() {
-		rc, err := d.client.ContainerLogs(ctx, ctr.ID, logOpts)
-
-		if err != nil {
-			if err == io.EOF {
-				return
-			}
-			return
-		}
-
-		defer rc.Close()
-		stdcopy.StdCopy(j.Writer, ioutil.Discard, rc)
-	}()
-
 	status, errs := d.client.ContainerWait(ctx, ctr.ID, container.WaitConditionNotRunning)
 	code := 0
 
@@ -270,57 +290,23 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 		j.Status = runner.Passed
 	}
 
+	rc, err := d.client.ContainerLogs(ctx, ctr.ID, logOpts)
+
+	if err != nil {
+		j.Failed(err)
+		return
+	}
+
+	defer rc.Close()
+	stdcopy.StdCopy(j.Writer, io.Discard, rc)
+
 	if len(j.Artifacts.Values) > 0 {
 		fmt.Fprintf(j.Writer, "\n")
 	}
 
 	for src, dst := range j.Artifacts.Values {
-		src = d.Workspace + "/" + src
-
-		fmt.Fprintf(j.Writer, "Collecting artifact %s => %s\n", src, dst)
-
-		rc, _, err := d.client.CopyFromContainer(ctx, ctr.ID, src)
-
-		if err != nil {
-			fmt.Fprintf(
-				j.Writer,
-				"Failed to collect artifact %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
-			continue
-		}
-
-		defer rc.Close()
-
-		tr := tar.NewReader(rc)
-
-		for {
-			header, err := tr.Next()
-
-			if err != nil {
-				if err == io.EOF {
-					break
-				}
-				fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", src, dst, err)
-				break
-			}
-
-			switch header.Typeflag {
-			case tar.TypeDir:
-				break
-			case tar.TypeReg:
-				if _, err := c.Collect(dst, tr); err != nil {
-					fmt.Fprintf(
-						j.Writer,
-						"Failed to collect artifact %s => %s: %s\n",
-						src,
-						dst,
-						errors.Cause(err),
-					)
-				}
-			}
+		if err := d.collectArtifact(ctx, j.Writer, c, ctr.ID, src, dst); err != nil {
+			fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", src, dst, errors.Cause(err))
 		}
 	}
 
@@ -371,7 +357,7 @@ func (d *Driver) placeObjects(objs runner.Passthrough, p runner.Placer) error {
 
 	ctx := context.Background()
 
-	ctr, err := d.client.ContainerCreate(ctx, cfg, hostCfg, nil, "")
+	ctr, err := d.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, "")
 
 	if err != nil {
 		return err

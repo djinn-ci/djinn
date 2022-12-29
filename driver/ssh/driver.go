@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -209,6 +210,27 @@ func (s *Driver) Destroy() {
 	}
 }
 
+func (s *Driver) collectErr(w io.Writer, src, dst string, err error) {
+	fmt.Fprintf(w, "Failed to collect artifact %s => %s: %s\n", src, dst, errors.Cause(err))
+}
+
+func (s *Driver) collectArtifact(w io.Writer, cli *sftp.Client, src, dst string, c runner.Collector) error {
+	f, err := cli.Open(src)
+
+	if err != nil {
+		return err
+	}
+
+	defer f.Close()
+
+	fmt.Fprintf(w, "Collecting artifact %s => %s\n", src, dst)
+
+	if _, err := c.Collect(dst, f); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (s *Driver) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
 	if len(j.Artifacts.Values) == 0 {
 		return
@@ -226,31 +248,19 @@ func (s *Driver) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector
 	fmt.Fprintf(w, "\n")
 
 	for src, dst := range j.Artifacts.Values {
-		fmt.Fprintf(w, "Collecting artifact %s => %s\n", src, dst)
-
-		f, err := cli.Open(src)
+		matches, err := cli.Glob(src)
 
 		if err != nil {
-			fmt.Fprintf(
-				w,
-				"Failed to collect artifact %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
+			s.collectErr(w, src, dst, err)
 			continue
 		}
 
-		defer f.Close()
+		for _, path := range matches {
+			dst := strings.Replace(dst, "*", filepath.Base(path), -1)
 
-		if _, err := c.Collect(dst, f); err != nil {
-			fmt.Fprintf(
-				w,
-				"Failed to collect artifact %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
+			if err := s.collectArtifact(w, cli, path, dst, c); err != nil {
+				s.collectErr(w, path, dst, err)
+			}
 		}
 	}
 }

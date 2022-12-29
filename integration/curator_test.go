@@ -1,7 +1,6 @@
 package integration
 
 import (
-	"database/sql"
 	"io"
 	"testing"
 	"time"
@@ -128,18 +127,12 @@ func Test_CurationOfPinnedBuild(t *testing.T) {
 
 	ids := make([]string, 0)
 
-	rows, err := db.QueryRow(q.Build(), q.Args()
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	row := db.QueryRow(q.Build(), q.Args())
 
 	var id string
 
-	for rows.Next() {
-		if err := row.Scan(&id); err != nil {
-			ids = append(ids, id)
-		}
+	if err := row.Scan(&id); err != nil {
+		ids = append(ids, id)
 	}
 
 	if len(ids) != 2 {

@@ -74,7 +74,7 @@ func (h *Handler) WithBuild(fn HandlerFunc) userhttp.HandlerFunc {
 			_, ok = u.Permissions["build:read"]
 		case "POST", "PATCH":
 			_, ok = u.Permissions["build:write"]
-		case "DELET":
+		case "DELETE":
 			_, ok = u.Permissions["build:delete"]
 		}
 

@@ -14,10 +14,13 @@ import (
 // possible values it could be,
 //
 // Private  - only the owner and collaborators can view the Namespace and its
-//            contents
+//
+//	contents
+//
 // Internal - only authenticated users can view the Namespace and its contents
 // Public   - anyone can view the Namespace and its contents, authenticated or
-//            not
+//
+//	not
 type Visibility uint8
 
 //go:generate stringer -type Visibility -linecomment

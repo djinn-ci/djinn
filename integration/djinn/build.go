@@ -388,7 +388,7 @@ func (b *Build) Pin(cli *Client) error {
 		return nil
 	}
 
-	resp, err := cli.Patch(b.URL.Path + "/pin", "", nil)
+	resp, err := cli.Patch(b.URL.Path+"/pin", "", nil)
 
 	if err != nil {
 		return err
@@ -409,7 +409,7 @@ func (b *Build) Unpin(cli *Client) error {
 		return nil
 	}
 
-	resp, err := cli.Patch(b.URL.Path + "/unpin", "", nil)
+	resp, err := cli.Patch(b.URL.Path+"/unpin", "", nil)
 
 	if err != nil {
 		return err

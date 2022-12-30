@@ -141,7 +141,7 @@ func (h UI) Login(w http.ResponseWriter, r *http.Request) {
 			cli, err := h.Server.Providers.Get(provider)
 
 			if err != nil {
-				alert.Flash(sess, alert.Warn, "Unknown provider: " + provider)
+				alert.Flash(sess, alert.Warn, "Unknown provider: "+provider)
 				h.Redirect(w, r, "/login")
 				return
 			}
@@ -160,7 +160,7 @@ func (h UI) Login(w http.ResponseWriter, r *http.Request) {
 
 		for _, name := range names {
 			pp = append(pp, &provider.Provider{
-				Name:    name,
+				Name: name,
 			})
 		}
 
@@ -597,9 +597,9 @@ resp:
 func parseSize(s string) (int64, error) {
 	siztab := map[string]int64{
 		"B":  1,
-		"KB": 1<<10,
-		"MB": 1<<20,
-		"GB": 1<<30,
+		"KB": 1 << 10,
+		"MB": 1 << 20,
+		"GB": 1 << 30,
 	}
 
 	pos := -1
@@ -629,7 +629,7 @@ func parseSize(s string) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	return i*mult, nil
+	return i * mult, nil
 }
 
 func (h UI) Cleanup(u *user.User, w http.ResponseWriter, r *http.Request) {

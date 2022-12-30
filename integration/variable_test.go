@@ -91,9 +91,9 @@ func Test_VariableMasking(t *testing.T) {
 	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
 		Manifest: djinn.Manifest{
 			Namespace: "maskedvariables",
-			Driver: map[string]string{"type": "os"},
-			Stages: []string{"env1", "env2", "env3"},
-			Jobs:   []djinn.ManifestJob{
+			Driver:    map[string]string{"type": "os"},
+			Stages:    []string{"env1", "env2", "env3"},
+			Jobs: []djinn.ManifestJob{
 				{
 					Stage:    "env1",
 					Commands: []string{"printenv"},

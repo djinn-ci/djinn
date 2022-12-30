@@ -128,15 +128,15 @@ var (
 //
 // For example, the following,
 //
-//   Link: <https://example.org/>; rel="start",
-//         <https://example.org/index>; rel="index"
+//	Link: <https://example.org/>; rel="start",
+//	      <https://example.org/index>; rel="index"
 //
 // would be parsed into the following map,
 //
-//   map[string][]string{
-//       "start": []string{"https://example.org"},
-//       "index": []string{"https://example.org/index"},
-//   }
+//	map[string][]string{
+//	    "start": []string{"https://example.org"},
+//	    "index": []string{"https://example.org/index"},
+//	}
 func parseLink(link string) map[string][]string {
 	m := make(map[string][]string)
 	parts := strings.Split(link, ",")

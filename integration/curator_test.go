@@ -7,8 +7,8 @@ import (
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/fs"
-	"djinn-ci.com/log"
 	"djinn-ci.com/integration/djinn"
+	"djinn-ci.com/log"
 
 	"github.com/andrewpillar/query"
 )
@@ -26,8 +26,8 @@ func Test_BuildCuration(t *testing.T) {
 			Stages: []string{"collect-artifact"},
 			Jobs: []djinn.ManifestJob{
 				{
-					Stage:     "collect-artifact",
-					Commands:  []string{
+					Stage: "collect-artifact",
+					Commands: []string{
 						"/bin/sh -c pwd",
 						`/bin/sh -c "head -c 1048576 /dev/urandom > /tmp/mb0.dat"`,
 						`/bin/sh -c "head -c 1048576 /dev/urandom > /tmp/mb1.dat"`,

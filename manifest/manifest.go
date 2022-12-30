@@ -232,7 +232,7 @@ func (s Source) MarshalYAML() (interface{}, error) {
 // UnmarshalYAML unmarshals the YAML for a source URL. Source URLs can be in
 // the format of:
 //
-//   [url] [ref] => [dir]
+//	[url] [ref] => [dir]
 //
 // This will correctly unmarshal the given string, and parse it accordingly. The ref, and dir
 // parts of the string are optional. If not specified the ref will be master, and the dir will be

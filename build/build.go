@@ -35,6 +35,7 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 
 	"github.com/mcmathja/curlyq"
 
@@ -133,6 +134,99 @@ func LoadRelations(db database.Pool, bb ...*Build) error {
 	for _, j := range jj {
 		j.Build = builds[j.BuildID]
 		stages[j.StageID].Bind(j)
+	}
+	return nil
+}
+
+func (b *Build) Tag(ctx context.Context, pool *pgxpool.Pool, u *user.User, tags ...string) error {
+	if _, ok := u.Permissions["build:write"]; !ok {
+		return database.ErrPermission
+	}
+
+	if len(tags) == 0 {
+		return nil
+	}
+
+	set := make(map[string]struct{})
+	vals := make([]any, 0, len(tags))
+
+	for _, tag := range tags {
+		set[tag] = struct{}{}
+	}
+
+	tags = tags[0:0]
+
+	for tag := range set {
+		tags = append(tags, tag)
+		vals = append(vals, tag)
+
+		delete(set, tag)
+	}
+
+	q := query.Select(
+		query.Columns("name"),
+		query.From(tagTable),
+		query.Where("build_id", "=", query.Arg(b.ID)),
+		query.Where("name", "IN", query.List(vals...)),
+	)
+
+	rows, err := pool.Query(ctx, q.Build(), q.Args()...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	var s string
+
+	for rows.Next() {
+		if err := rows.Scan(&s); err != nil {
+			return errors.Err(err)
+		}
+		set[s] = struct{}{}
+	}
+
+	b.Tags = make([]*Tag, 0, len(set))
+
+	now := time.Now()
+
+	tx, err := pool.Begin(ctx)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer tx.Rollback(ctx)
+
+	for _, tag := range tags {
+		if _, ok := set[tag]; ok {
+			continue
+		}
+
+		if tag == "" {
+			continue
+		}
+
+		q := query.Insert(
+			tagTable,
+			query.Columns("user_id", "build_id", "name", "created_at"),
+			query.Values(u.ID, b.ID, tag, now),
+		)
+
+		if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+			return errors.Err(err)
+		}
+
+		b.Tags = append(b.Tags, &Tag{
+			UserID:    u.ID,
+			BuildID:   b.ID,
+			Name:      tag,
+			CreatedAt: now,
+			User:      u,
+		})
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return errors.Err(err)
 	}
 	return nil
 }
@@ -316,6 +410,47 @@ func (b *Build) Endpoint(uri ...string) string {
 	return endpoint
 }
 
+func (b *Build) Primary() (string, any) { return "id", b.ID }
+
+func (b *Build) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":           &b.ID,
+		"user_id":      &b.UserID,
+		"namespace_id": &b.NamespaceID,
+		"number":       &b.Number,
+		"manifest":     &b.Manifest,
+		"status":       &b.Status,
+		"output":       &b.Output,
+		"secret":       &b.Secret,
+		"pinned":       &b.Pinned,
+		"created_at":   &b.CreatedAt,
+		"started_at":   &b.StartedAt,
+		"finished_at":  &b.FinishedAt,
+	}
+
+	if err := database.Scan(r, valtab); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (b *Build) Params() map[string]database.Param {
+	return map[string]database.Param{
+		"id":           database.CreateOnlyParam(b.ID),
+		"user_id":      database.CreateOnlyParam(b.ID),
+		"namespace_id": database.CreateOnlyParam(b.NamespaceID),
+		"number":       database.CreateOnlyParam(b.Number),
+		"manifest":     database.CreateOnlyParam(b.Manifest),
+		"status":       database.CreateUpdateParam(b.Status),
+		"output":       database.CreateUpdateParam(b.Output),
+		"secret":       database.CreateOnlyParam(b.Secret),
+		"pinned":       database.UpdateOnlyParam(b.Pinned),
+		"created_at":   database.CreateOnlyParam(b.CreatedAt),
+		"started_at":   database.UpdateOnlyParam(b.StartedAt),
+		"finished_at":  database.UpdateOnlyParam(b.FinishedAt),
+	}
+}
+
 // Values returns all of the values for the current Build.
 func (b *Build) Values() map[string]interface{} {
 	return map[string]interface{}{
@@ -460,6 +595,459 @@ type Store struct {
 	// DriverQueues are the driver specified queues that a Build can be
 	// submitted to. Each key in the map is the name of the respective driver.
 	DriverQueues map[string]*curlyq.Producer
+}
+
+type GStore struct {
+	*database.Store[*Build]
+
+	Hasher *crypto.Hasher
+
+	Queues map[string]*curlyq.Producer
+}
+
+func NewStore(pool *pgxpool.Pool) *GStore {
+	return &GStore{
+		Store: database.NewStore[*Build](pool, table, func() *Build {
+			return &Build{}
+		}),
+	}
+}
+
+func (s *GStore) Create(ctx context.Context, u *user.User, b *Build) error {
+	if _, ok := b.User.Permissions["build:write"]; !ok {
+		return database.ErrPermission
+	}
+
+	driverType := b.Manifest.Driver["type"]
+
+	if driverType == "qemu" {
+		b.Manifest.Driver["arch"] = "x86_64"
+		driverType += "-" + b.Manifest.Driver["arch"]
+	}
+
+	if _, ok := s.Queues[driverType]; !ok {
+		if driver.IsValid(driverType) {
+			return driver.ErrDisabled(driverType)
+		}
+		return driver.ErrUnknown(driverType)
+	}
+
+	if b.Manifest.Namespace != "" {
+		path, err := namespace.ParsePath(b.Manifest.Namespace)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		u, n, err := path.ResolveOrCreate(database.Pool{Pool: s.Pool}, b.UserID)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+
+		if err := n.IsCollaborator(database.Pool{Pool: s.Pool}, b.UserID); err != nil {
+			return errors.Err(err)
+		}
+
+		b.UserID = u.ID
+		b.User = u
+		b.NamespaceID = sql.NullInt64{
+			Int64: n.ID,
+			Valid: true,
+		}
+		b.Namespace = n
+		b.Namespace.User = u
+	}
+
+	q := query.Select(
+		query.Columns("number"),
+		query.From(table),
+		query.Where("user_id", "=", query.Arg(b.UserID)),
+		query.OrderDesc("created_at"),
+		query.Limit(1),
+	)
+
+	var number int64
+
+	if err := s.QueryRow(ctx, q.Build(), q.Args()...).Scan(&number); err != nil {
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return errors.Err(err)
+		}
+	}
+
+	number++
+
+	buf := make([]byte, 16)
+
+	if _, err := rand.Read(buf); err != nil {
+		return errors.Err(err)
+	}
+
+	b.Status = runner.Queued
+	b.Secret = sql.NullString{
+		String: hex.EncodeToString(buf),
+		Valid:  true,
+	}
+	b.CreatedAt = time.Now()
+
+	if err := s.Store.Create(ctx, b); err != nil {
+		return errors.Err(err)
+	}
+
+	tags := make([]string, 0, len(b.Tags))
+
+	for _, tag := range b.Tags {
+		tags = append(tags, tag.Name)
+	}
+
+	if err := b.Tag(ctx, s.Pool, u, tags...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *GStore) createDriver(ctx context.Context, tx pgx.Tx, b *Build) (string, error) {
+	driverType := b.Manifest.Driver["type"]
+
+	// Limit to x86_64 since that's all we support right now.
+	if driverType == "qemu" {
+		b.Manifest.Driver["arch"] = "x86_64"
+		driverType += "-" + b.Manifest.Driver["arch"]
+	}
+
+	q := query.Insert(
+		driverTable,
+		query.Columns("build_id", "type", "config"),
+		query.Values(b.ID, b.Manifest.Driver["type"], b.Manifest.Driver),
+	)
+
+	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+		return "", errors.Err(err)
+	}
+	return driverType, nil
+}
+
+func (s *GStore) createVariables(ctx context.Context, tx pgx.Tx, b *Build) error {
+	vv, err := NewVariableStore(s.Pool).All(ctx,
+		query.Where("user_id", "=", query.Arg(b.UserID)),
+		query.Where("namespace_id", "IS", query.Lit("NULL")),
+		query.OrWhere("namespace_id", "=", query.Arg(b.NamespaceID)),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	for _, env := range b.Manifest.Env {
+		parts := strings.SplitN(env, "=", 2)
+
+		vv = append(vv, &variable.Variable{
+			Key:   parts[0],
+			Value: parts[1],
+		})
+	}
+
+	if len(vv) == 0 {
+		return nil
+	}
+
+	opts := make([]query.Option, 0, len(vv))
+
+	for _, v := range vv {
+		id := sql.NullInt64{
+			Int64: v.ID,
+			Valid: v.ID > 0,
+		}
+
+		opts = append(opts, query.Values(b.ID, id, v.Key, v.Value, v.Masked))
+	}
+
+	q := query.Insert(
+		variableTable,
+		query.Columns("build_id", "variable_id", "key", "value", "masked"),
+		opts...,
+	)
+
+	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *GStore) createKeys(ctx context.Context, tx pgx.Tx, b *Build) error {
+	kk, err := NewKeyStore(s.Pool).All(ctx,
+		query.Where("user_id", "=", query.Arg(b.UserID)),
+		query.Where("namespace_id", "IS", query.Lit("NULL")),
+		query.OrWhere("namespace_id", "=", query.Arg(b.NamespaceID)),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if len(kk) == 0 {
+		return nil
+	}
+
+	opts := make([]query.Option, 0, len(kk))
+
+	for _, k := range kk {
+		opts = append(opts, query.Values(b.ID, k.ID, k.Key, k.Name, k.Config, "/root/.ssh/"+k.Name))
+	}
+
+	q := query.Insert(
+		keyTable,
+		query.Columns("build_id", "key_id", "key", "name", "config", "location"),
+		opts...,
+	)
+
+	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *GStore) createObjects(ctx context.Context, tx pgx.Tx, b *Build) error {
+	names := make([]any, 0, len(b.Manifest.Objects.Values))
+
+	for name := range b.Manifest.Objects.Values {
+		names = append(names, name)
+	}
+
+	if len(names) == 0 {
+		return nil
+	}
+
+	oo, err := NewObjectStore(s.Pool).All(ctx,
+		query.Where("name", "IN", query.List(names...)),
+		query.Where("user_id", "=", query.Arg(b.UserID)),
+		query.Where("namespace_id", "IS", query.Lit("NULL")),
+		query.OrWhere("namespace_id", "=", query.Arg(b.NamespaceID)),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	opts := make([]query.Option, 0, len(oo))
+	now := time.Now()
+
+	for _, o := range oo {
+		opts = append(opts, query.Values(b.ID, o.ID, b.Manifest.Objects.Values[o.Name], o.Name, now))
+	}
+
+	q := query.Insert(
+		objectTable,
+		query.Columns("build_id", "object_id", "source", "name", "created_at"),
+		opts...,
+	)
+
+	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *GStore) createStages(ctx context.Context, tx pgx.Tx, b *Build) (map[string]int64, error) {
+	setupStage := "setup - #" + strconv.FormatInt(b.Number, 10)
+
+	// Prepend pseudo-stage for setting up the build environment with driver
+	// creation and source cloning.
+	b.Manifest.Stages = append([]string{setupStage}, b.Manifest.Stages...)
+
+	canFail := make(map[string]struct{})
+
+	for _, stage := range b.Manifest.AllowFailures {
+		canFail[stage] = struct{}{}
+	}
+
+	var stageId int64
+
+	stages := make(map[string]int64)
+
+	for _, name := range b.Manifest.Stages {
+		_, ok := canFail[name]
+
+		q := query.Insert(
+			stageTable,
+			query.Columns("build_id", "name", "can_fail", "created_at"),
+			query.Values(b.ID, name, ok, time.Now()),
+			query.Returning("id"),
+		)
+
+		if err := tx.QueryRow(ctx, q.Build(), q.Args()...).Scan(&stageId); err != nil {
+			return nil, errors.Err(err)
+		}
+		stages[name] = stageId
+	}
+
+	setupJobs := make([]manifest.Job, 0, len(b.Manifest.Sources)+1)
+
+	// Pseudo-job for capturing the output during driver creation.
+	setupJobs = append(setupJobs, manifest.Job{
+		Stage: setupStage,
+		Name:  "create-driver",
+	})
+
+	for i, src := range b.Manifest.Sources {
+		setupJobs = append(setupJobs, manifest.Job{
+			Stage: setupStage,
+			Name:  "clone." + strconv.FormatInt(int64(i+1), 10),
+			Commands: []string{
+				"mkdir -p " + src.Dir,
+				"git clone -q " + src.URL + " " + src.Dir,
+				"cd " + src.Dir,
+				"git checkout " + src.Ref,
+			},
+		})
+	}
+
+	opts := make([]query.Option, 0, len(setupJobs))
+
+	for _, job := range setupJobs {
+		stageId, _ := stages[job.Stage]
+
+		opts = append(opts, query.Values(b.ID, stageId, job.Name, strings.Join(job.Commands, "\n"), time.Now()))
+	}
+
+	q := query.Insert(
+		jobTable,
+		query.Columns("build_id", "stage_id", "name", "commands", "created_at"),
+		opts...,
+	)
+
+	if _, err := tx.Exec(ctx, q.Build(), q.Args()...); err != nil {
+		return nil, errors.Err(err)
+	}
+	return stages, nil
+}
+
+func (s *GStore) createJobs(ctx context.Context, tx pgx.Tx, stages map[string]int64, b *Build) error {
+	currStage := ""
+	jobNumber := int64(1)
+
+	now := time.Now()
+
+	opts := make([]query.Option, 0, len(b.Manifest.Jobs)+1)
+
+	artifacts := make(map[string][]*Artifact)
+
+	for _, job := range b.Manifest.Jobs {
+		stageId, ok := stages[job.Stage]
+
+		if !ok {
+			continue
+		}
+
+		if job.Stage != currStage {
+			currStage = job.Stage
+			jobNumber = 1
+		} else {
+			jobNumber++
+		}
+
+		if job.Name == "" {
+			job.Name = job.Stage + "." + strconv.FormatInt(jobNumber, 10)
+		}
+
+		job.Name = slug(job.Name)
+
+		opts = append(opts, query.Values(b.ID, stageId, job.Name, strings.Join(job.Commands, "\n"), now))
+
+		for src, dst := range job.Artifacts.Values {
+			hash, err := s.Hasher.HashNow()
+
+			if err != nil {
+				return errors.Err(err)
+			}
+
+			artifacts[job.Name] = append(artifacts[job.Name], &Artifact{
+				UserID:    b.UserID,
+				BuildID:   b.ID,
+				Hash:      hash,
+				Source:    src,
+				Name:      dst,
+				CreatedAt: now,
+			})
+		}
+	}
+
+	opts = append(opts, query.Returning("id", "name"))
+
+	q := query.Insert(
+		jobTable,
+		query.Columns("build_id", "stage_id", "name", "commands", "created_at"),
+		opts...,
+	)
+
+	rows, err := tx.Query(ctx, q.Build(), q.Args()...)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	artifactJobIds := make(map[string][]int64)
+
+	for rows.Next() {
+		var (
+			id   int64
+			name string
+		)
+
+		if err := rows.Scan(&id, &name); err != nil {
+			return errors.Err(err)
+		}
+
+		if _, ok := artifacts[name]; ok {
+			artifactJobIds[name] = append(artifactJobIds[name], id)
+		}
+	}
+
+	for name, ids := range artifactJobIds {
+		for i := range artifacts[name] {
+			artifacts[name][i].JobID = ids[i]
+		}
+	}
+	return nil
+}
+
+func (s *GStore) Submit(ctx context.Context, host string, b *Build) error {
+	tx, err := s.Begin(ctx)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	defer tx.Rollback(ctx)
+
+	driverType, err := s.createDriver(ctx, tx, b)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if err := s.createVariables(ctx, tx, b); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := s.createKeys(ctx, tx, b); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := s.createObjects(ctx, tx, b); err != nil {
+		return errors.Err(err)
+	}
+
+	stages, err := s.createStages(ctx, tx, b)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
+	if err := s.createJobs(ctx, tx, stages, b); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
 // Get returns the singlar Build that can be found with the given query options

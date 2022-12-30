@@ -45,7 +45,7 @@ func (p Passthrough) MarshalYAML() (interface{}, error) {
 
 // In the manifest YAML file passthrough is expected to be presented like so:
 //
-//   [source] => [destination]
+//	[source] => [destination]
 //
 // The [destination] is optional, and if not provided the based of the [source]
 // will be used instead.

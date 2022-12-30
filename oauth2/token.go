@@ -84,15 +84,15 @@ func (t *Token) Endpoint(uri ...string) string {
 // resource:permission values. Each part of the space delimited string will
 // be a key in the returned map, for example,
 //
-//   build:read,write namespace:read
+//	build:read,write namespace:read
 //
 // would become the map,
 //
-//   map[string]struct{}{
-//       "build:read":     {},
-//       "build:write":    {},
-//       "namespace:read": {},
-//   }
+//	map[string]struct{}{
+//	    "build:read":     {},
+//	    "build:write":    {},
+//	    "namespace:read": {},
+//	}
 func (t *Token) Permissions() map[string]struct{} {
 	m := make(map[string]struct{})
 

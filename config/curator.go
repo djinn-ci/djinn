@@ -36,10 +36,10 @@ type Curator struct {
 	artifacts fs.Store
 }
 
-func (c *Curator) Pidfile() string     { return c.pidfile }
-func (c *Curator) DB() database.Pool   { return c.db }
-func (c *Curator) Artifacts() fs.Store { return c.artifacts }
-func (c *Curator) Log() *log.Logger    { return c.log }
+func (c *Curator) Pidfile() string         { return c.pidfile }
+func (c *Curator) DB() database.Pool       { return c.db }
+func (c *Curator) Artifacts() fs.Store     { return c.artifacts }
+func (c *Curator) Log() *log.Logger        { return c.log }
 func (c *Curator) Interval() time.Duration { return c.interval }
 
 func DecodeCurator(name string, r io.Reader) (*Curator, error) {

@@ -18,18 +18,18 @@ type Permission int
 // first item in the pair is the resource, and the second is the bitmask of
 // permissions. For example the byte array
 //
-//   2, 3
+//	2, 3
 //
 // would be the scope,
 //
-//   build:read,write
+//	build:read,write
 //
 // or as code,
 //
-//  scopeItem{
-//    Resource:   Build,
-//    Permission: Read|Write,
-//  }
+//	scopeItem{
+//	  Resource:   Build,
+//	  Permission: Read|Write,
+//	}
 type Scope []scopeItem
 
 type scopeItem struct {
@@ -105,9 +105,9 @@ func NewScope() Scope {
 // You would typically check the length of the returned Scope to see if there
 // was a difference like so,
 //
-//   if len(ScopeDiff(a, b)) > 0 {
-//       ...
-//   }
+//	if len(ScopeDiff(a, b)) > 0 {
+//	    ...
+//	}
 func ScopeDiff(a, b Scope) Scope {
 	m := make(map[int]struct{})
 
@@ -272,7 +272,7 @@ func (sc *Scope) Spread() []string {
 // String returns a space delimited string of all the resources and their
 // respective permissions as a single string, for example,
 //
-//   build:read,write namespace:read variable:read,write,delete
+//	build:read,write namespace:read variable:read,write,delete
 func (sc *Scope) String() string {
 	items := make([]string, 0, len((*sc)))
 

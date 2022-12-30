@@ -59,9 +59,9 @@ var preamble = "#!/bin/sh\nexec 2>&1\nset -ex\n\n"
 // given runner.Job commands into a shell script. Each shell script is
 // prepended with the given header,
 //
-//   #!/bin/sh
-//   exec 2>&1
-//   set -ex
+//	#!/bin/sh
+//	exec 2>&1
+//	set -ex
 func CreateScript(j *runner.Job) *bytes.Buffer {
 	buf := bytes.NewBufferString(preamble)
 

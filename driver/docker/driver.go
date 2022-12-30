@@ -157,7 +157,7 @@ func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 func (d *Driver) collectArtifact(ctx context.Context, w io.Writer, c runner.Collector, id, src, dst string) error {
 	fmt.Fprintf(w, "Collecting artifact %s => %s\n", src, dst)
 
-	rc, _, err := d.client.CopyFromContainer(ctx, id, d.Workspace + "/" + src)
+	rc, _, err := d.client.CopyFromContainer(ctx, id, d.Workspace+"/"+src)
 
 	if err != nil {
 		return err

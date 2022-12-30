@@ -198,7 +198,7 @@ func (h *Handler) WithNamespace(fn HandlerFunc) userhttp.HandlerFunc {
 			}
 		}
 
-checkAccess:
+	checkAccess:
 		if err := n.HasAccess(h.DB, u.ID); err != nil {
 			if !errors.Is(err, namespace.ErrPermission) {
 				h.InternalServerError(w, r, errors.Err(err))

@@ -1,9 +1,9 @@
 package integration
 
 import (
-	"io"
+	"os"
+	"path/filepath"
 	"testing"
-	"time"
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/fs"
@@ -13,26 +13,12 @@ import (
 	"github.com/andrewpillar/query"
 )
 
-type discardCloser struct {
-	io.Writer
-}
-
-func (w discardCloser) Close() error {
-	return nil
-}
-
-func discard() io.WriteCloser {
-	return discardCloser{
-		Writer: io.Discard,
-	}
-}
-
-func Test_CurationOfPinnedBuild(t *testing.T) {
+func Test_BuildCuration(t *testing.T) {
 	u := users.get("gordon.freeman@black-mesa.com")
 
 	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
 
-	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
+	b := submitBuildAndWait(t, cli, djinn.Passed, djinn.BuildParams{
 		Manifest: djinn.Manifest{
 			Driver: map[string]string{
 				"type": "os",
@@ -43,59 +29,25 @@ func Test_CurationOfPinnedBuild(t *testing.T) {
 					Stage:     "collect-artifact",
 					Commands:  []string{
 						"/bin/sh -c pwd",
-						`/bin/sh -c "head -c 1048576 /dev/urandom > mb0.dat"`,
-						`/bin/sh -c "head -c 1048576 /dev/urandom > mb1.dat"`,
-						`/bin/sh -c "head -c 1048576 /dev/urandom > mb2.dat"`,
-						`/bin/sh -c "head -c 1048576 /dev/urandom > mb3.dat"`,
-						`/bin/sh -c "head -c 1048576 /dev/urandom > mb4.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > /tmp/mb0.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > /tmp/mb1.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > /tmp/mb2.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > /tmp/mb3.dat"`,
+						`/bin/sh -c "head -c 1048576 /dev/urandom > /tmp/mb4.dat"`,
 					},
 					Artifacts: djinn.ManifestPassthrough{
-						"mb0.dat": "",
-						"mb1.dat": "",
-						"mb2.dat": "",
-						"mb3.dat": "",
-						"mb4.dat": "",
+						"/tmp/mb0.dat": "",
+						"/tmp/mb1.dat": "",
+						"/tmp/mb2.dat": "",
+						"/tmp/mb3.dat": "",
+						"/tmp/mb4.dat": "",
 					},
 				},
 			},
 		},
-		Comment: "Test_CurationOfPinnedBuild",
+		Comment: "Test_BuildCuration",
 		Tags:    []string{"os"},
 	})
-
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	done := make(chan struct{})
-
-	go func() {
-		for {
-			select {
-			case <-done:
-				return
-			case <-time.After(time.Second):
-				if err := b.Get(cli); err != nil {
-					t.Fatal(err)
-				}
-
-				if b.Status != djinn.Queued && b.Status != djinn.Running {
-					done <- struct{}{}
-					return
-				}
-			}
-		}
-	}()
-
-	select {
-	case <-time.After(time.Second * 5):
-		done <- struct{}{}
-	case <-done:
-	}
-
-	if b.Status != djinn.Passed {
-		t.Fatalf("unexpected status, expected=%q, got=%q\n", djinn.Passed, b.Status)
-	}
 
 	if err := b.Pin(cli); err != nil {
 		t.Fatal(err)
@@ -103,7 +55,7 @@ func Test_CurationOfPinnedBuild(t *testing.T) {
 
 	q := query.Update(
 		"users",
-		query.Set("cleanup", query.Arg(3*1<<20)),
+		query.Set("cleanup", query.Arg(3<<20)),
 		query.Where("id", "=", query.Arg(u.ID)),
 	)
 
@@ -111,7 +63,18 @@ func Test_CurationOfPinnedBuild(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cur := build.NewCurator(log.New(discard()), db, fs.NewNull())
+	f, err := os.Create(filepath.Join("testdata", "log", "curator.log"))
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer f.Close()
+
+	log := log.New(f)
+	log.SetLevel("debug")
+
+	cur := build.NewCurator(log, db, fs.NewNull())
 
 	if err := cur.Invoke(); err != nil {
 		t.Fatal(err)
@@ -119,23 +82,43 @@ func Test_CurationOfPinnedBuild(t *testing.T) {
 
 	// Make sure only the artifacts we want remain.
 	q = query.Select(
-		query.Columns("id"),
+		query.Count("id"),
 		query.From("build_artifacts"),
 		query.Where("build_id", "=", query.Arg(b.ID)),
 		query.Where("deleted_at", "IS NOT", query.Lit("NULL")),
 	)
 
-	ids := make([]string, 0)
+	var count int64
 
-	row := db.QueryRow(q.Build(), q.Args())
-
-	var id string
-
-	if err := row.Scan(&id); err != nil {
-		ids = append(ids, id)
+	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
+		t.Fatal(err)
 	}
 
-	if len(ids) != 2 {
-		t.Fatalf("unexpected artifacts after curation, expected=%d, got=%d\n", 2, len(ids))
+	if count != 0 {
+		t.Fatalf("unexpected artifacts after curation, expected=%d, got=%d\n", 0, count)
+	}
+
+	if err := b.Unpin(cli); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := cur.Invoke(); err != nil {
+		t.Fatal(err)
+	}
+
+	// Check to see if the artifacts have been deleted.
+	q = query.Select(
+		query.Count("id"),
+		query.From("build_artifacts"),
+		query.Where("build_id", "=", query.Arg(b.ID)),
+		query.Where("deleted_at", "IS NOT", query.Lit("NULL")),
+	)
+
+	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+
+	if count != 2 {
+		t.Fatalf("unexpected artifacts after curation, expected=%d, got=%d\n", 2, count)
 	}
 }

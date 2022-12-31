@@ -92,7 +92,7 @@ func (c *Curator) Invoke() error {
 		sum := sumtab[userId]
 		sum += size.Int64
 
-		if limit, ok := cleanups[userId]; ok && sum >= limit {
+		if limit, ok := cleanups[userId]; ok && sum > limit {
 			c.log.Debug.Println("curating artifact", id, "for user", userId)
 
 			curated = append(curated, id)

@@ -16,6 +16,7 @@ import (
 	"djinn-ci.com/database"
 	"djinn-ci.com/env"
 	"djinn-ci.com/fs"
+	"djinn-ci.com/integration/djinn"
 	"djinn-ci.com/oauth2"
 	"djinn-ci.com/serverutil"
 	"djinn-ci.com/user"
@@ -124,6 +125,45 @@ func mktoken(db database.Pool, u *user.User, name, scope string) *oauth2.Token {
 		fatalf("mktoken error: %s\n", err)
 	}
 	return tok
+}
+
+func submitBuildAndWait(t *testing.T, cli *djinn.Client, status djinn.Status, p djinn.BuildParams) *djinn.Build {
+	b, err := djinn.SubmitBuild(cli, p)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-time.After(time.Second):
+				if err := b.Get(cli); err != nil {
+					t.Fatal(err)
+				}
+
+				if b.Status != djinn.Queued && b.Status != djinn.Running {
+					done <- struct{}{}
+					return
+				}
+			}
+		}
+	}()
+
+	select {
+	case <-time.After(time.Second * 5):
+		done <- struct{}{}
+	case <-done:
+	}
+
+	if b.Status != status {
+		t.Fatalf("unexpected status, expected=%q, got=%q\n", status, b.Status)
+	}
+	return b
 }
 
 // setupServer sets up the server for integration testing. This returns a

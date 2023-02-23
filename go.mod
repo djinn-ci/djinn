@@ -7,7 +7,7 @@ require (
 	github.com/andrewpillar/fs v0.0.0-20230416204702-a009058fc080
 	github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd
 	github.com/andrewpillar/webutil/v2 v2.2.1
-	github.com/docker/docker v20.10.21+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/csrf v1.6.2
@@ -25,7 +25,7 @@ require (
 	github.com/vmihailenco/msgpack/v4 v4.3.12
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd
 	golang.org/x/oauth2 v0.0.0-20210819190943-2bc19b11175f
-	golang.org/x/text v0.3.7
+	golang.org/x/text v0.7.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -57,8 +57,8 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/vmihailenco/tagparser v0.1.1 // indirect
-	golang.org/x/net v0.0.0-20220722155237-a158d28d115b // indirect
-	golang.org/x/sys v0.0.0-20220722155257-8c9f86f7a55f // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac // indirect
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.0 // indirect

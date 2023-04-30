@@ -7,7 +7,7 @@ require (
 	github.com/andrewpillar/fs v0.0.0-20230416204702-a009058fc080
 	github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd
 	github.com/andrewpillar/webutil/v2 v2.2.1
-	github.com/docker/docker v20.10.21+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/csrf v1.6.2

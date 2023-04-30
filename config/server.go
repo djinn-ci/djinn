@@ -180,11 +180,11 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 
 		switch label {
 		case "artifacts":
-			srv.artifacts, err = s.store()
+			srv.artifacts, _, err = s.store()
 		case "images":
-			srv.images, err = s.store()
+			srv.images, _, err = s.store()
 		case "objects":
-			srv.objects, err = s.store()
+			srv.objects, _, err = s.store()
 		}
 
 		if err != nil {

@@ -207,7 +207,7 @@ func NewRunner(ctx context.Context, w *Worker, b *build.Build) (*Runner, error) 
 		Env:         env,
 		Passthrough: pt,
 		Objects:     objects.Filestore(b, keyChain(w.AESGCM, kk)),
-		Artifacts:   artifacts.Filestore(b),
+		Artifacts:   artifacts.Filestore(b, w.ArtifactLimit),
 	}
 
 	ss, err := build.NewStageStore(w.DB).Select(

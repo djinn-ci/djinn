@@ -345,7 +345,7 @@ type storeCfg struct {
 	Limit int64
 }
 
-func (cfg *storeCfg) store() (fs.FS, error) {
+func (cfg *storeCfg) store() (fs.FS, int64, error) {
 	switch cfg.Type {
 	case "file":
 		store := fs.New(cfg.Path)
@@ -353,9 +353,9 @@ func (cfg *storeCfg) store() (fs.FS, error) {
 		if cfg.Limit > 0 {
 			store = fs.Limit(store, cfg.Limit)
 		}
-		return store, nil
+		return store, cfg.Limit, nil
 	default:
-		return nil, errors.New("unknown store type: " + cfg.Type)
+		return nil, 0, errors.New("unknown store type: " + cfg.Type)
 	}
 }
 

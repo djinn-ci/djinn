@@ -62,8 +62,10 @@ type Worker struct {
 	smtp      *mail.Client
 	smtpadmin string
 
-	artifacts fs.FS
-	objects   fs.FS
+	artifacts     fs.FS
+	artifactLimit int64
+
+	objects fs.FS
 
 	providers *provider.Registry
 }
@@ -79,6 +81,7 @@ func (w *Worker) DB() *database.Pool            { return w.db }
 func (w *Worker) Redis() *redis.Client          { return w.redis }
 func (w *Worker) SMTP() (*mail.Client, string)  { return w.smtp, w.smtpadmin }
 func (w *Worker) Artifacts() fs.FS              { return w.artifacts }
+func (w *Worker) ArtifactLimit() int64          { return w.artifactLimit }
 func (w *Worker) Objects() fs.FS                { return w.objects }
 func (w *Worker) AESGCM() *crypto.AESGCM        { return w.aesgcm }
 func (w *Worker) Providers() *provider.Registry { return w.providers }
@@ -177,17 +180,15 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 
 		switch label {
 		case "artifacts":
-			worker.artifacts, err = s.store()
+			worker.artifacts, _, err = s.store()
 		case "objects":
-			worker.objects, err = s.store()
+			worker.objects, _, err = s.store()
 		}
 
 		if err != nil {
 			return nil, err
 		}
 	}
-
-	//	worker.providers = provider.NewRegistry()
 
 	for name, p := range cfg.Provider {
 		cli, err := p.client(name, "")

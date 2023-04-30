@@ -53,8 +53,9 @@ type Worker struct {
 
 	Providers *provider.Registry
 
-	Objects   fs.FS
-	Artifacts fs.FS
+	Objects       fs.FS
+	Artifacts     fs.FS
+	ArtifactLimit int64
 }
 
 func New(cfg *config.Worker, driverCfg driver.Config, driverInit driver.Init) *Worker {
@@ -76,20 +77,21 @@ func New(cfg *config.Worker, driverCfg driver.Config, driverInit driver.Init) *W
 	memq.InitFunc("event:build.finished", build.InitEvent(webhooks))
 
 	return &Worker{
-		Log:          log,
-		DB:           cfg.DB(),
-		Redis:        cfg.Redis(),
-		SMTP:         smtp,
-		AESGCM:       aesgcm,
-		Consumer:     cfg.Consumer(),
-		Driver:       cfg.Driver(),
-		Queue:        memq,
-		Timeout:      cfg.Timeout(),
-		DriverInit:   driverInit,
-		DriverConfig: driverCfg,
-		Providers:    cfg.Providers(),
-		Objects:      cfg.Objects(),
-		Artifacts:    cfg.Artifacts(),
+		Log:           log,
+		DB:            cfg.DB(),
+		Redis:         cfg.Redis(),
+		SMTP:          smtp,
+		AESGCM:        aesgcm,
+		Consumer:      cfg.Consumer(),
+		Driver:        cfg.Driver(),
+		Queue:         memq,
+		Timeout:       cfg.Timeout(),
+		DriverInit:    driverInit,
+		DriverConfig:  driverCfg,
+		Providers:     cfg.Providers(),
+		Objects:       cfg.Objects(),
+		Artifacts:     cfg.Artifacts(),
+		ArtifactLimit: cfg.ArtifactLimit(),
 	}
 }
 

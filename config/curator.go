@@ -81,7 +81,7 @@ func DecodeCurator(name string, r io.Reader) (*Curator, error) {
 		return nil, errors.New("artifacts store not configured")
 	}
 
-	curator.artifacts, err = s.store()
+	curator.artifacts, _, err = s.store()
 
 	if err != nil {
 		return nil, err

@@ -272,6 +272,7 @@ func (s *ArtifactStore) Delete(ctx context.Context, aa ...*Artifact) error {
 type artifactFilestore struct {
 	fs.FS
 
+	limit int64
 	store *ArtifactStore
 	build *Build
 }
@@ -305,7 +306,13 @@ func (s *artifactFilestore) Put(f fs.File) (fs.File, error) {
 	md5 := md5.New()
 	sha256 := sha256.New()
 
-	f, err = fs.ReadFile(a.Hash, io.TeeReader(f, io.MultiWriter(md5, sha256)))
+	var r io.Reader = f
+
+	if s.limit > 0 {
+		r = io.LimitReader(f, s.limit)
+	}
+
+	f, err = fs.ReadFile(a.Hash, io.TeeReader(r, io.MultiWriter(md5, sha256)))
 
 	if err != nil {
 		return nil, &fs.PathError{Op: "put", Path: name, Err: err}
@@ -336,9 +343,10 @@ func (s *artifactFilestore) Put(f fs.File) (fs.File, error) {
 	return f, nil
 }
 
-func (s *ArtifactStore) Filestore(b *Build) fs.FS {
+func (s *ArtifactStore) Filestore(b *Build, limit int64) fs.FS {
 	return fs.WriteOnly(&artifactFilestore{
 		FS:    s.FS,
+		limit: limit,
 		store: s,
 		build: b,
 	})

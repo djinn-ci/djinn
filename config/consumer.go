@@ -111,7 +111,7 @@ func DecodeConsumer(name string, r io.Reader) (*Consumer, error) {
 		return nil, errors.New("images store not configured")
 	}
 
-	consumer.images, err = s.store()
+	consumer.images, _, err = s.store()
 
 	if err != nil {
 		return nil, err

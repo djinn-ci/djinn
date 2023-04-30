@@ -36,6 +36,16 @@ type BuildIndex struct {
 {% func (p *BuildIndex) Navigation() %}{% endfunc %}
 {% func (p *BuildIndex) Footer() %}{% endfunc %}
 
+{% func (p *BuildIndex) renderTag(t *build.Tag) %}
+	<a class="pill pill-light" href="{%s p.Href(url.Values{"tag": {t.Name}}) %}" title="{%s t.Name %}">
+		{% if len(t.Name) > 21 %}
+			{%s t.Name[:21] %}...
+		{% else %}
+			{%s t.Name %}
+		{% endif %}
+	</a>
+{% endfunc %}
+
 {% func (p *BuildIndex) renderBuildItem(b *build.Build) %}
 	<tr>
 		<td>{%= Status(b.Status) %}</td>
@@ -55,7 +65,7 @@ type BuildIndex struct {
 		<td class="align-right hide-mobile">
 			{% if len(b.Tags) > 0 %}
 				{% for _, t := range b.Tags[:3] %}
-					<a class="pill pill-light" href="{%s p.Href(url.Values{"tag": {t.Name}}) %}">{%s t.Name %}</a>
+					{%= p.renderTag(t) %}
 				{% endfor %}
 			{% endif %}
 			{% if len(b.Tags) > 3 %}

@@ -226,257 +226,314 @@ func (p *BuildIndex) Footer() string {
 }
 
 //line template/build_index.qtpl:39
-func (p *BuildIndex) streamrenderBuildItem(qw422016 *qt422016.Writer, b *build.Build) {
+func (p *BuildIndex) streamrenderTag(qw422016 *qt422016.Writer, t *build.Tag) {
 //line template/build_index.qtpl:39
-	qw422016.N().S(` <tr> <td>`)
+	qw422016.N().S(` <a class="pill pill-light" href="`)
+//line template/build_index.qtpl:40
+	qw422016.E().S(p.Href(url.Values{"tag": {t.Name}}))
+//line template/build_index.qtpl:40
+	qw422016.N().S(`" title="`)
+//line template/build_index.qtpl:40
+	qw422016.E().S(t.Name)
+//line template/build_index.qtpl:40
+	qw422016.N().S(`"> `)
 //line template/build_index.qtpl:41
-	StreamStatus(qw422016, b.Status)
+	if len(t.Name) > 21 {
 //line template/build_index.qtpl:41
-	qw422016.N().S(`</td> <td> <a href="`)
+		qw422016.N().S(` `)
+//line template/build_index.qtpl:42
+		qw422016.E().S(t.Name[:21])
+//line template/build_index.qtpl:42
+		qw422016.N().S(`... `)
 //line template/build_index.qtpl:43
-	qw422016.E().S(b.Endpoint())
-//line template/build_index.qtpl:43
-	qw422016.N().S(`"> #`)
-//line template/build_index.qtpl:44
-	qw422016.E().V(b.Number)
-//line template/build_index.qtpl:44
-	qw422016.N().S(` `)
-//line template/build_index.qtpl:45
-	if b.Trigger.Comment != "" {
-//line template/build_index.qtpl:45
-		qw422016.N().S(` - `)
-//line template/build_index.qtpl:45
-		qw422016.E().S(b.Trigger.CommentTitle())
-//line template/build_index.qtpl:45
-	}
-//line template/build_index.qtpl:45
-	qw422016.N().S(` </a> </td> <td> `)
-//line template/build_index.qtpl:49
-	if b.Namespace != nil {
-//line template/build_index.qtpl:49
-		qw422016.N().S(` <a href="`)
-//line template/build_index.qtpl:50
-		qw422016.E().S(b.Namespace.Endpoint())
-//line template/build_index.qtpl:50
-		qw422016.N().S(`">`)
-//line template/build_index.qtpl:50
-		qw422016.E().S(b.Namespace.Path)
-//line template/build_index.qtpl:50
-		qw422016.N().S(`</a> `)
-//line template/build_index.qtpl:51
 	} else {
+//line template/build_index.qtpl:43
+		qw422016.N().S(` `)
+//line template/build_index.qtpl:44
+		qw422016.E().S(t.Name)
+//line template/build_index.qtpl:44
+		qw422016.N().S(` `)
+//line template/build_index.qtpl:45
+	}
+//line template/build_index.qtpl:45
+	qw422016.N().S(` </a> `)
+//line template/build_index.qtpl:47
+}
+
+//line template/build_index.qtpl:47
+func (p *BuildIndex) writerenderTag(qq422016 qtio422016.Writer, t *build.Tag) {
+//line template/build_index.qtpl:47
+	qw422016 := qt422016.AcquireWriter(qq422016)
+//line template/build_index.qtpl:47
+	p.streamrenderTag(qw422016, t)
+//line template/build_index.qtpl:47
+	qt422016.ReleaseWriter(qw422016)
+//line template/build_index.qtpl:47
+}
+
+//line template/build_index.qtpl:47
+func (p *BuildIndex) renderTag(t *build.Tag) string {
+//line template/build_index.qtpl:47
+	qb422016 := qt422016.AcquireByteBuffer()
+//line template/build_index.qtpl:47
+	p.writerenderTag(qb422016, t)
+//line template/build_index.qtpl:47
+	qs422016 := string(qb422016.B)
+//line template/build_index.qtpl:47
+	qt422016.ReleaseByteBuffer(qb422016)
+//line template/build_index.qtpl:47
+	return qs422016
+//line template/build_index.qtpl:47
+}
+
+//line template/build_index.qtpl:49
+func (p *BuildIndex) streamrenderBuildItem(qw422016 *qt422016.Writer, b *build.Build) {
+//line template/build_index.qtpl:49
+	qw422016.N().S(` <tr> <td>`)
 //line template/build_index.qtpl:51
+	StreamStatus(qw422016, b.Status)
+//line template/build_index.qtpl:51
+	qw422016.N().S(`</td> <td> <a href="`)
+//line template/build_index.qtpl:53
+	qw422016.E().S(b.Endpoint())
+//line template/build_index.qtpl:53
+	qw422016.N().S(`"> #`)
+//line template/build_index.qtpl:54
+	qw422016.E().V(b.Number)
+//line template/build_index.qtpl:54
+	qw422016.N().S(` `)
+//line template/build_index.qtpl:55
+	if b.Trigger.Comment != "" {
+//line template/build_index.qtpl:55
+		qw422016.N().S(` - `)
+//line template/build_index.qtpl:55
+		qw422016.E().S(b.Trigger.CommentTitle())
+//line template/build_index.qtpl:55
+	}
+//line template/build_index.qtpl:55
+	qw422016.N().S(` </a> </td> <td> `)
+//line template/build_index.qtpl:59
+	if b.Namespace != nil {
+//line template/build_index.qtpl:59
+		qw422016.N().S(` <a href="`)
+//line template/build_index.qtpl:60
+		qw422016.E().S(b.Namespace.Endpoint())
+//line template/build_index.qtpl:60
+		qw422016.N().S(`">`)
+//line template/build_index.qtpl:60
+		qw422016.E().S(b.Namespace.Path)
+//line template/build_index.qtpl:60
+		qw422016.N().S(`</a> `)
+//line template/build_index.qtpl:61
+	} else {
+//line template/build_index.qtpl:61
 		qw422016.N().S(` <span class="muted">--</span> `)
-//line template/build_index.qtpl:53
+//line template/build_index.qtpl:63
 	}
-//line template/build_index.qtpl:53
+//line template/build_index.qtpl:63
 	qw422016.N().S(` </td> <td class="align-right hide-mobile"> `)
-//line template/build_index.qtpl:56
+//line template/build_index.qtpl:66
 	if len(b.Tags) > 0 {
-//line template/build_index.qtpl:56
+//line template/build_index.qtpl:66
 		qw422016.N().S(` `)
-//line template/build_index.qtpl:57
+//line template/build_index.qtpl:67
 		for _, t := range b.Tags[:3] {
-//line template/build_index.qtpl:57
-			qw422016.N().S(` <a class="pill pill-light" href="`)
-//line template/build_index.qtpl:58
-			qw422016.E().S(p.Href(url.Values{"tag": {t.Name}}))
-//line template/build_index.qtpl:58
-			qw422016.N().S(`">`)
-//line template/build_index.qtpl:58
-			qw422016.E().S(t.Name)
-//line template/build_index.qtpl:58
-			qw422016.N().S(`</a> `)
-//line template/build_index.qtpl:59
+//line template/build_index.qtpl:67
+			qw422016.N().S(` `)
+//line template/build_index.qtpl:68
+			p.streamrenderTag(qw422016, t)
+//line template/build_index.qtpl:68
+			qw422016.N().S(` `)
+//line template/build_index.qtpl:69
 		}
-//line template/build_index.qtpl:59
+//line template/build_index.qtpl:69
 		qw422016.N().S(` `)
-//line template/build_index.qtpl:60
+//line template/build_index.qtpl:70
 	}
-//line template/build_index.qtpl:60
+//line template/build_index.qtpl:70
 	qw422016.N().S(` `)
-//line template/build_index.qtpl:61
+//line template/build_index.qtpl:71
 	if len(b.Tags) > 3 {
-//line template/build_index.qtpl:61
+//line template/build_index.qtpl:71
 		qw422016.N().S(` <a class="pill pill-light" href="`)
-//line template/build_index.qtpl:62
+//line template/build_index.qtpl:72
 		qw422016.E().S(b.Endpoint("tags"))
-//line template/build_index.qtpl:62
+//line template/build_index.qtpl:72
 		qw422016.N().S(`" title="Build tags">...</a> `)
-//line template/build_index.qtpl:63
+//line template/build_index.qtpl:73
 	}
-//line template/build_index.qtpl:63
+//line template/build_index.qtpl:73
 	qw422016.N().S(` </td> <td class="align-right"> `)
-//line template/build_index.qtpl:66
+//line template/build_index.qtpl:76
 	if b.Pinned {
-//line template/build_index.qtpl:66
+//line template/build_index.qtpl:76
 		qw422016.N().S(` `)
-//line template/build_index.qtpl:67
+//line template/build_index.qtpl:77
 		if p.Query.Has("pinned") {
-//line template/build_index.qtpl:67
-			qw422016.N().S(` <a href="`)
-//line template/build_index.qtpl:68
-			qw422016.E().S(p.Href(url.Values{"pinned": {""}}))
-//line template/build_index.qtpl:68
-			qw422016.N().S(`"> <span class="muted" title="Pinned">`)
-//line template/build_index.qtpl:69
-			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M12.75 0l-2.25 2.25 2.25 2.25-5.25 6h-5.25l4.125 4.125-6.375 8.452v0.923h0.923l8.452-6.375 4.125 4.125v-5.25l6-5.25 2.25 2.25 2.25-2.25-11.25-11.25zM10.5 12.75l-1.5-1.5 5.25-5.25 1.5 1.5-5.25 5.25z"></path>
-</svg>
-`)
-//line template/build_index.qtpl:69
-			qw422016.N().S(`</span> </a> `)
-//line template/build_index.qtpl:71
-		} else {
-//line template/build_index.qtpl:71
-			qw422016.N().S(` <a href="`)
-//line template/build_index.qtpl:72
-			qw422016.E().S(p.Href(url.Values{"pinned": {"true"}}))
-//line template/build_index.qtpl:72
-			qw422016.N().S(`"> <span class="muted" title="Pinned">`)
-//line template/build_index.qtpl:73
-			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-<path d="M12.75 0l-2.25 2.25 2.25 2.25-5.25 6h-5.25l4.125 4.125-6.375 8.452v0.923h0.923l8.452-6.375 4.125 4.125v-5.25l6-5.25 2.25 2.25 2.25-2.25-11.25-11.25zM10.5 12.75l-1.5-1.5 5.25-5.25 1.5 1.5-5.25 5.25z"></path>
-</svg>
-`)
-//line template/build_index.qtpl:73
-			qw422016.N().S(`</span> </a> `)
-//line template/build_index.qtpl:75
-		}
-//line template/build_index.qtpl:75
-		qw422016.N().S(` `)
-//line template/build_index.qtpl:76
-	}
-//line template/build_index.qtpl:76
-	qw422016.N().S(` `)
 //line template/build_index.qtpl:77
-	if p.User.ID != b.UserID {
-//line template/build_index.qtpl:77
-		qw422016.N().S(` <span class="muted">`)
+			qw422016.N().S(` <a href="`)
 //line template/build_index.qtpl:78
+			qw422016.E().S(p.Href(url.Values{"pinned": {""}}))
+//line template/build_index.qtpl:78
+			qw422016.N().S(`"> <span class="muted" title="Pinned">`)
+//line template/build_index.qtpl:79
+			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M12.75 0l-2.25 2.25 2.25 2.25-5.25 6h-5.25l4.125 4.125-6.375 8.452v0.923h0.923l8.452-6.375 4.125 4.125v-5.25l6-5.25 2.25 2.25 2.25-2.25-11.25-11.25zM10.5 12.75l-1.5-1.5 5.25-5.25 1.5 1.5-5.25 5.25z"></path>
+</svg>
+`)
+//line template/build_index.qtpl:79
+			qw422016.N().S(`</span> </a> `)
+//line template/build_index.qtpl:81
+		} else {
+//line template/build_index.qtpl:81
+			qw422016.N().S(` <a href="`)
+//line template/build_index.qtpl:82
+			qw422016.E().S(p.Href(url.Values{"pinned": {"true"}}))
+//line template/build_index.qtpl:82
+			qw422016.N().S(`"> <span class="muted" title="Pinned">`)
+//line template/build_index.qtpl:83
+			qw422016.N().S(`<!-- Generated by IcoMoon.io -->
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+<path d="M12.75 0l-2.25 2.25 2.25 2.25-5.25 6h-5.25l4.125 4.125-6.375 8.452v0.923h0.923l8.452-6.375 4.125 4.125v-5.25l6-5.25 2.25 2.25 2.25-2.25-11.25-11.25zM10.5 12.75l-1.5-1.5 5.25-5.25 1.5 1.5-5.25 5.25z"></path>
+</svg>
+`)
+//line template/build_index.qtpl:83
+			qw422016.N().S(`</span> </a> `)
+//line template/build_index.qtpl:85
+		}
+//line template/build_index.qtpl:85
+		qw422016.N().S(` `)
+//line template/build_index.qtpl:86
+	}
+//line template/build_index.qtpl:86
+	qw422016.N().S(` `)
+//line template/build_index.qtpl:87
+	if p.User.ID != b.UserID {
+//line template/build_index.qtpl:87
+		qw422016.N().S(` <span class="muted">`)
+//line template/build_index.qtpl:88
 		qw422016.N().S(`<!-- Generated by IcoMoon.io -->
 <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
 <path d="M15.984 12.984c2.344 0 7.031 1.172 7.031 3.516v2.484h-6v-2.484c0-1.5-0.797-2.625-1.969-3.469 0.328-0.047 0.656-0.047 0.938-0.047zM8.016 12.984c2.344 0 6.984 1.172 6.984 3.516v2.484h-14.016v-2.484c0-2.344 4.688-3.516 7.031-3.516zM8.016 11.016c-1.641 0-3-1.359-3-3s1.359-3 3-3 2.953 1.359 2.953 3-1.313 3-2.953 3zM15.984 11.016c-1.641 0-3-1.359-3-3s1.359-3 3-3 3 1.359 3 3-1.359 3-3 3z"></path>
 </svg>
 `)
-//line template/build_index.qtpl:78
+//line template/build_index.qtpl:88
 		qw422016.N().S(`</span> `)
-//line template/build_index.qtpl:79
+//line template/build_index.qtpl:89
 	}
-//line template/build_index.qtpl:79
+//line template/build_index.qtpl:89
 	qw422016.N().S(` </td> </tr> `)
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 }
 
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 func (p *BuildIndex) writerenderBuildItem(qq422016 qtio422016.Writer, b *build.Build) {
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 	p.streamrenderBuildItem(qw422016, b)
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 	qt422016.ReleaseWriter(qw422016)
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 }
 
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 func (p *BuildIndex) renderBuildItem(b *build.Build) string {
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 	p.writerenderBuildItem(qb422016, b)
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 	qs422016 := string(qb422016.B)
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 	return qs422016
-//line template/build_index.qtpl:82
+//line template/build_index.qtpl:92
 }
 
-//line template/build_index.qtpl:84
+//line template/build_index.qtpl:94
 func (p *BuildIndex) StreamBody(qw422016 *qt422016.Writer) {
-//line template/build_index.qtpl:84
+//line template/build_index.qtpl:94
 	qw422016.N().S(` <div class="panel"> `)
-//line template/build_index.qtpl:86
+//line template/build_index.qtpl:96
 	if len(p.Builds) == 0 {
-//line template/build_index.qtpl:86
+//line template/build_index.qtpl:96
 		qw422016.N().S(` `)
-//line template/build_index.qtpl:87
+//line template/build_index.qtpl:97
 		if query := p.Query.Get("search"); query != "" {
-//line template/build_index.qtpl:87
+//line template/build_index.qtpl:97
 			qw422016.N().S(` <div class="panel-header">`)
-//line template/build_index.qtpl:88
+//line template/build_index.qtpl:98
 			p.StreamSearch(qw422016, "Find a build...")
-//line template/build_index.qtpl:88
+//line template/build_index.qtpl:98
 			qw422016.N().S(`</div> <div class="panel-message muted">No results found.</div> `)
-//line template/build_index.qtpl:90
+//line template/build_index.qtpl:100
 		} else if status := p.Query.Get("status"); status != "" {
-//line template/build_index.qtpl:90
+//line template/build_index.qtpl:100
 			qw422016.N().S(` <div class="panel-message muted"> No `)
-//line template/build_index.qtpl:92
+//line template/build_index.qtpl:102
 			qw422016.E().S(strings.Replace(p.Query.Get("status"), "_", " ", -1))
-//line template/build_index.qtpl:92
+//line template/build_index.qtpl:102
 			qw422016.N().S(` builds. </div> `)
-//line template/build_index.qtpl:94
+//line template/build_index.qtpl:104
 		} else {
-//line template/build_index.qtpl:94
+//line template/build_index.qtpl:104
 			qw422016.N().S(` <div class="panel-message muted">No builds have been submitted yet.</div> `)
-//line template/build_index.qtpl:96
+//line template/build_index.qtpl:106
 		}
-//line template/build_index.qtpl:96
+//line template/build_index.qtpl:106
 		qw422016.N().S(` `)
-//line template/build_index.qtpl:97
+//line template/build_index.qtpl:107
 	} else {
-//line template/build_index.qtpl:97
+//line template/build_index.qtpl:107
 		qw422016.N().S(` <table class="table"> <thead> <tr> <th>STATUS</th> <th>BUILD</th> <th>NAMESPACE</th> <th class="hide-mobile"></th> <th></th> <th></th> </tr> </thead> <tbody> `)
-//line template/build_index.qtpl:110
+//line template/build_index.qtpl:120
 		for _, b := range p.Builds {
-//line template/build_index.qtpl:110
+//line template/build_index.qtpl:120
 			qw422016.N().S(` `)
-//line template/build_index.qtpl:111
+//line template/build_index.qtpl:121
 			p.streamrenderBuildItem(qw422016, b)
-//line template/build_index.qtpl:111
+//line template/build_index.qtpl:121
 			qw422016.N().S(` `)
-//line template/build_index.qtpl:112
+//line template/build_index.qtpl:122
 		}
-//line template/build_index.qtpl:112
+//line template/build_index.qtpl:122
 		qw422016.N().S(` </tbody> </table> `)
-//line template/build_index.qtpl:115
+//line template/build_index.qtpl:125
 	}
-//line template/build_index.qtpl:115
+//line template/build_index.qtpl:125
 	qw422016.N().S(` </div> `)
-//line template/build_index.qtpl:117
+//line template/build_index.qtpl:127
 	p.Paginator.StreamNavigation(qw422016)
-//line template/build_index.qtpl:117
+//line template/build_index.qtpl:127
 	qw422016.N().S(` `)
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 }
 
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 func (p *BuildIndex) WriteBody(qq422016 qtio422016.Writer) {
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 	p.StreamBody(qw422016)
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 	qt422016.ReleaseWriter(qw422016)
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 }
 
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 func (p *BuildIndex) Body() string {
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 	p.WriteBody(qb422016)
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 	qs422016 := string(qb422016.B)
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 	return qs422016
-//line template/build_index.qtpl:118
+//line template/build_index.qtpl:128
 }

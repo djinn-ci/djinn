@@ -76,6 +76,9 @@ func Test_Runner(t *testing.T) {
 	r.Objects = fs.New("")
 
 	defer func() {
+		os.Remove(filepath.Join(dir, "a"))
+		os.Remove(filepath.Join(dir, "c"))
+
 		for _, name := range []string{"b", "d", "e"} {
 			os.Remove(name)
 		}

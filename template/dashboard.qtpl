@@ -1,183 +1,234 @@
 {%
 import (
-	"net/url"
-	"html/template"
+	"net/http"
+	"regexp"
 
 	"djinn-ci.com/alert"
+	"djinn-ci.com/auth"
 	"djinn-ci.com/env"
-	"djinn-ci.com/user"
+
+	"github.com/gorilla/sessions"
 )
 %}
 
 {%
-interface Dashboard {
+interface Partial {
 	Title()
+
+	Header()
+
+	Actions()
+
+	Navigation()
 
 	Body()
 
 	Footer()
-
-	Actions()
-
-	Header()
-
-	Navigation()
-}
-%}
-
-{%
-interface Section {
-	Title()
-
-	Header()
-
-	Actions()
-
-	Body()
 }
 %}
 
 {% code
-type baseDashboard struct {
-	Dashboard
+type Dashboard struct {
+	Partial
+	*Page
 
-	alert    alert.Alert
-	apiDocs  string
-	userDocs string
-	URL      *url.URL
-	User     *user.User
-	CSRF     template.HTML
+	Alert alert.Alert
 }
 
-var (
-	NamespacesURI   = "(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"
-	CronURI         = "\\/cron\\/?"
-	InvitesURI      =  "^\\/invites\\/?"
-	BuildsURI       = "(^\\/builds\\/?|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"
-	SettingsURI     = "\\/settings\\/?"
-	RepositoriesURI = "\\/repos\\/?"
-)
-
-func NewDashboard(d Dashboard, url *url.URL, u *user.User, a alert.Alert, csrf template.HTML) *baseDashboard {
-	return &baseDashboard{
-		Dashboard: d,
-		alert:     a,
-		apiDocs:   env.DJINN_API_DOCS,
-		userDocs:  env.DJINN_USER_DOCS,
-		URL:       url,
-		User:      u,
-		CSRF:      csrf,
+func NewDashboard(u *auth.User, sess *sessions.Session, r *http.Request) *Dashboard {
+	return &Dashboard{
+		Page:  NewPage(u, r),
+		Alert: alert.First(sess),
 	}
+}
+
+var verifiedAlert = alert.Alert{
+	Level:   alert.Danger,
+	Message: `Your account is not verified, go to your <a href="/settings">settings</a> to verify it.`,
+	HTML:    true,
+}
+
+func verified(u *auth.User) bool {
+	if v, ok := u.RawData["verified"]; ok {
+		b, _ := v.(bool)
+		return b
+	}
+	return false
+}
+
+type navLink struct {
+	Title     string
+	Href      string
+	Icon      string
+	Pattern   *regexp.Regexp
+	Condition func() bool
+}
+
+var sidebarLinks = []navLink{
+	{
+		Title:   "Builds",
+		Href:    "/builds",
+		Icon:    "static/svg/build.svg",
+		Pattern: regexp.MustCompile("(^\\/builds\\/?|^\\/builds\\/create$|^\\/b/[_\\-a-zA-Z0-9.]+\\/[0-9]+\\/?[a-z]*)"),
+	},
+	{
+		Title:   "Namespaces",
+		Href:    "/namespaces",
+		Icon:    "static/svg/folder.svg",
+		Pattern: regexp.MustCompile("(\\/namespaces\\/?|\\/n\\/[_\\-a-zA-Z0-9.]+\\/[\\-a-zA-Z0-9\\/]*\\/?)"),
+	},
+	{
+		Title:   "Cron",
+		Href:    "/cron",
+		Icon:    "static/svg/timer.svg",
+		Pattern: regexp.MustCompile("\\/cron\\/?"),
+	},
+	{
+		Title:   "Invites",
+		Href:    "/invites",
+		Icon:    "static/svg/mail.svg",
+		Pattern: regexp.MustCompile("^\\/invites\\/?$"),
+	},
+	{
+		Title:   "Repositories",
+		Href:    "/repos",
+		Icon:    "static/svg/repo.svg",
+		Pattern: regexp.MustCompile("^\\/repos\\/?$"),
+	},
+	{
+		Title:   "Images",
+		Href:    "/images",
+		Icon:    "static/svg/image.svg",
+		Pattern: regexp.MustCompile("^\\/images\\/?"),
+	},
+	{
+		Title:   "Objects",
+		Href:    "/objects",
+		Icon:    "static/svg/upload.svg",
+		Pattern: regexp.MustCompile("^\\/objects\\/?"),
+	},
+	{
+		Title:   "Variables",
+		Href:    "/variables",
+		Icon:    "static/svg/code.svg",
+		Pattern: regexp.MustCompile("^\\/variables\\/?"),
+	},
+	{
+		Title:   "SSH Keys",
+		Href:    "/keys",
+		Icon:    "static/svg/code.svg",
+		Pattern: regexp.MustCompile("^\\/keys\\/?"),
+	},
+}
+
+var settingsLink = navLink{
+	Title:   "Settings",
+	Href:    "/settings",
+	Icon:    "static/svg/settings.svg",
+	Pattern: regexp.MustCompile("^\\/settings\\/?"),
 }
 %}
 
 {% collapsespace %}
-{% func (p *baseDashboard) Body() %}
+{% func (l *navLink) render(url string) %}
+	{% if l.Condition == nil || l.Condition() %}
+		{% if l.Pattern.Match([]byte(url)) %}
+			<a class="active" href="{%s l.Href %}" title="{%s l.Title %}">
+				{%v= icon(l.Icon) %}<span>{%s l.Title %}</span>
+			</a>
+		{% else %}
+			<a href="{%s l.Href %}" title="{%s l.Title %}">
+				{%v= icon(l.Icon) %}<span>{%s l.Title %}</span>
+			</a>
+		{% endif %}
+	{% endif %}
+{% endfunc %}
+
+{% func Alert(a alert.Alert, url string) %}
+	{% if a.Message != "" %}
+		<div class="alert alert-{%s a.Level.String() %}">
+			<div class="alert-message">
+				{% if a.HTML %}
+					{%s= a.Message %}
+				{% else %}
+					{%s a.Message %}
+				{% endif %}
+			</div>
+			{% if a.Close %}
+				<a href="{%s url %}" class="alert-close">{% cat "static/svg/close.svg" %}</a>
+			{% endif %}
+		</div>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Dashboard) sidebar(links []navLink) %}
+	<div class="sidebar">
+		<div class="sidebar-header">
+			{%= Logo() %}
+			<h2>Djinn CI</h2>
+		</div>
+		{% if p.User.ID == 0 %}
+			<div class="sidebar-auth">
+				<a class="login" href="/login">Login</a>
+				<a class="register" href="/register">Register</a>
+			</div>
+		{% else %}
+			<ul class="sidebar-nav">
+				{% if env.DJINN_API_DOCS != "" || env.DJINN_USER_DOCS != "" %}
+					<li class="sidebar-nav-header">DOCS</li>
+				{% endif %}
+				{% if env.DJINN_API_DOCS != "" %}
+					<li>
+						<a title="API Documentation" href="{%s env.DJINN_API_DOCS %}" target="_blank">
+							{% cat "static/svg/code.svg" %}<span>API</span>
+						</a>
+					</li>
+				{% endif %}
+				{% if env.DJINN_USER_DOCS != "" %}
+					<li>
+						<a title="User Documentation" href="{%s env.DJINN_USER_DOCS %}" target="_blank">
+							{% cat "static/svg/list.svg" %}<span>User</span>
+						</a>
+					</li>
+				{% endif %}
+				<li class="sidebar-nav-header">MANAGE</li>
+				{% for _, link := range links %}
+					<li>{%= link.render(p.URL.Path) %}</li>
+				{% endfor %}
+				<li class="sidebar-nav-header">ACCOUNT</li>
+				<li>{%= settingsLink.render(p.URL.Path) %}</li>
+				<li>
+					<form method="POST" action="/logout">
+						{%v= p.CSRF %}
+						<button title="Logout" type="submit">
+							{% cat "static/svg/logout.svg" %}<span>Logout</span>
+						</button>
+					</form>
+				</li>
+			</ul>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *Dashboard) Body() %}
 	<div class="dashboard">
 		<div class="dashboard-content">
-			{% if p.User.ID != 0 && !p.User.Verified %}
-				<div class="alert alert-warn">
-					<div class="alert-message">Your account is not verified, go to your <a href="/settings">settings</a> to verify it.</div>
-				</div>
+			{% if !verified(p.User) %}
+				{%= Alert(verifiedAlert, "") %}
 			{% endif %}
-			{%= alert.Render(p.alert, p.URL.Path) %}
+			{%= Alert(p.Alert, p.URL.Path) %}
 			<div class="dashboard-wrap">
 				<div class="dashboard-header">
 					<div class="overflow">
-						<h1>{%= p.Dashboard.Header() %}</h1>
-						<ul class="dashboard-actions">{%= p.Dashboard.Actions() %}</ul>
+						<h1>{%= p.Partial.Header() %}</h1>
+						<ul class="dashboard-actions">{%= p.Partial.Actions() %}</ul>
 					</div>
-					<ul class="dashboard-nav">{%= p.Dashboard.Navigation() %}</ul>
+					<ul class="dashboard-nav">{%= p.Partial.Navigation() %}</ul>
 				</div>
-				<div class="dashboard-body">{%= p.Dashboard.Body() %}</div>
+				<div class="dashboard-body">{%= p.Partial.Body() %}</div>
 			</div>
 		</div>
-		<div class="sidebar">
-			<div class="sidebar-header">
-				<div class="logo">
-					<div class="handle"></div>
-					<div class="lid"></div>
-					<div class="lantern"></div>
-				</div>
-				<h2>Djinn CI</h2>
-			</div>
-			{% if p.User.ID == 0 %}
-				<div class="sidebar-auth">
-					<a class="login" href="/login">Login</a>
-					<a class="register" href="/register">Register</a>
-				</div>
-			{% else %}
-				<ul class="sidebar-nav">
-					{% if p.apiDocs != "" || p.userDocs != "" %}
-						<li class="sidebar-nav-header">DOCS</li>
-						{% if p.apiDocs != "" %}
-							<li><a title="API Documentation" href="{%s p.apiDocs %}" target="_blank">{% cat "../static/svg/code.svg" %}<span>API</span></a></li>
-						{% endif %}
-						{% if p.userDocs != "" %}
-							<li><a title="User Documentation" href="{%s p.userDocs %}" target="_blank">{% cat "../static/svg/list.svg" %}<span>User</span></a></li>
-						{% endif %}
-					{% endif %}
-					<li class="sidebar-nav-header">MANAGE</li>
-					{% if Match(p.URL.Path, BuildsURI) %}
-						<li><a title="Builds" href="/builds" class="active">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
-					{% else %}
-						<li><a title="Builds" href="/builds">{% cat "../static/svg/build.svg" %}<span>Builds</span></a></li>
-					{% endif %}
-					{% if Match(p.URL.Path, NamespacesURI) %}
-						<li><a title="Namespaces" href="/namespaces" class="active">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
-					{% else %}
-						<li><a title="Namespaces" href="/namespaces">{% cat "../static/svg/folder.svg" %}<span>Namespaces</span></a></li>
-					{% endif %}
-					{% if Match(p.URL.Path, CronURI) %}
-						<li><a title="Cron" href="/cron" class="active">{% cat "../static/svg/timer.svg" %}<span>Cron</span></a></li>
-					{% else %}
-						<li><a title="Cron" href="/cron">{% cat "../static/svg/timer.svg" %}<span>Cron</span></a></li>
-					{% endif %}
-					{% if Match(p.URL.Path, InvitesURI) %}
-						<li><a title="Invites" href="/invites" class="active">{% cat "../static/svg/mail.svg" %}<span>Invites</span></a></li>
-					{% else %}
-						<li><a title="Invites" href="/invites">{% cat "../static/svg/mail.svg" %}<span>Invites</span></a></li>
-					{% endif %}
-					{% if Match(p.URL.Path, RepositoriesURI) %}
-						<li><a title="Repositories" href="/repos" class="active">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>
-					{% else %}
-						<li><a title="Repositories" href="/repos">{% cat "../static/svg/repo.svg" %}<span>Repositories</span></a></li>
-					{% endif %}
-					{% if Match(p.URL.Path, pattern("images")) %}
-						<li><a title="Images" href="/images" class="active">{% cat "../static/svg/image.svg" %}<span>Images</span></a></li>
-					{% else %}
-						<li><a title="Images" href="/images">{% cat "../static/svg/image.svg" %}<span>Images</span></a></li>
-					{% endif %}
-					{% if Match(p.URL.Path, pattern("objects")) %}
-						<li><a title="Objects" href="/objects" class="active">{% cat "../static/svg/upload.svg" %}<span>Objects</span></a></li>
-					{% else %}
-						<li><a title="Objects" href="/objects">{% cat "../static/svg/upload.svg" %}<span>Objects</span></a></li>
-					{% endif %}
-					{% if Match(p.URL.Path, pattern("variables")) %}
-						<li><a title="Variables" href="/variables" class="active">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
-					{% else %}
-						<li><a title="Variables" href="/variables">{% cat "../static/svg/code.svg" %}<span>Variables</span></a></li>
-					{% endif %}
-					{% if Match(p.URL.Path, pattern("keys")) %}
-						<li><a title="SSH Keys" href="/keys" class="active">{% cat "../static/svg/key.svg" %}<span>SSH Keys</span></a></li>
-					{% else %}
-						<li><a title="Keys" href="/keys">{% cat "../static/svg/key.svg" %}<span>SSH Keys</span></a></li>
-					{% endif %}
-					<li class="sidebar-nav-header">ACCOUNT</li>
-					{% if Match(p.URL.Path, SettingsURI) %}
-						<li><a title="Settings" href="/settings" class="active">{% cat "../static/svg/settings.svg" %}<span>Settings</span></a></li>
-					{% else %}
-						<li><a title="Settings" href="/settings">{% cat "../static/svg/settings.svg" %}<span>Settings</span></a></li>
-					{% endif %}
-					<li>
-						<form method="POST" action="/logout">
-							{%v= p.CSRF %}
-							<button title="Logout" type="submit">{% cat "../static/svg/logout.svg" %}<span>Logout</span></button>
-						</form>
-					</li>
-				</ul>
-			{% endif %}
-		</div>
+		{%= p.sidebar(sidebarLinks) %}
 	</div>
 {% endfunc %}
 {% endcollapsespace %}

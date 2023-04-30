@@ -46,6 +46,9 @@ func ErrDisabled(name string) error {
 }
 
 func (e *Error) Error() string {
+	if e.Driver == "" {
+		return "driver error: " + e.Err.Error()
+	}
 	return "driver error: " + e.Driver + " - " + e.Err.Error()
 }
 

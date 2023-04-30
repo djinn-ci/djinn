@@ -66,7 +66,7 @@ func main() {
 	db := cfg.DB()
 
 	webhooks := &namespace.WebhookStore{
-		Pool:   db,
+		Store:  namespace.NewWebhookStore(db),
 		AESGCM: cfg.AESGCM(),
 	}
 

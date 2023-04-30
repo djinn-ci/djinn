@@ -1,0 +1,96 @@
+{%
+import (
+	"djinn-ci.com/template/form"
+	"djinn-ci.com/variable"
+)
+%}
+
+{% code
+type VariableIndex struct {
+	*Paginator
+
+	Unmasked  map[int64]struct{}
+	Variables []*variable.Variable
+}
+%}
+
+{% collapsespace %}
+{% func (p *VariableIndex) Title() %}Variables{% endfunc %}
+{% func (p *VariableIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *VariableIndex) Navigation() %}{% endfunc %}
+{% func (p *VariableIndex) Footer() %}{% endfunc %}
+
+{% func (p *VariableIndex) Actions() %}
+	{% if _, ok := p.User.Permissions["variable:write"]; ok %}
+		<li><a href="/variables/create" class="btn btn-primary">Create</a></li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *VariableIndex) renderVariableItem(v *variable.Variable) %}
+	<tr>
+		<td><span class="code">{%s v.Key %}</span></td>
+		<td><span class="code">{%s v.Value %}</span></td>
+		<td>
+			{% if v.Namespace != nil %}
+				<a href="{%s v.Namespace.Endpoint() %}">{%s v.Namespace.Path %}</a>
+			{% else %}
+				<span class="muted">--</span>
+			{% endif %}
+		</td>
+		<td class="align-right">
+			{% if _, ok := p.Unmasked[v.ID]; !ok && p.User.ID == v.AuthorID && v.Masked %}
+				<a class="btn btn-primary" href="{%s v.Endpoint("unmask") %}">Unmask</a>
+			{% endif %}
+			{% if _, ok := p.Unmasked[v.ID]; ok && v.Masked && p.User.ID == v.AuthorID %}
+				<form method="POST" action="{%s v.Endpoint("mask") %}">
+					{%= form.Method("PATCH") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-primary">Mask</button>
+				</form>
+			{% endif %}
+			{% if p.User.ID == v.UserID || v.Namespace != nil && v.Namespace.UserID == p.User.ID %}
+				<form method="POST" action="{%s v.Endpoint() %}">
+					{%= form.Method("DELETE") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-danger">Delete</button>
+				</form>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *VariableIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Variables) == 0 %}
+			{% if query := p.Query.Get("search"); query != "" %}
+				<div class="panel-header">{%= p.Search("Find a variable...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<div class="panel-message muted">
+					Set variables that can be used throughout build environments.
+				</div>
+			{% endif %}
+		{% else %}
+			<div class="panel-header">{%= p.Search("Find a variable...") %}</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th>KEY</th>
+						<th>VALUE</th>
+						<th>NAMESPACE</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, v := range p.Variables %}
+						{%= p.renderVariableItem(v) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+	{%= p.Paginator.Navigation() %}
+{% endfunc %}
+{% endcollapsespace %}

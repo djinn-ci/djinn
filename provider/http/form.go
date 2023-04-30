@@ -1,6 +1,10 @@
 package http
 
-import "github.com/andrewpillar/webutil"
+import (
+	"context"
+
+	"github.com/andrewpillar/webutil/v2"
+)
 
 type RepoForm struct {
 	ProviderID int64 `schema:"provider_id"`
@@ -11,4 +15,5 @@ type RepoForm struct {
 
 var _ webutil.Form = (*RepoForm)(nil)
 
-func (RepoForm) Fields() map[string]string { return nil }
+func (RepoForm) Fields() map[string]string      { return nil }
+func (RepoForm) Validate(context.Context) error { return nil }

@@ -2,13 +2,12 @@ package http
 
 import (
 	"net/http"
-	"strconv"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/provider"
 	"djinn-ci.com/server"
 	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
 	"github.com/andrewpillar/query"
 
@@ -19,34 +18,39 @@ type Handler struct {
 	*server.Server
 
 	Providers *provider.Store
-	Repos     provider.RepoStore
-	Users     *user.Store
+	Repos     *provider.RepoStore
 }
 
-type HandlerFunc func(*user.User, *provider.Repo, http.ResponseWriter, *http.Request)
+type HandlerFunc func(*auth.User, *provider.Repo, http.ResponseWriter, *http.Request)
 
 func NewHandler(srv *server.Server) *Handler {
+	users := user.Store{
+		Store: user.NewStore(srv.DB),
+	}
+
 	return &Handler{
 		Server: srv,
 		Providers: &provider.Store{
-			Pool:    srv.DB,
-			AESGCM:  srv.AESGCM,
-			Clients: srv.Providers,
-			Cache:   provider.NewRepoCache(srv.Redis),
+			Store:     provider.NewStore(srv.DB),
+			AuthStore: users,
+			AESGCM:    srv.AESGCM,
+			Clients:   srv.Providers,
 		},
-		Repos: provider.RepoStore{Pool: srv.DB},
-		Users: &user.Store{Pool: srv.DB},
+		Repos: &provider.RepoStore{
+			Store: provider.NewRepoStore(srv.DB),
+			Cache: srv.Redis,
+		},
 	}
 }
 
-func (h *Handler) WithRepo(fn HandlerFunc) userhttp.HandlerFunc {
-	return func(u *user.User, w http.ResponseWriter, r *http.Request) {
-		id, _ := strconv.ParseInt(mux.Vars(r)["repo"], 10, 64)
+func (h *Handler) Repo(fn HandlerFunc) auth.HandlerFunc {
+	return func(u *auth.User, w http.ResponseWriter, r *http.Request) {
+		id := mux.Vars(r)["repo"]
 
-		repo, ok, err := h.Repos.Get(query.Where("id", "=", query.Arg(id)))
+		repo, ok, err := h.Repos.Get(r.Context(), query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get repo"))
 			return
 		}
 

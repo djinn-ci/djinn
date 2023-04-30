@@ -1,0 +1,99 @@
+{%
+import (
+	"djinn-ci.com/build"
+	"djinn-ci.com/namespace"
+)
+%}
+
+{% code
+type NamespaceIndex struct {
+	*Paginator
+
+	Namespaces []*namespace.Namespace
+}
+%}
+
+{% collapsespace %}
+{% func (p *NamespaceIndex) Title() %}Namespaces{% endfunc %}
+{% func (p *NamespaceIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *NamespaceIndex) Navigation() %}{% endfunc %}
+{% func (p *NamespaceIndex) Footer() %}{% endfunc %}
+
+{% func (p *NamespaceIndex) Actions() %}
+	{% if p.User.Has("namespace:write") %}
+		<li><a href="/namespaces/create" class="btn btn-primary">Create</a></li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *NamespaceIndex) renderNamespaceItem(n *namespace.Namespace) %}
+	<tr>
+		<td>
+			<a href="{%s n.Endpoint() %}">{%s n.Path %}</a>
+			<div class="muted">
+				{% if n.Description == "" %}
+					<em>No description</em>
+				{% else %}
+					{%s n.Description %}
+				{% endif %}
+			</div>
+		</td>
+		{% if n.Build != nil %}
+			{% if b, ok := n.Build.(*build.Build); ok %}
+				<td>
+					<a href="{%s b.Endpoint() %}">#{%v b.Number %} {%s b.Trigger.CommentTitle() %}</a>
+				</td>
+				<td>{%= Status(b.Status) %}
+			{% endif %}
+		{% else %}
+			<td>--</td>
+			<td></td>
+		{% endif %}
+		<td class="align-right muted">
+			{% if p.User.ID != n.UserID %}
+				{% cat "static/svg/users.svg" %}
+			{% endif %}
+			{% switch n.Visibility %}
+			{% case namespace.Private %}
+				{% cat "static/svg/lock.svg" %}
+			{% case namespace.Internal %}
+				{% cat "static/svg/security.svg" %}
+			{% case namespace.Public %}
+				{% cat "static/svg/public.svg" %}
+			{% endswitch %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *NamespaceIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Namespaces) == 0 %}
+			{% if query := p.Query.Get("search"); query != "" %}
+				<div class="panel-header">{%= p.Search("Find a namespaces...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<div class="panel-message muted">
+					Namespaces allow you to group related build resources together.
+				</div>
+			{% endif %}
+		{% else %}
+			<div class="panel-header">{%= p.Search("Find a namespace...") %}</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th>LAST BUILD</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, n := range p.Namespaces %}
+						{%= p.renderNamespaceItem(n) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

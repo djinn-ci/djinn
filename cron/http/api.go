@@ -3,152 +3,111 @@ package http
 import (
 	"net/http"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/build"
 	"djinn-ci.com/cron"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/server"
-	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type API struct {
 	*Handler
-
-	Prefix string
 }
 
-func (h API) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	cc, paginator, err := h.IndexWithRelations(u, r)
+func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get cron jobs"))
 		return
 	}
 
-	data := make([]map[string]interface{}, 0, len(cc))
-	addr := webutil.BaseAddress(r) + h.Prefix
-
-	for _, c := range cc {
-		data = append(data, c.JSON(addr))
-	}
-
-	w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-	webutil.JSON(w, data, http.StatusOK)
+	w.Header().Set("Link", p.EncodeToLink(r.URL))
+	webutil.JSON(w, p.Items, http.StatusOK)
 }
 
-func (h API) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
-	c, _, err := h.StoreModel(u, r)
+func (h API) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	c, _, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		switch err := cause.(type) {
-		case webutil.ValidationErrors:
-			if errs, ok := err["fatal"]; ok {
-				h.InternalServerError(w, r, errors.Slice(errs))
-				return
-			}
-			webutil.JSON(w, err, http.StatusBadRequest)
-		case *namespace.PathError:
-			webutil.JSON(w, map[string][]string{"namespace": {err.Error()}}, http.StatusBadRequest)
-		default:
-			h.InternalServerError(w, r, errors.Err(err))
-		}
+		h.FormError(w, r, nil, err)
 		return
 	}
-	webutil.JSON(w, c.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, c, http.StatusCreated)
 }
 
-func (h API) Show(u *user.User, c *cron.Cron, w http.ResponseWriter, r *http.Request) {
-	if err := cron.LoadRelations(h.DB, c); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	if err := namespace.Load(h.DB, c); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	addr := webutil.BaseAddress(r) + h.Prefix
+func (h API) Show(u *auth.User, c *cron.Cron, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
 	if webutil.BasePath(r.URL.Path) == "builds" {
-		bb, paginator, err := h.Builds.Index(r.URL.Query(), query.Where("id", "IN", cron.SelectBuildIDs(c.ID)))
+		if !u.Has("build:read") {
+			h.NotFound(w, r)
+			return
+		}
+
+		p, err := h.Builds.Index(ctx, r.URL.Query(), query.Where("id", "IN", cron.SelectBuild(
+			query.Columns("build_id"),
+			query.Where("cron_id", "=", query.Arg(c.ID)),
+		)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
 			return
 		}
 
-		data := make([]map[string]interface{}, 0, len(bb))
-
-		for _, b := range bb {
-			data = append(data, b.JSON(addr))
+		if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+			return
 		}
 
-		w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-		webutil.JSON(w, data, http.StatusOK)
+		w.Header().Set("Link", p.EncodeToLink(r.URL))
+		webutil.JSON(w, p.Items, http.StatusOK)
 		return
 	}
-	webutil.JSON(w, c.JSON(addr), http.StatusOK)
+	webutil.JSON(w, c, http.StatusOK)
 }
 
-func (h API) Update(u *user.User, c *cron.Cron, w http.ResponseWriter, r *http.Request) {
-	c, _, err := h.UpdateModel(c, r)
+func (h API) Update(u *auth.User, c *cron.Cron, w http.ResponseWriter, r *http.Request) {
+	c, _, err := h.Handler.Update(u, c, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
-				h.InternalServerError(w, r, errors.Slice(errs))
-				return
-			}
-
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		switch cause {
-		case namespace.ErrName:
-			errs := webutil.NewValidationErrors()
-			errs.Add("namespace", cause)
-
-			webutil.JSON(w, errs, http.StatusBadRequest)
-		case namespace.ErrPermission, namespace.ErrOwner:
-			webutil.JSON(w, map[string][]string{"namespace": {"Could not find namespace"}}, http.StatusBadRequest)
-		default:
-			h.InternalServerError(w, r, errors.Err(err))
-		}
+		h.FormError(w, r, nil, err)
 		return
 	}
-	webutil.JSON(w, c.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, c, http.StatusOK)
 }
 
-func (h API) Destroy(u *user.User, c *cron.Cron, w http.ResponseWriter, r *http.Request) {
-	if err := h.DeleteModel(r.Context(), c); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+func (h API) Destroy(u *auth.User, c *cron.Cron, w http.ResponseWriter, r *http.Request) {
+	if err := h.Handler.Destroy(r.Context(), c); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete cron job"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func RegisterAPI(prefix string, srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func RegisterAPI(a auth.Authenticator, srv *server.Server) {
 	api := API{
 		Handler: NewHandler(srv),
-		Prefix:  prefix,
 	}
 
+	index := api.Restrict(a, []string{"cron:read"}, api.Index)
+	store := api.Restrict(a, []string{"cron:write"}, api.Store)
+
+	a = namespace.NewAuth(a, "cron", cron.NewStore(srv.DB))
+
+	show := api.Restrict(a, []string{"cron:read"}, api.Cron(api.Show))
+	update := api.Restrict(a, []string{"cron:write"}, api.Cron(api.Update))
+	destroy := api.Restrict(a, []string{"cron:delete"}, api.Cron(api.Destroy))
+
 	sr := srv.Router.PathPrefix("/cron").Subrouter()
-	sr.HandleFunc("", user.WithUser(api.Index)).Methods("GET")
-	sr.HandleFunc("", user.WithUser(api.Store)).Methods("POST")
-	sr.HandleFunc("/{cron:[0-9]+}", user.WithUser(api.WithCron(api.Show))).Methods("GET")
-	sr.HandleFunc("/{cron:[0-9]+}/builds", user.WithUser(api.WithCron(api.Show))).Methods("GET")
-	sr.HandleFunc("/{cron:[0-9]+}", user.WithUser(api.WithCron(api.Update))).Methods("PATCH")
-	sr.HandleFunc("/{cron:[0-9]+}", user.WithUser(api.WithCron(api.Destroy))).Methods("DELETE")
+	sr.HandleFunc("", index).Methods("GET")
+	sr.HandleFunc("", store).Methods("POST")
+	sr.HandleFunc("/{cron:[0-9]+}", show).Methods("GET")
+	sr.HandleFunc("/{cron:[0-9]+}/builds", show).Methods("GET")
+	sr.HandleFunc("/{cron:[0-9]+}", update).Methods("PATCH")
+	sr.HandleFunc("/{cron:[0-9]+}", destroy).Methods("DELETE")
 }

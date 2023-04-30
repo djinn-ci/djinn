@@ -1,26 +1,24 @@
 package http
 
 import (
+	"io"
 	"net/http"
 	"regexp"
 	"strings"
 
 	"djinn-ci.com/alert"
-	buildtemplate "djinn-ci.com/build/template"
-	"djinn-ci.com/database"
+	"djinn-ci.com/auth"
+	"djinn-ci.com/build"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/object"
-	objecttemplate "djinn-ci.com/object/template"
 	"djinn-ci.com/server"
 	"djinn-ci.com/template"
-	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
+	"djinn-ci.com/template/form"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/fs"
+	"github.com/andrewpillar/query"
 
-	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 )
 
@@ -28,85 +26,41 @@ type UI struct {
 	*Handler
 }
 
-func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	oo, paginator, err := h.IndexWithRelations(u, r)
+func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
 		return
 	}
 
-	if err := object.LoadNamespaces(h.DB, oo...); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	csrf := csrf.TemplateField(r)
-
-	p := &objecttemplate.Index{
-		BasePage: template.BasePage{
-			URL:  r.URL,
-			User: u,
-		},
-		CSRF:      csrf,
-		Paginator: paginator,
-		Objects:   oo,
-		Search:    r.URL.Query().Get("search"),
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) Create(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	csrf := csrf.TemplateField(r)
-
-	p := &objecttemplate.Create{
-		Form: template.Form{
-			CSRF:   csrf,
-			Errors: webutil.FormErrors(sess),
-			Fields: webutil.FormFields(sess),
-		},
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	o, f, err := h.StoreModel(u, r)
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.ObjectIndex{
+		Paginator: template.NewPaginator[*object.Object](tmpl.Page, p),
+		Objects:   p.Items,
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h UI) Create(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.ObjectCreate{
+		Form: form.New(sess, r),
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h UI) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	o, f, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		errs := webutil.NewValidationErrors()
-
-		switch err := cause.(type) {
-		case webutil.ValidationErrors:
-			if errs, ok := err["fatal"]; ok {
-				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
-				alert.Flash(sess, alert.Danger, "Failed to create object")
-				h.RedirectBack(w, r)
-				return
-			}
-			errs = err
-		case *namespace.PathError:
-			errs.Add("namespace", err)
-		default:
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to create object")
-			h.RedirectBack(w, r)
-			return
-		}
-
-		webutil.FlashFormWithErrors(sess, f, errs)
-		h.RedirectBack(w, r)
+		h.FormError(w, r, f, errors.Wrap(err, "Failed to create object"))
 		return
 	}
 
@@ -114,7 +68,7 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/objects")
 }
 
-func (h UI) Show(u *user.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
+func (h UI) Show(u *auth.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
 	parts := strings.Split(r.URL.Path, "/")
 
 	if parts[len(parts)-2] == "download" {
@@ -123,7 +77,7 @@ func (h UI) Show(u *user.User, o *object.Object, w http.ResponseWriter, r *http.
 			return
 		}
 
-		rec, err := o.Data(h.Objects.Store)
+		f, err := o.Open(h.Objects.FS)
 
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -131,101 +85,90 @@ func (h UI) Show(u *user.User, o *object.Object, w http.ResponseWriter, r *http.
 				return
 			}
 
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to download object"))
 			return
 		}
 
-		defer rec.Close()
+		defer f.Close()
 
-		http.ServeContent(w, r, o.Name, o.CreatedAt, rec)
+		http.ServeContent(w, r, o.Name, o.CreatedAt, f.(io.ReadSeeker))
 		return
 	}
 
-	sess, save := h.Session(r)
+	ctx := r.Context()
 
-	if err := object.LoadRelations(h.DB, o); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	if err := namespace.Load(h.DB, o); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	bb, paginator, err := h.getBuilds(o, r)
+	p, err := h.Builds.Index(
+		ctx,
+		r.URL.Query(),
+		query.Where("id", "IN", build.SelectObject(
+			query.Columns("build_id"),
+			query.Where("object_id", "=", query.Arg(o.ID)),
+		)),
+	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
 		return
 	}
 
-	mm := make([]database.Model, 0, len(bb))
-
-	for _, b := range bb {
-		mm = append(mm, b)
-	}
-
-	if err := namespace.Load(h.DB, mm...); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+	if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
 		return
 	}
 
-	csrf := csrf.TemplateField(r)
-
-	bp := template.BasePage{
-		URL:   r.URL,
-		Query: r.URL.Query(),
-		User:  u,
-	}
-	p := &objecttemplate.Show{
-		BasePage: bp,
-		CSRF:     csrf,
-		Object:   o,
-		Section: &buildtemplate.Index{
-			BasePage:  bp,
-			Paginator: paginator,
-			Builds:    bb,
-		},
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-var reobjecturi = regexp.MustCompile("/objects/[0-9]+")
-
-func (h UI) Destroy(u *user.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if err := h.DeleteModel(r.Context(), o); err != nil {
-		h.Log.Error.Println(r.Method, r.URL.Path, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to delete object")
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.ObjectShow{
+		Page:   tmpl.Page,
+		Object: o,
+		Builds: &template.BuildIndex{
+			Paginator: template.NewPaginator[*build.Build](tmpl.Page, p),
+			Builds:    p.Items,
+		},
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+var reObjectURI = regexp.MustCompile("/objects/[0-9]+")
+
+func (h UI) Destroy(u *auth.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	if err := h.Handler.Destroy(r.Context(), o); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete object"))
 		return
 	}
 
 	alert.Flash(sess, alert.Success, "Object has been deleted")
 
-	if reobjecturi.Match([]byte(r.Header.Get("Referer"))) {
+	if reObjectURI.Match([]byte(r.Header.Get("Referer"))) {
 		h.Redirect(w, r, "/objects")
 		return
 	}
 	h.RedirectBack(w, r)
 }
 
-func RegisterUI(srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func RegisterUI(a auth.Authenticator, srv *server.Server) {
 	ui := UI{
 		Handler: NewHandler(srv),
 	}
 
+	index := ui.Restrict(a, []string{"object:read"}, ui.Index)
+	create := ui.Restrict(a, []string{"object:write"}, ui.Create)
+	store := ui.Restrict(a, []string{"object:write"}, ui.Store)
+
+	a = namespace.NewAuth(a, "object", object.NewStore(srv.DB))
+
+	show := ui.Restrict(a, []string{"object:read", "build:read"}, ui.Object(ui.Show))
+	destroy := ui.Restrict(a, []string{"object:delete"}, ui.Object(ui.Destroy))
+
 	sr := srv.Router.PathPrefix("/objects").Subrouter()
-	sr.HandleFunc("", user.WithUser(ui.Index)).Methods("GET")
-	sr.HandleFunc("/create", user.WithUser(ui.Create)).Methods("GET")
-	sr.HandleFunc("", user.WithUser(ui.Store)).Methods("POST")
-	sr.HandleFunc("/{object:[0-9]+}", user.WithUser(ui.WithObject(ui.Show))).Methods("GET")
-	sr.HandleFunc("/{object:[0-9]+}/download/{name}", user.WithUser(ui.WithObject(ui.Show))).Methods("GET")
-	sr.HandleFunc("/{object:[0-9]+}", user.WithUser(ui.WithObject(ui.Destroy))).Methods("DELETE")
+	sr.HandleFunc("", index).Methods("GET")
+	sr.HandleFunc("/create", create).Methods("GET")
+	sr.HandleFunc("", store).Methods("POST")
+	sr.HandleFunc("/{object:[0-9]+}", show).Methods("GET")
+	sr.HandleFunc("/{object:[0-9]+}/download/{name}", show).Methods("GET")
+	sr.HandleFunc("/{object:[0-9]+}", destroy).Methods("DELETE")
 	sr.Use(srv.CSRF)
 }

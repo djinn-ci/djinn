@@ -1,0 +1,53 @@
+{% import "djinn-ci.com/namespace" %}
+
+{% code
+type CollaboratorIndex struct {
+	*Page
+
+	Namespace     *namespace.Namespace
+	Collaborators []*namespace.Collaborator
+}
+%}
+
+{% collapsespace %}
+{% func (p *CollaboratorIndex) Title() %}Collaborators{% endfunc %}
+
+{% func (p *CollaboratorIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *CollaboratorIndex) Actions() %}{% endfunc %}
+{% func (p *CollaboratorIndex) Navigation() %}{% endfunc %}
+{% func (p *CollaboratorIndex) Footer() %}{% endfunc %}
+
+{% func (p *CollaboratorIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Collaborators) == 0 %}
+			<div class="panel-message muted">Invite users to this namespace to collaborate with them.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>USER</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, c := range p.Collaborators %}
+						<tr>
+							<td>{%s c.User.Username %} &lt;{%s c.User.Email %}&gt;</td>
+							{% if p.User.ID == p.Namespace.UserID %}
+								<td class="align-right">
+									<form method="POST" action="{%s c.Endpoint() %}">
+										{%v= p.CSRF %}
+										<input type="hidden" name="_method" value="DELETE"/>
+										<button type="submit" class="btn btn-danger">Delete</button>
+									</form>
+								</td>
+							{% endif %}
+						</tr>
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

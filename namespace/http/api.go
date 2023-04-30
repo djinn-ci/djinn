@@ -2,194 +2,127 @@ package http
 
 import (
 	"net/http"
-	"strconv"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/build"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/server"
 	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 
 	"github.com/gorilla/mux"
 )
 
 type API struct {
 	*Handler
-
-	Prefix string
 }
 
-func (h API) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	nn, paginator, err := h.IndexWithRelations(u, r)
+func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get namespaces"))
 		return
 	}
 
-	data := make([]map[string]interface{}, 0, len(nn))
-	addr := webutil.BaseAddress(r) + h.Prefix
-
-	for _, n := range nn {
-		data = append(data, n.JSON(addr))
-	}
-
-	w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-	webutil.JSON(w, data, http.StatusOK)
+	w.Header().Set("Link", p.EncodeToLink(r.URL))
+	webutil.JSON(w, p.Items, http.StatusOK)
 }
 
-func (h API) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
-	n, _, err := h.StoreModel(u, r)
+func (h API) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	n, _, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
-				h.InternalServerError(w, r, errors.Slice(errs))
-				return
-			}
-
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		switch cause {
-		case namespace.ErrDepth:
-			h.Error(w, r, cause.Error(), http.StatusUnprocessableEntity)
-		case database.ErrNotFound:
-			webutil.JSON(w, map[string][]string{"parent": {"Could not find parent"}}, http.StatusBadRequest)
-		default:
-			h.InternalServerError(w, r, errors.Err(err))
-		}
+		h.FormError(w, r, nil, errors.Wrap(err, "Failed to create namespace"))
 		return
 	}
-	webutil.JSON(w, n.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, n, http.StatusCreated)
 }
 
-func (h API) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h API) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 	q := r.URL.Query()
 
-	base := webutil.BasePath(r.URL.Path)
-	addr := webutil.BaseAddress(r) + h.Prefix
-
-	switch base {
+	switch webutil.BasePath(r.URL.Path) {
 	case "builds":
-		bb, paginator, err := h.Builds.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Builds.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
+			return
+		}
+
+		if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
 			h.InternalServerError(w, r, errors.Err(err))
 			return
 		}
 
-		if err := build.LoadRelations(h.DB, bb...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
-			return
-		}
-
-		data := make([]map[string]interface{}, 0, len(bb))
-
-		for _, b := range bb {
-			data = append(data, b.JSON(addr))
-		}
-
-		w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-		webutil.JSON(w, data, http.StatusOK)
+		w.Header().Set("Link", p.EncodeToLink(r.URL))
+		webutil.JSON(w, p.Items, http.StatusOK)
 	case "namespaces":
-		nn, paginator, err := h.Namespaces.Index(r.URL.Query(), query.Where("parent_id", "=", query.Arg(n.ID)))
+		p, err := h.Namespaces.Index(ctx, q, query.Where("parent_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to get namespaces"))
+			return
+		}
+
+		if err := h.loadLastBuild(ctx, p.Items); err != nil {
 			h.InternalServerError(w, r, errors.Err(err))
 			return
 		}
 
-		if err := h.loadLastBuild(nn); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
-			return
-		}
-
-		data := make([]map[string]interface{}, 0, len(nn))
-
-		for _, n := range nn {
-			data = append(data, n.JSON(addr))
-		}
-
-		w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-		webutil.JSON(w, data, http.StatusOK)
+		w.Header().Set("Link", p.EncodeToLink(r.URL))
+		webutil.JSON(w, p.Items, http.StatusOK)
 	case "images":
-		ii, paginator, err := h.Images.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Images.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get images"))
 			return
 		}
 
-		data := make([]map[string]interface{}, 0, len(ii))
-
-		for _, i := range ii {
-			data = append(data, i.JSON(addr))
-		}
-
-		w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-		webutil.JSON(w, data, http.StatusOK)
+		w.Header().Set("Link", p.EncodeToLink(r.URL))
+		webutil.JSON(w, p.Items, http.StatusOK)
 	case "objects":
-		oo, paginator, err := h.Objects.Index(q, query.Where("namespace_id", "-", query.Arg(n.ID)))
+		p, err := h.Objects.Index(ctx, q, query.Where("namespace_id", "-", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
 			return
 		}
 
-		data := make([]map[string]interface{}, 0, len(oo))
-
-		for _, o := range oo {
-			data = append(data, o.JSON(addr))
-		}
-
-		w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-		webutil.JSON(w, data, http.StatusOK)
+		w.Header().Set("Link", p.EncodeToLink(r.URL))
+		webutil.JSON(w, p.Items, http.StatusOK)
 	case "variables":
-		vv, paginator, err := h.Variables.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Variables.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get variables"))
 			return
 		}
 
-		data := make([]map[string]interface{}, 0, len(vv))
-
-		for _, v := range vv {
-			data = append(data, v.JSON(addr))
-		}
-
-		w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-		webutil.JSON(w, data, http.StatusOK)
+		w.Header().Set("Link", p.EncodeToLink(r.URL))
+		webutil.JSON(w, p.Items, http.StatusOK)
 	case "keys":
-		kk, paginator, err := h.Keys.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Keys.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
 			return
 		}
 
-		data := make([]map[string]interface{}, 0, len(kk))
-
-		for _, k := range kk {
-			data = append(data, k.JSON(addr))
-		}
-
-		w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-		webutil.JSON(w, data, http.StatusOK)
+		w.Header().Set("Link", p.EncodeToLink(r.URL))
+		webutil.JSON(w, p.Items, http.StatusOK)
 	case "invites":
-		ii, err := h.Invites.All(query.Where("namespace_id", "=", query.Arg(n.ID)))
+		ii, err := h.Invites.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get invites"))
 			return
 		}
 
@@ -199,27 +132,23 @@ func (h API) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r
 			mm = append(mm, i)
 		}
 
-		if err := h.Users.Load("inviter_id", "id", mm...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		ld := user.Loader(h.DB)
+
+		if err := ld.Load(ctx, "invitee_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
 			return
 		}
 
-		if err := h.Users.Load("invitee_id", "id", mm...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := ld.Load(ctx, "inviter_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
 			return
 		}
-
-		data := make([]map[string]interface{}, 0, len(ii))
-
-		for _, i := range ii {
-			data = append(data, i.JSON(addr))
-		}
-		webutil.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, ii, http.StatusOK)
 	case "collaborators":
-		cc, err := h.Collaborators.All(query.Where("namespace_id", "=", query.Arg(n.ID)))
+		cc, err := h.Collaborators.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get collaborators"))
 			return
 		}
 
@@ -229,85 +158,78 @@ func (h API) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r
 			mm = append(mm, c)
 		}
 
-		if err := h.Users.Load("user_id", "id", mm...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := user.Loader(h.DB).Load(ctx, "user_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load users"))
 			return
 		}
-
-		data := make([]map[string]interface{}, 0, len(cc))
-
-		for _, c := range cc {
-			data = append(data, c.JSON(addr))
-		}
-		webutil.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, cc, http.StatusOK)
 	case "webhooks":
-		ww, err := h.Webhooks.All(query.Where("namespace_id", "=", query.Arg(n.ID)))
+		ww, err := h.Webhooks.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get webhooks"))
 			return
 		}
 
-		data := make([]map[string]interface{}, 0, len(ww))
 		mm := make([]database.Model, 0, len(ww))
 
 		for _, w := range ww {
-			data = append(data, w.JSON(addr))
 			mm = append(mm, w)
 		}
 
-		if err := h.Users.Load("author_id", "id", mm...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := user.Loader(h.DB).Load(ctx, "author_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load users"))
 			return
 		}
-		webutil.JSON(w, data, http.StatusOK)
+		webutil.JSON(w, ww, http.StatusOK)
 	default:
-		webutil.JSON(w, n.JSON(addr), http.StatusOK)
+		b, ok, err := h.Builds.Get(
+			ctx, query.Where("namespace_id", "=", query.Arg(n.ID)), query.OrderDesc("created_at"),
+		)
+
+		if err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to get last build"))
+			return
+		}
+
+		if ok {
+			n.Build = b
+		}
+		webutil.JSON(w, n, http.StatusOK)
 	}
 }
 
-func (h API) DestroyCollab(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	if err := h.deleteCollab(u, n, r); err != nil {
-		if errors.Is(err, namespace.ErrPermission) {
-			h.Error(w, r, "Failed to remove collaborator", http.StatusBadRequest)
+func (h API) DestroyCollaborator(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	if err := h.Handler.DestroyCollaborator(u, n, r); err != nil {
+		if errors.Is(err, database.ErrPermission) {
+			webutil.JSON(w, map[string]string{"message": "Failed to remove collaborator"}, http.StatusBadRequest)
 			return
 		}
 
-		if errors.Is(err, database.ErrNotFound) {
-			h.Error(w, r, "No such collaborator", http.StatusBadRequest)
+		if errors.Is(err, database.ErrNoRows) {
+			webutil.JSON(w, map[string]string{"message": "No such collaborator"}, http.StatusBadRequest)
+			h.Error(w, r, errors.Benign("No such collaborator"))
 			return
 		}
 
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to remove collaborator"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h API) Update(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	n, _, err := h.UpdateModel(n, r)
+func (h API) Update(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	n, _, err := h.Handler.Update(u, n, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
-				h.InternalServerError(w, r, errors.Slice(errs))
-				return
-			}
-
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		h.InternalServerError(w, r, errors.Err(err))
+		h.FormError(w, r, nil, errors.Wrap(err, "Failed to update namespace"))
 		return
 	}
-	webutil.JSON(w, n.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, n, http.StatusOK)
 }
 
-func (h API) Destroy(_ *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	if err := h.DeleteModel(r.Context(), n); err != nil {
+func (h API) Destroy(_ *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	if err := h.Handler.Destroy(r.Context(), n); err != nil {
 		h.InternalServerError(w, r, errors.Err(err))
 		return
 	}
@@ -316,54 +238,66 @@ func (h API) Destroy(_ *user.User, n *namespace.Namespace, w http.ResponseWriter
 
 type InviteAPI struct {
 	*InviteHandler
-
-	Prefix string
 }
 
-func (h InviteAPI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	ii, err := h.invitesWithRelations(u)
+func (h InviteAPI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	ii, err := h.Invites.All(ctx, query.Where("invitee_id", "=", query.Arg(u.ID)))
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get invites"))
 		return
 	}
 
-	data := make([]map[string]interface{}, 0, len(ii))
-	addr := webutil.BaseAddress(r) + h.Prefix
+	mm := make([]database.Model, 0, len(ii))
 
 	for _, i := range ii {
-		data = append(data, i.JSON(addr))
+		mm = append(mm, i)
 	}
-	webutil.JSON(w, data, http.StatusOK)
-}
 
-func (h InviteAPI) Store(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	i, _, err := h.StoreModel(n, r)
+	ld := user.Loader(h.DB)
 
-	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		if errors.Is(cause, database.ErrNotFound) || errors.Is(cause, namespace.ErrPermission) {
-			h.NotFound(w, r)
-			return
-		}
-
-		h.InternalServerError(w, r, errors.Err(err))
+	if err := ld.Load(ctx, "invitee_id", "id", mm...); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to load users"))
 		return
 	}
 
-	webutil.JSON(w, i.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	if err := ld.Load(ctx, "inviter_id", "id", mm...); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
+		return
+	}
+	webutil.JSON(w, ii, http.StatusOK)
 }
 
-func (h InviteAPI) Update(u *user.User, w http.ResponseWriter, r *http.Request) {
-	id, _ := strconv.ParseInt(mux.Vars(r)["invite"], 10, 64)
+func (h InviteAPI) Store(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	i, _, err := h.InviteHandler.Store(u, n, r)
 
-	i, ok, err := h.Invites.Get(query.Where("id", "=", query.Arg(id)))
+	if err != nil {
+		errtab := map[error]string{
+			database.ErrNoRows:        "No such user",
+			namespace.ErrSelfInvite:   "Cannot invite self",
+			namespace.ErrInviteSent:   "Invite already sent",
+			namespace.ErrCollaborator: "Already a collaborator",
+		}
+
+		if err, ok := errtab[err]; ok {
+			webutil.JSON(w, map[string]string{"message": err}, http.StatusBadRequest)
+			return
+		}
+
+		h.FormError(w, r, nil, errors.Wrap(err, "Failed to send invite"))
+		return
+	}
+	webutil.JSON(w, i, http.StatusCreated)
+}
+
+func (h InviteAPI) Update(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	id := mux.Vars(r)["invite"]
+
+	i, ok, err := h.Invites.Get(ctx, query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
 		h.InternalServerError(w, r, errors.Err(err))
@@ -375,10 +309,10 @@ func (h InviteAPI) Update(u *user.User, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	n, inviter, invitee, err := h.Accept(r.Context(), u, i)
+	n, inviter, invitee, err := h.Accept(ctx, u, i)
 
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
+		if errors.Is(err, database.ErrNoRows) {
 			h.NotFound(w, r)
 			return
 		}
@@ -387,18 +321,18 @@ func (h InviteAPI) Update(u *user.User, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	addr := webutil.BaseAddress(r) + h.Prefix
-
-	data := map[string]interface{}{
-		"namespace": n.JSON(addr),
-		"invitee":   invitee.JSON(addr),
-		"inviter":   inviter.JSON(addr),
+	data := map[string]any{
+		"namespace": n,
+		"invitee":   invitee,
+		"inviter":   inviter,
 	}
 	webutil.JSON(w, data, http.StatusOK)
 }
 
-func (h InviteAPI) Destroy(u *user.User, w http.ResponseWriter, r *http.Request) {
-	i, ok, err := h.inviteFromRequest(u, r)
+func (h InviteAPI) Destroy(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	i, ok, err := h.Invites.Get(ctx, query.Where("id", "=", query.Arg(mux.Vars(r)["invite"])))
 
 	if err != nil {
 		h.InternalServerError(w, r, errors.Err(err))
@@ -410,8 +344,8 @@ func (h InviteAPI) Destroy(u *user.User, w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	if err := h.DeleteModel(r.Context(), u, i); err != nil {
-		if errors.Is(err, database.ErrNotFound) {
+	if err := h.InviteHandler.Destroy(ctx, u, i); err != nil {
+		if errors.Is(err, database.ErrNoRows) {
 			h.NotFound(w, r)
 			return
 		}
@@ -424,37 +358,29 @@ func (h InviteAPI) Destroy(u *user.User, w http.ResponseWriter, r *http.Request)
 
 type WebhookAPI struct {
 	*WebhookHandler
-
-	Prefix string
 }
 
-func (h WebhookAPI) Store(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	wh, _, err := h.StoreModel(u, n, r)
+func (h WebhookAPI) Store(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	wh, _, err := h.WebhookHandler.Store(u, n, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		h.InternalServerError(w, r, errors.Err(err))
+		h.FormError(w, r, nil, errors.Wrap(err, "Failed to create webhook"))
 		return
 	}
-
-	if err := h.Users.Load("user_id", "id", wh.Namespace); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-	webutil.JSON(w, wh.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, wh, http.StatusCreated)
 }
 
-func (h WebhookAPI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	wh, ok, err := h.webhookFromRequest(u, n, r)
+func (h WebhookAPI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	wh, ok, err := h.Webhooks.Get(
+		ctx,
+		query.Where("id", "=", query.Arg(mux.Vars(r)["webhook"])),
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get webhook"))
 		return
 	}
 
@@ -463,20 +389,26 @@ func (h WebhookAPI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWr
 		return
 	}
 
-	wh.LastDelivery, err = h.Webhooks.LastDelivery(wh.ID)
+	wh.LastDelivery, err = h.Webhooks.LastDelivery(ctx, wh)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get last webhook delivery"))
 		return
 	}
-	webutil.JSON(w, wh.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, wh, http.StatusOK)
 }
 
-func (h WebhookAPI) Update(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	wh, ok, err := h.webhookFromRequest(u, n, r)
+func (h WebhookAPI) Update(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	wh, ok, err := h.Webhooks.Get(
+		ctx,
+		query.Where("id", "=", query.Arg(mux.Vars(r)["webhook"])),
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get webhook"))
 		return
 	}
 
@@ -485,27 +417,26 @@ func (h WebhookAPI) Update(u *user.User, n *namespace.Namespace, w http.Response
 		return
 	}
 
-	wh, _, err = h.UpdateModel(wh, r)
+	wh, _, err = h.WebhookHandler.Update(wh, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		h.InternalServerError(w, r, errors.Err(err))
+		h.FormError(w, r, nil, errors.Wrap(err, "Failed to update webhook"))
 		return
 	}
-	webutil.JSON(w, wh.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, wh, http.StatusOK)
 }
 
-func (h WebhookAPI) Destroy(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	wh, ok, err := h.webhookFromRequest(u, n, r)
+func (h WebhookAPI) Destroy(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	wh, ok, err := h.Webhooks.Get(
+		ctx,
+		query.Where("id", "=", query.Arg(mux.Vars(r)["webhook"])),
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get webhook"))
 		return
 	}
 
@@ -514,55 +445,94 @@ func (h WebhookAPI) Destroy(u *user.User, n *namespace.Namespace, w http.Respons
 		return
 	}
 
-	if err := h.Webhooks.Delete(wh.ID); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+	if err := h.Webhooks.Delete(ctx, wh); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete webhook"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func RegisterAPI(prefix string, srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func registerNamespaceAPI(a auth.Authenticator, srv *server.Server) {
 	api := API{
 		Handler: NewHandler(srv),
-		Prefix:  prefix,
 	}
 
-	inviteapi := InviteAPI{
-		InviteHandler: NewInviteHandler(srv),
-		Prefix:        prefix,
-	}
+	index := srv.Restrict(a, []string{"namespace:read"}, api.Index)
+	store := srv.Restrict(a, []string{"namespace:write"}, api.Store)
 
-	hookapi := WebhookAPI{
-		WebhookHandler: NewWebhookHandler(srv),
-		Prefix:         prefix,
-	}
+	root := srv.Router.PathPrefix("/").Subrouter()
+	root.HandleFunc("/namespaces", index).Methods("GET")
+	root.HandleFunc("/namespaces", store).Methods("POST")
 
-	auth := srv.Router.PathPrefix("/").Subrouter()
-	auth.HandleFunc("/namespaces", user.WithUser(api.Index)).Methods("GET")
-	auth.HandleFunc("/namespaces", user.WithUser(api.Store)).Methods("POST")
-	auth.HandleFunc("/invites", user.WithUser(inviteapi.Index)).Methods("GET")
-	auth.HandleFunc("/invites/{invite:[0-9]+}", user.WithUser(inviteapi.Update)).Methods("PATCH")
-	auth.HandleFunc("/invites/{invite:[0-9]+}", user.WithUser(inviteapi.Destroy)).Methods("DELETE")
+	a = namespace.NewAuth(a, "namespace", api.Namespaces.Store)
+
+	show := srv.Restrict(a, []string{"namespace:read"}, api.Namespace(api.Show))
+	update := srv.Restrict(a, []string{"namespace:write", "owner"}, api.Namespace(api.Update))
+	destroy := srv.Restrict(a, []string{"namespace:delete", "owner"}, api.Namespace(api.Destroy))
+	destroyCollab := srv.Restrict(a, []string{"namespace:delete", "owner"}, api.Namespace(api.DestroyCollaborator))
 
 	sr := srv.Router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
-	sr.HandleFunc("", user.WithUser(api.WithNamespace(api.Show))).Methods("GET")
+	sr.HandleFunc("", show).Methods("GET")
 	sr.HandleFunc("/-/badge.svg", api.Badge).Methods("GET")
-	sr.HandleFunc("/-/namespaces", user.WithOptionalUser(api.WithNamespace(api.Show))).Methods("GET")
-	sr.HandleFunc("/-/images", user.WithOptionalUser(api.WithNamespace(api.Show))).Methods("GET")
-	sr.HandleFunc("/-/objects", user.WithOptionalUser(api.WithNamespace(api.Show))).Methods("GET")
-	sr.HandleFunc("/-/variables", user.WithOptionalUser(api.WithNamespace(api.Show))).Methods("GET")
-	sr.HandleFunc("/-/keys", user.WithOptionalUser(api.WithNamespace(api.Show))).Methods("GET")
-	sr.HandleFunc("/-/invites", user.WithUser(api.WithNamespace(api.Show))).Methods("GET")
-	sr.HandleFunc("/-/invites", user.WithUser(api.WithNamespace(inviteapi.Store))).Methods("POST")
-	sr.HandleFunc("/-/collaborators", user.WithUser(api.WithNamespace(api.Show))).Methods("GET")
-	sr.HandleFunc("/-/collaborators/{collaborator}", user.WithUser(api.WithNamespace(api.DestroyCollab))).Methods("DELETE")
-	sr.HandleFunc("/-/webhooks", user.WithUser(api.WithNamespace(api.Show))).Methods("GET")
-	sr.HandleFunc("/-/webhooks", user.WithUser(api.WithNamespace(hookapi.Store))).Methods("POST")
-	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", user.WithUser(api.WithNamespace(hookapi.Show))).Methods("GET")
-	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", user.WithUser(api.WithNamespace(hookapi.Update))).Methods("PATCH")
-	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", user.WithUser(api.WithNamespace(hookapi.Destroy))).Methods("DELETE")
-	sr.HandleFunc("", user.WithUser(api.WithNamespace(api.Update))).Methods("PATCH")
-	sr.HandleFunc("", user.WithUser(api.WithNamespace(api.Destroy))).Methods("DELETE")
+	sr.HandleFunc("/-/namespaces", show).Methods("GET")
+	sr.HandleFunc("/-/images", show).Methods("GET")
+	sr.HandleFunc("/-/objects", show).Methods("GET")
+	sr.HandleFunc("/-/variables", show).Methods("GET")
+	sr.HandleFunc("/-/keys", show).Methods("GET")
+	sr.HandleFunc("/-/collaborators", show).Methods("GET")
+	sr.HandleFunc("/-/collaborators/{collaborator}", destroyCollab).Methods("DELETE")
+	sr.HandleFunc("/-/invites", srv.Restrict(a, []string{"invite:read"}, api.Namespace(api.Show))).Methods("GET")
+	sr.HandleFunc("/-/webhooks", srv.Restrict(a, []string{"webhook:read"}, api.Namespace(api.Show))).Methods("GET")
+	sr.HandleFunc("", update).Methods("PATCH")
+	sr.HandleFunc("", destroy).Methods("DELETE")
+}
+
+func registerWebhookAPI(a auth.Authenticator, srv *server.Server) {
+	api := WebhookAPI{
+		WebhookHandler: NewWebhookHandler(srv),
+	}
+
+	h := NewHandler(srv)
+
+	store := srv.Restrict(a, []string{"webhook:write"}, h.Namespace(api.Store))
+
+	a = namespace.NewAuth(a, "webhook", api.Webhooks.Store)
+
+	show := srv.Restrict(a, []string{"webhook:read"}, h.Namespace(api.Show))
+	update := srv.Restrict(a, []string{"webhook:write"}, h.Namespace(api.Update))
+	destroy := srv.Restrict(a, []string{"webhook:delete"}, h.Namespace(api.Destroy))
+
+	sr := srv.Router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}/-/webhooks").Subrouter()
+	sr.HandleFunc("", store).Methods("POST")
+	sr.HandleFunc("/{webhook:[0-9]+}", show).Methods("GET")
+	sr.HandleFunc("/{webhook:[0-9]+}", update).Methods("PATCH")
+	sr.HandleFunc("/{webhook:[0-9]+}", destroy).Methods("DELETE")
+}
+
+func registerInviteAPI(a auth.Authenticator, srv *server.Server) {
+	api := InviteAPI{
+		InviteHandler: NewInviteHandler(srv),
+	}
+
+	h := NewHandler(srv)
+
+	index := srv.Restrict(a, []string{"invite:read"}, api.Index)
+	store := srv.Restrict(a, []string{"invite:write"}, h.Namespace(api.Store))
+
+	a = namespace.NewAuth[*namespace.Invite](a, "invite", api.Invites.Store)
+
+	update := srv.Restrict(a, []string{"invite:write"}, api.Update)
+	destroy := srv.Restrict(a, []string{"invite:write"}, api.Destroy)
+
+	root := srv.Router.PathPrefix("/").Subrouter()
+	root.HandleFunc("/invites", index).Methods("GET")
+	root.HandleFunc("/invites/{invite:[0-9]+}", update).Methods("PATCH")
+	root.HandleFunc("/invites/{invite:[0-9]+}", destroy).Methods("DELETE")
+	root.HandleFunc("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}/-/invites", store).Methods("POST")
+}
+
+func RegisterAPI(a auth.Authenticator, srv *server.Server) {
+	registerNamespaceAPI(a, srv)
+	registerWebhookAPI(a, srv)
+	registerInviteAPI(a, srv)
 }

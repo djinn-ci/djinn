@@ -1,0 +1,108 @@
+{%
+import (
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type InviteIndex struct {
+	*form.Form
+
+	Namespace *namespace.Namespace
+	Invites   []*namespace.Invite
+}
+%}
+
+{% collapsespace %}
+{% func (p *InviteIndex) Title() %}Invites{% endfunc %}
+
+{% func (p *InviteIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *InviteIndex) Actions() %}{% endfunc %}
+{% func (p *InviteIndex) Navigation() %}{% endfunc %}
+{% func (p *InviteIndex) Footer() %}{% endfunc %}
+
+{% func (p *InviteIndex) renderInviteForm() %}
+	<form method="POST" action="{%s p.Namespace.Endpoint("invites") %}">
+		{%v= p.CSRF %}
+		<div class="form-field form-field-inline">
+			<input type="text" class="form-text" name="handle" placeholder="Invite user..." autocomplete="off"/>
+			<button type="submit" class="btn btn-primary">Invite</button>
+			{%= p.Error("handle") %}
+		</div>
+	</form>
+{% endfunc %}
+
+{% func (p *InviteIndex) renderReceivedInvites() %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>NAMESPACE</th>
+				<th>INVITED BY</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, i := range p.Invites %}
+				<tr>
+					<td>{%s i.Namespace.Path %}</td>
+					<td>{%s i.Inviter.Username %}</td>
+					<td class="align-right">
+						<form method="POST" action="{%s i.Endpoint() %}">
+							{%v= p.CSRF %}
+							<input type="hidden" name="_method" value="PATCH"/>
+							<button type="submit" class="btn btn-primary">Accept</button>
+						</form>
+						<form method="POST" action="{%s i.Endpoint() %}">
+							{%v= p.CSRF %}
+							<input type="hidden" name="_method" value="DELETE"/>
+							<button type="submit" class="btn btn-danger">Reject</button>
+						</form>
+					</td>
+				</tr>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func (p *InviteIndex) renderSentInvites() %}
+	<table class="table">
+		<thead>
+			<tr>
+				<th>USER</th>
+				<th></th>
+			</tr>
+		</thead>
+		<tbody>
+			{% for _, i := range p.Invites %}
+				<td>{%s i.Invitee.Username %}</td>
+				<td class="align-right">
+					<form method="POST" action="{%s i.Endpoint() %}">
+						{%v= p.CSRF %}
+						<input type="hidden" name="_method" value="DELETE"/>
+						<button type="submit" class="btn btn-danger">Revoke</button>
+					</form>
+				</td>
+			{% endfor %}
+		</tbody>
+	</table>
+{% endfunc %}
+
+{% func (p *InviteIndex) Body() %}
+	<div class="panel">
+		{% if p.Namespace != nil %}
+			<div class="panel-header panel-body">{%= p.renderInviteForm()%}</div>
+		{% endif %}
+		{% if len(p.Invites) == 0 %}
+			<div class="panel-message muted">No new namespace invites.</div>
+		{% else %}
+			{% if p.Namespace == nil %}
+				{%= p.renderReceivedInvites() %}
+			{% else %}
+				{%= p.renderSentInvites() %}
+			{% endif %}
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

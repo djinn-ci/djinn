@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 	"djinn-ci.com/variable"
 )
 
 func Test_VariableCreate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	v, err := djinn.CreateVariable(cli, djinn.VariableParams{
 		Key:   "Test_VariableCreate",
@@ -27,7 +28,7 @@ func Test_VariableCreate(t *testing.T) {
 }
 
 func Test_VariableCreateMasked(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	v, err := djinn.CreateVariable(cli, djinn.VariableParams{
 		Key:   "Test_VariableCreateMasked",
@@ -51,7 +52,7 @@ func Test_VariableCreateMasked(t *testing.T) {
 		t.Fatalf("expected parameter %q in errors\n", "value")
 	}
 
-	expectedmsg := "Masked variable length cannot be shorter than 6 characters"
+	expectedmsg := "Value cannot be shorter than 6 characters in length"
 
 	if msg[0] != expectedmsg {
 		t.Fatalf("unexpected error message, expected=%q, got=%q\n", expectedmsg, msg[0])
@@ -73,7 +74,7 @@ func Test_VariableCreateMasked(t *testing.T) {
 }
 
 func Test_VariableMasking(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	secret := "secret_api_token"
 
@@ -164,7 +165,7 @@ func Test_VariableMasking(t *testing.T) {
 }
 
 func Test_VariableDelete(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	v, err := djinn.CreateVariable(cli, djinn.VariableParams{
 		Key:   "Test_VariableDelete",

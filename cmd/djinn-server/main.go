@@ -27,14 +27,14 @@ func main() {
 	qctx, qcancel := context.WithCancel(context.Background())
 	defer qcancel()
 
-	srv, close_, err := serverutil.Init(qctx, config)
+	srv, close, err := serverutil.Init(qctx, config)
 
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
 		os.Exit(1)
 	}
 
-	defer close_()
+	defer close()
 
 	c := make(chan os.Signal, 1)
 
@@ -51,7 +51,7 @@ func main() {
 	srv.Shutdown(ctx)
 
 	if sig == os.Kill {
-		close_()
+		close()
 		qcancel()
 
 		os.Exit(1)

@@ -1,15 +1,22 @@
 package http
 
 import (
+	"context"
 	"net/url"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/database"
 	"djinn-ci.com/oauth2"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type AppForm struct {
+	Pool *database.Pool `schema:"-"`
+	App  *oauth2.App    `schema:"-"`
+	User *auth.User     `schema:"-"`
+
 	Name        string
 	Description string
 	HomepageURI string `schema:"homepage_uri"`
@@ -18,7 +25,7 @@ type AppForm struct {
 
 var _ webutil.Form = (*AppForm)(nil)
 
-func (f AppForm) Fields() map[string]string {
+func (f *AppForm) Fields() map[string]string {
 	return map[string]string{
 		"name":         f.Name,
 		"description":  f.Description,
@@ -27,51 +34,54 @@ func (f AppForm) Fields() map[string]string {
 	}
 }
 
-type AppValidator struct {
-	UserID int64
-	Form   AppForm
-	Apps   *oauth2.AppStore
-	App    *oauth2.App
-}
+func (f *AppForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-var _ webutil.Validator = (*AppValidator)(nil)
+	v.Add("name", f.Name, webutil.FieldRequired)
+	v.Add("name", f.Name, func(ctx context.Context, val any) error {
+		name := val.(string)
 
-func (v AppValidator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Name == "" {
-		errs.Add("name", webutil.ErrFieldRequired("Name"))
-	}
+		if f.App == nil || (f.App != nil && name != f.App.Name) {
+			_, ok, err := oauth2.NewAppStore(f.Pool).Get(
+				ctx,
+				query.Where("user_id", "=", query.Arg(f.User.ID)),
+				query.Where("name", "=", query.Arg(val)),
+			)
 
-	if v.App == nil || (v.App != nil && v.Form.Name != v.App.Name) {
-		_, ok, err := v.Apps.Get(
-			query.Where("user_id", "=", query.Arg(v.UserID)),
-			query.Where("name", "=", query.Arg(v.Form.Name)),
-		)
+			if err != nil {
+				return err
+			}
 
-		if err != nil {
-			errs.Add("fatal", err)
-			return
+			if ok {
+				return webutil.ErrFieldRequired
+			}
 		}
+		return nil
+	})
 
-		if ok {
-			errs.Add("name", webutil.ErrFieldExists("Name"))
+	v.Add("homepage_uri", f.HomepageURI, webutil.FieldRequired)
+	v.Add("homepage_uri", f.HomepageURI, func(ctx context.Context, val any) error {
+		s := val.(string)
+
+		if _, err := url.Parse(s); err != nil {
+			return err
 		}
-	}
+		return nil
+	})
 
-	if v.Form.HomepageURI == "" {
-		errs.Add("homepage_uri", webutil.ErrFieldRequired("Homepage URI"))
-	}
+	v.Add("redirect_uri", f.RedirectURI, webutil.FieldRequired)
+	v.Add("redirect_uri", f.RedirectURI, func(ctx context.Context, val any) error {
+		s := val.(string)
 
-	if _, err := url.Parse(v.Form.HomepageURI); err != nil {
-		errs.Add("homepage_uri", err)
-	}
+		if _, err := url.Parse(s); err != nil {
+			return err
+		}
+		return nil
+	})
 
-	if v.Form.RedirectURI == "" {
-		errs.Add("redirect_uri", webutil.ErrFieldRequired("Redirect URI"))
-	}
+	errs := v.Validate(ctx)
 
-	if _, err := url.Parse(v.Form.RedirectURI); err != nil {
-		errs.Add("redirect_uri", err)
-	}
+	return errs.Err()
 }
 
 type AuthorizeForm struct {
@@ -86,71 +96,69 @@ type AuthorizeForm struct {
 
 var _ webutil.Form = (*AuthorizeForm)(nil)
 
-func (f AuthorizeForm) Fields() map[string]string {
+func (f *AuthorizeForm) Fields() map[string]string {
 	return map[string]string{"handle": f.Handle}
 }
 
-type AuthorizeValidator struct {
-	Form AuthorizeForm
-}
-
-var _ webutil.Validator = (*AuthorizeValidator)(nil)
-
-func (v AuthorizeValidator) Validate(errs webutil.ValidationErrors) {
-	if !v.Form.Authorize {
-		return
+func (f *AuthorizeForm) Validate(ctx context.Context) error {
+	if !f.Authorize {
+		return nil
 	}
 
-	if v.Form.Handle == "" {
-		errs.Add("handle", webutil.ErrFieldRequired("Email or username"))
-	}
+	var v webutil.Validator
 
-	if v.Form.Password == "" {
-		errs.Add("password", webutil.ErrFieldRequired("Password"))
-	}
+	v.Add("handle", f.Handle, webutil.FieldRequired)
+	v.Add("password", f.Password, webutil.FieldRequired)
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }
 
 type TokenForm struct {
+	Pool  *database.Pool `schema:"-"`
+	Token *oauth2.Token  `schema:"-"`
+	User  *auth.User     `schema:"-"`
+
 	Name  string
 	Scope oauth2.Scope
 }
 
 var _ webutil.Form = (*TokenForm)(nil)
 
-func (f TokenForm) Fields() map[string]string {
+func (f *TokenForm) Fields() map[string]string {
 	return map[string]string{
 		"name":  f.Name,
 		"scope": f.Scope.String(),
 	}
 }
 
-type TokenValidator struct {
-	UserID int64
-	Form   TokenForm
-	Tokens oauth2.TokenStore
-	Token  *oauth2.Token
-}
+func (f *TokenForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-var _ webutil.Validator = (*TokenValidator)(nil)
+	v.Add("name", f.Name, webutil.FieldRequired)
+	v.Add("name", f.Name, func(ctx context.Context, val any) error {
+		name := val.(string)
 
-func (v TokenValidator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Name == "" {
-		errs.Add("name", webutil.ErrFieldRequired("Name"))
-	}
+		if f.Token == nil || (f.Token != nil && name != f.Token.Name) {
+			_, ok, err := oauth2.NewTokenStore(f.Pool).Get(
+				ctx,
+				query.Where("user_id", "=", query.Arg(f.User.ID)),
+				query.Where("name", "=", query.Arg(name)),
+			)
 
-	if v.Token == nil || (v.Token != nil && v.Form.Name != v.Token.Name) {
-		_, ok, err := v.Tokens.Get(
-			query.Where("user_id", "=", query.Arg(v.UserID)),
-			query.Where("name", "=", query.Arg(v.Form.Name)),
-		)
+			if err != nil {
+				return err
+			}
 
-		if err != nil {
-			errs.Add("fatal", err)
-			return
+			if !ok {
+				return webutil.ErrFieldRequired
+			}
 		}
+		return nil
+	})
 
-		if ok {
-			errs.Add("name", webutil.ErrFieldExists("Name"))
-		}
-	}
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }

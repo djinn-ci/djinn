@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"testing"
 
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 )
 
@@ -19,7 +20,7 @@ func jsonencode(m map[string]interface{}) *bytes.Buffer {
 // Test_UnmarshalErrors makes sure that JSON payloads with invalid data types
 // received a 400 response from the API instead of a 500.
 func Test_UnmarshalErrors(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	tests := []struct {
 		endpoint string
@@ -47,7 +48,7 @@ func Test_UnmarshalErrors(t *testing.T) {
 
 	for i, test := range tests {
 		func() {
-			req, err := http.NewRequest("POST", apiEndpoint+test.endpoint, test.body)
+			req, err := http.NewRequest("POST", env.DJINN_API_SERVER+test.endpoint, test.body)
 
 			if err != nil {
 				t.Fatal(err)

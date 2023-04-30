@@ -1,0 +1,67 @@
+{%
+import (
+	"djinn-ci.com/build"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type BuildVariables struct {
+	*Page
+
+	Unmasked  map[int64]struct{}
+	Variables []*build.Variable
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildVariables) Title() %}Variables{% endfunc %}
+
+{% func (p *BuildVariables) Header() %}{% endfunc %}
+{% func (p *BuildVariables) Actions() %}{% endfunc %}
+{% func (p *BuildVariables) Navigation() %}{% endfunc %}
+{% func (p *BuildVariables) Footer() %}{% endfunc %}
+
+{% func (p *BuildVariables) renderVariableItem(v *build.Variable) %}
+	<tr>
+		<td><span class="code">{%s v.Key %}</span></td>
+		<td><span class="code">{%s v.Value %}</span></td>
+		<td>{% if v.VariableID.Valid %}False{% else %}True{% endif %}</td>
+		<td class="align-right">
+			{% if _, ok := p.Unmasked[v.VariableID.Elem]; ok && p.User.ID == v.Variable.UserID %}
+				<form action="{%s v.Variable.Endpoint("mask") %}" method="POST">
+					{%= form.Method("PATCH") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-primary">Mask</button>
+				</form>
+			{% endif %}
+			{% if _, ok := p.Unmasked[v.VariableID.Elem]; !ok && v.Masked && p.User.ID == v.Variable.UserID %}
+				<a class="btn btn-primary inline-block" href="{%s v.Variable.Endpoint("unmask") %}">Unmask</a>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *BuildVariables) Body() %}
+	<div class="panel">
+		{% if len(p.Variables) == 0 %}
+			<div class="panel-message muted">No variables have been set for this build.</div>
+		{% else %}
+			<table>
+				<thead>
+					<tr>
+						<th>KEY</th>
+						<th>VALUE</th>
+						<th>FROM MANIFEST</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, v := range p.Variables %}
+						{%= p.renderVariableItem(v) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

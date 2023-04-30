@@ -1,0 +1,56 @@
+{%
+import (
+	"djinn-ci.com/alert"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type SudoForm struct {
+	*form.Form
+
+	Alert       alert.Alert
+	Email       string
+	SudoURL     string
+	SudoReferer string
+	SudoToken   string
+}
+%}
+
+{% collapsespace %}
+{% func (p *SudoForm) Title() %}
+	Authorize action
+{% endfunc %}
+
+{% func (p *SudoForm) Footer() %}
+	<style type="text/css">{% cat "static/auth.css" %}</style>
+{% endfunc %}
+
+{% func (p *SudoForm) Body() %}
+	<div class="auth-page">
+		<div class="auth-form">
+			<div class="auth-header">
+				{%= Logo() %}
+				<h1>Authorize action</h1>
+			</div>
+			{%= Alert(p.Alert, "") %}
+			<form method="POST" action="/sudo">
+				{%v= p.CSRF %}
+				<input type="hidden" name="sudo_url" value="{%s p.SudoURL %}"/>
+				<input type="hidden" name="sudo_referer" value="{%s p.SudoReferer %}"/>
+				<input type="hidden" name="sudo_token" value="{%s p.SudoToken %}"/>
+				<input type="hidden" name="handle" value="{%s p.Email %}"/>
+				{%= p.Field(form.Field{
+					ID:   "password",
+					Name: "Password",
+					Type: form.Password,
+				}) %}
+				<div class="form-field">
+					<button type="submit" class="btn btn-primary">Authorize</button>
+				</div>
+				<a href="/">Back</a>
+			</form>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

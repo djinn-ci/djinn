@@ -1,10 +1,12 @@
 package namespace
 
 import (
-	"database/sql"
+	"context"
+	"encoding/json"
 	"strconv"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
 	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
@@ -22,50 +24,45 @@ type Invite struct {
 	InviterID   int64
 	CreatedAt   time.Time
 
-	Inviter   *user.User
-	Invitee   *user.User
+	Inviter   *auth.User
+	Invitee   *auth.User
 	Namespace *Namespace
 }
 
 var _ database.Model = (*Invite)(nil)
 
-func InviteRelations(db database.Pool) []database.RelationFunc {
-	users := user.Store{Pool: db}
-	namespaces := Store{Pool: db}
+func (i *Invite) Primary() (string, any) { return "id", i.ID }
 
-	return []database.RelationFunc{
-		database.Relation("inviter_id", "id", users),
-		database.Relation("invitee_id", "id", users),
-		database.Relation("namespace_id", "id", namespaces),
-	}
-}
-
-func LoadInviteRelations(db database.Pool, ii ...*Invite) error {
-	mm := make([]database.Model, 0, len(ii))
-
-	for _, i := range ii {
-		mm = append(mm, i)
+func (i *Invite) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":           &i.ID,
+		"namespace_id": &i.NamespaceID,
+		"invitee_id":   &i.InviteeID,
+		"inviter_id":   &i.InviterID,
+		"created_at":   &i.CreatedAt,
 	}
 
-	if err := database.LoadRelations(mm, InviteRelations(db)...); err != nil {
+	if err := database.Scan(r, valtab); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (i *Invite) Dest() []interface{} {
-	return []interface{}{
-		&i.ID,
-		&i.NamespaceID,
-		&i.InviteeID,
-		&i.InviterID,
-		&i.CreatedAt,
+func (i *Invite) Params() database.Params {
+	params := database.Params{
+		"id":           database.ImmutableParam(i.ID),
+		"namespace_id": database.CreateOnlyParam(i.NamespaceID),
+		"invitee_id":   database.CreateOnlyParam(i.InviteeID),
+		"inviter_id":   database.CreateOnlyParam(i.InviterID),
+		"created_at":   database.CreateOnlyParam(i.CreatedAt),
 	}
+
+	return params
 }
 
 func (i *Invite) Bind(m database.Model) {
 	switch v := m.(type) {
-	case *user.User:
+	case *auth.User:
 		if v.ID == i.InviterID {
 			i.Inviter = v
 		}
@@ -80,61 +77,45 @@ func (i *Invite) Bind(m database.Model) {
 	}
 }
 
-func (i *Invite) Endpoint(_ ...string) string { return "/invites/" + strconv.FormatInt(i.ID, 10) }
-
-func (i *Invite) JSON(addr string) map[string]interface{} {
-	if i == nil {
-		return nil
-	}
-
-	json := map[string]interface{}{
-		"id":           i.ID,
-		"namespace_id": i.NamespaceID,
-		"invitee_id":   i.InviteeID,
-		"inviter_id":   i.InviterID,
-		"url":          addr + i.Endpoint(),
-		"invitee":      i.Invitee.JSON(addr),
-		"inviter":      i.Inviter.JSON(addr),
-		"namespace":    i.Namespace.JSON(addr),
-	}
-
-	if i.Invitee != nil {
-		json["invitee"] = i.Invitee.JSON(addr)
-	}
-
-	if i.Inviter != nil {
-		json["inviter"] = i.Inviter.JSON(addr)
-	}
-
-	if i.Namespace != nil {
-		json["namespace"] = i.Namespace.JSON(addr)
-	}
-	return json
+func (i *Invite) Endpoint(...string) string {
+	return "/invites/" + strconv.FormatInt(i.ID, 10)
 }
 
-func (i *Invite) Values() map[string]interface{} {
-	return map[string]interface{}{
+func (i *Invite) MarshalJSON() ([]byte, error) {
+	if i == nil {
+		return []byte("null"), nil
+	}
+
+	b, err := json.Marshal(map[string]any{
 		"id":           i.ID,
 		"namespace_id": i.NamespaceID,
 		"invitee_id":   i.InviteeID,
 		"inviter_id":   i.InviterID,
-		"created_at":   i.CreatedAt,
+		"url":          env.DJINN_API_SERVER + i.Endpoint(),
+		"invitee":      i.Invitee,
+		"inviter":      i.Inviter,
+		"namespace":    i.Namespace,
+	})
+
+	if err != nil {
+		return nil, errors.Err(err)
 	}
+	return b, nil
 }
 
 type InviteEvent struct {
-	db  database.Pool
+	db  *database.Pool
 	dis event.Dispatcher
 
 	Action    string
 	Namespace *Namespace
-	Invitee   *user.User
-	Inviter   *user.User
+	Invitee   *auth.User
+	Inviter   *auth.User
 }
 
 var _ queue.Job = (*InviteEvent)(nil)
 
-func InitInviteEvent(db database.Pool, dis event.Dispatcher) queue.InitFunc {
+func InitInviteEvent(db *database.Pool, dis event.Dispatcher) queue.InitFunc {
 	return func(j queue.Job) {
 		if ev, ok := j.(*InviteEvent); ok {
 			ev.db = db
@@ -162,11 +143,10 @@ func (e *InviteEvent) Perform() error {
 	}
 
 	if e.Namespace.User == nil {
-		users := user.Store{
-			Pool: e.db,
-		}
-
-		u, _, err := users.Get(query.Where("id", "=", query.Arg(e.Namespace.UserID)))
+		u, _, err := user.NewStore(e.db).Get(
+			context.Background(),
+			query.Where("id", "=", query.Arg(e.Namespace.UserID)),
+		)
 
 		if err != nil {
 			return errors.Err(err)
@@ -174,8 +154,8 @@ func (e *InviteEvent) Perform() error {
 		e.Namespace.User = u
 	}
 
-	payload := map[string]interface{}{
-		"namespace": e.Namespace.JSON(env.DJINN_API_SERVER),
+	payload := map[string]any{
+		"namespace": e.Namespace,
 	}
 
 	typs := map[string]event.Type{
@@ -186,18 +166,16 @@ func (e *InviteEvent) Perform() error {
 
 	switch e.Action {
 	case "sent":
-		payload["inviter"] = e.Inviter.JSON(env.DJINN_API_SERVER)
-		payload["invitee"] = e.Invitee.JSON(env.DJINN_API_SERVER)
-	case "accepted":
-		payload["invitee"] = e.Invitee.JSON(env.DJINN_API_SERVER)
-	case "rejected":
-		payload["invitee"] = e.Invitee.JSON(env.DJINN_API_SERVER)
+		payload["inviter"] = e.Inviter
+		payload["invitee"] = e.Invitee
+	case "accepted", "rejected":
+		payload["invitee"] = e.Invitee
 	default:
-		return errors.New("invalid invite action " + e.Action)
+		return errors.New("namespace: invalid invite action " + e.Action)
 	}
 
-	namespaceId := sql.NullInt64{
-		Int64: e.Namespace.ID,
+	namespaceId := database.Null[int64]{
+		Elem:  e.Namespace.ID,
 		Valid: true,
 	}
 
@@ -210,179 +188,149 @@ func (e *InviteEvent) Perform() error {
 }
 
 type InviteStore struct {
-	database.Pool
+	*database.Store[*Invite]
 }
 
-var inviteTable = "namespace_invites"
+const inviteTable = "namespace_invites"
 
-func (s InviteStore) Get(opts ...query.Option) (*Invite, bool, error) {
-	var i Invite
-
-	ok, err := s.Pool.Get(inviteTable, &i, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
+func NewInviteStore(pool *database.Pool) InviteStore {
+	return InviteStore{
+		Store: database.NewStore[*Invite](pool, inviteTable, func() *Invite {
+			return &Invite{}
+		}),
 	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &i, ok, nil
 }
 
-func (s InviteStore) All(opts ...query.Option) ([]*Invite, error) {
-	ii := make([]*Invite, 0)
-
-	new := func() database.Model {
-		i := &Invite{}
-		ii = append(ii, i)
-		return i
+func (s InviteStore) Accept(ctx context.Context, u *auth.User, i *Invite) (*Namespace, *auth.User, *auth.User, error) {
+	if i.InviteeID != u.ID {
+		return nil, nil, nil, database.ErrNoRows
 	}
 
-	if err := s.Pool.All(inviteTable, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return ii, nil
-}
+	users := user.NewStore(s.Pool)
 
-func getInviteeAndInviter(db database.Pool, inviteeId, inviterId int64) (*user.User, *user.User, error) {
-	users := user.Store{
-		Pool: db,
-	}
-
-	uu, err := users.All(
-		query.Where("id", "=", query.Arg(inviteeId)),
-		query.OrWhere("id", "=", query.Arg(inviterId)),
-		query.Where("deleted_at", "IS", query.Lit("NULL")),
-	)
-
-	if err != nil {
-		return nil, nil, errors.Err(err)
-	}
-
-	var (
-		inviter *user.User
-		invitee *user.User
-	)
-
-	if uu[0].ID == inviterId {
-		inviter = uu[0]
-		invitee = uu[1]
-	} else {
-		inviter = uu[1]
-		invitee = uu[0]
-	}
-	return invitee, inviter, nil
-}
-
-func (s InviteStore) Accept(id int64) (*Namespace, *user.User, *user.User, error) {
-	i, ok, err := s.Get(query.Where("id", "=", query.Arg(id)))
+	invitee, ok, err := users.Get(ctx, query.Where("id", "=", query.Arg(i.InviteeID)))
 
 	if err != nil {
 		return nil, nil, nil, errors.Err(err)
 	}
 
 	if !ok {
-		return nil, nil, nil, database.ErrNotFound
+		return nil, nil, nil, database.ErrNoRows
 	}
 
-	invitee, inviter, err := getInviteeAndInviter(s.Pool, i.InviteeID, i.InviterID)
-
-	if err != nil {
-		return nil, nil, nil, errors.Err(err)
-	}
-
-	namespaces := Store{
-		Pool: s.Pool,
-	}
-
-	n, ok, err := namespaces.Get(query.Where("id", "=", query.Arg(i.NamespaceID)))
+	inviter, ok, err := users.Get(ctx, query.Where("id", "=", query.Arg(i.InviterID)))
 
 	if err != nil {
 		return nil, nil, nil, errors.Err(err)
 	}
 
 	if !ok {
-		return nil, nil, nil, database.ErrNotFound
+		return nil, nil, nil, database.ErrNoRows
 	}
 
-	if n.RootID.Int64 != n.ID {
-		n, ok, err = namespaces.Get(query.Where("id", "=", query.Arg(n.RootID)))
+	namespaces := NewStore(s.Pool)
+
+	n, ok, err := namespaces.Get(ctx, query.Where("id", "=", query.Arg(i.NamespaceID)))
+
+	if err != nil {
+		return nil, nil, nil, errors.Err(err)
+	}
+
+	if !ok {
+		return nil, nil, nil, database.ErrNoRows
+	}
+
+	if n.RootID.Elem != n.ID {
+		n, ok, err = namespaces.Get(ctx, query.Where("id", "=", query.Arg(n.RootID)))
 
 		if err != nil {
 			return nil, nil, nil, errors.Err(err)
 		}
 
 		if !ok {
-			return nil, nil, nil, database.ErrNotFound
+			return nil, nil, nil, database.ErrNoRows
 		}
 	}
 
-	q := query.Insert(
-		collaboratorTable,
-		query.Columns("namespace_id", "user_id", "created_at"),
-		query.Values(n.RootID, invitee.ID, time.Now()),
-	)
+	c := Collaborator{
+		NamespaceID: n.ID,
+		UserID:      invitee.ID,
+		CreatedAt:   time.Now(),
+	}
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if err := NewCollaboratorStore(s.Pool).Create(ctx, &c); err != nil {
 		return nil, nil, nil, errors.Err(err)
 	}
 
-	if err := s.Delete(i.ID); err != nil {
+	if err := s.Delete(ctx, i); err != nil {
 		return nil, nil, nil, errors.Err(err)
 	}
 	return n, inviter, invitee, nil
 }
 
 type InviteParams struct {
-	NamespaceID int64
-	InviterID   int64
-	InviteeID   int64
+	Handle    string
+	Inviter   *auth.User
+	Namespace *Namespace
 }
 
-func (s InviteStore) Create(p InviteParams) (*Invite, error) {
-	ownerId, err := getNamespaceOwnerId(s.Pool, p.NamespaceID)
+var (
+	ErrSelfInvite   = errors.New("namespace: cannot invite self")
+	ErrInviteSent   = errors.New("namespace: invite sent")
+	ErrCollaborator = errors.New("namespace: already a collaborator")
+)
+
+func (s InviteStore) Create(ctx context.Context, p *InviteParams) (*Invite, error) {
+	if p.Inviter.ID != p.Namespace.UserID {
+		return nil, database.ErrPermission
+	}
+
+	u, ok, err := user.NewStore(s.Pool).Get(ctx, user.WhereHandle(p.Handle))
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	if p.InviterID != ownerId {
-		return nil, ErrPermission
+	if !ok {
+		return nil, database.ErrNoRows
 	}
 
-	invitee, inviter, err := getInviteeAndInviter(s.Pool, p.InviteeID, p.InviterID)
+	if u.ID == p.Inviter.ID {
+		return nil, ErrSelfInvite
+	}
 
-	now := time.Now()
+	_, ok, err = s.Get(ctx, query.Where("invitee_id", "=", query.Arg(u.ID)))
 
-	q := query.Insert(
-		inviteTable,
-		query.Columns("namespace_id", "invitee_id", "inviter_id", "created_at"),
-		query.Values(p.NamespaceID, p.InviteeID, p.InviterID, now),
-		query.Returning("id"),
-	)
-
-	var id int64
-
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+	if err != nil {
 		return nil, errors.Err(err)
 	}
-	return &Invite{
-		ID:          id,
-		NamespaceID: p.NamespaceID,
-		InviteeID:   p.InviteeID,
-		InviterID:   p.InviterID,
-		CreatedAt:   now,
-		Invitee:     invitee,
-		Inviter:     inviter,
-	}, nil
-}
 
-func (s InviteStore) Delete(id int64) error {
-	q := query.Delete(inviteTable, query.Where("id", "=", query.Arg(id)))
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-		return errors.Err(err)
+	if ok {
+		return nil, ErrInviteSent
 	}
-	return nil
+
+	_, ok, err = NewCollaboratorStore(s.Pool).Get(ctx, query.Where("user_id", "=", query.Arg(u.ID)))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if ok {
+		return nil, ErrCollaborator
+	}
+
+	i := Invite{
+		NamespaceID: p.Namespace.ID,
+		InviterID:   p.Inviter.ID,
+		InviteeID:   u.ID,
+		CreatedAt:   time.Now(),
+		Namespace:   p.Namespace,
+		Inviter:     p.Inviter,
+		Invitee:     u,
+	}
+
+	if err := s.Store.Create(ctx, &i); err != nil {
+		return nil, errors.Err(err)
+	}
+	return &i, nil
 }

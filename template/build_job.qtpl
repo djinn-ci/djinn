@@ -1,0 +1,108 @@
+{%
+import (
+	"djinn-ci.com/build"
+)
+%}
+
+{% code
+type BuildJob struct {
+	*Page
+
+	Build     *BuildShow
+	Artifacts *BuildArtifacts
+	Job       *build.Job
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildJob) Title() %}{%s p.Job.Name %}{% endfunc %}
+
+{% func (p *BuildJob) Header() %}
+	<a class="back" href="{%s p.Job.Build.Endpoint() %}">{% cat "static/svg/back.svg" %}</a>
+	{% if p.Job.Build.Namespace != nil %}
+		<a href="{%s p.Job.Build.Namespace.Endpoint() %}">{%v p.Job.Build.Namespace.Name %}</a> /
+	{% endif %}
+ 	Build #{%v p.Job.Build.Number %} / {%s p.Job.Stage.Name %} - {%s p.Job.Name %}
+	{% if p.Job.Build.Pinned %}
+		<span class="muted" title="Pinned">{% cat "static/svg/pushpin.svg" %}</span>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *BuildJob) Actions() %}{% endfunc %}
+{% func (p *BuildJob) Navigation() %}{% endfunc %}
+{% func (p *BuildJob) Footer() %}{% endfunc %}
+
+{% func (p *BuildJob) renderJobTime(layout string) %}
+	<div class="panel">
+		<table class="table">
+			<tr>
+				<td>Status:</td>
+				<td class="align-right">{%= Status(p.Job.Status) %}</td>
+			</tr>
+			<tr>
+				<td>Started at:</td>
+				<td class="align-right">
+					{% if p.Job.StartedAt.Valid %}
+						{%s p.Job.StartedAt.Elem.Format(layout) %}
+					{% else %}
+						<span class="muted">--</span>
+					{% endif %}
+				</td>
+			</tr>
+			<tr>
+				<td>Finished at:</td>
+				<td class="align-right">
+					{% if p.Job.FinishedAt.Valid %}
+						{%s p.Job.FinishedAt.Elem.Format(layout) %}
+					{% else %}
+						<span class="muted">--</span>
+					{% endif %}
+				</td>
+			</tr>
+			<tr>
+				<td>Duration:</td>
+				<td class="align-right">
+					{% if !p.Job.FinishedAt.Valid || !p.Job.StartedAt.Valid %}
+						<span class="muted">--</span>
+					{% else %}
+						{%v p.Job.FinishedAt.Elem.Sub(p.Job.StartedAt.Elem) %}
+					{% endif %}
+				</td>
+			</tr>
+		</table>
+	</div>
+{% endfunc %}
+
+{% func (p *BuildJob) renderJobOutput() %}
+	<div class="panel">
+		{% if p.Job.Output.Valid %}
+			<div class="panel-header">
+				<h3>Output</h3>
+				<ul class="panel-actions">
+					<li>
+						<a class="btn btn-primary" href="{%s p.Job.Endpoint("output", "raw") %}">
+							{% cat "static/svg/document.svg" %}<span>Raw</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+			{%= Code(p.Job.Output.Elem) %}
+		{% else %}
+			<div class="panel-message muted">No job output has been produced.</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *BuildJob) Body() %}
+	<div class="overflow">
+		<div class="col-25 col-left">
+			{%= p.renderJobTime("Jan 02, 2006, at 15:04:05") %}
+		</div>
+		<div class="col-75 col-right">
+			{%= p.renderJobOutput() %}
+			{%= p.Build.renderBuildTrigger() %}
+			{%= p.Artifacts.Body() %}
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

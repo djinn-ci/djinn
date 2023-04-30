@@ -1,0 +1,31 @@
+{% import "djinn-ci.com/build" %}
+
+{% code
+type BuildManifest struct {
+	Build *build.Build
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildManifest) Title() %}Manifest{% endfunc %}
+
+{% func (p *BuildManifest) Header() %}{% endfunc %}
+{% func (p *BuildManifest) Actions() %}{% endfunc %}
+{% func (p *BuildManifest) Navigation() %}{% endfunc %}
+{% func (p *BuildManifest) Footer() %}{% endfunc %}
+
+{% func (p *BuildManifest) Body() %}
+	<div class="panel">
+		<div class="panel-header">
+			<ul class="panel-actions">
+				<li>
+					<a class="btn btn-primary" href="{%s p.Build.Endpoint("manifest", "raw") %}">
+						{% cat "static/svg/document.svg" %}<span>Raw</span>
+					</a>
+				</li>
+			</ul>
+		</div>
+		{%= Code(p.Build.Manifest.String()) %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

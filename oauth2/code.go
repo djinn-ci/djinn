@@ -1,135 +1,100 @@
 package oauth2
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/user"
-
-	"github.com/andrewpillar/query"
 )
 
 type Code struct {
+	loaded []string
+
 	ID        int64
 	UserID    int64
 	AppID     int64
 	Code      string
 	Scope     Scope
 	ExpiresAt time.Time
-
-	User *user.User
-	App  *App
 }
 
 var _ database.Model = (*Code)(nil)
 
-func (c *Code) Dest() []interface{} {
-	return []interface{}{
-		&c.ID,
-		&c.UserID,
-		&c.AppID,
-		&c.Code,
-		&c.Scope,
-		&c.ExpiresAt,
+func (c *Code) Primary() (string, any) { return "id", c.ID }
+
+func (c *Code) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":         &c.ID,
+		"user_id":    &c.UserID,
+		"app_id":     &c.AppID,
+		"code":       &c.Code,
+		"scope":      &c.Scope,
+		"expires_at": &c.ExpiresAt,
 	}
+
+	if err := database.Scan(r, valtab); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-func (c *Code) Bind(m database.Model) {
-	switch v := m.(type) {
-	case *App:
-		if c.AppID == v.ID {
-			c.App = v
-		}
-	case *user.User:
-		if c.UserID == v.ID {
-			c.User = v
-		}
+func (c *Code) Params() database.Params {
+	params := database.Params{
+		"id":         database.ImmutableParam(c.ID),
+		"user_id":    database.CreateOnlyParam(c.UserID),
+		"app_id":     database.CreateOnlyParam(c.AppID),
+		"code":       database.CreateOnlyParam(c.Code),
+		"scope":      database.CreateOnlyParam(c.Scope),
+		"expires_at": database.CreateOnlyParam(c.ExpiresAt),
 	}
+
+	if len(c.loaded) > 0 {
+		params.Only(c.loaded...)
+	}
+	return params
 }
 
-func (*Code) JSON(_ string) map[string]interface{} { return nil }
-
-func (*Code) Endpoint(_ ...string) string { return "" }
-
-func (c *Code) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":         c.ID,
-		"user_id":    c.UserID,
-		"app_id":     c.AppID,
-		"code":       c.Code,
-		"scope":      c.Scope,
-		"expires_at": c.ExpiresAt,
-	}
-}
+func (*Code) Bind(database.Model)          {}
+func (*Code) MarshalJSON() ([]byte, error) { return nil, nil }
+func (*Code) Endpoint(...string) string    { return "" }
 
 type CodeStore struct {
-	database.Pool
+	*database.Store[*Code]
 }
 
-var codeTable = "oauth_codes"
+func NewCodeStore(pool *database.Pool) *database.Store[*Code] {
+	return database.NewStore[*Code](pool, "oauth_codes", func() *Code {
+		return &Code{}
+	})
+}
 
 type CodeParams struct {
-	UserID int64
-	AppID  int64
-	Scope  Scope
+	User  *auth.User
+	AppID int64
+	Scope Scope
 }
 
-func (s CodeStore) Create(p CodeParams) (*Code, error) {
+func (s CodeStore) Create(ctx context.Context, p *CodeParams) (*Code, error) {
 	b := make([]byte, 16)
 
 	if _, err := rand.Read(b); err != nil {
 		return nil, errors.Err(err)
 	}
 
-	code := hex.EncodeToString(b)
-	expiresAt := time.Now().Add(time.Minute * 10)
+	c := Code{
+		UserID:    p.User.ID,
+		AppID:     p.AppID,
+		Code:      hex.EncodeToString(b),
+		Scope:     p.Scope,
+		ExpiresAt: time.Now().Add(time.Minute * 10),
+	}
 
-	q := query.Insert(
-		codeTable,
-		query.Columns("user_id", "app_id", "code", "scope", "expires_at"),
-		query.Values(p.UserID, p.AppID, code, p.Scope, expiresAt),
-		query.Returning("id"),
-	)
-
-	var id int64
-
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+	if err := s.Store.Create(ctx, &c); err != nil {
 		return nil, errors.Err(err)
 	}
-
-	return &Code{
-		ID:        id,
-		UserID:    p.UserID,
-		AppID:     p.AppID,
-		Code:      code,
-		Scope:     p.Scope,
-		ExpiresAt: expiresAt,
-	}, nil
-}
-
-func (s CodeStore) Delete(id int64) error {
-	q := query.Delete(codeTable, query.Where("id", "=", query.Arg(id)))
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
-func (s CodeStore) Get(opts ...query.Option) (*Code, bool, error) {
-	var c Code
-
-	ok, err := s.Pool.Get(codeTable, &c, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &c, ok, nil
+	return &c, nil
 }

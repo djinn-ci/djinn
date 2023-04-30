@@ -7,11 +7,12 @@ import (
 	"encoding/pem"
 	"testing"
 
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 )
 
 func Test_KeyCreate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 
@@ -39,7 +40,7 @@ func Test_KeyCreate(t *testing.T) {
 }
 
 func Test_KeyUpdate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 
@@ -73,7 +74,7 @@ func Test_KeyUpdate(t *testing.T) {
 }
 
 func Test_KeyDelete(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 

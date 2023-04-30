@@ -6,11 +6,12 @@ import (
 	"testing"
 	"time"
 
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 )
 
 func Test_WorkerOSDriver(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
 		Manifest: djinn.Manifest{
@@ -65,7 +66,7 @@ func Test_WorkerOSDriver(t *testing.T) {
 }
 
 func Test_WorkerBinaryOutput(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
 		Manifest: djinn.Manifest{
@@ -124,7 +125,7 @@ func Test_WorkerBinaryOutput(t *testing.T) {
 }
 
 func Test_WorkerKillBuild(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
 		Manifest: djinn.Manifest{
@@ -193,7 +194,7 @@ func Test_WorkerKillBuild(t *testing.T) {
 }
 
 func Test_WorkerCollectArtifacts(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
 		Manifest: djinn.Manifest{

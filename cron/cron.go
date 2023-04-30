@@ -3,7 +3,7 @@
 package cron
 
 import (
-	"database/sql"
+	"context"
 	"database/sql/driver"
 	"encoding/json"
 	"net/url"
@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/build"
 	"djinn-ci.com/database"
 	"djinn-ci.com/env"
@@ -19,7 +20,6 @@ import (
 	"djinn-ci.com/manifest"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/queue"
-	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 )
@@ -60,6 +60,15 @@ func (s Schedule) Next() time.Time {
 }
 
 var ErrInvalidSchedule = errors.New("invalid schedule")
+
+func (s Schedule) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(s.String())
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return b, nil
+}
 
 // UnmarshalJSON attempts to unmarshal the given byte slice as a JSON string,
 // and checks to see if it is a valid schedule of either daily, weekly, or
@@ -122,136 +131,118 @@ func (s *Schedule) Scan(val interface{}) error {
 }
 
 type Cron struct {
+	loaded []string
+
 	ID          int64
 	UserID      int64
 	AuthorID    int64
-	NamespaceID sql.NullInt64
+	NamespaceID database.Null[int64]
 	Name        string
 	Schedule    Schedule
 	Manifest    manifest.Manifest
-	PrevRun     sql.NullTime
+	PrevRun     database.Null[time.Time]
 	NextRun     time.Time
 	CreatedAt   time.Time
 
-	Author    *user.User
-	User      *user.User
+	Author    *auth.User
+	User      *auth.User
 	Namespace *namespace.Namespace
 }
 
 var _ database.Model = (*Cron)(nil)
 
-func LoadNamespaces(db database.Pool, cc ...*Cron) error {
-	mm := make([]database.Model, 0, len(cc))
+func (c *Cron) Primary() (string, any) { return "id", c.ID }
 
-	for _, c := range cc {
-		mm = append(mm, c)
+func (c *Cron) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":           &c.ID,
+		"user_id":      &c.UserID,
+		"author_id":    &c.AuthorID,
+		"namespace_id": &c.NamespaceID,
+		"name":         &c.Name,
+		"schedule":     &c.Schedule,
+		"manifest":     &c.Manifest,
+		"prev_run":     &c.PrevRun,
+		"next_run":     &c.NextRun,
+		"created_at":   &c.CreatedAt,
 	}
 
-	if err := namespace.Load(db, mm...); err != nil {
+	if err := database.Scan(r, valtab); err != nil {
 		return errors.Err(err)
 	}
+
+	c.loaded = r.Columns
 	return nil
 }
 
-func LoadRelations(db database.Pool, cc ...*Cron) error {
-	mm := make([]database.Model, 0, len(cc))
-
-	for _, c := range cc {
-		mm = append(mm, c)
+func (c *Cron) Params() database.Params {
+	params := database.Params{
+		"id":           database.ImmutableParam(c.ID),
+		"user_id":      database.CreateUpdateParam(c.UserID),
+		"author_id":    database.CreateOnlyParam(c.AuthorID),
+		"namespace_id": database.CreateUpdateParam(c.NamespaceID),
+		"name":         database.CreateUpdateParam(c.Name),
+		"schedule":     database.CreateUpdateParam(c.Schedule),
+		"manifest":     database.CreateUpdateParam(c.Manifest),
+		"prev_run":     database.UpdateOnlyParam(c.PrevRun),
+		"next_run":     database.CreateUpdateParam(c.NextRun),
+		"created_at":   database.CreateOnlyParam(c.CreatedAt),
 	}
 
-	if err := database.LoadRelations(mm, namespace.ResourceRelations(db)...); err != nil {
-		return errors.Err(err)
+	if len(c.loaded) > 0 {
+		params.Only(c.loaded...)
 	}
-	return nil
-}
-
-func (c *Cron) Dest() []interface{} {
-	return []interface{}{
-		&c.ID,
-		&c.UserID,
-		&c.AuthorID,
-		&c.NamespaceID,
-		&c.Name,
-		&c.Schedule,
-		&c.Manifest,
-		&c.PrevRun,
-		&c.NextRun,
-		&c.CreatedAt,
-	}
+	return params
 }
 
 func (c *Cron) Bind(m database.Model) {
 	switch v := m.(type) {
-	case *user.User:
+	case *auth.User:
 		c.Author = v
 
 		if c.UserID == v.ID {
 			c.User = v
 		}
 	case *namespace.Namespace:
-		if c.NamespaceID.Int64 == v.ID {
+		if c.NamespaceID.Elem == v.ID {
 			c.Namespace = v
 		}
 	}
 }
 
-func (c *Cron) JSON(addr string) map[string]interface{} {
+func (c *Cron) MarshalJSON() ([]byte, error) {
 	if c == nil {
-		return nil
+		return []byte("null"), nil
 	}
 
-	json := map[string]interface{}{
+	b, err := json.Marshal(map[string]any{
 		"id":           c.ID,
 		"author_id":    c.AuthorID,
 		"user_id":      c.UserID,
-		"namespace_id": nil,
-		"name":         c.Name,
-		"schedule":     c.Schedule.String(),
-		"manifest":     c.Manifest.String(),
-		"next_run":     c.NextRun.Format(time.RFC3339),
-		"created_at":   c.CreatedAt.Format(time.RFC3339),
-		"url":          addr + c.Endpoint(),
-	}
-
-	if c.Author != nil {
-		json["author"] = c.Author.JSON(addr)
-	}
-
-	if c.User != nil {
-		json["user"] = c.User.JSON(addr)
-	}
-
-	if c.NamespaceID.Valid {
-		json["namespace_id"] = c.NamespaceID.Int64
-
-		if c.Namespace != nil {
-			json["namespace"] = c.Namespace.JSON(addr)
-		}
-	}
-	return json
-}
-
-func (c *Cron) Endpoint(uri ...string) string {
-	if len(uri) > 0 {
-		return "/cron/" + strconv.FormatInt(c.ID, 10) + "/" + strings.Join(uri, "/")
-	}
-	return "/cron/" + strconv.FormatInt(c.ID, 10)
-}
-
-func (c *Cron) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":           c.ID,
-		"user_id":      c.UserID,
-		"author_id":    c.AuthorID,
 		"namespace_id": c.NamespaceID,
 		"name":         c.Name,
 		"schedule":     c.Schedule,
-		"manifest":     c.Manifest,
+		"manifest":     c.Manifest.String(),
 		"prev_run":     c.PrevRun,
 		"next_run":     c.NextRun,
 		"created_at":   c.CreatedAt,
+		"url":          env.DJINN_API_SERVER + c.Endpoint(),
+		"author":       c.Author,
+		"user":         c.User,
+		"namespace":    c.Namespace,
+	})
+
+	if err != nil {
+		return nil, errors.Err(err)
 	}
+	return b, nil
+}
+
+func (c *Cron) Endpoint(elems ...string) string {
+	if len(elems) > 0 {
+		return "/cron/" + strconv.FormatInt(c.ID, 10) + "/" + strings.Join(elems, "/")
+	}
+	return "/cron/" + strconv.FormatInt(c.ID, 10)
 }
 
 type Event struct {
@@ -278,8 +269,8 @@ func (e *Event) Perform() error {
 		return event.ErrNilDispatcher
 	}
 
-	ev := event.New(e.Cron.NamespaceID, event.Cron, map[string]interface{}{
-		"cron":   e.Cron.JSON(env.DJINN_API_SERVER),
+	ev := event.New(e.Cron.NamespaceID, event.Cron, map[string]any{
+		"cron":   e.Cron,
 		"action": e.Action,
 	})
 
@@ -289,43 +280,44 @@ func (e *Event) Perform() error {
 	return nil
 }
 
-type Store struct {
-	database.Pool
-}
-
-var (
-	_ database.Loader = (*Store)(nil)
-
+const (
 	table      = "cron"
 	buildTable = "cron_builds"
 )
 
-// SelectBuildIDs returns a query that will select the build_id column from the
-// cron_builds table where the cron_id matches the given id.
-func SelectBuildIDs(id int64) query.Query {
-	return query.Select(
-		query.Columns("build_id"),
-		query.From(buildTable),
-		query.Where("cron_id", "=", query.Arg(id)),
-	)
+type Store struct {
+	*database.Store[*Cron]
+}
+
+func NewStore(pool *database.Pool) *database.Store[*Cron] {
+	return database.NewStore[*Cron](pool, table, func() *Cron {
+		return &Cron{}
+	})
+}
+
+func SelectBuild(expr query.Expr, opts ...query.Option) query.Query {
+	return query.Select(expr, append([]query.Option{query.From(buildTable)}, opts...)...)
 }
 
 type Params struct {
-	UserID   int64
+	User     *auth.User
 	Name     string
 	Schedule Schedule
 	Manifest manifest.Manifest
 }
 
-func (s Store) Create(p Params) (*Cron, error) {
-	// userId is changed to the namespace userId if the cron if being submitted
-	// to a namespace.
-	userId := p.UserID
-
-	var (
-		n           *namespace.Namespace
-		namespaceId sql.NullInt64
-	)
+func (s Store) Create(ctx context.Context, p *Params) (*Cron, error) {
+	c := Cron{
+		UserID:    p.User.ID,
+		AuthorID:  p.User.ID,
+		Name:      p.Name,
+		Schedule:  p.Schedule,
+		Manifest:  p.Manifest,
+		NextRun:   p.Schedule.Next(),
+		CreatedAt: time.Now(),
+		User:      p.User,
+		Author:    p.User,
+	}
 
 	if p.Manifest.Namespace != "" {
 		path, err := namespace.ParsePath(p.Manifest.Namespace)
@@ -334,240 +326,132 @@ func (s Store) Create(p Params) (*Cron, error) {
 			return nil, errors.Err(err)
 		}
 
-		u, n0, err := path.ResolveOrCreate(s.Pool, p.UserID)
+		u, n, err := path.Resolve(ctx, s.Pool, p.User)
 
 		if err != nil {
 			return nil, errors.Err(err)
 		}
 
-		if err := n0.IsCollaborator(s.Pool, p.UserID); err != nil {
-			return nil, errors.Err(err)
-		}
-
-		userId = u.ID
-
-		n = n0
-		n.User = u
-
-		namespaceId = sql.NullInt64{
-			Int64: n.ID,
+		c.UserID = u.ID
+		c.User = u
+		c.NamespaceID = database.Null[int64]{
+			Elem:  n.ID,
 			Valid: true,
 		}
+		c.Namespace = n
 	}
 
-	now := time.Now()
-
-	q := query.Insert(
-		table,
-		query.Columns("user_id", "author_id", "namespace_id", "name", "schedule", "manifest", "next_run", "created_at"),
-		query.Values(userId, p.UserID, namespaceId, p.Name, p.Schedule, p.Manifest, p.Schedule.Next(), now),
-		query.Returning("id"),
-	)
-
-	var id int64
-
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+	if err := s.Store.Create(ctx, &c); err != nil {
 		return nil, errors.Err(err)
 	}
-
-	return &Cron{
-		ID:          id,
-		UserID:      userId,
-		AuthorID:    p.UserID,
-		NamespaceID: namespaceId,
-		Name:        p.Name,
-		Schedule:    p.Schedule,
-		Manifest:    p.Manifest,
-		NextRun:     p.Schedule.Next(),
-		CreatedAt:   now,
-		Namespace:   n,
-	}, nil
+	return &c, nil
 }
 
-func (s Store) Update(id int64, p Params) error {
-	opts := []query.Option{
-		query.Set("name", query.Arg(p.Name)),
-		query.Set("schedule", query.Arg(p.Schedule)),
-		query.Set("manifest", query.Arg(p.Manifest)),
-		query.Set("next_run", query.Arg(p.Schedule.Next())),
-	}
+func (s Store) Update(ctx context.Context, c *Cron) error {
+	loaded := c.loaded
+	c.loaded = []string{"name", "schedule", "manifest", "prev_run", "next_run"}
 
-	if p.Manifest.Namespace != "" {
-		path, err := namespace.ParsePath(p.Manifest.Namespace)
+	if c.Manifest.Namespace != "" {
+		path, err := namespace.ParsePath(c.Manifest.Namespace)
 
 		if err != nil {
 			return errors.Err(err)
 		}
 
-		u, n, err := path.ResolveOrCreate(s.Pool, p.UserID)
+		u, n, err := path.Resolve(ctx, s.Pool, c.User)
 
 		if err != nil {
 			return errors.Err(err)
 		}
 
-		opts = append(opts,
-			query.Set("user_id", query.Arg(u.ID)),
-			query.Set("namespace_id", query.Arg(n.ID)),
-		)
+		c.User = u
+		c.UserID = u.ID
+		c.NamespaceID = database.Null[int64]{
+			Elem:  n.ID,
+			Valid: n.ID > 0,
+		}
+		c.Namespace = n
 	}
 
-	opts = append(opts, query.Where("id", "=", query.Arg(id)))
-
-	q := query.Update(table, opts...)
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if err := s.Store.Update(ctx, c); err != nil {
 		return errors.Err(err)
 	}
-	return nil
-}
 
-func (s Store) Delete(id int64) error {
-	q := query.Delete(table, query.Where("id", "=", query.Arg(id)))
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-		return errors.Err(err)
-	}
+	c.loaded = loaded
 	return nil
 }
 
 // Invoke will create a new build for the given Cron if the NextRun time is
 // after the current time. This will add a tag to the created build detailing
 // the name of the Cron, and it's schedule.
-func (s Store) Invoke(c *Cron) (*build.Build, error) {
+func (s Store) Invoke(ctx context.Context, c *Cron) (*build.Build, error) {
 	if time.Now().Before(c.NextRun) {
 		return nil, nil
 	}
 
-	c.NextRun = c.Schedule.Next()
-
-	t := &build.Trigger{
-		Type:    build.Schedule,
-		Comment: c.Name + ": Scheduled build, next run " + c.NextRun.Format("Mon Jan 2 15:04:05 2006"),
-		Data: map[string]string{
-			"email":    c.User.Email,
-			"username": c.User.Username,
+	p := build.Params{
+		User: &auth.User{
+			ID: c.UserID,
+		},
+		Manifest: c.Manifest,
+		Trigger: &build.Trigger{
+			Type:    build.Schedule,
+			Comment: c.Name + ": Scheduled build, next run " + c.NextRun.Format("Mon Jan 2 15:04:05 2006"),
+			Data: map[string]string{
+				"email":    c.User.Email,
+				"username": c.User.Username,
+			},
+		},
+		Tags: []string{
+			"cron:" + strings.Replace(c.Name, " ", "-", -1),
 		},
 	}
 
-	tag := "cron:" + strings.Replace(c.Name, " ", "-", -1)
+	builds := build.Store{Store: build.NewStore(s.Pool)}
 
-	builds := build.Store{Pool: s.Pool}
-
-	b, err := builds.Create(build.Params{
-		UserID:   c.UserID,
-		Manifest: c.Manifest,
-		Trigger:  t,
-		Tags:     []string{tag},
-	})
+	b, err := builds.Create(ctx, &p)
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	q := query.Update(
-		table,
-		query.Set("prev_run", query.Arg(time.Now())),
-		query.Set("next_run", query.Arg(c.NextRun)),
-	)
+	c.PrevRun = database.Null[time.Time]{
+		Elem:  time.Now(),
+		Valid: true,
+	}
+	c.NextRun = c.Schedule.Next()
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if err := s.Update(ctx, c); err != nil {
 		return nil, errors.Err(err)
 	}
 
-	q = query.Insert(
+	q := query.Insert(
 		buildTable,
 		query.Columns("cron_id", "build_id"),
 		query.Values(c.ID, b.ID),
 	)
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := s.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		return nil, errors.Err(err)
 	}
 	return b, nil
 }
 
-func (s Store) Get(opts ...query.Option) (*Cron, bool, error) {
-	var c Cron
-
-	ok, err := s.Pool.Get(table, &c, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &c, ok, nil
-}
-
-func (s Store) All(opts ...query.Option) ([]*Cron, error) {
-	cc := make([]*Cron, 0)
-
-	new := func() database.Model {
-		c := &Cron{}
-		cc = append(cc, c)
-		return c
-	}
-
-	if err := s.Pool.All(table, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return cc, nil
-}
-
-func (s Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Pool.Paginate(table, page, limit, opts...)
-
-	if err != nil {
-		return paginator, errors.Err(err)
-	}
-	return paginator, nil
-}
-
-func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Cron, database.Paginator, error) {
-	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
-
-	if err != nil {
-		page = 1
-	}
+func (s Store) Index(ctx context.Context, vals url.Values, opts ...query.Option) (*database.Paginator[*Cron], error) {
+	page, _ := strconv.Atoi(vals.Get("page"))
 
 	opts = append([]query.Option{
 		database.Search("name", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, database.PageLimit, opts...)
+	p, err := s.Paginate(ctx, page, database.PageLimit, opts...)
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	cc, err := s.All(append(
-		opts,
-		query.OrderAsc("name"),
-		query.Limit(paginator.Limit),
-		query.Offset(paginator.Offset),
-	)...)
-
-	if err != nil {
-		return nil, paginator, errors.Err(err)
+	if err := p.Load(ctx, s.Store, append(opts, query.OrderAsc("name"))...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return cc, paginator, nil
-}
-
-func (s Store) Load(fk, pk string, mm ...database.Model) error {
-	vals := database.Values(fk, mm)
-
-	uu, err := s.All(query.Where(pk, "IN", database.List(vals...)))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, u := range uu {
-		for _, m := range mm {
-			m.Bind(u)
-		}
-	}
-	return nil
+	return p, nil
 }

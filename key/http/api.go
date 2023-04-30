@@ -3,124 +3,87 @@ package http
 import (
 	"net/http"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/key"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/server"
-	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type API struct {
 	*Handler
-
-	Prefix string
 }
 
-func (h API) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	kk, paginator, err := h.IndexWithRelations(u, r)
+func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
 		return
 	}
 
-	data := make([]map[string]interface{}, 0, len(kk))
-	addr := webutil.BaseAddress(r) + h.Prefix
-
-	for _, k := range kk {
-		data = append(data, k.JSON(addr))
-	}
-
-	w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-	webutil.JSON(w, data, http.StatusOK)
+	w.Header().Set("Link", p.EncodeToLink(r.URL))
+	webutil.JSON(w, p.Items, http.StatusOK)
 }
 
-func (h API) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
-	k, _, err := h.StoreModel(u, r)
+func (h API) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	k, _, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		switch err := cause.(type) {
-		case webutil.ValidationErrors:
-			if errs, ok := err["fatal"]; ok {
-				h.InternalServerError(w, r, errors.Slice(errs))
-				return
-			}
-			webutil.JSON(w, err, http.StatusBadRequest)
-		case *namespace.PathError:
-			webutil.JSON(w, map[string][]string{"namespace": {err.Error()}}, http.StatusBadRequest)
-		default:
-			h.InternalServerError(w, r, errors.Err(err))
-		}
+		h.FormError(w, r, nil, err)
 		return
 	}
-	webutil.JSON(w, k.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, k, http.StatusCreated)
 }
 
-func (h API) Show(u *user.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
-	if err := key.LoadRelations(h.DB, k); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
+func (h API) Show(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
-	if err := key.LoadNamespaces(h.DB, k); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+	if err := namespace.LoadResourceRelations[*key.Key](ctx, h.DB, k); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to load relations"))
 		return
 	}
-	webutil.JSON(w, k.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, k, http.StatusOK)
 }
 
-func (h API) Update(u *user.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
-	k, _, err := h.UpdateModel(k, r)
+func (h API) Update(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
+	k, _, err := h.Handler.Update(u, k, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
-				h.InternalServerError(w, r, errors.Slice(errs))
-				return
-			}
-
-			webutil.JSON(w, verrs, http.StatusBadRequest)
-			return
-		}
-
-		if errors.Is(err, namespace.ErrPermission) {
-			webutil.JSON(w, map[string][]string{"namespace": {"Could not find namespace"}}, http.StatusBadRequest)
-			return
-		}
-
-		h.InternalServerError(w, r, errors.Err(err))
+		h.FormError(w, r, nil, err)
 		return
 	}
-	webutil.JSON(w, k.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, k, http.StatusOK)
 }
 
-func (h API) Destroy(u *user.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
-	if err := h.DeleteModel(r.Context(), k); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+func (h API) Destroy(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
+	if err := h.Handler.Destroy(r.Context(), k); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete key"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func RegisterAPI(prefix string, srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func RegisterAPI(a auth.Authenticator, srv *server.Server) {
 	api := API{
 		Handler: NewHandler(srv),
-		Prefix:  prefix,
 	}
 
+	index := api.Restrict(a, []string{"key:read"}, api.Index)
+	store := api.Restrict(a, []string{"key:write"}, api.Store)
+
+	a = namespace.NewAuth(a, "key", api.Keys.Store)
+
+	show := api.Restrict(a, []string{"key:read"}, api.Key(api.Show))
+	update := api.Restrict(a, []string{"key:write"}, api.Key(api.Update))
+	destroy := api.Restrict(a, []string{"key:delete"}, api.Key(api.Destroy))
+
 	sr := srv.Router.PathPrefix("/keys").Subrouter()
-	sr.HandleFunc("", user.WithUser(api.Index)).Methods("GET")
-	sr.HandleFunc("", user.WithUser(api.Store)).Methods("POST")
-	sr.HandleFunc("/{key:[0-9]+}", user.WithUser(api.WithKey(api.Show))).Methods("GET")
-	sr.HandleFunc("/{key:[0-9]+}", user.WithUser(api.WithKey(api.Update))).Methods("PATCH")
-	sr.HandleFunc("/{key:[0-9]+}", user.WithUser(api.WithKey(api.Destroy))).Methods("DELETE")
+	sr.HandleFunc("", index).Methods("GET")
+	sr.HandleFunc("", store).Methods("POST")
+	sr.HandleFunc("/{key:[0-9]+}", show).Methods("GET")
+	sr.HandleFunc("/{key:[0-9]+}", update).Methods("PATCH")
+	sr.HandleFunc("/{key:[0-9]+}", destroy).Methods("DELETE")
 }

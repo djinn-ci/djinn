@@ -2,20 +2,27 @@ package http
 
 import (
 	"bytes"
+	"context"
 	"io"
+	"mime/multipart"
+	"net/url"
 	"regexp"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/image"
 	"djinn-ci.com/namespace"
 
-	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type Form struct {
-	File        *webutil.File
+	Pool *database.Pool `schema:"-"`
+	User *auth.User     `schema:"-"`
+
 	Namespace   namespace.Path
+	File        multipart.File
 	Name        string
 	DownloadURL image.DownloadURL `json:"download_url" schema:"download_url"`
 }
@@ -28,90 +35,88 @@ func (f Form) Fields() map[string]string {
 	}
 }
 
-type Validator struct {
-	UserID int64
-	Images *image.Store
-	File   *webutil.FileValidator
-	Form   *Form
+func fileExists(_ context.Context, val any) error {
+	if val == nil {
+		return webutil.ErrFieldRequired
+	}
+	return nil
 }
 
-var rename = regexp.MustCompile("^[a-zA-Z0-9_\\-]+$")
-
-func (v Validator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Name == "" {
-		errs.Add("name", webutil.ErrFieldRequired("Name"))
+func fileIsQCOW2(_ context.Context, val any) error {
+	if val == nil {
+		return webutil.ErrFieldRequired
 	}
 
-	if !rename.Match([]byte(v.Form.Name)) {
-		errs.Add("name", errors.New("Name can only contain letters, numbers, and dashes"))
+	f := val.(multipart.File)
+
+	buf := make([]byte, len(image.QCOW2Sig))
+
+	if _, err := f.Read(buf); err != nil {
+		return err
 	}
 
-	opts := []query.Option{
-		query.Where("user_id", "=", query.Arg(v.UserID)),
-		query.Where("name", "=", query.Arg(v.Form.Name)),
+	f.Seek(0, io.SeekStart)
+
+	if !bytes.Equal(buf, image.QCOW2Sig) {
+		return errors.New("not a valid QCOW2 file format")
+	}
+	return nil
+}
+
+func validScheme(_ context.Context, val any) error {
+	url := val.(*url.URL)
+
+	schemes := map[string]struct{}{
+		"http":  {},
+		"https": {},
+		"sftp":  {},
 	}
 
-	if v.Form.Namespace.Valid {
-		_, n, err := v.Form.Namespace.ResolveOrCreate(v.Images.Pool, v.UserID)
+	if _, ok := schemes[url.Scheme]; !ok {
+		return errors.New("invalid url scheme")
+	}
+	return nil
+}
 
-		if err != nil {
-			if perr, ok := err.(*namespace.PathError); ok {
-				errs.Add("namespace", perr)
-				return
-			}
-			errs.Add("fatal", err)
-			return
-		}
+func sftpHasPassword(_ context.Context, val any) error {
+	url := val.(*url.URL)
 
-		if err := n.IsCollaborator(v.Images.Pool, v.UserID); err != nil {
-			if errors.Is(err, namespace.ErrPermission) {
-				errs.Add("namespace", err)
-				return
-			}
-			errs.Add("fatal", err)
-			return
-		}
-		opts[0] = query.Where("namespace_id", "=", query.Arg(n.ID))
+	if url.Scheme != "sftp" {
+		return nil
 	}
 
-	_, ok, err := v.Images.Get(opts...)
+	if _, ok := url.User.Password(); !ok {
+		return errors.New("missing password from SFTP URL")
+	}
+	return nil
+}
 
-	if err != nil {
-		errs.Add("fatal", err)
-		return
+var reName = regexp.MustCompile("^[a-zA-Z0-9_\\-]+$")
+
+func (f Form) Validate(ctx context.Context) error {
+	var v webutil.Validator
+
+	v.WrapError(
+		webutil.IgnoreError("name", database.ErrPermission),
+		webutil.MapError(database.ErrPermission, errors.New("permission denied")),
+		webutil.WrapFieldError,
+	)
+
+	v.Add("namespace", f.Namespace, namespace.CanAccess(f.Pool, f.User))
+
+	v.Add("name", f.Name, webutil.FieldRequired)
+	v.Add("name", f.Name, webutil.FieldMatches(reName))
+	v.Add("name", f.Name, namespace.ResourceUnique[*image.Image](image.NewStore(f.Pool), f.User, "name", f.Namespace))
+
+	if f.DownloadURL.URL == nil {
+		v.Add("file", f.File, fileExists)
+		v.Add("file", f.File, fileIsQCOW2)
+	} else {
+		v.Add("download_url", f.DownloadURL.URL, validScheme)
+		v.Add("download_url", f.DownloadURL.URL, sftpHasPassword)
 	}
 
-	if ok {
-		errs.Add("name", webutil.ErrFieldExists("Name"))
-	}
+	errs := v.Validate(ctx)
 
-	if v.Form.DownloadURL.URL == nil {
-		v.File.Validate(errs)
-
-		// Nil file indicates no file sent in the request, this error would be
-		// set in the previous Validate call, so return early.
-		if !v.File.HasFile() {
-			return
-		}
-
-		buf := make([]byte, 4)
-
-		if _, err := v.File.Read(buf); err != nil {
-			errs.Add("fatal", err)
-			return
-		}
-
-		if !bytes.Equal(buf, image.QCOW2Sig) {
-			errs.Add("file", errors.New("File is not a valid QCOW2 file format"))
-		}
-
-		v.File.Seek(0, io.SeekStart)
-		return
-	}
-
-	if v.Form.DownloadURL.Scheme == "sftp" {
-		if _, ok := v.Form.DownloadURL.User.Password(); !ok {
-			errs.Add("download_url", errors.New("Missing password from SFTP URL"))
-		}
-	}
+	return errs.Err()
 }

@@ -4,8 +4,9 @@ go 1.18
 
 require (
 	github.com/andrewpillar/config v1.0.0
+	github.com/andrewpillar/fs v0.0.0-20230416204702-a009058fc080
 	github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd
-	github.com/andrewpillar/webutil v1.0.0
+	github.com/andrewpillar/webutil/v2 v2.2.1
 	github.com/docker/docker v20.10.21+incompatible
 	github.com/go-redis/redis v6.15.7+incompatible
 	github.com/google/uuid v1.3.0
@@ -17,7 +18,7 @@ require (
 	github.com/jackc/pgconn v1.10.1
 	github.com/jackc/pgx/v4 v4.14.1
 	github.com/mcmathja/curlyq v0.4.0
-	github.com/pkg/sftp v1.10.1
+	github.com/pkg/sftp v1.13.5
 	github.com/rbcervilla/redisstore v1.1.0
 	github.com/speps/go-hashids v2.0.0+incompatible
 	github.com/valyala/quicktemplate v1.4.1

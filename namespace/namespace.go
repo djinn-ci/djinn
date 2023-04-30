@@ -1,12 +1,14 @@
 package namespace
 
 import (
-	"database/sql"
+	"context"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
 	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
@@ -15,13 +17,17 @@ import (
 	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type Namespace struct {
+	loaded    []string
+	collabtab map[int64]struct{}
+
 	ID          int64
 	UserID      int64
-	RootID      sql.NullInt64
-	ParentID    sql.NullInt64
+	RootID      database.Null[int64]
+	ParentID    database.Null[int64]
 	Name        string
 	Path        string
 	Description string
@@ -29,85 +35,225 @@ type Namespace struct {
 	Visibility  Visibility
 	CreatedAt   time.Time
 
-	User   *user.User
+	User   *auth.User
 	Parent *Namespace
 	Build  database.Model
-
-	collabtab map[int64]struct{}
 }
 
-var _ database.Model = (*Namespace)(nil)
+func CanAccess(db *database.Pool, u *auth.User) webutil.ValidatorFunc {
+	return func(ctx context.Context, val any) error {
+		p := val.(Path)
 
-func Relations(db database.Pool) []database.RelationFunc {
-	return []database.RelationFunc{
-		database.Relation("user_id", "id", user.Store{Pool: db}),
+		if p.Valid {
+			_, n, err := p.Resolve(ctx, db, u)
+
+			if err != nil {
+				if _, ok := err.(*PathError); !ok {
+					return errors.Err(err)
+				}
+				return err
+			}
+
+			if err := n.IsCollaborator(ctx, db, u); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 }
 
-func ResourceRelations(db database.Pool) []database.RelationFunc {
-	users := user.Store{Pool: db}
+func ResourceUnique[M database.Model](s *database.Store[M], u *auth.User, field string, p Path) webutil.ValidatorFunc {
+	return func(ctx context.Context, val any) error {
+		opts := []query.Option{
+			query.Where("user_id", "=", query.Arg(u.ID)),
+			query.Where(field, "=", query.Arg(val)),
+		}
 
-	return []database.RelationFunc{
-		database.Relation("user_id", "id", users),
-		database.Relation("author_id", "id", users),
+		if p.Valid {
+			_, n, err := p.Resolve(ctx, s.Pool, u)
+
+			if err != nil {
+				if _, ok := err.(*PathError); !ok {
+					return errors.Err(err)
+				}
+				return err
+			}
+
+			if err := n.IsCollaborator(ctx, s.Pool, u); err != nil {
+				return err
+			}
+			opts[0] = query.Where("namespace_id", "=", query.Arg(n.ID))
+		}
+
+		_, ok, err := s.SelectOne(ctx, []string{field}, opts...)
+
+		if err != nil {
+			return errors.Err(err)
+		}
+		if ok {
+			return webutil.ErrFieldExists
+		}
+		return nil
 	}
 }
 
-// Load the namespace and owner to the given models if they belong to a
-// namespace.
-func Load(db database.Pool, mm ...database.Model) error {
-	vals := database.Values("namespace_id", mm)
+func LoadResourceRelations[M database.Model](ctx context.Context, db *database.Pool, mm ...M) error {
+	if len(mm) == 0 {
+		return nil
+	}
 
-	namespaces := Store{Pool: db}
+	ids := database.Map[M, any](mm, func(m M) any {
+		param := m.Params()["namespace_id"]
+		return param.Value
+	})
 
-	nn, err := namespaces.All(query.Where("id", "IN", database.List(vals...)))
+	nn, err := NewStore(db).All(ctx, query.Where("id", "IN", query.List(ids...)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	mm2 := make([]database.Model, 0, len(nn))
+	loaded := make([]database.Model, 0, len(nn))
 
 	for _, n := range nn {
-		mm2 = append(mm2, n)
+		loaded = append(loaded, n)
+
+		for _, m := range mm {
+			m.Bind(n)
+		}
 	}
 
-	rel := database.Relation("user_id", "id", user.Store{Pool: db})
-
-	if err := database.LoadRelations(mm2, rel); err != nil {
+	if err := user.Loader(db).Load(ctx, "user_id", "id", loaded...); err != nil {
 		return errors.Err(err)
 	}
 
-	database.Bind("namespace_id", "id", mm2, mm)
-	return nil
-}
-
-func LoadRelations(db database.Pool, nn ...*Namespace) error {
-	mm := make([]database.Model, 0, len(nn))
-
-	for _, n := range nn {
-		mm = append(mm, n)
+	rels := []database.Relation{
+		{From: "user_id", To: "id", Loader: user.Loader(db)},
+		{From: "author_id", To: "id", Loader: user.Loader(db)},
 	}
 
-	if err := database.LoadRelations(mm, Relations(db)...); err != nil {
+	if err := database.LoadRelations[M](ctx, mm, rels...); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-// loadCollaborators loads the collaborators for the root of the namespace.
-func (n *Namespace) loadCollaborators(db database.Pool) error {
+var _ database.Model = (*Namespace)(nil)
+
+func (n *Namespace) Primary() (string, any) { return "id", n.ID }
+
+func (n *Namespace) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":          &n.ID,
+		"user_id":     &n.UserID,
+		"root_id":     &n.RootID,
+		"parent_id":   &n.ParentID,
+		"name":        &n.Name,
+		"path":        &n.Path,
+		"description": &n.Description,
+		"level":       &n.Level,
+		"visibility":  &n.Visibility,
+		"created_at":  &n.CreatedAt,
+	}
+
+	if err := database.Scan(r, valtab); err != nil {
+		return errors.Err(err)
+	}
+
+	n.loaded = r.Columns
+	return nil
+}
+
+func (n *Namespace) Params() database.Params {
+	params := database.Params{
+		"id":          database.ImmutableParam(n.ID),
+		"user_id":     database.CreateOnlyParam(n.UserID),
+		"root_id":     database.CreateUpdateParam(n.RootID),
+		"parent_id":   database.CreateUpdateParam(n.ParentID),
+		"name":        database.CreateOnlyParam(n.Name),
+		"path":        database.CreateOnlyParam(n.Path),
+		"description": database.CreateUpdateParam(n.Description),
+		"level":       database.CreateOnlyParam(n.Level),
+		"visibility":  database.CreateUpdateParam(n.Visibility),
+		"created_at":  database.CreateOnlyParam(n.CreatedAt),
+	}
+
+	if len(n.loaded) > 0 {
+		params.Only(n.loaded...)
+	}
+	return params
+}
+
+func (n *Namespace) MarshalJSON() ([]byte, error) {
+	if n == nil {
+		return []byte("null"), nil
+	}
+
+	b, err := json.Marshal(map[string]any{
+		"id":                n.ID,
+		"user_id":           n.UserID,
+		"root_id":           n.RootID,
+		"parent_id":         n.ParentID,
+		"name":              n.Name,
+		"path":              n.Path,
+		"description":       n.Description,
+		"visibility":        n.Visibility,
+		"created_at":        n.CreatedAt,
+		"url":               env.DJINN_API_SERVER + n.Endpoint(),
+		"builds_url":        env.DJINN_API_SERVER + n.Endpoint("builds"),
+		"namespaces_url":    env.DJINN_API_SERVER + n.Endpoint("namespaces"),
+		"images_url":        env.DJINN_API_SERVER + n.Endpoint("images"),
+		"objects_url":       env.DJINN_API_SERVER + n.Endpoint("objects"),
+		"variables_url":     env.DJINN_API_SERVER + n.Endpoint("variables"),
+		"keys_url":          env.DJINN_API_SERVER + n.Endpoint("keys"),
+		"invites_url":       env.DJINN_API_SERVER + n.Endpoint("invites"),
+		"collaborators_url": env.DJINN_API_SERVER + n.Endpoint("collaborators"),
+		"webhooks_url":      env.DJINN_API_SERVER + n.Endpoint("webhooks"),
+		"user":              n.User,
+		"build":             n.Build,
+		"parent":            n.Parent,
+	})
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return b, nil
+}
+
+func (n *Namespace) Bind(m database.Model) {
+	switch v := m.(type) {
+	case *auth.User:
+		if n.UserID == v.ID {
+			n.User = v
+		}
+	case *Namespace:
+		if n.ID == v.ParentID.Elem {
+			n.Parent = v
+		}
+	}
+}
+
+func (n *Namespace) Endpoint(elems ...string) string {
+	if n.User == nil {
+		return ""
+	}
+
+	if len(elems) > 0 {
+		return "/n/" + n.User.Username + "/" + n.Path + "/-/" + strings.Join(elems, "/")
+	}
+	return "/n/" + n.User.Username + "/" + n.Path
+}
+
+func (n *Namespace) loadCollaborators(ctx context.Context, pool *database.Pool) error {
 	if n.collabtab != nil {
 		return nil
 	}
 
-	q := query.Select(
-		query.Columns("user_id"),
-		query.From(collaboratorTable),
+	cc, err := NewCollaboratorStore(pool).Select(
+		ctx,
+		[]string{"user_id"},
 		query.Where("namespace_id", "=", query.Arg(n.RootID)),
 	)
-
-	rows, err := db.Query(q.Build(), q.Args()...)
 
 	if err != nil {
 		return errors.Err(err)
@@ -115,13 +261,8 @@ func (n *Namespace) loadCollaborators(db database.Pool) error {
 
 	n.collabtab = make(map[int64]struct{})
 
-	var id int64
-
-	for rows.Next() {
-		if err := rows.Scan(&id); err != nil {
-			return errors.Err(err)
-		}
-		n.collabtab[id] = struct{}{}
+	for _, c := range cc {
+		n.collabtab[c.UserID] = struct{}{}
 	}
 	return nil
 }
@@ -129,149 +270,50 @@ func (n *Namespace) loadCollaborators(db database.Pool) error {
 // IsCollaborator checks to see if the user is a collaborator in the current
 // namespace. This returns ErrPermission if the user is not a collaborator
 // or the namespace owner.
-func (n *Namespace) IsCollaborator(db database.Pool, userId int64) error {
-	if err := n.loadCollaborators(db); err != nil {
+func (n *Namespace) IsCollaborator(ctx context.Context, pool *database.Pool, u *auth.User) error {
+	if n.UserID == u.ID {
+		return nil
+	}
+
+	if err := n.loadCollaborators(ctx, pool); err != nil {
 		return errors.Err(err)
 	}
 
-	if _, ok := n.collabtab[userId]; !ok {
-		if n.UserID != userId {
-			return ErrPermission
-		}
+	if _, ok := n.collabtab[u.ID]; !ok {
+		return database.ErrPermission
 	}
 	return nil
 }
 
 // HasAccess checks to see if a user can access the current namespace. This
-// will return ErrPermission if the user cannot access the namespace. A
+// will return database.ErrPermission if the user cannot access the namespace. A
 // namespace can be accessed if,
 //
 // - It is public
 // - It is internal, and the user is logged in
 // - It is private, and the user is a collaborator in that namespace
-func (n *Namespace) HasAccess(db database.Pool, userId int64) error {
+func (n *Namespace) HasAccess(ctx context.Context, pool *database.Pool, u *auth.User) error {
 	switch n.Visibility {
 	case Public:
 		return nil
 	case Internal:
-		if userId > 0 {
+		if u.ID > 0 {
 			return nil
 		}
-		return ErrPermission
+		return database.ErrPermission
 	case Private:
-		if err := n.loadCollaborators(db); err != nil {
+		if err := n.loadCollaborators(ctx, pool); err != nil {
 			return errors.Err(err)
 		}
 
-		if _, ok := n.collabtab[userId]; !ok {
-			if n.UserID != userId {
-				return ErrPermission
+		if _, ok := n.collabtab[u.ID]; !ok {
+			if n.UserID != u.ID {
+				return database.ErrPermission
 			}
 		}
 		return nil
 	default:
-		return ErrPermission
-	}
-}
-
-func (n *Namespace) JSON(addr string) map[string]interface{} {
-	if n == nil {
-		return nil
-	}
-
-	json := map[string]interface{}{
-		"id":                n.ID,
-		"user_id":           n.UserID,
-		"root_id":           n.RootID.Int64,
-		"parent_id":         nil,
-		"name":              n.Name,
-		"path":              n.Path,
-		"description":       n.Description,
-		"visibility":        n.Visibility.String(),
-		"created_at":        n.CreatedAt.Format(time.RFC3339),
-		"url":               addr + n.Endpoint(),
-		"builds_url":        addr + n.Endpoint("builds"),
-		"namespaces_url":    addr + n.Endpoint("namespaces"),
-		"images_url":        addr + n.Endpoint("images"),
-		"objects_url":       addr + n.Endpoint("objects"),
-		"variables_url":     addr + n.Endpoint("variables"),
-		"keys_url":          addr + n.Endpoint("keys"),
-		"invites_url":       addr + n.Endpoint("invites"),
-		"collaborators_url": addr + n.Endpoint("collaborators"),
-		"webhooks_url":      addr + n.Endpoint("webhooks"),
-	}
-
-	if n.User != nil {
-		json["user"] = n.User.JSON(addr)
-	}
-
-	if n.Build != nil {
-		if v := n.Build.JSON(addr); v != nil {
-			json["build"] = v
-		}
-	}
-
-	if n.ParentID.Valid {
-		json["parent_id"] = n.ParentID.Int64
-
-		if n.Parent != nil {
-			json["parent"] = n.Parent.JSON(addr)
-		}
-	}
-	return json
-}
-
-func (n *Namespace) Dest() []interface{} {
-	return []interface{}{
-		&n.ID,
-		&n.UserID,
-		&n.RootID,
-		&n.ParentID,
-		&n.Name,
-		&n.Path,
-		&n.Description,
-		&n.Level,
-		&n.Visibility,
-		&n.CreatedAt,
-	}
-}
-
-func (n *Namespace) Bind(m database.Model) {
-	switch v := m.(type) {
-	case *user.User:
-		if n.UserID == v.ID {
-			n.User = v
-		}
-	case *Namespace:
-		if n.ID == v.ParentID.Int64 {
-			n.Parent = v
-		}
-	}
-}
-
-func (n *Namespace) Endpoint(uri ...string) string {
-	if n.User == nil {
-		return ""
-	}
-
-	if len(uri) > 0 {
-		return "/n/" + n.User.Username + "/" + n.Path + "/-/" + strings.Join(uri, "/")
-	}
-	return "/n/" + n.User.Username + "/" + n.Path
-}
-
-func (n *Namespace) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":          n.ID,
-		"user_id":     n.UserID,
-		"root_id":     n.RootID,
-		"parent_id":   n.ParentID,
-		"name":        n.Name,
-		"path":        n.Path,
-		"description": n.Description,
-		"level":       n.Level,
-		"visibility":  n.Visibility,
-		"created_at":  n.CreatedAt,
+		return database.ErrPermission
 	}
 }
 
@@ -299,13 +341,13 @@ func (e *Event) Perform() error {
 		return event.ErrNilDispatcher
 	}
 
-	namespaceId := sql.NullInt64{
-		Int64: e.Namespace.ID,
+	namespaceId := database.Null[int64]{
+		Elem:  e.Namespace.ID,
 		Valid: true,
 	}
 
-	ev := event.New(namespaceId, event.Namespaces, map[string]interface{}{
-		"namespace": e.Namespace.JSON(env.DJINN_API_SERVER),
+	ev := event.New(namespaceId, event.Namespaces, map[string]any{
+		"namespace": e.Namespace,
 		"action":    e.Action,
 	})
 
@@ -316,21 +358,34 @@ func (e *Event) Perform() error {
 }
 
 type Store struct {
-	database.Pool
+	*database.Store[*Namespace]
 }
 
+func Select(expr query.Expr, opts ...query.Option) query.Query {
+	return query.Select(expr, append([]query.Option{query.From(table)}, opts...)...)
+}
+
+const table = "namespaces"
+
+func Loader(pool *database.Pool) database.Loader {
+	return database.ModelLoader(pool, table, func() database.Model {
+		return &Namespace{}
+	})
+}
+
+func NewStore(pool *database.Pool) *database.Store[*Namespace] {
+	return database.NewStore[*Namespace](pool, table, func() *Namespace {
+		return &Namespace{}
+	})
+}
+
+const MaxDepth int64 = 20
+
 var (
-	_ database.Loader = (*Store)(nil)
-
-	table = "namespaces"
-
-	MaxDepth int64 = 20
-
-	ErrOwner      = errors.New("invalid namespace owner")
-	ErrDepth      = errors.New("namespace cannot exceed depth of 20")
-	ErrName       = errors.New("namespace name can only contain letters and numbers")
-	ErrPermission = errors.New("namespace permissions invalid")
-	ErrDeleteSelf = errors.New("cannot delete self from namespace")
+	ErrOwner      = errors.New("namespace: invalid owner")
+	ErrDepth      = errors.New("namespace: cannot exceed depth of 20")
+	ErrName       = errors.New("namespace: name can only contain letters and numbers")
+	ErrDeleteSelf = errors.New("namespace: cannot delete self from namespace")
 )
 
 // SelectRootId returns query.Query that will return the root_id of the
@@ -359,16 +414,17 @@ func SharedWith(userId int64) query.Option {
 }
 
 type Params struct {
-	UserID      int64
+	User        *auth.User
 	Parent      string
 	Name        string
 	Description string
 	Visibility  Visibility
 }
 
-func (s Store) Create(p Params) (*Namespace, error) {
+func (s Store) Create(ctx context.Context, p *Params) (*Namespace, error) {
 	parent, ok, err := s.Get(
-		query.Where("user_id", "=", query.Arg(p.UserID)),
+		ctx,
+		query.Where("user_id", "=", query.Arg(p.User.ID)),
 		query.Where("path", "=", query.Arg(p.Parent)),
 	)
 
@@ -377,12 +433,12 @@ func (s Store) Create(p Params) (*Namespace, error) {
 	}
 
 	if !ok && p.Parent != "" {
-		return nil, database.ErrNotFound
+		return nil, database.ErrNoRows
 	}
 
 	var (
-		rootId   sql.NullInt64
-		parentId sql.NullInt64
+		rootId   database.Null[int64]
+		parentId database.Null[int64]
 		level    int64
 	)
 
@@ -390,56 +446,23 @@ func (s Store) Create(p Params) (*Namespace, error) {
 
 	if ok {
 		rootId = parent.RootID
-		parentId = sql.NullInt64{
-			Int64: parent.ID,
-			Valid: true,
-		}
+
+		parentId.Elem = parent.ID
+		parentId.Valid = true
 
 		level = parent.Level + 1
-		path = strings.Join([]string{parent.Path, p.Name}, "/")
 
 		p.Visibility = parent.Visibility
+		path = strings.Join([]string{parent.Path, p.Name}, "/")
 	}
 
 	if level >= MaxDepth {
 		return nil, ErrDepth
 	}
 
-	now := time.Now()
-
-	q := query.Insert(
-		table,
-		query.Columns("user_id", "root_id", "parent_id", "name", "path", "description", "level", "visibility", "created_at"),
-		query.Values(p.UserID, rootId, parentId, p.Name, path, p.Description, level, p.Visibility, now),
-		query.Returning("id"),
-	)
-
-	var id int64
-
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
-		return nil, errors.Err(err)
-	}
-
-	if !ok {
-		rootId = sql.NullInt64{
-			Int64: id,
-			Valid: true,
-		}
-
-		q = query.Update(
-			table,
-			query.Set("root_id", query.Arg(rootId)),
-			query.Where("id", "=", query.Arg(id)),
-		)
-
-		if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-			return nil, errors.Err(err)
-		}
-	}
-
-	return &Namespace{
-		ID:          id,
-		UserID:      p.UserID,
+	n := Namespace{
+		loaded:      []string{"*"},
+		UserID:      p.User.ID,
 		RootID:      rootId,
 		ParentID:    parentId,
 		Name:        p.Name,
@@ -447,17 +470,35 @@ func (s Store) Create(p Params) (*Namespace, error) {
 		Description: p.Description,
 		Level:       level,
 		Visibility:  p.Visibility,
-		CreatedAt:   now,
-		Parent:      parent,
-	}, nil
+		CreatedAt:   time.Now(),
+		User:        p.User,
+	}
+
+	if err := s.Store.Create(ctx, &n); err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if !n.RootID.Valid {
+		n.loaded[0] = "root_id"
+
+		n.RootID.Elem = n.ID
+		n.RootID.Valid = true
+
+		if err := s.Store.Update(ctx, &n); err != nil {
+			return nil, errors.Err(err)
+		}
+	}
+	return &n, nil
 }
 
-func (s Store) Update(id int64, p Params) error {
-	parent, ok, err := s.Get(
+func (s Store) Update(ctx context.Context, n *Namespace) error {
+	parent, ok, err := s.SelectOne(
+		ctx,
+		[]string{"visibility"},
 		query.Where("id", "=", query.Select(
 			query.Columns("parent_id"),
 			query.From(table),
-			query.Where("id", "=", query.Arg(id)),
+			query.Where("id", "=", query.Arg(n.ID)),
 		)),
 	)
 
@@ -466,132 +507,53 @@ func (s Store) Update(id int64, p Params) error {
 	}
 
 	if ok {
-		p.Visibility = parent.Visibility
-	}
+		n.Visibility = parent.Visibility
+	} else {
+		// Ensure we only update the visibility column.
+		loaded := n.loaded
+		n.loaded = []string{"visibility"}
 
-	if !ok {
-		q := query.Update(
-			table,
-			query.Set("visibility", query.Arg(p.Visibility)),
-			query.Where("root_id", "=", query.Arg(id)),
-		)
-
-		if _, err = s.Exec(q.Build(), q.Args()...); err != nil {
+		if err := s.Store.UpdateMany(ctx, n, query.Where("root_id", "=", query.Arg(n.ID))); err != nil {
 			return errors.Err(err)
 		}
+		n.loaded = loaded
 	}
 
-	q := query.Update(
-		table,
-		query.Set("description", query.Arg(p.Description)),
-		query.Set("visibility", query.Arg(p.Visibility)),
-		query.Where("id", "=", query.Arg(id)),
-	)
-
-	if _, err = s.Exec(q.Build(), q.Args()...); err != nil {
+	if err := s.Store.Update(ctx, n); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s Store) Delete(id int64) error {
+func (s Store) Delete(ctx context.Context, n *Namespace) error {
 	q := query.Delete(
 		table,
-		query.Where("id", "=", query.Arg(id)),
-		query.OrWhere("root_id", "=", query.Arg(id)),
-		query.OrWhere("parent_id", "=", query.Arg(id)),
+		query.Where("id", "=", query.Arg(n.ID)),
+		query.OrWhere("root_id", "=", query.Arg(n.ID)),
+		query.OrWhere("parent_id", "=", query.Arg(n.ID)),
 	)
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := s.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s Store) Get(opts ...query.Option) (*Namespace, bool, error) {
-	var n Namespace
-
-	ok, err := s.Pool.Get(table, &n, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &n, ok, nil
-}
-
-func (s Store) All(opts ...query.Option) ([]*Namespace, error) {
-	nn := make([]*Namespace, 0)
-
-	new := func() database.Model {
-		n := &Namespace{}
-		nn = append(nn, n)
-		return n
-	}
-
-	if err := s.Pool.All(table, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return nn, nil
-}
-
-func (s Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Pool.Paginate(table, page, limit, opts...)
-
-	if err != nil {
-		return paginator, errors.Err(err)
-	}
-	return paginator, nil
-}
-
-func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Namespace, database.Paginator, error) {
-	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
-
-	if err != nil {
-		page = 1
-	}
+func (s Store) Index(ctx context.Context, vals url.Values, opts ...query.Option) (*database.Paginator[*Namespace], error) {
+	page, _ := strconv.Atoi(vals.Get("page"))
 
 	opts = append([]query.Option{
 		database.Search("path", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, database.PageLimit, opts...)
+	p, err := s.Paginate(ctx, page, database.PageLimit, opts...)
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	nn, err := s.All(append(
-		opts,
-		query.OrderAsc("path"),
-		query.Limit(paginator.Limit),
-		query.Offset(paginator.Offset),
-	)...)
-
-	if err != nil {
-		return nil, paginator, errors.Err(err)
+	if err := p.Load(ctx, s.Store, append(opts, query.OrderAsc("path"))...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return nn, paginator, nil
-}
-
-func (s Store) Load(fk, pk string, mm ...database.Model) error {
-	vals := database.Values(fk, mm)
-
-	nn, err := s.All(query.Where(pk, "IN", database.List(vals...)))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	loaded := make([]database.Model, 0, len(nn))
-
-	for _, n := range nn {
-		loaded = append(loaded, n)
-	}
-
-	database.Bind(fk, pk, loaded, mm)
-	return nil
+	return p, nil
 }

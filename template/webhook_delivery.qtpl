@@ -1,0 +1,120 @@
+{%
+import (
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type WebhookDelivery struct {
+	*Page
+
+	Delivery *namespace.WebhookDelivery
+}
+%}
+
+{% collapsespace %}
+{% func (p *WebhookDelivery) Title() %}
+	{%s p.Delivery.Webhook.Namespace.Name %} - Webhook Delivery
+{% endfunc %}
+
+{% func (p *WebhookDelivery) Header() %}
+	<a class="back" href="{%s p.Delivery.Webhook.Endpoint() %}">{%cat "static/svg/back.svg" %}</a>
+	{% if p.Delivery.ResponseCode.Elem >= 200 && p.Delivery.ResponseCode.Elem < 300 %}
+		<span class="hook-status hook-status-ok">{% cat "static/svg/check.svg" %}</span>
+	{% else %}
+		<span class="hook-status hook-status-err">{% cat "static/svg/close.svg" %}</span>
+	{% endif %}
+	<code>{%s p.Delivery.EventID.String() %}</code>
+	{% if p.Delivery.Redelivery %}
+		<span class="muted" title="Redelivery">{% cat "static/svg/sync.svg" %}</span>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *WebhookDelivery) Actions() %}
+	<li>
+		<form method="POST" action="{%s p.Delivery.Endpoint() %}">
+			{%= form.Method("PATCH") %}
+			{%v= p.CSRF %}
+			<button class="btn btn-primary">Redeliver</button>
+		</form>
+	</li>
+{% endfunc %}
+
+{% func (p *WebhookDelivery) Navigation() %}{% endfunc %}
+{% func (p *WebhookDelivery) Footer() %}{% endfunc %}
+
+{% func (p *WebhookDelivery) renderRequestHeaders() %}
+	<div class="panel">
+		<div class="panel-header"><h3>Request Headers</h3></div>
+		{% if !p.Delivery.RequestHeaders.Valid %}
+			<div class="panel-message muted">None</div>
+		{% else %}
+			<pre class="code">{%s p.Delivery.RequestHeaders.Elem %}</pre>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *WebhookDelivery) renderRequestBody() %}
+	<div class="panel">
+		<div class="panel-header"><h3>Request Body</h3></div>
+		{% if !p.Delivery.RequestBody.Valid %}
+			<div class="panel-message muted">None</div>
+		{% else %}
+			<pre class="code">{%s JSON(p.Delivery.RequestBody.Elem) %}</pre>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *WebhookDelivery) renderResponseStatus() %}
+	<div class="panel">
+		<table class="table">
+			<tr>
+				<td><strong>Status</strong></td>
+				<td class="right code"><code>{%s p.Delivery.ResponseStatus %}</code></td>
+			</tr>
+		</table>
+	</div>
+{% endfunc %}
+
+{% func (p *WebhookDelivery) renderResponseHeaders() %}
+	<div class="panel">
+		<div class="panel-header"><h3>Response Headers</h3></div>
+		{% if !p.Delivery.ResponseHeaders.Valid %}
+			<div class="panel-message muted">None</div>
+		{% else %}
+			<pre class="code">{%s p.Delivery.ResponseHeaders.Elem %}</pre>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *WebhookDelivery) renderResponseBody() %}
+	<div class="panel">
+		<div class="panel-header"><h3>Response Body</h3></div>
+		{% if !p.Delivery.ResponseBody.Valid %}
+			<div class="panel-message muted">None</div>
+		{% else %}
+			<pre class="code">{%s p.Delivery.ResponseBody.Elem %}</pre>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *WebhookDelivery) Body() %}
+	{% if p.Delivery.Error.Valid %}
+		<div class="alert alert-danger mb-10">Failed to deliver payload: {%s p.Delivery.Error.Elem %}</div>
+	{% endif %}
+	<div class="overflow">
+		<div class="col-50 col-left">
+			{%= p.renderRequestHeaders() %}
+			{%= p.renderRequestBody() %}
+		</div>
+		<div class="col-50 col-right">
+			{% if !p.Delivery.Error.Valid %}
+				{%= p.renderResponseStatus() %}
+			{% endif %}
+			{%= p.renderResponseHeaders() %}
+			{%= p.renderResponseBody() %}
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

@@ -9,12 +9,12 @@ import (
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver/qemu"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/provider"
 
 	"github.com/andrewpillar/config"
+	"github.com/andrewpillar/fs"
 
 	"github.com/go-redis/redis"
 
@@ -56,14 +56,14 @@ type Worker struct {
 
 	aesgcm *crypto.AESGCM
 
-	db    database.Pool
+	db    *database.Pool
 	redis *redis.Client
 
 	smtp      *mail.Client
 	smtpadmin string
 
-	artifacts fs.Store
-	objects   fs.Store
+	artifacts fs.FS
+	objects   fs.FS
 
 	providers *provider.Registry
 }
@@ -75,11 +75,11 @@ func (w *Worker) Parallelism() int              { return w.parallelism }
 func (w *Worker) Queue() string                 { return w.queue }
 func (w *Worker) Consumer() *curlyq.Consumer    { return w.consumer }
 func (w *Worker) Timeout() time.Duration        { return w.timeout }
-func (w *Worker) DB() database.Pool             { return w.db }
+func (w *Worker) DB() *database.Pool            { return w.db }
 func (w *Worker) Redis() *redis.Client          { return w.redis }
 func (w *Worker) SMTP() (*mail.Client, string)  { return w.smtp, w.smtpadmin }
-func (w *Worker) Artifacts() fs.Store           { return w.artifacts }
-func (w *Worker) Objects() fs.Store             { return w.objects }
+func (w *Worker) Artifacts() fs.FS              { return w.artifacts }
+func (w *Worker) Objects() fs.FS                { return w.objects }
 func (w *Worker) AESGCM() *crypto.AESGCM        { return w.aesgcm }
 func (w *Worker) Providers() *provider.Registry { return w.providers }
 
@@ -187,7 +187,7 @@ func DecodeWorker(name string, r io.Reader) (*Worker, error) {
 		}
 	}
 
-	worker.providers = provider.NewRegistry()
+	//	worker.providers = provider.NewRegistry()
 
 	for name, p := range cfg.Provider {
 		cli, err := p.client(name, "")

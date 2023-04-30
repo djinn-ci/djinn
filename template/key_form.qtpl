@@ -1,0 +1,84 @@
+{%
+import (
+	"djinn-ci.com/key"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type KeyForm struct {
+	*form.Form
+
+	Key *key.Key
+}
+
+func (p *KeyForm) action() string {
+	if p.Key != nil {
+		return p.Key.Endpoint()
+	}
+	return "/keys"
+}
+%}
+
+{% collapsespace %}
+{% func (p *KeyForm) Title() %}
+	{% if p.Key == nil %}
+		Create SSH Key
+	{% else %}
+		Edit SSH Key
+	{% endif %}
+{% endfunc %}
+
+{% func (p *KeyForm) Header() %}
+	<a class="back" href="/keys">{% cat "static/svg/back.svg" %}</a>
+	{% if p.Key != nil %}
+		{%s p.Key.Name %} - Edit
+	{% else %}
+		Create SSH Key
+	{% endif %}
+{% endfunc %}
+
+{% func (p *KeyForm) Actions() %}{% endfunc %}
+{% func (p *KeyForm) Navigation() %}{% endfunc %}
+{% func (p *KeyForm) Footer() %}{% endfunc %}
+
+{% func (p *KeyForm) Body() %}
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="{%s p.action() %}">
+			{% if p.Key != nil %}
+				{%= form.Method("PATCH") %}
+			{% endif %}
+			{%v= p.CSRF %}
+			{% if p.Key == nil %}
+				{%= p.Field(form.Field{
+					ID:       "namespace",
+					Name:     "Namespace",
+					Type:     form.Text,
+					Optional: true,
+				}) %}
+				{%= p.Field(form.Field{
+					ID:   "name",
+					Name: "Name",
+					Type: form.Text,
+				}) %}
+				{%= p.Field(form.Field{
+					ID:   "key",
+					Name: "Key",
+					Type: form.Textarea,
+				}) %}
+			{% endif %}
+			{%= p.Field(form.Field{
+				ID:       "config",
+				Name:     "Config",
+				Type:     form.Textarea,
+				Optional: true,
+			}) %}
+			{% if p.Key == nil %}
+				<button type="submit" class="btn btn-primary">Create</button>
+			{% else %}
+				<button type="submit" class="btn btn-primary">Save</button>
+			{% endif %}
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

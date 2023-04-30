@@ -1,0 +1,92 @@
+{%
+import (
+	"djinn-ci.com/alert"
+	"djinn-ci.com/template/form"
+	"djinn-ci.com/user"
+)
+%}
+
+{% code
+type Login struct {
+	Alert       alert.Alert
+	RedirectURI string
+	Auths       []AuthForm
+}
+
+type AuthForm struct {
+	*form.Form
+
+	Mech     string
+	Provider string
+}
+
+var providerNames = map[string]string{
+	"github": "GitHub",
+	"gitlab": "GitLab",
+}
+%}
+
+{% collapsespace %}
+{% func (p *Login) Title() %}Login{% endfunc %}
+
+{% func (p *Login) Footer() %}
+	<style type="text/css">{% cat "static/auth.css" %}</style>
+{% endfunc %}
+
+{% func (p *Login) authForm(auth AuthForm) %}
+	<form method="POST" action="/login">
+		{%v= auth.CSRF %}
+		<input type="hidden" name="auth_mech" value="{%s auth.Mech %}"/>
+		{% if p.RedirectURI != "" %}
+			<input type="hidden" name="redirect_uri" value="{%s p.RedirectURI %}"/>
+		{% endif %}
+		{% if auth.Mech == user.InternalProvider %}
+			{%= auth.Field(form.Field{
+				ID:   "handle",
+				Name: "Email / Username",
+				Type: form.Text,
+			}) %}
+			{%= auth.Field(form.Field{
+				ID:   "password",
+				Name: "Password",
+				Type: form.Password,
+			}) %}
+		{% endif %}
+		{% switch auth.Provider %}
+		{% case "github" %}
+			<div class="form-field">
+				<button type="submit" class="btn provider-btn provider-{%s auth.Provider %}">
+					{% cat "static/svg/github.svg" %}<span>Login with {%s providerNames[auth.Provider] %}</span>
+				</button>
+			</div>
+		{% case "gitlab" %}
+			<div class="form-field">
+				<button type="submit" class="btn provider-btn provider-{%s auth.Provider %}">
+					{% cat "static/svg/gitlab.svg" %}<span>Login with {%s providerNames[auth.Provider] %}</span>
+				</button>
+			</div>
+		{% default %}
+		<div class="form-field">
+			<button type="submit" class="btn btn-primary">Login</button>
+		</div>
+		{% endswitch %}
+	</form>
+{% endfunc %}
+
+{% func (p *Login) Body() %}
+	<div class="auth-page">
+		<div class="auth-form">
+			<div class="auth-header">
+				{%= Logo() %}
+				<h1>Login to Djinn CI</h1>
+				{%= Alert(p.Alert, "") %}
+			</div>
+			{% for _, auth := range p.Auths %}
+				{%= p.authForm(auth) %}
+			{% endfor %}
+			<div class="input-field">Don't have an account? <a href="/register">Register</a></div>
+			<div class="input-field"><a href="/password_reset">Forgot your password?</a></div>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

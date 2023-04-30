@@ -4,11 +4,12 @@ import (
 	"net/http"
 	"testing"
 
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 )
 
 func Test_NamespaceCreate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	n, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
 		Name:       "TestNamespaceCreate",
@@ -25,7 +26,7 @@ func Test_NamespaceCreate(t *testing.T) {
 }
 
 func Test_NamespaceParentCreate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	n, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
 		Name:       "TestNamespaceParentCreate",
@@ -60,7 +61,7 @@ func Test_NamespaceParentCreate(t *testing.T) {
 }
 
 func Test_NamespaceUpdate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	n, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
 		Name:       "TestNamespaceUpdate",
@@ -94,7 +95,7 @@ func Test_NamespaceUpdate(t *testing.T) {
 }
 
 func Test_NamespaceDelete(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	n, err := djinn.CreateNamespace(cli, djinn.NamespaceParams{
 		Name:       "TestNamespaceDelete",

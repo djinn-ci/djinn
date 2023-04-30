@@ -1,0 +1,121 @@
+{%
+import (
+	"bytes"
+	"strings"
+
+	"djinn-ci.com/auth"
+	"djinn-ci.com/template/form"
+	"djinn-ci.com/oauth2"
+)
+%}
+
+{% code
+type Oauth2Login struct {
+	*form.Form
+
+	User   *auth.User
+	Author *auth.User
+
+	Name        string
+	ClientID    string
+	RedirectURI string
+	State       string
+	Scope       oauth2.Scope
+}
+
+func buildPermissionList(perm oauth2.Permission) string {
+	var buf bytes.Buffer
+
+	perms := perm.Expand()
+	l := len(perms) - 1
+
+	for i, perm := range perms {
+		buf.WriteString(strings.Title(perm.String()))
+
+		if i + 1 == l {
+			buf.WriteString(", and")
+		}
+		if i != l {
+			buf.WriteString(", ")
+		}
+	}
+	return buf.String()
+}
+%}
+
+{% collapsespace %}
+{% func (p *Oauth2Login) Title() %}Authenticate application{% endfunc %}
+
+{% func (p *Oauth2Login) Footer() %}
+	<style type="text/css">{% cat "static/auth.css" %}</style>
+{% endfunc %}
+
+{% func renderScopeItem(res oauth2.Resource, perm oauth2.Permission) %}
+	<div class="scope-item">
+		{% switch res %}
+		{% case oauth2.Build %}
+			{% cat "static/svg/build.svg" %}
+		{% case oauth2.Invite %}
+			{% cat "static/svg/mail.svg" %}
+		{% case oauth2.Image %}
+			{% cat "static/svg/image.svg" %}
+		{% case oauth2.Namespace %}
+			{% cat "static/svg/folder.svg" %}
+		{% case oauth2.Object %}
+			{% cat "static/svg/upload.svg" %}
+		{% case oauth2.Variable %}
+			{% cat "static/svg/code.svg" %}
+		{% case oauth2.Key %}
+			{% cat "static/svg/key.svg" %}
+		{% case oauth2.Cron %}
+			{% cat "static/svg/timer.svg" %}
+		{% endswitch %}
+		<span>
+			<strong>{%s strings.Title(res.String()) %}</string>
+			{%s buildPermissionList(perm) %}
+		</span>
+	</div>
+{% endfunc %}
+
+{% func (p *Oauth2Login) Body() %}
+	<div class="auth-page">
+		<div class="auth-form">
+			<div class="auth-header">
+				{%= Logo() %}
+				<h1>Authorize {%s p.Name %}</h1>
+			</div>
+			<form action="/login/oauth/authorize" method="POST">
+				{%v= p.CSRF %}
+				<input type="hidden" name="client_id" value="{%s p.ClientID %}"/>
+				<input type="hidden" name="redirect_uri" value="{%s p.RedirectURI %}"/>
+				<input type="hidden" name="scope" value="{%s p.Scope.String() %}"/>
+				<input type="hidden" name="state" value="{%s p.State %}"/>
+				<div class="scope-list">
+					<h3>Requested scopes</h3>
+					<div>
+						<strong>{%s p.Name %}</strong> from <strong>{%s p.Author.Email %}</strong> would like taccess to the following,
+					</div>
+					{% for _, sc := range p.Scope %}
+						{%= renderScopeItem(sc.Resource, sc.Permission) %}
+					{% endfor %}
+				</div>
+				{% if p.User.ID == 0 %}
+					{%= p.Field(form.Field{
+						ID:   "handle",
+						Name: "Email / Username",
+						Type: form.Text,
+					}) %}
+					{%= p.Field(form.Field{
+						ID:   "password",
+						Name: "Password",
+						Type: form.Password,
+					}) %}
+				{% endif %}
+				<div class="input-field">
+					<button type="submit" class="btn btn-primary">Authorize</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

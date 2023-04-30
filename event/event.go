@@ -5,6 +5,7 @@ import (
 	"database/sql/driver"
 	"time"
 
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 
 	"github.com/google/uuid"
@@ -27,7 +28,7 @@ func MultiDispatcher(dispatchers ...Dispatcher) Dispatcher {
 func (md *multiDispatcher) Dispatch(ev *Event) error {
 	for _, d := range md.dispatchers {
 		if err := d.Dispatch(ev); err != nil {
-			return err
+			return errors.Err(err)
 		}
 	}
 	return nil
@@ -37,9 +38,9 @@ type Type uint
 
 type Event struct {
 	ID          uuid.UUID
-	NamespaceID sql.NullInt64
+	NamespaceID database.Null[int64]
 	Type        Type
-	Data        map[string]interface{}
+	Data        map[string]any
 	CreatedAt   time.Time
 }
 
@@ -110,7 +111,7 @@ func Lookup(name string) (Type, bool) {
 	return typ, ok
 }
 
-func New(namespaceId sql.NullInt64, typ Type, data map[string]interface{}) *Event {
+func New(namespaceId database.Null[int64], typ Type, data map[string]any) *Event {
 	now := time.Now()
 
 	return &Event{
@@ -134,6 +135,17 @@ func UnmarshalType(names ...string) (Type, error) {
 		typs |= typ
 	}
 	return typs, nil
+}
+
+func (t Type) Expand() []string {
+	s := make([]string, 0, len(Types))
+
+	for _, typ := range Types {
+		if t.Has(typ) {
+			s = append(s, typ.String())
+		}
+	}
+	return s
 }
 
 func (t Type) Has(mask Type) bool { return (t & mask) == mask }

@@ -6,8 +6,6 @@ import (
 	"encoding/json"
 
 	"djinn-ci.com/errors"
-
-	"github.com/andrewpillar/webutil"
 )
 
 // Visibility represents the visibility level of a Namespace, there are three
@@ -68,6 +66,15 @@ func (v *Visibility) Scan(val interface{}) error {
 	return nil
 }
 
+func (v Visibility) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(v.String())
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return b, nil
+}
+
 // UnmarshalJSON takes the given byte slice, and attempts to unmarshal it to a
 // string from its JSON representation. This is then mapped to a known
 // Visibility. This will return webutil.UnmarshalError if any error occurs.
@@ -78,19 +85,13 @@ func (v *Visibility) UnmarshalJSON(b []byte) error {
 	)
 
 	if err := json.Unmarshal(b, &s); err != nil {
-		return webutil.UnmarshalError{
-			Field: "Visibility",
-			Err:   err,
-		}
+		return err
 	}
 
 	(*v), ok = visMap[s]
 
 	if !ok {
-		return webutil.UnmarshalError{
-			Field: "visibility",
-			Err:   errors.New("unknown visibility " + s),
-		}
+		return errors.New("unknown visibility " + s)
 	}
 	return nil
 }
@@ -105,10 +106,7 @@ func (v *Visibility) UnmarshalText(b []byte) error {
 	(*v), ok = visMap[s]
 
 	if !ok {
-		return webutil.UnmarshalError{
-			Field: "visibility",
-			Err:   errors.New("unknown visibility " + s),
-		}
+		return errors.New("unknown visibility " + s)
 	}
 	return nil
 }

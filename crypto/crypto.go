@@ -40,13 +40,15 @@ type Hasher struct {
 	Alphabet string
 }
 
+var ErrNilHasher = errors.New("crypto: nil Hasher")
+
 // AESGCM provides authenticated encryption using AES as the cipher wrapped in
 // Galois Counter Mode.
 type AESGCM struct {
 	aead cipher.AEAD
 }
 
-var ErrNilAESGCM = errors.New("nil AESGCM")
+var ErrNilAESGCM = errors.New("crypto: nil AESGCM")
 
 // CheckCSPRNG will see if it's possible to generate a cryptographically secure
 // pseudorandom number. If not then this will panic.
@@ -54,7 +56,7 @@ func CheckCSPRNG() {
 	b := make([]byte, 1)
 
 	if _, err := rand.Read(b); err != nil {
-		panic("csprng not available: " + err.Error())
+		panic("crypto: csprng not available: " + err.Error())
 	}
 }
 
@@ -89,7 +91,7 @@ func (a *AESGCM) Decrypt(p []byte) ([]byte, error) {
 	size := a.aead.NonceSize()
 
 	if len(p) < size {
-		return nil, errors.New("cipher text is too short")
+		return nil, errors.New("crypto: cipher text is too short")
 	}
 
 	nonce := p[:size]
@@ -130,7 +132,7 @@ func (h *Hasher) Init() error {
 // hashing.
 func (h *Hasher) Hash(i ...int) (string, error) {
 	if h.hashid == nil {
-		return "", errors.New("hasher not initialized")
+		return "", errors.New("crypto: hasher not initialized")
 	}
 
 	id, err := h.hashid.Encode(i)
@@ -142,7 +144,7 @@ func (h *Hasher) Hash(i ...int) (string, error) {
 // underlying errors from hashing.
 func (h *Hasher) HashNow() (string, error) {
 	if h.hashid == nil {
-		return "", errors.New("hasher not initialized")
+		return "", errors.New("crypto: hasher not initialized")
 	}
 
 	i := make([]int, 0)

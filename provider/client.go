@@ -1,114 +1,28 @@
 package provider
 
 import (
-	"context"
+	"encoding/base64"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
+	"djinn-ci.com/manifest"
 	"djinn-ci.com/runner"
-
-	"golang.org/x/oauth2"
 )
 
-// BaseClient provides a base implementation of a provider's Client. This is
-// used for performing all of the HTTP requests to a provider's API.
-type BaseClient struct {
-	oauth2.Config
-
-	// Host is the host of the server acting as the OAuth client for the
-	// provider's OAuth server.
-	Host string
-
-	// APIEndpoint is the full URL where the provider's REST API is located.
-	APIEndpoint string
-
-	// State is the string used for verifying the final token exchange in the
-	// webflow.
-	State string
-
-	// Secret is the secret that is set on each webhook created to verify the
-	// request body sent by the provider.
-	Secret string
-}
-
-// Registry provides a thread-safe way of registering multiple Client
-// implementations against a given name, and for retrieving them at a
-// later point in time.
-type Registry struct {
-	mu   sync.RWMutex
-	imps map[string]Client
-}
-
-// Client provides a simple interface for a provider's REST API.
-type Client interface {
-	// Auth performs the final token exchange in the webflow. Upon success this
-	// will return the access token, refresh token, and the details of the
-	// User who successfully authenticated.
-	Auth(context.Context, url.Values) (string, string, User, error)
-
-	// AuthURL returns the full URL for authenticating against a provider and
-	// starting the token exchange webflow.
-	AuthURL() string
-
-	// Repos returns a list of repos from the provider the user either owns or
-	// has access to (via a group). The given page delineates which page of
-	// repositories to get if there are multiple pages. A database.Paginator is
-	// returned if there are multiple pages. This should return the repositories
-	// ordered by when they were last updated.
-	Repos(string, int64) ([]*Repo, database.Paginator, error)
-
-	// Groups returns the ID of groups that a user is a member of from the
-	// provider (if any/supported). This will be used to create multiple
-	// providers in the database for each group, allowing for easy lookup
-	// during webhook execution, should any webhook contain a group ID in place
-	// of a user ID.
-	Groups(string) ([]int64, error)
-
-	// ToggleRepo will toggle the webhook for the given Repo using the given
-	// string as the authentication token. This will create a webhook if it
-	// doesn't exist for the Repo, otherwise it will delete it.
-	ToggleRepo(string, *Repo) error
-
-	// SetCommitStatus will set the commit status for the given commit hash to
-	// the given runner.Status. This should only be called on commits that
-	// belong to a merge or pull request.
-	SetCommitStatus(string, *Repo, runner.Status, string, string) error
-
-	// VerifyRequest verifies the contents of the given io.Reader against the
-	// given string secret. This is typically used for verifying the contents
-	// of a webhook that has been sent from said provider. Upon success it will
-	// return a byte slice read from the given io.Reader.
-	VerifyRequest(io.Reader, string) ([]byte, error)
-}
-
-type ClientParams struct {
-	Host         string
-	Endpoint     string
-	Secret       string
-	ClientID     string
-	ClientSecret string
-}
-
-type User struct {
-	ID       int64  // ID of the user from the provider.
-	Email    string // Email of the user from the provider.
-	Login    string // Login of the user from the provider, this is only used for GitHub.
-	Username string // Username of the user from the provider.
-}
-
 var (
-	ErrInvalidSignature = errors.New("invalid signature")
-	ErrStateMismatch    = errors.New("state mismatch")
-	ErrLocalhost        = errors.New("cannot use localhost for webhook URL")
-	ErrNilRegistry      = errors.New("nil client registry")
+	ErrUnknownEvent     = errors.New("provider: unknown webhook event")
+	ErrInvalidSignature = errors.New("provider: invalid signature")
+	ErrStateMismatch    = errors.New("provider: state mismatch")
+	ErrLocalhost        = errors.New("provider: cannot use localhost for webhook URL")
+	ErrNilRegistry      = errors.New("provider: nil client registry")
 
 	StatusDescriptions = map[runner.Status]string{
 		runner.Queued:             "Build is queued.",
@@ -121,7 +35,290 @@ var (
 	}
 )
 
-// parseLink parses the given string value as the value of the Link header
+type WebhookEvent uint
+
+const (
+	PushEvent WebhookEvent = iota + 1
+	PullEvent
+)
+
+type WebhookData struct {
+	UserID  int64
+	RepoID  int64
+	Event   WebhookEvent
+	DirURL  string
+	Ref     string
+	Comment string
+	Data    map[string]string
+	Host    string
+}
+
+type ParseWebhookFunc func(r *http.Request) (*WebhookData, error)
+
+type Client interface {
+	// Repos returns a list of repos from the provider the user either owns or
+	// has access to (via a group). The given page delineates which page of
+	// repositories to get if there are multiple pages. This should return the
+	// repositories ordered by when they were last updated.
+	Repos(page int) (*database.Paginator[*Repo], error)
+
+	// Groups returns the ID of groups that a user is a member of from the
+	// provider (if any/supported). This will be used to create multiple
+	// providers in the database for each group, allowing for easy lookup
+	// during webhook execution, should any webhook contain a group ID in place
+	// of a user ID.
+	Groups() ([]int64, error)
+
+	// ToggleWebhook will toggle the webhook for the given Repo using the given
+	// string as the authentication token. This will create a webhook if it
+	// doesn't exist for the Repo, otherwise it will delete it.
+	ToggleWebhook(r *Repo) error
+
+	// SetCommitStatus will set the commit status for the given commit hash to
+	// the given runner.Status. This should only be called on commits that
+	// belong to a merge or pull request.
+	SetCommitStatus(r *Repo, status runner.Status, url, sha string) error
+
+	// Manifests returns all of the build manifests that could be found in the
+	// repository contents from the root URL at the given ref.
+	Manifests(root, ref string) ([]manifest.Manifest, error)
+
+	// Verify verifies the given Request. This is typically used for verifying
+	// the contents of a webhook that has been sent from said provider. Upon
+	// success it will return a byte slice read from the given io.Reader.
+	Verify(r *http.Request) ([]byte, error)
+}
+
+type BaseClient struct {
+	*http.Client
+
+	token string
+
+	// Init initializes the BaseClient and returns a Client interface.
+	Init func(c *BaseClient) Client
+
+	Host     string
+	Secret   string
+	Endpoint string
+}
+
+func (c *BaseClient) NewRequest(method, url string, body io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest(method, c.Endpoint+url, body)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	req.Header.Set("Accept", "application/json; charset=utf-8")
+	req.Header.Set("Authorization", "Bearer "+c.token)
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+
+	return req, nil
+}
+
+func (c *BaseClient) Get(url string) (*http.Request, error) {
+	req, err := c.NewRequest("GET", url, nil)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return req, nil
+}
+
+func (c *BaseClient) Post(url string, body io.Reader) (*http.Request, error) {
+	req, err := c.NewRequest("POST", url, body)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return req, nil
+}
+
+func (c *BaseClient) Delete(url string) (*http.Request, error) {
+	req, err := c.NewRequest("DELETE", url, nil)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return req, nil
+}
+
+func (c *BaseClient) Do(r *http.Request) (*http.Response, error) {
+	if c.Client == nil {
+		c.Client = http.DefaultClient
+		c.Client.Timeout = time.Minute
+	}
+
+	resp, err := c.Client.Do(r)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return resp, nil
+}
+
+func UnmarshalBase64Manifest(r io.Reader) (manifest.Manifest, error) {
+	var m manifest.Manifest
+
+	var file struct {
+		Encoding, Content string
+	}
+
+	json.NewDecoder(r).Decode(&file)
+
+	if file.Encoding != "base64" {
+		return m, errors.New("provider: unexpected file encoding: " + file.Encoding)
+	}
+
+	raw, err := base64.StdEncoding.DecodeString(file.Content)
+
+	if err != nil {
+		return m, errors.Err(err)
+	}
+
+	m, err = manifest.Unmarshal([]byte(raw))
+
+	if err != nil {
+		return m, errors.Err(err)
+	}
+
+	if err := m.Validate(); err != nil {
+		return m, errors.Err(err)
+	}
+	return m, nil
+}
+
+func (c *BaseClient) LoadManifests(urls []string, unmarshal func(io.Reader) (manifest.Manifest, error)) ([]manifest.Manifest, error) {
+	var wg sync.WaitGroup
+	wg.Add(len(urls))
+
+	ch := make(chan manifest.Manifest)
+	errs := make(chan error)
+
+	for _, rawurl := range urls {
+		go func(wg *sync.WaitGroup, rawurl string) {
+			defer wg.Done()
+
+			url, _ := url.Parse(rawurl)
+
+			req, err := c.Get(url.Path)
+
+			if err != nil {
+				errs <- err
+				return
+			}
+
+			resp, err := c.Do(req)
+
+			if err != nil {
+				errs <- err
+				return
+			}
+
+			defer resp.Body.Close()
+
+			if resp.StatusCode == http.StatusNotFound {
+				return
+			}
+
+			if resp.StatusCode != http.StatusOK {
+				errs <- errors.New("provider: unexpected http status for " + rawurl + ": " + resp.Status)
+				return
+			}
+
+			m, err := unmarshal(resp.Body)
+
+			if err != nil {
+				errs <- errors.Err(err)
+				return
+			}
+			ch <- m
+		}(&wg, rawurl)
+	}
+
+	go func() {
+		wg.Wait()
+		close(errs)
+		close(ch)
+	}()
+
+	mm := make([]manifest.Manifest, 0, len(urls))
+	msgs := make([]string, 0, len(urls))
+
+	for errs != nil && ch != nil {
+		select {
+		case err, ok := <-errs:
+			if !ok {
+				errs = nil
+				break
+			}
+			msgs = append(msgs, err.Error())
+		case m, ok := <-ch:
+			if !ok {
+				ch = nil
+				break
+			}
+			mm = append(mm, m)
+		}
+	}
+
+	if len(msgs) > 0 {
+		return nil, errors.Slice(msgs)
+	}
+	return mm, nil
+}
+
+type Registry struct {
+	mu      sync.RWMutex
+	clients map[string]*BaseClient
+}
+
+func (r *Registry) Names() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	names := make([]string, 0, len(r.clients))
+
+	for name := range r.clients {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+	return names
+}
+
+func (r *Registry) Register(name string, cli *BaseClient) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.clients == nil {
+		r.clients = make(map[string]*BaseClient)
+	}
+
+	if _, ok := r.clients[name]; ok {
+		panic("provider: client already registered: " + name)
+	}
+	r.clients[name] = cli
+}
+
+func (r *Registry) Get(tok, name string) (Client, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	cli, ok := r.clients[name]
+
+	if !ok {
+		return nil, errors.New("provider: no such client: " + name)
+	}
+
+	cli2 := (*cli)
+	cli2.Client = cli.Client
+	cli2.token = tok
+
+	return cli.Init(&cli2), nil
+}
+
+// ParseLink parses the given string value as the value of the Link header
 // (RFC-5988, RFC-8288). The rel for each of these links is used as the key,
 // and if duplicate rels are provided then the values are simply appended to
 // the respective string slice in the returned map.
@@ -137,7 +334,7 @@ var (
 //	    "start": []string{"https://example.org"},
 //	    "index": []string{"https://example.org/index"},
 //	}
-func parseLink(link string) map[string][]string {
+func ParseLink(link string) map[string][]string {
 	m := make(map[string][]string)
 	parts := strings.Split(link, ",")
 
@@ -187,195 +384,4 @@ func parseLink(link string) map[string][]string {
 		m[string(rel)] = append(m[string(rel)], string(raw))
 	}
 	return m
-}
-
-// GetNextAndPrev link returns the page numbers for the next and previous page
-// based off the given link string. This string is expected to be the value of
-// a Link header (RFC-5988, RFC-8288). By default this will return 1 for both
-// values if the given header value cannot be parsed properly.
-func GetNextAndPrev(link string) (int64, int64) {
-	var (
-		next int64 = 1
-		prev int64 = 1
-	)
-
-	if link == "" {
-		return next, prev
-	}
-
-	links := parseLink(link)
-
-	if urls, ok := links["next"]; ok {
-		url, _ := url.Parse(urls[0])
-		page, err := strconv.ParseInt(url.Query().Get("page"), 10, 64)
-
-		if err != nil {
-			page = 1
-		}
-		next = page
-	}
-
-	if urls, ok := links["prev"]; ok {
-		url, _ := url.Parse(urls[0])
-		page, err := strconv.ParseInt(url.Query().Get("page"), 10, 64)
-
-		if err != nil {
-			page = 1
-		}
-		prev = page
-	}
-	return next, prev
-}
-
-func NewRegistry() *Registry {
-	return &Registry{
-		mu:   sync.RWMutex{},
-		imps: make(map[string]Client),
-	}
-}
-
-// Names returns a lexically ordered list of provider names.
-func (r *Registry) Names() []string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	names := make([]string, 0, len(r.imps))
-
-	for name := range r.imps {
-		names = append(names, name)
-	}
-
-	sort.Strings(names)
-	return names
-}
-
-func (r *Registry) Len() int { return len(r.imps) }
-
-// All returns all Client implementations in the current Registry.
-func (r *Registry) All() map[string]Client { return r.imps }
-
-// Register the given Client implementation against the given name. If an
-// implementation is already registered this will panic.
-func (r *Registry) Register(name string, imp Client) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	if _, ok := r.imps[name]; ok {
-		panic("provider already registered: " + name)
-	}
-	r.imps[name] = imp
-}
-
-// Get returns a Client implementation for the given name. If no implementation
-// is found then nil is returned along with an error.
-func (r *Registry) Get(name string) (Client, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	imp, ok := r.imps[name]
-
-	if !ok {
-		return nil, errors.New("unknown provider: " + name)
-	}
-	return imp, nil
-}
-
-// AuthURL implements the Client interface.
-func (c BaseClient) AuthURL() string { return c.AuthCodeURL(c.State) }
-
-// Auth implements the Client interface.
-func (c BaseClient) Auth(ctx context.Context, v url.Values) (string, string, User, error) {
-	var u User
-
-	if state := v.Get("state"); state != "" {
-		if state != c.State {
-			return "", "", u, ErrStateMismatch
-		}
-	}
-
-	tok, err := c.Exchange(ctx, v.Get("code"))
-
-	if err != nil {
-		return "", "", u, errors.Err(err)
-	}
-
-	req, err := http.NewRequest("GET", c.APIEndpoint+"/user", nil)
-
-	if err != nil {
-		return "", "", u, errors.Err(err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+tok.AccessToken)
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-
-	cli := http.Client{}
-
-	resp, err := cli.Do(req)
-
-	if err != nil {
-		return "", "", u, errors.Err(err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return "", "", u, errors.New("unexpected http status: " + resp.Status)
-	}
-
-	json.NewDecoder(resp.Body).Decode(&u)
-	return tok.AccessToken, tok.RefreshToken, u, nil
-}
-
-func (c BaseClient) do(method, tok, endpoint string, r io.Reader) (*http.Response, error) {
-	req, err := http.NewRequest(method, c.APIEndpoint+endpoint, r)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+tok)
-	req.Header.Set("Content-Type", "application/json; charset=utf-8")
-
-	var cli http.Client
-
-	resp, err := cli.Do(req)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	return resp, nil
-}
-
-// Get performs a GET request to the given endpoint using the given token
-// string as the authentication token.
-func (c BaseClient) Get(tok, endpoint string) (*http.Response, error) {
-	resp, err := c.do("GET", tok, endpoint, nil)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	return resp, nil
-}
-
-// Post performs a POST request to the given endpoint using the given token
-// string as the authentication token, and using the given io.Reader as the
-// request body.
-func (c BaseClient) Post(tok, endpoint string, r io.Reader) (*http.Response, error) {
-	resp, err := c.do("POST", tok, endpoint, r)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	return resp, nil
-}
-
-// Delete performs a DELETE request to the given endpoint using the given token
-// string as the authentication token.
-func (c BaseClient) Delete(tok, endpoint string) (*http.Response, error) {
-	resp, err := c.do("DELETE", tok, endpoint, nil)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	return resp, nil
 }

@@ -4,64 +4,46 @@ import (
 	"context"
 	"net/http"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
-	namespacehttp "djinn-ci.com/namespace/http"
 	"djinn-ci.com/server"
 	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 	"djinn-ci.com/variable"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
 	*server.Server
 
-	Namespace  *namespacehttp.Handler
-	Namespaces namespace.Store
-	Variables  variable.Store
-	Users      user.Store
+	Variables *variable.Store
 }
 
 func NewHandler(srv *server.Server) *Handler {
 	return &Handler{
-		Server:     srv,
-		Namespace:  namespacehttp.NewHandler(srv),
-		Namespaces: namespace.Store{Pool: srv.DB},
-		Variables: variable.Store{
-			Pool:   srv.DB,
+		Server: srv,
+		Variables: &variable.Store{
+			Store:  variable.NewStore(srv.DB),
 			AESGCM: srv.AESGCM,
 		},
-		Users: user.Store{Pool: srv.DB},
 	}
 }
 
-type HandlerFunc func(*user.User, *variable.Variable, http.ResponseWriter, *http.Request)
+type HandlerFunc func(*auth.User, *variable.Variable, http.ResponseWriter, *http.Request)
 
-func (h *Handler) WithVariable(fn HandlerFunc) userhttp.HandlerFunc {
-	return func(u *user.User, w http.ResponseWriter, r *http.Request) {
-		var (
-			v   *variable.Variable
-			ok  bool
-			err error
-		)
+func (h *Handler) Variable(fn HandlerFunc) auth.HandlerFunc {
+	return func(u *auth.User, w http.ResponseWriter, r *http.Request) {
+		id := mux.Vars(r)["variable"]
 
-		get := func(id int64) (database.Model, bool, error) {
-			v, ok, err = h.Variables.Get(query.Where("id", "=", query.Arg(id)))
-
-			if err != nil {
-				return nil, false, errors.Err(err)
-			}
-			return v, ok, nil
-		}
-
-		ok, err = h.Namespace.CanAccessResource("variable", get, u, r)
+		v, ok, err := h.Variables.Get(r.Context(), query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get variable"))
 			return
 		}
 
@@ -73,38 +55,35 @@ func (h *Handler) WithVariable(fn HandlerFunc) userhttp.HandlerFunc {
 	}
 }
 
-func (h *Handler) IndexWithRelations(u *user.User, r *http.Request) ([]*variable.Variable, database.Paginator, error) {
-	vv, paginator, err := h.Variables.Index(r.URL.Query(), namespace.WhereCollaborator(u.ID))
+func (h *Handler) Index(u *auth.User, r *http.Request) (*database.Paginator[*variable.Variable], error) {
+	ctx := r.Context()
+
+	p, err := h.Variables.Index(ctx, r.URL.Query(), namespace.WhereCollaborator(u.ID))
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	if err := variable.LoadRelations(h.DB, vv...); err != nil {
-		return nil, paginator, errors.Err(err)
+	if err := namespace.LoadResourceRelations(ctx, h.DB, p.Items...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return vv, paginator, nil
+	return p, nil
 }
 
-func (h *Handler) StoreModel(u *user.User, r *http.Request) (*variable.Variable, Form, error) {
-	var f Form
-
-	if err := webutil.UnmarshalForm(&f, r); err != nil {
-		return nil, f, errors.Err(err)
+func (h *Handler) Store(u *auth.User, r *http.Request) (*variable.Variable, Form, error) {
+	f := Form{
+		Pool: h.DB,
+		User: u,
 	}
 
-	val := Validator{
-		UserID:    u.ID,
-		Variables: h.Variables,
-		Form:      f,
+	if err := webutil.UnmarshalFormAndValidate(&f, r); err != nil {
+		return nil, f, err
 	}
 
-	if err := webutil.Validate(&val); err != nil {
-		return nil, f, errors.Err(err)
-	}
+	ctx := r.Context()
 
-	v, err := h.Variables.Create(variable.Params{
-		UserID:    u.ID,
+	v, err := h.Variables.Create(ctx, variable.Params{
+		User:      u,
 		Namespace: f.Namespace,
 		Key:       f.Key,
 		Value:     f.Value,
@@ -112,19 +91,8 @@ func (h *Handler) StoreModel(u *user.User, r *http.Request) (*variable.Variable,
 	})
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if perr, ok := cause.(*namespace.PathError); ok {
-			return nil, f, perr.Err
-		}
 		return nil, f, errors.Err(err)
 	}
-
-	if err := h.Users.Load("user_id", "id", v); err != nil {
-		return nil, f, errors.Err(err)
-	}
-
-	v.Author = u
 
 	h.Queues.Produce(r.Context(), "events", &variable.Event{
 		Variable: v,
@@ -133,16 +101,17 @@ func (h *Handler) StoreModel(u *user.User, r *http.Request) (*variable.Variable,
 	return v, f, nil
 }
 
-func (h *Handler) DeleteModel(ctx context.Context, v *variable.Variable) error {
-	if err := h.Variables.Delete(v.ID); err != nil {
+func (h *Handler) Destroy(ctx context.Context, v *variable.Variable) error {
+	if err := h.Variables.Delete(ctx, v); err != nil {
 		return errors.Err(err)
 	}
 
-	if err := h.Users.Load("user_id", "id", v); err != nil {
+	ld := user.Loader(h.DB)
+
+	if err := ld.Load(ctx, "user_id", "id", v); err != nil {
 		return errors.Err(err)
 	}
-
-	if err := h.Users.Load("author_id", "id", v); err != nil {
+	if err := ld.Load(ctx, "author_id", "id", v); err != nil {
 		return errors.Err(err)
 	}
 

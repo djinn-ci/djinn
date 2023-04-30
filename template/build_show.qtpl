@@ -1,0 +1,253 @@
+{%
+import (
+	"regexp"
+
+	"djinn-ci.com/build"
+	"djinn-ci.com/template/form"
+	"djinn-ci.com/runner"
+
+	"github.com/hako/durafmt"
+)
+%}
+
+{% code
+type BuildShow struct {
+	*Page
+
+	Build   *build.Build
+	Partial Partial
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildShow) Title() %}
+	{% if p.Partial != nil %}
+		Build #{%v p.Build.Number %} - %= p.Partial.Title() %}
+	{% else %}
+		Build #{%v p.Build.Number %} - {%s p.Build.Trigger.CommentTitle() %}
+	{% endif %}
+{% endfunc %}
+
+{% func (p *BuildShow) Header() %}
+	<a href="/" class="back">{% cat "static/svg/back.svg" %}</a>
+	{% if p.Build.Namespace != nil %}
+		<a href="{%s p.Build.Namespace.Endpoint() %}">{%s p.Build.Namespace.Name %}</a> /
+	{% endif %}
+	Build #{%v p.Build.Number %}
+	{% if p.Build.Pinned %}
+		<span class="muted" title="Pinned">{% cat "static/svg/pushpin.svg" %}
+	{% endif %}
+{% endfunc %}
+
+{% func (p *BuildShow) Footer() %}{% endfunc %}
+
+{% func (p *BuildShow) Actions() %}
+	{% if p.User.ID == p.Build.UserID %}
+		<li>
+			<form {% if p.Build.Pinned %}action="{%s p.Build.Endpoint("pin") %}"{% else %}action="{%s p.Build.Endpoint("unpin") %}"{% endif %} method="POST">
+				{% if p.Build.Pinned %}
+					{%= form.Method("PATCH") %}
+				{% endif %}
+				{%v= p.CSRF %}
+				{% if p.Build.Pinned %}
+					<button type="submit" class="btn btn-primary">Unpin</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Pin</button>
+				{% endif %}
+			</form>
+		</li>
+		{% if p.Build.Status == runner.Running %}
+			<li>
+				<form method="POST" action="{%s p.Build.Endpoint() %}">
+					{%= form.Method("DELETE") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-danger">Kill</button>
+				</form>
+			</li>
+		{% endif %}
+	{% endif %}
+{% endfunc %}
+
+{% stripspace %}
+{% func (p *BuildShow) Navigation() %}
+	{% for _, link := range []navLink{
+		{
+			Title:   "Overview",
+			Href:    p.Build.Endpoint(),
+			Icon:    "static/svg/eye.svg",
+			Pattern: regexp.MustCompile(p.Build.Endpoint()),
+		},
+		{
+			Title:   "Manifest",
+			Href:    p.Build.Endpoint("manifest"),
+			Icon:    "static/svg/list.svg",
+			Pattern: regexp.MustCompile(p.Build.Endpoint("manifest")),
+		},
+		{
+			Title:   "Objects",
+			Href:    p.Build.Endpoint("objects"),
+			Icon:    "static/svg/upload.svg",
+			Pattern: regexp.MustCompile(p.Build.Endpoint("objects")),
+		},
+		{
+			Title:   "Artifacts",
+			Href:    p.Build.Endpoint("artifacts"),
+			Icon:    "static/svg/upload.svg",
+			Pattern: regexp.MustCompile(p.Build.Endpoint("artifacts")),
+		},
+		{
+			Title:   "SSH Keys",
+			Href:    p.Build.Endpoint("keys"),
+			Icon:    "static/svg/key.svg",
+			Pattern: regexp.MustCompile(p.Build.Endpoint("keys")),
+		},
+		{
+			Title:   "Tags",
+			Href:    p.Build.Endpoint("tags"),
+			Icon:    "static/svg/tag.svg",
+			Pattern: regexp.MustCompile(p.Build.Endpoint("tags")),
+		},
+	} %}
+		<li>{%= link.render(p.URL.Path) %}</li>
+	{% endfor %}
+{% endfunc %}
+{% endstripspace %}
+
+{% func (p *BuildShow) renderBuildTime(layout string) %}
+	<div class="panel">
+		<table class="table">
+			<tr>
+				<td>Started at:</td>
+				<td class="align-right">
+					{% if p.Build.StartedAt.Valid %}
+						{%s p.Build.StartedAt.Elem.Format(layout) %}
+					{% else %}
+						<span class="muted">--</span>
+					{% endif %}
+				</td>
+			</tr>
+			<tr>
+				<td>Finished at:</td>
+				<td class="align-right">
+					{% if p.Build.FinishedAt.Valid %}
+						{%s p.Build.FinishedAt.Elem.Format(layout) %}
+					{% else %}
+						<span class="muted">--</span>
+					{% endif %}
+				</td>
+			</tr>
+			<tr>
+				<td>Duration:</td>
+				<td class="align-right">
+					{% if !p.Build.FinishedAt.Valid || !p.Build.StartedAt.Valid %}
+						<span class="muted">--</span>
+					{% else %}
+						{%v durafmt.Parse(p.Build.FinishedAt.Elem.Sub(p.Build.StartedAt.Elem)).LimitFirstN(1) %}
+					{% endif %}
+				</td>
+			</tr>
+		</table>
+	</div>
+{% endfunc %}
+
+{% func (p *BuildShow) renderBuildStageItem(s *build.Stage) %}
+	<div class="panel">
+		<div class="panel-header"><h3>{%s s.Name %}</h3></div>
+		<table class="table">
+			{% for _, j := range s.Jobs %}
+				<tr>
+					<td>{%= IconStatus(j.Status) %} <a href="{%s j.Endpoint() %}">{%s j.Name %}</a></td>
+					<td class="align-right">
+						{% if !j.StartedAt.Valid || !j.FinishedAt.Valid %}
+							<span class="muted">--</span>
+						{% else %}
+							{%v j.FinishedAt.Elem.Sub(j.StartedAt.Elem) %}
+						{% endif %}
+					</td>
+				</tr>
+			{% endfor %}
+		</table>
+	</div>
+{% endfunc %}
+
+{% func (p *BuildShow) renderBuildTrigger() %}
+	<div class="panel">
+		<div class="panel-body">
+			<div class="comment-header">
+				{%= IconStatus(p.Build.Status) %}
+				{% if p.Build.Trigger.Comment != "" %}
+					<strong class="inline-block mt-5 middle">{%s p.Build.Trigger.CommentTitle() %}</strong>
+				{% else %}
+					<em class="inline-block mt-5 middle muted">No build comment.</em>
+				{% endif %}
+			</div>
+			{% if comment := p.Build.Trigger.CommentBody(); comment != "" %}
+				<br/><pre>{%s comment %}</pre>
+			{% endif %}
+		</div>
+		<div class="panel-footer">
+			<strong>{%s p.Build.Trigger.Data["username"] %}</strong>
+			{% switch p.Build.Trigger.Type %}
+			{% case build.Manual %}
+				submitted
+			{% case build.Push %}
+				committed
+				<a target="_blank" href="{%s p.Build.Trigger.Data["url"] %}">
+					{%s p.Build.Trigger.Data["sha"][:7] %}
+				</a> to <span class="code">{%s p.Build.Trigger.Data["ref"] %}</span>
+			{% case build.Pull %}
+				{%s p.Build.Trigger.Data["action"] %} pull request
+				<a target="_blank" href="{%s p.Build.Trigger.Data["url"] %}">
+					#{%s p.Build.Trigger.Data["id"] %}
+				</a> to <span class="code">{%s p.Build.Trigger.Data["ref"] %}</span>
+				with commit <span class="code">{%s p.Build.Trigger.Data["sha"][:7] %}</span>
+			{% endswitch %}
+		</div>
+		{% if len(p.Build.Tags) > 0 %}
+			<div class="panel-footer">
+				{% for _, t := range p.Build.Tags %}
+					<a href="/builds?tag={%s t.Name %}" class="pill pill-light">{%s t.Name %}</a>
+				{% endfor %}
+			</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *BuildShow) renderBuildOutput() %}
+	<div class="panel">
+		{% if p.Build.Output.Valid %}
+			<div class="panel-header">
+				<ul class="panel-actions">
+					<li>
+						<a class="btn btn-primary" href="{%s p.Build.Endpoint("output", "raw") %}">
+							{% cat "static/svg/document.svg" %}<span>Raw</span>
+						</a>
+					</li>
+				</ul>
+			</div>
+			{%= Code(p.Build.Output.Elem) %}
+		{% else %}
+			<div class="panel-message muted">No build output has been produced.</div>
+		{% endif %}
+	</div>
+{% endfunc %}
+
+{% func (p *BuildShow) Body() %}
+	<div class="overflow">
+		<div class="col-25 col-left">
+			{%= p.renderBuildTime("Jan 02, 2006, at 15:04:05")%}
+			{% for _, s := range p.Build.Stages %}
+				{%= p.renderBuildStageItem(s) %}
+			{% endfor %}
+		</div>
+		<div class="col-75 col-right">
+			{%= p.renderBuildTrigger() %}
+			{% if p.Partial != nil %}
+				{%= p.Partial.Body() %}
+			{% else %}
+				{%= p.renderBuildOutput() %}
+			{% endif %}
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

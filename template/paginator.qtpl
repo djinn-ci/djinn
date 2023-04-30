@@ -1,0 +1,56 @@
+{%
+import (
+	"net/url"
+	"strconv"
+)
+%}
+
+{% code
+type Paginator struct {
+	*Page
+
+	Pages []int
+	Prev  int
+	Curr  int
+	Next  int
+	Query url.Values
+}
+
+func (p Paginator) url(page int) string {
+	q := p.URL.Query()
+	q.Set("page", strconv.Itoa(page))
+
+	p.URL.RawQuery = q.Encode()
+	return p.URL.String()
+}
+%}
+
+{% collapsespace %}
+{% stripspace %}
+{% func (p Paginator) Navigation() %}
+	{% if len(p.Pages) > 1 %}
+		<ul class="paginator panel">
+			{% if p.Prev == 0 %}
+				<li><a class="disabled">Previous</a></li>
+			{% else %}
+				<li><a href="{%s p.url(p.Prev) %}" class="prev">Previous</a></li>
+			{% endif %}
+			{% if p.Next == 0 %}
+				<li><a class="disabled">Next</a></li>
+			{% else %}
+				<li><a href="{%s p.url(p.Next) %}" class="next">Next</a></li>
+			{% endif %}
+		</ul>
+	{% endif %}
+{% endstripspace %}
+{% endfunc %}
+
+{% func (p Paginator) Search(prompt string) %}
+	<form class="form-field form-search">
+		<input type="text" name="search" class="form-text" placeholder="{%s prompt %}" autocomplete="off" value="{%s p.Query.Get("search") %}"/>
+		{% if p.Query.Get("search") != "" %}
+			<a class="muted" href="{%s p.URL.Path %}">{% cat "static/svg/close.svg" %}</a>
+		{% endif %}
+	</form>
+{% endfunc %}
+{% endcollapsespace %}

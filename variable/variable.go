@@ -1,13 +1,15 @@
 package variable
 
 import (
-	"database/sql"
+	"context"
 	"encoding/base64"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/env"
@@ -15,92 +17,87 @@ import (
 	"djinn-ci.com/event"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/queue"
-	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 )
 
 type Variable struct {
+	loaded []string
+
 	ID          int64
 	UserID      int64
 	AuthorID    int64
-	NamespaceID sql.NullInt64
+	NamespaceID database.Null[int64]
 	Key         string
 	Value       string
 	Masked      bool
 	CreatedAt   time.Time
 
-	Author    *user.User
-	User      *user.User
+	Author    *auth.User
+	User      *auth.User
 	Namespace *namespace.Namespace
 }
 
 var _ database.Model = (*Variable)(nil)
 
-func LoadNamespaces(db database.Pool, vv ...*Variable) error {
-	mm := make([]database.Model, 0, len(vv))
+func (v *Variable) Primary() (string, any) { return "id", v.ID }
 
-	for _, v := range vv {
-		mm = append(mm, v)
+func (v *Variable) Params() database.Params {
+	params := database.Params{
+		"id":           database.ImmutableParam(v.ID),
+		"user_id":      database.CreateUpdateParam(v.UserID),
+		"author_id":    database.CreateOnlyParam(v.AuthorID),
+		"namespace_id": database.CreateOnlyParam(v.NamespaceID),
+		"key":          database.CreateOnlyParam(v.Key),
+		"value":        database.CreateOnlyParam(v.Value),
+		"masked":       database.CreateOnlyParam(v.Masked),
+		"created_at":   database.CreateOnlyParam(v.CreatedAt),
 	}
 
-	if err := namespace.Load(db, mm...); err != nil {
-		return errors.Err(err)
+	if len(v.loaded) > 0 {
+		params.Only(v.loaded...)
 	}
-	return nil
+	return params
 }
 
-func LoadRelations(db database.Pool, vv ...*Variable) error {
-	mm := make([]database.Model, 0, len(vv))
-
-	for _, v := range vv {
-		mm = append(mm, v)
+func (v *Variable) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":           &v.ID,
+		"user_id":      &v.UserID,
+		"author_id":    &v.AuthorID,
+		"namespace_id": &v.NamespaceID,
+		"key":          &v.Key,
+		"value":        &v.Value,
+		"masked":       &v.Masked,
+		"created_at":   &v.CreatedAt,
 	}
 
-	if err := database.LoadRelations(mm, namespace.ResourceRelations(db)...); err != nil {
+	if err := database.Scan(r, valtab); err != nil {
 		return errors.Err(err)
 	}
-	return nil
-}
 
-func (v *Variable) Dest() []interface{} {
-	return []interface{}{
-		&v.ID,
-		&v.UserID,
-		&v.AuthorID,
-		&v.NamespaceID,
-		&v.Key,
-		&v.Value,
-		&v.CreatedAt,
-		&v.Masked,
-	}
+	v.loaded = r.Columns
+	return nil
 }
 
 func (v *Variable) Bind(m database.Model) {
 	switch v2 := m.(type) {
-	case *user.User:
+	case *auth.User:
 		v.Author = v2
 
 		if v.UserID == v2.ID {
 			v.User = v2
 		}
 	case *namespace.Namespace:
-		if v.NamespaceID.Int64 == v2.ID {
+		if v.NamespaceID.Elem == v2.ID {
 			v.Namespace = v2
 		}
 	}
 }
 
-func (v *Variable) Endpoint(uri ...string) string {
-	if len(uri) > 0 {
-		return "/variables/" + strconv.FormatInt(v.ID, 10) + "/" + strings.Join(uri, "/")
-	}
-	return "/variables/" + strconv.FormatInt(v.ID, 10)
-}
-
-func (v *Variable) JSON(addr string) map[string]interface{} {
+func (v *Variable) MarshalJSON() ([]byte, error) {
 	if v == nil {
-		return nil
+		return []byte("null"), nil
 	}
 
 	val := v.Value
@@ -109,46 +106,34 @@ func (v *Variable) JSON(addr string) map[string]interface{} {
 		val = MaskString
 	}
 
-	json := map[string]interface{}{
+	b, err := json.Marshal(map[string]any{
 		"id":           v.ID,
 		"author_id":    v.AuthorID,
 		"user_id":      v.UserID,
-		"namespace_id": nil,
+		"namespace_id": v.NamespaceID,
 		"key":          v.Key,
 		"value":        val,
 		"masked":       v.Masked,
-		"created_at":   v.CreatedAt.Format(time.RFC3339),
-		"url":          addr + v.Endpoint(),
-	}
+		"created_at":   v.CreatedAt,
+		"url":          env.DJINN_API_SERVER + v.Endpoint(),
+		"author":       v.Author,
+		"user":         v.User,
+		"namespace":    v.Namespace,
+	})
 
-	if v.Author != nil {
-		json["author"] = v.Author.JSON(addr)
+	if err != nil {
+		return nil, errors.Err(err)
 	}
-
-	if v.User != nil {
-		json["user"] = v.User.JSON(addr)
-	}
-
-	if v.NamespaceID.Valid {
-		json["namespace_id"] = v.NamespaceID.Int64
-
-		if v.Namespace != nil {
-			json["namespace"] = v.Namespace.JSON(addr)
-		}
-	}
-	return json
+	return b, nil
 }
 
-func (v *Variable) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":           v.ID,
-		"user_id":      v.UserID,
-		"author_id":    v.AuthorID,
-		"namespace_id": v.NamespaceID,
-		"key":          v.Key,
-		"value":        v.Value,
-		"created_at":   v.CreatedAt,
+func (v *Variable) String() string { return v.Key + "=" + v.Value }
+
+func (v *Variable) Endpoint(elems ...string) string {
+	if len(elems) > 0 {
+		return "/variables/" + strconv.FormatInt(v.ID, 10) + "/" + strings.Join(elems, "/")
 	}
+	return "/variables/" + strconv.FormatInt(v.ID, 10)
 }
 
 type Event struct {
@@ -175,8 +160,8 @@ func (e *Event) Perform() error {
 		return event.ErrNilDispatcher
 	}
 
-	ev := event.New(e.Variable.NamespaceID, event.Variables, map[string]interface{}{
-		"variable": e.Variable.JSON(env.DJINN_API_SERVER),
+	ev := event.New(e.Variable.NamespaceID, event.Variables, map[string]any{
+		"variable": e.Variable,
 		"action":   e.Action,
 	})
 
@@ -186,36 +171,41 @@ func (e *Event) Perform() error {
 	return nil
 }
 
-type Store struct {
-	database.Pool
-	*crypto.AESGCM
-}
-
-var (
-	_ database.Loader = (*Store)(nil)
-
+const (
 	table = "variables"
+
+	MaskString = "xxxxxx"
 )
 
-func Chown(db database.Pool, from, to int64) error {
-	if err := database.Chown(db, table, from, to); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
 var (
-	MaskString = "xxxxxx"
-	MaskLen    = len(MaskString)
+	MaskLen = len(MaskString)
 
 	variableMaskKey = "unmask_variable_id"
 )
 
-func PutUnmasked(sessvals map[interface{}]interface{}, set map[int64]struct{}) {
+type Store struct {
+	*database.Store[*Variable]
+
+	AESGCM *crypto.AESGCM
+}
+
+func Loader(pool *database.Pool) database.Loader {
+	return database.ModelLoader(pool, table, func() database.Model {
+		return &Variable{}
+	})
+}
+
+func NewStore(pool *database.Pool) *database.Store[*Variable] {
+	return database.NewStore(pool, table, func() *Variable {
+		return &Variable{}
+	})
+}
+
+func PutUnmasked(sessvals map[any]any, set map[int64]struct{}) {
 	sessvals[variableMaskKey] = set
 }
 
-func GetUnmasked(sessvals map[interface{}]interface{}) map[int64]struct{} {
+func GetUnmasked(sessvals map[any]any) map[int64]struct{} {
 	v, ok := sessvals[variableMaskKey]
 
 	if !ok {
@@ -248,40 +238,14 @@ func Unmask(aesgcm *crypto.AESGCM, v *Variable) error {
 }
 
 type Params struct {
-	UserID    int64
+	User      *auth.User
 	Namespace namespace.Path
 	Key       string
 	Value     string
 	Masked    bool
 }
 
-func (s Store) Create(p Params) (*Variable, error) {
-	u, n, err := p.Namespace.ResolveOrCreate(s.Pool, p.UserID)
-
-	if err != nil {
-		if !errors.Is(err, namespace.ErrInvalidPath) {
-			return nil, errors.Err(err)
-		}
-	}
-
-	userId := p.UserID
-
-	var namespaceId sql.NullInt64
-
-	if u != nil {
-		n.User = u
-
-		userId = u.ID
-		namespaceId = sql.NullInt64{
-			Int64: n.ID,
-			Valid: true,
-		}
-
-		if err := n.IsCollaborator(s.Pool, p.UserID); err != nil {
-			return nil, errors.Err(err)
-		}
-	}
-
+func (s Store) Create(ctx context.Context, p Params) (*Variable, error) {
 	if p.Masked {
 		b, err := s.AESGCM.Encrypt([]byte(p.Value))
 
@@ -291,125 +255,59 @@ func (s Store) Create(p Params) (*Variable, error) {
 		p.Value = base64.StdEncoding.EncodeToString(b)
 	}
 
-	now := time.Now()
+	v := Variable{
+		UserID:    p.User.ID,
+		AuthorID:  p.User.ID,
+		Key:       p.Key,
+		Value:     p.Value,
+		Masked:    p.Masked,
+		CreatedAt: time.Now(),
+		User:      p.User,
+		Author:    p.User,
+	}
 
-	q := query.Insert(
-		table,
-		query.Columns("user_id", "author_id", "namespace_id", "key", "value", "masked", "created_at"),
-		query.Values(userId, p.UserID, namespaceId, p.Key, p.Value, p.Masked, now),
-		query.Returning("id"),
-	)
+	if p.Namespace.Valid {
+		owner, n, err := p.Namespace.Resolve(ctx, s.Pool, p.User)
 
-	var id int64
+		if err != nil {
+			if !errors.Is(err, namespace.ErrInvalidPath) {
+				return nil, errors.Err(err)
+			}
+		}
 
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+		if err := n.IsCollaborator(ctx, s.Pool, p.User); err != nil {
+			return nil, errors.Err(err)
+		}
+
+		v.UserID = owner.ID
+		v.NamespaceID.Elem = n.ID
+		v.NamespaceID.Valid = n.ID > 0
+
+		v.User = owner
+		v.Namespace = n
+	}
+
+	if err := s.Store.Create(ctx, &v); err != nil {
 		return nil, errors.Err(err)
 	}
-
-	return &Variable{
-		ID:          id,
-		UserID:      userId,
-		AuthorID:    p.UserID,
-		NamespaceID: namespaceId,
-		Key:         p.Key,
-		Value:       p.Value,
-		Masked:      p.Masked,
-		CreatedAt:   now,
-		Namespace:   n,
-	}, nil
+	return &v, nil
 }
 
-func (s Store) Delete(id int64) error {
-	q := query.Delete(table, query.Where("id", "=", query.Arg(id)))
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
-func (s Store) Get(opts ...query.Option) (*Variable, bool, error) {
-	var v Variable
-
-	ok, err := s.Pool.Get(table, &v, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &v, ok, nil
-}
-
-func (s Store) All(opts ...query.Option) ([]*Variable, error) {
-	vv := make([]*Variable, 0)
-
-	new := func() database.Model {
-		v := &Variable{}
-		vv = append(vv, v)
-		return v
-	}
-
-	if err := s.Pool.All(table, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return vv, nil
-}
-
-func (s Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Pool.Paginate(table, page, limit, opts...)
-
-	if err != nil {
-		return paginator, errors.Err(err)
-	}
-	return paginator, nil
-}
-
-func (s Store) Index(vals url.Values, opts ...query.Option) ([]*Variable, database.Paginator, error) {
-	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
-
-	if err != nil {
-		page = 1
-	}
+func (s Store) Index(ctx context.Context, vals url.Values, opts ...query.Option) (*database.Paginator[*Variable], error) {
+	page, _ := strconv.Atoi(vals.Get("page"))
 
 	opts = append([]query.Option{
 		database.Search("key", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, database.PageLimit, opts...)
+	p, err := s.Paginate(ctx, page, database.PageLimit, opts...)
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	vv, err := s.All(append(
-		opts,
-		query.OrderAsc("key"),
-		query.Limit(paginator.Limit),
-		query.Offset(paginator.Offset),
-	)...)
-
-	if err != nil {
-		return nil, paginator, errors.Err(err)
+	if err := p.Load(ctx, s.Store, append(opts, query.OrderAsc("key"))...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return vv, paginator, nil
-}
-
-func (s Store) Load(fk, pk string, mm ...database.Model) error {
-	vals := database.Values(fk, mm)
-
-	vv, err := s.All(query.Where(pk, "IN", database.List(vals...)))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, v := range vv {
-		for _, m := range mm {
-			m.Bind(v)
-		}
-	}
-	return nil
+	return p, nil
 }

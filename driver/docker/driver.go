@@ -14,6 +14,8 @@ import (
 	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
 
+	"github.com/andrewpillar/fs"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
@@ -91,14 +93,15 @@ func (cfg *Config) Merge(m map[string]string) driver.Config {
 // to the Driver daemon is derived from the environment. Once the client has
 // been established, the image volume is created, and the image is pulled down
 // from the repository.
-func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+func (d *Driver) Create(c context.Context, env []string, pt runner.Passthrough, objects fs.FS) error {
 	var err error
 
 	if d.Writer == nil {
 		return errors.New("cannot create driver with nil io.Writer")
 	}
 
-	fmt.Fprintf(d.Writer, "Running with Driver docker...\n")
+	fmt.Fprintln(d.Writer, "Running with driver docker...")
+	fmt.Fprintf(d.Writer, "Using docker API version %s...\n", d.Version)
 
 	d.client, err = client.NewClientWithOpts(
 		client.WithHost(d.Host),
@@ -119,6 +122,8 @@ func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 			errs <- err
 			return
 		}
+
+		fmt.Fprintf(d.Writer, "Pulling image %s...\n", d.Image)
 
 		rc, err := d.client.ImagePull(c, d.Image, types.ImagePullOptions{})
 
@@ -151,10 +156,10 @@ func (d *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 	fmt.Fprintf(d.Writer, "Using Driver image %s - %s...\n\n", d.Image, image.ID)
 
 	d.env = env
-	return d.placeObjects(objs, p)
+	return d.placeObjects(pt, objects)
 }
 
-func (d *Driver) collectArtifact(ctx context.Context, w io.Writer, c runner.Collector, id, src, dst string) error {
+func (d *Driver) collectArtifact(ctx context.Context, w io.Writer, artifacts fs.FS, id, src, dst string) error {
 	fmt.Fprintf(w, "Collecting artifact %s => %s\n", src, dst)
 
 	rc, _, err := d.client.CopyFromContainer(ctx, id, d.Workspace+"/"+src)
@@ -181,7 +186,15 @@ func (d *Driver) collectArtifact(ctx context.Context, w io.Writer, c runner.Coll
 		case tar.TypeDir:
 			break
 		case tar.TypeReg:
-			if _, err := c.Collect(dst, tr); err != nil {
+			f, err := fs.ReadFile(dst, tr)
+
+			if err != nil {
+				return err
+			}
+
+			defer f.Close()
+
+			if _, err := artifacts.Put(f); err != nil {
 				return err
 			}
 		}
@@ -194,24 +207,24 @@ func (d *Driver) collectArtifact(ctx context.Context, w io.Writer, c runner.Coll
 // subsequent container is then created, and the previously placed script is
 // used as that new container's entrypoint. The logs for the container are
 // forwarded to the underlying io.Writer.
-func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
-	hostCfg := &container.HostConfig{
+func (d *Driver) Execute(j *runner.Job, artifacts fs.FS) error {
+	hostCfg := container.HostConfig{
 		Mounts: []mount.Mount{
 			{Type: mount.TypeVolume, Source: d.volume.Name, Target: d.Workspace},
 		},
 	}
-	cfg := &container.Config{
+
+	cfg := container.Config{
 		Image: d.Image,
 		Cmd:   []string{"true"},
 	}
 
 	ctx := context.Background()
 
-	ctr, err := d.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, "")
+	ctr, err := d.client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 
 	if err != nil {
-		j.Failed(err)
-		return
+		return err
 	}
 
 	d.containers = append(d.containers, ctr.ID)
@@ -219,7 +232,7 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 	script := strings.Replace(j.Name+".sh", " ", "-", -1)
 	buf := driver.CreateScript(j)
 
-	header := &tar.Header{
+	hdr := tar.Header{
 		Typeflag: tar.TypeReg,
 		Name:     "/bin/" + script,
 		Size:     int64(buf.Len()),
@@ -235,33 +248,30 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 		defer tw.Close()
 		defer pw.Close()
 
-		tw.WriteHeader(header)
+		tw.WriteHeader(&hdr)
 		io.Copy(tw, buf)
 	}()
 
 	err = d.client.CopyToContainer(ctx, ctr.ID, d.Workspace, pr, types.CopyToContainerOptions{})
 
 	if err != nil {
-		j.Failed(err)
-		return
+		return err
 	}
 
 	cfg.Cmd = []string{}
 	cfg.Env = d.env
 	cfg.Entrypoint = []string{script}
 
-	ctr, err = d.client.ContainerCreate(ctx, cfg, hostCfg, nil, nil, "")
+	ctr, err = d.client.ContainerCreate(ctx, &cfg, &hostCfg, nil, nil, "")
 
 	if err != nil {
-		j.Failed(err)
-		return
+		return err
 	}
 
 	d.containers = append(d.containers, ctr.ID)
 
 	if err := d.client.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{}); err != nil {
-		j.Failed(err)
-		return
+		return err
 	}
 
 	logOpts := types.ContainerLogsOptions{
@@ -277,42 +287,35 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 	select {
 	case err := <-errs:
 		if err != nil {
-			j.Failed(err)
-			return
+			return err
 		}
 	case resp := <-status:
 		code = int(resp.StatusCode)
 	}
 
-	if code != 0 {
-		j.Failed(nil)
-	} else {
-		j.Status = runner.Passed
-	}
-
 	rc, err := d.client.ContainerLogs(ctx, ctr.ID, logOpts)
 
 	if err != nil {
-		j.Failed(err)
-		return
+		return err
 	}
 
 	defer rc.Close()
 	stdcopy.StdCopy(j.Writer, io.Discard, rc)
 
-	if len(j.Artifacts.Values) > 0 {
-		fmt.Fprintf(j.Writer, "\n")
+	if len(j.Artifacts) > 0 {
+		fmt.Fprintln(j.Writer)
 	}
 
-	for src, dst := range j.Artifacts.Values {
-		if err := d.collectArtifact(ctx, j.Writer, c, ctr.ID, src, dst); err != nil {
-			fmt.Fprintf(j.Writer, "Failed to collect artifact %s => %s: %s\n", src, dst, errors.Cause(err))
+	for src, dst := range j.Artifacts {
+		if err := d.collectArtifact(ctx, j.Writer, artifacts, ctr.ID, src, dst); err != nil {
+			fmt.Fprintln(j.Writer, "artifact error:", errors.Cause(err))
 		}
 	}
 
-	if j.Status == runner.Failed {
-		j.Failed(nil)
+	if code != 0 {
+		return runner.ErrFailed
 	}
+	return nil
 }
 
 // Destroy will remove all containers created during job execution, and the
@@ -335,8 +338,8 @@ func (d *Driver) Destroy() {
 	d.client.VolumeRemove(ctx, d.volume.Name, true)
 }
 
-func (d *Driver) placeObjects(objs runner.Passthrough, p runner.Placer) error {
-	if len(objs.Values) == 0 {
+func (d *Driver) placeObjects(pt runner.Passthrough, objects fs.FS) error {
+	if len(pt) == 0 {
 		return nil
 	}
 
@@ -363,48 +366,61 @@ func (d *Driver) placeObjects(objs runner.Passthrough, p runner.Placer) error {
 		return err
 	}
 
-	for src, dst := range objs.Values {
-		fmt.Fprintf(d.Writer, "Placing object %s => %s\n", src, dst)
+	for src, dst := range pt {
+		func(src, dst string) {
+			fmt.Fprintln(d.Writer, "Placing object", src, "=>", dst)
 
-		info, err := p.Stat(src)
+			info, err := objects.Stat(src)
 
-		if err != nil {
-			fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
-			continue
-		}
-
-		header, err := tar.FileInfoHeader(info, info.Name())
-
-		if err != nil {
-			fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
-			continue
-		}
-
-		header.Name = strings.TrimPrefix(dst, d.Workspace)
-
-		pr, pw := io.Pipe()
-		defer pr.Close()
-
-		tw := tar.NewWriter(pw)
-
-		go func(src string) {
-			defer tw.Close()
-			defer pw.Close()
-
-			tw.WriteHeader(header)
-
-			if _, err := p.Place(src, tw); err != nil {
-				fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
+			if err != nil {
+				fmt.Fprintln(d.Writer, "object error:", err)
+				return
 			}
-		}(src)
 
-		err = d.client.CopyToContainer(ctx, ctr.ID, d.Workspace, pr, types.CopyToContainerOptions{})
+			hdr, err := tar.FileInfoHeader(info, info.Name())
 
-		if err != nil {
-			fmt.Fprintf(d.Writer, "Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
-		}
+			if err != nil {
+				fmt.Fprintln(d.Writer, "object error:", err)
+				return
+			}
+
+			hdr.Name = strings.TrimPrefix(dst, d.Workspace)
+
+			pr, pw := io.Pipe()
+			defer pr.Close()
+
+			tw := tar.NewWriter(pw)
+
+			go func(src string) {
+				defer tw.Close()
+				defer pw.Close()
+
+				tw.WriteHeader(hdr)
+
+				f, err := objects.Open(src)
+
+				if err != nil {
+					fmt.Fprintln(d.Writer, "object error:", errors.Cause(err))
+					return
+				}
+
+				defer f.Close()
+
+				if _, err := io.Copy(tw, f); err != nil {
+					fmt.Fprintln(d.Writer, "object error:", errors.Cause(err))
+				}
+			}(src)
+
+			err = d.client.CopyToContainer(ctx, ctr.ID, d.Workspace, pr, types.CopyToContainerOptions{})
+
+			if err != nil {
+				fmt.Fprintln(d.Writer, "object error:", errors.Cause(err))
+			}
+		}(src, dst)
 	}
+
 	d.client.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{})
-	fmt.Fprintf(d.Writer, "\n")
+	fmt.Fprintln(d.Writer)
+
 	return nil
 }

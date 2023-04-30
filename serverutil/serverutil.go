@@ -2,12 +2,15 @@ package serverutil
 
 import (
 	"context"
+	_ "embed"
+	"encoding/base64"
 	"encoding/gob"
 	"flag"
 	"fmt"
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 
 	"djinn-ci.com/build"
 	"djinn-ci.com/config"
@@ -21,9 +24,10 @@ import (
 	"djinn-ci.com/object"
 	"djinn-ci.com/queue"
 	"djinn-ci.com/server"
+	"djinn-ci.com/user"
 	"djinn-ci.com/variable"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 
 	"github.com/mcmathja/curlyq"
 
@@ -81,11 +85,15 @@ func Init(ctx context.Context, path string) (*server.Server, func(), error) {
 		return nil, nil, errors.Err(err)
 	}
 
+	if srv.Debug {
+		srv.Log.Info.Println("debug mode enabled")
+	}
+
 	pidfile := cfg.Pidfile()
 
 	smtp, _ := cfg.SMTP()
 
-	close_ := func() {
+	close := func() {
 		srv.DB.Close()
 		srv.Redis.Close()
 		smtp.Close()
@@ -108,7 +116,7 @@ func Init(ctx context.Context, path string) (*server.Server, func(), error) {
 	})
 
 	webhooks := &namespace.WebhookStore{
-		Pool:   srv.DB,
+		Store:  namespace.NewWebhookStore(srv.DB),
 		AESGCM: srv.AESGCM,
 	}
 
@@ -141,8 +149,11 @@ func Init(ctx context.Context, path string) (*server.Server, func(), error) {
 	go memq.Consume(ctx)
 	go namespace.PruneWebhookDeliveries(ctx, srv.Log, srv.DB)
 
-	return srv, close_, nil
+	return srv, close, nil
 }
+
+//go:embed favicon.ico
+var favicon []byte
 
 func RegisterRoutes(api, ui bool, srv *server.Server) {
 	if !api && !ui {
@@ -150,20 +161,43 @@ func RegisterRoutes(api, ui bool, srv *server.Server) {
 		ui = true
 	}
 
+	auth, err := srv.Auths.Get(user.InternalProvider)
+
+	if err != nil {
+		panic("serverutil: no internal authenticator registered")
+	}
+
+	buf := make([]byte, len(favicon))
+
+	if _, err := base64.StdEncoding.Decode(buf, favicon); err != nil {
+		panic("serverutil: failed to decode favicon")
+	}
+
+	srv.Router.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+			return
+		}
+
+		w.Header().Set("Content-Length", strconv.Itoa(len(buf)))
+		w.Header().Set("Content-Type", "image/x-icon")
+		w.Write(buf)
+	})
+
 	if ui {
 		srv.Log.Debug.Println("registering ui routes")
 
-		userhttp.RegisterUI(srv)
-		buildhttp.RegisterHooks(srv)
-		buildhttp.RegisterUI(srv)
-		cronhttp.RegisterUI(srv)
-		imagehttp.RegisterUI(srv)
-		keyhttp.RegisterUI(srv)
-		namespacehttp.RegisterUI(srv)
-		oauth2http.RegisterUI(srv)
-		objecthttp.RegisterUI(srv)
-		providerhttp.RegisterUI(srv)
-		variablehttp.RegisterUI(srv)
+		userhttp.RegisterUI(auth, srv)
+		buildhttp.RegisterUI(auth, srv)
+		cronhttp.RegisterUI(auth, srv)
+		imagehttp.RegisterUI(auth, srv)
+		keyhttp.RegisterUI(auth, srv)
+		namespacehttp.RegisterUI(auth, srv)
+		oauth2http.RegisterUI(auth, srv)
+		objecthttp.RegisterUI(auth, srv)
+		providerhttp.RegisterUI(auth, srv)
+		providerhttp.RegisterHooks(srv)
+		variablehttp.RegisterUI(auth, srv)
 	}
 
 	apiPrefix := "/"
@@ -171,6 +205,7 @@ func RegisterRoutes(api, ui bool, srv *server.Server) {
 	if api {
 		if ui {
 			apiPrefix = "/api"
+			env.DJINN_API_SERVER += apiPrefix
 
 			srv.Log.Info.Println("api routes served under", srv.Server.Addr+apiPrefix)
 		}
@@ -181,37 +216,34 @@ func RegisterRoutes(api, ui bool, srv *server.Server) {
 
 		srv.Router = srv.Router.PathPrefix(apiPrefix).Subrouter()
 
-		userhttp.RegisterAPI(apiPrefix, srv)
-		buildhttp.RegisterAPI(apiPrefix, srv)
-		cronhttp.RegisterAPI(apiPrefix, srv)
-		imagehttp.RegisterAPI(apiPrefix, srv)
-		keyhttp.RegisterAPI(apiPrefix, srv)
-		namespacehttp.RegisterAPI(apiPrefix, srv)
-		objecthttp.RegisterAPI(apiPrefix, srv)
-		variablehttp.RegisterAPI(apiPrefix, srv)
+		userhttp.RegisterAPI(auth, srv)
+		buildhttp.RegisterAPI(auth, srv)
+		cronhttp.RegisterAPI(auth, srv)
+		imagehttp.RegisterAPI(auth, srv)
+		keyhttp.RegisterAPI(auth, srv)
+		namespacehttp.RegisterAPI(auth, srv)
+		objecthttp.RegisterAPI(auth, srv)
+		variablehttp.RegisterAPI(auth, srv)
 
-		srv.Router = router
-
-		srv.Router.HandleFunc(apiPrefix, func(w http.ResponseWriter, r *http.Request) {
+		srv.Router.HandleFunc("", func(w http.ResponseWriter, r *http.Request) {
 			if r.Method != "GET" {
 				w.WriteHeader(http.StatusMethodNotAllowed)
 				return
 			}
 
-			addr := webutil.BaseAddress(r)
-
-			data := map[string]string{
-				"builds_url":     addr + apiPrefix + "/builds",
-				"namespaces_url": addr + apiPrefix + "/namespaces",
-				"cron_url":       addr + apiPrefix + "/cron",
-				"invites_url":    addr + apiPrefix + "/invites",
-				"images_url":     addr + apiPrefix + "/images",
-				"objects_url":    addr + apiPrefix + "/objects",
-				"variables_url":  addr + apiPrefix + "/variables",
-				"keys_url":       addr + apiPrefix + "/keys",
-			}
-			webutil.JSON(w, data, http.StatusOK)
+			webutil.JSON(w, map[string]string{
+				"builds_url":     env.DJINN_API_SERVER + "/builds",
+				"namespaces_url": env.DJINN_API_SERVER + "/namespaces",
+				"cron_url":       env.DJINN_API_SERVER + "/cron",
+				"invites_url":    env.DJINN_API_SERVER + "/invites",
+				"images_url":     env.DJINN_API_SERVER + "/images",
+				"objects_url":    env.DJINN_API_SERVER + "/objects",
+				"variables_url":  env.DJINN_API_SERVER + "/variables",
+				"keys_url":       env.DJINN_API_SERVER + "/keys",
+			}, http.StatusOK)
 		})
+
+		srv.Router = router
 	}
 
 	srv.Router.Use(srv.Save)

@@ -7,7 +7,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
@@ -21,6 +20,8 @@ import (
 	driverssh "djinn-ci.com/driver/ssh"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
+
+	"github.com/andrewpillar/fs"
 )
 
 // RealpathFunc is the function used for deriving the underlying path for an
@@ -142,11 +143,7 @@ func (q *Driver) runCmd() error {
 	var pidfile *os.File
 
 	for q.port < tcpMaxPort {
-		pidfile, err = ioutil.TempFile("", "djinn-qemu-")
-
-		if err != nil {
-			return err
-		}
+		pidfile, err = os.CreateTemp("", "djinn-qemu-")
 
 		if err != nil {
 			return err
@@ -198,7 +195,7 @@ func (q *Driver) runCmd() error {
 
 	q.pidfile = pidfile
 	q.ssh = &driverssh.Driver{
-		Writer:   ioutil.Discard,
+		Writer:   io.Discard,
 		Addr:     net.JoinHostPort("127.0.0.1", strconv.FormatInt(q.port, 10)),
 		User:     "root",
 		Password: "",
@@ -212,7 +209,7 @@ func (q *Driver) runCmd() error {
 // to the guest to allow for SSH comms. The host port will be 2222, unless
 // already taken in which case it will increment until all TCP ports have been
 // exhausted.
-func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+func (q *Driver) Create(c context.Context, env []string, pt runner.Passthrough, objects fs.FS) error {
 	var err error
 
 	if q.Writer == nil {
@@ -227,7 +224,7 @@ func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 		return err
 	}
 
-	b, err := ioutil.ReadAll(q.pidfile)
+	b, err := io.ReadAll(q.pidfile)
 
 	if err != nil {
 		return err
@@ -248,15 +245,15 @@ func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 	// Wait for machine to boot before attempting to connect.
 	time.Sleep(time.Second * 2)
 
-	if err := q.ssh.Create(c, env, runner.Passthrough{}, p); err != nil {
+	if err := q.ssh.Create(c, env, nil, objects); err != nil {
 		return err
 	}
 
 	fmt.Fprintf(q.Writer, "Established SSH connection to machine as %s...\n\n", q.ssh.User)
 
 	q.ssh.Writer = q.Writer
-	err = q.ssh.PlaceObjects(objs, p)
-	q.ssh.Writer = ioutil.Discard
+	err = q.ssh.PlaceObjects(pt, objects)
+	q.ssh.Writer = io.Discard
 
 	if err != nil {
 		return errors.Err(err)
@@ -266,7 +263,7 @@ func (q *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 
 // Execute will perform the given job on the Driver machine via a call to the
 // underlying SSH driver.
-func (q *Driver) Execute(j *runner.Job, c runner.Collector) { q.ssh.Execute(j, c) }
+func (q *Driver) Execute(j *runner.Job, artifacts fs.FS) error { return q.ssh.Execute(j, artifacts) }
 
 // Destroy will terminate the SSH connection to the Driver machine, and kill the
 // underlying OS process, then will remove the PIDFILE for that process.

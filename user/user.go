@@ -1,105 +1,162 @@
 package user
 
 import (
+	"context"
 	"crypto/rand"
-	"database/sql"
 	"encoding/hex"
+	"fmt"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 
 	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil/v2"
 
 	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx/v4"
 
 	"golang.org/x/crypto/bcrypt"
 )
 
-type User struct {
-	ID          int64
-	Email       string
-	Username    string
-	Password    []byte
-	Verified    bool
-	Cleanup     int64
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-	DeletedAt   sql.NullTime
-	Permissions map[string]struct{}
+type user struct {
+	*auth.User
+
+	loaded []string
+
+	Password  []byte
+	Verified  bool
+	Cleanup   int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt database.Null[time.Time]
 }
 
-var _ database.Model = (*User)(nil)
+var _ database.Model = (*user)(nil)
 
-func (u *User) Dest() []interface{} {
-	return []interface{}{
-		&u.ID,
-		&u.Email,
-		&u.Username,
-		&u.Password,
-		&u.Verified,
-		&u.Cleanup,
-		&u.CreatedAt,
-		&u.UpdatedAt,
-		&u.DeletedAt,
+func Verified(u *auth.User) bool {
+	if v, ok := u.RawData["verified"]; ok {
+		b, ok := v.(bool)
+
+		if ok {
+			return b
+		}
+	}
+	return false
+}
+
+func Cleanup(u *auth.User) int64 {
+	if v, ok := u.RawData["cleanup"]; ok {
+		n, ok := v.(int64)
+
+		if ok {
+			return n
+		}
+	}
+	return 0
+}
+
+func authUser(u *auth.User, password []byte) error {
+	hash := u.RawData["password"].([]byte)
+
+	if err := bcrypt.CompareHashAndPassword(hash, password); err != nil {
+		return auth.ErrAuth
+	}
+	return nil
+}
+
+func ValidatePassword(u *auth.User) webutil.ValidatorFunc {
+	return func(ctx context.Context, val any) error {
+		password, ok := val.([]byte)
+
+		if !ok {
+			return fmt.Errorf("user: cannot type assert %T to %T", val, []byte{})
+		}
+		return authUser(u, password)
 	}
 }
 
-func (*User) Bind(database.Model) {}
+func (u *user) Primary() (string, any) { return "id", u.ID }
 
-func (*User) Endpoint(...string) string { return "" }
+func (u *user) Scan(r *database.Row) error {
+	u.User = &auth.User{}
 
-func (u *User) JSON(string) map[string]interface{} {
-	if u == nil {
-		return nil
+	if err := u.User.Scan(r); err != nil {
+		return errors.Err(err)
 	}
 
-	return map[string]interface{}{
-		"id":         u.ID,
-		"email":      u.Email,
-		"username":   u.Username,
-		"created_at": u.CreatedAt.Format(time.RFC3339),
+	var ok bool
+
+	for col, val := range u.RawData {
+		switch col {
+		case "password":
+			if u.Password, ok = val.([]byte); !ok {
+				return fmt.Errorf("user: *user.Scan: cannot type assert type %T to %T", val, u.Password)
+			}
+		case "verified":
+			if u.Verified, ok = val.(bool); !ok {
+				return fmt.Errorf("user: *user.Scan: cannot type assert type %T to %T", val, u.Verified)
+			}
+		case "cleanup":
+			if u.Cleanup, ok = val.(int64); !ok {
+				return fmt.Errorf("user: *user.Scan: cannot type assert type %T to %T", val, u.Cleanup)
+			}
+		case "created_at":
+			if u.CreatedAt, ok = val.(time.Time); !ok {
+				return fmt.Errorf("user: *user.Scan: cannot type assert type %T to %T", val, u.CreatedAt)
+			}
+		case "updated_at":
+			if u.UpdatedAt, ok = val.(time.Time); !ok {
+				return fmt.Errorf("user: *user.Scan: cannot type assert type %T to %T", val, u.UpdatedAt)
+			}
+		case "deleted_at":
+			if val != nil {
+				if u.DeletedAt, ok = val.(database.Null[time.Time]); !ok {
+					return fmt.Errorf("user: *user.Scan: cannot type assert type %T to %T", val, u.DeletedAt)
+				}
+			}
+		}
 	}
+
+	u.loaded = r.Columns
+	return nil
 }
 
-func (u *User) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":         u.ID,
-		"email":      u.Email,
-		"username":   u.Username,
-		"password":   u.Password,
-		"verified":   u.Verified,
-		"cleanup":    u.Cleanup,
-		"created_at": u.CreatedAt,
-		"updated_at": u.UpdatedAt,
-		"deleted_at": u.DeletedAt,
+func (u *user) Params() database.Params {
+	params := database.Params{
+		"id":         database.ImmutableParam(u.ID),
+		"email":      database.CreateUpdateParam(u.Email),
+		"username":   database.CreateUpdateParam(u.Username),
+		"password":   database.CreateUpdateParam(u.Password),
+		"verified":   database.CreateUpdateParam(u.Verified),
+		"cleanup":    database.CreateUpdateParam(u.Cleanup),
+		"created_at": database.CreateOnlyParam(u.CreatedAt),
+		"updated_at": database.CreateUpdateParam(u.UpdatedAt),
+		"deleted_at": database.UpdateOnlyParam(u.DeletedAt),
 	}
+
+	if len(u.loaded) > 0 {
+		params.Only(u.loaded...)
+	}
+	return params
 }
 
-func (u *User) SetPermission(perm string) {
+func (*user) Bind(database.Model)       {}
+func (*user) Endpoint(...string) string { return "" }
+
+func (u *user) SetPermission(perm string) {
 	if u.Permissions == nil {
 		u.Permissions = make(map[string]struct{})
 	}
 	u.Permissions[perm] = struct{}{}
 }
 
-type Store struct {
-	database.Pool
+func (u *user) Auth(password []byte) error {
+	if err := bcrypt.CompareHashAndPassword(u.Password, password); err != nil {
+		return auth.ErrAuth
+	}
+	return nil
 }
-
-var (
-	_ database.Loader = (*Store)(nil)
-
-	table      = "users"
-	tokenTable = "account_tokens"
-
-	MaxAge = 5 * 365 * 86400
-
-	ErrAuth         = errors.New("invalid credentials")
-	ErrExists       = errors.New("user exists")
-	ErrTokenExpired = errors.New("token expired")
-)
 
 func WhereID(id int64) query.Option {
 	return query.Options(
@@ -130,7 +187,34 @@ func WhereHandle(handle string) query.Option {
 	)
 }
 
-func (s Store) touchAccountToken(id int64, purpose string) (string, error) {
+type Store struct {
+	*database.Store[*auth.User]
+}
+
+func Select(expr query.Expr, opts ...query.Option) query.Query {
+	return query.Select(expr, append([]query.Option{query.From(table)}, opts...)...)
+}
+
+var ErrTokenExpired = errors.New("user: token expired")
+
+const (
+	table      = "users"
+	tokenTable = "account_tokens"
+)
+
+func Loader(pool *database.Pool) database.Loader {
+	return database.ModelLoader(pool, table, func() database.Model {
+		return &auth.User{}
+	})
+}
+
+func NewStore(pool *database.Pool) *database.Store[*auth.User] {
+	return database.NewStore[*auth.User](pool, table, func() *auth.User {
+		return &auth.User{}
+	})
+}
+
+func (s Store) touchAccountToken(ctx context.Context, id int64, purpose string) (string, error) {
 	b := make([]byte, 16)
 
 	if _, err := rand.Read(b); err != nil {
@@ -139,14 +223,14 @@ func (s Store) touchAccountToken(id int64, purpose string) (string, error) {
 
 	var count int64
 
-	q0 := query.Select(
+	q := query.Select(
 		query.Count("*"),
 		query.From(tokenTable),
 		query.Where("user_id", "=", query.Arg(id)),
 		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
-	if err := s.QueryRow(q0.Build(), q0.Args()...).Scan(&count); err != nil {
+	if err := s.QueryRow(ctx, q.Build(), q.Args()...).Scan(&count); err != nil {
 		return "", errors.Err(err)
 	}
 
@@ -160,26 +244,88 @@ func (s Store) touchAccountToken(id int64, purpose string) (string, error) {
 			query.Values(id, tok, purpose, now, now.Add(time.Minute)),
 		)
 
-		if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		if _, err := s.Exec(ctx, q.Build(), q.Args()...); err != nil {
 			return "", errors.Err(err)
 		}
 		return tok, nil
 	}
 
-	q := query.Update(
+	q = query.Update(
 		tokenTable,
 		query.Set("token", query.Arg(tok)),
 		query.Set("expires_at", query.Arg(now.Add(time.Minute))),
 		query.Where("user_id", "=", query.Arg(id)),
 	)
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := s.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		return "", errors.Err(err)
 	}
 	return tok, nil
 }
 
-func (s Store) flushAccountToken(tok, purpose string) (int64, error) {
+type Params struct {
+	Email    string
+	Username string
+	Password string
+	Cleanup  int64
+}
+
+func (s Store) Create(ctx context.Context, p *Params) (*auth.User, error) {
+	password, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	u := auth.User{
+		Email:    p.Email,
+		Username: p.Username,
+		Provider: InternalProvider,
+		RawData: map[string]any{
+			"email":      p.Email,
+			"username":   p.Username,
+			"password":   password,
+			"cleanup":    1 << 30,
+			"created_at": time.Now(),
+		},
+	}
+
+	if err := s.Store.Create(ctx, &u); err != nil {
+		err = errors.Cause(err)
+
+		if perr, ok := err.(*pgconn.PgError); ok {
+			// 23505 unique_violation
+			// Can occur when creating an account via OAuth2 login and a
+			// username or email is already taken.
+			if perr.Code == "23505" {
+				return nil, database.ErrExists
+			}
+		}
+		return nil, errors.Err(err)
+	}
+
+	tok, err := s.touchAccountToken(ctx, u.ID, "verify_account")
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	for name, param := range u.Params() {
+		u.RawData[name] = param.Value
+	}
+	u.RawData["account_token"] = tok
+
+	return &u, nil
+}
+
+func (s Store) Update(ctx context.Context, u *auth.User) error {
+	if err := s.Store.Update(ctx, u); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s Store) flushAccountToken(ctx context.Context, tok, purpose string) (int64, error) {
 	var (
 		id     int64
 		expiry time.Time
@@ -192,9 +338,9 @@ func (s Store) flushAccountToken(tok, purpose string) (int64, error) {
 		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id, &expiry); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return -1, database.ErrNotFound
+	if err := s.QueryRow(ctx, q.Build(), q.Args()...).Scan(&id, &expiry); err != nil {
+		if errors.Is(err, database.ErrNoRows) {
+			return -1, database.ErrNoRows
 		}
 		return -1, errors.Err(err)
 	}
@@ -206,132 +352,63 @@ func (s Store) flushAccountToken(tok, purpose string) (int64, error) {
 		query.Where("purpose", "=", query.Arg(purpose)),
 	)
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := s.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		return -1, errors.Err(err)
 	}
 	return id, nil
 }
 
-type Params struct {
-	Email    string
-	Username string
-	Password string
-	Cleanup  int64
-}
-
-func (s Store) Create(p Params) (*User, string, error) {
-	hash, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
-
-	if err != nil {
-		return nil, "", errors.Err(err)
-	}
-
-	now := time.Now()
-
-	q := query.Insert(
-		table,
-		query.Columns("email", "username", "password", "created_at"),
-		query.Values(p.Email, p.Username, hash, now),
-		query.Returning("id"),
-	)
-
-	var id int64
-
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
-		if perr, ok := err.(*pgconn.PgError); ok {
-			// 23505 unique_violation
-			// Can occur when creating an account via OAuth2 login and a
-			// username or email is already taken.
-			if perr.Code == "23505" {
-				return nil, "", ErrExists
-			}
-		}
-		return nil, "", errors.Err(err)
-	}
-
-	tok, err := s.touchAccountToken(id, "verify_account")
-
-	if err != nil {
-		return nil, "", errors.Err(err)
-	}
-
-	return &User{
-		ID:        id,
-		Email:     p.Email,
-		Username:  p.Username,
-		Password:  hash,
-		CreatedAt: now,
-	}, tok, nil
-}
-
-func (s Store) Get(opts ...query.Option) (*User, bool, error) {
-	var u User
-
-	ok, err := s.Pool.Get(table, &u, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &u, ok, nil
-}
-
-func (s Store) All(opts ...query.Option) ([]*User, error) {
-	uu := make([]*User, 0)
-
-	new := func() database.Model {
-		u := &User{}
-		uu = append(uu, u)
-		return u
-	}
-
-	if err := s.Pool.All(table, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return uu, nil
-}
-
-func (s Store) Load(fk, pk string, mm ...database.Model) error {
-	vals := database.Values(fk, mm)
-
-	uu, err := s.All(query.Where(pk, "IN", database.List(vals...)))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	loaded := make([]database.Model, 0, len(uu))
-
-	for _, u := range uu {
-		loaded = append(loaded, u)
-	}
-
-	database.Bind(fk, pk, loaded, mm)
-	return nil
-}
-
-func (s Store) Auth(handle, password string) (*User, error) {
-	u, ok, err := s.Get(WhereHandle(handle))
+func (s Store) Auth(ctx context.Context, handle, password string) (*auth.User, error) {
+	u, ok, err := s.Get(ctx, WhereHandle(handle))
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
 	if !ok {
-		return nil, ErrAuth
+		return nil, auth.ErrAuth
 	}
 
-	if err := bcrypt.CompareHashAndPassword(u.Password, []byte(password)); err != nil {
-		return nil, ErrAuth
+	if err := authUser(u, []byte(password)); err != nil {
+		return nil, err
 	}
 	return u, nil
 }
 
-func (s Store) RequestVerify(id int64) (string, error) {
-	tok, err := s.touchAccountToken(id, "verify_account")
+const InternalProvider = "djinn-ci.com/user"
+
+func (s Store) Put(ctx context.Context, u *auth.User) (*auth.User, error) {
+	if u.Provider == InternalProvider {
+		return u, nil
+	}
+
+	_, ok, err := s.Get(ctx, query.Where("email", "=", query.Arg(u.Email)))
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if ok {
+		return nil, database.ErrExists
+	}
+
+	password := make([]byte, 16)
+	rand.Read(password)
+
+	u, err = s.Create(ctx, &Params{
+		Email:    u.Email,
+		Username: u.Username,
+		Password: hex.EncodeToString(password),
+	})
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return u, nil
+}
+
+func (s Store) RequestVerify(ctx context.Context, id int64) (string, error) {
+	tok, err := s.touchAccountToken(ctx, id, "verify_account")
 
 	if err != nil {
 		return "", errors.Err(err)
@@ -339,8 +416,8 @@ func (s Store) RequestVerify(id int64) (string, error) {
 	return tok, nil
 }
 
-func (s Store) Verify(tok string) error {
-	id, err := s.flushAccountToken(tok, "verify_account")
+func (s Store) Verify(ctx context.Context, tok string) error {
+	id, err := s.flushAccountToken(ctx, tok, "verify_account")
 
 	if err != nil {
 		return errors.Err(err)
@@ -350,59 +427,36 @@ func (s Store) Verify(tok string) error {
 		table, query.Set("verified", query.Arg(true)), query.Where("id", "=", query.Arg(id)),
 	)
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := s.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s Store) Update(id int64, p Params) error {
-	opts := []query.Option{
-		query.Set("email", query.Arg(p.Email)),
-		query.Set("cleanup", query.Arg(p.Cleanup)),
-		query.Set("updated_at", query.Arg(time.Now())),
-	}
-
-	if p.Password != "" {
-		hash, err := bcrypt.GenerateFromPassword([]byte(p.Password), bcrypt.DefaultCost)
-
-		if err != nil {
-			return errors.Err(err)
-		}
-		opts = append(opts, query.Set("password", query.Arg(hash)))
-	}
-	opts = append(opts, query.Where("id", "=", query.Arg(id)))
-
-	q := query.Update(table, opts...)
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
-func (s Store) UpdateEmail(tok, email string) error {
-	id, err := s.flushAccountToken(tok, "email_reset")
+func (s Store) UpdateEmail(ctx context.Context, tok, email string) error {
+	id, err := s.flushAccountToken(ctx, tok, "email_reset")
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	q := query.Update(
-		table,
-		query.Set("email", query.Arg(email)),
-		query.Set("updated_at", query.Arg(time.Now())),
-		query.Where("id", "=", query.Arg(id)),
-	)
+	u := auth.User{
+		ID:    id,
+		Email: email,
+		RawData: map[string]any{
+			"id":    id,
+			"email": email,
+		},
+	}
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if err := s.Update(ctx, &u); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s Store) UpdatePassword(tok, password string) error {
-	id, err := s.flushAccountToken(tok, "password_reset")
+func (s Store) UpdatePassword(ctx context.Context, tok, password string) error {
+	id, err := s.flushAccountToken(ctx, tok, "password_reset")
 
 	if err != nil {
 		return errors.Err(err)
@@ -414,21 +468,23 @@ func (s Store) UpdatePassword(tok, password string) error {
 		return errors.Err(err)
 	}
 
-	q := query.Update(
-		table,
-		query.Set("password", query.Arg(hash)),
-		query.Set("updated_at", query.Arg(time.Now())),
-		query.Where("id", "=", query.Arg(id)),
-	)
+	u := auth.User{
+		ID: id,
+		RawData: map[string]any{
+			"id":         id,
+			"password":   hash,
+			"updated_at": time.Now(),
+		},
+	}
 
-	if _, err = s.Exec(q.Build(), q.Args()...); err != nil {
+	if err := s.Update(ctx, &u); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s Store) ResetEmail(id int64) (string, error) {
-	tok, err := s.touchAccountToken(id, "email_reset")
+func (s Store) ResetEmail(ctx context.Context, u *auth.User) (string, error) {
+	tok, err := s.touchAccountToken(ctx, u.ID, "email_reset")
 
 	if err != nil {
 		return tok, errors.Err(err)
@@ -436,8 +492,8 @@ func (s Store) ResetEmail(id int64) (string, error) {
 	return tok, nil
 }
 
-func (s Store) ResetPassword(id int64) (string, error) {
-	tok, err := s.touchAccountToken(id, "password_reset")
+func (s Store) ResetPassword(ctx context.Context, u *auth.User) (string, error) {
+	tok, err := s.touchAccountToken(ctx, u.ID, "password_reset")
 
 	if err != nil {
 		return tok, errors.Err(err)
@@ -445,14 +501,23 @@ func (s Store) ResetPassword(id int64) (string, error) {
 	return tok, nil
 }
 
-func (s Store) Delete(id int64) error {
-	q := query.Update(
-		table,
-		query.Set("deleted_at", query.Arg(time.Now())),
-		query.Where("id", "=", query.Arg(id)),
-	)
+func (s Store) Delete(ctx context.Context, u *auth.User) error {
+	deletedAt := database.Null[time.Time]{
+		Elem:  time.Now(),
+		Valid: true,
+	}
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	u.RawData["deleted_at"] = deletedAt
+
+	err := s.Update(ctx, &auth.User{
+		ID: u.ID,
+		RawData: map[string]any{
+			"id":         u.ID,
+			"deleted_at": deletedAt,
+		},
+	})
+
+	if err != nil {
 		return errors.Err(err)
 	}
 	return nil

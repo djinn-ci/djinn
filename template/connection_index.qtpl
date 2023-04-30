@@ -1,0 +1,43 @@
+{% import "djinn-ci.com/oauth2" %}
+
+{% code
+type ConnectionIndex struct {
+	*Page
+
+	Tokens []*oauth2.Token
+}
+%}
+
+{% collapsespace %}
+{% func (p *ConnectionIndex) Title() %}Authorized OAuth Apps{% endfunc %}
+
+{% func (p *ConnectionIndex) Header() %}{%= p.Title() %}{% endfunc %}
+{% func (p *ConnectionIndex) Actions() %}{% endfunc %}
+{% func (p *ConnectionIndex) Navigation() %}{% endfunc %}
+{% func (p *ConnectionIndex) Footer() %}{% endfunc %}
+
+{% func (p *ConnectionIndex) renderTokenItem(t *oauth2.Token) %}
+	<tr>
+		<td>
+			<a href="/settings/connectionns/{%s t.App.ClientID %}">{%s t.App.Name %}</a>
+			<br/>Owned by {%s t.App.User.Email %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *ConnectionIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Tokens) == 0 %}
+			<div class="panel-message muted">No OAuth applications have been authorized.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, t := range p.Tokens %}
+						{%= p.renderTokenItem(t) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

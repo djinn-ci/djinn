@@ -1,0 +1,49 @@
+{% import "djinn-ci.com/oauth2" %}
+
+{% code
+type AppIndex struct {
+	*Page
+
+	Apps []*oauth2.App
+}
+%}
+
+{% collapsespace %}
+{% func (p *AppIndex) Title() %}OAuth Apps{% endfunc %}
+
+{% func (p *AppIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *AppIndex) Actions() %}
+	<li><a href="/settings/apps/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *AppIndex) Navigation() %}{% endfunc %}
+{% func (p *AppIndex) Footer() %}{% endfunc %}
+
+{% func (p *AppIndex) renderAppItem(a *oauth2.App) %}
+	<tr>
+		<td>
+			<a href="{%s a.Endpoint() %}">{%s a.Name %}</a>
+			{% if a.Description != "" %}
+				<br/><span class="muted">{%s a.Description %}</span>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *AppIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Apps) == 0 %}
+			<div class="panel-message muted">No OAuth applications created.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, a := range p.Apps %}
+						{%= p.renderAppItem(a) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

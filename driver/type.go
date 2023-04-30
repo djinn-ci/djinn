@@ -36,6 +36,13 @@ func IsValid(typ string) bool {
 	return ok
 }
 
+func Lookup(typ string) (Type, error) {
+	if typ, ok := driversMap[typ]; ok {
+		return typ, nil
+	}
+	return 0, ErrUnknown(typ)
+}
+
 // Scan assumes the given interface value is either a byte slice or a string,
 // and turns the underlying value into the corresponding Type.
 func (t *Type) Scan(val interface{}) error {

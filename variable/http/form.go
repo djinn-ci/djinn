@@ -1,18 +1,22 @@
 package http
 
 import (
-	"fmt"
+	"context"
 	"regexp"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/variable"
 
-	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type Form struct {
+	Pool *database.Pool `schema:"-"`
+	User *auth.User     `schema:"-"`
+
 	Namespace namespace.Path
 	Key       string
 	Value     string
@@ -35,73 +39,30 @@ func (f Form) Fields() map[string]string {
 	}
 }
 
-type Validator struct {
-	UserID    int64
-	Variables variable.Store
-	Form      Form
-}
+var reKey = regexp.MustCompile("^[\\D]+[a-zA-Z0-9_]+$")
 
-var (
-	_ webutil.Validator = (*Validator)(nil)
+func (f Form) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-	rekey = regexp.MustCompile("^[\\D]+[a-zA-Z0-9_]+$")
-)
+	v.WrapError(
+		webutil.IgnoreError("key", database.ErrPermission),
+		webutil.MapError(database.ErrPermission, errors.New("permission denied")),
+		webutil.WrapFieldError,
+	)
 
-func (v Validator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Key == "" {
-		errs.Add("key", webutil.ErrFieldRequired("Key"))
+	v.Add("namespace", f.Namespace, namespace.CanAccess(f.Pool, f.User))
+
+	v.Add("key", f.Key, webutil.FieldRequired)
+	v.Add("key", f.Key, webutil.FieldMatches(reKey))
+	v.Add("key", f.Key, namespace.ResourceUnique[*variable.Variable](variable.NewStore(f.Pool), f.User, "key", f.Namespace))
+
+	v.Add("value", f.Value, webutil.FieldRequired)
+
+	if f.Mask {
+		v.Add("value", f.Value, webutil.FieldMinLen(variable.MaskLen))
 	}
 
-	opts := []query.Option{
-		query.Where("user_id", "=", query.Arg(v.UserID)),
-		query.Where("key", "=", query.Arg(v.Form.Key)),
-	}
+	errs := v.Validate(ctx)
 
-	if v.Form.Mask {
-		if len(v.Form.Value) < variable.MaskLen {
-			errs.Add("value", fmt.Errorf("Masked variable length cannot be shorter than %d characters", variable.MaskLen))
-		}
-	}
-
-	if v.Form.Namespace.Valid {
-		_, n, err := v.Form.Namespace.ResolveOrCreate(v.Variables.Pool, v.UserID)
-
-		if err != nil {
-			if perr, ok := err.(*namespace.PathError); ok {
-				errs.Add("namespace", perr)
-				return
-			}
-			errs.Add("fatal", err)
-			return
-		}
-
-		if err := n.IsCollaborator(v.Variables.Pool, v.UserID); err != nil {
-			if errors.Is(err, namespace.ErrPermission) {
-				errs.Add("namespace", err)
-				return
-			}
-			errs.Add("fatal", err)
-			return
-		}
-		opts[0] = query.Where("namespace_id", "=", query.Arg(n.ID))
-	}
-
-	_, ok, err := v.Variables.Get(opts...)
-
-	if err != nil {
-		errs.Add("fatal", err)
-		return
-	}
-
-	if ok {
-		errs.Add("key", webutil.ErrFieldExists("Key"))
-	}
-
-	if !rekey.Match([]byte(v.Form.Key)) {
-		errs.Add("key", errors.New("Invalid variable key"))
-	}
-
-	if v.Form.Value == "" {
-		errs.Add("value", webutil.ErrFieldRequired("Value"))
-	}
+	return errs.Err()
 }

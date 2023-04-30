@@ -1,78 +1,48 @@
 package http
 
 import (
+	"io"
 	"net/http"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/image"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/server"
-	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/fs"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type API struct {
 	*Handler
-
-	Prefix string
 }
 
-func (h API) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	ii, paginator, err := h.IndexWithRelations(u, r)
+func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get images"))
 		return
 	}
 
-	data := make([]map[string]interface{}, 0, len(ii))
-	addr := webutil.BaseAddress(r) + h.Prefix
-
-	for _, i := range ii {
-		data = append(data, i.JSON(addr))
-	}
-
-	w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-	webutil.JSON(w, data, http.StatusOK)
+	w.Header().Set("Link", p.EncodeToLink(r.URL))
+	webutil.JSON(w, p.Items, http.StatusOK)
 }
 
-func (h API) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
-	i, _, err := h.StoreModel(u, r)
+func (h API) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	i, _, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if cause == image.ErrInvalidScheme {
-			errs := webutil.NewValidationErrors()
-			errs.Add("download_url", cause)
-
-			webutil.JSON(w, errs, http.StatusBadRequest)
-			return
-		}
-
-		switch err := cause.(type) {
-		case webutil.ValidationErrors:
-			if errs, ok := err["fatal"]; ok {
-				h.InternalServerError(w, r, errors.Slice(errs))
-				return
-			}
-			webutil.JSON(w, err, http.StatusBadRequest)
-		case *namespace.PathError:
-			webutil.JSON(w, map[string][]string{"namespace": {err.Error()}}, http.StatusBadRequest)
-		default:
-			h.InternalServerError(w, r, errors.Err(err))
-		}
+		h.FormError(w, r, nil, err)
 		return
 	}
-	webutil.JSON(w, i.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, i, http.StatusCreated)
 }
 
-func (h API) Show(u *user.User, i *image.Image, w http.ResponseWriter, r *http.Request) {
+func (h API) Show(u *auth.User, i *image.Image, w http.ResponseWriter, r *http.Request) {
 	if r.Header.Get("Accept") == image.MimeTypeQEMU {
-		rec, err := i.Data(h.Images.Store)
+		f, err := i.Open(h.Images)
 
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -80,48 +50,55 @@ func (h API) Show(u *user.User, i *image.Image, w http.ResponseWriter, r *http.R
 				return
 			}
 
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get image"))
 			return
 		}
 
-		defer rec.Close()
+		defer f.Close()
 
 		w.Header().Set("Content-Type", image.MimeTypeQEMU)
-		http.ServeContent(w, r, i.Name, i.CreatedAt, rec)
+		http.ServeContent(w, r, i.Name, i.CreatedAt, f.(io.ReadSeeker))
 		return
 	}
 
-	if err := image.LoadRelations(h.DB, i); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+	ctx := r.Context()
+
+	if err := image.LoadRelations(ctx, h.DB, i); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to load relations"))
 		return
 	}
 
-	if err := image.LoadNamespaces(h.DB, i); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+	if err := namespace.Loader(h.DB).Load(ctx, "namespace_id", "id", i); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to load namespace"))
 		return
 	}
-	webutil.JSON(w, i.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusOK)
+	webutil.JSON(w, i, http.StatusOK)
 }
 
-func (h API) Destroy(u *user.User, i *image.Image, w http.ResponseWriter, r *http.Request) {
-	if err := h.DeleteModel(r.Context(), i); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+func (h API) Destroy(u *auth.User, i *image.Image, w http.ResponseWriter, r *http.Request) {
+	if err := h.Handler.Destroy(r.Context(), i); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete image"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func RegisterAPI(prefix string, srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func RegisterAPI(a auth.Authenticator, srv *server.Server) {
 	api := API{
 		Handler: NewHandler(srv),
-		Prefix:  prefix,
 	}
 
+	index := api.Restrict(a, []string{"image:read"}, api.Index)
+	store := api.Restrict(a, []string{"image:write"}, api.Store)
+
+	a = namespace.NewAuth[*image.Image](a, "image", api.Images.Store)
+
+	show := api.Optional(a, api.Image(api.Show))
+	destroy := api.Restrict(a, []string{"image:write"}, api.Image(api.Destroy))
+
 	sr := srv.Router.PathPrefix("/images").Subrouter()
-	sr.HandleFunc("", user.WithUser(api.Index)).Methods("GET")
-	sr.HandleFunc("", user.WithUser(api.Store)).Methods("POST")
-	sr.HandleFunc("/{image:[0-9]+}", user.WithUser(api.WithImage(api.Show))).Methods("GET")
-	sr.HandleFunc("/{image:[0-9]+}", user.WithUser(api.WithImage(api.Destroy))).Methods("DELETE")
+	sr.HandleFunc("", index).Methods("GET")
+	sr.HandleFunc("", store).Methods("POST")
+	sr.HandleFunc("/{image:[0-9]+}", show).Methods("GET")
+	sr.HandleFunc("/{image:[0-9]+}", destroy).Methods("DELETE")
 }

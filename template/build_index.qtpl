@@ -1,0 +1,119 @@
+{%
+import (
+	"strings"
+	"net/url"
+
+	"djinn-ci.com/build"
+)
+%}
+
+{% code
+type BuildIndex struct {
+	*Paginator
+
+	Builds []*build.Build
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildIndex) Title() %}Builds{% endfunc %}
+
+{% func (p *BuildIndex) Header() %}
+	Builds
+	{% if tag := p.Query.Get("tag"); tag != "" %}
+		<span class="pill pill-light">
+			{%s tag %}<a href="{%s p.Href(url.Values{"tag": {""}}) %}">{% cat "static/svg/close.svg" %}</a>
+		</span>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *BuildIndex) Actions() %}
+	{% if _, ok := p.User.Permissions["build:write"]; ok %}
+		<li><a href="/builds/create" class="btn btn-primary">Submit</a></li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *BuildIndex) Navigation() %}{% endfunc %}
+{% func (p *BuildIndex) Footer() %}{% endfunc %}
+
+{% func (p *BuildIndex) renderBuildItem(b *build.Build) %}
+	<tr>
+		<td>{%= Status(b.Status) %}</td>
+		<td>
+			<a href="{%s b.Endpoint() %}">
+				#{%v b.Number %}
+				{% if b.Trigger.Comment != "" %} - {%s b.Trigger.CommentTitle() %}{% endif %}
+			</a>
+		</td>
+		<td>
+			{% if b.Namespace != nil %}
+				<a href="{%s b.Namespace.Endpoint() %}">{%s b.Namespace.Path %}</a>
+			{% else %}
+				<span class="muted">--</span>
+			{% endif %}
+		</td>
+		<td class="align-right hide-mobile">
+			{% if len(b.Tags) > 0 %}
+				{% for _, t := range b.Tags[:3] %}
+					<a class="pill pill-light" href="{%s p.Href(url.Values{"tag": {t.Name}}) %}">{%s t.Name %}</a>
+				{% endfor %}
+			{% endif %}
+			{% if len(b.Tags) > 3 %}
+				<a class="pill pill-light" href="{%s b.Endpoint("tags") %}" title="Build tags">...</a>
+			{% endif %}
+		</td>
+		<td class="align-right">
+			{% if b.Pinned %}
+				{% if p.Query.Has("pinned") %}
+					<a href="{%s p.Href(url.Values{"pinned": {""}}) %}">
+						<span class="muted" title="Pinned">{% cat "static/svg/pushpin.svg" %}</span>
+					</a>
+				{% else %}
+					<a href="{%s p.Href(url.Values{"pinned": {"true"}}) %}">
+						<span class="muted" title="Pinned">{% cat "static/svg/pushpin.svg" %}</span>
+					</a>
+				{% endif %}
+			{% endif %}
+			{% if p.User.ID != b.UserID %}
+				<span class="muted">{% cat "static/svg/users.svg" %}</span>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *BuildIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Builds) == 0 %}
+			{% if query := p.Query.Get("search"); query != "" %}
+				<div class="panel-header">{%= p.Search("Find a build...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% elseif status := p.Query.Get("status"); status != "" %}
+				<div class="panel-message muted">
+					No {%s strings.Replace(p.Query.Get("status"), "_", " ", -1) %} builds.
+				</div>
+			{% else %}
+				<div class="panel-message muted">No builds have been submitted yet.</div>
+			{% endif %}
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>STATUS</th>
+						<th>BUILD</th>
+						<th>NAMESPACE</th>
+						<th class="hide-mobile"></th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, b := range p.Builds %}
+						{%= p.renderBuildItem(b) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+	{%= p.Paginator.Navigation() %}
+{% endfunc %}
+{% endcollapsespace %}

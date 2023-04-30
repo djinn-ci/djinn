@@ -1,0 +1,46 @@
+{% import "djinn-ci.com/template/form" %}
+
+{% code
+type ObjectCreate struct {
+	*form.Form
+}
+%}
+
+{% collapsespace %}
+{% func (p *ObjectCreate) Title() %}Create Object{% endfunc %}
+
+{% func (p *ObjectCreate) Header() %}
+	<a class="back" href="/objects">{% cat "static/svg/back.svg" %}</a> {%= p.Title() %}
+{% endfunc %}
+
+{% func (p *ObjectCreate) Actions() %}{% endfunc %}
+{% func (p *ObjectCreate) Navigation() %}{% endfunc %}
+{% func (p *ObjectCreate) Footer() %}{% endfunc %}
+
+{% func (p *ObjectCreate) Body() %}
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="/objects" enctype="multipart/form-data">
+			{%v= p.CSRF %}
+			{%= p.Field(form.Field{
+				ID:       "namespace",
+				Name:     "Namespace",
+				Optional: true,
+				Type:     form.Text,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:   "name",
+				Name: "Name",
+				Type: form.Text,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:   "file",
+				Name: "File",
+				Type: form.File,
+			}) %}
+			<div class="form-field">
+				<button type="submit" class="btn btn-primary">Create</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

@@ -1,5 +1,3 @@
-// Package worker contains the Worker implementation that is used for handling
-// builds that are submitted to the server.
 package worker
 
 import (
@@ -7,8 +5,9 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
+	"net"
+	"net/url"
 	"runtime/debug"
-	"strings"
 	"time"
 
 	"djinn-ci.com/build"
@@ -17,8 +16,6 @@ import (
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
-	"djinn-ci.com/image"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/namespace"
@@ -27,6 +24,7 @@ import (
 	"djinn-ci.com/runner"
 	"djinn-ci.com/user"
 
+	"github.com/andrewpillar/fs"
 	"github.com/andrewpillar/query"
 
 	"github.com/go-redis/redis"
@@ -35,75 +33,76 @@ import (
 )
 
 type Worker struct {
-	// DB is the client to the SQL database.
-	DB database.Pool
-
-	// Redis is the client to the Redis database from where submitted builds
-	// will be processed from.
-	Redis *redis.Client
-
-	// SMTP is the client to the SMTP server we use for sending emails about
-	// a build's progress.
-	SMTP *mail.Client
-
-	// Admin is the email address that should be used in emails sent from the
-	// worker on build failures.
-	Admin string
-
-	// AESGCM is the block cipher to use for decrypting access tokens when
-	// interacting with a provider's REST API.
-	AESGCM *crypto.AESGCM
-
-	// Log is the logger implementation used for logging information about the
-	// running builds.
 	Log *log.Logger
 
-	// Consumer is the consumer used for retrieving builds from the queue.
+	DB    *database.Pool
+	Redis *redis.Client
+
+	SMTP *mail.Client
+
+	AESGCM *crypto.AESGCM
+
 	Consumer *curlyq.Consumer
+	Queue    queue.Queue
 
-	Queue queue.Queue // Queue for dispatching webhooks.
+	Driver  string
+	Timeout time.Duration
 
-	Driver  string        // Driver is the name of the driver the worker is configured for.
-	Timeout time.Duration // Timeout is the maximum duration a build can run for.
+	DriverInit   driver.Init
+	DriverConfig driver.Config
 
-	DriverInit   driver.Init   // DriverInit is the initialization function for the worker's driver.
-	DriverConfig driver.Config // DriverConfig is the global configuration for the worker's driver.
-
-	// Providers is the registry containing the provider client implementations
-	// used for updating a build's commit status, if submitted via a pull
-	// request hook.
 	Providers *provider.Registry
 
-	Objects   fs.Store // The fs.Store from where we place build objects.
-	Artifacts fs.Store // The fs.Store to where we collect build artifacts.
+	Objects   fs.FS
+	Artifacts fs.FS
 }
 
-var passedStatuses = map[runner.Status]struct{}{
-	runner.Queued:             {},
-	runner.Running:            {},
-	runner.Passed:             {},
-	runner.PassedWithFailures: {},
-}
+func New(cfg *config.Worker, driverCfg driver.Config, driverInit driver.Init) *Worker {
+	smtp, _ := cfg.SMTP()
 
-func New(cfg *config.Worker, drivercfg driver.Config, fn driver.Init) *Worker {
-	smtp, smtpadmin := cfg.SMTP()
+	aesgcm := cfg.AESGCM()
+	log := cfg.Log()
+
+	webhooks := &namespace.WebhookStore{
+		Store:  namespace.NewWebhookStore(cfg.DB()),
+		AESGCM: aesgcm,
+	}
+
+	memq := queue.NewMemory(cfg.Parallelism(), func(j queue.Job, err error) {
+		log.Error.Println("queue job failed:", j.Name(), err)
+	})
+
+	memq.InitFunc("event:build.started", build.InitEvent(webhooks))
+	memq.InitFunc("event:build.finished", build.InitEvent(webhooks))
 
 	return &Worker{
+		Log:          log,
 		DB:           cfg.DB(),
 		Redis:        cfg.Redis(),
 		SMTP:         smtp,
-		Admin:        smtpadmin,
-		AESGCM:       cfg.AESGCM(),
-		Log:          cfg.Log(),
+		AESGCM:       aesgcm,
 		Consumer:     cfg.Consumer(),
-		Timeout:      cfg.Timeout(),
 		Driver:       cfg.Driver(),
-		DriverInit:   fn,
-		DriverConfig: drivercfg,
+		Queue:        memq,
+		Timeout:      cfg.Timeout(),
+		DriverInit:   driverInit,
+		DriverConfig: driverCfg,
 		Providers:    cfg.Providers(),
 		Objects:      cfg.Objects(),
 		Artifacts:    cfg.Artifacts(),
 	}
+}
+
+func (w *Worker) setCommitStatus(p *provider.Provider, r *provider.Repo, payload build.Payload, b *build.Build) error {
+	if b.Trigger.Type == build.Pull {
+		cli := p.Client()
+		url := payload.Host + b.Endpoint()
+
+		if err := cli.SetCommitStatus(r, b.Status, url, b.Trigger.Data["sha"]); err != nil {
+			return errors.Err(err)
+		}
+	}
+	return nil
 }
 
 func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
@@ -120,264 +119,182 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	w.Log.Debug.Println("handling job", job.ID, "attempt:", job.Attempt)
-
 	data := bytes.NewBuffer(job.Data)
 
 	var payload build.Payload
 
 	if err := gob.NewDecoder(data).Decode(&payload); err != nil {
-		w.Log.Error.Println(job.ID, "failed to decode job payload", errors.Err(err))
 		return errors.Err(err)
 	}
 
-	w.Log.Debug.Println("build id:", payload.BuildID)
+	w.Log.Debug.Println("received build", payload.BuildID)
 
-	builds := build.Store{Pool: w.DB}
+	builds := build.Store{
+		Store: build.NewStore(w.DB),
+	}
 
-	b, _, err := builds.Get(query.Where("id", "=", query.Arg(payload.BuildID)))
+	b, _, err := builds.SelectOne(
+		ctx,
+		[]string{"id", "user_id", "status", "secret", "namespace_id", "started_at", "finished_at"},
+		query.Where("id", "=", query.Arg(payload.BuildID)),
+	)
 
 	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
+	}
+
+	if b.StartedAt.Valid {
+		w.Log.Debug.Println("orphaning build", b.ID)
+
+		if err := builds.Orphan(ctx, b); err != nil {
+			return errors.Err(err)
+		}
 	}
 
 	if b.FinishedAt.Valid {
 		return nil
 	}
 
-	users := user.Store{Pool: w.DB}
-
-	b.User, _, err = users.Get(query.Where("id", "=", query.Arg(b.UserID)))
-
-	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
+	if err := build.LoadRelations(ctx, w.DB, b); err != nil {
 		return errors.Err(err)
 	}
 
-	triggers := build.TriggerStore{Pool: w.DB}
-
-	b.Trigger, _, err = triggers.Get()
-
-	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-		return errors.Err(err)
-	}
-
-	namespaces := namespace.Store{Pool: w.DB}
-
-	b.Namespace, _, err = namespaces.Get(query.Where("id", "=", query.Arg(b.NamespaceID)))
-
-	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-	}
-
-	if b.Namespace != nil {
-		b.Namespace.User, _, err = users.Get(query.Where("id", "=", query.Arg(b.Namespace.UserID)))
-
-		if err != nil {
-			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-		}
-	}
-
-	providers := provider.Store{
-		Pool:    w.DB,
+	providers := &provider.Store{
+		Store:   provider.NewStore(w.DB),
 		AESGCM:  w.AESGCM,
 		Clients: w.Providers,
 	}
 
-	p, fromProvider, err := providers.Get(query.Where("id", "=", query.Arg(b.Trigger.ProviderID)))
+	p, fromProvider, err := providers.Get(ctx, query.Where("id", "=", query.Arg(b.Trigger.ProviderID)))
 
 	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
 	var repo *provider.Repo
 
 	if fromProvider {
-		repos := provider.RepoStore{Pool: w.DB}
-
-		r, _, err := repos.Get(
-			query.Where("id", "=", query.Arg(b.Trigger.RepoID)),
-			query.Where("provider_id", "=", query.Arg(p.ID)),
-		)
-
-		if err != nil {
-			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
+		if err := w.setCommitStatus(p, repo, payload, b); err != nil {
 			return errors.Err(err)
 		}
-
-		repo = r
-
-		if b.Trigger.Type == build.Pull {
-			url := payload.Host + b.Endpoint()
-
-			if err := p.SetCommitStatus(repo, runner.Running, url, b.Trigger.Data["sha"]); err != nil {
-				w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-				return errors.Err(err)
-			}
-		}
-	}
-
-	ctx, cancel := context.WithTimeout(ctx, w.Timeout)
-	defer cancel()
-
-	sub := w.Redis.Subscribe(fmt.Sprintf("kill-%v", b.ID))
-	defer sub.Close()
-
-	go func() {
-		if msg := <-sub.Channel(); msg != nil {
-			if msg.Payload == b.Secret.String {
-				cancel()
-			}
-		}
-	}()
-
-	run := w.Runner(b)
-
-	if err := run.Init(); err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-		return errors.Err(err)
-	}
-
-	drivers := build.DriverStore{Pool: w.DB}
-
-	d, _, err := drivers.Get(query.Where("build_id", "=", query.Arg(b.ID)))
-
-	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
-		return errors.Err(err)
 	}
 
 	b.Status = runner.Running
 
-	w.Queue.Produce(ctx, &build.Event{
-		Build: b,
-	})
+	w.Queue.Produce(ctx, &build.Event{Build: b})
 
-	status, err := run.Run(ctx, job.ID, d)
+	r, err := NewRunner(ctx, w, b)
 
 	if err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 
-	b.Status = status
+	if err := r.Run(ctx); err != nil {
+		return errors.Err(err)
+	}
 
 	w.Queue.Produce(ctx, &build.Event{Build: b})
 
 	if fromProvider {
-		if b.Trigger.Type == build.Pull {
-			url := payload.Host + b.Endpoint()
+		if err := w.setCommitStatus(p, repo, payload, b); err != nil {
+			return errors.Err(err)
+		}
+	}
 
-			if err := p.SetCommitStatus(repo, status, url, b.Trigger.Data["sha"]); err != nil {
-				w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
+	if w.SMTP != nil {
+		passed := map[runner.Status]struct{}{
+			runner.Queued:             {},
+			runner.Running:            {},
+			runner.Passed:             {},
+			runner.PassedWithFailures: {},
+		}
+
+		if _, ok := passed[b.Status]; !ok {
+			if err := w.sendEmail(ctx, r, payload, b); err != nil {
 				return errors.Err(err)
 			}
 		}
 	}
+	return nil
+}
 
-	if w.SMTP == nil {
-		return nil
-	}
+const emailTmpl = `Build: %s%s
 
-	if _, ok := passedStatuses[status]; ok {
-		return nil
-	}
+-----
+%s
+-----
 
-	to := []string{b.User.Email}
+%s
+`
+
+func (w *Worker) sendEmail(ctx context.Context, r *Runner, payload build.Payload, b *build.Build) error {
+	to := make([]string, 0)
+	to = append(to, b.User.Email)
 
 	if b.NamespaceID.Valid {
-		uu, err := users.All(
+		uu, err := user.NewStore(w.DB).Select(
+			ctx,
+			[]string{"email"},
 			query.Where("id", "IN",
-				namespace.CollaboratorSelect("user_id",
+				namespace.SelectCollaborator(
+					query.Columns("user_id"),
 					query.Where("namespace_id", "=", query.Arg(b.NamespaceID)),
 				),
 			),
 		)
 
 		if err != nil {
-			w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 			return errors.Err(err)
 		}
 
 		for _, u := range uu {
-			to = append(to, u.Email)
+			if u.Email != "" {
+				to = append(to, u.Email)
+			}
 		}
 	}
 
-	var (
-		buf    bytes.Buffer
-		output string
-	)
+	var buf bytes.Buffer
 
-	adj := strings.Replace(status.String(), "_", " ", -1)
-	subj := fmt.Sprintf("Djinn CI - Build #%d %s", b.Number, adj)
+	fmt.Fprintf(&buf, emailTmpl, payload.Host, b.Endpoint(), b.Trigger.String(), r.Tail())
 
-	if status == runner.Failed {
-		output = run.Tail()
-	} else {
-		buf.WriteString(subj + "\n\n")
-	}
+	host := payload.Host
 
-	fmt.Fprintf(&buf, "Build: %s%s\n\n", payload.Host, b.Endpoint())
-	buf.WriteString("-----\n")
-	buf.WriteString(b.Trigger.String())
-	buf.WriteString("-----\n")
+	url, err := url.Parse(host)
 
-	if output != "" {
-		buf.WriteString("\n" + output + "\n")
+	if err == nil {
+		host, _, _ = net.SplitHostPort(url.Host)
 	}
 
 	m := mail.Mail{
-		From:    w.Admin,
+		From:    "djinn-worker@" + host,
 		To:      to,
-		Subject: subj,
+		Subject: fmt.Sprintf("Djinn CI - Build #%d %s", b.Number, b.Status.String()),
 		Body:    buf.String(),
 	}
 
+	w.Log.Debug.Println("sending mail from", m.From)
+	w.Log.Debug.Println("sending mail to", m.To)
+
 	if err := m.Send(w.SMTP); err != nil {
-		w.Log.Error.Println(job.ID, "build_id =", payload.BuildID, errors.Err(err))
 		return errors.Err(err)
 	}
 	return nil
 }
 
-// Run begins the worker for handling builds.
 func (w *Worker) Run(ctx context.Context) error {
 	gob.Register(build.Payload{})
 
-	if err := w.Consumer.ConsumeCtx(ctx, w.handle); err != nil {
+	handle := func(ctx context.Context, job curlyq.Job) error {
+		if err := w.handle(ctx, job); err != nil {
+			w.Log.Error.Println(errors.Err(err))
+			return err
+		}
+		return nil
+	}
+
+	if err := w.Consumer.ConsumeCtx(ctx, handle); err != nil {
 		return errors.Err(err)
 	}
 	return nil
-}
-
-// Runner configures a new runner for running the given build.
-func (w *Worker) Runner(b *build.Build) *Runner {
-	return &Runner{
-		db:     w.DB,
-		aesgcm: w.AESGCM,
-		log:    w.Log,
-		buf:    &bytes.Buffer{},
-		build:  b,
-		builds: &build.Store{Pool: w.DB},
-		images: &image.Store{Pool: w.DB},
-		vars:   build.VariableStore{Pool: w.DB},
-		keys:   build.KeyStore{Pool: w.DB},
-		stages: build.StageStore{Pool: w.DB},
-		jobs:   build.JobStore{Pool: w.DB},
-		objects: &build.ObjectStore{
-			Pool:  w.DB,
-			Store: w.Objects,
-		},
-		artifacts: &build.ArtifactStore{
-			Pool:  w.DB,
-			Store: w.Artifacts,
-		},
-		driver:     w.Driver,
-		driverinit: w.DriverInit,
-		drivercfg:  w.DriverConfig,
-	}
 }

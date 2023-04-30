@@ -3,17 +3,18 @@ package http
 import (
 	"net/http"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/server"
-	"djinn-ci.com/user"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
-func RegisterAPI(prefix string, srv *server.Server) {
+func RegisterAPI(a auth.Authenticator, srv *server.Server) {
 	h := NewHandler(srv)
 
-	auth := srv.Router.PathPrefix("/").Subrouter()
-	auth.HandleFunc("/user", h.WithUser(func(u *user.User, w http.ResponseWriter, r *http.Request) {
-		webutil.JSON(w, u.JSON(webutil.BaseAddress(r)+"/"+prefix), http.StatusOK)
-	}))
+	user := func(u *auth.User, w http.ResponseWriter, r *http.Request) {
+		webutil.JSON(w, u, http.StatusOK)
+	}
+
+	srv.Router.PathPrefix("/").Subrouter().HandleFunc("/user", h.Restrict(a, nil, user))
 }

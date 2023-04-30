@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"image"
@@ -9,11 +10,14 @@ import (
 	"image/draw"
 	"image/png"
 	"io"
+	"strconv"
 	"testing"
 
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/integration/djinn"
+
+	"github.com/andrewpillar/fs"
 
 	"github.com/andrewpillar/query"
 )
@@ -34,7 +38,7 @@ func blusqr(w io.Writer) {
 }
 
 func Test_ObjectValidation(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	tests := []struct {
 		params djinn.ObjectParams
@@ -47,7 +51,7 @@ func Test_ObjectValidation(t *testing.T) {
 		{
 			djinn.ObjectParams{
 				Name:   "Test_ObjectValidation",
-				Object: bytes.NewBuffer(make([]byte, 5*(1<<20))),
+				Object: bytes.NewBuffer(make([]byte, 5*(1<<20)+1)),
 			},
 			[]string{"file"},
 		},
@@ -79,7 +83,7 @@ func Test_ObjectValidation(t *testing.T) {
 }
 
 func Test_ObjectCreate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	var data bytes.Buffer
 
@@ -117,7 +121,7 @@ func Test_ObjectCreate(t *testing.T) {
 }
 
 func Test_ObjectDelete(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	var data bytes.Buffer
 
@@ -134,13 +138,15 @@ func Test_ObjectDelete(t *testing.T) {
 
 	var hash string
 
+	ctx := context.Background()
+
 	q := query.Select(
 		query.Columns("hash"),
 		query.From("objects"),
 		query.Where("id", "=", query.Arg(o.ID)),
 	)
 
-	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&hash); err != nil {
+	if err := db.QueryRow(ctx, q.Build(), q.Args()...).Scan(&hash); err != nil {
 		t.Fatal(err)
 	}
 
@@ -148,7 +154,7 @@ func Test_ObjectDelete(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	store, err := objectstore.Partition(o.UserID)
+	store, err := objectFS.Sub(strconv.FormatInt(o.UserID, 10))
 
 	if err != nil {
 		t.Fatal(err)

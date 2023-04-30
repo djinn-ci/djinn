@@ -15,10 +15,27 @@ import (
 	"djinn-ci.com/driver"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
+
+	"github.com/andrewpillar/fs"
 )
 
 type Driver struct {
 	io.Writer
+
+	curdir string
+
+	Chdir func() error
+}
+
+// Tmpdir creates a temporary directory and changes into it for executing the OS
+// driver.
+func Tmpdir() error {
+	dir, err := os.MkdirTemp("", "driver-os-*")
+
+	if err != nil {
+		return err
+	}
+	return os.Chdir(dir)
 }
 
 var _ runner.Driver = (*Driver)(nil)
@@ -26,6 +43,7 @@ var _ runner.Driver = (*Driver)(nil)
 func Init(w io.Writer, cfg driver.Config) runner.Driver {
 	return &Driver{
 		Writer: w,
+		Chdir:  Tmpdir,
 	}
 }
 
@@ -37,37 +55,55 @@ func (cfg Config) Merge(_ map[string]string) driver.Config {
 
 func (Config) Apply(_ runner.Driver) {}
 
-func (d *Driver) logf(format string, a ...interface{}) (int, error) {
-	return fmt.Fprintf(d.Writer, format, a...)
-}
+func (d *Driver) Create(_ context.Context, env []string, pt runner.Passthrough, objects fs.FS) error {
+	if d.Chdir != nil {
+		dir, err := os.Getwd()
 
-func (d *Driver) Create(_ context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+		if err != nil {
+			return err
+		}
+
+		if err := d.Chdir(); err != nil {
+			return err
+		}
+		d.curdir = dir
+	}
+
 	for _, v := range env {
 		parts := strings.SplitN(v, "=", 2)
 
 		os.Setenv(parts[0], parts[1])
 	}
 
-	for src, dst := range objs.Values {
+	for src, dst := range pt {
 		func(src, dst string) {
-			f, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, os.FileMode(0644))
+			fmt.Fprintln(d.Writer, "Placing object", src, "=>", dst)
+
+			f, err := os.Create(dst)
 
 			if err != nil {
-				d.logf("Failed to open object file %s => %s: %s\n", src, dst, err)
+				fmt.Fprintln(d.Writer, "object error:", errors.Cause(err))
 				return
 			}
 
 			defer f.Close()
 
-			if _, err := p.Place(src, f); err != nil {
-				d.logf("Failed to place object %s => %s: %s\n", src, dst, errors.Cause(err))
+			object, err := objects.Open(src)
+
+			if err != nil {
+				fmt.Fprintln(d.Writer, "object error:", errors.Cause(err))
+				return
+			}
+
+			if _, err := io.Copy(f, object); err != nil {
+				fmt.Fprintln(d.Writer, "object error:", errors.Cause(err))
 			}
 		}(src, dst)
 	}
 	return nil
 }
 
-func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
+func (d *Driver) Execute(j *runner.Job, artifacts fs.FS) error {
 	for _, cmdline := range j.Commands {
 		r := csv.NewReader(strings.NewReader(cmdline))
 		r.Comma = ' '
@@ -83,31 +119,42 @@ func (d *Driver) Execute(j *runner.Job, c runner.Collector) {
 		cmd.Stderr = j.Writer
 
 		if err := cmd.Run(); err != nil {
-			j.Failed(err)
-			return
+			return err
 		}
 	}
 
-	j.Status = runner.Passed
-
-	for src, dst := range j.Artifacts.Values {
-		d.logf("Collecting artifact %s => %s\n", src, dst)
-
+	for src, dst := range j.Artifacts {
 		func(src, dst string) {
+			fmt.Fprintln(d.Writer, "Collecting artifact", src, "=>", dst)
+
 			f, err := os.Open(src)
 
 			if err != nil {
-				d.logf("Failed to collect artifact %s => %s: %s\n", src, dst, err)
+				fmt.Fprintln(d.Writer, "artifact error:", errors.Cause(err))
 				return
 			}
 
 			defer f.Close()
 
-			if _, err := c.Collect(dst, f); err != nil {
-				d.logf("Failed to collect artifact %s => %s: %s\n", src, dst, errors.Cause(err))
+			artifact, err := fs.ReadFile(dst, f)
+
+			if err != nil {
+				fmt.Fprintln(d.Writer, "artifact error:", errors.Cause(err))
+				return
+			}
+
+			defer artifact.Close()
+
+			if _, err := artifacts.Put(artifact); err != nil {
+				fmt.Fprintln(d.Writer, "artifact error:", errors.Cause(err))
 			}
 		}(src, dst)
 	}
+	return nil
 }
 
-func (*Driver) Destroy() {}
+func (d *Driver) Destroy() {
+	if d.curdir != "" {
+		os.Chdir(d.curdir)
+	}
+}

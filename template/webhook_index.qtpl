@@ -1,0 +1,71 @@
+{%
+import (
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type WebhookIndex struct {
+	*Page
+
+	Namespace *namespace.Namespace
+	Webhooks  []*namespace.Webhook
+}
+%}
+
+{% collapsespace %}
+{% func (p *WebhookIndex) Title() %}Webhooks{% endfunc %}
+
+{% func (p *WebhookIndex) Header() %}{% endfunc %}
+{% func (p *WebhookIndex) Actions() %}{% endfunc %}
+{% func (p *WebhookIndex) Navigation() %}{% endfunc %}
+{% func (p *WebhookIndex) Footer() %}{% endfunc %}
+
+{% func (p *WebhookIndex) renderWebhookItem(w *namespace.Webhook) %}
+	<tr>
+		{% if !w.Active %}
+			<td class="hook-status hook-status-none" title="Disabled">{% cat "static/svg/disabled.svg" %}</td>
+		{% endif %}
+		{% if w.LastDelivery == nil %}
+				<td class="hook-status hook-status-none">{% cat "static/svg/close.svg" %}</td>
+		{% else %}
+			{% if w.LastDelivery.ResponseCode.Elem >= 200 && w.LastDelivery.ResponseCode.Elem < 300 %}
+				<td class="hook-status hook-status-ok">{% cat "static/svg/check.svg" %}</td>
+			{% else %}
+				<td class="hook-status hook-status-err">{% cat "static/svg/close.svg" %}</td>
+			{% endif %}
+		{% endif %}
+		<td>{%s w.Author.Username %}</td>
+		<td><a href="{%s w.Endpoint() %}">{%s w.PayloadURL.String() %}</a></td>
+		<td class="align-right">
+			<form method="POST" action="{%s w.Endpoint() %}">
+				{%= form.Method("DELETE") %}
+				{%v= p.CSRF %}
+				<button type="submit" class="btn btn-danger">Delete</button>
+			</form>
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *WebhookIndex) Body() %}
+	<div class="panel">
+		<div class="panel-header panel-body">
+			<a class="btn btn-primary right" href="{%s p.Namespace.Endpoint("webhooks", "create") %}">
+				Create webhook
+			</a>
+		</div>
+		{% if len(p.Webhooks) == 0 %}
+			<div class="panel-message muted">Add a webhook to notify external services of events.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, w := range p.Webhooks %}
+						{%= p.renderWebhookItem(w) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

@@ -1,0 +1,91 @@
+{%
+import (
+	"djinn-ci.com/object"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type ObjectIndex struct {
+	*Paginator
+
+	Objects []*object.Object
+}
+%}
+
+{% collapsespace %}
+{% func (p *ObjectIndex) Title() %}Objects{% endfunc %}
+{% func (p *ObjectIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *ObjectIndex) Navigation() %}{% endfunc %}
+{% func (p *ObjectIndex) Footer() %}{% endfunc %}
+
+{% func (p *ObjectIndex) Actions() %}
+	{% if _, ok := p.User.Permissions["object:write"]; ok %}
+		<li><a href="/objects/create" class="btn btn-primary">Create</a></li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *ObjectIndex) renderObjectItem(o *object.Object) %}
+	<tr>
+		<td><a href="{%s o.Endpoint() %}">{%s o.Name %}</a></td>
+		<td><span class="code">{%s o.Type %}</span></td>
+		<td>{%s HumanSize(o.Size) %}</td>
+		<td>
+			{% if o.Namespace != nil %}
+				<a href="{%s o.Namespace.Endpoint() %}">{%s o.Namespace.Path %}</a>
+			{% else %}
+				<span class="muted">--</span>
+			{% endif %}
+		</td>
+		<td class="align-right">
+			{% if p.User.ID != o.UserID %}
+				<span class="muted">{% cat "static/svg/users.svg" %}</span>
+			{% endif %}
+		</td>
+		<td class="align-right">
+			{% if p.User.ID == o.UserID || o.Namespace != nil && o.Namespace.UserID == p.User.ID %}
+				<form method="POST" action="{%s o.Endpoint() %}">
+					{%= form.Method("DELETE") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-danger">Delete</button>
+				</form>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *ObjectIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Objects) == 0 %}
+			{% if query := p.Query.Get("search"); query != "" %}
+				<div class="panel-header">{%= p.Search("Find an object...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<div class="panel-message muted">
+					Objects are files that can be used in build environments.
+				</div>
+			{% endif %}
+		{% else %}
+			<div class="panel-header">{%= p.Search("Find an object...") %}</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th>TYPE</th>
+						<th>SIZE</th>
+						<th>NAMESPACE</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, o := range p. Objects %}
+						{%= p.renderObjectItem(o) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

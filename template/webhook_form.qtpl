@@ -1,0 +1,159 @@
+{%
+import (
+	"strings"
+
+	"djinn-ci.com/event"
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type WebhookForm struct {
+	*form.Form
+
+	Namespace  *namespace.Namespace
+	Webhook    *namespace.Webhook
+	Deliveries []*namespace.WebhookDelivery
+}
+
+func (p *WebhookForm) action() string {
+	if p.Webhook == nil {
+		return p.Namespace.Endpoint("webhooks")
+	}
+	return p.Webhook.Endpoint()
+}
+%}
+
+{% collapsespace %}
+{% func (p *WebhookForm) Title() %}
+	{% if p.Webhook == nil %}
+		{%s p.Namespace.User.Username %}/{%s p.Namespace.Name %} - Create webhook
+	{% else %}
+		{%s p.Namespace.User.Username %}/{%s p.Namespace.Name %} - Edit webhook
+	{% endif %}
+{% endfunc %}
+
+{% func (p *WebhookForm) Header() %}
+	<a class="back" href="{%s p.Namespace.Endpoint("webhooks") %}">{%cat "static/svg/back.svg" %}</a>
+	{% if p.Webhook == nil %}
+		{%= namespacePath(p.Namespace.User.Username, p.Namespace.Path) %} / Create webhook
+	{% else %}
+		{%= namespacePath(p.Namespace.User.Username, p.Namespace.Path) %} / Edit webhook
+	{% endif %}
+{% endfunc %}
+
+{% func (p *WebhookForm) Navigation() %}{% endfunc %}
+{% func (p *WebhookForm) Actions() %}{% endfunc %}
+{% func (p *WebhookForm) Footer() %}{% endfunc %}
+
+{% func (p *WebhookForm) renderEventFormControl(i int, checked bool, typ event.Type) %}
+	<label class="hook-event">
+		<input {% if checked %}checked="true"{% endif %} class="form-selector" name="events" type="checkbox" value="{%s typ.String() %}"/>
+		<span class="code">{%s strings.Replace(typ.String(), "_", " ", 1) %}</span>
+	</label>
+{% endfunc %}
+
+{% func (p *WebhookForm) renderDeliveryItem(d *namespace.WebhookDelivery) %}
+	<tr>
+		{% if d.ResponseCode.Elem >= 200 && d.ResponseCode.Elem < 300 %}
+			<td class="hook-status hook-status-ok">{% cat "static/svg/check.svg" %}</td>
+		{% else %}
+			<td class="hook-status hook-status-ok">{% cat "static/svg/close.svg" %}</td>
+		{% endif %}
+		<td>
+			{% if d.Redelivery %}
+				<span class="muted" title="Redelivery">{% cat "static/svg/sync.svg" %}</span>
+			{% endif %}
+		</td>
+		<td>
+			<code><a href="{%s d.Endpoint() %}">{%v d.EventID %}</a></code>
+		</td>
+		<td>{%s d.Duration.String() %}</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *WebhookForm) Body() %}
+	<div class="panel">
+		<form action="{%s p.action() %}" class="panel-body slim" method="POST">
+			{% if p.Webhook != nil %}
+				{%= form.Method("PATCH") %}
+			{% endif %}
+			{%v= p.CSRF %}
+			{%= p.Field(form.Field{
+				ID:   "payload_url",
+				Name: "Payload URL",
+				Type: form.Text,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:   "secret",
+				Name: "Secret",
+				Type: form.Password,
+			}) %}
+			{% if p.Webhook != nil %}
+				{%= p.Field(form.Field{
+					ID:   "remove_secret",
+					Name: "Remove secret",
+					Desc: "Leave the secret blank to remove it",
+					Type: form.Checkbox,
+				}) %}
+			{% endif %}
+			{%= p.Field(form.Field{
+				ID:   "ssl",
+				Name: "SSL",
+				Desc: "Verify SSL certificates when sending payloads",
+				Type:  form.Checkbox,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:   "active",
+				Name: "Active",
+				Desc: "Send events for this webhook",
+				Type: form.Checkbox,
+			}) %}
+			<div class="form-field">
+				<strong>Events</strong><br/>
+				{% for i, typ := range event.Types %}
+					{%= p.renderEventFormControl(i, p.Webhook != nil && p.Webhook.Events.Has(typ), typ) %}
+				{% endfor %}
+			</div>
+			<div class="form-field">
+				{% if p.Webhook == nil %}
+					<button type="submit" class="btn btn-primary">Create</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Save</button>
+				{% endif %}
+			</div>
+		</form>
+		{% if p.Webhook != nil %}
+			<div class="separator"></div>
+			<form action="{%s p.Webhook.Endpoint() %}" class="panel-body slim" method="POST">
+				{%= form.Method("DELETE") %}
+				{%v= p.CSRF %}
+				<div class="overflow">
+					<div class="right">
+						<button class="btn btn-danger" type="submit">Delete</button>
+					</div>
+				</div>
+			</form>
+		{% endif %}
+	</div>
+	{% if p.Webhook != nil %}
+		<div class="panel">
+			<div class="panel-header">
+				<h3>Recent deliveries</h3>
+			</div>
+			{% if len(p.Deliveries) == 0 %}
+				<div class="panel-message muted">No recent deliveries.</div>
+			{% else %}
+				<table class="table">
+					<tbody>
+						{% for _, d := range p.Deliveries %}
+							{%= p.renderDeliveryItem(d) %}
+						{% endfor %}
+					</tbody>
+				</table>
+			{% endif %}
+		</div>
+	{% endif %}
+{% endfunc %}
+{% endcollapsespace %}

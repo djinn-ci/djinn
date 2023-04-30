@@ -1,0 +1,45 @@
+{% import "djinn-ci.com/build" %}
+
+{% code
+type BuildKeys struct {
+	Keys []*build.Key
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildKeys) Title() %}Keys{% endfunc %}
+
+{% func (p *BuildKeys) Header() %}{% endfunc %}
+{% func (p *BuildKeys) Actions() %}{% endfunc %}
+{% func (p *BuildKeys) Navigation() %}{% endfunc %}
+{% func (p *BuildKeys) Footer() %}{% endfunc %}
+
+{% func (p *BuildKeys) renderKeyItem(k *build.Key) %}
+	<tr>
+		<td><span class="code">{%s k.Name %}</span></td>
+		<td><span class="code">{%s k.Location %}</span></td>
+	</tr>
+{% endfunc %}
+
+{% func (p *BuildKeys) Body() %}
+	<div class="panel">
+		{% if len(p.Keys) == 0 %}
+			<div class="panel-message muted">No keys have been added to this build.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>KEY</th>
+						<th>LOCATION</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, k := range p.Keys %}
+						{%= p.renderKeyItem(k) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

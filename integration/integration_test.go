@@ -12,117 +12,91 @@ import (
 	"testing"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/env"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/integration/djinn"
 	"djinn-ci.com/oauth2"
 	"djinn-ci.com/serverutil"
 	"djinn-ci.com/user"
 	"djinn-ci.com/workerutil"
 
+	"github.com/andrewpillar/fs"
+
 	goredis "github.com/go-redis/redis"
 )
 
-var (
-	users  *usermap
-	tokens *tokenmap
-)
-
-type usermap struct {
-	mu *sync.RWMutex
-	m  map[string]*user.User
+type syncMap[T any] struct {
+	mu sync.RWMutex
+	m  map[string]T
 }
 
-func (m *usermap) put(u *user.User) {
+func (m *syncMap[T]) put(key string, val T) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	if m.m == nil {
-		m.m = make(map[string]*user.User)
+		m.m = make(map[string]T)
 	}
-	m.m[u.Email] = u
+	m.m[key] = val
 }
 
-func (m *usermap) get(email string) *user.User {
+func (m *syncMap[T]) get(key string) T {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
-	return m.m[email]
-}
-
-type tokenmap struct {
-	mu *sync.RWMutex
-	m  map[string]*oauth2.Token
-}
-
-func (m *tokenmap) put(t *oauth2.Token) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if m.m == nil {
-		m.m = make(map[string]*oauth2.Token)
-	}
-	m.m[t.Name] = t
-}
-
-func (m *tokenmap) get(name string) *oauth2.Token {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	return m.m[name]
+	return m.m[key]
 }
 
 var (
-	db     database.Pool
-	redis  *goredis.Client
+	users  *syncMap[*auth.User]
+	tokens *syncMap[*oauth2.Token]
+
 	server *httptest.Server
-	aesgcm *crypto.AESGCM
 
-	imagestore  fs.Store
-	objectstore fs.Store
-
-	apiEndpoint string
+	db       *database.Pool
+	redis    *goredis.Client
+	aesgcm   *crypto.AESGCM
+	imageFS  fs.FS
+	objectFS fs.FS
 )
 
-func fatalf(format string, a ...interface{}) {
+func fatalf(format string, a ...any) {
 	fmt.Fprintf(os.Stderr, format, a...)
 	os.Exit(1)
 }
 
-func mkuser(db database.Pool, email, username string, password []byte) *user.User {
-	users := user.Store{Pool: db}
+func mkuser(ctx context.Context, db *database.Pool, email, username string, password []byte) *auth.User {
+	users := user.Store{
+		Store: user.NewStore(db),
+	}
 
-	u, _, err := users.Create(user.Params{
+	u, err := users.Create(ctx, &user.Params{
 		Email:    email,
 		Username: username,
 		Password: string(password),
 	})
 
 	if err != nil {
-		fatalf("mkuser error: %s\n", err)
+		fatalf("mkuser: %s\n", err)
 	}
 	return u
 }
 
-func mktoken(db database.Pool, u *user.User, name, scope string) *oauth2.Token {
-	sc, err := oauth2.UnmarshalScope(scope)
-
-	if err != nil {
-		fatalf("mktoken error: %s\n", err)
+func mktoken(ctx context.Context, db *database.Pool, u *auth.User, name string, sc oauth2.Scope) *oauth2.Token {
+	tokens := oauth2.TokenStore{
+		Store: oauth2.NewTokenStore(db),
 	}
 
-	tokens := oauth2.TokenStore{Pool: db}
-
-	tok, err := tokens.Create(oauth2.TokenParams{
-		UserID: u.ID,
-		Name:   name,
-		Scope:  sc,
+	tok, err := tokens.Create(ctx, &oauth2.TokenParams{
+		User:  u,
+		Name:  name,
+		Scope: sc,
 	})
 
 	if err != nil {
-		fatalf("mktoken error: %s\n", err)
+		fatalf("mktoken: %s\n", err)
 	}
 	return tok
 }
@@ -145,7 +119,6 @@ func submitBuildAndWait(t *testing.T, cli *djinn.Client, status djinn.Status, p 
 				if err := b.Get(cli); err != nil {
 					t.Fatal(err)
 				}
-
 				if b.Status != djinn.Queued && b.Status != djinn.Running {
 					done <- struct{}{}
 					return
@@ -166,59 +139,27 @@ func submitBuildAndWait(t *testing.T, cli *djinn.Client, status djinn.Status, p 
 	return b
 }
 
-// setupServer sets up the server for integration testing. This returns a
-// callback for cleaning up the resources used by the server.
-func setupServer(cfgdir string) func() {
-	cfgfile := filepath.Join(cfgdir, "server.conf")
+func setupServer(ctx context.Context, cfgdir string) func(context.Context) {
+	args := []string{
+		"djinn-server",
+		"-config", filepath.Join(cfgdir, "server.conf"),
+	}
 
-	api, config, ui, _ := serverutil.ParseFlags([]string{"djinn-server", "-config", cfgfile})
+	api, config, ui, _ := serverutil.ParseFlags(args)
 
-	bgctx := context.Background()
-
-	qctx, qcancel := context.WithCancel(bgctx)
+	qctx, qcancel := context.WithCancel(ctx)
 
 	srv, close, err := serverutil.Init(qctx, config)
 
 	if err != nil {
-		fatalf("failed to initialize server: %s\n", err)
+		fatalf("setupServer: %s\n", err)
 	}
 
 	db = srv.DB
 	redis = srv.Redis
-
-	users = &usermap{
-		mu: &sync.RWMutex{},
-	}
-
-	uu := []*user.User{
-		{Email: "gordon.freeman@black-mesa.com", Username: "gordon.freeman", Password: []byte("secret")},
-		{Email: "eli.vance@black-mesa.com", Username: "eli.vance", Password: []byte("secret")},
-		{Email: "wallace.breen@black-mesa.com", Username: "wallace.breen", Password: []byte("secret")},
-		{Email: "doug.rattman@aperturescience.com", Username: "doug.rattman", Password: []byte("secret")},
-		{Email: "henry.bloggs@aperturescience.com", Username: "henry.bloggs", Password: []byte("secret")},
-	}
-
-	for i, u0 := range uu {
-		u := mkuser(db, u0.Email, u0.Username, u0.Password)
-
-		users.put(u)
-		uu[i] = u
-	}
-
-	tokens = &tokenmap{
-		mu: &sync.RWMutex{},
-	}
-
-	for _, u := range uu {
-		sc := oauth2.NewScope()
-
-		for _, res := range oauth2.Resources {
-			for _, perm := range oauth2.Permissions {
-				sc.Add(res, perm)
-			}
-		}
-		tokens.put(mktoken(db, u, u.Username, sc.String()))
-	}
+	aesgcm = srv.AESGCM
+	imageFS = srv.Images
+	objectFS = srv.Objects
 
 	ch := make(chan os.Signal, 1)
 
@@ -226,46 +167,35 @@ func setupServer(cfgdir string) func() {
 	serverutil.Start(srv, ch)
 
 	server = httptest.NewServer(srv.Server.Handler)
-	aesgcm = srv.AESGCM
 
-	imagestore = srv.Images
-	objectstore = srv.Objects
+	env.DJINN_API_SERVER = server.URL + "/api"
 
-	apiEndpoint = server.URL + "/api"
-	env.DJINN_API_SERVER = apiEndpoint
-
-	ctx, cancel := context.WithTimeout(bgctx, time.Duration(time.Second*15))
-
-	return func() {
-		defer qcancel()
-		defer close()
-		defer cancel()
-		defer server.Close()
-		defer srv.Shutdown(ctx)
+	return func(ctx context.Context) {
+		qcancel()
+		close()
+		server.Close()
+		srv.Shutdown(ctx)
 	}
 }
 
-func setupWorker(cfgdir string) func() {
-	cfgfile := filepath.Join(cfgdir, "worker.conf")
+func setupWorker(ctx context.Context, cfgdir string) func() {
+	args := []string{
+		"djinn-worker",
+		"-config", filepath.Join(cfgdir, "worker.conf"),
+		"-driver", filepath.Join(cfgdir, "driver.conf"),
+	}
 
-	config, driver, _ := workerutil.ParseFlags([]string{
-		"djinn-worker", "-config", cfgfile, "-driver", filepath.Join(cfgdir, "driver.conf"),
-	})
+	config, driver, _ := workerutil.ParseFlags(args)
 
-	w, close, err := workerutil.Init(config, driver)
+	wrk, close, err := workerutil.Init(config, driver)
 
 	if err != nil {
-		fatalf("failed to initialize worker: %s\n", err)
+		fatalf("setupWorker: %s\n", err)
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
+	workerutil.Start(ctx, wrk)
 
-	workerutil.Start(ctx, w)
-
-	return func() {
-		defer close()
-		defer cancel()
-	}
+	return close
 }
 
 func TestMain(m *testing.M) {
@@ -279,8 +209,8 @@ func TestMain(m *testing.M) {
 	tmp := os.TempDir()
 
 	for _, dir := range []string{"artifacts", "images", "objects"} {
-		if err := os.MkdirAll(filepath.Join(tmp, dir), os.FileMode(0755)); err != nil {
-			fatalf("failed to create directory %s: %s\n", dir, err)
+		if err := os.MkdirAll(filepath.Join(tmp, dir), fs.FileMode(0750)); err != nil {
+			fatalf("%s\n", err)
 		}
 	}
 
@@ -292,16 +222,43 @@ func TestMain(m *testing.M) {
 	for _, log := range logs {
 		if _, err := os.Stat(log); err == nil {
 			if err := os.Truncate(log, 0); err != nil {
-				fatalf("failed to truncate %s log: %s\n", log, err)
+				fatalf("%s\n", err)
 			}
 		}
 	}
 
-	srvcleanup := setupServer(cfgdir)
-	wrkcleanup := setupWorker(cfgdir)
+	ctx := context.Background()
 
-	defer srvcleanup()
-	defer wrkcleanup()
+	srvCleanup := setupServer(ctx, cfgdir)
+	wrkCleanup := setupWorker(ctx, cfgdir)
+
+	defer srvCleanup(ctx)
+	defer wrkCleanup()
+
+	users = &syncMap[*auth.User]{}
+	tokens = &syncMap[*oauth2.Token]{}
+
+	uu := []*auth.User{
+		{Email: "gordon.freeman@black-mesa.com", Username: "gordon.freeman"},
+		{Email: "eli.vance@black-mesa.com", Username: "eli.vance"},
+		{Email: "wallace.breen@black-mesa.com", Username: "wallace.breen"},
+		{Email: "doug.rattman@aperturescience.com", Username: "doug.rattman"},
+		{Email: "henry.bloggs@aperturescience.com", Username: "henry.bloggs"},
+	}
+
+	for _, u := range uu {
+		u = mkuser(ctx, db, u.Email, u.Username, []byte("secret"))
+		users.put(u.Username, u)
+
+		sc := oauth2.NewScope()
+
+		for _, res := range oauth2.Resources {
+			for _, perm := range oauth2.Permissions {
+				sc.Add(res, perm)
+			}
+		}
+		tokens.put(u.Username, mktoken(ctx, db, u, u.Username, sc))
+	}
 
 	code := m.Run()
 
@@ -310,7 +267,7 @@ func TestMain(m *testing.M) {
 			f, err := os.Open(log)
 
 			if err != nil {
-				fatalf("failed to open log: %s\n", err)
+				fatalf("%s\n", err)
 			}
 
 			defer f.Close()

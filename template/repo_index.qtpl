@@ -1,0 +1,127 @@
+{%
+import (
+	"djinn-ci.com/provider"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type RepoIndex struct {
+	*Paginator
+
+	Repos     []*provider.Repo
+	Provider  *provider.Provider
+	Providers []*provider.Provider
+}
+%}
+
+{% collapsespace %}
+{% func (p *RepoIndex) Title() %}Repositories{% endfunc %}
+{% func (p *RepoIndex) Header() %}{%= p.Title() %}{% endfunc %}
+{% func (p *RepoIndex) Navigation() %}{% endfunc %}
+{% func (p *RepoIndex) Footer() %}{% endfunc %}
+
+{% func (p *RepoIndex) Actions() %}
+	{% if p.Provider != nil && p.Provider.Connected %}
+		<form method="POST" action="/repos/reload?provider={%s p.Provider.Name %}&page={%v p.Paginator.Page %}">
+			{%= form.Method("PATCH") %}
+			{%v= p.CSRF %}
+			<button type="submit" class="btn btn-primary">Reload</button>
+		</form>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *RepoIndex) renderProviders() %}
+	{% stripspace %}
+		<ul class="panel-nav">
+			{% for _, prv := range p.Providers %}
+				<li>
+					{% if p.Provider.Name == prv.Name %}
+						<a class="active" href="{%s p.URL.Path %}?provider={%s prv.Name %}">{%s providerNames[prv.Name] %}</a>
+					{% else %}
+						<a href="{%s p.URL.Path %}?provider={%s prv.Name %}">{%s providerNames[prv.Name] %}</a>
+					{% endif %}
+				</li>
+			{% endfor %}
+		</ul>
+	{% endstripspace %}
+{% endfunc %}
+
+{% func (p *RepoIndex) renderRepoItem(r *provider.Repo) %}
+	<tr>
+		<td>
+			<span class="muted">
+				{% switch r.Provider.Name %}
+				{% case "github" %}
+					{% cat "static/svg/github.svg" %}
+				{% case "gitlab" %}
+					{% cat "static/svg/gitlab.svg" %}
+				{% endswitch %}
+			</span>
+			<a href="{%s r.Href %}" target="_blank">{%s r.Name %}</a>
+		</td>
+		{% if !r.Provider.Connected %}
+			<td class="warning">
+				{% cat "static/svg/warning.svg" %} Disconnected from {%s providerNames[r.Provider.Name] %}
+			</td>
+		{% else %}
+			<td></td>
+		{% endif %}
+		<td class="align-right">
+			{% if !r.Enabled %}
+				<form method="POST" action="/repos/enable">
+					{%v= p.CSRF %}
+					<input type="hidden" name="provider_id" value="{%v r.ProviderID %}">
+					<input type="hidden" name="repo_id" value="{%v r.RepoID %}">
+					<input type="hidden" name="name" value="{%s r.Name %}">
+					<input type="hidden" name="href" value="{%s r.Href %}">
+					<button type="submit" class="btn btn-primary" {% if !r.Provider.Connected %}disabled="true"{% endif %}>
+						Enable
+					</button>
+				</form>
+			{% else %}
+				<form method="POST" action="/repos/enable/{%v r.ID %}">
+					{%= form.Method("DELETE") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-danger" {% if !r.Provider.Connected %}disabled="true"{% endif %}>
+						Disable
+					</button>
+				</form>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *RepoIndex) Body() %}
+	<div class="panel">
+		<div class="panel-header">{%= p.renderProviders() %}</div>
+		{% if len(p.Providers) == 0 %}
+			<div class="panel-message muted">No 3rd party git providers have been configured to connect to.</div>
+		{% else %}
+			{% if !p.Provider.Connected %}
+				<div class="panel-message muted">
+					Connect to {%s providerNames[p.Provider.Name] %} from your account <a href="/settings">settings</a>.
+				</div>
+			{% elseif len(p.Repos) == 0 %}
+				<div class="panel-message muted">No {%s providerNames[p.Provider.Name] %} repositories.</div>
+			{% else %}
+				<table class="table">
+					<thead>
+						<tr>
+							<th>NAME</th>
+							<th></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody>
+						{% for _, r := range p. Repos %}
+							{%= p.renderRepoItem(r) %}
+						{% endfor %}
+					</tbody>
+				</table>
+			{% endif %}
+		{% endif %}
+	</div>
+	{%= p.Paginator.Navigation() %}
+{% endfunc %}
+{% endcollapsespace %}

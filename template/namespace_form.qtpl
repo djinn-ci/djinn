@@ -1,0 +1,166 @@
+{%
+import (
+	"strings"
+
+	"djinn-ci.com/namespace"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type NamespaceForm struct {
+	*form.Form
+
+	Parent    *namespace.Namespace
+	Namespace *namespace.Namespace
+}
+
+func (p *NamespaceForm) action() string {
+	if p.Namespace != nil {
+		return p.Namespace.Endpoint()
+	}
+	return "/namespaces"
+}
+
+func (p *NamespaceForm) checked(v namespace.Visibility) string {
+	if p.Namespace != nil && p.Namespace.Visibility == v {
+		return `checked="true"`
+	}
+
+	if p.Parent != nil && p.Parent.Visibility == v {
+		return `checked="true"`
+	}
+
+	if v == namespace.Private {
+		return `checked="true"`
+	}
+	return ""
+}
+
+func (p *NamespaceForm) disabled(v namespace.Visibility) string {
+	if p.Namespace != nil && p.Namespace.ParentID.Valid && p.Namespace.Visibility != v {
+		return `disabled="true"`
+	}
+
+	if p.Parent != nil && p.Parent.Visibility != v {
+		return `disabled="true"`
+	}
+	return ""
+}
+%}
+
+{% collapsespace %}
+{% func renderNamespacePath(username string, parts []string) %}
+	{% for i, part := range parts %}
+		<a href="/n/{%s username %}/{%s strings.Join(parts[:i+1], "/") %}">{%s part %}</a>
+		{% if i != len(parts)-1 %}
+			<span> / </span>
+		{% endif %}
+	{% endfor %}
+{% endfunc %}
+
+{% func namespacePath(username, path string) %}
+	{%= renderNamespacePath(username, strings.Split(path, "/")) %}
+{% endfunc %}
+
+{% func (p *NamespaceForm) Title() %}
+	{% if p.Namespace == nil %}
+		Create Namespace
+	{% else %}
+		{%s p.Namespace.User.Username %}/{%s p.Namespace.Name %} - Edit Namespace
+	{% endif %}
+{% endfunc %}
+
+{% func (p *NamespaceForm) Header() %}
+	{% if p.Namespace != nil %}
+		<a class="back" href="{%s p.Namespace.Endpoint() %}">{% cat "static/svg/back.svg" %}</a>
+		{%= namespacePath(p.Namespace.User.Username, p.Namespace.Path) %} - Edit
+	{% else %}
+		{% if p.Parent != nil %}
+			<a class="back" href="{%s p.Parent.Endpoint() %}">{% cat "static/svg/back.svg" %}</a>
+			{%= namespacePath(p.Parent.User.Username, p.Parent.Path) %} - Create Sub-namespace
+		{% else %}
+			<a class="back" href="/namespaces">{% cat "static/svg/back.svg" %}</a> Create Namespace
+		{% endif %}
+	{% endif %}
+{% endfunc %}
+
+{% func (p *NamespaceForm) Actions() %}{% endfunc %}
+{% func (p *NamespaceForm) Navigation() %}{% endfunc %}
+{% func (p *NamespaceForm) Footer() %}{% endfunc %}
+
+{% func (p *NamespaceForm) visibilityField(iconName string, v namespace.Visibility, fld form.Field) %}
+	<label class="form-option">
+		<input {%s p.checked(v) %} class="form-selector" {%s p.disabled(v) %} name="visibility" type="radio" value="{%s v.String() %}"/>
+		{%v= icon("static/svg/" + iconName) %}
+		<div class="form-option-info">
+			<strong>{%s fld.Name %}</strong>
+			<div class="form-desc">{%s fld.Desc %}</div>
+		</div>
+	</label>
+{% endfunc %}
+
+{% func (p *NamespaceForm) Body() %}
+	<div class="panel">
+		<div class="panel-body slim">
+			<form action="{%s p.action() %}" method="POST">
+				{% if p.Namespace != nil %}
+					{%= form.Method("PATCH") %}
+				{% endif %}
+				{%v= p.CSRF %}
+				{% if p.Parent != nil %}
+					<input name="parent" type="hidden" value="{%s p.Parent.Path %}"/>
+				{% endif %}
+				{% if p.Namespace == nil %}
+					{%= p.Field(form.Field{
+						ID:   "name",
+						Name: "Name",
+						Type: form.Text,
+					}) %}
+				{% endif %}
+				{%= p.Field(form.Field{
+					ID:       "description",
+					Name:     "Description",
+					Type:     form.Text,
+					Optional: true,
+				}) %}
+				<div class="form-field">
+					{%= p.visibilityField("lock.svg", namespace.Private, form.Field{
+						Name: "Private",
+						Desc: "You choose who can view the namespace",
+					}) %}
+					{%= p.visibilityField("security.svg", namespace.Internal, form.Field{
+						Name: "Internal",
+						Desc: "Anyone with an account can view the namespace",
+					}) %}
+					{%= p.visibilityField("public.svg", namespace.Public, form.Field{
+						Name: "Public",
+						Desc: "Anyone can view the namespace",
+					}) %}
+				</div>
+				<div class="form-field">
+					{% if p.Namespace != nil %}
+						<button type="submit" class="btn btn-primary">Save</button>
+					{% else %}
+						<button type="submit" class="btn btn-primary">Create</button>
+					{% endif %}
+				</div>
+			</form>
+			{% if p.Namespace != nil %}
+				<div class="separator"></div>
+				<form action="{%s p.Namespace.Endpoint() %}" method="POST">
+					{%= form.Method("DELETE") %}
+					{%v= p.CSRF %}
+					<div class="overflow">
+						<div class="right">
+							<button type="submit" class="btn btn-danger">Delete</button>
+						</div>
+						<strong>Delete Namespace</strong>
+						<br/><p>Builds within the namespace will not be deleted.</p>
+					</div>
+				</form>
+			{% endif %}
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

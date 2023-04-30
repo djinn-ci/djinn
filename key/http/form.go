@@ -1,106 +1,74 @@
 package http
 
 import (
+	"context"
+
+	"djinn-ci.com/auth"
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/key"
 	"djinn-ci.com/namespace"
 
-	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 
 	"golang.org/x/crypto/ssh"
 )
 
 type Form struct {
+	Pool *database.Pool `schema:"-"`
+	User *auth.User     `schema:"-"`
+	Key  *key.Key       `schema:"-"`
+
 	Namespace namespace.Path
 	Name      string
-	Key       string
+	SSHKey    string `json:"key" schema:"key"`
 	Config    string
 }
 
-var _ webutil.Form = (*Form)(nil)
-
-func (f Form) Fields() map[string]string {
+func (f *Form) Fields() map[string]string {
 	return map[string]string{
 		"namespace": f.Namespace.String(),
 		"name":      f.Name,
-		"key":       f.Key,
+		"key":       f.SSHKey,
 		"config":    f.Config,
 	}
 }
 
-type Validator struct {
-	UserID int64
-	Keys   *key.Store
-	Key    *key.Key
-	Form   Form
-}
+func (f *Form) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-func (v *Validator) Validate(errs webutil.ValidationErrors) {
-	if v.Key != nil {
-		if v.Form.Name == "" {
-			v.Form.Name = v.Key.Name
+	v.WrapError(
+		webutil.IgnoreError("name", database.ErrPermission),
+		webutil.MapError(database.ErrPermission, errors.New("permission denied")),
+		webutil.WrapFieldError,
+	)
+
+	if f.Key != nil {
+		if f.Name == "" {
+			f.Name = f.Key.Name
 		}
-		if v.Form.Config == "" {
-			v.Form.Config = v.Key.Config
-		}
-	}
-
-	if v.Form.Name == "" {
-		errs.Add("name", webutil.ErrFieldRequired("Name"))
-	}
-
-	if v.Key == nil || (v.Key != nil && v.Form.Name != v.Key.Name) {
-		opts := []query.Option{
-			query.Where("user_id", "=", query.Arg(v.UserID)),
-			query.Where("name", "=", query.Arg(v.Form.Name)),
-		}
-
-		if v.Form.Namespace.Valid {
-			_, n, err := v.Form.Namespace.ResolveOrCreate(v.Keys.Pool, v.UserID)
-
-			if err != nil {
-				if perr, ok := err.(*namespace.PathError); ok {
-					errs.Add("namespace", perr)
-					return
-				}
-				errs.Add("fatal", err)
-				return
-			}
-
-			if err := n.IsCollaborator(v.Keys.Pool, v.UserID); err != nil {
-				if errors.Is(err, namespace.ErrPermission) {
-					errs.Add("namespace", err)
-					return
-				}
-				errs.Add("fatal", err)
-				return
-			}
-			opts[0] = query.Where("namespace_id", "=", query.Arg(n.ID))
-		}
-
-		_, ok, err := v.Keys.Get(opts...)
-
-		if err != nil {
-			errs.Add("key", err)
-			return
-		}
-
-		if ok {
-			errs.Add("key", webutil.ErrFieldExists("Name"))
+		if f.Config == "" {
+			f.Config = f.Key.Config
 		}
 	}
 
-	if v.Key == nil && v.Form.Key == "" {
-		errs.Add("key", webutil.ErrFieldRequired("Key"))
-		return
+	v.Add("namespace", f.Namespace, namespace.CanAccess(f.Pool, f.User))
+
+	v.Add("name", f.Name, webutil.FieldRequired)
+
+	if f.Key == nil || (f.Key != nil && f.Name != f.Key.Name) {
+		v.Add("name", f.Name, namespace.ResourceUnique[*key.Key](key.NewStore(f.Pool), f.User, "name", f.Namespace))
 	}
 
-	if v.Key == nil {
-		// Only validate on key creation, since the key itself cannot be updated
-		// once created.
-		if _, err := ssh.ParsePrivateKey([]byte(v.Form.Key)); err != nil {
-			errs.Add("key", err)
-		}
+	if f.Key == nil {
+		v.Add("key", f.SSHKey, webutil.FieldRequired)
+		v.Add("key", f.SSHKey, func(_ context.Context, val any) error {
+			_, err := ssh.ParsePrivateKey([]byte(val.(string)))
+			return err
+		})
 	}
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }

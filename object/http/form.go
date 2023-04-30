@@ -1,86 +1,62 @@
 package http
 
 import (
+	"context"
+	"mime/multipart"
 	"regexp"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/object"
 
-	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type Form struct {
-	File      *webutil.File
+	Pool *database.Pool `schema:"-"`
+	User *auth.User     `schema:"-"`
+
 	Namespace namespace.Path
+	File      multipart.File
 	Name      string
 }
 
 var _ webutil.Form = (*Form)(nil)
 
-func (f Form) Fields() map[string]string {
+func (f *Form) Fields() map[string]string {
 	return map[string]string{
 		"namespace": f.Namespace.String(),
 		"name":      f.Name,
 	}
 }
 
-type Validator struct {
-	UserID  int64
-	Objects *object.Store
-	File    *webutil.FileValidator
-	Form    *Form
-}
+var reName = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
 
-var rename = regexp.MustCompile("^[a-zA-Z0-9\\._\\-]+$")
+func (f *Form) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-func (v Validator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Name == "" {
-		errs.Add("name", webutil.ErrFieldRequired("Name"))
-	}
+	v.WrapError(
+		webutil.IgnoreError("name", database.ErrPermission),
+		webutil.MapError(database.ErrPermission, errors.New("permission denied")),
+		webutil.WrapFieldError,
+	)
 
-	if !rename.Match([]byte(v.Form.Name)) {
-		errs.Add("name", errors.New("Name can only contain letters, numbers, and dashes"))
-	}
+	v.Add("namespace", f.Namespace, namespace.CanAccess(f.Pool, f.User))
 
-	opts := []query.Option{
-		query.Where("user_id", "=", query.Arg(v.UserID)),
-		query.Where("name", "=", query.Arg(v.Form.Name)),
-	}
+	v.Add("name", f.Name, webutil.FieldRequired)
+	v.Add("name", f.Name, webutil.FieldMatches(reName))
+	v.Add("name", f.Name, namespace.ResourceUnique[*object.Object](object.NewStore(f.Pool), f.User, "name", f.Namespace))
 
-	if v.Form.Namespace.Valid {
-		_, n, err := v.Form.Namespace.ResolveOrCreate(v.Objects.Pool, v.UserID)
-
-		if err != nil {
-			if perr, ok := err.(*namespace.PathError); ok {
-				errs.Add("namespace", perr)
-				return
-			}
-			errs.Add("fatal", err)
-			return
+	v.Add("file", f.File, func(_ context.Context, val any) error {
+		if val == nil {
+			return webutil.ErrFieldRequired
 		}
+		return nil
+	})
 
-		if err := n.IsCollaborator(v.Objects.Pool, v.UserID); err != nil {
-			if errors.Is(err, namespace.ErrPermission) {
-				errs.Add("namespace", err)
-				return
-			}
-			errs.Add("fatal", err)
-			return
-		}
-		opts[0] = query.Where("namespace_id", "=", query.Arg(n.ID))
-	}
+	errs := v.Validate(ctx)
 
-	_, ok, err := v.Objects.Get(opts...)
-
-	if err != nil {
-		errs.Add("fatal", err)
-		return
-	}
-
-	if ok {
-		errs.Add("name", webutil.ErrFieldExists("Name"))
-	}
-	v.File.Validate(errs)
+	return errs.Err()
 }

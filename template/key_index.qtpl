@@ -1,0 +1,87 @@
+{%
+import (
+	"djinn-ci.com/key"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type KeyIndex struct {
+	*Paginator
+
+	Keys []*key.Key
+}
+%}
+
+{% collapsespace %}
+{% func (p *KeyIndex) Title() %}SSH Keys{% endfunc %}
+{% func (p *KeyIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *KeyIndex) Navigation() %}{% endfunc %}
+{% func (p *KeyIndex) Footer() %}{% endfunc %}
+
+{% func (p *KeyIndex) Actions() %}
+	{% if _, ok := p.User.Permissions["key:write"]; ok %}
+		<li><a href="/keys/create" class="btn btn-primary">Create</a></li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *KeyIndex) renderKeyItem(k *key.Key) %}
+	<tr>
+		<td><a href="{%s k.Endpoint("edit") %}">{%s k.Name %}</a></td>
+		<td>
+			{% if k.Namespace != nil %}
+				<a href="{%s k.Namespace.Endpoint() %}">{%s k.Namespace.Path %}</a>
+			{% else %}
+				<span class="muted">--</span>
+			{% endif %}
+		</td>
+		<td class="align-right">
+			{% if p.User.ID != k.UserID %}
+				<span class="muted">{% cat "static/svg/users.svg" %}</span>
+			{% endif %}
+		</td>
+		<td class="align-right">
+			{% if p.User.ID == k.UserID || k.Namespace != nil && k.Namespace.UserID == p.User.ID %}
+				<form method="POST" action="{%s k.Endpoint() %}">
+					{%= form.Method("DELETE") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-danger">Delete</button>
+				</form>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *KeyIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Keys) == 0 %}
+			{% if query := p.Query.Get("search"); query != "" %}
+				<div class="panel-header">{%= p.Search("Find an SSH key...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<div class="panel-message muted">
+					SSH keys can allow build environments to access other environments.
+				</div>
+			{% endif %}
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th>NAMESPACE</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, k := range p.Keys %}
+						{%= p.renderKeyItem(k) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+	{%= p.Paginator.Navigation() %}
+{% endfunc %}
+{% endcollapsespace %}

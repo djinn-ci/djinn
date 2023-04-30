@@ -2,7 +2,7 @@ package provider
 
 import (
 	"bytes"
-	"database/sql"
+	"context"
 	"encoding/gob"
 	"fmt"
 	"strconv"
@@ -11,7 +11,6 @@ import (
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 
@@ -19,212 +18,239 @@ import (
 )
 
 type Repo struct {
+	loaded []string
+
 	ID             int64
 	UserID         int64
 	ProviderID     int64 `gob:"-"`
 	ProviderUserID int64
-	HookID         sql.NullInt64
+	HookID         database.Null[int64]
 	RepoID         int64
 	ProviderName   string
 	Enabled        bool
 	Name           string
 	Href           string
 
-	User     *user.User `gob:"-"`
-	Provider *Provider  `gob:"-"`
+	Provider *Provider `gob:"-"`
 }
 
 var _ database.Model = (*Repo)(nil)
 
-func (r *Repo) Dest() []interface{} {
-	return []interface{}{
-		&r.ID,
-		&r.UserID,
-		&r.ProviderID,
-		&r.HookID,
-		&r.RepoID,
-		&r.ProviderName,
-		&r.Enabled,
-		&r.Name,
-		&r.Href,
+func (r *Repo) Primary() (string, any) { return "id", r.ID }
+
+func (r *Repo) Scan(row *database.Row) error {
+	valtab := map[string]any{
+		"id":            &r.ID,
+		"user_id":       &r.UserID,
+		"provider_id":   &r.ProviderID,
+		"hook_id":       &r.HookID,
+		"repo_id":       &r.RepoID,
+		"provider_name": &r.ProviderName,
+		"enabled":       &r.Enabled,
+		"name":          &r.Name,
+		"href":          &r.Href,
 	}
+
+	if err := database.Scan(row, valtab); err != nil {
+		return errors.Err(err)
+	}
+
+	r.loaded = row.Columns
+	return nil
+}
+
+func (r *Repo) Params() database.Params {
+	params := database.Params{
+		"id":            database.ImmutableParam(r.ID),
+		"user_id":       database.CreateOnlyParam(r.UserID),
+		"provider_id":   database.CreateOnlyParam(r.ProviderID),
+		"hook_id":       database.CreateUpdateParam(r.HookID),
+		"repo_id":       database.CreateUpdateParam(r.RepoID),
+		"provider_name": database.CreateUpdateParam(r.ProviderName),
+		"enabled":       database.CreateUpdateParam(r.Enabled),
+		"name":          database.CreateUpdateParam(r.Name),
+		"href":          database.CreateUpdateParam(r.Href),
+	}
+
+	if len(r.loaded) > 0 {
+		params.Only(r.loaded...)
+	}
+	return params
 }
 
 func (r *Repo) Bind(m database.Model) {
-	switch v := m.(type) {
-	case *user.User:
-		if r.UserID == v.ID {
-			r.User = v
-		}
-	case *Provider:
+	if v, ok := m.(*Provider); ok {
 		if r.ProviderID == v.ID {
 			r.Provider = v
 		}
 	}
 }
-func (*Repo) JSON(_ string) map[string]interface{} { return nil }
 
-func (r *Repo) Endpoint(uri ...string) string {
-	if len(uri) > 0 {
-		return "/repos/" + strconv.FormatInt(r.ID, 10) + "/" + strings.Join(uri, "/")
-	}
-	return "/repos/" + strconv.FormatInt(r.ID, 10)
-}
+func (*Repo) MarshalJSON() ([]byte, error) { return nil, nil }
 
-func (r *Repo) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":            r.ID,
-		"user_id":       r.UserID,
-		"provider_id":   r.ProviderID,
-		"hook_id":       r.HookID,
-		"repo_id":       r.RepoID,
-		"provider_name": r.ProviderName,
-		"enabled":       r.Enabled,
-		"name":          r.Name,
-		"href":          r.Href,
+func (rp *Repo) Endpoint(elems ...string) string {
+	if len(elems) > 0 {
+		return "/repos/" + strconv.FormatInt(rp.ID, 10) + "/" + strings.Join(elems, "/")
 	}
+	return "/repos/" + strconv.FormatInt(rp.ID, 10)
 }
 
 type RepoStore struct {
-	database.Pool
+	*database.Store[*Repo]
+
+	Cache *redis.Client
 }
 
-var repoTable = "provider_repos"
+const repoTable = "provider_repos"
 
-func (s RepoStore) Touch(r *Repo) error {
+func NewRepoStore(pool *database.Pool) *database.Store[*Repo] {
+	return database.NewStore[*Repo](pool, repoTable, func() *Repo {
+		return &Repo{}
+	})
+}
+
+func (s *RepoStore) cacheKey(p *Provider, page int) string {
+	return fmt.Sprintf("repos-%s-%v-%v", p.Name, p.UserID, page)
+}
+
+func (s *RepoStore) getCached(p *Provider, page int) (*database.Paginator[*Repo], error) {
+	str, err := s.Cache.Get(s.cacheKey(p, page)).Result()
+
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return &database.Paginator[*Repo]{}, nil
+		}
+		return nil, errors.Err(err)
+	}
+
+	var repos database.Paginator[*Repo]
+
+	if err := gob.NewDecoder(strings.NewReader(str)).Decode(&repos); err != nil {
+		return nil, errors.Err(err)
+	}
+	return &repos, nil
+}
+
+func (s *RepoStore) cache(p *Provider, repos *database.Paginator[*Repo]) error {
+	var buf bytes.Buffer
+
+	if err := gob.NewEncoder(&buf).Encode(repos); err != nil {
+		return errors.Err(err)
+	}
+
+	if _, err := s.Cache.Set(s.cacheKey(p, repos.Page()), buf.String(), time.Hour).Result(); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *RepoStore) Reload(ctx context.Context, p *Provider, page int) (*database.Paginator[*Repo], error) {
+	if !p.Connected {
+		return nil, nil
+	}
+
+	repos, err := p.Client().Repos(page)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if err := s.cache(p, repos); err != nil {
+		return nil, errors.Err(err)
+	}
+	return repos, nil
+}
+
+func (s *RepoStore) Load(ctx context.Context, p *Provider, page int) (*database.Paginator[*Repo], error) {
+	if !p.Connected {
+		return nil, nil
+	}
+
+	rr, err := s.All(
+		ctx,
+		query.Where("provider_id", "=", query.Arg(p.ID)),
+		query.Where("enabled", "=", query.Arg(true)),
+	)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	type key struct {
+		providerId, repoId int64
+	}
+
+	enabled := make(map[key]int64)
+
+	for _, r := range rr {
+		key := key{
+			providerId: r.ProviderID,
+			repoId:     r.RepoID,
+		}
+		enabled[key] = r.ID
+	}
+
+	cached, err := s.getCached(p, page)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+
+	if len(cached.Items) == 0 {
+		cached, err = p.Client().Repos(page)
+
+		if err != nil {
+			return nil, errors.Err(err)
+		}
+
+		if len(cached.Items) > 0 {
+			cached.Set(page)
+
+			if err := s.cache(p, cached); err != nil {
+				return nil, errors.Err(err)
+			}
+		}
+	}
+
+	cached.Set(page)
+
+	for _, r := range cached.Items {
+		key := key{
+			providerId: r.ProviderID,
+			repoId:     r.RepoID,
+		}
+
+		r.Provider = p
+
+		if id, ok := enabled[key]; ok {
+			r.ID = id
+			r.Enabled = true
+		}
+	}
+	return cached, nil
+}
+
+func (s *RepoStore) Touch(ctx context.Context, r *Repo) error {
 	if r.ID == 0 {
-		q := query.Insert(
-			repoTable,
-			query.Columns("user_id", "provider_id", "hook_id", "repo_id", "provider_name", "enabled", "name", "href"),
-			query.Values(r.UserID, r.ProviderID, r.HookID, r.RepoID, r.ProviderName, r.Enabled, r.Name, r.Href),
-		)
-
-		if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+		if err := s.Store.Create(ctx, r); err != nil {
 			return errors.Err(err)
 		}
 		return nil
 	}
 
-	q := query.Update(
-		repoTable,
-		query.Set("hook_id", query.Arg(r.HookID)),
-		query.Set("enabled", query.Arg(r.Enabled)),
-		query.Where("id", "=", query.Arg(r.ID)),
-	)
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if err := s.Store.Update(ctx, r); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s RepoStore) Delete(id int64) error {
-	q := query.Delete(repoTable, query.Where("id", "=", query.Arg(id)))
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
-func (s RepoStore) Get(opts ...query.Option) (*Repo, bool, error) {
-	var r Repo
-
-	ok, err := s.Pool.Get(repoTable, &r, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &r, ok, nil
-}
-
-func (s RepoStore) All(opts ...query.Option) ([]*Repo, error) {
-	rr := make([]*Repo, 0)
-
-	new := func() database.Model {
-		r := &Repo{}
-		rr = append(rr, r)
-		return r
-	}
-
-	if err := s.Pool.All(repoTable, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return rr, nil
-}
-
-type RepoCache struct {
-	redis *redis.Client
-}
-
-var repoCacheKey = "repos-%s-%v-%v"
-
-func NewRepoCache(redis *redis.Client) RepoCache {
-	return RepoCache{
-		redis: redis,
-	}
-}
-
-func (c RepoCache) key(p *Provider, page int64) string {
-	return fmt.Sprintf(repoCacheKey, p.Name, p.UserID, page)
-}
-
-func (c RepoCache) Put(p *Provider, rr []*Repo, paginator database.Paginator) error {
-	var buf bytes.Buffer
-
-	enc := gob.NewEncoder(&buf)
-
-	if err := enc.Encode(rr); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := enc.Encode(paginator); err != nil {
-		return errors.Err(err)
-	}
-
-	if _, err := c.redis.Set(c.key(p, paginator.Page), buf.String(), time.Hour).Result(); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
-func (c RepoCache) Get(p *Provider, page int64) ([]*Repo, database.Paginator, error) {
-	var paginator database.Paginator
-
-	rr := make([]*Repo, 0)
-
-	s, err := c.redis.Get(c.key(p, page)).Result()
-
-	if err != nil {
-		if errors.Is(err, redis.Nil) {
-			return nil, paginator, nil
-		}
-		return nil, paginator, errors.Err(err)
-	}
-
-	dec := gob.NewDecoder(strings.NewReader(s))
-
-	if err := dec.Decode(&rr); err != nil {
-		return nil, paginator, errors.Err(err)
-	}
-
-	if err := dec.Decode(&paginator); err != nil {
-		return nil, paginator, errors.Err(err)
-	}
-	return rr, paginator, nil
-}
-
-func (c RepoCache) Purge(p *Provider) error {
-	page := int64(1)
+func (s *RepoStore) Purge(p *Provider) error {
+	page := 1
 
 	for {
-		key := c.key(p, page)
+		key := s.cacheKey(p, page)
 
-		n, err := c.redis.Del(key).Result()
+		n, err := s.Cache.Del(key).Result()
 
 		if err != nil {
 			return errors.Err(err)

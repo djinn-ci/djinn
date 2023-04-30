@@ -1,19 +1,27 @@
 package http
 
 import (
+	"context"
 	"net"
 	"net/url"
 	"regexp"
 	"strings"
+	"unicode"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type Form struct {
+	Pool      *database.Pool       `json:"-" schema:"-"`
+	User      *auth.User           `json:"-" schema:"-"`
+	Namespace *namespace.Namespace `json:"-" schema:"-"`
+
 	Parent      string
 	Name        string
 	Description string
@@ -22,69 +30,67 @@ type Form struct {
 
 var _ webutil.Form = (*Form)(nil)
 
-func (f Form) Fields() map[string]string {
+func (f *Form) Fields() map[string]string {
 	return map[string]string{
 		"name":        f.Name,
 		"description": f.Description,
 	}
 }
 
-type Validator struct {
-	UserID     int64
-	Namespaces namespace.Store
-	Namespace  *namespace.Namespace
-	Form       Form
-}
+var reName = regexp.MustCompile("^[a-zA-Z0-9]+$")
 
-var (
-	_ webutil.Validator = (*Validator)(nil)
+func (f *Form) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-	rename = regexp.MustCompile("^[a-zA-Z0-9]+$")
-)
+	v.WrapError(func(name string, err error) error {
+		first := rune(name[0])
 
-func (v Validator) Validate(errs webutil.ValidationErrors) {
-	if v.Namespace != nil {
-		if v.Form.Name == "" {
-			v.Form.Name = v.Namespace.Name
+		name = string(unicode.ToUpper(first)) + name[1:]
+
+		if _, ok := err.(webutil.MatchError); ok {
+			err = errors.New("can only have letters, and numbers")
 		}
-		if v.Form.Description == "" {
-			v.Form.Description = v.Namespace.Description
+		return webutil.WrapFieldError(name, err)
+	})
+
+	if f.Namespace != nil {
+		if f.Name == "" {
+			f.Name = f.Namespace.Name
 		}
-	}
-
-	if v.Form.Name == "" {
-		errs.Add("name", webutil.ErrFieldRequired("Name"))
-	}
-
-	if len(v.Form.Name) < 3 || len(v.Form.Name) > 32 {
-		errs.Add("name", errors.New("Name must be between 3 and 32 characters in length"))
-	}
-
-	if !rename.Match([]byte(v.Form.Name)) {
-		errs.Add("name", errors.New("Name can only contain letters and numbers"))
-	}
-
-	if v.Namespace == nil || (v.Namespace != nil && v.Form.Name != v.Namespace.Name) {
-		opts := []query.Option{
-			query.Where("user_id", "=", query.Arg(v.UserID)),
-			query.Where("name", "=", query.Arg(v.Form.Name)),
-		}
-
-		_, ok, err := v.Namespaces.Get(opts...)
-
-		if err != nil {
-			errs.Add("fatal", err)
-			return
-		}
-
-		if ok {
-			errs.Add("name", webutil.ErrFieldExists("Name"))
+		if f.Description == "" {
+			f.Description = f.Namespace.Description
 		}
 	}
 
-	if len(v.Form.Description) > 255 {
-		errs.Add("description", errors.New("Description must be shorter than 255 characters in length"))
-	}
+	v.Add("name", f.Name, webutil.FieldRequired)
+	v.Add("name", f.Name, webutil.FieldLen(3, 32))
+	v.Add("name", f.Name, webutil.FieldMatches(reName))
+	v.Add("name", f.Name, func(ctx context.Context, val any) error {
+		name := val.(string)
+
+		if f.Namespace == nil || (f.Namespace != nil && name != f.Namespace.Name) {
+			_, ok, err := namespace.NewStore(f.Pool).Get(
+				ctx,
+				query.Where("user_id", "=", query.Arg(f.User.ID)),
+				query.Where("name", "=", query.Arg(name)),
+			)
+
+			if err != nil {
+				return err
+			}
+
+			if ok {
+				return webutil.ErrFieldExists
+			}
+		}
+		return nil
+	})
+
+	v.Add("description", f.Description, webutil.FieldMaxLen(255))
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }
 
 type InviteForm struct {
@@ -93,13 +99,30 @@ type InviteForm struct {
 
 var _ webutil.Form = (*InviteForm)(nil)
 
-func (f InviteForm) Fields() map[string]string {
+func (f *InviteForm) Fields() map[string]string {
 	return map[string]string{
 		"handle": f.Handle,
 	}
 }
 
+func (f *InviteForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
+
+	v.WrapError(func(name string, err error) error {
+		return webutil.WrapFieldError("Username or email", err)
+	})
+
+	v.Add("handle", f.Handle, webutil.FieldRequired)
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
+}
+
 type WebhookForm struct {
+	Pool    *database.Pool     `json:"-" schema:"-"`
+	Webhook *namespace.Webhook `json:"-" schema:"-"`
+
 	PayloadURL   string `json:"payload_url" schema:"payload_url"`
 	Secret       string
 	RemoveSecret bool `json:"remove_secret" schema:"remove_secret"`
@@ -110,72 +133,91 @@ type WebhookForm struct {
 
 var _ webutil.Form = (*WebhookForm)(nil)
 
-func (f WebhookForm) Fields() map[string]string {
+func (f *WebhookForm) Fields() map[string]string {
 	return map[string]string{
 		"payload_url": f.PayloadURL,
 		"events":      strings.Join(f.Events, " "),
 	}
 }
 
-type WebhookValidator struct {
-	Webhooks *namespace.WebhookStore
-	Webhook  *namespace.Webhook
-	Form     WebhookForm
-}
+func (f *WebhookForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-var (
-	_ webutil.Validator = (*WebhookValidator)(nil)
+	v.WrapError(func(name string, err error) error {
+		if name == "payload_url" {
+			name = "Payload URL"
+		}
+		return webutil.WrapFieldError(name, err)
+	})
 
-	localhosts = map[string]struct{}{
-		"localhost": {},
-		"127.0.0.1": {},
-		"::1":       {},
-	}
-)
-
-func (v WebhookValidator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.PayloadURL == "" {
-		errs.Add("payload_url", webutil.ErrFieldRequired("Payload URL"))
+	if f.Webhook != nil {
+		if f.PayloadURL == "" {
+			f.PayloadURL = f.Webhook.PayloadURL.String()
+		}
 	}
 
-	v.Form.PayloadURL = strings.ToLower(v.Form.PayloadURL)
+	v.Add("payload_url", f.PayloadURL, webutil.FieldRequired)
+	v.Add("payload_url", f.PayloadURL, func(ctx context.Context, val any) error {
+		if f.Webhook == nil || (f.Webhook != nil && f.Webhook.PayloadURL.String() != f.PayloadURL) {
+			_, ok, err := namespace.NewWebhookStore(f.Pool).Get(
+				ctx, query.Where("payload_url", "=", query.Arg(val)),
+			)
 
-	if v.Webhook == nil || (v.Webhook != nil && v.Webhook.PayloadURL.String() != v.Form.PayloadURL) {
-		_, ok, err := v.Webhooks.Get(query.Where("payload_url", "=", query.Arg(v.Form.PayloadURL)))
+			if err != nil {
+				return err
+			}
+			if ok {
+				return webutil.ErrFieldExists
+			}
+		}
+		return nil
+	})
+	v.Add("payload_url", f.PayloadURL, func(ctx context.Context, val any) error {
+		localhosts := map[string]struct{}{
+			"localhost": {},
+			"127.0.0.1": {},
+			"::1":       {},
+		}
+
+		s := val.(string)
+
+		url, err := url.Parse(s)
 
 		if err != nil {
-			errs.Add("webhook", err)
-			return
+			return err
 		}
 
-		if ok {
-			errs.Add("payload_url", webutil.ErrFieldExists("Payload URL"))
+		if url.Scheme != "http" && url.Scheme != "https" {
+			return errors.New("missing http or https scheme")
 		}
-	}
 
-	url, err := url.Parse(v.Form.PayloadURL)
-
-	if err != nil {
-		errs.Add("payload_url", errors.New("Invalid payload URL"))
-	}
-
-	if url.Scheme != "http" && url.Scheme != "https" {
-		errs.Add("payload_url", errors.New("Invalid payload URL"))
-	}
-
-	host, _, _ := net.SplitHostPort(url.Host)
-
-	if host == "" {
-		errs.Add("payload_url", errors.New("Invalid payload URL, missing host"))
-	}
-
-	if _, ok := localhosts[host]; ok {
-		errs.Add("payload_url", errors.New("Invalid payload URL, cannot be localhost"))
-	}
-
-	if v.Form.SSL {
-		if url.Scheme == "http" {
-			errs.Add("payload_url", errors.New("Cannot use SSL for a plain http URL"))
+		if url.Host == "" {
+			return errors.New("missing host")
 		}
-	}
+
+		if _, _, err := net.SplitHostPort(url.Host); err != nil {
+			if addrErr, ok := err.(*net.AddrError); ok {
+				if addrErr.Err == "missing port in address" {
+					goto cont
+				}
+			}
+			return err
+		}
+
+	cont:
+		if _, ok := localhosts[url.Host]; ok {
+			return errors.New("cannot be localhost")
+		}
+
+		if f.SSL {
+			if url.Scheme == "http" {
+				return errors.New("cannot use SSL for plain http URL")
+			}
+		}
+		return nil
+	})
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }

@@ -7,10 +7,10 @@ import (
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 
 	"github.com/andrewpillar/config"
+	"github.com/andrewpillar/fs"
 
 	"github.com/mcmathja/curlyq"
 
@@ -34,29 +34,23 @@ type consumerCfg struct {
 }
 
 type Consumer struct {
-	pidfile string
-
+	pidfile     string
 	parallelism int
-
-	log *log.Logger
-
-	aesgcm *crypto.AESGCM
-
-	consumer *curlyq.ConsumerOpts
-
-	db    database.Pool
-	redis *redis.Client
-
-	images fs.Store
+	log         *log.Logger
+	aesgcm      *crypto.AESGCM
+	consumer    *curlyq.ConsumerOpts
+	db          *database.Pool
+	redis       *redis.Client
+	images      fs.FS
 }
 
 func (c *Consumer) Pidfile() string                    { return c.pidfile }
 func (c *Consumer) ConsumerOpts() *curlyq.ConsumerOpts { return c.consumer }
-func (c *Consumer) DB() database.Pool                  { return c.db }
+func (c *Consumer) DB() *database.Pool                 { return c.db }
 func (c *Consumer) Redis() *redis.Client               { return c.redis }
 func (c *Consumer) Log() *log.Logger                   { return c.log }
 func (c *Consumer) AESGCM() *crypto.AESGCM             { return c.aesgcm }
-func (c *Consumer) Images() fs.Store                   { return c.images }
+func (c *Consumer) Images() fs.FS                      { return c.images }
 
 func DecodeConsumer(name string, r io.Reader) (*Consumer, error) {
 	var cfg consumerCfg

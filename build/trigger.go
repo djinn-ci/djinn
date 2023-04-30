@@ -10,8 +10,6 @@ import (
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-
-	"github.com/andrewpillar/query"
 )
 
 type TriggerType uint8
@@ -36,7 +34,7 @@ var (
 	}
 )
 
-func (t *TriggerType) Scan(val interface{}) error {
+func (t *TriggerType) Scan(val any) error {
 	v, err := driver.String.ConvertValue(val)
 
 	if err != nil {
@@ -62,7 +60,7 @@ func (t *TriggerType) UnmarshalText(b []byte) error {
 	(*t), ok = triggersMap[s]
 
 	if !ok {
-		return errors.New("unknown trigger " + s)
+		return errors.New("build: unknown trigger " + s)
 	}
 	return nil
 }
@@ -78,7 +76,7 @@ var (
 
 func NewTriggerData() triggerData { return triggerData(make(map[string]string)) }
 
-func (d *triggerData) Scan(val interface{}) error {
+func (d *triggerData) Scan(val any) error {
 	v, err := driver.String.ConvertValue(val)
 
 	if err != nil {
@@ -119,8 +117,8 @@ func (d triggerData) Value() (driver.Value, error) { return driver.Value(d.Strin
 type Trigger struct {
 	ID         int64
 	BuildID    int64
-	ProviderID sql.NullInt64
-	RepoID     sql.NullInt64
+	ProviderID database.Null[int64]
+	RepoID     database.Null[int64]
 	Type       TriggerType
 	Comment    string
 	Data       triggerData
@@ -129,20 +127,40 @@ type Trigger struct {
 	Build *Build
 }
 
-var _ database.Model = (*Trigger)(nil)
+func (t *Trigger) Primary() (string, any) { return "id", t.ID }
 
-func (t *Trigger) Dest() []interface{} {
-	return []interface{}{
-		&t.ID,
-		&t.BuildID,
-		&t.ProviderID,
-		&t.RepoID,
-		&t.Type,
-		&t.Comment,
-		&t.Data,
-		&t.CreatedAt,
+func (t *Trigger) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":          &t.ID,
+		"build_id":    &t.BuildID,
+		"provider_id": &t.ProviderID,
+		"repo_id":     &t.RepoID,
+		"type":        &t.Type,
+		"comment":     &t.Comment,
+		"data":        &t.Data,
+		"created_at":  &t.CreatedAt,
+	}
+
+	if err := database.Scan(r, valtab); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (t *Trigger) Params() database.Params {
+	return database.Params{
+		"id":          database.ImmutableParam(t.ID),
+		"build_id":    database.CreateOnlyParam(t.BuildID),
+		"provider_id": database.CreateOnlyParam(t.ProviderID),
+		"repo_id":     database.CreateOnlyParam(t.RepoID),
+		"type":        database.CreateOnlyParam(t.Type),
+		"comment":     database.CreateOnlyParam(t.Comment),
+		"data":        database.CreateOnlyParam(t.Data),
+		"created_at":  database.CreateOnlyParam(t.CreatedAt),
 	}
 }
+
+var _ database.Model = (*Trigger)(nil)
 
 func (t *Trigger) Bind(m database.Model) {
 	if b, ok := m.(*Build); ok {
@@ -152,32 +170,24 @@ func (t *Trigger) Bind(m database.Model) {
 	}
 }
 
-func (t *Trigger) JSON(_ string) map[string]interface{} {
+func (t *Trigger) MarshalJSON() ([]byte, error) {
 	if t == nil {
-		return nil
+		return []byte("null"), nil
 	}
 
-	return map[string]interface{}{
+	b, err := json.Marshal(map[string]any{
 		"type":    t.Type.String(),
 		"comment": t.Comment,
 		"data":    t.Data,
+	})
+
+	if err != nil {
+		return nil, errors.Err(err)
 	}
+	return b, nil
 }
 
-func (*Trigger) Endpoint(_ ...string) string { return "" }
-
-func (t Trigger) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":          t.ID,
-		"build_id":    t.BuildID,
-		"provider_id": t.ProviderID,
-		"repo_id":     t.RepoID,
-		"type":        t.Type,
-		"comment":     t.Comment,
-		"data":        t.Data,
-		"created_at":  t.CreatedAt,
-	}
-}
+func (*Trigger) Endpoint(...string) string { return "" }
 
 func (t *Trigger) CommentBody() string {
 	i := strings.Index(t.Comment, "\n")
@@ -220,9 +230,12 @@ func (t *Trigger) CommentTitle() string {
 }
 
 func (t *Trigger) String() string {
-	buf := bytes.Buffer{}
+	var (
+		buf bytes.Buffer
 
-	var username, email string
+		username string
+		email    string
+	)
 
 	if t.Build != nil && t.Build.User != nil {
 		username = t.Build.User.Username
@@ -231,7 +244,7 @@ func (t *Trigger) String() string {
 
 	switch t.Type {
 	case Manual:
-		buf.WriteString("Submitted by " + username + "<" + email + ">\n")
+		buf.WriteString("Submitted by " + username + " <" + email + ">\n")
 	case Push:
 		buf.WriteString("Committed " + t.Data["sha"][:7] + " to " + t.Data["ref"] + "\n")
 	case Pull:
@@ -245,59 +258,10 @@ func (t *Trigger) String() string {
 	return buf.String()
 }
 
-type TriggerStore struct {
-	database.Pool
-}
+const triggerTable = "build_triggers"
 
-var (
-	_ database.Loader = (*TriggerStore)(nil)
-
-	triggerTable = "build_triggers"
-)
-
-func (s TriggerStore) All(opts ...query.Option) ([]*Trigger, error) {
-	tt := make([]*Trigger, 0)
-
-	new := func() database.Model {
-		t := &Trigger{}
-		tt = append(tt, t)
-		return t
-	}
-
-	if err := s.Pool.All(triggerTable, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return tt, nil
-}
-
-func (s TriggerStore) Get(opts ...query.Option) (*Trigger, bool, error) {
-	var t Trigger
-
-	ok, err := s.Pool.Get(triggerTable, &t, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &t, ok, nil
-}
-
-func (s TriggerStore) Load(fk, pk string, mm ...database.Model) error {
-	vals := database.Values(fk, mm)
-
-	tt, err := s.All(query.Where(pk, "IN", database.List(vals...)))
-
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, t := range tt {
-		for _, m := range mm {
-			m.Bind(t)
-		}
-	}
-	return nil
+func NewTriggerStore(pool *database.Pool) *database.Store[*Trigger] {
+	return database.NewStore[*Trigger](pool, triggerTable, func() *Trigger {
+		return &Trigger{}
+	})
 }

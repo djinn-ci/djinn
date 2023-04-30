@@ -1,102 +1,81 @@
 package http
 
 import (
+	"io"
 	"net/http"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/build"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/object"
 	"djinn-ci.com/server"
-	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/fs"
+	"github.com/andrewpillar/query"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type API struct {
 	*Handler
-
-	Prefix string
 }
 
-func (h API) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	oo, paginator, err := h.IndexWithRelations(u, r)
+func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
 		return
 	}
-
-	data := make([]map[string]interface{}, 0, len(oo))
-	addr := webutil.BaseAddress(r) + h.Prefix
-
-	for _, o := range oo {
-		data = append(data, o.JSON(addr))
-	}
-
-	w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-	webutil.JSON(w, data, http.StatusOK)
+	w.Header().Set("Link", p.EncodeToLink(r.URL))
+	webutil.JSON(w, p.Items, http.StatusOK)
 }
 
-func (h API) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
-	o, _, err := h.StoreModel(u, r)
+func (h API) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	o, _, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		switch err := cause.(type) {
-		case webutil.ValidationErrors:
-			if errs, ok := err["fatal"]; ok {
-				h.InternalServerError(w, r, errors.Slice(errs))
-				return
-			}
-			webutil.JSON(w, err, http.StatusBadRequest)
-		case *namespace.PathError:
-			webutil.JSON(w, map[string][]string{"namespace": {err.Error()}}, http.StatusBadRequest)
-		default:
-			h.InternalServerError(w, r, errors.Err(err))
-		}
+		h.FormError(w, r, nil, err)
 		return
 	}
-	webutil.JSON(w, o.JSON(webutil.BaseAddress(r)+h.Prefix), http.StatusCreated)
+	webutil.JSON(w, o, http.StatusCreated)
 }
 
-func (h API) Show(u *user.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
-	if err := object.LoadRelations(h.DB, o); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
+func (h API) Show(u *auth.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
-	if err := object.LoadNamespaces(h.DB, o); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	addr := webutil.BaseAddress(r) + h.Prefix
-	base := webutil.BasePath(r.URL.Path)
-
-	if base == "builds" {
-		bb, paginator, err := h.getBuilds(o, r)
-
-		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+	if webutil.BasePath(r.URL.Path) == "builds" {
+		if !u.Has("build:read") {
+			h.NotFound(w, r)
 			return
 		}
 
-		data := make([]map[string]interface{}, 0, len(bb))
+		p, err := h.Builds.Index(
+			ctx,
+			r.URL.Query(),
+			query.Where("id", "IN", build.SelectObject(
+				query.Columns("build_id"),
+				query.Where("object_id", "=", query.Arg(o.ID)),
+			)),
+		)
 
-		for _, b := range bb {
-			data = append(data, b.JSON(addr))
+		if err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
+			return
 		}
 
-		w.Header().Set("Link", paginator.EncodeToLink(r.URL))
-		webutil.JSON(w, data, http.StatusOK)
+		if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+			return
+		}
+
+		w.Header().Set("Link", p.EncodeToLink(r.URL))
+		webutil.JSON(w, p.Items, http.StatusOK)
 		return
 	}
 
 	if r.Header.Get("Accept") == o.Type {
-		rec, err := o.Data(h.Objects.Store)
+		f, err := o.Open(h.Objects)
 
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
@@ -104,38 +83,43 @@ func (h API) Show(u *user.User, o *object.Object, w http.ResponseWriter, r *http
 				return
 			}
 
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get object"))
 			return
 		}
 
-		defer rec.Close()
+		defer f.Close()
 
-		http.ServeContent(w, r, o.Name, o.CreatedAt, rec)
+		http.ServeContent(w, r, o.Name, o.CreatedAt, f.(io.ReadSeeker))
 		return
 	}
-	webutil.JSON(w, o.JSON(addr), http.StatusOK)
+	webutil.JSON(w, o, http.StatusOK)
 }
 
-func (h API) Destroy(u *user.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
-	if err := h.DeleteModel(r.Context(), o); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+func (h API) Destroy(u *auth.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
+	if err := h.Handler.Destroy(r.Context(), o); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete object"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func RegisterAPI(prefix string, srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func RegisterAPI(a auth.Authenticator, srv *server.Server) {
 	api := API{
 		Handler: NewHandler(srv),
-		Prefix:  prefix,
 	}
 
+	index := api.Restrict(a, []string{"object:read"}, api.Index)
+	store := api.Restrict(a, []string{"object:write"}, api.Store)
+
+	a = namespace.NewAuth[*object.Object](a, "object", api.Objects.Store)
+
+	show := api.Restrict(a, []string{"object:read"}, api.Object(api.Show))
+	destroy := api.Restrict(a, []string{"object:delete"}, api.Object(api.Destroy))
+
 	sr := srv.Router.PathPrefix("/objects").Subrouter()
-	sr.HandleFunc("", user.WithUser(api.Index)).Methods("GET")
-	sr.HandleFunc("", user.WithUser(api.Store)).Methods("POST")
-	sr.HandleFunc("/{object:[0-9]+}", user.WithUser(api.WithObject(api.Show))).Methods("GET")
-	sr.HandleFunc("/{object:[0-9]+}/builds", user.WithUser(api.WithObject(api.Show))).Methods("GET")
-	sr.HandleFunc("/{object:[0-9]+}", user.WithUser(api.WithObject(api.Destroy))).Methods("DELETE")
+	sr.HandleFunc("", index).Methods("GET")
+	sr.HandleFunc("", store).Methods("POST")
+	sr.HandleFunc("/{object:[0-9]+}", show).Methods("GET")
+	sr.HandleFunc("/{object:[0-9]+}/builds", show).Methods("GET")
+	sr.HandleFunc("/{object:[0-9]+}", destroy).Methods("DELETE")
 }

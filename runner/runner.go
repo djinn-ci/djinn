@@ -1,216 +1,498 @@
-// Package runner providers various structs and interfaces for Running
-// arbitrary Jobs in a Driver.
 package runner
 
 import (
 	"context"
+	"database/sql/driver"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
+	"sort"
+	"strings"
 	"time"
 
 	"djinn-ci.com/errors"
+
+	"github.com/andrewpillar/fs"
 )
 
-var (
-	errStageNotFound = errors.New("stage could not be found")
-	errTimedOut      = errors.New("timed out")
-	errRunFailed     = errors.New("run failed")
+type Status uint8
 
-	createTimeout   = time.Duration(time.Minute * 5)
-	contextStatuses = map[error]Status{
-		context.Canceled:         Killed,
-		context.DeadlineExceeded: TimedOut,
+//go:generate stringer -type Status -linecomment
+const (
+	Queued             Status = iota // queued
+	Running                          // running
+	Passed                           // passed
+	PassedWithFailures               // passed_with_failures
+	Failed                           // failed
+	Killed                           // killed
+	TimedOut                         // timed_out
+)
+
+func (s Status) MarshalJSON() ([]byte, error) { return json.Marshal(s.String()) }
+
+var statusMap = map[string]Status{
+	"queued":               Queued,
+	"running":              Running,
+	"passed":               Passed,
+	"passed_with_failures": PassedWithFailures,
+	"failed":               Failed,
+	"killed":               Killed,
+	"timed_out":            TimedOut,
+}
+
+func (s *Status) Scan(val any) error {
+	v, err := driver.String.ConvertValue(val)
+
+	if err != nil {
+		return errors.Err(err)
 	}
-)
 
-type jobHandler func(Job)
+	str, ok := v.(string)
 
-// Placer is the interface that defines how files from a host will be placed
-// into a Driver during execution of the Runner. Files that are placed into a
-// Driver are known as Objects to the Runner.
-type Placer interface {
-	// Place will take the object of the given name and write its contents to
-	// the given io.Writer. The number of bytes written from the given
-	// io.Writer are returned, along with any errors that occur.
-	Place(string, io.Writer) (int64, error)
+	if !ok {
+		return fmt.Errorf("runner: cannot type assert %T to %T", val, str)
+	}
 
-	// Stat will return the os.FileInfo of the object of the given name.
-	Stat(string) (os.FileInfo, error)
+	if str == "" {
+		return nil
+	}
+
+	if err := s.UnmarshalText([]byte(str)); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-// Collector is the interface that defines how files from the Driver will be
-// collected from the Driver during execution of the Runner. Files that are
-// collected from a Driver are known as Artifacts to the Runner.
-type Collector interface {
-	// Collect will read from the given io.Reader and store what was read as an
-	// artifact under the given name. The number of bytes read from the given
-	// io.Reader are returned, along with any errors that occur.
-	Collect(string, io.Reader) (int64, error)
+func (s *Status) UnmarshalText(b []byte) error {
+	var ok bool
+
+	str := string(b)
+	(*s), ok = statusMap[str]
+
+	if !ok {
+		return errors.New("runner: unknown status " + str)
+	}
+	return nil
 }
 
-// Driver is the interface that defines how a Job should be executed for the
-// Runner.
-type Driver interface {
-	// Each driver should implement the io.Writer interface, so that the driver
-	// can write the output of what it's doing to the underlying io.Writer
-	// implementation, for example os.Stdout.
+func (s Status) Value() (driver.Value, error) { return driver.Value(s.String()), nil }
+
+type Passthrough map[string]string
+
+func (p Passthrough) MarshalYAML() (any, error) {
+	if p == nil {
+		return nil, nil
+	}
+
+	arr := make([]string, 0, len(p))
+
+	for k, v := range p {
+		arr = append(arr, k+" => "+v)
+	}
+
+	sort.Strings(arr)
+
+	return arr, nil
+}
+
+func (p *Passthrough) UnmarshalYAML(unmarshal func(any) error) error {
+	if (*p) == nil {
+		(*p) = make(Passthrough)
+	}
+
+	arr := make([]string, 0)
+
+	if err := unmarshal(&arr); err != nil {
+		return err
+	}
+
+	for _, s := range arr {
+		parts := strings.SplitN(s, "=>", 2)
+
+		key := strings.TrimSpace(parts[0])
+		val := filepath.Base(key)
+
+		if len(parts) > 1 {
+			val = strings.TrimSpace(parts[1])
+		}
+		(*p)[key] = val
+	}
+	return nil
+}
+
+type Job struct {
 	io.Writer
 
-	// Create should create the Driver, and prepare it so it will be ready for
-	// Jobs to be executed on it. It takes a context that will be used to cancel
-	// out of the creation of the Driver quickly. The env slice of strings are
-	// the environment variables that will be set on the driver, the strings in
-	// the slice are formatted as key=value. The given Placer will be used to
-	// place the given objects in the driver.
-	Create(context.Context, []string, Passthrough, Placer) error
+	errs    []error
+	canFail bool
+	status  Status
+	stage   string
 
-	// Execute should run the given Job on the Driver, and use the given
-	// Collector, to collect any Artifacts for that Job. If the Job fails then
-	// it should be marked as failed via the Failed method.
-	Execute(*Job, Collector)
-
-	// Destroy should render the driver unusable for executing Jobs, and clear
-	// up any resources that may have been created via the Driver.
-	Destroy()
+	Name      string
+	Commands  []string
+	Artifacts Passthrough
 }
 
-// Runner is the struct for executing Jobs. Jobs are grouped together into
-// stages. The order in which stages are added to the Runner is the order in
-// which they will be executed when the Runner is run. The runner expects
-// to have an underlying io.Writer, to which progress of each Stage and Job
-// being executed will be written.
-type Runner struct {
-	io.Writer
-
-	handleDriverCreate func()
-	handleJobStart     jobHandler
-	handleJobComplete  jobHandler
-
-	order   []string // the order in which each stage is executed.
-	stages  map[string]*Stage
-	lastJob Job // the last job that was successfully executed, used for reporting.
-
-	// Env is a slice of environment variables to set during job exectuion. The
-	// variables are expected to be formatted as key=value.
-	Env []string
-
-	// Objects are the files we want to place into the driver during Job
-	// execution.
-	Objects Passthrough
-
-	// Placer is what to use for placing objects into the driver during Job
-	// execution.
-	Placer Placer
-
-	// Collect is what to use for collecting artifacts from the driver during
-	// Job execution.
-	Collector Collector
-
-	// Status is the status of the Runner was a run has been completed.
-	Status Status
+func (j *Job) FullName() string {
+	if j.stage == "" {
+		return j.Name
+	}
+	return j.stage + "/" + j.Name
 }
 
-// Stage contains the jobs to run. The order in which the jobs are added to
-// a Stage is the order in which they're executed.
+func (j *Job) Status() Status { return j.status }
+
+func (j *Job) Failed(err error) {
+	if err != nil {
+		if !errors.Is(err, ErrFailed) {
+			j.errs = append(j.errs, &Error{Stage: j.stage, Job: j.Name, Err: err})
+		}
+	}
+
+	j.status = Failed
+
+	if j.canFail {
+		j.status = PassedWithFailures
+	}
+}
+
+type orderedMap[T any] struct {
+	order []string
+	curr  int
+	m     map[string]T
+}
+
+func (m *orderedMap[T]) len() int {
+	if m == nil {
+		return 0
+	}
+	return len(m.m)
+}
+
+func (m *orderedMap[T]) next() (T, bool) {
+	var zero T
+
+	if m.curr >= m.len() {
+		return zero, false
+	}
+
+	it, ok := m.m[m.order[m.curr]]
+	m.curr++
+
+	return it, ok
+}
+
+func (m *orderedMap[T]) get(name string) (T, bool) {
+	var zero T
+
+	if m.m == nil {
+		return zero, false
+	}
+
+	it, ok := m.m[name]
+
+	return it, ok
+}
+
+func (m *orderedMap[T]) set(name string, t T) {
+	if m.order == nil {
+		m.order = make([]string, 0)
+	}
+	if m.m == nil {
+		m.m = make(map[string]T)
+	}
+
+	if _, ok := m.m[name]; !ok {
+		m.order = append(m.order, name)
+	}
+	m.m[name] = t
+}
+
+func (m *orderedMap[T]) delete(name string) {
+	if m.m == nil {
+		return
+	}
+
+	if _, ok := m.m[name]; !ok {
+		return
+	}
+
+	delete(m.m, name)
+
+	i := 0
+
+	for j, s := range m.order {
+		if name == s {
+			i = j
+			break
+		}
+	}
+	m.order = append(m.order[:i], m.order[i+1:]...)
+}
+
 type Stage struct {
-	jobs jobStore
+	jobs *orderedMap[*Job]
 
-	// Name is the name of the Stage. Stage names are unqiue to a runner.
-	Name string
-
-	// CanFail denotes whether or not it is acceptable for a Stage to fail.
-	// This is applied to each Job that is added to a Stage.
+	Name    string
 	CanFail bool
 }
 
-// HandleDriverCreate sets the given callback as the underlying handler for
-// driver creation. This would typically be used for capturing timing
-// information regarding driver creation, for example.
-func (r *Runner) HandleDriverCreate(f func()) { r.handleDriverCreate = f }
-
-// HandleJobComplete sets the given callback as the underlying handler for Job
-// completion. This will be passed the job that was just completed.
-func (r *Runner) HandleJobComplete(f jobHandler) { r.handleJobComplete = f }
-
-// HandleJobStart sets the given callback as the underlying handler for when a
-// Job starts. This will be passed the Job that just started.
-func (r *Runner) HandleJobStart(f jobHandler) { r.handleJobStart = f }
-
-// Add adds the given stages to the Runner. The stages are stored in an
-// underlying map where the key is the name of the Stage. A slice of the stage
-// names is used to maintain the order in which stages are added.
-func (r *Runner) Add(stages ...*Stage) {
-	if r.stages == nil {
-		r.stages = make(map[string]*Stage)
+func (s *Stage) Add(jobs ...*Job) {
+	if s.jobs == nil {
+		s.jobs = &orderedMap[*Job]{}
 	}
 
-	for _, s := range stages {
-		_, ok := r.stages[s.Name]
+	for _, j := range jobs {
+		j.stage = s.Name
+		j.canFail = s.CanFail
 
-		if !ok {
-			r.stages[s.Name] = s
-			r.order = append(r.order, s.Name)
+		if j.Name == "" {
+			j.Name = fmt.Sprintf("%s.%d", s.Name, s.jobs.len()+1)
 		}
+		s.jobs.set(j.Name, j)
 	}
 }
 
-// Remove removes the given Stages from the Runner based off the given names.
-func (r *Runner) Remove(stages ...string) {
-	for _, s := range stages {
-		if _, ok := r.stages[s]; !ok {
+func (s *Stage) Get(name string) (*Job, bool) { return s.jobs.get(name) }
+
+type Error struct {
+	Stage string
+	Job   string
+	Err   error
+}
+
+func (e *Error) Error() string {
+	return "job " + e.Job + " in stage " + e.Stage + " failed: " + e.Err.Error()
+}
+
+func (e *Error) Unwrap() error { return e.Err }
+
+type Driver interface {
+	io.Writer
+
+	Create(ctx context.Context, env []string, pt Passthrough, fs fs.FS) error
+
+	Execute(j *Job, fs fs.FS) error
+
+	Destroy()
+}
+
+type JobHandlerFunc func(j *Job)
+
+type Runner struct {
+	io.Writer
+
+	status Status
+	stages *orderedMap[*Stage]
+	job    *Job
+
+	handleJobStart    JobHandlerFunc
+	handleJobComplete JobHandlerFunc
+
+	Env         []string
+	Passthrough Passthrough
+
+	Objects   fs.FS
+	Artifacts fs.FS
+}
+
+func Default(pt Passthrough) *Runner {
+	return &Runner{
+		Writer:      os.Stdout,
+		Env:         os.Environ(),
+		Passthrough: pt,
+		Objects:     fs.New("."),
+		Artifacts:   fs.New("."),
+	}
+}
+
+func (r *Runner) HandleJobStart(fn JobHandlerFunc)    { r.handleJobStart = fn }
+func (r *Runner) HandleJobComplete(fn JobHandlerFunc) { r.handleJobComplete = fn }
+
+func (r *Runner) Stages() []*Stage {
+	if r.stages == nil {
+		return nil
+	}
+
+	stages := make([]*Stage, 0, r.stages.len())
+
+	for _, name := range r.stages.order {
+		stages = append(stages, r.stages.m[name])
+	}
+	return stages
+}
+
+func (r *Runner) Add(stages ...*Stage) {
+	if r.stages == nil {
+		r.stages = &orderedMap[*Stage]{}
+	}
+
+	for _, st := range stages {
+		r.stages.set(st.Name, st)
+	}
+}
+
+func (r *Runner) Remove(names ...string) {
+	for _, name := range names {
+		r.stages.delete(name)
+	}
+}
+
+func (r *Runner) printLastJobStatus() {
+	if r.job == nil {
+		fmt.Fprintf(r.Writer, "Done. No jobs runs.\n")
+		return
+	}
+
+	for _, err := range r.job.errs {
+		fmt.Fprintf(r.Writer, "error: %s\n", err)
+	}
+
+	if len(r.job.errs) > 0 {
+		fmt.Fprintf(r.Writer, "\n")
+	}
+	fmt.Fprintf(r.Writer, "Done. Run %s\n", r.status)
+}
+
+func (r *Runner) runStage(st *Stage, d Driver) error {
+	if st.jobs.len() == 0 {
+		return nil
+	}
+
+	for {
+		j, ok := st.jobs.next()
+
+		if !ok {
+			break
+		}
+
+		r.job = j
+
+		j.status = Running
+
+		if len(j.Commands) > 0 {
+			if r.handleJobStart != nil {
+				r.handleJobStart(j)
+			}
+
+			if err := d.Execute(j, r.Artifacts); err != nil {
+				j.Failed(err)
+			}
+		}
+
+		if j.status != Failed && j.status != PassedWithFailures {
+			j.status = Passed
+		}
+
+		if r.handleJobComplete != nil {
+			r.handleJobComplete(j)
+		}
+
+		if j.status >= r.status {
+			r.status = j.status
+		}
+
+		if r.status == Failed {
+			fmt.Fprintf(r.Writer, "\n")
+
+			for _, err := range j.errs {
+				fmt.Fprintf(r.Writer, "error: %s\n", err)
+			}
+		}
+	}
+	return nil
+}
+
+var (
+	ErrFailed   = errors.New("runner: failed")
+	ErrTimedOut = errors.New("runner: timed out")
+)
+
+func (r *Runner) updateUnfinishedJobs() {
+	for _, st := range r.stages.m {
+		if st.jobs == nil {
 			continue
 		}
 
-		delete(r.stages, s)
+		for _, j := range st.jobs.m {
+			if j.status == Queued {
+				j.status = r.status
 
-		i := 0
-
-		for j, removed := range r.order {
-			if removed == s {
-				i = j
-				break
+				if r.handleJobComplete != nil {
+					r.handleJobComplete(j)
+				}
 			}
 		}
-		r.order = append(r.order[:i], r.order[i+1:]...)
 	}
 }
 
-// Run executes the Runner using the given Driver. The given context.Context is
-// used to handle cancellation of the Runner, as well as cancellation of the
-// underlying Driver during creation. If the Runner fails the errRunFailed will
-// be returned.
-func (r *Runner) Run(ctx context.Context, d Driver) error {
-	defer d.Destroy()
+func (r *Runner) findCreateDriverJob() *Job {
+	for _, st := range r.stages.m {
+		j, ok := st.jobs.get("create-driver")
 
-	ctx1, cancel := context.WithTimeout(ctx, createTimeout)
-	defer cancel()
-
-	if r.handleDriverCreate != nil {
-		r.handleDriverCreate()
+		if ok {
+			return j
+		}
 	}
 
-	if err := d.Create(ctx1, r.Env, r.Objects, r.Placer); err != nil {
+	return &Job{
+		Name: "create-driver",
+	}
+}
+
+func (r *Runner) Run(ctx context.Context, d Driver) error {
+	r.status = Running
+	r.Objects = fs.ReadOnly(r.Objects)
+	r.Artifacts = fs.WriteOnly(r.Artifacts)
+
+	defer d.Destroy()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Minute*5)
+	defer cancel()
+
+	statustab := map[error]Status{
+		context.Canceled:         Killed,
+		context.DeadlineExceeded: TimedOut,
+	}
+
+	if r.handleJobStart != nil {
+		r.handleJobStart(r.findCreateDriverJob())
+	}
+
+	if err := d.Create(ctx, r.Env, r.Passthrough, r.Objects); err != nil {
 		cause := errors.Cause(err)
 
 		fmt.Fprintf(d, "%s\n", cause.Error())
-		r.printLastJobStatus()
 
-		status, ok := contextStatuses[cause]
+		status, ok := statustab[cause]
 
 		if !ok {
-			r.Status = Failed
-		} else {
-			r.Status = status
+			status = Failed
 		}
-		return errRunFailed
+
+		r.status = status
+		r.updateUnfinishedJobs()
+
+		return ErrFailed
+	}
+
+	if r.handleJobComplete != nil {
+		r.handleJobComplete(r.findCreateDriverJob())
 	}
 
 	done := make(chan struct{})
 
 	go func() {
-		for _, name := range r.order {
-			if err := r.realRunStage(name, d); err != nil {
+		for {
+			st, ok := r.stages.next()
+
+			if !ok {
+				break
+			}
+
+			if err := r.runStage(st, d); err != nil {
 				break
 			}
 		}
@@ -221,99 +503,19 @@ func (r *Runner) Run(ctx context.Context, d Driver) error {
 	case <-ctx.Done():
 		err := ctx.Err()
 
-		r.Status = contextStatuses[err]
+		r.status = statustab[err]
+		r.updateUnfinishedJobs()
 
-		r.printLastJobStatus()
 		return err
 	case <-done:
-		if r.Status == Failed {
-			return errRunFailed
+		if r.status == Failed {
+			return ErrFailed
 		}
-		if r.Status == TimedOut {
-			return errTimedOut
+		if r.status == TimedOut {
+			return ErrTimedOut
 		}
 		return nil
 	}
 }
 
-func (r *Runner) printLastJobStatus() {
-	if r.lastJob.isZero() {
-		fmt.Fprintf(r.Writer, "Done. No jobs run.\n")
-		return
-	}
-
-	for _, err := range r.lastJob.errs {
-		fmt.Fprintf(r.Writer, "error: %s\n", err)
-	}
-
-	if len(r.lastJob.errs) > 0 {
-		fmt.Fprintf(r.Writer, "\n")
-	}
-	fmt.Fprintf(r.Writer, "Done. Run %s\n", r.Status)
-}
-
-func (r *Runner) realRunStage(name string, d Driver) error {
-	stage, ok := r.stages[name]
-
-	if !ok {
-		return errStageNotFound
-	}
-
-	if stage.jobs.len() == 0 {
-		return nil
-	}
-
-	for {
-		j, ok := stage.jobs.next()
-
-		if !ok {
-			break
-		}
-
-		if len(j.Commands) > 0 {
-			if r.handleJobStart != nil {
-				r.handleJobStart(*j)
-			}
-			d.Execute(j, r.Collector)
-		}
-
-		if r.handleJobComplete != nil {
-			r.handleJobComplete(*j)
-		}
-
-		r.lastJob = *j
-
-		if j.Status >= r.Status {
-			r.Status = j.Status
-		}
-
-		if r.Status == Failed {
-			fmt.Fprintf(r.Writer, "\n")
-
-			for _, err := range j.errs {
-				fmt.Fprintf(r.Writer, "ERR: %s\n", err)
-			}
-			return errors.New("failed to run job: " + j.Name)
-		}
-	}
-
-	fmt.Fprintf(r.Writer, "\n")
-	return nil
-}
-
-// Stages returns the underlying map of the stages for the Runner.
-func (r *Runner) Stages() map[string]*Stage { return r.stages }
-
-// Add adds the given Jobs to the current Stage. The order in which the Jobs are
-// added are the order in which they are executed.
-func (s *Stage) Add(jobs ...*Job) {
-	for _, j := range jobs {
-		j.Stage = s.Name
-		j.canFail = s.CanFail
-		s.jobs.put(j)
-	}
-}
-
-// Get returns the Job of the given name, and a boolean value denoting if the
-// given Job exists in the current Stage.
-func (s *Stage) Get(name string) (*Job, bool) { return s.jobs.get(name) }
+func (r *Runner) Status() Status { return r.status }

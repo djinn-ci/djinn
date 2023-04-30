@@ -4,9 +4,12 @@ package server
 
 import (
 	"bytes"
+	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"encoding/base64"
 	"encoding/gob"
+	"encoding/hex"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,19 +18,23 @@ import (
 	"time"
 
 	"djinn-ci.com/alert"
+	"djinn-ci.com/auth"
 	"djinn-ci.com/config"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/provider"
 	"djinn-ci.com/queue"
 	"djinn-ci.com/template"
+	"djinn-ci.com/template/form"
+	"djinn-ci.com/user"
 	"djinn-ci.com/version"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/fs"
+	"github.com/andrewpillar/webutil/v2"
 
 	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
@@ -44,11 +51,14 @@ import (
 type Server struct {
 	*http.Server
 
+	Host  string
+	Debug bool
+
 	AESGCM *crypto.AESGCM // The mechanism used for encrypting data.
 	Hasher *crypto.Hasher // The mechanism for generating secure hashes.
 
-	DB    database.Pool // The client connection to the PostgreSQL database.
-	Redis *redis.Client // The client connection to the Redis database.
+	DB    *database.Pool // The client connection to the PostgreSQL database.
+	Redis *redis.Client  // The client connection to the Redis database.
 
 	// SMTP provides both the SMTP client for sending emails, and the address
 	// from which the emails would be sent, typically the admin of the server.
@@ -70,9 +80,11 @@ type Server struct {
 	SessionStore sessions.Store
 	CSRF         func(http.Handler) http.Handler
 
-	Artifacts fs.Store
-	Images    fs.Store
-	Objects   fs.Store
+	Artifacts fs.FS
+	Images    fs.FS
+	Objects   fs.FS
+
+	Auths *auth.Registry
 
 	// Providers contains the configured providers that the server can connect
 	// to for 3rd party integration.
@@ -89,7 +101,7 @@ func New(cfg *config.Server) (*Server, error) {
 	smtp, smtpadmin := cfg.SMTP()
 	redis := cfg.Redis()
 
-	auth, block, hash, _ := cfg.Crypto()
+	authKey, block, hash, _ := cfg.Crypto()
 
 	store, err := redisstore.NewRedisStore(redis)
 
@@ -110,26 +122,41 @@ func New(cfg *config.Server) (*Server, error) {
 		MaxAge: 86400 * 60,
 	})
 
+	db := cfg.DB()
+	securecookie := securecookie.New(hash, block)
+
+	token := user.TokenAuth(db)
+	cookie := user.CookieAuth(db, securecookie)
+	form := user.FormAuth(db)
+
+	auths := cfg.Auths()
+	auths.Register(user.InternalProvider+":cookie", cookie)
+	auths.Register(user.InternalProvider+":form", form)
+	auths.Register(user.InternalProvider, auth.Fallback(token, cookie, form))
+
 	srv := &Server{
+		Host:         cfg.Host(),
+		Debug:        cfg.Debug(),
 		Server:       cfg.Server(),
 		AESGCM:       cfg.AESGCM(),
 		Hasher:       cfg.Hasher(),
 		Log:          cfg.Log(),
 		Router:       mux.NewRouter(),
-		DB:           cfg.DB(),
+		DB:           db,
 		Redis:        redis,
 		DriverQueues: cfg.DriverQueues(),
 		Queues:       queue.NewSet(),
-		SecureCookie: securecookie.New(hash, block),
+		SecureCookie: securecookie,
 		SessionStore: store,
 		CSRF: csrf.Protect(
-			auth,
+			authKey,
 			csrf.RequestHeader("X-CSRF-Token"),
 			csrf.FieldName("csrf_token"),
 		),
 		Artifacts: cfg.Artifacts(),
 		Images:    cfg.Images(),
 		Objects:   cfg.Objects(),
+		Auths:     auths,
 		Providers: cfg.Providers(),
 	}
 
@@ -138,11 +165,11 @@ func New(cfg *config.Server) (*Server, error) {
 	})
 
 	srv.Router.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		srv.Error(w, r, "Method not allowed", http.StatusMethodNotAllowed)
+		srv.Error(w, r, errors.New("Method Not Allowed"))
 	})
 
 	srv.Router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-		if IsJSON(r) {
+		if expectsJSON(r) {
 			webutil.JSON(w, map[string]string{"build": version.Build}, http.StatusOK)
 			return
 		}
@@ -173,8 +200,10 @@ func (s *Server) RedirectBack(w http.ResponseWriter, r *http.Request) {
 // the next request.
 func (s *Server) Save(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, save := s.Session(r)
-		save(r, w)
+		if !isAPI(r) {
+			_, save := s.Session(r)
+			save(r, w)
+		}
 		next.ServeHTTP(w, r)
 	})
 }
@@ -197,7 +226,13 @@ func (s *Server) Session(r *http.Request) (*sessions.Session, func(*http.Request
 // for the goroutine that called it. The base64 encoded string has each line
 // folded at 47 characters in length for formatting. This is used from the
 // recover handler to gracefully display fatal internal errors for reporting.
-func encodeStack() string {
+func runtimeStack(encode bool) string {
+	stack := debug.Stack()
+
+	if !encode {
+		return string(stack)
+	}
+
 	base64 := base64.StdEncoding.EncodeToString(debug.Stack())
 
 	var buf bytes.Buffer
@@ -216,13 +251,9 @@ func encodeStack() string {
 }
 
 func headersHandler(h http.Handler) http.HandlerFunc {
-	headers := map[string]string{
-		"X-Frame-Options": "deny",
-	}
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		for k, v := range headers {
-			w.Header().Set(k, v)
+		if !isAPI(r) {
+			w.Header().Set("X-Frame-Options", "deny")
 		}
 		h.ServeHTTP(w, r)
 	})
@@ -282,46 +313,114 @@ func (s *Server) Serve() error {
 	return nil
 }
 
+var ErrNotFound = errors.Benign("Not Found")
+
 // NotFound replies to the request with a 404 Not found response.
 func (s *Server) NotFound(w http.ResponseWriter, r *http.Request) {
-	s.Error(w, r, "Not found", http.StatusNotFound)
+	s.Error(w, r, ErrNotFound)
 }
 
 // InternalServerError replies to the request with 500 Internal server error,
 // and logs the given error to the underlying logger.
 func (s *Server) InternalServerError(w http.ResponseWriter, r *http.Request, err error) {
-	s.Log.Error.Println(r.Method, r.URL, err)
-	s.Error(w, r, "Something went wrong", http.StatusInternalServerError)
+	s.Error(w, r, errors.Wrap(err, "Internal Server Error"))
 }
 
-func IsJSON(r *http.Request) bool {
+func isAPI(r *http.Request) bool {
+	url, _ := url.Parse(webutil.BaseAddress(r))
+	api, _ := url.Parse(env.DJINN_API_SERVER)
+
+	return api.Scheme == url.Scheme && api.Host == url.Host && strings.HasPrefix(r.URL.Path, api.Path)
+}
+
+func expectsJSON(r *http.Request) bool {
 	return strings.HasPrefix(r.Header.Get("Accept"), "application/json") ||
-		strings.HasPrefix(r.Header.Get("Content-Type"), "application/json")
+		strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") ||
+		isAPI(r)
 }
 
-// Error replies to the request with the given error with the given HTTP code.
-// If the given request was JSON, then the response will be JSON, otherwise the
-// response will be the HTML error page.
-func (s *Server) Error(w http.ResponseWriter, r *http.Request, err string, code int) {
-	if IsJSON(r) {
-		webutil.JSON(w, map[string]string{"message": err}, code)
+// Error serves up the given error with the given HTTP status code. If err is
+// nil, then the status text for the HTTP status code is used. If the error is
+// of type errors.Benign, then it is not logged.
+func (s *Server) Error(w http.ResponseWriter, r *http.Request, err error) {
+	if _, ok := err.(errors.Benign); !ok {
+		s.Log.Error.Println(r.Method, r.URL, errors.Unwrap(err))
+	}
+
+	typ := r.Header.Get("Content-Type")
+
+	// Form submission, so redirect back.
+	if strings.HasPrefix(typ, "application/x-www-form-urlencoded") ||
+		strings.HasPrefix(typ, "multipart/form-data") {
+		sess, _ := s.Session(r)
+
+		alert.Flash(sess, alert.Danger, err.Error())
+		s.RedirectBack(w, r)
 		return
 	}
 
-	webutil.HTML(w, template.Render(&template.Error{
+	code := http.StatusInternalServerError
+
+	if errors.Is(errors.Cause(err), auth.ErrAuth) {
+		code = http.StatusNotFound
+	}
+	if errors.Is(err, ErrNotFound) {
+		code = http.StatusNotFound
+	}
+
+	if expectsJSON(r) {
+		m := map[string]string{
+			"message": err.Error(),
+		}
+
+		if s.Debug {
+			m["stack"] = errors.Format(errors.Unwrap(err))
+		}
+
+		webutil.JSON(w, m, code)
+		return
+	}
+
+	tmpl := template.Error{
 		Code:    code,
-		Message: err,
-	}), code)
+		Message: err.Error(),
+	}
+
+	if s.Debug {
+		tmpl.Error = errors.Unwrap(err)
+	}
+	webutil.HTML(w, template.Render(&tmpl), code)
+}
+
+// FormError checks if the given error implements webutil.ValidationErrors, if
+// it does, then the form and errors are flashed to the session, and a redirect
+// to the request Referrer is made. Otherwise it defers to Server.Error.
+func (s *Server) FormError(w http.ResponseWriter, r *http.Request, f webutil.Form, err error) {
+	var errs webutil.ValidationErrors
+
+	if errors.As(err, &errs) {
+		if expectsJSON(r) {
+			webutil.JSON(w, errs, http.StatusBadRequest)
+			return
+		}
+
+		sess, _ := s.Session(r)
+
+		webutil.FlashFormWithErrors(sess, f, errs)
+		s.RedirectBack(w, r)
+		return
+	}
+	s.Error(w, r, err)
 }
 
 func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if v := recover(); v != nil {
-				if IsJSON(r) {
+				if expectsJSON(r) {
 					data := map[string]string{
 						"message": "Something went wrong",
-						"stack":   encodeStack(),
+						"stack":   runtimeStack(!s.Debug),
 					}
 
 					if err, ok := v.(error); ok {
@@ -332,12 +431,12 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 					return
 				}
 
-				p := &template.InternalError{
+				p := &template.FatalError{
 					Error: template.Error{
 						Code:    http.StatusInternalServerError,
 						Message: "Fatal error, when submitting an issue please include the following",
 					},
-					Stack: encodeStack(),
+					Stack: runtimeStack(!s.Debug),
 				}
 
 				if err, ok := v.(error); ok {
@@ -349,4 +448,261 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 		}()
 		h.ServeHTTP(w, r)
 	})
+}
+
+func (s *Server) Guest(a auth.Authenticator) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Method == "POST" {
+				// User is logging in, so bypass authentication check.
+				if r.URL.Path == "/login" {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			u, err := a.Auth(r)
+
+			if err != nil {
+				if !errors.Is(err, auth.ErrAuth) {
+					s.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+					return
+				}
+				goto serve
+			}
+
+			if u.ID > 0 {
+				if expectsJSON(r) {
+					s.NotFound(w, r)
+					return
+				}
+
+				s.Redirect(w, r, "/")
+				return
+			}
+
+		serve:
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func (s *Server) Restrict(a auth.Authenticator, perms []string, fn auth.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, err := a.Auth(r)
+
+		if err != nil {
+			if errors.Is(err, database.ErrNoRows) || errors.Is(err, auth.ErrAuth) {
+				if expectsJSON(r) {
+					s.NotFound(w, r)
+					return
+				}
+
+				s.Redirect(w, r, "/login")
+				return
+			}
+			s.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+			return
+		}
+
+		for _, perm := range perms {
+			if !u.Has(perm) {
+				if expectsJSON(r) {
+					s.NotFound(w, r)
+					return
+				}
+				s.Redirect(w, r, "/login")
+				return
+			}
+		}
+		fn(u, w, r)
+	})
+}
+
+func (s *Server) Optional(a auth.Authenticator, fn auth.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		u, err := a.Auth(r)
+
+		if err != nil {
+			if !errors.Is(err, auth.ErrAuth) {
+				s.Error(w, r, err)
+				return
+			}
+			u = &auth.User{}
+		}
+		fn(u, w, r)
+	})
+}
+
+const (
+	sudoTimestamp = "sudo_timestamp"
+	sudoToken     = "sudo_token"
+	sudoUrl       = "sudo_url"
+	sudoReferer   = "sudo_referer"
+)
+
+func (s *Server) generateSudoToken() string {
+	b := make([]byte, 16)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+type sudoForm struct {
+	User  *auth.User `schema:"-"`
+	Token string     `schema:"-"`
+
+	SudoToken   string `schema:"sudo_token"`
+	SudoURL     string `schema:"sudo_url"`
+	SudoReferer string `schema:"sudo_referer"`
+	Password    string
+}
+
+var _ webutil.Form = (*sudoForm)(nil)
+
+func (f sudoForm) Fields() map[string]string { return nil }
+
+func (f sudoForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
+
+	nametab := map[string]string{
+		"password": "Password",
+	}
+
+	v.WrapError(func(name string, err error) error {
+		if s, ok := nametab[name]; ok {
+			name = s
+		}
+		return webutil.WrapFieldError(name, err)
+	})
+
+	v.Add("password", f.Password, webutil.FieldRequired)
+	v.Add("sudo_token", f.SudoToken, webutil.FieldEquals(f.Token))
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
+}
+
+func (s *Server) sudoHandler(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := s.Session(r)
+
+	tok := sess.Values[sudoToken].(string)
+	delete(sess.Values, sudoToken)
+
+	f := sudoForm{
+		User:  u,
+		Token: tok,
+	}
+
+	if err := webutil.UnmarshalFormAndValidate(&f, r); err != nil {
+		s.FormError(w, r, &f, err)
+		return
+	}
+
+	form, _ := s.Auths.Get(user.InternalProvider + ":form")
+
+	if _, err := form.Auth(r); err != nil {
+		if !errors.Is(err, auth.ErrAuth) {
+			s.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+			return
+		}
+
+		s.Error(w, r, errors.Benign("Authentication failed"))
+		return
+	}
+
+	expires := time.Now().Add(time.Minute * 30)
+
+	s.Log.Debug.Println(r.Method, r.URL, "authorizing sudo request")
+	s.Log.Debug.Println(r.Method, r.URL, "sudo request authorized, expires at", expires)
+
+	sess.Values[sudoTimestamp] = expires
+	s.Redirect(w, r, f.SudoURL)
+}
+
+func (s *Server) Template(w http.ResponseWriter, r *http.Request, tmpl template.Template, code int) {
+	_, save := s.Session(r)
+	save(r, w)
+	webutil.HTML(w, template.Render(tmpl), code)
+}
+
+func (s *Server) Sudo(fn auth.HandlerFunc) http.HandlerFunc {
+	registered := false
+
+	s.Router.Walk(func(r *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		if name := r.GetName(); name == "sudo" {
+			registered = true
+			return nil
+		}
+		return nil
+	})
+
+	cookie, _ := s.Auths.Get(user.InternalProvider + ":cookie")
+
+	if !registered {
+		s.Router.HandleFunc("/sudo", s.Restrict(cookie, nil, s.sudoHandler)).Name("sudo").Methods("POST")
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		if expectsJSON(r) {
+			webutil.JSON(w, map[string]any{"message": "Unauthorized"}, http.StatusUnauthorized)
+			return
+		}
+
+		u, err := cookie.Auth(r)
+
+		if err != nil {
+			http.SetCookie(w, &http.Cookie{
+				Name:     "user",
+				HttpOnly: true,
+				Path:     "/",
+				Expires:  time.Unix(0, 0),
+			})
+
+			s.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+			return
+		}
+
+		sess, save := s.Session(r)
+
+		if v, ok := sess.Values[sudoTimestamp]; ok {
+			t := v.(time.Time)
+
+			if time.Now().Before(t) {
+				s.Log.Debug.Println(r.Method, r.URL, "sudo still in session")
+
+				if v, ok := sess.Values[sudoReferer]; ok {
+					delete(sess.Values, sudoReferer)
+					s.Log.Debug.Println(r.Method, r.URL, "sudo referer", v)
+					r.Header.Set("Referer", v.(string))
+				}
+
+				fn(u, w, r)
+				return
+			}
+			delete(sess.Values, sudoTimestamp)
+		}
+
+		s.Log.Debug.Println(r.Method, r.URL, "generating sudo token")
+
+		tok := s.generateSudoToken()
+		url := r.URL.String()
+		ref := r.Header.Get("Referer")
+
+		sess.Values[sudoToken] = tok
+		sess.Values[sudoUrl] = url
+		sess.Values[sudoReferer] = ref
+
+		save(r, w)
+
+		tmpl := template.SudoForm{
+			Form:        form.New(sess, r),
+			Alert:       alert.First(sess),
+			Email:       u.Email,
+			SudoURL:     url,
+			SudoReferer: ref,
+			SudoToken:   tok,
+		}
+		webutil.HTML(w, template.Render(&tmpl), http.StatusOK)
+	}
 }

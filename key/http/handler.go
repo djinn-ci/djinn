@@ -4,63 +4,47 @@ import (
 	"context"
 	"net/http"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/key"
 	"djinn-ci.com/namespace"
-	namespacehttp "djinn-ci.com/namespace/http"
 	"djinn-ci.com/server"
-	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
 	*server.Server
 
-	Namespace  *namespacehttp.Handler
-	Namespaces namespace.Store
-	Users      user.Store
-	Keys       *key.Store
+	Keys *key.Store
 }
 
 func NewHandler(srv *server.Server) *Handler {
 	return &Handler{
-		Server:    srv,
-		Namespace: namespacehttp.NewHandler(srv),
-		Users:     user.Store{Pool: srv.DB},
+		Server: srv,
 		Keys: &key.Store{
-			Pool:   srv.DB,
+			Store:  key.NewStore(srv.DB),
 			AESGCM: srv.AESGCM,
 		},
 	}
 }
 
-type HandlerFunc func(*user.User, *key.Key, http.ResponseWriter, *http.Request)
+type HandlerFunc func(*auth.User, *key.Key, http.ResponseWriter, *http.Request)
 
-func (h *Handler) WithKey(fn HandlerFunc) userhttp.HandlerFunc {
-	return func(u *user.User, w http.ResponseWriter, r *http.Request) {
-		var (
-			k   *key.Key
-			ok  bool
-			err error
-		)
+func (h *Handler) Key(fn HandlerFunc) auth.HandlerFunc {
+	return func(u *auth.User, w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 
-		get := func(id int64) (database.Model, bool, error) {
-			k, ok, err = h.Keys.Get(query.Where("id", "=", query.Arg(id)))
+		id := mux.Vars(r)["key"]
 
-			if err != nil {
-				return nil, false, errors.Err(err)
-			}
-			return k, ok, nil
-		}
-
-		ok, err = h.Namespace.CanAccessResource("key", get, u, r)
+		k, ok, err := h.Keys.Get(ctx, query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get key"))
 			return
 		}
 
@@ -68,150 +52,89 @@ func (h *Handler) WithKey(fn HandlerFunc) userhttp.HandlerFunc {
 			h.NotFound(w, r)
 			return
 		}
+
+		if err := namespace.LoadResourceRelations[*key.Key](ctx, h.DB, k); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load key relations"))
+			return
+		}
 		fn(u, k, w, r)
 	}
 }
 
-func (h *Handler) IndexWithRelations(u *user.User, r *http.Request) ([]*key.Key, database.Paginator, error) {
-	kk, paginator, err := h.Keys.Index(r.URL.Query(), namespace.WhereCollaborator(u.ID))
+func (h *Handler) Index(u *auth.User, r *http.Request) (*database.Paginator[*key.Key], error) {
+	ctx := r.Context()
+
+	p, err := h.Keys.Index(ctx, r.URL.Query(), namespace.WhereCollaborator(u.ID))
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	mm := make([]database.Model, 0, len(kk))
-
-	for _, k := range kk {
-		mm = append(mm, k)
+	if err := namespace.LoadResourceRelations(ctx, h.DB, p.Items...); err != nil {
+		return nil, errors.Err(err)
 	}
-
-	if err := h.Users.Load("user_id", "id", mm...); err != nil {
-		return nil, paginator, errors.Err(err)
-	}
-
-	if err := h.Users.Load("author_id", "id", mm...); err != nil {
-		return nil, paginator, errors.Err(err)
-	}
-	return kk, paginator, nil
+	return p, nil
 }
 
-func (h *Handler) StoreModel(u *user.User, r *http.Request) (*key.Key, Form, error) {
-	var (
-		f     Form
-		verrs webutil.ValidationErrors
-	)
-
-	if err := webutil.UnmarshalForm(&f, r); err != nil {
-		if verrs0, ok := err.(webutil.ValidationErrors); ok {
-			verrs = verrs0
-			goto validate
-		}
-		return nil, f, errors.Err(err)
+func (h *Handler) Store(u *auth.User, r *http.Request) (*key.Key, *Form, error) {
+	f := Form{
+		Pool: h.DB,
+		User: u,
 	}
 
-validate:
-	v := Validator{
-		UserID: u.ID,
-		Keys:   h.Keys,
-		Form:   f,
+	if err := webutil.UnmarshalFormAndValidate(&f, r); err != nil {
+		return nil, &f, err
 	}
 
-	if err := webutil.Validate(&v); err != nil {
-		err.(webutil.ValidationErrors).Merge(verrs)
+	ctx := r.Context()
 
-		return nil, f, errors.Err(err)
-	}
-
-	k, err := h.Keys.Create(key.Params{
-		UserID:    u.ID,
+	k, err := h.Keys.Create(ctx, &key.Params{
+		User:      u,
 		Namespace: f.Namespace,
 		Name:      f.Name,
-		Key:       f.Key,
+		Key:       f.SSHKey,
 		Config:    f.Config,
 	})
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if perr, ok := cause.(*namespace.PathError); ok {
-			return nil, f, perr.Err
-		}
-		return nil, f, errors.Err(err)
+		return nil, &f, errors.Err(err)
 	}
-
-	if err := h.Users.Load("user_id", "id", k); err != nil {
-		return nil, f, errors.Err(err)
-	}
-
-	k.Author = u
 
 	h.Queues.Produce(r.Context(), "events", &key.Event{
 		Key:    k,
 		Action: "created",
 	})
-
-	return k, f, nil
+	return k, &f, nil
 }
 
-func (h *Handler) UpdateModel(k *key.Key, r *http.Request) (*key.Key, Form, error) {
-	var (
-		f     Form
-		verrs webutil.ValidationErrors
-	)
-
-	if err := webutil.UnmarshalForm(&f, r); err != nil {
-		if verrs0, ok := err.(webutil.ValidationErrors); ok {
-			verrs = verrs0
-			goto validate
-		}
-		return nil, f, errors.Err(err)
+func (h *Handler) Update(u *auth.User, k *key.Key, r *http.Request) (*key.Key, *Form, error) {
+	f := Form{
+		Pool: h.DB,
+		User: u,
+		Key:  k,
 	}
 
-validate:
-	v := Validator{
-		UserID: k.UserID,
-		Keys:   h.Keys,
-		Key:    k,
-		Form:   f,
+	if err := webutil.UnmarshalFormAndValidate(&f, r); err != nil {
+		return nil, &f, err
 	}
 
-	if err := webutil.Validate(&v); err != nil {
-		err.(webutil.ValidationErrors).Merge(verrs)
-
-		return nil, f, errors.Err(err)
-	}
-
-	if err := h.Keys.Update(k.ID, key.Params{Config: f.Config}); err != nil {
-		return nil, f, errors.Err(err)
-	}
+	ctx := r.Context()
 
 	k.Config = f.Config
 
-	if err := h.Users.Load("user_id", "id", k); err != nil {
-		return nil, f, errors.Err(err)
-	}
-
-	if err := h.Users.Load("author_id", "id", k); err != nil {
-		return nil, f, errors.Err(err)
+	if err := h.Keys.Update(ctx, k); err != nil {
+		return nil, &f, errors.Err(err)
 	}
 
 	h.Queues.Produce(r.Context(), "events", &key.Event{
 		Key:    k,
 		Action: "updated",
 	})
-	return k, f, nil
+	return k, &f, nil
 }
 
-func (h *Handler) DeleteModel(ctx context.Context, k *key.Key) error {
-	if err := h.Users.Load("user_id", "id", k); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := h.Users.Load("author_id", "id", k); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := h.Keys.Delete(k.ID); err != nil {
+func (h *Handler) Destroy(ctx context.Context, k *key.Key) error {
+	if err := h.Keys.Delete(ctx, k); err != nil {
 		return errors.Err(err)
 	}
 

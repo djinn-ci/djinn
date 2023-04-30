@@ -1,25 +1,25 @@
 package image
 
 import (
-	"database/sql"
+	"context"
+	"encoding/json"
 	"io"
 	"net/url"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
 	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/event"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/queue"
-	"djinn-ci.com/user"
 
+	"github.com/andrewpillar/fs"
 	"github.com/andrewpillar/query"
 )
 
@@ -27,81 +27,69 @@ type Image struct {
 	ID          int64
 	UserID      int64
 	AuthorID    int64
-	NamespaceID sql.NullInt64
+	NamespaceID database.Null[int64]
 	Driver      driver.Type
 	Hash        string
 	Name        string
 	CreatedAt   time.Time
 
-	Author    *user.User
-	User      *user.User
+	Author    *auth.User
+	User      *auth.User
 	Download  *Download
 	Namespace *namespace.Namespace
 }
 
+func LoadRelations(ctx context.Context, pool *database.Pool, ii ...*Image) error {
+	if err := namespace.LoadResourceRelations[*Image](ctx, pool, ii...); err != nil {
+		return errors.Err(err)
+	}
+
+	rel := database.Relation{
+		From: "id",
+		To:   "image_id",
+		Loader: database.ModelLoader(pool, downloadTable, func() database.Model {
+			return &Download{}
+		}),
+	}
+
+	if err := database.LoadRelations[*Image](ctx, ii, rel); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
 var _ database.Model = (*Image)(nil)
 
-func Relations(db database.Pool) []database.RelationFunc {
-	rels := namespace.ResourceRelations(db)
+func (i *Image) Primary() (string, any) { return "id", i.ID }
 
-	return append(rels, database.Relation("id", "image_id", DownloadStore{Pool: db}))
-}
-
-func LoadNamespaces(db database.Pool, ii ...*Image) error {
-	mm := make([]database.Model, 0, len(ii))
-
-	for _, i := range ii {
-		mm = append(mm, i)
+func (i *Image) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":           &i.ID,
+		"user_id":      &i.UserID,
+		"author_id":    &i.AuthorID,
+		"namespace_id": &i.NamespaceID,
+		"driver":       &i.Driver,
+		"hash":         &i.Hash,
+		"name":         &i.Name,
+		"created_at":   &i.CreatedAt,
 	}
 
-	if err := namespace.Load(db, mm...); err != nil {
+	if err := database.Scan(r, valtab); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func LoadRelations(db database.Pool, ii ...*Image) error {
-	mm := make([]database.Model, 0, len(ii))
-
-	for _, i := range ii {
-		mm = append(mm, i)
-	}
-
-	if err := database.LoadRelations(mm, Relations(db)...); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
-func (i *Image) path() string {
-	return filepath.Join(i.Driver.String(), i.Hash)
-}
-
-func (i *Image) Data(store fs.Store) (fs.Record, error) {
-	store, err := store.Partition(i.UserID)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	rec, err := store.Open(i.path())
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	return rec, nil
-}
-
-func (i *Image) Dest() []interface{} {
-	return []interface{}{
-		&i.ID,
-		&i.UserID,
-		&i.AuthorID,
-		&i.NamespaceID,
-		&i.Driver,
-		&i.Hash,
-		&i.Name,
-		&i.CreatedAt,
+func (i *Image) Params() database.Params {
+	return database.Params{
+		"id":           database.ImmutableParam(i.ID),
+		"user_id":      database.CreateOnlyParam(i.UserID),
+		"author_id":    database.CreateOnlyParam(i.AuthorID),
+		"namespace_id": database.CreateOnlyParam(i.NamespaceID),
+		"driver":       database.CreateOnlyParam(i.Driver),
+		"hash":         database.CreateOnlyParam(i.Hash),
+		"name":         database.CreateOnlyParam(i.Name),
+		"created_at":   database.CreateOnlyParam(i.CreatedAt),
 	}
 }
 
@@ -111,17 +99,50 @@ func (i *Image) Bind(m database.Model) {
 		if i.ID == v.ImageID {
 			i.Download = v
 		}
-	case *user.User:
+	case *auth.User:
 		i.Author = v
 
 		if i.UserID == v.ID {
 			i.User = v
 		}
 	case *namespace.Namespace:
-		if i.NamespaceID.Int64 == v.ID {
+		if i.NamespaceID.Elem == v.ID {
 			i.Namespace = v
 		}
 	}
+}
+
+func (i *Image) Endpoint(elems ...string) string {
+	if len(elems) > 0 {
+		return "/images/" + strconv.FormatInt(i.ID, 10) + "/" + strings.Join(elems, "/")
+	}
+	return "/images/" + strconv.FormatInt(i.ID, 10)
+}
+
+func (i *Image) MarshalJSON() ([]byte, error) {
+	if i == nil {
+		return []byte("null"), nil
+	}
+
+	b, err := json.Marshal(map[string]any{
+		"id":           i.ID,
+		"author_id":    i.AuthorID,
+		"user_id":      i.UserID,
+		"namespace_id": i.NamespaceID,
+		"driver":       i.Driver.String(),
+		"name":         i.Name,
+		"created_at":   i.CreatedAt,
+		"url":          env.DJINN_API_SERVER + i.Endpoint(),
+		"author":       i.Author,
+		"user":         i.User,
+		"namespace":    i.Namespace,
+		"download":     i.Download,
+	})
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return b, nil
 }
 
 func (i *Image) Downloaded() bool {
@@ -131,79 +152,36 @@ func (i *Image) Downloaded() bool {
 	return true
 }
 
-func (i *Image) JSON(addr string) map[string]interface{} {
-	if i == nil {
-		return nil
+// filestore returns the fs.FS that should be used for storing the current
+// image.
+func (i *Image) filestore(store fs.FS) (fs.FS, error) {
+	store, err := store.Sub(strconv.FormatInt(i.UserID, 10))
+
+	if err != nil {
+		return nil, errors.Err(err)
 	}
 
-	json := map[string]interface{}{
-		"id":           i.ID,
-		"author_id":    i.AuthorID,
-		"user_id":      i.UserID,
-		"namespace_id": nil,
-		"driver":       i.Driver.String(),
-		"name":         i.Name,
-		"created_at":   i.CreatedAt.Format(time.RFC3339),
-		"url":          addr + i.Endpoint(),
+	store, err = store.Sub(i.Driver.String())
+
+	if err != nil {
+		return nil, errors.Err(err)
 	}
-
-	if i.Author != nil {
-		json["author"] = i.Author.JSON(addr)
-	}
-
-	if i.User != nil {
-		json["user"] = i.User.JSON(addr)
-	}
-
-	if i.NamespaceID.Valid {
-		json["namespace_id"] = i.NamespaceID.Int64
-
-		if i.Namespace != nil {
-			json["namespace"] = i.Namespace.JSON(addr)
-		}
-	}
-
-	if i.Download != nil {
-		download := map[string]interface{}{
-			"source":      i.Download.Source.String(),
-			"error":       nil,
-			"created_at":  i.Download.CreatedAt.Format(time.RFC3339),
-			"started_at":  nil,
-			"finished_at": nil,
-		}
-
-		if i.Download.Error.Valid {
-			download["error"] = i.Download.Error.String
-		}
-		if i.Download.StartedAt.Valid {
-			download["started_at"] = i.Download.StartedAt.Time.Format(time.RFC3339)
-		}
-		if i.Download.FinishedAt.Valid {
-			download["finished_at"] = i.Download.FinishedAt.Time.Format(time.RFC3339)
-		}
-		json["download"] = download
-	}
-	return json
+	return store, nil
 }
 
-func (i *Image) Endpoint(uri ...string) string {
-	if len(uri) > 0 {
-		return "/images/" + strconv.FormatInt(i.ID, 10) + "/" + strings.Join(uri, "/")
-	}
-	return "/images/" + strconv.FormatInt(i.ID, 10)
-}
+func (i *Image) Open(store fs.FS) (fs.File, error) {
+	store, err := i.filestore(store)
 
-func (i *Image) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":           i.ID,
-		"user_id":      i.UserID,
-		"author_id":    i.AuthorID,
-		"namespace_id": i.NamespaceID,
-		"driver":       i.Driver,
-		"hash":         i.Hash,
-		"name":         i.Name,
-		"created_at":   i.CreatedAt,
+	if err != nil {
+		return nil, errors.Err(err)
 	}
+
+	f, err := store.Open(i.Hash)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return f, nil
 }
 
 type Event struct {
@@ -228,8 +206,8 @@ func (ev *Event) Perform() error {
 		return event.ErrNilDispatcher
 	}
 
-	data := map[string]interface{}{
-		"image":  ev.Image.JSON(env.DJINN_API_SERVER),
+	data := map[string]any{
+		"image":  ev.Image,
 		"action": ev.Action,
 	}
 	return errors.Err(ev.dis.Dispatch(event.New(ev.Image.NamespaceID, event.Images, data)))
@@ -237,61 +215,30 @@ func (ev *Event) Perform() error {
 
 var _ queue.Job = (*Event)(nil)
 
-type Store struct {
-	database.Pool
-	fs.Store
+const table = "images"
 
+type Store struct {
+	*database.Store[*Image]
+
+	FS     fs.FS
 	Hasher *crypto.Hasher
 }
 
-var (
-	_ database.Loader = (*Store)(nil)
-
-	table = "images"
-)
-
-func Chown(db database.Pool, from, to int64) error {
-	if err := database.Chown(db, table, from, to); err != nil {
-		return errors.Err(err)
-	}
-	return nil
+func NewStore(pool *database.Pool) *database.Store[*Image] {
+	return database.NewStore[*Image](pool, table, func() *Image {
+		return &Image{}
+	})
 }
 
 type Params struct {
-	UserID    int64
+	User      *auth.User
 	Namespace namespace.Path
 	Name      string
 	Driver    driver.Type
 	Image     io.Reader
 }
 
-func (s *Store) Create(p Params) (*Image, error) {
-	u, n, err := p.Namespace.ResolveOrCreate(s.Pool, p.UserID)
-
-	if err != nil {
-		if !errors.Is(err, namespace.ErrInvalidPath) {
-			return nil, errors.Err(err)
-		}
-	}
-
-	userId := p.UserID
-
-	var namespaceId sql.NullInt64
-
-	if u != nil {
-		n.User = u
-
-		userId = u.ID
-		namespaceId = sql.NullInt64{
-			Int64: n.ID,
-			Valid: true,
-		}
-
-		if err := n.IsCollaborator(s.Pool, p.UserID); err != nil {
-			return nil, errors.Err(err)
-		}
-	}
-
+func (s *Store) Create(ctx context.Context, p *Params) (*Image, error) {
 	hash, err := s.Hasher.HashNow()
 
 	if err != nil {
@@ -299,70 +246,77 @@ func (s *Store) Create(p Params) (*Image, error) {
 	}
 
 	i := Image{
-		UserID:      userId,
-		AuthorID:    p.UserID,
-		NamespaceID: namespaceId,
-		Driver:      p.Driver,
-		Hash:        hash,
-		Name:        p.Name,
-		CreatedAt:   time.Now(),
-		Namespace:   n,
+		UserID:    p.User.ID,
+		AuthorID:  p.User.ID,
+		Driver:    p.Driver,
+		Hash:      hash,
+		Name:      p.Name,
+		CreatedAt: time.Now(),
+		User:      p.User,
+		Author:    p.User,
+	}
+
+	if p.Namespace.Valid {
+		owner, n, err := p.Namespace.Resolve(ctx, s.Pool, p.User)
+
+		if err != nil {
+			if !errors.Is(err, namespace.ErrInvalidPath) {
+				return nil, errors.Err(err)
+			}
+		}
+
+		if err := n.IsCollaborator(ctx, s.Pool, p.User); err != nil {
+			return nil, errors.Err(err)
+		}
+
+		i.UserID = owner.ID
+		i.NamespaceID.Elem = n.ID
+		i.NamespaceID.Valid = true
+
+		i.User = owner
+		i.Namespace = n
 	}
 
 	if p.Image != nil {
-		store, err := s.Partition(i.UserID)
+		f, err := fs.ReadFile(hash, p.Image)
 
 		if err != nil {
 			return nil, errors.Err(err)
 		}
 
-		dst, err := store.Create(i.path())
+		defer fs.Cleanup(f)
+
+		store, err := i.filestore(s.FS)
 
 		if err != nil {
 			return nil, errors.Err(err)
 		}
 
-		defer dst.Close()
+		f, err = store.Put(f)
 
-		if _, err := io.Copy(dst, p.Image); err != nil {
+		if err != nil {
 			return nil, errors.Err(err)
 		}
 	}
 
-	q := query.Insert(
-		table,
-		query.Columns("user_id", "author_id", "namespace_id", "driver", "hash", "name", "created_at"),
-		query.Values(i.UserID, i.AuthorID, i.NamespaceID, i.Driver, i.Hash, i.Name, i.CreatedAt),
-		query.Returning("id"),
-	)
-
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&i.ID); err != nil {
+	if err := s.Store.Create(ctx, &i); err != nil {
 		return nil, errors.Err(err)
 	}
 	return &i, nil
 }
 
-func (s *Store) Chown(from, to int64) error {
-	if err := database.Chown(s.Pool, table, from, to); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
-func (s *Store) Delete(i *Image) error {
-	q := query.Delete(table, query.Where("id", "=", query.Arg(i.ID)))
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+func (s *Store) Delete(ctx context.Context, i *Image) error {
+	if err := s.Store.Delete(ctx, i); err != nil {
 		return errors.Err(err)
 	}
 
-	store, err := s.Partition(i.UserID)
+	store, err := i.filestore(s.FS)
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	if err := store.Remove(i.path()); err != nil {
+	if err := store.Remove(i.Hash); err != nil {
 		if !errors.Is(err, fs.ErrNotExist) {
 			return errors.Err(err)
 		}
@@ -370,88 +324,64 @@ func (s *Store) Delete(i *Image) error {
 	return nil
 }
 
-func (s *Store) Get(opts ...query.Option) (*Image, bool, error) {
-	var i Image
-
-	ok, err := s.Pool.Get(table, &i, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &i, ok, nil
-}
-
-func (s *Store) All(opts ...query.Option) ([]*Image, error) {
-	ii := make([]*Image, 0)
-
-	new := func() database.Model {
-		i := &Image{}
-		ii = append(ii, i)
-		return i
-	}
-
-	if err := s.Pool.All(table, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return ii, nil
-}
-
-func (s *Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Pool.Paginate(table, page, limit, opts...)
-
-	if err != nil {
-		return paginator, errors.Err(err)
-	}
-	return paginator, nil
-}
-
-func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Image, database.Paginator, error) {
-	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
-
-	if err != nil {
-		page = 1
-	}
+func (s *Store) Index(ctx context.Context, vals url.Values, opts ...query.Option) (*database.Paginator[*Image], error) {
+	page, _ := strconv.Atoi(vals.Get("page"))
 
 	opts = append([]query.Option{
 		database.Search("name", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, database.PageLimit, opts...)
+	p, err := s.Paginate(ctx, page, database.PageLimit, opts...)
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	ii, err := s.All(append(
-		opts,
-		query.OrderAsc("name"),
-		query.Limit(paginator.Limit),
-		query.Offset(paginator.Offset),
-	)...)
-
-	if err != nil {
-		return nil, paginator, errors.Err(err)
+	if err := p.Load(ctx, s.Store, append(opts, query.OrderAsc("name"))...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return ii, paginator, nil
+	return p, nil
 }
 
-func (s *Store) Load(fk, pk string, mm ...database.Model) error {
-	vals := database.Values(fk, mm)
-
-	ii, err := s.All(query.Where(pk, "IN", database.List(vals...)))
+func (s *Store) Open(name string) (fs.File, error) {
+	f, err := s.FS.Open(name)
 
 	if err != nil {
-		return errors.Err(err)
+		return nil, errors.Err(err)
 	}
+	return f, nil
+}
 
-	for _, i := range ii {
-		for _, m := range mm {
-			m.Bind(i)
-		}
+func (s *Store) Sub(dir string) (fs.FS, error) {
+	sub, err := s.FS.Sub(dir)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return sub, nil
+}
+
+func (s *Store) Stat(name string) (fs.FileInfo, error) {
+	info, err := s.FS.Stat(name)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return info, nil
+}
+
+func (s *Store) Put(f fs.File) (fs.File, error) {
+	f, err := s.FS.Put(f)
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return f, nil
+}
+
+func (s *Store) Remove(name string) error {
+	if err := s.FS.Remove(name); err != nil {
+		return errors.Err(err)
 	}
 	return nil
 }

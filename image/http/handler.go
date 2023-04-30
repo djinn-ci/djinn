@@ -3,21 +3,18 @@ package http
 import (
 	"context"
 	"net/http"
-	"strconv"
 	"strings"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/image"
 	"djinn-ci.com/namespace"
-	namespacehttp "djinn-ci.com/namespace/http"
 	"djinn-ci.com/server"
-	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 
 	"github.com/gorilla/mux"
 )
@@ -25,55 +22,32 @@ import (
 type Handler struct {
 	*server.Server
 
-	Namespace  *namespacehttp.Handler
-	Users      user.Store
-	Images     *image.Store
-	Downloads  image.DownloadStore
-	Namespaces namespace.Store
+	Images    *image.Store
+	Downloads *database.Store[*image.Download]
 }
-
-type HandlerFunc func(*user.User, *image.Image, http.ResponseWriter, *http.Request)
 
 func NewHandler(srv *server.Server) *Handler {
 	return &Handler{
-		Server:     srv,
-		Namespace:  namespacehttp.NewHandler(srv),
-		Namespaces: namespace.Store{Pool: srv.DB},
-		Users:      user.Store{Pool: srv.DB},
+		Server: srv,
 		Images: &image.Store{
-			Pool:   srv.DB,
-			Store:  srv.Images,
+			Store:  image.NewStore(srv.DB),
+			FS:     srv.Images,
 			Hasher: srv.Hasher,
 		},
-		Downloads: image.DownloadStore{Pool: srv.DB},
+		Downloads: image.NewDownloadStore(srv.DB),
 	}
 }
 
-func (h *Handler) WithImage(fn HandlerFunc) userhttp.HandlerFunc {
-	namespaces := namespace.Store{
-		Pool: h.DB,
-	}
+type HandlerFunc func(*auth.User, *image.Image, http.ResponseWriter, *http.Request)
 
-	return func(u *user.User, w http.ResponseWriter, r *http.Request) {
-		var hasPermission bool
+func (h *Handler) Image(fn HandlerFunc) auth.HandlerFunc {
+	return func(u *auth.User, w http.ResponseWriter, r *http.Request) {
+		id := mux.Vars(r)["image"]
 
-		switch r.Method {
-		case "GET":
-			_, hasPermission = u.Permissions["image:read"]
-		case "POST", "PATCH":
-			_, hasPermission = u.Permissions["image:write"]
-		case "DELETE":
-			_, hasPermission = u.Permissions["image:delete"]
-		}
-
-		vars := mux.Vars(r)
-
-		id, _ := strconv.ParseInt(vars["image"], 10, 64)
-
-		i, ok, err := h.Images.Get(query.Where("id", "=", query.Arg(id)))
+		i, ok, err := h.Images.Get(r.Context(), query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get image"))
 			return
 		}
 
@@ -83,58 +57,13 @@ func (h *Handler) WithImage(fn HandlerFunc) userhttp.HandlerFunc {
 		}
 
 		if !i.NamespaceID.Valid {
-			if u.ID == i.UserID && hasPermission {
-				fn(u, i, w, r)
-				return
-			}
-
-			h.NotFound(w, r)
-			return
-		}
-
-		root, _, err := namespaces.Get(
-			query.Where("root_id", "=", namespace.SelectRootID(i.NamespaceID.Int64)),
-			query.Where("id", "=", namespace.SelectRootID(i.NamespaceID.Int64)),
-		)
-
-		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
-			return
-		}
-
-		if r.Method == "GET" {
-			parts := strings.Split(r.URL.Path, "/")
-
-			// Allow downloading of images from public namespaces.
-			if parts[len(parts)-2] == "download" {
-				if root.Visibility == namespace.Public {
-					fn(u, i, w, r)
-					return
-				}
-			}
-
-			if err := root.HasAccess(h.DB, u.ID); err != nil {
-				if errors.Is(err, namespace.ErrPermission) {
-					h.NotFound(w, r)
-					return
-				}
-
-				h.InternalServerError(w, r, errors.Err(err))
-				return
-			}
-		}
-
-		if err := root.IsCollaborator(h.DB, u.ID); err != nil {
-			if errors.Is(err, namespace.ErrPermission) {
+			if u.ID != i.UserID {
 				h.NotFound(w, r)
 				return
 			}
-
-			h.InternalServerError(w, r, errors.Err(err))
-			return
 		}
 
-		if !hasPermission {
+		if !u.Has("image:read") {
 			h.NotFound(w, r)
 			return
 		}
@@ -142,119 +71,86 @@ func (h *Handler) WithImage(fn HandlerFunc) userhttp.HandlerFunc {
 	}
 }
 
-func (h *Handler) IndexWithRelations(u *user.User, r *http.Request) ([]*image.Image, database.Paginator, error) {
-	ii, paginator, err := h.Images.Index(r.URL.Query(), namespace.WhereCollaborator(u.ID))
+func (h *Handler) Index(u *auth.User, r *http.Request) (*database.Paginator[*image.Image], error) {
+	ctx := r.Context()
+
+	p, err := h.Images.Index(ctx, r.URL.Query(), namespace.WhereCollaborator(u.ID))
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	if err := image.LoadRelations(h.DB, ii...); err != nil {
-		return nil, paginator, errors.Err(err)
+	if err := image.LoadRelations(ctx, h.DB, p.Items...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return ii, paginator, nil
+	return p, nil
 }
 
-func (h *Handler) StoreModel(u *user.User, r *http.Request) (*image.Image, Form, error) {
+func (h *Handler) Store(u *auth.User, r *http.Request) (*image.Image, *Form, error) {
+	ctx := r.Context()
+
 	f := Form{
-		File: &webutil.File{
-			Field: "file",
-		},
+		Pool: h.DB,
+		User: u,
 	}
 
-	var verrs webutil.ValidationErrors
-
-	// Assume no image is being sent in the request body, so unmarshal the JSON
-	// payload.
 	if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
 		if err := webutil.UnmarshalForm(&f, r); err != nil {
-			if verrs0, ok := err.(webutil.ValidationErrors); ok {
-				verrs = verrs0
-				goto validate
-			}
-			return nil, f, errors.Err(err)
+			return nil, &f, errors.Err(err)
 		}
-		goto validate
-	}
+	} else {
+		file, _, err := webutil.UnmarshalFormWithFile(&f, "file", r)
 
-	if err := webutil.UnmarshalFormWithFile(&f, f.File, r); err != nil {
-		if verrs0, ok := err.(webutil.ValidationErrors); ok {
-			verrs = verrs0
-			goto validate
+		if err != nil {
+			return nil, &f, errors.Err(err)
 		}
-		return nil, f, errors.Err(err)
+
+		if file != nil {
+			f.File = file.File
+		}
 	}
 
-	defer f.File.Remove()
-
-validate:
-	v := Validator{
-		UserID: u.ID,
-		Images: h.Images,
-		File: &webutil.FileValidator{
-			File: f.File,
-		},
-		Form: &f,
+	if err := f.Validate(ctx); err != nil {
+		return nil, &f, errors.Err(err)
 	}
 
-	if err := webutil.Validate(&v); err != nil {
-		err.(webutil.ValidationErrors).Merge(verrs)
-
-		return nil, f, errors.Err(err)
-	}
-
-	i, err := h.Images.Create(image.Params{
-		UserID:    u.ID,
+	i, err := h.Images.Create(ctx, &image.Params{
+		User:      u,
 		Namespace: f.Namespace,
 		Name:      f.Name,
 		Driver:    driver.QEMU,
-		Image:     f.File.File,
+		Image:     f.File,
 	})
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if perr, ok := cause.(*namespace.PathError); ok {
-			return nil, f, perr.Err
-		}
-		return nil, f, errors.Err(err)
+		return nil, &f, errors.Err(err)
 	}
 
 	if f.DownloadURL.URL != nil {
 		j, err := image.NewDownloadJob(h.DB, i, f.DownloadURL)
 
 		if err != nil {
-			return nil, f, errors.Err(err)
+			return nil, &f, errors.Err(err)
 		}
 
-		if _, err := h.Queues.Produce(r.Context(), "jobs", j); err != nil {
-			return nil, f, errors.Err(err)
+		if _, err := h.Queues.Produce(ctx, "jobs", j); err != nil {
+			return nil, &f, errors.Err(err)
 		}
 	}
-
-	if err := h.Users.Load("user_id", "id", i); err != nil {
-		return nil, f, errors.Err(err)
-	}
-
-	i.Author = u
 
 	h.Queues.Produce(r.Context(), "events", &image.Event{
 		Image:  i,
 		Action: "created",
 	})
-	return i, f, nil
+	return i, &f, nil
 }
 
-func (h *Handler) DeleteModel(ctx context.Context, i *image.Image) error {
-	if err := h.Images.Delete(i); err != nil {
+func (h *Handler) Destroy(ctx context.Context, i *image.Image) error {
+	if err := h.Images.Delete(ctx, i); err != nil {
 		return errors.Err(err)
 	}
 
-	if err := h.Users.Load("user_id", "id", i); err != nil {
-		return errors.Err(err)
-	}
-
-	if err := h.Users.Load("author_id", "id", i); err != nil {
+	if err := image.LoadRelations(ctx, h.DB, i); err != nil {
 		return errors.Err(err)
 	}
 

@@ -1,12 +1,14 @@
 package key
 
 import (
-	"database/sql"
+	"context"
+	"encoding/json"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/env"
@@ -14,138 +16,118 @@ import (
 	"djinn-ci.com/event"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/queue"
-	"djinn-ci.com/user"
 
 	"github.com/andrewpillar/query"
 )
 
 type Key struct {
+	loaded []string
+
 	ID          int64
 	UserID      int64
 	AuthorID    int64
-	NamespaceID sql.NullInt64
+	NamespaceID database.Null[int64]
 	Name        string
 	Key         []byte
 	Config      string
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
 
-	Author    *user.User
-	User      *user.User
+	Author    *auth.User
+	User      *auth.User
 	Namespace *namespace.Namespace
 }
 
 var _ database.Model = (*Key)(nil)
 
-func LoadNamespaces(db database.Pool, kk ...*Key) error {
-	mm := make([]database.Model, 0, len(kk))
+func (k *Key) Primary() (string, any) { return "id", k.ID }
 
-	for _, k := range kk {
-		mm = append(mm, k)
+func (k *Key) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":           &k.ID,
+		"user_id":      &k.UserID,
+		"author_id":    &k.AuthorID,
+		"namespace_id": &k.NamespaceID,
+		"name":         &k.Name,
+		"key":          &k.Key,
+		"config":       &k.Config,
+		"created_at":   &k.CreatedAt,
+		"updated_at":   &k.UpdatedAt,
 	}
 
-	if err := namespace.Load(db, mm...); err != nil {
+	if err := database.Scan(r, valtab); err != nil {
 		return errors.Err(err)
 	}
+
+	k.loaded = r.Columns
 	return nil
 }
 
-func LoadRelations(db database.Pool, kk ...*Key) error {
-	mm := make([]database.Model, 0, len(kk))
-
-	for _, k := range kk {
-		mm = append(mm, k)
+func (k *Key) Params() database.Params {
+	params := database.Params{
+		"id":           database.ImmutableParam(k.ID),
+		"user_id":      database.CreateOnlyParam(k.UserID),
+		"author_id":    database.CreateOnlyParam(k.AuthorID),
+		"namespace_id": database.CreateOnlyParam(k.NamespaceID),
+		"name":         database.CreateOnlyParam(k.Name),
+		"key":          database.CreateOnlyParam(k.Key),
+		"config":       database.CreateUpdateParam(k.Config),
+		"created_at":   database.CreateUpdateParam(k.CreatedAt),
+		"updated_at":   database.CreateUpdateParam(k.UpdatedAt),
 	}
 
-	if err := database.LoadRelations(mm, namespace.ResourceRelations(db)...); err != nil {
-		return errors.Err(err)
+	if len(k.loaded) > 0 {
+		params.Only(k.loaded...)
 	}
-	return nil
-}
-
-func (k *Key) Dest() []interface{} {
-	return []interface{}{
-		&k.ID,
-		&k.UserID,
-		&k.AuthorID,
-		&k.NamespaceID,
-		&k.Name,
-		&k.Key,
-		&k.Config,
-		&k.CreatedAt,
-		&k.UpdatedAt,
-	}
+	return params
 }
 
 func (k *Key) Bind(m database.Model) {
 	switch v := m.(type) {
-	case *user.User:
+	case *auth.User:
 		k.Author = v
 
 		if k.UserID == v.ID {
 			k.User = v
 		}
 	case *namespace.Namespace:
-		if k.NamespaceID.Int64 == v.ID {
+		if k.NamespaceID.Elem == v.ID {
 			k.Namespace = v
 		}
 	}
 }
 
-func (k *Key) Endpoint(uri ...string) string {
-	if len(uri) > 0 {
-		return "/keys/" + strconv.FormatInt(k.ID, 10) + "/" + strings.Join(uri, "/")
-	}
-	return "/keys/" + strconv.FormatInt(k.ID, 10)
-}
-
-func (k *Key) JSON(addr string) map[string]interface{} {
+func (k *Key) MarshalJSON() ([]byte, error) {
 	if k == nil {
-		return nil
+		return []byte("null"), nil
 	}
 
-	json := map[string]interface{}{
+	b, err := json.Marshal(map[string]any{
 		"id":           k.ID,
 		"author_id":    k.AuthorID,
 		"user_id":      k.UserID,
-		"namespace_id": nil,
-		"name":         k.Name,
-		"config":       k.Config,
-		"created_at":   k.CreatedAt.Format(time.RFC3339),
-		"updated_at":   k.UpdatedAt.Format(time.RFC3339),
-		"url":          addr + k.Endpoint(),
-	}
-
-	if k.Author != nil {
-		json["author"] = k.Author.JSON(addr)
-	}
-
-	if k.User != nil {
-		json["user"] = k.User.JSON(addr)
-	}
-
-	if k.NamespaceID.Valid {
-		json["namespace_id"] = k.NamespaceID.Int64
-
-		if k.Namespace != nil {
-			json["namespace"] = k.Namespace.JSON(addr)
-		}
-	}
-	return json
-}
-
-func (k *Key) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":           k.ID,
-		"user_id":      k.UserID,
-		"author_id":    k.AuthorID,
 		"namespace_id": k.NamespaceID,
 		"name":         k.Name,
-		"key":          k.Key,
 		"config":       k.Config,
 		"created_at":   k.CreatedAt,
 		"updated_at":   k.UpdatedAt,
+		"url":          env.DJINN_API_SERVER + k.Endpoint(),
+		"author":       k.Author,
+		"user":         k.User,
+		"namespace":    k.Namespace,
+	})
+
+	if err != nil {
+		return nil, errors.Err(err)
 	}
+	return b, nil
+}
+
+func (k *Key) Endpoint(elems ...string) string {
+	if len(elems) > 0 {
+		return "/keys/" + strconv.FormatInt(k.ID, 10) + "/" + strings.Join(elems, "/")
+	}
+	return "/keys/" + strconv.FormatInt(k.ID, 10)
 }
 
 type Event struct {
@@ -172,8 +154,8 @@ func (e *Event) Perform() error {
 		return event.ErrNilDispatcher
 	}
 
-	ev := event.New(e.Key.NamespaceID, event.SSHKeys, map[string]interface{}{
-		"key":    e.Key.JSON(env.DJINN_API_SERVER),
+	ev := event.New(e.Key.NamespaceID, event.SSHKeys, map[string]any{
+		"key":    e.Key,
 		"action": e.Action,
 	})
 
@@ -183,189 +165,109 @@ func (e *Event) Perform() error {
 	return nil
 }
 
+const table = "keys"
+
 type Store struct {
-	database.Pool
+	*database.Store[*Key]
 
 	AESGCM *crypto.AESGCM
 }
 
-var table = "keys"
-
-func Chown(db database.Pool, from, to int64) error {
-	if err := database.Chown(db, table, from, to); err != nil {
-		return errors.Err(err)
-	}
-	return nil
+func NewStore(pool *database.Pool) *database.Store[*Key] {
+	return database.NewStore[*Key](pool, table, func() *Key {
+		return &Key{}
+	})
 }
 
 type Params struct {
-	UserID    int64
+	User      *auth.User
 	Namespace namespace.Path
 	Name      string
 	Key       string
 	Config    string
 }
 
-func stripCRLF(s string) string {
-	return strings.Replace(s, "\r", "", -1)
-}
-
-func (s *Store) Create(p Params) (*Key, error) {
+func (s *Store) Create(ctx context.Context, p *Params) (*Key, error) {
 	if s.AESGCM == nil {
 		return nil, crypto.ErrNilAESGCM
 	}
 
-	key := []byte(stripCRLF(p.Key))
+	p.Key = strings.Replace(p.Key, "\r", "", -1)
 
-	b, err := s.AESGCM.Encrypt(key)
+	b, err := s.AESGCM.Encrypt([]byte(p.Key))
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	u, n, err := p.Namespace.ResolveOrCreate(s.Pool, p.UserID)
-
-	if err != nil {
-		if !errors.Is(err, namespace.ErrInvalidPath) {
-			return nil, errors.Err(err)
-		}
+	k := Key{
+		UserID:    p.User.ID,
+		AuthorID:  p.User.ID,
+		Name:      p.Name,
+		Key:       b,
+		Config:    p.Config,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		User:      p.User,
+		Author:    p.User,
 	}
 
-	userId := p.UserID
+	if p.Namespace.Valid {
+		owner, n, err := p.Namespace.Resolve(ctx, s.Pool, p.User)
 
-	var namespaceId sql.NullInt64
-
-	if u != nil {
-		n.User = u
-
-		userId = u.ID
-		namespaceId = sql.NullInt64{
-			Int64: n.ID,
-			Valid: true,
+		if err != nil {
+			if !errors.Is(err, namespace.ErrInvalidPath) {
+				return nil, errors.Err(err)
+			}
 		}
 
-		if err := n.IsCollaborator(s.Pool, p.UserID); err != nil {
+		if err := n.IsCollaborator(ctx, s.Pool, p.User); err != nil {
 			return nil, errors.Err(err)
 		}
+
+		k.UserID = owner.ID
+		k.NamespaceID.Elem = n.ID
+		k.NamespaceID.Valid = n.ID > 0
+
+		k.User = owner
+		k.Namespace = n
 	}
 
-	now := time.Now()
-
-	q := query.Insert(
-		table,
-		query.Columns("user_id", "author_id", "namespace_id", "name", "key", "config", "created_at", "updated_at"),
-		query.Values(userId, p.UserID, namespaceId, p.Name, b, p.Config, now, now),
-		query.Returning("id"),
-	)
-
-	var id int64
-
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+	if err := s.Store.Create(ctx, &k); err != nil {
 		return nil, errors.Err(err)
 	}
-
-	return &Key{
-		ID:          id,
-		UserID:      userId,
-		AuthorID:    p.UserID,
-		NamespaceID: namespaceId,
-		Name:        p.Name,
-		Key:         b,
-		Config:      p.Config,
-		CreatedAt:   now,
-		UpdatedAt:   now,
-		Namespace:   n,
-	}, nil
+	return &k, nil
 }
 
-func (s *Store) Update(id int64, p Params) error {
-	q := query.Update(
-		table,
-		query.Set("config", query.Arg(p.Config)),
-		query.Set("updated_at", query.Arg(time.Now())),
-		query.Where("id", "=", query.Arg(id)),
-	)
+func (s *Store) Update(ctx context.Context, k *Key) error {
+	loaded := k.loaded
+	k.loaded = []string{"config", "updated_at"}
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	k.UpdatedAt = time.Now()
+
+	if err := s.Store.Update(ctx, k); err != nil {
 		return errors.Err(err)
 	}
+
+	k.loaded = loaded
 	return nil
 }
 
-func (s *Store) Delete(id int64) error {
-	q := query.Delete(table, query.Where("id", "=", query.Arg(id)))
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-		return errors.Err(err)
-	}
-	return nil
-}
-
-func (s *Store) Get(opts ...query.Option) (*Key, bool, error) {
-	var k Key
-
-	ok, err := s.Pool.Get(table, &k, opts...)
-
-	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &k, ok, nil
-}
-
-func (s *Store) All(opts ...query.Option) ([]*Key, error) {
-	kk := make([]*Key, 0)
-
-	new := func() database.Model {
-		k := &Key{}
-		kk = append(kk, k)
-		return k
-	}
-
-	if err := s.Pool.All(table, new, opts...); err != nil {
-		return nil, errors.Err(err)
-	}
-	return kk, nil
-}
-
-func (s *Store) Paginate(page, limit int64, opts ...query.Option) (database.Paginator, error) {
-	paginator, err := s.Pool.Paginate(table, page, limit, opts...)
-
-	if err != nil {
-		return paginator, errors.Err(err)
-	}
-	return paginator, nil
-}
-
-func (s *Store) Index(vals url.Values, opts ...query.Option) ([]*Key, database.Paginator, error) {
-	page, err := strconv.ParseInt(vals.Get("page"), 10, 64)
-
-	if err != nil {
-		page = 1
-	}
+func (s *Store) Index(ctx context.Context, vals url.Values, opts ...query.Option) (*database.Paginator[*Key], error) {
+	page, _ := strconv.Atoi(vals.Get("page"))
 
 	opts = append([]query.Option{
 		database.Search("name", vals.Get("search")),
 	}, opts...)
 
-	paginator, err := s.Paginate(page, database.PageLimit, opts...)
+	p, err := s.Paginate(ctx, page, database.PageLimit, opts...)
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	kk, err := s.All(append(
-		opts,
-		query.OrderAsc("name"),
-		query.Limit(paginator.Limit),
-		query.Offset(paginator.Offset),
-	)...)
-
-	if err != nil {
-		return nil, paginator, errors.Err(err)
+	if err := p.Load(ctx, s.Store, append(opts, query.OrderAsc("name"))...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return kk, paginator, nil
+	return p, nil
 }

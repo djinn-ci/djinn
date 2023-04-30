@@ -1,14 +1,15 @@
 package build
 
 import (
-	"database/sql"
+	"context"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/user"
 
+	"github.com/andrewpillar/fs"
 	"github.com/andrewpillar/query"
 )
 
@@ -16,22 +17,22 @@ import (
 // the configured limit.
 type Curator struct {
 	log       *log.Logger
-	store     fs.Store
+	store     fs.FS
 	artifacts *ArtifactStore
-	users     user.Store
+	users     *database.Store[*auth.User]
 }
 
 // NewCurator creates a new curator for cleaning up old artifacts from the
 // given block store.
-func NewCurator(log *log.Logger, db database.Pool, store fs.Store) Curator {
+func NewCurator(log *log.Logger, pool *database.Pool, store fs.FS) Curator {
 	return Curator{
 		log:   log,
 		store: store,
 		artifacts: &ArtifactStore{
-			Pool:  db,
-			Store: store,
+			Store: NewArtifactStore(pool),
+			FS:    store,
 		},
-		users: user.Store{Pool: db},
+		users: user.NewStore(pool),
 	}
 }
 
@@ -39,28 +40,31 @@ func NewCurator(log *log.Logger, db database.Pool, store fs.Store) Curator {
 // limit. This will only do it for users who have "cleanup" enabled on their
 // account.
 func (c *Curator) Invoke() error {
-	uu, err := c.users.All(query.Where("cleanup", ">", query.Arg(0)))
+	ctx := context.Background()
+
+	uu, err := c.users.Select(ctx, []string{"id", "username", "cleanup"}, query.Where("cleanup", ">", query.Arg(0)))
 
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	userIds := make([]interface{}, 0, len(uu))
-
-	cleanups := make(map[int64]int64)
+	cleanuptab := make(map[int64]int64)
+	userIds := make([]any, 0, len(uu))
 
 	for _, u := range uu {
-		c.log.Debug.Println("cleanup limit for user", u.Username, "is", u.Cleanup)
+		cleanup := user.Cleanup(u)
 
+		c.log.Debug.Println("cleanup limit for user", u.Username, "is", cleanup)
+
+		cleanuptab[u.ID] = cleanup
 		userIds = append(userIds, u.ID)
-		cleanups[u.ID] = u.Cleanup
 	}
 
-	q := query.Select(
-		query.Columns("id", "user_id", "size"),
-		query.From(artifactTable),
+	aa, err := c.artifacts.Select(
+		ctx,
+		[]string{"id", "user_id", "hash", "size"},
 		query.Where("size", ">", query.Arg(0)),
-		query.Where("user_id", "IN", database.List(userIds...)),
+		query.Where("user_id", "IN", query.List(userIds...)),
 		query.Where("build_id", "NOT IN", query.Select(
 			query.Columns("id"),
 			query.From(table),
@@ -70,37 +74,26 @@ func (c *Curator) Invoke() error {
 		query.OrderDesc("created_at"),
 	)
 
-	rows, err := c.artifacts.Query(q.Build(), q.Args()...)
-
 	if err != nil {
 		return errors.Err(err)
 	}
 
-	curated := make([]int64, 0)
 	sumtab := make(map[int64]int64)
+	curated := make([]*Artifact, 0, len(aa))
 
-	var (
-		id, userId int64
-		size       sql.NullInt64
-	)
+	for _, a := range aa {
+		sum := sumtab[a.UserID]
+		sum += a.Size.Elem
 
-	for rows.Next() {
-		if err := rows.Scan(&id, &userId, &size); err != nil {
-			return errors.Err(err)
+		if limit, ok := cleanuptab[a.UserID]; ok && sum > limit {
+			c.log.Debug.Println("curating artifact", a.ID, "for user", a.UserID)
+
+			curated = append(curated, a)
 		}
-
-		sum := sumtab[userId]
-		sum += size.Int64
-
-		if limit, ok := cleanups[userId]; ok && sum > limit {
-			c.log.Debug.Println("curating artifact", id, "for user", userId)
-
-			curated = append(curated, id)
-		}
-		sumtab[userId] = sum
+		sumtab[a.UserID] = sum
 	}
 
-	if err := c.artifacts.Deleted(curated...); err != nil {
+	if err := c.artifacts.Delete(ctx, curated...); err != nil {
 		return errors.Err(err)
 	}
 	return err

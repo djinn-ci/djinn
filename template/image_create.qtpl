@@ -1,0 +1,56 @@
+{% import "djinn-ci.com/template/form" %}
+
+{% code
+type ImageCreate struct {
+	*form.Form
+}
+%}
+
+{% collapsespace %}
+{% func (p *ImageCreate) Title() %}
+	Add Image
+{% endfunc %}
+
+{% func (p *ImageCreate) Header() %}
+	<a class="back" href="/images">{% cat "static/svg/back.svg" %}</a> {%= p.Title() %}
+{% endfunc %}
+
+{% func (p *ImageCreate) Actions() %}{% endfunc %}
+{% func (p *ImageCreate) Navigation() %}{% endfunc %}
+{% func (p *ImageCreate) Footer() %}{% endfunc %}
+
+{% func (p *ImageCreate) Body() %}
+	<div class="alert alert-warn">
+		Large images will take a long time to upload. It is recommended that you have them downloaded via a URL.
+	</div>
+	<br/>
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="/images" enctype="multipart/form-data">
+		{%v= p.CSRF %}
+		{%= p.Field(form.Field{
+			ID:       "namespace",
+			Name:     "Namespace",
+			Optional: true,
+			Type:     form.Text,
+		}) %}
+		{%= p.Field(form.Field{
+			ID:   "name",
+			Name: "Name",
+			Type: form.Text,
+		}) %}
+		{%= p.Field(form.Field{
+			ID:   "download_url",
+			Name: "Download URL",
+			Type: form.Text,
+		}) %}
+		{%= p.Field(form.Field{
+			ID:   "file",
+			Name: "File",
+			Type: form.File,
+		}) %}
+		<div class="form-field">
+			<button type="submit" class="btn btn-primary">Create</button>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

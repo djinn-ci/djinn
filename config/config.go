@@ -11,10 +11,11 @@ import (
 	"os"
 	"strconv"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/auth/oauth2"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/provider"
@@ -22,6 +23,7 @@ import (
 	"djinn-ci.com/provider/gitlab"
 
 	"github.com/andrewpillar/config"
+	"github.com/andrewpillar/fs"
 
 	"github.com/go-redis/redis"
 
@@ -220,13 +222,11 @@ type databaseCfg struct {
 
 var dsnfmt = "host=%s port=%s dbname=%s user=%s password=%s sslmode=%s %s"
 
-func (cfg *databaseCfg) connect(log *log.Logger) (database.Pool, error) {
-	var pool database.Pool
-
+func (cfg *databaseCfg) connect(log *log.Logger) (*database.Pool, error) {
 	host, port, err := net.SplitHostPort(cfg.Addr)
 
 	if err != nil {
-		return pool, err
+		return nil, err
 	}
 
 	sslmode := "disable"
@@ -254,14 +254,14 @@ func (cfg *databaseCfg) connect(log *log.Logger) (database.Pool, error) {
 
 	log.Debug.Println("connecting to postgresql database with:", dsn)
 
-	db, err := database.Connect(context.Background(), dsn)
+	pool, err := database.Connect(context.Background(), dsn)
 
 	if err != nil {
-		return pool, err
+		return nil, err
 	}
 
 	log.Info.Println("connected to postgresql database")
-	return db, nil
+	return pool, nil
 }
 
 type smtpCfg struct {
@@ -345,13 +345,13 @@ type storeCfg struct {
 	Limit int64
 }
 
-func (cfg *storeCfg) store() (fs.Store, error) {
+func (cfg *storeCfg) store() (fs.FS, error) {
 	switch cfg.Type {
 	case "file":
-		store := fs.NewFilesystemWithLimit(cfg.Path, cfg.Limit)
+		store := fs.New(cfg.Path)
 
-		if err := store.Init(); err != nil {
-			return nil, err
+		if cfg.Limit > 0 {
+			store = fs.Limit(store, cfg.Limit)
 		}
 		return store, nil
 	default:
@@ -360,27 +360,46 @@ func (cfg *storeCfg) store() (fs.Store, error) {
 }
 
 type providerCfg struct {
-	Secret       string
-	Endpoint     string
-	ClientID     string `config:"client_id"`
-	ClientSecret string `config:"client_secret"`
+	Secret         string
+	Oauth2Endpoint string `config:"oauth2_endpoint"`
+	Endpoint       string
+	ClientID       string `config:"client_id"`
+	ClientSecret   string `config:"client_secret"`
 }
 
-func (cfg *providerCfg) client(name, host string) (provider.Client, error) {
-	params := provider.ClientParams{
-		Host:         host,
-		Endpoint:     cfg.Endpoint,
-		Secret:       cfg.Secret,
-		ClientID:     cfg.ClientID,
-		ClientSecret: cfg.ClientSecret,
+func (cfg *providerCfg) auth(name, host string) (auth.Authenticator, error) {
+	var config func(host, clientId, clientSecret string, endpoint oauth2.Endpoint) *oauth2.Config
+
+	endpoint := oauth2.Endpoint{
+		OAuth: cfg.Oauth2Endpoint,
+		API:   cfg.Endpoint,
 	}
 
 	switch name {
 	case "github":
-		return github.New(params), nil
+		config = github.Oauth2Config
 	case "gitlab":
-		return gitlab.New(params), nil
+		config = gitlab.Oauth2Config
 	default:
-		return nil, errors.New("unknown provider: " + name)
+		return nil, errors.New("config: unknown provider: " + name)
 	}
+	return oauth2.New(name, nil, config(host, cfg.ClientID, cfg.ClientSecret, endpoint)), nil
+}
+
+func (cfg *providerCfg) client(name, host string) (*provider.BaseClient, error) {
+	cli := provider.BaseClient{
+		Host:     host,
+		Secret:   cfg.Secret,
+		Endpoint: cfg.Endpoint,
+	}
+
+	switch name {
+	case "github":
+		cli.Init = github.New
+	case "gitlab":
+		cli.Init = gitlab.New
+	default:
+		return nil, errors.New("config: unknown provider: " + name)
+	}
+	return &cli, nil
 }

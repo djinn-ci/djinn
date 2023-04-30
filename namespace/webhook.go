@@ -18,8 +18,10 @@ import (
 	"strings"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/event"
 	"djinn-ci.com/log"
@@ -28,8 +30,6 @@ import (
 	"github.com/andrewpillar/query"
 
 	"github.com/google/uuid"
-
-	"github.com/jackc/pgx/v4"
 )
 
 type hookURL struct {
@@ -45,6 +45,15 @@ func WebhookURL(url *url.URL) hookURL {
 	return hookURL{
 		URL: url,
 	}
+}
+
+func (u hookURL) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(u.String())
+
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return b, nil
 }
 
 func (u hookURL) Value() (driver.Value, error) { return strings.ToLower(u.String()), nil }
@@ -71,6 +80,8 @@ func (u *hookURL) Scan(val interface{}) error {
 }
 
 type Webhook struct {
+	loaded []string
+
 	ID          int64
 	UserID      int64
 	AuthorID    int64
@@ -82,56 +93,56 @@ type Webhook struct {
 	Active      bool
 	CreatedAt   time.Time
 
-	Author       *user.User
-	User         *user.User
+	Author       *auth.User
+	User         *auth.User
 	Namespace    *Namespace
 	LastDelivery *WebhookDelivery
 }
 
 var _ database.Model = (*Webhook)(nil)
 
-func (w *Webhook) Dest() []interface{} {
-	return []interface{}{
-		&w.ID,
-		&w.UserID,
-		&w.AuthorID,
-		&w.NamespaceID,
-		&w.PayloadURL,
-		&w.Secret,
-		&w.SSL,
-		&w.Events,
-		&w.Active,
-		&w.CreatedAt,
+func (w *Webhook) Primary() (string, any) { return "id", w.ID }
+
+func (w *Webhook) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":           &w.ID,
+		"user_id":      &w.UserID,
+		"author_id":    &w.AuthorID,
+		"namespace_id": &w.NamespaceID,
+		"payload_url":  &w.PayloadURL,
+		"secret":       &w.Secret,
+		"ssl":          &w.SSL,
+		"events":       &w.Events,
+		"active":       &w.Active,
+		"created_at":   &w.CreatedAt,
 	}
+
+	if err := database.Scan(r, valtab); err != nil {
+		return errors.Err(err)
+	}
+
+	w.loaded = r.Columns
+	return nil
 }
 
-// PruneWebhookDeliveries will delete all webhook deliveries that are older than
-// 30 days. This is a continuous process, and will stop when the given context
-// is cancelled.
-func PruneWebhookDeliveries(ctx context.Context, log *log.Logger, db database.Pool) {
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-time.After(time.Minute):
-			q := query.Delete(
-				webhookDeliveryTable,
-				query.Where("id", "IN", query.Select(
-					query.Columns("id"),
-					query.From(webhookDeliveryTable),
-					query.Where("created_at", ">", query.Lit("CURRENT_DATE + INTERVAL '30 days'")),
-				)),
-			)
-
-			res, err := db.Exec(q.Build(), q.Args()...)
-
-			if err != nil {
-				log.Error.Println("failed to prune old webhook deliveries", err)
-				continue
-			}
-			log.Debug.Println("deleted", res.RowsAffected(), "old webhook deliveries")
-		}
+func (w *Webhook) Params() database.Params {
+	params := database.Params{
+		"id":           database.ImmutableParam(w.ID),
+		"user_id":      database.CreateOnlyParam(w.UserID),
+		"author_id":    database.CreateOnlyParam(w.AuthorID),
+		"namespace_id": database.CreateOnlyParam(w.NamespaceID),
+		"payload_url":  database.CreateUpdateParam(w.PayloadURL),
+		"secret":       database.CreateUpdateParam(w.Secret),
+		"ssl":          database.CreateUpdateParam(w.SSL),
+		"events":       database.CreateUpdateParam(w.Events),
+		"active":       database.CreateUpdateParam(w.Active),
+		"created_at":   database.CreateOnlyParam(w.CreatedAt),
 	}
+
+	if len(w.loaded) > 0 {
+		params.Only(w.loaded...)
+	}
+	return params
 }
 
 func (w *Webhook) Bind(m database.Model) {
@@ -140,7 +151,7 @@ func (w *Webhook) Bind(m database.Model) {
 		if w.NamespaceID == v.ID {
 			w.Namespace = v
 		}
-	case *user.User:
+	case *auth.User:
 		w.Author = v
 
 		if w.UserID == v.ID {
@@ -149,16 +160,9 @@ func (w *Webhook) Bind(m database.Model) {
 	}
 }
 
-func (w *Webhook) Endpoint(uri ...string) string {
-	if w.Namespace == nil {
-		return ""
-	}
-	return w.Namespace.Endpoint(append([]string{"webhooks", strconv.FormatInt(w.ID, 10)}, uri...)...)
-}
-
-func (w *Webhook) JSON(addr string) map[string]interface{} {
+func (w *Webhook) MarshalJSON() ([]byte, error) {
 	if w == nil {
-		return nil
+		return []byte("null"), nil
 	}
 
 	events := make([]string, 0, len(event.Types))
@@ -169,118 +173,82 @@ func (w *Webhook) JSON(addr string) map[string]interface{} {
 		}
 	}
 
-	json := map[string]interface{}{
-		"id":           w.ID,
-		"user_id":      w.UserID,
-		"author_id":    w.AuthorID,
-		"namespace_id": w.NamespaceID,
-		"payload_url":  w.PayloadURL.String(),
-		"ssl":          w.SSL,
-		"events":       events,
-		"active":       w.Active,
-		"url":          addr + w.Endpoint(),
-	}
+	b, err := json.Marshal(map[string]any{
+		"id":            w.ID,
+		"user_id":       w.UserID,
+		"author_id":     w.AuthorID,
+		"namespace_id":  w.NamespaceID,
+		"payload_url":   w.PayloadURL,
+		"ssl":           w.SSL,
+		"events":        events,
+		"active":        w.Active,
+		"url":           env.DJINN_API_SERVER + w.Endpoint(),
+		"namespace":     w.Namespace,
+		"last_response": w.LastDelivery,
+	})
 
-	if w.Namespace != nil {
-		if v := w.Namespace.JSON(addr); v != nil {
-			json["namespace"] = w.Namespace.JSON(addr)
+	if err != nil {
+		return nil, errors.Err(err)
+	}
+	return b, nil
+}
+
+func (w *Webhook) Endpoint(elems ...string) string {
+	if w.Namespace == nil {
+		return ""
+	}
+	return w.Namespace.Endpoint(append([]string{"webhooks", strconv.FormatInt(w.ID, 10)}, elems...)...)
+}
+
+// PruneWebhookDeliveries will delete all webhook deliveries that are older than
+// 30 days. This is a continuous process, and will stop when the given context
+// is cancelled.
+func PruneWebhookDeliveries(ctx context.Context, log *log.Logger, db *database.Pool) {
+	t := time.NewTicker(time.Minute)
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Info.Println("stopping pruning of webhooks")
+			t.Stop()
+			return
+		case <-t.C:
+			q := query.Delete(
+				webhookDeliveryTable,
+				query.Where("id", "IN", query.Select(
+					query.Columns("id"),
+					query.From(webhookDeliveryTable),
+					query.Where("created_at", ">", query.Lit("CURRENT_DATE + INTERVAL '30 days'")),
+				)),
+			)
+
+			res, err := db.Exec(ctx, q.Build(), q.Args()...)
+
+			if err != nil {
+				log.Error.Println("failed to prune old webhook deliveries", err)
+				continue
+			}
+			log.Debug.Println("deleted", res.RowsAffected(), "old webhook deliveries")
 		}
 	}
-
-	if w.LastDelivery != nil {
-		var deliveryError interface{} = nil
-
-		if w.LastDelivery.Error.Valid {
-			deliveryError = w.LastDelivery.Error.String
-		}
-
-		json["last_response"] = map[string]interface{}{
-			"error":      deliveryError,
-			"code":       w.LastDelivery.ResponseCode,
-			"duration":   w.LastDelivery.Duration,
-			"created_at": w.LastDelivery.CreatedAt.Format(time.RFC3339),
-		}
-	}
-	return json
-}
-
-func (w *Webhook) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":           w.ID,
-		"user_id":      w.UserID,
-		"author_id":    w.AuthorID,
-		"namespace_id": w.NamespaceID,
-		"payload_url":  w.PayloadURL,
-		"secret":       w.Secret,
-		"ssl":          w.SSL,
-		"events":       w.Events,
-		"active":       w.Active,
-		"created_at":   w.CreatedAt,
-	}
-}
-
-type WebhookDelivery struct {
-	ID              int64
-	WebhookID       int64
-	EventID         uuid.UUID
-	NamespaceID     sql.NullInt64
-	Error           sql.NullString
-	Event           event.Type
-	Redelivery      bool
-	RequestHeaders  sql.NullString
-	RequestBody     sql.NullString
-	ResponseCode    sql.NullInt64
-	ResponseStatus  string
-	ResponseHeaders sql.NullString
-	ResponseBody    sql.NullString
-	Payload         map[string]interface{}
-	Duration        time.Duration
-	CreatedAt       time.Time
-
-	Webhook *Webhook
-}
-
-var _ database.Model = (*WebhookDelivery)(nil)
-
-func (d *WebhookDelivery) Dest() []interface{} {
-	return []interface{}{
-		&d.ID,
-		&d.WebhookID,
-		&d.EventID,
-		&d.Error,
-		&d.Event,
-		&d.Redelivery,
-		&d.RequestHeaders,
-		&d.RequestBody,
-		&d.ResponseCode,
-		&d.ResponseHeaders,
-		&d.ResponseBody,
-		&d.Duration,
-		&d.CreatedAt,
-	}
-}
-
-func (*WebhookDelivery) Bind(_ database.Model)                {}
-func (*WebhookDelivery) JSON(_ string) map[string]interface{} { return nil }
-func (*WebhookDelivery) Values() map[string]interface{}       { return nil }
-
-func (d *WebhookDelivery) Endpoint(_ ...string) string {
-	return d.Webhook.Endpoint("deliveries", strconv.FormatInt(d.ID, 10))
 }
 
 type WebhookStore struct {
-	database.Pool
+	*database.Store[*Webhook]
 
-	AESGCM   *crypto.AESGCM
-	CertPool *x509.CertPool
+	AESGCM *crypto.AESGCM
+	Certs  *x509.CertPool
 }
 
-var (
-	webhookTable         = "namespace_webhooks"
-	webhookDeliveryTable = "namespace_webhook_deliveries"
+func NewWebhookStore(pool *database.Pool) *database.Store[*Webhook] {
+	return database.NewStore[*Webhook](pool, webhookTable, func() *Webhook {
+		return &Webhook{}
+	})
+}
 
-	ErrUnknownWebhook = errors.New("unknown webhook")
-)
+const webhookTable = "namespace_webhooks"
+
+var ErrUnknownWebhook = errors.New("unknown webhook")
 
 func decodeHeaders(s string) http.Header {
 	m := make(map[string][]string)
@@ -328,430 +296,483 @@ func encodeHeaders(headers http.Header) string {
 }
 
 type WebhookParams struct {
-	UserID      int64
-	NamespaceID int64
-	PayloadURL  *url.URL
-	Secret      string
-	SSL         bool
-	Events      event.Type
-	Active      bool
+	User       *auth.User
+	Namespace  *Namespace
+	PayloadURL *url.URL
+	Secret     string
+	SSL        bool
+	Events     event.Type
+	Active     bool
 }
 
-func (s *WebhookStore) Create(p WebhookParams) (*Webhook, error) {
-	var (
-		b   []byte
-		err error
-	)
+func (s *WebhookStore) Create(ctx context.Context, p *WebhookParams) (*Webhook, error) {
+	var secret []byte
 
 	if p.Secret != "" {
 		if s.AESGCM == nil {
 			return nil, crypto.ErrNilAESGCM
 		}
 
-		b, err = s.AESGCM.Encrypt([]byte(p.Secret))
+		b, err := s.AESGCM.Encrypt([]byte(p.Secret))
 
 		if err != nil {
 			return nil, errors.Err(err)
 		}
+		secret = b
 	}
 
-	ownerId, err := getNamespaceOwnerId(s.Pool, p.NamespaceID)
+	u, ok, err := user.NewStore(s.Pool).Get(ctx, user.WhereID(p.Namespace.UserID))
 
 	if err != nil {
 		return nil, errors.Err(err)
 	}
 
-	now := time.Now()
-
-	url := hookURL{
-		URL: p.PayloadURL,
+	if !ok {
+		return nil, database.ErrNoRows
 	}
 
-	q := query.Insert(
-		webhookTable,
-		query.Columns("user_id", "author_id", "namespace_id", "payload_url", "secret", "ssl", "events", "active", "created_at"),
-		query.Values(ownerId, p.UserID, p.NamespaceID, url, b, p.SSL, p.Events, p.Active, now),
-		query.Returning("id"),
-	)
-
-	var id int64
-
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
-		return nil, errors.Err(err)
-	}
-
-	return &Webhook{
-		ID:          id,
-		UserID:      ownerId,
-		AuthorID:    p.UserID,
-		NamespaceID: p.NamespaceID,
-		PayloadURL:  url,
-		Secret:      b,
+	wh := Webhook{
+		UserID:      p.Namespace.UserID,
+		AuthorID:    p.User.ID,
+		NamespaceID: p.Namespace.ID,
+		PayloadURL:  hookURL{URL: p.PayloadURL},
+		Secret:      secret,
 		SSL:         p.SSL,
 		Events:      p.Events,
 		Active:      p.Active,
-		CreatedAt:   now,
-	}, nil
+		CreatedAt:   time.Now(),
+		Namespace:   p.Namespace,
+		Author:      p.User,
+		User:        u,
+	}
+
+	if err := s.Store.Create(ctx, &wh); err != nil {
+		return nil, errors.Err(err)
+	}
+	return &wh, nil
 }
 
-func (s *WebhookStore) Update(id int64, p WebhookParams) error {
-	var (
-		b   []byte
-		err error
-	)
+func (s *WebhookStore) Update(ctx context.Context, w *Webhook) error {
+	loaded := w.loaded
+	w.loaded = []string{"payload_url", "secret", "ssl", "events", "active"}
 
-	if p.Secret != "" {
+	if w.Secret != nil {
 		if s.AESGCM == nil {
 			return crypto.ErrNilAESGCM
 		}
 
-		b, err = s.AESGCM.Encrypt([]byte(p.Secret))
+		b, err := s.AESGCM.Encrypt(w.Secret)
 
 		if err != nil {
 			return errors.Err(err)
 		}
+		w.Secret = b
 	}
 
-	q := query.Update(
-		webhookTable,
-		query.Set("payload_url", query.Arg(hookURL{URL: p.PayloadURL})),
-		query.Set("secret", query.Arg(b)),
-		query.Set("ssl", query.Arg(p.SSL)),
-		query.Set("events", query.Arg(p.Events)),
-		query.Set("active", query.Arg(p.Active)),
-		query.Where("id", "=", query.Arg(id)),
-	)
+	if err := s.Store.Update(ctx, w); err != nil {
+		return errors.Err(err)
+	}
 
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	w.loaded = loaded
+	return nil
+}
+
+type WebhookDelivery struct {
+	ID              int64
+	WebhookID       int64
+	EventID         uuid.UUID
+	NamespaceID     database.Null[int64]
+	Error           database.Null[string]
+	Event           event.Type
+	Redelivery      bool
+	RequestHeaders  database.Null[string]
+	RequestBody     database.Null[string]
+	ResponseCode    database.Null[int64]
+	ResponseStatus  string
+	ResponseHeaders database.Null[string]
+	ResponseBody    database.Null[string]
+	Payload         map[string]any
+	Duration        time.Duration
+	CreatedAt       time.Time
+
+	Webhook *Webhook
+}
+
+var _ database.Model = (*WebhookDelivery)(nil)
+
+func (d *WebhookDelivery) Primary() (string, any) { return "id", d.ID }
+
+func (d *WebhookDelivery) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":               &d.ID,
+		"webhook_id":       &d.WebhookID,
+		"event_id":         &d.EventID,
+		"error":            &d.Error,
+		"event":            &d.Event,
+		"redelivery":       &d.Redelivery,
+		"request_headers":  &d.RequestHeaders,
+		"request_body":     &d.RequestBody,
+		"response_code":    &d.ResponseCode,
+		"response_headers": &d.ResponseHeaders,
+		"response_body":    &d.ResponseBody,
+		"duration":         &d.Duration,
+		"created_at":       &d.CreatedAt,
+	}
+
+	if err := database.Scan(r, valtab); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s *WebhookStore) Get(opts ...query.Option) (*Webhook, bool, error) {
-	var wh Webhook
+func (d *WebhookDelivery) Params() database.Params {
+	return database.Params{
+		"id":               database.ImmutableParam(d.ID),
+		"webhook_id":       database.CreateOnlyParam(d.WebhookID),
+		"event_id":         database.CreateOnlyParam(d.EventID),
+		"error":            database.CreateOnlyParam(d.Error),
+		"event":            database.CreateOnlyParam(d.Event),
+		"redelivery":       database.CreateOnlyParam(d.Redelivery),
+		"request_headers":  database.CreateOnlyParam(d.RequestHeaders),
+		"request_body":     database.CreateOnlyParam(d.RequestBody),
+		"response_code":    database.CreateOnlyParam(d.ResponseCode),
+		"response_headers": database.CreateOnlyParam(d.ResponseHeaders),
+		"response_body":    database.CreateOnlyParam(d.ResponseBody),
+		"duration":         database.CreateOnlyParam(d.Duration),
+		"created_at":       database.CreateOnlyParam(d.CreatedAt),
+	}
+}
 
-	ok, err := s.Pool.Get(webhookTable, &wh, opts...)
+func (*WebhookDelivery) Bind(database.Model) {}
+
+func (d *WebhookDelivery) MarshalJSON() ([]byte, error) {
+	if d == nil {
+		return []byte("null"), nil
+	}
+
+	b, err := json.Marshal(map[string]any{
+		"error":      d.Error,
+		"code":       d.ResponseCode,
+		"duration":   d.Duration,
+		"created_at": d.CreatedAt,
+	})
 
 	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &wh, ok, nil
-}
-
-func (s *WebhookStore) All(opts ...query.Option) ([]*Webhook, error) {
-	ww := make([]*Webhook, 0)
-
-	new := func() database.Model {
-		wh := &Webhook{}
-		ww = append(ww, wh)
-		return wh
-	}
-
-	if err := s.Pool.All(webhookTable, new, opts...); err != nil {
 		return nil, errors.Err(err)
 	}
-	return ww, nil
+	return b, nil
 }
 
-func (s *WebhookStore) Delivery(hookId, id int64) (*WebhookDelivery, bool, error) {
-	var d WebhookDelivery
+func (d *WebhookDelivery) Endpoint(...string) string {
+	return d.Webhook.Endpoint("deliveries", strconv.FormatInt(d.ID, 10))
+}
 
-	opts := []query.Option{
-		query.Where("id", "=", query.Arg(id)),
-		query.Where("webhook_id", "=", query.Arg(hookId)),
+const webhookDeliveryTable = "namespace_webhook_deliveries"
+
+type deliveryStore struct {
+	*database.Store[*WebhookDelivery]
+}
+
+func newDeliveryStore(pool *database.Pool) deliveryStore {
+	return deliveryStore{
+		Store: database.NewStore[*WebhookDelivery](pool, webhookDeliveryTable, func() *WebhookDelivery {
+			return &WebhookDelivery{}
+		}),
+	}
+}
+
+func (s deliveryStore) Create(ctx context.Context, d *WebhookDelivery) error {
+	var count int64
+
+	q := query.Select(
+		query.Count("webhook_id"),
+		query.From(webhookDeliveryTable),
+		query.Where("webhook_id", "=", query.Arg(d.WebhookID)),
+		query.Where("event_id", "=", query.Arg(d.EventID)),
+	)
+
+	if err := s.QueryRow(ctx, q.Build(), q.Args()...).Scan(&count); err != nil {
+		return errors.Err(err)
 	}
 
-	ok, err := s.Pool.Get(webhookDeliveryTable, &d, opts...)
+	d.Redelivery = count > 0
+
+	if err := s.Store.Create(ctx, d); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *WebhookStore) Delivery(ctx context.Context, w *Webhook, id int64) (*WebhookDelivery, bool, error) {
+	d, ok, err := newDeliveryStore(s.Pool).Get(
+		ctx,
+		query.Where("id", "=", query.Arg(id)),
+		query.Where("webhook_id", "=", query.Arg(w.ID)),
+	)
 
 	if err != nil {
 		return nil, false, errors.Err(err)
 	}
 
 	if d.ResponseCode.Valid {
-		status := strconv.FormatInt(d.ResponseCode.Int64, 10) + " " + http.StatusText(int(d.ResponseCode.Int64))
+		status := strconv.FormatInt(d.ResponseCode.Elem, 10) + " " + http.StatusText(int(d.ResponseCode.Elem))
 		d.ResponseStatus = status
 	}
-	return &d, ok, nil
+	return d, ok, nil
 }
 
-func (s *WebhookStore) Deliveries(id int64) ([]*WebhookDelivery, error) {
-	dd := make([]*WebhookDelivery, 0)
-
-	opts := []query.Option{
-		query.Where("webhook_id", "=", query.Arg(id)),
+func (s *WebhookStore) Deliveries(ctx context.Context, w *Webhook) ([]*WebhookDelivery, error) {
+	dd, err := newDeliveryStore(s.Pool).All(
+		ctx,
+		query.Where("webhook_id", "=", query.Arg(w.ID)),
 		query.OrderDesc("created_at"),
 		query.Limit(25),
-	}
+	)
 
-	new := func() database.Model {
-		d := &WebhookDelivery{}
-		dd = append(dd, d)
-		return d
-	}
-	if err := s.Pool.All(webhookDeliveryTable, new, opts...); err != nil {
+	if err != nil {
 		return nil, errors.Err(err)
 	}
 	return dd, nil
 }
 
-func (s *WebhookStore) LastDelivery(id int64) (*WebhookDelivery, error) {
-	var d WebhookDelivery
-
-	opts := []query.Option{
-		query.Where("webhook_id", "=", query.Arg(id)),
+func (s *WebhookStore) LastDelivery(ctx context.Context, w *Webhook) (*WebhookDelivery, error) {
+	d, _, err := newDeliveryStore(s.Pool).Get(
+		ctx,
+		query.Where("webhook_id", "=", query.Arg(w.ID)),
 		query.OrderDesc("created_at"),
-	}
+	)
 
-	if _, err := s.Pool.Get(webhookDeliveryTable, &d, opts...); err != nil {
+	if err != nil {
 		return nil, errors.Err(err)
 	}
-	return &d, nil
+	return d, nil
 }
 
-func (s *WebhookStore) LoadLastDeliveries(ww ...*Webhook) error {
-	mm := make([]database.Model, 0, len(ww))
-
-	for _, w := range ww {
-		mm = append(mm, w)
+func (s *WebhookStore) LoadLastDeliveries(ctx context.Context, ww ...*Webhook) error {
+	if len(ww) == 0 {
+		return nil
 	}
 
-	ids := database.Values("id", mm)
+	ids := database.Map[*Webhook, any](ww, func(w *Webhook) any {
+		return w.ID
+	})
 
-	opts := []query.Option{
-		query.Where("webhook_id", "IN", database.List(ids...)),
-		query.OrderDesc("created_at"),
-	}
+	dd, err := newDeliveryStore(s.Pool).All(ctx, query.Where("webhook_id", "IN", query.List(ids...)))
 
-	deliveries := make(map[int64]*WebhookDelivery)
-	dd := make([]*WebhookDelivery, 0)
-
-	new := func() database.Model {
-		d := &WebhookDelivery{}
-		dd = append(dd, d)
-		return d
-	}
-
-	if err := s.Pool.All(webhookDeliveryTable, new, opts...); err != nil {
+	if err != nil {
 		return errors.Err(err)
 	}
 
+	deliverytab := make(map[int64]*WebhookDelivery)
+
 	for _, d := range dd {
-		if _, ok := deliveries[d.WebhookID]; !ok {
-			deliveries[d.WebhookID] = d
+		if _, ok := deliverytab[d.WebhookID]; !ok {
+			deliverytab[d.WebhookID] = d
 		}
 	}
 
 	for _, w := range ww {
-		w.LastDelivery = deliveries[w.ID]
+		w.LastDelivery = deliverytab[w.ID]
 	}
 	return nil
 }
 
-// createDelivery records the given webhook delivery in the database. derr
-// denotes any errors that occurred during delivery, such as the HTTP client
-// not being able to communicate with the remote server.
-func (s *WebhookStore) createDelivery(hookId int64, typ event.Type, eventId uuid.UUID, req *http.Request, resp *http.Response, dur time.Duration, derr error) error {
+func (s *WebhookStore) storeDelivery(ctx context.Context, d *WebhookDelivery) error {
 	var count int64
 
 	q := query.Select(
 		query.Count("webhook_id"),
 		query.From(webhookDeliveryTable),
-		query.Where("webhook_id", "=", query.Arg(hookId)),
-		query.Where("event_id", "=", query.Arg(eventId)),
+		query.Where("webhook_id", "=", query.Arg(d.WebhookID)),
+		query.Where("event_id", "=", query.Arg(d.EventID)),
 	)
 
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
+	if err := s.QueryRow(ctx, q.Build(), q.Args()...).Scan(&count); err != nil {
 		return errors.Err(err)
 	}
 
-	redelivery := count > 0
+	d.Redelivery = count > 0
 
-	var (
-		deliveryError sql.NullString
+	store := newDeliveryStore(s.Pool)
 
-		reqHeaders sql.NullString
-		reqBody    sql.NullString
-
-		respStatus  sql.NullInt64
-		respHeaders sql.NullString
-		respBody    sql.NullString
-	)
-
-	if derr != nil {
-		deliveryError.Valid = true
-		deliveryError.String = errors.Cause(derr).Error()
-	}
-
-	if req != nil {
-		reqHeaders.Valid = true
-		reqHeaders.String = encodeHeaders(req.Header)
-
-		b, _ := io.ReadAll(req.Body)
-
-		reqBody.Valid = true
-		reqBody.String = string(b)
-	}
-
-	if resp != nil {
-		respStatus.Valid = true
-		respStatus.Int64 = int64(resp.StatusCode)
-
-		respHeaders.Valid = true
-		respHeaders.String = encodeHeaders(resp.Header)
-
-		b, _ := io.ReadAll(resp.Body)
-
-		respBody.Valid = true
-		respBody.String = string(b)
-	}
-
-	q = query.Insert(
-		webhookDeliveryTable,
-		query.Columns("webhook_id", "event_id", "event", "error", "redelivery", "request_headers", "request_body", "response_code", "response_headers", "response_body", "duration"),
-		query.Values(
-			hookId,
-			eventId,
-			typ,
-			deliveryError,
-			redelivery,
-			reqHeaders,
-			reqBody,
-			respStatus,
-			respHeaders,
-			respBody,
-			dur,
-		),
-	)
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
+	if err := store.Create(ctx, d); err != nil {
 		return errors.Err(err)
 	}
 	return nil
 }
 
-func (s *WebhookStore) realDeliver(w *Webhook, typ event.Type, r *bytes.Reader) (*http.Request, *http.Response, time.Duration, error) {
+func (s *WebhookStore) handleDelivery(ctx context.Context, w *Webhook, e *event.Event) error {
 	cli := http.Client{
 		Transport: http.DefaultTransport,
 		Timeout:   time.Minute,
 	}
 
 	if w.SSL {
-		if s.CertPool == nil {
+		if s.Certs == nil {
 			pool, err := x509.SystemCertPool()
 
 			if err != nil {
-				return nil, nil, 0, errors.Err(err)
+				return errors.Err(err)
 			}
-			s.CertPool = pool
+			s.Certs = pool
 		}
 
 		cli.Transport = &http.Transport{
 			TLSClientConfig: &tls.Config{
 				ServerName: w.PayloadURL.Host,
-				RootCAs:    s.CertPool,
+				RootCAs:    s.Certs,
 			},
 		}
 	}
+
+	var buf bytes.Buffer
+	json.NewEncoder(&buf).Encode(e.Data)
+
+	r := bytes.NewReader(buf.Bytes())
 
 	var signature string
 
 	if w.Secret != nil {
 		if s.AESGCM == nil {
-			return nil, nil, 0, crypto.ErrNilAESGCM
+			return crypto.ErrNilAESGCM
 		}
 
 		secret, err := s.AESGCM.Decrypt(w.Secret)
 
 		if err != nil {
-			return nil, nil, 0, errors.Err(err)
+			return errors.Err(err)
 		}
 
-		var buf bytes.Buffer
-
 		hmac := hmac.New(sha256.New, secret)
-		tee := io.TeeReader(r, &buf)
 
-		io.Copy(hmac, tee)
+		io.Copy(hmac, r)
 
-		r = bytes.NewReader(buf.Bytes())
+		r.Seek(0, io.SeekStart)
 		signature = "sha256=" + hex.EncodeToString(hmac.Sum(nil))
 	}
 
-	req := &http.Request{
+	req := http.Request{
 		Method: "POST",
 		URL:    w.PayloadURL.URL,
-		Header: map[string][]string{
+		Header: http.Header{
 			"Accept":             {"*/*"},
 			"Content-Length":     {strconv.FormatInt(int64(r.Size()), 10)},
 			"Content-Type":       {"application/json; charset=utf-8"},
 			"User-Agent":         {"Djinn-CI-Hook"},
-			"X-Djinn-CI-Event":   {typ.String()},
+			"X-Djinn-CI-Event":   {e.Type.String()},
 			"X-Djinn-CI-Hook-ID": {strconv.FormatInt(w.ID, 10)},
 		},
 		Body: io.NopCloser(r),
 	}
 
 	if signature != "" {
-		req.Header["X-Djinn-CI-Signature"] = []string{signature}
+		req.Header.Set("X-Djinn-CI-Signature", signature)
 	}
 
 	start := time.Now()
 
-	resp, err := cli.Do(req)
+	resp, resperr := cli.Do(&req)
 
-	if err != nil {
-		return req, nil, 0, errors.Err(err)
+	defer func() {
+		if resp != nil {
+			resp.Body.Close()
+		}
+	}()
+
+	errmsg := ""
+
+	if resperr != nil {
+		errmsg = resperr.Error()
 	}
-	return req, resp, time.Now().Sub(start), nil
-}
 
-func (s *WebhookStore) Redeliver(id int64, eventId uuid.UUID) error {
-	w, ok, err := s.Get(query.Where("id", "=", query.Arg(id)))
+	r.Seek(0, io.SeekStart)
+	reqBody, _ := io.ReadAll(req.Body)
 
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	if !ok {
-		return database.ErrNotFound
-	}
+	reqHeaders := encodeHeaders(req.Header)
 
 	var (
-		headers string
-		body    string
+		respCode    int64
+		respHeaders string
+		respBody    string
 	)
 
-	q := query.Select(
-		query.Columns("request_headers", "request_body"),
-		query.From(webhookDeliveryTable),
+	if resp != nil {
+		respCode = int64(resp.StatusCode)
+		respHeaders = encodeHeaders(resp.Header)
+
+		b, _ := io.ReadAll(resp.Body)
+		respBody = string(b)
+	}
+
+	d := WebhookDelivery{
+		WebhookID: w.ID,
+		EventID:   e.ID,
+		NamespaceID: database.Null[int64]{
+			Elem:  w.NamespaceID,
+			Valid: w.NamespaceID > 0,
+		},
+		Event: e.Type,
+		Error: database.Null[string]{
+			Elem:  errmsg,
+			Valid: resperr != nil,
+		},
+		RequestHeaders: database.Null[string]{
+			Elem:  reqHeaders,
+			Valid: reqHeaders != "",
+		},
+		RequestBody: database.Null[string]{
+			Elem:  string(reqBody),
+			Valid: reqBody != nil,
+		},
+		ResponseCode: database.Null[int64]{
+			Elem:  respCode,
+			Valid: respCode > 0,
+		},
+		ResponseHeaders: database.Null[string]{
+			Elem:  respHeaders,
+			Valid: respHeaders != "",
+		},
+		ResponseBody: database.Null[string]{
+			Elem:  respBody,
+			Valid: respBody != "",
+		},
+		Duration: time.Now().Sub(start),
+	}
+
+	if err := newDeliveryStore(s.Pool).Create(ctx, &d); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (s *WebhookStore) Redeliver(ctx context.Context, w *Webhook, eventId uuid.UUID) error {
+	d, _, err := newDeliveryStore(s.Pool).Get(
+		ctx,
 		query.Where("webhook_id", "=", query.Arg(w.ID)),
 		query.Where("event_id", "=", query.Arg(eventId)),
 	)
 
-	if err := s.QueryRow(q.Build(), q.Args()...).Scan(&headers, &body); err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return database.ErrNotFound
-		}
+	if err != nil {
 		return errors.Err(err)
 	}
 
-	hdr := decodeHeaders(headers)
-	r := bytes.NewReader([]byte(body))
+	hdr := decodeHeaders(d.RequestHeaders.Elem)
+	typ, _ := event.Lookup(hdr.Get("X-Djinn-CI-Event"))
 
-	event, _ := event.Lookup(hdr["X-Djinn-CI-Event"][0])
+	data := make(map[string]any)
 
-	req, resp, dur, derr := s.realDeliver(w, event, r)
-
-	if req != nil {
-		req.Body = io.NopCloser(strings.NewReader(body))
+	if err := json.NewDecoder(strings.NewReader(d.RequestBody.Elem)).Decode(&data); err != nil {
+		return errors.Err(err)
 	}
 
-	if err := s.createDelivery(w.ID, event, eventId, req, resp, dur, derr); err != nil {
+	ev := event.Event{
+		ID:        eventId,
+		Type:      typ,
+		Data:      data,
+		CreatedAt: time.Now(),
+	}
+
+	if err := s.handleDelivery(ctx, w, &ev); err != nil {
 		return errors.Err(err)
 	}
 	return nil
@@ -762,7 +783,10 @@ func (s *WebhookStore) Dispatch(ev *event.Event) error {
 		return nil
 	}
 
+	ctx := context.Background()
+
 	ww, err := s.All(
+		ctx,
 		query.Where("namespace_id", "=", query.Arg(ev.NamespaceID)),
 		query.Where("active", "=", query.Lit(true)),
 	)
@@ -771,41 +795,14 @@ func (s *WebhookStore) Dispatch(ev *event.Event) error {
 		return errors.Err(err)
 	}
 
-	var buf bytes.Buffer
-
-	json.NewEncoder(&buf).Encode(ev.Data)
-
-	r := bytes.NewReader(buf.Bytes())
-
 	for _, w := range ww {
 		if !w.Events.Has(ev.Type) {
 			continue
 		}
 
-		req, resp, dur, derr := s.realDeliver(w, ev.Type, r)
-
-		r.Seek(0, io.SeekStart)
-
-		if req != nil {
-			req.Body = io.NopCloser(&buf)
-		}
-
-		if err := s.createDelivery(w.ID, ev.Type, ev.ID, req, resp, dur, derr); err != nil {
+		if err := s.handleDelivery(ctx, w, ev); err != nil {
 			return errors.Err(err)
 		}
-
-		if resp != nil {
-			resp.Body.Close()
-		}
-	}
-	return nil
-}
-
-func (s *WebhookStore) Delete(id int64) error {
-	q := query.Delete(webhookTable, query.Where("id", "=", query.Arg(id)))
-
-	if _, err := s.Exec(q.Build(), q.Args()...); err != nil {
-		return errors.Err(err)
 	}
 	return nil
 }

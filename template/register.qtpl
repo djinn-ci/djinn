@@ -1,0 +1,61 @@
+{%
+import (
+	"djinn-ci.com/alert"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type Register struct {
+	*form.Form
+
+	Alert alert.Alert
+}
+%}
+
+{% collapsespace %}
+{% func (p *Register) Title() %}Register{% endfunc %}
+
+{% func (p *Register) Footer() %}
+	<style type="text/css">{% cat "static/auth.css" %}</style>
+{% endfunc %}
+
+{% func (p *Register) Body() %}
+	<div class="auth-page">
+		<div class="auth-form">
+			<div class="auth-header">
+				{%= Logo() %}
+				<h1>Signup to Djinn CI</h1>
+				{%= Alert(p.Alert, "") %}
+			</div>
+			<form method="POST" action="/register">
+				{%v= p.CSRF %}
+				{%= p.Field(form.Field{
+					ID:   "email",
+					Name: "Email",
+					Type: form.Text,
+				}) %}
+				{%= p.Field(form.Field{
+					ID:   "username",
+					Name: "Username",
+					Type: form.Text,
+				}) %}
+				{%= p.Field(form.Field{
+					ID:   "password",
+					Name: "Password",
+					Type: form.Password,
+				}) %}
+				{%= p.Field(form.Field{
+					ID:   "verify_password",
+					Name: "Verify Password",
+					Type: form.Password,
+				}) %}
+				<div class="form-field">
+					<button type="submit" class="btn btn-primary">Register</button>
+				</div>
+				<div class="input-field">Already have an account? <a href="/login">Login</a></div>
+			</form>
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

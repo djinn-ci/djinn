@@ -1,15 +1,19 @@
 package http
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"unicode"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/database"
 	"djinn-ci.com/driver"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/manifest"
+	"djinn-ci.com/namespace"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type tags []string
@@ -67,42 +71,13 @@ func (t *tags) UnmarshalText(b []byte) error {
 	return nil
 }
 
-type Form struct {
-	Manifest manifest.Manifest `json:"manifest" schema:"manifest"`
-	Comment  string            `json:"comment"  schema:"comment"`
-	Tags     tags              `json:"tags"     schema:"tags"`
-}
-
-var _ webutil.Form = (*Form)(nil)
-
-// Fields returns the fields of the build form. If the manifest is empty then
-// return an empty string instead of a pair of {}.
-func (f Form) Fields() map[string]string {
-	manifest := f.Manifest.String()
-
-	if manifest == "{}" {
-		manifest = ""
-	}
-
-	return map[string]string{
-		"manifest": manifest,
-		"comment":  f.Comment,
-		"tags":     f.Tags.String(),
-	}
-}
-
-// TagForm represents the data sent by a client for tagging a Build.
 type TagForm struct {
-	Tags tags `schema:"tags"`
+	Tags tags
 }
 
-var _ webutil.Form = (*TagForm)(nil)
+func (*TagForm) Fields() map[string]string      { return nil }
+func (*TagForm) Validate(context.Context) error { return nil }
 
-// Files implements the webutil.Form interface. This is a stub method.
-func (f *TagForm) Fields() map[string]string { return nil }
-
-// UnmarshalJSON attempts to unmarshal the given byte slice into a slice of
-// strings.
 func (f *TagForm) UnmarshalJSON(data []byte) error {
 	tags := make([]string, 0)
 
@@ -127,32 +102,78 @@ func (f *TagForm) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type Validator struct {
-	Form    Form
-	Drivers map[string]struct{}
+type Form struct {
+	DB   *database.Pool `json:"-" schema:"-"`
+	User *auth.User     `json:"-" schema:"-"`
+
+	Drivers  map[string]struct{} `json:"-" schema:"-"`
+	Manifest manifest.Manifest
+	Comment  string
+	Tags     tags
 }
 
-func (v *Validator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Manifest.String() == "{}" {
-		errs.Add("manifest", webutil.ErrFieldRequired("Manifest"))
+var _ webutil.Form = (*Form)(nil)
+
+func (f *Form) Fields() map[string]string {
+	return map[string]string{
+		"manifest": f.Manifest.String(),
+		"comment":  f.Comment,
+		"tags":     f.Tags.String(),
 	}
+}
 
-	if err := v.Form.Manifest.Validate(); err != nil {
-		errs.Add("manifest", err)
-	}
+func driverValid(drivers map[string]struct{}) webutil.ValidatorFunc {
+	return func(ctx context.Context, val any) error {
+		if m, ok := val.(manifest.Manifest); ok {
+			typ := m.Driver["type"]
 
-	typ := v.Form.Manifest.Driver["type"]
-
-	if typ == "qemu" {
-		arch := "x86_64"
-		typ += "-" + arch
-	}
-
-	if _, ok := v.Drivers[typ]; !ok {
-		if driver.IsValid(typ) {
-			errs.Add("manifest", driver.ErrDisabled(typ))
-			return
+			if _, ok := drivers[typ]; !ok {
+				if driver.IsValid(typ) {
+					return driver.ErrDisabled(typ)
+				}
+				return driver.ErrUnknown(typ)
+			}
 		}
-		errs.Add("manifest", driver.ErrUnknown(typ))
+		return nil
 	}
+}
+
+func (f *Form) Validate(ctx context.Context) error {
+	var v webutil.Validator
+
+	v.WrapError(
+		webutil.MapError(database.ErrPermission, errors.New("cannot submit to namespace")),
+		webutil.WrapFieldError,
+	)
+
+	v.Add("manifest", f.Manifest, webutil.FieldRequired)
+	v.Add("manifest", f.Manifest, driverValid(f.Drivers))
+	v.Add("manifest", f.Manifest, func(_ context.Context, v any) error {
+		m := v.(manifest.Manifest)
+		return m.Validate()
+	})
+	v.Add("manifest", f.Manifest.Namespace, func(ctx context.Context, v any) error {
+		p, err := namespace.ParsePath(v.(string))
+
+		if err != nil {
+			return err
+		}
+
+		if p.Valid {
+			_, n, err := p.Resolve(ctx, f.DB, f.User)
+
+			if err != nil {
+				return err
+			}
+
+			if err := n.IsCollaborator(ctx, f.DB, f.User); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }

@@ -2,20 +2,22 @@
 import (
 	"bytes"
 	"encoding/json"
-	"net/url"
-	"regexp"
-	"strconv"
+	"fmt"
 	"html/template"
+	"net/http"
+	"net/url"
+	"strings"
 
-	"djinn-ci.com/database"
-	"djinn-ci.com/user"
+	"djinn-ci.com/auth"
+	"djinn-ci.com/errors"
+	"djinn-ci.com/runner"
 
-	"github.com/andrewpillar/webutil"
+	"github.com/gorilla/csrf"
 )
 %}
 
 {%
-interface Page {
+interface Template {
 	Title()
 
 	Body()
@@ -25,24 +27,26 @@ interface Page {
 %}
 
 {% code
-type BasePage struct {
-	URL   *url.URL
-	Query url.Values
-	User  *user.User
+type Page struct {
+	User *auth.User
+	CSRF template.HTML
+	URL  *url.URL
 }
 
-type Form struct {
-	CSRF   template.HTML
-	Errors webutil.ValidationErrors
-	Fields map[string]string
+func NewPage(u *auth.User, r *http.Request) *Page {
+	return &Page{
+		User: u,
+		CSRF: csrf.TemplateField(r),
+		URL:  r.URL,
+	}
 }
 
-func pattern(name string) string { return "(^\\/" + name + "\\/?[a-z0-9\\/?]*$)" }
+func (p *Page) Href(vals url.Values) string {
+	q := p.URL.Query()
 
-func LinkToQuery(url *url.URL, query map[string]string) string {
-	q := url.Query()
+	for k := range vals {
+		v := vals.Get(k)
 
-	for k, v := range query {
 		if v == "" {
 			delete(q, k)
 			continue
@@ -50,93 +54,146 @@ func LinkToQuery(url *url.URL, query map[string]string) string {
 		q.Set(k, v)
 	}
 
-	url2 := (*url)
-	url2.RawQuery = q.Encode()
+	url := (*p.URL)
+	url.RawQuery = q.Encode()
 
-	return url2.String()
+	return url.String()
 }
 
-func Active(condition bool) string {
-	if condition {
-		return "active"
+func HumanSize(n int64) string {
+	units := []string{"B", "KB", "MB", "GB", "TB", "PB"}
+	i := 0
+
+	for ; n >= 1024; i++ {
+		n /= 1024
 	}
-	return ""
+	return fmt.Sprintf("%d %s", n, units[i])
 }
 
-func Match(uri, pattern string) bool {
-	matched, err := regexp.Match(pattern, []byte(uri))
-
-	if err != nil {
-		return false
-	}
-	return matched
-}
-
-func IndentJSON(s string) string {
+func JSON(s string) string {
 	var buf bytes.Buffer
-
 	json.Indent(&buf, []byte(s), "", "    ")
 	return buf.String()
 }
 
-func pageURL(url *url.URL, page int64) string {
-	q := url.Query()
-	q.Set("page", strconv.FormatInt(page, 10))
+type Error struct {
+	Code    int
+	Message string
+	Error   error
+}
 
-	url.RawQuery = q.Encode()
-	return url.String()
+type FatalError struct {
+	Error
+
+	Stack string
 }
 %}
 
 {% collapsespace %}
-{% func FileInput(f Form) %}
-	<div class="form-field">
-		<label class="label" for="file">File</label>
-		<input type="file" id="file" name="file"/>
-		{%= f.Error("file") %}
+{% func Code(code string) %}
+	<div class="code-wrap">
+		<table class="code">
+			<tbody>
+				{% for i, line := range strings.Split(code, "\n") %}
+					<tr>
+						<td class="line-number"><a href="#L{%v i + 1 %}">{%v i + 1 %}</a></td>
+						<td class="line" id="L{%v i + 1 %}">{%s line %}</td>
+					</tr>
+				{% endfor %}
+			</tbody>
+		</table>
 	</div>
 {% endfunc %}
 
-{% func Render(p Page) %}
+{% func Status(s runner.Status) %}
+	{% switch s %}
+		{% case runner.Queued %}
+			<span class="pill w-90 pill-dark">{% cat "static/svg/hourglass.svg" %} <span>Queued</span></span>
+		{% case runner.Running %}
+			<span class="pill w-90 pill-blue">{% cat "static/svg/timer.svg" %} <span>Running</span></span>
+		{% case runner.Passed %}
+			<span class="pill w-90 pill-green">{% cat "static/svg/check.svg" %} <span>Passed</span></span>
+		{% case runner.PassedWithFailures %}
+			<span class="pill w-90 pill-orange">{% cat "static/svg/warning.svg" %} <span>Passed</span></span>
+		{% case runner.Failed %}
+			<span class="pill w-90 pill-red">{% cat "static/svg/close.svg" %} <span>Failed</span></span>
+		{% case runner.Killed %}
+			<span class="pill w-90 pill-red">{% cat "static/svg/stop.svg" %} <span>Killed</span></span>
+		{% case runner.TimedOut %}
+			<span class="pill w-90 pill-gray">{% cat "static/svg/stopwatch.svg" %} <span>Timed Out</span></span>
+	{% endswitch %}
+{% endfunc %}
+
+{% func IconStatus(s runner.Status) %}
+	{% switch s %}
+		{% case runner.Queued %}
+			<span class="pill w-90 pill-dark">{% cat "static/svg/hourglass.svg" %}</span>
+		{% case runner.Running %}
+			<span class="pill w-90 pill-blue">{% cat "static/svg/timer.svg" %}</span>
+		{% case runner.Passed %}
+			<span class="pill w-90 pill-green">{% cat "static/svg/check.svg" %}</span>
+		{% case runner.PassedWithFailures %}
+			<span class="pill w-90 pill-orange">{% cat "static/svg/warning.svg" %}</span>
+		{% case runner.Failed %}
+			<span class="pill w-90 pill-red">{% cat "static/svg/close.svg" %}</span>
+		{% case runner.Killed %}
+			<span class="pill w-90 pill-red">{% cat "static/svg/stop.svg" %}</span>
+		{% case runner.TimedOut %}
+			<span class="pill w-90 pill-gray">{% cat "static/svg/stopwatch.svg" %}</span>
+	{% endswitch %}
+{% endfunc %}
+
+{% func Logo() %}
+	<div class="logo">
+		<div class="handle"></div>
+		<div class="lid"></div>
+		<div class="lantern"></div>
+	</div>
+{% endfunc %}
+
+{% func Render(tmpl Template) %}
 	<!DOCTYPE HTML>
 	<html lang="en">
 		<head>
 			<meta charset="utf-8">
 			<meta content="width=device-width, initial-scale=1" name="viewport">
-			<title>{%= p.Title() %}</title>
-			<style type="text/css">{% cat "../static/main.css" %}</style>
+			<title>{%= tmpl.Title() %} - Djinn CI</title>
+			<style type="text/css">{% cat "static/main.css" %}</style>
 		</head>
-		<body>{%= p.Body() %}</body>
-		<footer>{%= p.Footer() %}</footer>
+		<body>{%= tmpl.Body() %}</body>
+		<footer>{%= tmpl.Footer() %}</footer>
 	</html>
 {% endfunc %}
 
-{% stripspace %}
-{% func RenderPaginator(url *url.URL, p database.Paginator) %}
-	{% if len(p.Pages) > 1 %}
-		<ul class="paginator panel">
-			{% if p.Page == p.Prev %}
-				<li><a class="disabled">Previous</a></li>
-			{% else %}
-				<li><a href="{%s pageURL(url, p.Prev) %}" class="prev">Previous</a></li>
-			{% endif %}
-			{% if p.Page == p.Next %}
-				<li><a class="disabled">Next</a></li>
-			{% else %}
-				<li><a href="{%s pageURL(url, p.Next) %}" class="next">Next</a></li>
-			{% endif %}
-		</ul>
-	{% endif %}
-{% endfunc %}
-{% endstripspace %}
+{% func (p Error) Title() %}Error{% endfunc %}
 
-{% func (f Form) Error(field string) %}
-	<div class="form-error">
-		{% if err := f.Errors.First(field); err != "" %}{%s err %}{% endif %}
+{% func (p Error) Body() %}
+	<div class="error">
+		{%= Logo() %}
+		<h1>{%v p.Code %}</h1>
+		<h2>{%s p.Message %}</h2>
+		<br/>
+		<a href="/">Back</a>
+		<br/><br/>
+		{% if p.Error != nil %}
+			<textarea readonly>{%s errors.Format(p.Error) %}</textarea>
+		{% endif %}
 	</div>
 {% endfunc %}
 
-{% func (p *BasePage) Title() %} Djinn CI {% endfunc %}
-{% func (p *BasePage) Body() %}{% endfunc %}
-{% func (p *BasePage) Footer() %}  {% endfunc %}
+{% func (p Error) Footer() %}
+	<style type="text/css">{% cat "static/error.css" %}</style>
+{% endfunc %}
+
+{% func (p FatalError) Body() %}
+	<div class="error">
+		{%= Logo() %}
+		<h1>{%v p.Code %}</h1>
+		<h2>{%s p.Message %}</h2>
+		<br/>
+		<a href="/">Back</a>
+		<br/><br/>
+		<textarea readonly>{%s p.Stack %}</textarea>
+	</div>
+{% endfunc %}
 {% endcollapsespace %}

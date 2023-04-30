@@ -11,26 +11,26 @@ import (
 	"time"
 
 	"djinn-ci.com/config"
-	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/manifest"
 	"djinn-ci.com/runner"
 	"djinn-ci.com/version"
-)
 
-var setupStage = "setup"
+	"github.com/andrewpillar/fs"
+)
 
 func exiterr(err error) {
 	fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 	os.Exit(1)
 }
 
+const setupStage = "setup"
+
 func main() {
 	var (
 		showversion  bool
 		artifactsdir string
 		objectsdir   string
-		manifestfile string
+		manif        string
 		driverfile   string
 		stage        string
 	)
@@ -42,11 +42,10 @@ func main() {
 	}
 
 	flag := flag.CommandLine
-
 	flag.BoolVar(&showversion, "version", false, "show the version and exit")
 	flag.StringVar(&artifactsdir, "artifacts", ".", "the directory to store artifacts")
 	flag.StringVar(&objectsdir, "objects", ".", "the directory to place objects from")
-	flag.StringVar(&manifestfile, "manifest", ".djinn.yml", "the manifest file to use")
+	flag.StringVar(&manif, "manifest", ".djinn.yml", "the manifest file to use")
 	flag.StringVar(&driverfile, "driver", filepath.Join(cfgdir, "djinn", "driver.conf"), "the driver config to use")
 	flag.StringVar(&stage, "stage", "", "the stage to execute")
 	flag.Parse(os.Args[1:])
@@ -56,22 +55,22 @@ func main() {
 		return
 	}
 
-	f1, err := os.Open(manifestfile)
+	f, err := os.Open(manif)
 
 	if err != nil {
 		exiterr(err)
 	}
 
-	defer f1.Close()
+	defer f.Close()
 
-	m, err := manifest.Decode(f1)
+	m, err := manifest.Decode(f)
 
 	if err != nil {
 		exiterr(err)
 	}
 
 	if err := m.Validate(); err != nil {
-		exiterr(errors.Cause(err))
+		exiterr(err)
 	}
 
 	typ := m.Driver["type"]
@@ -93,32 +92,16 @@ func main() {
 	driverInit, driverCfg, err := config.DecodeDriver(typ, f2.Name(), f2)
 
 	if err != nil {
-		exiterr(errors.Cause(err))
+		exiterr(err)
 	}
 
-	placer := fs.NewFilesystem(objectsdir)
+	r := runner.Default(m.Objects)
+	r.Env = m.Env
+	r.Artifacts = fs.New(artifactsdir)
+	r.Objects = fs.New(objectsdir)
 
-	if err := placer.Init(); err != nil {
-		exiterr(errors.Cause(err))
-	}
-
-	collector := fs.NewFilesystem(artifactsdir)
-
-	if err := collector.Init(); err != nil {
-		exiterr(errors.Cause(err))
-	}
-
-	r := runner.Runner{
-		Writer:    os.Stdout,
-		Env:       m.Env,
-		Objects:   m.Objects,
-		Placer:    placer,
-		Collector: collector,
-	}
-
-	setup := &runner.Stage{
-		Name:    fmt.Sprintf("%s - %v", setupStage, time.Now().Unix()),
-		CanFail: false,
+	setup := runner.Stage{
+		Name: fmt.Sprintf("%s - %v", setupStage, time.Now().Unix()),
 	}
 
 	for i, src := range m.Sources {
@@ -135,50 +118,44 @@ func main() {
 		}
 
 		setup.Add(&runner.Job{
-			Writer:    os.Stdout,
-			Name:      name,
-			Commands:  commands,
-			Artifacts: runner.Passthrough{},
+			Writer:   os.Stdout,
+			Name:     name,
+			Commands: commands,
 		})
 	}
 
-	r.Add(setup)
+	r.Add(&setup)
+
+	failtab := make(map[string]struct{}, len(m.AllowFailures))
+
+	for _, stage := range m.AllowFailures {
+		failtab[stage] = struct{}{}
+	}
+
+	stagetab := make(map[string]*runner.Stage)
 
 	for _, name := range m.Stages {
-		canFail := false
+		_, ok := failtab[name]
 
-		for _, search := range m.AllowFailures {
-			if name == search {
-				canFail = true
-				break
-			}
-		}
-
-		r.Add(&runner.Stage{
+		stagetab[name] = &runner.Stage{
 			Name:    name,
-			CanFail: canFail,
-		})
+			CanFail: ok,
+		}
 	}
 
-	stages := r.Stages()
-
-	prev := ""
-	jobId := 1
+	if stage != "" && stage != setupStage {
+		for _, name := range m.Stages {
+			if name != stage {
+				delete(stagetab, name)
+			}
+		}
+	}
 
 	for _, j := range m.Jobs {
-		stage, ok := stages[j.Stage]
+		stage, ok := stagetab[j.Stage]
 
 		if !ok {
 			continue
-		}
-
-		if j.Stage != prev {
-			jobId = 1
-		}
-
-		if j.Name == "" {
-			j.Name = fmt.Sprintf("%s.%d", j.Stage, jobId)
-			jobId++
 		}
 
 		stage.Add(&runner.Job{
@@ -189,19 +166,18 @@ func main() {
 		})
 	}
 
-	if stage != "" && stage != setupStage {
-		r.Remove(stage)
+	for _, name := range m.Stages {
+		r.Add(stagetab[name])
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sigs := make(chan os.Signal)
-
-	signal.Notify(sigs, os.Interrupt, os.Kill)
+	ch := make(chan os.Signal)
+	signal.Notify(ch, os.Interrupt)
 
 	go func() {
-		<-sigs
+		<-ch
 		cancel()
 	}()
 

@@ -1,0 +1,73 @@
+{%
+import (
+	"strings"
+
+	"djinn-ci.com/cron"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type CronShow struct {
+	*Page
+
+	Cron   *cron.Cron
+	Builds *BuildIndex
+}
+%}
+
+{% collapsespace %}
+{% func (p *CronShow) Title() %}Cron Jobs - {%s p.Cron.Name %}{% endfunc %}
+
+{% func (p *CronShow) Header() %}
+	<a href="/cron" class="back">{% cat "static/svg/back.svg" %}</a>
+	{% if p.Cron.Namespace != nil %}
+		<a href="{%s p.Cron.Namespace.Endpoint() %}">{%s p.Cron.Namespace.Name %}</a> /
+	{% endif %}
+	{%s p.Cron.Name %}
+{% endfunc %}
+
+{% func (p *CronShow) Actions() %}
+	<li><a href="{%s p.Cron.Endpoint("edit") %}" class="btn btn-primary">Edit</a></li>
+	{% if p.User.ID == p.Cron.UserID %}
+		<li>
+			<form method="POST" action="{%s p.Cron.Endpoint() %}">
+				{%= form.Method("DELETE") %}
+				{%v= p.CSRF %}
+				<button type="submit" class="btn btn-danger">Delete</button>
+			</form>
+		</li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *CronShow) Navigation() %}{% endfunc %}
+{% func (p *CronShow) Footer() %}{% endfunc %}
+
+{% func (p *CronShow) Body() %}
+	<div class="panel">
+		<table class="table">
+			<tr>
+				<td>Name</td>
+				<td class="align-right">{%s p.Cron.Name %}</td>
+			</tr>
+			<tr>
+				<td>Schedule</td>
+				<td class="align-right">{%s strings.ToUpper(p.Cron.Schedule.String()) %}</td>
+			</tr>
+			<tr>
+				<td>Previous Run</td>
+				{% if p.Cron.PrevRun.Valid %}
+					<td class="align-right">{%s p.Cron.PrevRun.Elem.Format("Mon, 2 Jan 2006 15:04") %}</td>
+				{% else %}
+					<td class="align-right muted">--</td>
+				{% endif %}
+			</tr>
+			<tr>
+				<td>Next Run</td>
+				<td class="align-right">{%s p.Cron.NextRun.Format("Mon, 2 Jan 2006 15:04") %}</td>
+			</tr>
+		</table>
+	</div>
+	{%= p.Builds.Body() %}
+{% endfunc %}
+{% endcollapsespace %}

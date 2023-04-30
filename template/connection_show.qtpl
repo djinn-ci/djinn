@@ -1,0 +1,53 @@
+{%
+import (
+	"djinn-ci.com/template/form"
+	"djinn-ci.com/oauth2"
+)
+%}
+
+{% code
+type ConnectionShow struct {
+	*form.Form
+
+	Token *oauth2.Token
+}
+%}
+
+{% collapsespace %}
+{% func (p *ConnectionShow) Title() %}Connection to {%s p.Token.App.Name %}{% endfunc %}
+
+{% func (p *ConnectionShow) Header() %}
+	<a href="/settings/connections" class="back">
+		{% cat "static/svg/back.svg" %}
+	</a> Connection to {%s p.Token.App.Name %}
+{% endfunc %}
+
+{% func (p *ConnectionShow) Actions() %}
+	<li>
+		<form method="POST" actions="/settings/connections/{%s p.Token.App.ClientID %}">
+			{%= form.Method("DELETE") %}
+			{%v= p.CSRF %}
+			<button type="submit" class="btn btn-danger">Revoke access</button>
+		</form>
+	</li>
+{% endfunc %}
+
+{% func (p *ConnectionShow) Navigation() %}{% endfunc %}
+{% func (p *ConnectionShow) Footer() %}{% endfunc %}
+
+{% func (p *ConnectionShow) Body() %}
+	<div class="panel">
+		<div class="panel-body slim scope-list">
+			<strong>Authorized</strong> {%s p.Token.CreatedAt.Format("Mon 2, Jan 15:04 2006") %}<br/>
+			<strong>Homepage</strong>
+			<a target="_blank" href="{%s p.Token.App.HomeURI %}">{%s p.Token.App.HomeURI %}</a><br/><br/>
+			{%s p.Token.App.Description %}
+			<div class="separator"></div>
+			<h2>Permissions</h2>
+			{% for _, sc := range p.Token.Scope %}
+				{%= renderScopeItem(sc.Resource, sc.Permission) %}
+			{% endfor %}
+		</div>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

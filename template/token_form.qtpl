@@ -1,0 +1,104 @@
+{%
+import (
+	"strings"
+
+	"djinn-ci.com/oauth2"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type TokenForm struct {
+	*form.Form
+
+	Token  *oauth2.Token
+	Scopes map[string]struct{}
+}
+
+func (p *TokenForm) scope(res oauth2.Resource, perm oauth2.Permission) string {
+	return res.String() + ":" + perm.String()
+}
+
+func (p *TokenForm) hasScope(res oauth2.Resource, perm oauth2.Permission) bool {
+	_, ok := p.Scopes[p.scope(res, perm)]
+	return ok
+}
+
+func (p *TokenForm) action() string {
+	if p.Token != nil {
+		return p.Token.Endpoint()
+	}
+	return "/settings/tokens"
+}
+%}
+
+{% collapsespace %}
+{% func (p *TokenForm) Title() %}
+	{% if p.Token == nil %}
+		New Token
+	{% else %}
+		Edit Token
+	{% endif %}
+{% endfunc %}
+
+{% func (p *TokenForm) Header() %}
+	{% if p.Token == nil %}
+		<a href="/settings/tokens" class="back">{% cat "static/svg/back.svg" %}</a> Settings - New Token
+	{% else %}
+		<a href="/settings/tokens" class="back">{% cat "static/svg/back.svg" %}</a> Settings - Edit Token
+	{% endif %}
+{% endfunc %}
+
+{% func (p *TokenForm) Actions() %}{% endfunc %}
+{% func (p *TokenForm) Navigation() %}{% endfunc %}
+{% func (p *TokenForm) Footer() %}{% endfunc %}
+
+{% func (p *TokenForm) scopeField(res oauth2.Resource) %}
+	<div class="form-field">
+		<label class="label">{%s strings.Title(res.String()) %}</label>
+		{% for _, perm := range oauth2.Permissions %}
+			<label>
+				{% if p.hasScope(res, perm) %}
+					<input checked="true" type="checkbox" name="scope" value="{%s p.scope(res, perm) %}"/>
+				{% else %}
+					<input type="checkbox" name="scope" value="{%s p.scope(res, perm) %}"/>
+				{% endif %}
+				{%s strings.Title(perm.String()) %}
+			</label>
+		{% endfor %}
+	</div>
+{% endfunc %}
+
+{% func (p *TokenForm) Body() %}
+	<div class="panel">
+		{% if p.Token != nil %}
+			<form method="POST" action="{%s p.Token.Endpoint("regenerate") %}" class="panel-body slim mb-10">
+				{%= form.Method("PATCH") %}
+				{%v= p.CSRF %}
+				<button type="submit" class="btn btn-danger right">Regenerate</button>
+			</form>
+		{% endif %}
+		<form action="{%s p.action() %}" class="panel-body slim" method="POST">
+			{% if p.Token != nil %}
+				{%= form.Method("PATCH") %}
+			{% endif %}
+			{%v= p.CSRF %}
+			{%= p.Field(form.Field{
+				ID:   "name",
+				Name: "Name",
+				Type: form.Text,
+			}) %}
+			{% for _, res := range oauth2.Resources %}
+				{%= p.scopeField(res) %}
+			{% endfor %}
+			<div class="form-field">
+				{% if p.Token == nil %}
+					<button type="submit" class="btn btn-primary">Create</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Save</button>
+				{% endif %}
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

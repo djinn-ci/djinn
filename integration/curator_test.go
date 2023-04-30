@@ -1,22 +1,24 @@
 package integration
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"djinn-ci.com/build"
-	"djinn-ci.com/fs"
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 	"djinn-ci.com/log"
 
+	"github.com/andrewpillar/fs"
 	"github.com/andrewpillar/query"
 )
 
 func Test_BuildCuration(t *testing.T) {
-	u := users.get("gordon.freeman@black-mesa.com")
+	u := users.get("gordon.freeman")
 
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	b := submitBuildAndWait(t, cli, djinn.Passed, djinn.BuildParams{
 		Manifest: djinn.Manifest{
@@ -53,13 +55,15 @@ func Test_BuildCuration(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ctx := context.Background()
+
 	q := query.Update(
 		"users",
 		query.Set("cleanup", query.Arg(3<<20)),
 		query.Where("id", "=", query.Arg(u.ID)),
 	)
 
-	if _, err := db.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := db.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		t.Fatal(err)
 	}
 
@@ -74,7 +78,7 @@ func Test_BuildCuration(t *testing.T) {
 	log := log.New(f)
 	log.SetLevel("debug")
 
-	cur := build.NewCurator(log, db, fs.NewNull())
+	cur := build.NewCurator(log, db, fs.Null())
 
 	if err := cur.Invoke(); err != nil {
 		t.Fatal(err)
@@ -90,7 +94,7 @@ func Test_BuildCuration(t *testing.T) {
 
 	var count int64
 
-	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
+	if err := db.QueryRow(ctx, q.Build(), q.Args()...).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 
@@ -114,7 +118,7 @@ func Test_BuildCuration(t *testing.T) {
 		query.Where("deleted_at", "IS NOT", query.Lit("NULL")),
 	)
 
-	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&count); err != nil {
+	if err := db.QueryRow(ctx, q.Build(), q.Args()...).Scan(&count); err != nil {
 		t.Fatal(err)
 	}
 

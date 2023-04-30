@@ -1,18 +1,20 @@
 package http
 
 import (
+	"context"
 	"regexp"
 
+	"djinn-ci.com/auth"
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/user"
 
-	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
-
-	"golang.org/x/crypto/bcrypt"
+	"github.com/andrewpillar/webutil/v2"
 )
 
 type RegisterForm struct {
+	DB *database.Pool `schema:"-"`
+
 	Email          string
 	Username       string
 	Password       string
@@ -28,85 +30,67 @@ func (f RegisterForm) Fields() map[string]string {
 	}
 }
 
-type RegisterValidator struct {
-	Users user.Store
-	Form  RegisterForm
-}
-
 var (
-	_ webutil.Validator = (*RegisterValidator)(nil)
-
-	reemail = regexp.MustCompile("@")
+	reEmail    = regexp.MustCompile("@")
+	reUsername = regexp.MustCompile("^[a-zA-Z0-9.-]+$")
 )
 
-func (v RegisterValidator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Email == "" {
-		errs.Add("email", webutil.ErrFieldRequired("Email"))
+func (f RegisterForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
+
+	nametab := map[string]string{
+		"email":           "Email",
+		"username":        "Username",
+		"password":        "Password",
+		"verify_password": "Password",
 	}
 
-	if len(v.Form.Email) > 254 {
-		errs.Add("email", errors.New("Email must be less than 254 characters in length"))
-	}
-
-	if !reemail.Match([]byte(v.Form.Email)) {
-		errs.Add("email", errors.New("Invalid email address"))
-	}
-
-	u, ok, err := v.Users.Get(
-		query.Where("email", "=", query.Arg(v.Form.Email)),
-		query.OrWhere("username", "=", query.Arg(v.Form.Username)),
-	)
-
-	if err != nil {
-		errs.Add("fatal", err)
-		return
-	}
-
-	if ok {
-		if v.Form.Email == u.Email {
-			errs.Add("email", webutil.ErrFieldExists("Email"))
+	v.WrapError(func(name string, err error) error {
+		if _, ok := err.(webutil.MatchError); ok {
+			switch name {
+			case "email":
+				err = errors.New("invalid")
+			case "username":
+				err = errors.New("can only have letters, numbers, dots, and dashes")
+			}
 		}
-		if v.Form.Username == u.Username {
-			errs.Add("username", webutil.ErrFieldExists("Username"))
+		if s, ok := nametab[name]; ok {
+			name = s
 		}
-	}
+		if errors.Is(err, database.ErrExists) {
+			err = webutil.ErrFieldExists
+		}
+		return webutil.WrapFieldError(name, err)
+	})
 
-	if v.Form.Username == "" {
-		errs.Add("username", webutil.ErrFieldRequired("Username"))
-	}
+	users := user.NewStore(f.DB)
 
-	if len(v.Form.Username) < 3 || len(v.Form.Username) > 32 {
-		errs.Add("username", errors.New("Username must be between 3 and 32 characters in length"))
-	}
+	v.Add("email", f.Email, webutil.FieldRequired)
+	v.Add("email", f.Email, webutil.FieldMatches(reEmail))
+	v.Add("email", f.Email, database.FieldUnique[*auth.User](users, "email"))
 
-	if v.Form.Password == "" {
-		errs.Add("password", webutil.ErrFieldRequired("Password"))
-	}
+	v.Add("username", f.Username, webutil.FieldRequired)
+	v.Add("username", f.Username, webutil.FieldMatches(reUsername))
+	v.Add("username", f.Username, webutil.FieldLen(3, 30))
+	v.Add("username", f.Username, database.FieldUnique[*auth.User](users, "username"))
 
-	if len(v.Form.Password) < 6 || len(v.Form.Password) > 60 {
-		errs.Add("password", errors.New("Password must be between 6 and 60 characters in length"))
-	}
+	v.Add("password", f.Password, webutil.FieldRequired)
+	v.Add("password", f.Password, webutil.FieldLen(6, 60))
 
-	if v.Form.VerifyPassword == "" {
-		errs.Add("verify_password", webutil.ErrFieldRequired("Verify password"))
-	}
+	v.Add("verify_password", f.VerifyPassword, webutil.FieldRequired)
+	v.Add("verify_password", f.VerifyPassword, webutil.FieldEquals(f.Password))
 
-	if v.Form.Password != v.Form.VerifyPassword {
-		errs.Add("password", errors.New("Password does not match"))
-		errs.Add("verify_password", errors.New("Password does not match"))
-	}
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }
 
 type LoginForm struct {
+	AuthMech    string `schema:"auth_mech"`
 	Handle      string
 	Password    string
 	RedirectURI string `schema:"redirect_uri"`
 }
-
-var (
-	_ webutil.Form      = (*LoginForm)(nil)
-	_ webutil.Validator = (*LoginForm)(nil)
-)
 
 func (f LoginForm) Fields() map[string]string {
 	return map[string]string{
@@ -114,138 +98,135 @@ func (f LoginForm) Fields() map[string]string {
 	}
 }
 
-func (f LoginForm) Validate(errs webutil.ValidationErrors) {
-	if f.Handle == "" {
-		errs.Add("handle", webutil.ErrFieldRequired("Email or username"))
+func (f LoginForm) Validate(ctx context.Context) error {
+	if f.AuthMech != user.InternalProvider {
+		return nil
 	}
 
-	if f.Password == "" {
-		errs.Add("password", webutil.ErrFieldRequired("Password"))
+	var v webutil.Validator
+
+	nametab := map[string]string{
+		"handle":   "Email or username",
+		"password": "Password",
 	}
+
+	v.WrapError(func(name string, err error) error {
+		if s, ok := nametab[name]; ok {
+			name = s
+		}
+		return webutil.WrapFieldError(name, err)
+	})
+
+	v.WrapError(func(name string, err error) error {
+		if s, ok := nametab[name]; ok {
+			name = s
+		}
+		return webutil.WrapFieldError(name, err)
+	})
+
+	v.Add("handle", f.Handle, webutil.FieldRequired)
+	v.Add("password", f.Password, webutil.FieldRequired)
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }
 
 type EmailForm struct {
+	DB *database.Pool `schema:"-"`
+
 	Token          string
-	Email          string
-	VerifyPassword string `schema:"verify_password"`
+	Email          string `schema:"update_email.email"`
+	VerifyPassword string `schema:"update_email.verify_password"`
 	RedirectURI    string `schema:"redirect_uri"`
 }
 
 var _ webutil.Form = (*EmailForm)(nil)
 
 func (f EmailForm) Fields() map[string]string {
-	return map[string]string{
-		"email": f.Email,
-	}
+	return map[string]string{"email": f.Email}
 }
 
-type EmailValidator struct {
-	Users user.Store
-	User  *user.User
-	Form  EmailForm
-}
+func (f EmailForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-func (v EmailValidator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Email == "" {
-		errs.Add("email", webutil.ErrFieldRequired("Email"))
-	}
+	v.WrapError(
+		webutil.MapError(database.ErrExists, errors.New("already exists")),
+		webutil.WrapFieldError,
+	)
 
-	if len(v.Form.Email) > 254 {
-		errs.Add("email", errors.New("must be less than 254 characters"))
-	}
+	v.Add("update_email.email", f.Email, webutil.FieldRequired)
+	v.Add("update_email.email", f.Email, webutil.FieldMatches(reEmail))
+	v.Add("update_email.email", f.Email, database.FieldUniqueExcept[*auth.User](user.NewStore(f.DB), "email", f.Email))
 
-	if !reemail.Match([]byte(v.Form.Email)) {
-		errs.Add("email", errors.New("Invalid email address"))
-	}
+	v.Add("update_email.verify_password", f.VerifyPassword, webutil.FieldRequired)
 
-	if v.Form.Email != v.User.Email {
-		_, ok, err := v.Users.Get(query.Where("email", "=", query.Arg(v.Form.Email)))
+	errs := v.Validate(ctx)
 
-		if err != nil {
-			errs.Add("fatal", err)
-			return
-		}
-
-		if ok {
-			errs.Add("email", webutil.ErrFieldExists("Email"))
-		}
-	}
-
-	if v.Form.VerifyPassword == "" {
-		if v.Form.Token == "" {
-			errs.Add("email_verify_password", webutil.ErrFieldRequired("Password"))
-		}
-	}
+	return errs.Err()
 }
 
 type PasswordForm struct {
-	OldPassword    string `schema:"old_password"`
-	NewPassword    string `schema:"new_password"`
-	VerifyPassword string `schema:"verify_password"`
+	User *auth.User `schema:"-"`
+
+	OldPassword    string `schema:"update_password.old_password"`
+	NewPassword    string `schema:"update_password.new_password"`
+	VerifyPassword string `schema:"update_password.verify_new_password"`
 }
 
 var _ webutil.Form = (*PasswordForm)(nil)
 
 func (f PasswordForm) Fields() map[string]string { return nil }
 
-type PasswordValidator struct {
-	User  *user.User
-	Users user.Store
-	Form  PasswordForm
-}
+func (f PasswordForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-func (v PasswordValidator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.OldPassword == "" {
-		errs.Add("old_password", webutil.ErrFieldRequired("Old password"))
+	nametab := map[string]string{
+		"update_password.old_password":        "Password",
+		"update_password.new_password":        "Password",
+		"update_password.verify_new_password": "Password",
 	}
 
-	if err := bcrypt.CompareHashAndPassword(v.User.Password, []byte(v.Form.OldPassword)); err != nil {
-		errs.Add("old_password", errors.New("Invalid password"))
-	}
+	v.WrapError(func(name string, err error) error {
+		if s, ok := nametab[name]; ok {
+			name = s
+		}
+		return webutil.WrapFieldError(name, err)
+	})
 
-	if v.Form.NewPassword == "" {
-		errs.Add("new_password", webutil.ErrFieldRequired("New password"))
-	}
+	v.Add("update_password.old_password", f.OldPassword, webutil.FieldRequired)
+	v.Add("update_password.old_password", f.OldPassword, user.ValidatePassword(f.User))
 
-	if len(v.Form.NewPassword) < 6 || len(v.Form.NewPassword) > 60 {
-		errs.Add("new_password", errors.New("Password must be between 6 and 60 characters in length"))
-	}
+	v.Add("update_password.new_password", f.NewPassword, webutil.FieldRequired)
+	v.Add("update_password.new_password", f.NewPassword, webutil.FieldLen(6, 60))
 
-	if v.Form.VerifyPassword == "" {
-		errs.Add("pass_verify_password", webutil.ErrFieldRequired("Password"))
-	}
+	v.Add("update_password.verify_new_password", f.VerifyPassword, webutil.FieldRequired)
+	v.Add("update_password.verify_new_password", f.VerifyPassword, webutil.FieldEquals(f.NewPassword))
 
-	if v.Form.NewPassword != v.Form.VerifyPassword {
-		errs.Add("new_password", errors.New("Password does not match"))
-		errs.Add("pass_verify_password", errors.New("Password does not match"))
-	}
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }
 
 type PasswordResetForm struct {
 	Email string
 }
 
-var (
-	_ webutil.Form      = (*PasswordResetForm)(nil)
-	_ webutil.Validator = (*PasswordResetForm)(nil)
-)
+var _ webutil.Form = (*PasswordResetForm)(nil)
 
 func (f PasswordResetForm) Fields() map[string]string {
 	return map[string]string{"email": f.Email}
 }
 
-func (f PasswordResetForm) Validate(errs webutil.ValidationErrors) {
-	if f.Email == "" {
-		errs.Add("email", webutil.ErrFieldRequired("Email"))
-	}
+func (f PasswordResetForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-	if len(f.Email) > 254 {
-		errs.Add("email", errors.New("Email must be less than 254 characters in length"))
-	}
+	v.Add("email", f.Email, webutil.FieldRequired)
+	v.Add("email", f.Email, webutil.FieldMatches(reEmail))
 
-	if !reemail.Match([]byte(f.Email)) {
-		errs.Add("email", errors.New("Invalid email address"))
-	}
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }
 
 type NewPasswordForm struct {
@@ -254,84 +235,101 @@ type NewPasswordForm struct {
 	VerifyPassword string `schema:"verify_password"`
 }
 
-var (
-	_ webutil.Form      = (*NewPasswordForm)(nil)
-	_ webutil.Validator = (*NewPasswordForm)(nil)
-)
+var _ webutil.Form = (*NewPasswordForm)(nil)
 
 func (f NewPasswordForm) Fields() map[string]string { return nil }
 
-func (f NewPasswordForm) Validate(errs webutil.ValidationErrors) {
-	if f.Password == "" {
-		errs.Add("password", webutil.ErrFieldRequired("New password"))
+func (f NewPasswordForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
+
+	nametab := map[string]string{
+		"password":        "Password",
+		"verify_password": "Password",
 	}
 
-	if len(f.Password) < 6 || len(f.Password) > 60 {
-		errs.Add("password", errors.New("Password must be between 6 and 60 characters in length"))
-	}
+	v.WrapError(func(name string, err error) error {
+		if s, ok := nametab[name]; ok {
+			name = s
+		}
+		return webutil.WrapFieldError(name, err)
+	})
 
-	if f.VerifyPassword == "" {
-		errs.Add("verify_password", webutil.ErrFieldRequired("Password"))
-	}
+	v.Add("password", f.Password, webutil.FieldRequired)
+	v.Add("password", f.Password, webutil.FieldLen(6, 60))
 
-	if f.Password != f.VerifyPassword {
-		errs.Add("password", errors.New("Password does not match"))
-		errs.Add("verify_password", errors.New("Password does not match"))
-	}
+	v.Add("verify_password", f.VerifyPassword, webutil.FieldRequired)
+	v.Add("verify_password", f.VerifyPassword, webutil.FieldEquals(f.VerifyPassword))
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }
 
 type DeleteForm struct {
-	Password string `schema:"delete_password"`
+	User     *auth.User `schema:"-"`
+	Password string     `schema:"delete_account.verify_password"`
 }
 
 var _ webutil.Form = (*DeleteForm)(nil)
 
 func (f DeleteForm) Fields() map[string]string { return nil }
 
-type DeleteValidator struct {
-	User *user.User
-	Form DeleteForm
-}
+func (f DeleteForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-var _ webutil.Validator = (*DeleteValidator)(nil)
-
-func (v DeleteValidator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Password == "" {
-		errs.Add("delete_password", webutil.ErrFieldRequired("Password"))
+	nametab := map[string]string{
+		"delete_account.verify_password": "Password",
 	}
 
-	if err := bcrypt.CompareHashAndPassword(v.User.Password, []byte(v.Form.Password)); err != nil {
-		errs.Add("delete_password", errors.New("Invalid password"))
-	}
+	v.WrapError(func(name string, err error) error {
+		if s, ok := nametab[name]; ok {
+			name = s
+		}
+		return webutil.WrapFieldError(name, err)
+	})
+
+	v.Add("delete_account.verify_password", f.Password, webutil.FieldRequired)
+	v.Add("delete_account.verify_password", f.Password, user.ValidatePassword(f.User))
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }
 
 type SudoForm struct {
-	Token    string `schema:"sudo_token"`
-	URL      string `schema:"sudo_url"`
-	Referer  string `schema:"sudo_referer"`
-	Password string
+	User  *auth.User `schema:"-"`
+	Token string     `schema:"-"`
+
+	SudoToken   string `schema:"sudo_token"`
+	SudoURL     string `schema:"sudo_url"`
+	SudoReferer string `schema:"sudo_referer"`
+	Password    string
 }
 
 var _ webutil.Form = (*SudoForm)(nil)
 
 func (f SudoForm) Fields() map[string]string { return nil }
 
-type SudoValidator struct {
-	Form  SudoForm
-	User  *user.User
-	Token string
-}
+func (f SudoForm) Validate(ctx context.Context) error {
+	var v webutil.Validator
 
-func (v SudoValidator) Validate(errs webutil.ValidationErrors) {
-	if v.Form.Password == "" {
-		errs.Add("password", webutil.ErrFieldRequired("Password"))
+	nametab := map[string]string{
+		"password": "Password",
 	}
 
-	if err := bcrypt.CompareHashAndPassword(v.User.Password, []byte(v.Form.Password)); err != nil {
-		errs.Add("password", errors.New("Invalid password"))
-	}
+	v.WrapError(func(name string, err error) error {
+		if s, ok := nametab[name]; ok {
+			name = s
+		}
+		return webutil.WrapFieldError(name, err)
+	})
 
-	if v.Form.Token != v.Token {
-		errs.Add("password", errors.New("Token mismatch"))
-	}
+	v.Add("password", f.Password, webutil.FieldRequired)
+	v.Add("password", f.Password, user.ValidatePassword(f.User))
+
+	v.Add("sudo_token", f.SudoToken, webutil.FieldEquals(f.Token))
+
+	errs := v.Validate(ctx)
+
+	return errs.Err()
 }

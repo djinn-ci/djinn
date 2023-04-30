@@ -1,4 +1,3 @@
-// Package errors implements some utility functions for giving detailed errors.
 package errors
 
 import (
@@ -6,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path"
 	"runtime"
 )
 
@@ -43,11 +41,58 @@ func Cause(err error) error {
 	return err
 }
 
+func As(err error, target any) bool {
+	return errors.As(err, target)
+}
+
 // Is reports whether any error in err's chain matches target. This calls
 // errors.Is from the stdlib.
 func Is(err, target error) bool {
 	return errors.Is(err, target)
 }
+
+type wrappedError struct {
+	err error
+	msg string
+}
+
+func (e wrappedError) Error() string { return e.msg }
+
+func (e wrappedError) Unwrap() error { return e.err }
+
+// Wrap annotates the given error with the given message.
+func Wrap(err error, msg string) error {
+	funcName, file, line := caller()
+
+	return wrappedError{
+		err: &Error{
+			Err:  err,
+			Func: funcName,
+			File: file,
+			Line: line,
+		},
+		msg: msg,
+	}
+}
+
+func caller() (string, string, int) {
+	pc, file, line, _ := runtime.Caller(skip + 1)
+	pcFunc := runtime.FuncForPC(pc)
+
+	funcName := ""
+
+	if pcFunc != nil {
+		funcName = pcFunc.Name()
+	}
+	return funcName, file, line
+}
+
+// Benign simply denotes an error that can be ignored. This would typically be
+// used to exclude any error messages from logs, that you would want otherwise
+// reported to a user, for example, validation errors.
+type Benign string
+
+func (e Benign) Error() string { return string(e) }
 
 // Err wraps the given error in the context in which it occurred. If the given
 // err is nil then nil is returned.
@@ -56,20 +101,13 @@ func Err(err error) error {
 		return nil
 	}
 
-	pc, fname, l, _ := runtime.Caller(skip)
-	pcFunc := runtime.FuncForPC(pc)
-
-	funcName := ""
-
-	if pcFunc != nil {
-		funcName = pcFunc.Name()
-	}
+	funcName, file, line := caller()
 
 	return &Error{
 		Err:  err,
 		Func: funcName,
-		File: fname,
-		Line: l,
+		File: file,
+		Line: line,
 	}
 }
 
@@ -80,10 +118,23 @@ func Unwrap(err error) error {
 	return errors.Unwrap(err)
 }
 
+func Format(err error) string {
+	if err == nil {
+		return ""
+	}
+
+	e, ok := err.(*Error)
+
+	if !ok {
+		return err.Error()
+	}
+	return fmt.Sprintf("%s - %s:%d:\n%s", e.Func, e.File, e.Line, Format(e.Err))
+}
+
 // Error returns the full "stacktrace" of the error using the context data
 // about that error.
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s - %s:%d: %s", path.Base(e.Func), e.File, e.Line, e.Err)
+	return fmt.Sprintf("%s - %s:%d: %s", e.Func, e.File, e.Line, e.Err)
 }
 
 // Unwrap returns the underlying error.

@@ -1,0 +1,233 @@
+{%
+import (
+	"regexp"
+
+	"djinn-ci.com/auth"
+	"djinn-ci.com/provider"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type Settings struct {
+	*form.Form
+
+	Page      *Page
+	Providers []*provider.Provider
+	Partial   Partial
+}
+
+var settingsLinks = []navLink{
+	{
+		Title:   "Account",
+		Href:    "/settings",
+		Icon:    "static/svg/user.svg",
+		Pattern: regexp.MustCompile("^\\/settings$"),
+	},
+	{
+		Title:   "OAuth Apps",
+		Href:    "/settings/apps",
+		Icon:    "static/svg/folder.svg",
+		Pattern: regexp.MustCompile("\\/settings\\/apps"),
+	},
+	{
+		Title:   "Access Tokens",
+		Href:    "/settings/tokens",
+		Icon:    "static/svg/code.svg",
+		Pattern: regexp.MustCompile("\\/settings\\/tokens\\/?"),
+	},
+	{
+		Title:   "Authorized OAuth apps",
+		Href:    "/settings/connections",
+		Icon:    "static/svg/apps.svg",
+		Pattern: regexp.MustCompile("\\/settings\\/connections\\/?"),
+	},
+}
+
+func cleanup(u *auth.User) string {
+	return HumanSize(u.RawData["cleanup"].(int64))
+}
+%}
+
+{% collapsespace %}
+{% func (p *Settings) Title() %}
+	Settings{%if p.Partial != nil %} - {%= p.Partial.Title() %}{% endif %}
+{% endfunc %}
+
+{% func (p *Settings) Header() %}
+	{% if p.Partial == nil %}
+		Settings
+	{% else %}
+		{%= p.Partial.Header() %}
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Settings) Footer() %}{% endfunc %}
+
+{% func (p *Settings) Actions() %}
+	{% if p.Partial != nil %}
+		{%= p.Partial.Actions() %}
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Settings) Navigation() %}
+	{% for _, link := range settingsLinks %}
+		<li>{%= link.render(p.Page.URL.Path) %}</li>
+	{% endfor %}
+{% endfunc %}
+
+{% func (p *Settings) verifyForm() %}
+	{% if !verified(p.Page.User) %}
+		<form method="POST" action="/settings/verify">
+			<h2>Verify account</h2>
+			{%v= p.CSRF %}
+			<div class="form-field">
+				<button type="submit" class="btn btn-primary">Send verification email</button>
+			</div>
+		</form>
+		<div class="separator"></div>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Settings) providerForm(prv *provider.Provider) %}
+	{% if !prv.Connected %}
+		<form method="POST" action="/oauth" class="inline-block">
+			{%v= p.CSRF %}
+			<input type="hidden" name="auth_mech" value="oauth2.{%s prv.Name %}"/>
+			<button type="submit" class="provider-btn provider-{%s prv.Name %}">
+				{% switch prv.Name %}
+				{% case "github" %}
+					{% cat "static/svg/github.svg" %}
+				{% case "gitlab" %}
+					{% cat "static/svg/gitlab.svg" %}
+				{% endswitch %}
+				<span>Connect</span>
+			</button>
+		</form>
+	{% else %}
+		<form method="POST" action="/oauth/{%s prv.Name %}" class="inline-block">
+			{%= form.Method("DELETE") %}
+			{%v= p.CSRF %}
+			<button type="submit" class="provider-btn provider-{%s prv.Name %}">
+				{% switch prv.Name %}
+				{% case "github" %}
+					{% cat "static/svg/github.svg" %}
+				{% case "gitlab" %}
+					{% cat "static/svg/gitlab.svg" %}
+				{% endswitch %}
+				<span>Disconnect</span>
+			</button>
+		</form>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Settings) providerForms() %}
+	{% if len(p.Providers) > 0 %}
+		<h2>Connected accounts</h2>
+		{% for _, prv := range p.Providers %}
+			{%= p.providerForm(prv) %}
+		{% endfor %}
+	{% endif %}
+{% endfunc %}
+
+{% func (p *Settings) cleanupForm() %}
+	<form method="POST" action="/settings/cleanup">
+		{%= form.Method("PATCH") %}
+		{%v= p.CSRF %}
+		{%= p.Field(form.Field{
+			ID:    "cleanup",
+			Name:  "Cleanup threshold",
+			Type:  form.Text,
+			Desc:  "The size threshold after which old artifacts should be deleted",
+			Value: cleanup(p.Page.User),
+		}) %}
+		<div class="form-field">
+			<button type="submit" class="btn btn-primary">Update</button>
+		</div>
+	</form>
+{% endfunc %}
+
+{% func (p *Settings) emailForm() %}
+	<form method="POST" action="/settings/email">
+		<h2>Change email</h2>
+		{%= form.Method("PATCH") %}
+		{%v= p.CSRF %}
+		{%= p.Field(form.Field{
+			ID:   "update_email.email",
+			Name: "Email",
+			Type: form.Text,
+		}) %}
+		{%= p.Field(form.Field{
+			ID:   "update_email.verify_password",
+			Name: "Verify Password",
+			Type: form.Password,
+		}) %}
+		<div class="form-field">
+			<button type="submit" class="btn btn-primary">Update</button>
+		</div>
+	</form>
+{% endfunc %}
+
+{% func (p *Settings) passwordForm() %}
+	<form method="POST" action="/settings/password">
+		<h2>Change password</h2>
+		{%= form.Method("PATCH") %}
+		{%v= p.CSRF %}
+		{%= p.Field(form.Field{
+			ID:   "update_password.old_password",
+			Name: "Old password",
+			Type: form.Password,
+		}) %}
+		{%= p.Field(form.Field{
+			ID:   "update_password.new_password",
+			Name: "New Password",
+			Type: form.Password,
+		}) %}
+		{%= p.Field(form.Field{
+			ID:   "update_password.verify_new_password",
+			Name: "Verify Password",
+			Type: form.Password,
+		}) %}
+		<div class="form-field">
+			<button type="submit" class="btn btn-primary">Update</button>
+		</div>
+	</form>
+{% endfunc %}
+
+{% func (p *Settings) deleteForm() %}
+	<form method="POST" action="/settings/delete">
+		<h2>Delete account</h2>
+		{%= form.Method("DELETE") %}
+		{%v= p.CSRF %}
+		{%= p.Field(form.Field{
+			ID:   "delete_account.verify_password",
+			Name: "Verify Password",
+			Type: form.Password,
+		}) %}
+		<div class="form-field">
+			<button type="submit" class="btn btn-danger">Delete</button>
+		</div>
+	</form>
+{% endfunc %}
+
+{% func (p *Settings) Body() %}
+	{% if p.Partial != nil %}
+		{%= p.Partial.Body() %}
+	{% else %}
+		<div class="panel">
+			<div class="panel-body slim">
+				{%= p.verifyForm() %}
+				{%= p.providerForms() %}
+				<div class="separator"></div>
+				{%= p.cleanupForm() %}
+				<div class="separator"></div>
+				{%= p.emailForm() %}
+				<div class="separator"></div>
+				{%= p.passwordForm() %}
+				<div class="separator"></div>
+				{%= p.deleteForm() %}
+			</div>
+		</div>
+	{% endif %}
+{% endfunc %}
+{% endcollapsespace %}

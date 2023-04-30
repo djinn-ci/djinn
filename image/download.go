@@ -9,6 +9,7 @@ import (
 	"database/sql/driver"
 	"encoding/base64"
 	"encoding/gob"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/url"
@@ -17,10 +18,10 @@ import (
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/queue"
 
+	"github.com/andrewpillar/fs"
 	"github.com/andrewpillar/query"
 
 	"github.com/pkg/sftp"
@@ -41,19 +42,12 @@ type DownloadJob struct {
 var (
 	_ queue.Job = (*DownloadJob)(nil)
 
-	downloadSchemes = map[string]struct{}{
-		"http":  {},
-		"https": {},
-		"sftp":  {},
-	}
-
 	MimeTypeQEMU = "application/x-qemu-disk"
 
-	ErrInvalidScheme   = errors.New("invalid url scheme")
-	ErrMissingPassword = errors.New("missing password in url")
+	ErrInvalidScheme = errors.New("image: invalid url scheme")
 )
 
-func NewDownloadJob(db database.Pool, i *Image, url DownloadURL) (queue.Job, error) {
+func NewDownloadJob(pool *database.Pool, i *Image, url DownloadURL) (queue.Job, error) {
 	q := query.Insert(
 		downloadTable,
 		query.Columns("image_id", "source", "created_at"),
@@ -63,7 +57,7 @@ func NewDownloadJob(db database.Pool, i *Image, url DownloadURL) (queue.Job, err
 
 	var id int64
 
-	if err := db.QueryRow(q.Build(), q.Args()...).Scan(&id); err != nil {
+	if err := pool.QueryRow(context.Background(), q.Build(), q.Args()...).Scan(&id); err != nil {
 		return nil, errors.Err(err)
 	}
 	return &DownloadJob{
@@ -73,12 +67,12 @@ func NewDownloadJob(db database.Pool, i *Image, url DownloadURL) (queue.Job, err
 	}, nil
 }
 
-func DownloadJobInit(db database.Pool, q queue.Queue, log *log.Logger, store fs.Store) queue.InitFunc {
+func DownloadJobInit(pool *database.Pool, q queue.Queue, log *log.Logger, fs fs.FS) queue.InitFunc {
 	return func(j queue.Job) {
 		if d, ok := j.(*DownloadJob); ok {
 			d.store = &Store{
-				Pool:  db,
-				Store: store,
+				Store: NewStore(pool),
+				FS:    fs,
 			}
 			d.queue = q
 			d.log = log
@@ -101,7 +95,9 @@ func (d *DownloadJob) Perform() error {
 
 	d.log.Debug.Println("image download started at", now)
 
-	if _, err := d.store.Exec(q.Build(), q.Args()...); err != nil {
+	ctx := context.Background()
+
+	if _, err := d.store.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		d.log.Error.Println(errors.Err(err))
 		return errors.Err(err)
 	}
@@ -240,7 +236,7 @@ func (d *DownloadJob) Perform() error {
 		return ErrInvalidScheme
 	}
 
-	i, _, err := d.store.Get(query.Where("id", "=", query.Arg(d.ImageID)))
+	i, _, err := d.store.Get(ctx, query.Where("id", "=", query.Arg(d.ImageID)))
 
 	if err != nil {
 		d.log.Error.Println(errors.Err(err))
@@ -248,28 +244,27 @@ func (d *DownloadJob) Perform() error {
 	}
 
 	if r != nil {
-		store, err := d.store.Partition(i.UserID)
+		store, err := i.filestore(d.store.FS)
 
 		if err != nil {
 			d.log.Error.Println(errors.Err(err))
 			return errors.Err(err)
 		}
 
-		dst, err := store.Create(i.path())
+		f, err := fs.ReadFile(i.Hash, r)
 
 		if err != nil {
-			downloaderr.String = errors.Cause(err).Error()
-			downloaderr.Valid = true
-			goto update
+			return errors.Err(err)
 		}
 
-		if _, err := io.Copy(dst, r); err != nil {
+		defer fs.Cleanup(f)
+
+		if _, err := store.Put(f); err != nil {
 			downloaderr.String = errors.Cause(err).Error()
 			downloaderr.Valid = true
 		}
 	}
 
-update:
 	q = query.Update(
 		downloadTable,
 		query.Set("error", query.Arg(downloaderr)),
@@ -277,14 +272,14 @@ update:
 		query.Where("id", "=", query.Arg(d.ID)),
 	)
 
-	if _, err := d.store.Exec(q.Build(), q.Args()...); err != nil {
+	if _, err := d.store.Exec(ctx, q.Build(), q.Args()...); err != nil {
 		d.log.Error.Println(errors.Err(err))
 		return errors.Err(err)
 	}
 
 	d.log.Debug.Println("dispatching 'downloaded' event")
 
-	d.queue.Produce(context.Background(), &Event{
+	d.queue.Produce(ctx, &Event{
 		Image:  i,
 		Action: "downloaded",
 	})
@@ -364,22 +359,18 @@ func (u *DownloadURL) UnmarshalText(b []byte) error {
 	if err != nil {
 		return errors.Err(err)
 	}
-
-	if _, ok := downloadSchemes[u.Scheme]; !ok {
-		return ErrInvalidScheme
-	}
-
-	if u.Scheme == "sftp" {
-		if _, ok := u.User.Password(); !ok {
-			return ErrMissingPassword
-		}
-	}
 	return nil
 }
 
-func (u *DownloadURL) Validate() error {
-	if _, ok := downloadSchemes[u.Scheme]; ok {
-		return ErrInvalidScheme
+func (u *DownloadURL) UnmarshalJSON(b []byte) error {
+	var s string
+
+	if err := json.Unmarshal(b, &s); err != nil {
+		return errors.Err(err)
+	}
+
+	if err := u.UnmarshalText([]byte(s)); err != nil {
+		return errors.Err(err)
 	}
 	return nil
 }
@@ -390,97 +381,72 @@ type Download struct {
 	ID         int64
 	ImageID    int64
 	Source     DownloadURL
-	Error      sql.NullString
+	Error      database.Null[string]
 	CreatedAt  time.Time
-	StartedAt  sql.NullTime
-	FinishedAt sql.NullTime
+	StartedAt  database.Null[time.Time]
+	FinishedAt database.Null[time.Time]
 }
 
 var _ database.Model = (*Download)(nil)
 
-func (d *Download) Dest() []interface{} {
-	return []interface{}{
-		&d.ID,
-		&d.ImageID,
-		&d.Source,
-		&d.Error,
-		&d.CreatedAt,
-		&d.StartedAt,
-		&d.FinishedAt,
+func (d *Download) Primary() (string, any) { return "id", d.ID }
+
+func (d *Download) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":          &d.ID,
+		"image_id":    &d.ImageID,
+		"source":      &d.Source,
+		"error":       &d.Error,
+		"created_at":  &d.CreatedAt,
+		"started_at":  &d.StartedAt,
+		"finished_at": &d.FinishedAt,
+	}
+
+	if err := database.Scan(r, valtab); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
+func (d *Download) Params() database.Params {
+	return database.Params{
+		"id":          database.ImmutableParam(d.ID),
+		"image_id":    database.CreateOnlyParam(d.ImageID),
+		"source":      database.CreateOnlyParam(d.Source),
+		"error":       database.UpdateOnlyParam(d.Error),
+		"created_at":  database.CreateOnlyParam(d.CreatedAt),
+		"started_at":  database.UpdateOnlyParam(d.StartedAt),
+		"finished_at": database.UpdateOnlyParam(d.FinishedAt),
 	}
 }
 
-func (*Download) Bind(_ database.Model) {}
+func (*Download) Bind(database.Model) {}
 
-func (*Download) JSON(_ string) map[string]interface{} { return nil }
+func (d *Download) MarshalJSON() ([]byte, error) {
+	if d == nil {
+		return []byte("null"), nil
+	}
 
-func (*Download) Endpoint(_ ...string) string { return "" }
-
-func (d *Download) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":          d.ID,
-		"image_id":    d.ImageID,
-		"source":      d.Source,
+	b, err := json.Marshal(map[string]any{
+		"source":      d.Source.String(),
 		"error":       d.Error,
 		"created_at":  d.CreatedAt,
 		"started_at":  d.StartedAt,
 		"finished_at": d.FinishedAt,
-	}
-}
-
-type DownloadStore struct {
-	database.Pool
-}
-
-var (
-	_ database.Loader = (*DownloadStore)(nil)
-
-	downloadTable = "image_downloads"
-)
-
-func (s DownloadStore) Get(opts ...query.Option) (*Download, bool, error) {
-	var d Download
-
-	ok, err := s.Pool.Get(downloadTable, &d, opts...)
+	})
 
 	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &d, ok, nil
-}
-
-func (s DownloadStore) All(opts ...query.Option) ([]*Download, error) {
-	dd := make([]*Download, 0)
-
-	new := func() database.Model {
-		d := &Download{}
-		dd = append(dd, d)
-		return d
-	}
-
-	if err := s.Pool.All(downloadTable, new, opts...); err != nil {
 		return nil, errors.Err(err)
 	}
-	return dd, nil
+	return b, nil
 }
 
-func (s DownloadStore) Load(fk, pk string, mm ...database.Model) error {
-	vals := database.Values(fk, mm)
+func (*Download) Endpoint(...string) string { return "" }
 
-	dd, err := s.All(query.Where(pk, "IN", database.List(vals...)))
+const downloadTable = "image_downloads"
 
-	if err != nil {
-		return errors.Err(err)
-	}
-
-	for _, d := range dd {
-		for _, m := range mm {
-			m.Bind(d)
-		}
-	}
-	return nil
+func NewDownloadStore(pool *database.Pool) *database.Store[*Download] {
+	return database.NewStore[*Download](pool, downloadTable, func() *Download {
+		return &Download{}
+	})
 }

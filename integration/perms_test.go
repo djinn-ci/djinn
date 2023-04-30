@@ -9,12 +9,13 @@ import (
 	"net/http"
 	"testing"
 
+	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
-	"djinn-ci.com/namespace"
 )
 
 func Test_UserPerms(t *testing.T) {
-	freeman, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	freeman, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	n, err := djinn.CreateNamespace(freeman, djinn.NamespaceParams{
 		Name:       "blueshift",
@@ -79,7 +80,7 @@ func Test_UserPerms(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	breen, _ := djinn.NewClientWithLogger(tokens.get("wallace.breen").Token, apiEndpoint, t)
+	breen, _ := djinn.NewClientWithLogger(tokens.get("wallace.breen").Token, env.DJINN_API_SERVER, t)
 
 	deletes := map[string]func(*djinn.Client) error{
 		"delete variable": v.Delete,
@@ -145,7 +146,7 @@ func Test_UserPerms(t *testing.T) {
 		t.Fatalf("could not find key %q in errors map\n", "namespace")
 	}
 
-	if msg[0] != namespace.ErrPermission.Error() {
-		t.Fatalf("unexpected namespace error, expected=%q, got=%q\n", namespace.ErrPermission, msg[0])
+	if msg[0] != "Namespace permission denied" {
+		t.Fatalf("unexpected namespace error, expected=%q, got=%q\n", database.ErrPermission, msg[0])
 	}
 }

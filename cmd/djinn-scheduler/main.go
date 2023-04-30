@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
-	"time"
 
 	"djinn-ci.com/config"
 	"djinn-ci.com/cron"
@@ -36,7 +35,7 @@ func main() {
 	f, err := os.Open(configfile)
 
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], errors.Cause(err))
+		fmt.Fprintf(os.Stderr, "%s: %s\n", os.Args[0], err)
 		os.Exit(1)
 	}
 
@@ -76,50 +75,24 @@ func main() {
 
 	signal.Notify(c, os.Interrupt)
 
-	d := cfg.Interval()
-	t := time.NewTicker(d)
+	scheduler := cron.NewScheduler(cfg)
 
-	queues := cfg.DriverQueues()
-	batchsize := cfg.BatchSize()
+	go func() {
+		defer func() {
+			v := recover()
 
-	hasher := cfg.Hasher()
+			if err, ok := v.(error); ok {
+				log.Error.Println(err, "\n", string(debug.Stack()))
+			}
+		}()
 
-loop:
-	for {
-		select {
-		case <-t.C:
-			func() {
-				defer func() {
-					v := recover()
+		scheduler.Run(ctx, int(cfg.BatchSize()), func(err error) {
+			log.Error.Println(err)
+		})
+	}()
 
-					if e, ok := v.(error); ok {
-						log.Error.Println(e.Error() + "\n" + string(debug.Stack()))
-					}
-				}()
+	sig := <-c
 
-				batcher := cron.NewBatcher(db, hasher, queues, batchsize, func(err error) {
-					log.Error.Println(err)
-				})
-
-				log.Debug.Println("loading batch of size", batchsize)
-
-				for batcher.Load() {
-					log.Debug.Println("scheduled", len(batcher.Batch()), "cron job(s)")
-
-					n := batcher.Invoke(ctx)
-
-					log.Debug.Println("submitted", n, "build(s)")
-				}
-
-				if err := batcher.Err(); err != nil {
-					log.Error.Println("batch error", err)
-				}
-			}()
-		case sig := <-c:
-			t.Stop()
-			cancel()
-			log.Info.Println("signal:", sig, "received, shutting down")
-			break loop
-		}
-	}
+	log.Info.Println("signal:", sig, "received, shutting down")
+	cancel()
 }

@@ -4,104 +4,54 @@ import (
 	"net/http"
 
 	"djinn-ci.com/alert"
+	"djinn-ci.com/auth"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/key"
-	keytemplate "djinn-ci.com/key/template"
 	"djinn-ci.com/namespace"
 	"djinn-ci.com/server"
 	"djinn-ci.com/template"
-	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
-
-	"github.com/andrewpillar/webutil"
-
-	"github.com/gorilla/csrf"
+	"djinn-ci.com/template/form"
 )
 
 type UI struct {
 	*Handler
 }
 
-func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	kk, paginator, err := h.IndexWithRelations(u, r)
+func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
 		return
 	}
 
-	if err := key.LoadNamespaces(h.DB, kk...); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	search := r.URL.Query().Get("search")
-	csrf := csrf.TemplateField(r)
-
-	p := &keytemplate.Index{
-		BasePage: template.BasePage{
-			URL:  r.URL,
-			User: u,
-		},
-		CSRF:      csrf,
-		Search:    search,
-		Paginator: paginator,
-		Keys:      kk,
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) Create(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	csrf := csrf.TemplateField(r)
-
-	p := &keytemplate.Form{
-		Form: template.Form{
-			CSRF:   csrf,
-			Errors: webutil.FormErrors(sess),
-			Fields: webutil.FormFields(sess),
-		},
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	k, f, err := h.StoreModel(u, r)
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.KeyIndex{
+		Paginator: template.NewPaginator[*key.Key](tmpl.Page, p),
+		Keys:      p.Items,
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h UI) Create(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.KeyForm{
+		Form: form.New(sess, r),
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h UI) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	k, f, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		errs := webutil.NewValidationErrors()
-
-		switch err := cause.(type) {
-		case webutil.ValidationErrors:
-			if errs, ok := err["fatal"]; ok {
-				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
-				alert.Flash(sess, alert.Danger, "Failed to create key")
-				h.RedirectBack(w, r)
-				return
-			}
-			errs = err
-		case *namespace.PathError:
-			errs.Add("namespace", err)
-		default:
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to create key")
-			h.RedirectBack(w, r)
-			return
-		}
-
-		webutil.FlashFormWithErrors(sess, f, errs)
-		h.RedirectBack(w, r)
+		h.FormError(w, r, f, err)
 		return
 	}
 
@@ -109,46 +59,24 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, "/keys")
 }
 
-func (h UI) Edit(u *user.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	csrf := csrf.TemplateField(r)
-
-	p := &keytemplate.Form{
-		Form: template.Form{
-			CSRF:   csrf,
-			Errors: webutil.FormErrors(sess),
-			Fields: webutil.FormFields(sess),
-		},
-		Key: k,
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) Update(u *user.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
+func (h UI) Edit(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	k, f, err := h.UpdateModel(k, r)
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.KeyForm{
+		Form: form.NewWithModel(sess, r, k),
+		Key:  k,
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h UI) Update(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	k, f, err := h.Handler.Update(u, k, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
-				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
-				alert.Flash(sess, alert.Danger, "Failed to update key")
-				h.RedirectBack(w, r)
-				return
-			}
-
-			webutil.FlashFormWithErrors(sess, f, verrs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		h.InternalServerError(w, r, errors.Err(err))
+		h.FormError(w, r, f, err)
 		return
 	}
 
@@ -156,13 +84,11 @@ func (h UI) Update(u *user.User, k *key.Key, w http.ResponseWriter, r *http.Requ
 	h.Redirect(w, r, "/keys")
 }
 
-func (h UI) Destroy(u *user.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
+func (h UI) Destroy(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if err := h.DeleteModel(r.Context(), k); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to delete key")
-		h.RedirectBack(w, r)
+	if err := h.Handler.Destroy(r.Context(), k); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete key"))
 		return
 	}
 
@@ -170,19 +96,27 @@ func (h UI) Destroy(u *user.User, k *key.Key, w http.ResponseWriter, r *http.Req
 	h.RedirectBack(w, r)
 }
 
-func RegisterUI(srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func RegisterUI(a auth.Authenticator, srv *server.Server) {
 	ui := UI{
 		Handler: NewHandler(srv),
 	}
 
+	index := ui.Restrict(a, []string{"key:read"}, ui.Index)
+	create := ui.Restrict(a, []string{"key:write"}, ui.Create)
+	store := ui.Restrict(a, []string{"key:write"}, ui.Store)
+
+	a = namespace.NewAuth(a, "key", ui.Keys.Store)
+
+	edit := ui.Restrict(a, []string{"key:write"}, ui.Key(ui.Edit))
+	update := ui.Restrict(a, []string{"key:write"}, ui.Key(ui.Update))
+	destroy := ui.Restrict(a, []string{"key:delete"}, ui.Key(ui.Destroy))
+
 	sr := srv.Router.PathPrefix("/keys").Subrouter()
-	sr.HandleFunc("", user.WithUser(ui.Index)).Methods("GET")
-	sr.HandleFunc("/create", user.WithUser(ui.Create)).Methods("GET")
-	sr.HandleFunc("", user.WithUser(ui.Store)).Methods("POST")
-	sr.HandleFunc("/{key:[0-9]+}/edit", user.WithUser(ui.WithKey(ui.Edit))).Methods("GET")
-	sr.HandleFunc("/{key:[0-9]+}", user.WithUser(ui.WithKey(ui.Update))).Methods("PATCH")
-	sr.HandleFunc("/{key:[0-9]+}", user.WithUser(ui.WithKey(ui.Destroy))).Methods("DELETE")
+	sr.HandleFunc("", index).Methods("GET")
+	sr.HandleFunc("/create", create).Methods("GET")
+	sr.HandleFunc("", store).Methods("POST")
+	sr.HandleFunc("/{key:[0-9]+}/edit", edit).Methods("GET")
+	sr.HandleFunc("/{key:[0-9]+}", update).Methods("PATCH")
+	sr.HandleFunc("/{key:[0-9]+}", destroy).Methods("DELETE")
 	sr.Use(srv.CSRF)
 }

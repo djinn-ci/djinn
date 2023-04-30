@@ -1,28 +1,28 @@
 package http
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"djinn-ci.com/alert"
+	"djinn-ci.com/auth"
 	"djinn-ci.com/build"
-	buildtemplate "djinn-ci.com/build/template"
 	"djinn-ci.com/database"
-	"djinn-ci.com/driver"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/namespace"
+	"djinn-ci.com/object"
 	"djinn-ci.com/server"
 	"djinn-ci.com/template"
+	"djinn-ci.com/template/form"
 	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 	"djinn-ci.com/variable"
 
+	"github.com/andrewpillar/fs"
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 
-	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 )
 
@@ -30,85 +30,41 @@ type UI struct {
 	*Handler
 }
 
-func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	bb, paginator, err := h.IndexWithRelations(u, r)
+func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
 		return
 	}
 
-	if err := build.LoadNamespaces(h.DB, bb...); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	p := &buildtemplate.Index{
-		BasePage: template.BasePage{
-			URL:   r.URL,
-			Query: r.URL.Query(),
-			User:  u,
-		},
-		Paginator: paginator,
-		Builds:    bb,
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf.TemplateField(r))
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) Create(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	csrf := csrf.TemplateField(r)
-
-	p := &buildtemplate.Create{
-		Form: template.Form{
-			CSRF:   csrf,
-			Errors: webutil.FormErrors(sess),
-			Fields: webutil.FormFields(sess),
-		},
-	}
-
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	b, f, err := h.StoreModel(u, r)
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.BuildIndex{
+		Paginator: template.NewPaginator[*build.Build](tmpl.Page, p),
+		Builds:    p.Items,
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h UI) Create(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.BuildCreate{
+		Form: form.New(sess, r),
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h UI) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	b, f, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		errs := webutil.NewValidationErrors()
-
-		switch err := cause.(type) {
-		case webutil.ValidationErrors:
-			if errs, ok := err["fatal"]; ok {
-				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
-				alert.Flash(sess, alert.Danger, "Failed to submit build")
-				h.RedirectBack(w, r)
-				return
-			}
-			errs = err
-		case *namespace.PathError:
-			errs.Add("namespace", err)
-		case *driver.Error:
-			errs.Add("manifest", err)
-		default:
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to submit build")
-			h.RedirectBack(w, r)
-			return
-		}
-
-		webutil.FlashFormWithErrors(sess, f, errs)
-		h.RedirectBack(w, r)
+		h.FormError(w, r, f, errors.Wrap(err, "Failed to submit build"))
 		return
 	}
 
@@ -116,34 +72,27 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, b.Endpoint())
 }
 
-func (h UI) Show(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
 
-	if err := build.LoadRelations(h.DB, b); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+	ctx := r.Context()
+
+	if err := build.LoadRelations(ctx, h.DB, b); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
 		return
 	}
 
-	if err := build.LoadNamespaces(h.DB, b); err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	base := webutil.BasePath(r.URL.Path)
-	csrf := csrf.TemplateField(r)
-
-	p := &buildtemplate.Show{
-		BasePage: template.BasePage{
-			URL:  r.URL,
-			User: u,
-		},
+	tmpl := template.NewDashboard(u, sess, r)
+	show := template.BuildShow{
+		Page:  tmpl.Page,
 		Build: b,
-		CSRF:  csrf,
 	}
 
-	switch base {
+	switch webutil.BasePath(r.URL.Path) {
 	case "manifest":
-		p.Section = &buildtemplate.Manifest{Build: b}
+		show.Partial = &template.BuildManifest{
+			Build: b,
+		}
 	case "raw":
 		parts := strings.Split(r.URL.Path, "/")
 		attr := parts[len(parts)-2]
@@ -153,57 +102,57 @@ func (h UI) Show(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Re
 			return
 		}
 		if attr == "output" {
-			webutil.Text(w, b.Output.String, http.StatusOK)
+			webutil.Text(w, b.Output.Elem, http.StatusOK)
 			return
 		}
 	case "objects":
-		oo, err := h.objectsWithRelations(b)
+		p, err := h.Objects.Index(ctx, r.URL.Query(), query.Where("id", "IN", build.SelectObject(
+			query.Columns("object_id"),
+			query.Where("build_id", "=", query.Arg(b.ID)),
+		)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
 			return
 		}
 
-		p.Section = &buildtemplate.Objects{
-			Build:   b,
-			Objects: oo,
+		if err := namespace.LoadResourceRelations[*object.Object](ctx, h.DB, p.Items...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load object relations"))
+			return
+		}
+
+		show.Partial = &template.ObjectIndex{
+			Paginator: template.NewPaginator[*object.Object](tmpl.Page, p),
+			Objects:   p.Items,
 		}
 	case "artifacts":
-		search := r.URL.Query().Get("search")
-
-		aa, err := h.Artifacts.All(
-			query.Where("build_id", "=", query.Arg(b.ID)),
-			database.Search("name", search),
-			query.OrderAsc("name"),
-		)
+		p, err := h.Artifacts.Index(ctx, r.URL.Query(), query.Where("build_id", "=", query.Arg(b.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get artifacts"))
 			return
 		}
 
-		for _, a := range aa {
+		for _, a := range p.Items {
 			a.Build = b
 		}
 
-		p.Section = &buildtemplate.Artifacts{
-			URL:       r.URL,
-			Search:    search,
-			Build:     b,
-			Artifacts: aa,
+		show.Partial = &template.BuildArtifacts{
+			Paginator: template.NewPaginator[*build.Artifact](tmpl.Page, p),
+			Artifacts: p.Items,
 		}
 	case "variables":
-		vv, err := h.variablesWithRelations(b)
+		vv, err := h.Variables.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("key"))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get variables"))
 			return
 		}
 
 		unmasked := variable.GetUnmasked(sess.Values)
 
 		for _, v := range vv {
-			if _, ok := unmasked[v.VariableID.Int64]; ok && v.Masked {
+			if _, ok := unmasked[v.VariableID.Elem]; ok && v.Masked {
 				if err := variable.Unmask(h.AESGCM, v.Variable); err != nil {
 					alert.Flash(sess, alert.Danger, "Could not unmask variable")
 					h.Log.Error.Println(r.Method, r.URL, "could not unmask variable", errors.Err(err))
@@ -216,80 +165,82 @@ func (h UI) Show(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Re
 			}
 		}
 
-		p.Section = &buildtemplate.Variables{
-			CSRF:      csrf,
-			User:      u,
-			Build:     b,
+		mm := database.Map[*build.Variable, database.Model](vv, func(v *build.Variable) database.Model {
+			return v
+		})
+
+		if err := variable.Loader(h.DB).Load(ctx, "variable_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load variables"))
+			return
+		}
+
+		show.Partial = &template.BuildVariables{
+			Page:      tmpl.Page,
 			Unmasked:  unmasked,
 			Variables: vv,
 		}
 	case "keys":
-		kk, err := h.Keys.All(query.Where("build_id", "=", query.Arg(b.ID)))
+		kk, err := h.Keys.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("name"))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
 			return
 		}
 
-		p.Section = &buildtemplate.Keys{
-			Build: b,
-			Keys:  kk,
+		show.Partial = &template.BuildKeys{
+			Keys: kk,
 		}
 	case "tags":
-		canModify := u.ID > 0 && u.ID == b.UserID
+		isCollaborator := u.ID == b.UserID
 
 		if b.NamespaceID.Valid {
-			err := b.Namespace.IsCollaborator(h.DB, u.ID)
+			isCollaborator = true
 
-			if err != nil {
-				if !errors.Is(err, namespace.ErrPermission) {
-					h.InternalServerError(w, r, errors.Err(err))
+			if err := b.Namespace.IsCollaborator(ctx, h.DB, u); err != nil {
+				if !errors.Is(err, database.ErrPermission) {
+					h.Error(w, r, errors.Wrap(err, "Failed to get tags"))
 					return
 				}
+				isCollaborator = false
 			}
-			canModify = !errors.Is(err, namespace.ErrPermission)
 		}
 
-		tt, err := h.Tags.All(query.Where("build_id", "=", query.Arg(b.ID)))
+		if isCollaborator {
+			tmpl.Page.User.Grant("tag:modify")
+		}
+
+		tt, err := h.Tags.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("name"))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get tags"))
 			return
 		}
 
-		mm := make([]database.Model, 0, len(tt))
+		mm := database.Map[*build.Tag, database.Model](tt, func(t *build.Tag) database.Model {
+			return t
+		})
 
-		for _, t := range tt {
-			t.Build = b
-			mm = append(mm, t)
-		}
-
-		if err := h.Users.Load("user_id", "id", mm...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := user.Loader(h.DB).Load(ctx, "user_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load tag relations"))
 			return
 		}
 
-		p.Section = &buildtemplate.Tags{
-			CSRF:      csrf,
-			User:      u,
-			Build:     b,
-			CanModify: canModify,
-			Tags:      tt,
+		show.Partial = &template.BuildTags{
+			Page:  tmpl.Page,
+			Build: b,
+			Tags:  tt,
 		}
 	}
 
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	tmpl.Partial = &show
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h UI) Destroy(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+func (h UI) Destroy(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := b.Kill(h.Redis); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to kill build")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to kill build"))
 		return
 	}
 
@@ -297,29 +248,28 @@ func (h UI) Destroy(u *user.User, b *build.Build, w http.ResponseWriter, r *http
 	h.RedirectBack(w, r)
 }
 
-func (h UI) TogglePin(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+func (h UI) TogglePin(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
-
-	base := webutil.BasePath(r.URL.Path)
 
 	var (
 		err error
 		msg string
 	)
 
-	switch base {
+	ctx := r.Context()
+
+	switch webutil.BasePath(r.URL.Path) {
 	case "pin":
-		err = b.Pin(h.DB)
+		err = b.Pin(ctx, h.DB)
 		msg = "Build pinned"
 	case "unpin":
-		err = b.Unpin(h.DB)
+		err = b.Unpin(ctx, h.DB)
 		msg = "Build unpinned"
 	}
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to update pin")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to update pin"))
+		return
 	}
 
 	h.Queues.Produce(r.Context(), "events", &build.PinEvent{Build: b})
@@ -328,16 +278,19 @@ func (h UI) TogglePin(u *user.User, b *build.Build, w http.ResponseWriter, r *ht
 	h.RedirectBack(w, r)
 }
 
-func (h UI) ShowJob(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h UI) ShowJob(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	ctx := r.Context()
 
 	j, ok, err := h.Jobs.Get(
+		ctx,
 		query.Where("build_id", "=", query.Arg(b.ID)),
 		query.Where("name", "=", query.Arg(mux.Vars(r)["name"])),
 	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get job"))
 		return
 	}
 
@@ -347,25 +300,18 @@ func (h UI) ShowJob(u *user.User, b *build.Build, w http.ResponseWriter, r *http
 	}
 
 	if webutil.BasePath(r.URL.Path) == "raw" {
-		webutil.Text(w, j.Output.String, http.StatusOK)
+		webutil.Text(w, j.Output.Elem, http.StatusOK)
 		return
 	}
 
-	j.Stage, _, err = h.Stages.Get(query.Where("id", "=", query.Arg(j.StageID)))
+	j.Stage, _, err = h.Stages.Get(ctx, query.Where("id", "=", query.Arg(j.StageID)))
 
 	if err != nil {
 		h.InternalServerError(w, r, errors.Err(err))
 		return
 	}
 
-	b.User, _, err = h.Users.Get(query.Where("id", "=", query.Arg(b.UserID)))
-
-	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	b.Trigger, _, err = h.Triggers.Get(query.Where("build_id", "=", query.Arg(b.ID)))
+	b.Trigger, _, err = h.Triggers.Get(ctx, query.Where("build_id", "=", query.Arg(b.ID)))
 
 	if err != nil {
 		h.InternalServerError(w, r, errors.Err(err))
@@ -374,27 +320,28 @@ func (h UI) ShowJob(u *user.User, b *build.Build, w http.ResponseWriter, r *http
 
 	j.Build = b
 
-	p := &buildtemplate.Job{
-		BasePage: template.BasePage{URL: r.URL},
-		Build:    b,
-		Job:      j,
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.BuildJob{
+		Page: tmpl.Page,
+		Build: &template.BuildShow{
+			Build: b,
+		},
+		Job: j,
 	}
-
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf.TemplateField(r))
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h UI) Download(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+func (h UI) Download(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
 	name := mux.Vars(r)["name"]
 
 	a, ok, err := h.Artifacts.Get(
+		r.Context(),
 		query.Where("build_id", "=", query.Arg(b.ID)),
 		query.Where("name", "=", query.Arg(name)),
 	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get artifact"))
 		return
 	}
 
@@ -403,14 +350,7 @@ func (h UI) Download(u *user.User, b *build.Build, w http.ResponseWriter, r *htt
 		return
 	}
 
-	store, err := h.Artifacts.Partition(b.UserID)
-
-	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	rec, err := store.Open(a.Hash)
+	f, err := a.Open(h.Artifacts.FS)
 
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -418,38 +358,33 @@ func (h UI) Download(u *user.User, b *build.Build, w http.ResponseWriter, r *htt
 			return
 		}
 
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get artifact"))
 		return
 	}
 
-	defer rec.Close()
-	http.ServeContent(w, r, a.Name, a.CreatedAt, rec)
+	defer f.Close()
+
+	http.ServeContent(w, r, a.Name, a.CreatedAt, f.(io.ReadSeeker))
 }
 
-func (h UI) StoreTag(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
-
-	if _, err := h.StoreTagModel(u, b, r); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to tag build")
-		h.RedirectBack(w, r)
+func (h UI) StoreTag(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+	if _, err := h.Handler.StoreTag(u, b, r); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to tag build"))
 		return
 	}
 	h.RedirectBack(w, r)
 }
 
-func (h UI) DestroyTag(u *user.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
+func (h UI) DestroyTag(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if err := h.DeleteTagModel(b, mux.Vars(r)); err != nil {
-		if errors.Is(err, database.ErrNotFound) {
+	if err := h.Handler.DestroyTag(r.Context(), b, mux.Vars(r)["name"]); err != nil {
+		if errors.Is(err, database.ErrNoRows) {
 			h.NotFound(w, r)
 			return
 		}
 
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to delete tag")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to delete tag"))
 		return
 	}
 
@@ -457,36 +392,46 @@ func (h UI) DestroyTag(u *user.User, b *build.Build, w http.ResponseWriter, r *h
 	h.RedirectBack(w, r)
 }
 
-func RegisterUI(srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func RegisterUI(a auth.Authenticator, srv *server.Server) {
 	ui := UI{
 		Handler: NewHandler(srv),
 	}
 
-	auth := srv.Router.PathPrefix("/").Subrouter()
-	auth.HandleFunc("/builds", user.WithUser(ui.Index)).Methods("GET")
-	auth.HandleFunc("/builds/create", user.WithUser(ui.Create)).Methods("GET")
-	auth.HandleFunc("/builds", user.WithUser(ui.Store)).Methods("POST")
-	auth.Use(srv.CSRF)
+	index := srv.Restrict(a, []string{"build:read"}, ui.Index)
+	create := srv.Restrict(a, []string{"build:write"}, ui.Create)
+	store := srv.Restrict(a, []string{"build:write"}, ui.Store)
+
+	root := srv.Router.PathPrefix("/builds").Subrouter()
+	root.HandleFunc("", index).Methods("GET")
+	root.HandleFunc("/create", create).Methods("GET")
+	root.HandleFunc("", store).Methods("POST")
+	root.Use(srv.CSRF)
+
+	show := srv.Optional(a, ui.Build(ui.Show))
+	destroy := srv.Restrict(a, []string{"build:delete"}, ui.Build(ui.Destroy))
+	pin := srv.Restrict(a, []string{"build:write"}, ui.Build(ui.TogglePin))
+	showJob := srv.Restrict(a, []string{"build:read"}, ui.Build(ui.ShowJob))
+	download := srv.Restrict(a, []string{"build:read"}, ui.Build(ui.Download))
+	storeTag := srv.Restrict(a, []string{"build:write"}, ui.Build(ui.StoreTag))
+	destroyTag := srv.Restrict(a, []string{"build:delete"}, ui.Build(ui.DestroyTag))
 
 	sr := srv.Router.PathPrefix("/b/{username}/{build:[0-9]+}").Subrouter()
-	sr.HandleFunc("", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("", user.WithUser(ui.WithBuild(ui.Destroy))).Methods("DELETE")
-	sr.HandleFunc("/pin", user.WithUser(ui.WithBuild(ui.TogglePin))).Methods("PATCH")
-	sr.HandleFunc("/unpin", user.WithUser(ui.WithBuild(ui.TogglePin))).Methods("PATCH")
-	sr.HandleFunc("/manifest", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("/manifest/raw", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("/output/raw", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("/objects", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("/variables", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("/keys", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("/jobs/{name}", user.WithOptionalUser(ui.WithBuild(ui.ShowJob))).Methods("GET")
-	sr.HandleFunc("/jobs/{name}/output/raw", user.WithOptionalUser(ui.WithBuild(ui.ShowJob))).Methods("GET")
-	sr.HandleFunc("/artifacts", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("/artifacts/{name}", user.WithOptionalUser(ui.WithBuild(ui.Download))).Methods("GET")
-	sr.HandleFunc("/tags", user.WithOptionalUser(ui.WithBuild(ui.Show))).Methods("GET")
-	sr.HandleFunc("/tags", user.WithUser(ui.WithBuild(ui.StoreTag))).Methods("POST")
-	sr.HandleFunc("/tags/{name:.+}", user.WithUser(ui.WithBuild(ui.DestroyTag))).Methods("DELETE")
+	sr.HandleFunc("", show).Methods("GET")
+	sr.HandleFunc("", destroy).Methods("DELETE")
+	sr.HandleFunc("/pin", pin).Methods("PATCH")
+	sr.HandleFunc("/unpin", pin).Methods("PATCH")
+	sr.HandleFunc("/manifest", show).Methods("GET")
+	sr.HandleFunc("/manifest/raw", show).Methods("GET")
+	sr.HandleFunc("/output/raw", show).Methods("GET")
+	sr.HandleFunc("/objects", show).Methods("GET")
+	sr.HandleFunc("/variables", show).Methods("GET")
+	sr.HandleFunc("/keys", show).Methods("GET")
+	sr.HandleFunc("/jobs/{name}", showJob).Methods("GET")
+	sr.HandleFunc("/jobs/{name}/output/raw", showJob).Methods("GET")
+	sr.HandleFunc("/artifacts", show).Methods("GET")
+	sr.HandleFunc("/artifacts/{name}", download).Methods("GET")
+	sr.HandleFunc("/tags", show).Methods("GET")
+	sr.HandleFunc("/tags", storeTag).Methods("POST")
+	sr.HandleFunc("/tags/{name:.+}", destroyTag).Methods("DELETE")
 	sr.Use(srv.CSRF)
 }

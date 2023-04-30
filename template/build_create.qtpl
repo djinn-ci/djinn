@@ -1,0 +1,41 @@
+{% import "djinn-ci.com/template/form" %}
+
+{% code
+type BuildCreate struct {
+	*form.Form
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildCreate) Title() %}Submit Build{% endfunc %}
+
+{% func (p *BuildCreate) Header() %}
+	<a class="back" href="/builds">{% cat "static/svg/back.svg" %}</a> {%= p.Title() %}
+{% endfunc %}
+
+{% func (p *BuildCreate) Actions() %}{% endfunc %}
+{% func (p *BuildCreate) Navigation() %}{% endfunc %}
+{% func (p *BuildCreate) Footer() %}{% endfunc %}
+
+{% func (p *BuildCreate) Body() %}
+	<div class="panel">
+		<form action="/builds" class="panel-body slim" method="POST">
+			{%v= p.CSRF %}
+			{%= p.Field(form.Field{
+				ID:   "manifest",
+				Name: "Manifest",
+				Type: form.Textarea,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:       "comment",
+				Name:     "Comment",
+				Type:     form.Textarea,
+				Optional: true,
+			}) %}
+			<div class="form-field">
+				<button type="submit" class="btn btn-primary">Submit</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

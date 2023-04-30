@@ -1,0 +1,66 @@
+{%
+import (
+	"djinn-ci.com/oauth2"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type TokenIndex struct {
+	*Page
+
+	Tokens []*oauth2.Token
+}
+%}
+
+{% collapsespace %}
+{% func (p *TokenIndex) Title() %}Access Tokens{% endfunc %}
+
+{% func (p *TokenIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *TokenIndex) Actions() %}
+	<li>
+		<form method="POST" action="/settings/tokens/revoke">
+			{%= form.Method("DELETE") %}
+			{%v= p.CSRF %}
+			<button type="submit" class="btn btn-danger">Revoke All</button>
+		</form>
+	</li>
+	<li><a href="/settings/tokens/create" class="btn btn-primary">Create</a></li>
+{% endfunc %}
+
+{% func (p *TokenIndex) Navigation() %}{% endfunc %}
+{% func (p *TokenIndex) Footer() %}{% endfunc %}
+
+{% func (p *TokenIndex) renderTokenItem(t *oauth2.Token) %}
+	<tr>
+		<td>
+			<strong><a href="{%s t.Endpoint() %}">{%s t.Name %}</a></strong>
+			{% if t.Token != "" %} - <span class="muted">{%s t.Token %}</span>{% endif %}
+		</td>
+		<td class="align-right">
+			<form method="POST" action="{%s t.Endpoint() %}">
+				{%= form.Method("DELETE") %}
+				{%v= p.CSRF %}
+				<button type="submit" class="btn btn-danger">Delete</button>
+			</form>
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *TokenIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Tokens) == 0 %}
+			<div class="panel-message muted">No access tokens created.</div>
+		{% else %}
+			<table class="table">
+				<tbody>
+					{% for _, t := range p.Tokens %}
+						{%= p.renderTokenItem(t) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

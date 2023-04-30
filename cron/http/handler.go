@@ -4,64 +4,47 @@ import (
 	"context"
 	"net/http"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/build"
 	"djinn-ci.com/cron"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/namespace"
-	namespacehttp "djinn-ci.com/namespace/http"
 	"djinn-ci.com/server"
 	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
+
+	"github.com/gorilla/mux"
 )
 
 type Handler struct {
 	*server.Server
 
-	Namespace  *namespacehttp.Handler
-	Crons      cron.Store
-	Builds     *build.Store
-	Namespaces namespace.Store
-	Users      user.Store
+	Crons  cron.Store
+	Builds *build.Store
 }
-
-type HandlerFunc func(*user.User, *cron.Cron, http.ResponseWriter, *http.Request)
 
 func NewHandler(srv *server.Server) *Handler {
 	return &Handler{
-		Server:     srv,
-		Namespace:  namespacehttp.NewHandler(srv),
-		Crons:      cron.Store{Pool: srv.DB},
-		Builds:     &build.Store{Pool: srv.DB},
-		Namespaces: namespace.Store{Pool: srv.DB},
-		Users:      user.Store{Pool: srv.DB},
+		Server: srv,
+		Crons:  cron.Store{Store: cron.NewStore(srv.DB)},
+		Builds: &build.Store{Store: build.NewStore(srv.DB)},
 	}
 }
 
-func (h *Handler) WithCron(fn HandlerFunc) userhttp.HandlerFunc {
-	return func(u *user.User, w http.ResponseWriter, r *http.Request) {
-		var (
-			c   *cron.Cron
-			ok  bool
-			err error
-		)
+type HandlerFunc func(*auth.User, *cron.Cron, http.ResponseWriter, *http.Request)
 
-		get := func(id int64) (database.Model, bool, error) {
-			c, ok, err = h.Crons.Get(query.Where("id", "=", query.Arg(id)))
+func (h *Handler) Cron(fn HandlerFunc) auth.HandlerFunc {
+	return func(u *auth.User, w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		id := mux.Vars(r)["cron"]
 
-			if err != nil {
-				return nil, false, errors.Err(err)
-			}
-			return c, ok, nil
-		}
-
-		ok, err = h.Namespace.CanAccessResource("cron", get, u, r)
+		c, ok, err := h.Crons.Get(ctx, query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get cron job"))
 			return
 		}
 
@@ -69,161 +52,109 @@ func (h *Handler) WithCron(fn HandlerFunc) userhttp.HandlerFunc {
 			h.NotFound(w, r)
 			return
 		}
+
+		if err := namespace.LoadResourceRelations[*cron.Cron](ctx, h.DB, c); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load cron job relations"))
+			return
+		}
 		fn(u, c, w, r)
 	}
 }
 
-func (h *Handler) IndexWithRelations(u *user.User, r *http.Request) ([]*cron.Cron, database.Paginator, error) {
-	cc, paginator, err := h.Crons.Index(r.URL.Query(), namespace.WhereCollaborator(u.ID))
+func (h *Handler) Index(u *auth.User, r *http.Request) (*database.Paginator[*cron.Cron], error) {
+	ctx := r.Context()
+
+	p, err := h.Crons.Index(ctx, r.URL.Query(), namespace.WhereCollaborator(u.ID))
 
 	if err != nil {
-		return nil, paginator, errors.Err(err)
+		return nil, errors.Err(err)
 	}
 
-	if err := cron.LoadRelations(h.DB, cc...); err != nil {
-		return nil, paginator, errors.Err(err)
+	if err := namespace.LoadResourceRelations(ctx, h.DB, p.Items...); err != nil {
+		return nil, errors.Err(err)
 	}
-	return cc, paginator, nil
+	return p, nil
 }
 
-func (h *Handler) StoreModel(u *user.User, r *http.Request) (*cron.Cron, Form, error) {
-	var (
-		f     Form
-		verrs webutil.ValidationErrors
-	)
-
-	if err := webutil.UnmarshalForm(&f, r); err != nil {
-		if verrs0, ok := err.(webutil.ValidationErrors); ok {
-			verrs = verrs0
-			goto validate
-		}
-		return nil, f, errors.Err(err)
+func (h *Handler) Store(u *auth.User, r *http.Request) (*cron.Cron, *Form, error) {
+	f := Form{
+		Pool: h.DB,
+		User: u,
 	}
 
-validate:
-	v := Validator{
-		UserID: u.ID,
-		Crons:  h.Crons,
-		Form:   f,
+	if err := webutil.UnmarshalFormAndValidate(&f, r); err != nil {
+		return nil, &f, errors.Err(err)
 	}
 
-	if err := webutil.Validate(&v); err != nil {
-		err.(webutil.ValidationErrors).Merge(verrs)
+	ctx := r.Context()
 
-		return nil, f, errors.Err(err)
-	}
-
-	c, err := h.Crons.Create(cron.Params{
-		UserID:   u.ID,
+	c, err := h.Crons.Create(ctx, &cron.Params{
+		User:     u,
 		Name:     f.Name,
 		Schedule: f.Schedule,
 		Manifest: f.Manifest,
 	})
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if perr, ok := cause.(*namespace.PathError); ok {
-			return nil, f, perr.Err
-		}
-		return nil, f, errors.Err(err)
+		return nil, &f, errors.Err(err)
 	}
 
-	if err := h.Users.Load("user_id", "id", c); err != nil {
-		return nil, f, errors.Err(err)
-	}
-
-	c.Author = u
-
-	h.Queues.Produce(r.Context(), "events", &cron.Event{
+	h.Queues.Produce(ctx, "events", &cron.Event{
 		Cron:   c,
 		Action: "created",
 	})
 
-	return c, f, nil
+	return c, &f, nil
 }
 
-func (h *Handler) UpdateModel(c *cron.Cron, r *http.Request) (*cron.Cron, Form, error) {
-	var (
-		f     Form
-		verrs webutil.ValidationErrors
-	)
-
-	if err := webutil.UnmarshalForm(&f, r); err != nil {
-		if verrs0, ok := err.(webutil.ValidationErrors); ok {
-			verrs = verrs0
-			goto validate
-		}
-		return nil, f, errors.Err(err)
+func (h *Handler) Update(u *auth.User, c *cron.Cron, r *http.Request) (*cron.Cron, *Form, error) {
+	f := Form{
+		Pool: h.DB,
+		User: u,
+		Cron: c,
 	}
 
-validate:
-	v := Validator{
-		UserID: c.UserID,
-		Crons:  h.Crons,
-		Cron:   c,
-		Form:   f,
+	if err := webutil.UnmarshalFormAndValidate(&f, r); err != nil {
+		return nil, &f, errors.Err(err)
 	}
 
-	if err := webutil.Validate(&v); err != nil {
-		err.(webutil.ValidationErrors).Merge(verrs)
-
-		return nil, f, errors.Err(err)
-	}
-
-	if f.Name == "" {
-		f.Name = c.Name
-	}
-
-	if f.Manifest.String() == "{}" {
-		f.Manifest = c.Manifest
-	}
-
-	p := cron.Params{
-		UserID:   c.UserID,
-		Name:     f.Name,
-		Schedule: f.Schedule,
-		Manifest: f.Manifest,
-	}
-
-	if err := h.Crons.Update(c.ID, p); err != nil {
-		cause := errors.Cause(err)
-
-		if perr, ok := cause.(*namespace.PathError); ok {
-			return nil, f, perr.Err
-		}
-		return nil, f, errors.Err(err)
-	}
+	ctx := r.Context()
 
 	c.Name = f.Name
 	c.Schedule = f.Schedule
 	c.Manifest = f.Manifest
 
-	if err := h.Users.Load("user_id", "id", c); err != nil {
-		return nil, f, errors.Err(err)
+	if err := h.Crons.Update(ctx, c); err != nil {
+		return nil, &f, errors.Err(err)
 	}
 
-	if err := h.Users.Load("author_id", "id", c); err != nil {
-		return nil, f, errors.Err(err)
+	ld := user.Loader(h.DB)
+
+	if err := ld.Load(ctx, "user_id", "id", c); err != nil {
+		return nil, &f, errors.Err(err)
+	}
+	if err := ld.Load(ctx, "author_id", "id", c); err != nil {
+		return nil, &f, errors.Err(err)
 	}
 
-	h.Queues.Produce(r.Context(), "events", &cron.Event{
+	h.Queues.Produce(ctx, "events", &cron.Event{
 		Cron:   c,
 		Action: "updated",
 	})
-	return c, f, nil
+	return c, &f, nil
 }
 
-func (h *Handler) DeleteModel(ctx context.Context, c *cron.Cron) error {
-	if err := h.Users.Load("user_id", "id", c); err != nil {
+func (h *Handler) Destroy(ctx context.Context, c *cron.Cron) error {
+	if err := h.Crons.Delete(ctx, c); err != nil {
 		return errors.Err(err)
 	}
 
-	if err := h.Users.Load("author_id", "id", c); err != nil {
+	ld := user.Loader(h.DB)
+
+	if err := ld.Load(ctx, "user_id", "id", c); err != nil {
 		return errors.Err(err)
 	}
-
-	if err := h.Crons.Delete(c.ID); err != nil {
+	if err := ld.Load(ctx, "author_id", "id", c); err != nil {
 		return errors.Err(err)
 	}
 

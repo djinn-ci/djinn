@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"djinn-ci.com/build"
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 
 	"github.com/mcmathja/curlyq"
@@ -15,7 +16,7 @@ import (
 )
 
 func Test_BuildValidation(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	tests := []struct {
 		params djinn.BuildParams
@@ -79,7 +80,7 @@ func Test_BuildValidation(t *testing.T) {
 var buildQueue = "builds_docker:data"
 
 func Test_BuildSubmit(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	tags := []string{"Test_BuildSubmit", "build_test"}
 
@@ -142,7 +143,7 @@ func Test_BuildSubmit(t *testing.T) {
 }
 
 func Test_BuildSubmitToNamespace(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
 		Manifest: djinn.Manifest{
@@ -166,7 +167,7 @@ func Test_BuildSubmitToNamespace(t *testing.T) {
 	}
 
 	if b.Namespace.Path != "submit/to/namespace" {
-		t.Fatalf("unexpected namespace name, expected=%q, got=%q\n", "submit/to/namespace", b.Namespace.Name)
+		t.Fatalf("unexpected namespace path, expected=%q, got=%q\n", "submit/to/namespace", b.Namespace.Path)
 	}
 
 	if _, err := djinn.GetNamespace(cli, b.Namespace.User.Username, b.Namespace.Path); err != nil {
@@ -175,7 +176,7 @@ func Test_BuildSubmitToNamespace(t *testing.T) {
 }
 
 func Test_BuildTags(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	b, err := djinn.SubmitBuild(cli, djinn.BuildParams{
 		Manifest: djinn.Manifest{

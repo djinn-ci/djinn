@@ -1,38 +1,5 @@
 #!/bin/sh
 
-set -e
-
-_version() {
-	git log --decorate=full --format=format:%d |
-		head -1 |
-		tr ',' '\n' |
-		grep tag: |
-		cut -d / -f 3 |
-		tr -d ',)'
-}
-
-module="$(head -1 go.mod | awk '{ print $2 }')"
-version="$(_version)"
-
-if [ "$version" = "" ]; then
-	version="devel $(git log -n 1 --format='format:%h %cd' HEAD)"
-fi
-
-default_tags="netgo osusergo"
-default_ldflags=$(printf -- "-X '%s/version.Build=%s'" "$module" "$version")
-
-if [ -z "$LDFLAGS" ]; then
-	LDFLAGS="$default_ldflags"
-else
-	LDFLAGS="$LDFLAGS $default_ldflags"
-fi
-
-if [ -z "$TAGS" ]; then
-	TAGS="$default_tags"
-else
-	TAGS="$TAGS $default_tags"
-fi
-
 for bin in $(grep -vE "^#" make.dep | awk '{ print $1 }'); do
 	if ! hash "$bin" 2> /dev/null; then
 		url=$(grep "^$bin" make.dep | awk '{ print $2 }')
@@ -42,170 +9,118 @@ for bin in $(grep -vE "^#" make.dep | awk '{ print $1 }'); do
 	fi
 done
 
-yarn_() {
-	bin="node_modules/.bin/lessc"
-
-	if [ ! -f "$bin" ]; then
-		yarn install
-	fi
-
-	"$bin" --clean-css static/less/main.less static/main.css
-	"$bin" --clean-css static/less/auth.less static/auth.css
-	"$bin" --clean-css static/less/error.less static/error.css
+_err() {
+	>&2 echo $@
+	exit 1
 }
 
-ui() {
-	yarn_
+_version() {
+	tag=$(
+		git log --decorate=full --format=format:%d |
+			head -1 |
+			tr ',' '\n' |
+			grep tag: |
+			cut -d / -f 3 |
+			tr -d ',)'
+	)
 
-	if [ -z "$1" ]; then
-		qtc
+	if [ -z "$tag" ]; then
+		echo "devel $(git log -n 1 --format='format:%h %cd' HEAD)"
 	else
-		dir="$1/template"
-
-		if [ "$1" = "template" ]; then
-			dir="template"
-		fi
-
-		if [ ! -d "$dir" ]; then
-			>&2 printf "cannot find directory %s\n" "$dir"
-			exit 1
-		fi
-		qtc -dir "$dir"
+		echo "$tag"
 	fi
 }
 
-build() {
+lessc_bin="node_modules/.bin/lessc"
+
+LDFLAGS="$LDFLAGS $(printf -- "-X 'djinn-ci.com/version.Build=%s'" "$(_version)")"
+TAGS="$TAGS netgo osusergo"
+
+_exec() {
+	set -x
+	"$@"
+	set +x
+}
+
+_css() {
+	_exec "$lessc_bin" --clean-css template/static/less/"$1".less template/static/"$1".css
+}
+
+_ui() {
+	[ ! -f "$lessc_bin" ] && _exec yarn install
+
+	_css main
+	_css auth
+	_css error
+
+	_exec qtc
+}
+
+_build() {
 	[ ! -d bin ] && mkdir bin
 
-	cmd="$1"
+	targets="$1"
 
-	if [ -z "$cmd" ]; then
-		cmd="$(ls cmd)"
+	if [ -z "$targets" ]; then
+		targets="$(ls cmd)"
 	fi
 
-	go generate ./...
+	_exec go generate ./...
 
-	for c in $cmd; do
-		if [ ! -d cmd/"$c" ]; then
-			>&2 printf "unknown package %s\n" "$c"
-			exit 1
-		fi
-		set -x
-		GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags "$LDFLAGS" \
+	for target in $targets; do
+		GOOS="$GOOS" GOARCH="$GOARCH" _exec go build \
+			-trimpath \
+			-ldflags "$LDFLAGS" \
 			-tags "$TAGS" \
-			-o bin/"$c" ./cmd/"$c"
-		set +x
+			-o bin/"$target" \
+			./cmd/"$target"
 	done
 }
 
-help_() {
-	case "$1" in
-		ui)
-			printf "compile the ui templates\n"
-			printf "usage: make.sh ui [component]\n\n"
-			printf "components:\n"
-			components=$(find . -name template -type d | tr '/' ' ' | sort)
-			components=$(echo "$components" | awk '{ print $2 }' | grep -v template)
-			for c in $components; do
-				printf "  %s\n" "$c"
-			done
-			;;
-		build)
-			printf "build one of the Go programs in cmd\n"
-			printf "usage: make.sh build <dir>\n"
-			;;
-		runner)
-			printf "compile the offline runner\n"
-			printf "usage: make.sh runner\n"
-			;;
-		consumer)
-			printf "compile the consumer\n"
-			printf "usage: make.sh consumer\n"
-			;;
-		server)
-			printf "compile the server\n"
-			printf "usage: make.sh server\n"
-			;;
-		worker)
-			printf "compile the worker\n"
-			printf "usage: make.sh worker\n"
-			;;
-		clean)
-			printf "remove built binaries\n"
-			;;
-		css)
-			printf "compile the less to css\n"
-			;;
-		manif)
-			printf "create a sum manifest file\n"
-			;;
-		*)
-			printf "build the server and offline runner\n"
-			printf "usage: make.sh [build|clean|css|manif|runner|server|ui|worker]\n"
-			;;
-	esac
+_manif() {
+	cd bin && {
+		_exec sha256sum djinn* | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
+		cd - > /dev/null
+	}
 }
 
-manif() {
-	cd bin
+_test() {
+	_exec go generate ./...
+	_exec go test ./...
+}
 
-	[ -f sum.manif ] && rm sum.manif
-
-	sha256sum djinn* | awk '{ print "SHA256 ("$2") = " $1 }' > sum.manif
-
-	cd - > /dev/null
+_clean() {
+	_exec rm -f bin/*
+	_exec find . -name "*.log" -exec rm -f {} \;
+	_exec go clean -cache -testcache
 }
 
 case "$1" in
-	ui)
-		shift 1
-		ui "$1"
-		;;
 	build)
-		shift 1
-		build "$1"
-		;;
-	runner)
-		build djinn
-		;;
-	consumer)
-		build djinn-consumer
-		;;
-	server)
-		build djinn-server
-		;;
-	worker)
-		build djinn-worker
-		;;
-	scheduler)
-		build djinn-scheduler
-		;;
-	curator)
-		build djinn-curator
-		;;
-	help)
-		shift 1
-		help_ "$1"
+		_build
 		;;
 	clean)
-		rm -f bin/* djinn djinn-consumer djinn-curator djinn-scheduler djinn-server djinn-worker sum.manif
-		find . -name "*.log" -exec rm -f {} \;
-		go clean -cache -testcache
-		;;
-	manif)
-		manif
+		_clean
 		;;
 	css)
-		yarn_
+		_css main
+		_css auth
+		_css error
+		;;
+	ui)
+		_ui
 		;;
 	*)
 		if [ "$1" = "" ]; then
-			go test ./...
-			ui
-			build
-			manif
+			_test
+			_ui
+			_build
+			_manif
+		elif [ -d "cmd/djinn-$1" ]; then
+			_build "djinn-$1"
+		elif [ "$1" = "runner" ]; then
+			_build djinn-runner
 		else
-			>&2 printf "unknown job %s\n" "$1"
-			exit 1
+			_err "unknown target: $1"
 		fi
 esac

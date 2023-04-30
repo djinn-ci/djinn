@@ -6,10 +6,10 @@ import (
 
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 
 	"github.com/andrewpillar/config"
+	"github.com/andrewpillar/fs"
 )
 
 type curatorCfg struct {
@@ -25,20 +25,16 @@ type curatorCfg struct {
 }
 
 type Curator struct {
-	pidfile string
-
-	log *log.Logger
-
-	interval time.Duration
-
-	db database.Pool
-
-	artifacts fs.Store
+	pidfile   string
+	log       *log.Logger
+	interval  time.Duration
+	db        *database.Pool
+	artifacts fs.FS
 }
 
 func (c *Curator) Pidfile() string         { return c.pidfile }
-func (c *Curator) DB() database.Pool       { return c.db }
-func (c *Curator) Artifacts() fs.Store     { return c.artifacts }
+func (c *Curator) DB() *database.Pool      { return c.db }
+func (c *Curator) Artifacts() fs.FS        { return c.artifacts }
 func (c *Curator) Log() *log.Logger        { return c.log }
 func (c *Curator) Interval() time.Duration { return c.interval }
 

@@ -2,6 +2,7 @@ package integration
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/rsa"
@@ -20,6 +21,7 @@ import (
 	"runtime/debug"
 	"testing"
 
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/event"
 	"djinn-ci.com/integration/djinn"
@@ -127,7 +129,7 @@ func webhookHandler(t *testing.T, m map[string]struct{}) func(http.ResponseWrite
 }
 
 func apertureFlow(t *testing.T) {
-	rattman, _ := djinn.NewClientWithLogger(tokens.get("doug.rattman").Token, apiEndpoint, t)
+	rattman, _ := djinn.NewClientWithLogger(tokens.get("doug.rattman").Token, env.DJINN_API_SERVER, t)
 
 	_, err := djinn.GetNamespace(rattman, "wallace.breen", "blackmesa")
 
@@ -191,7 +193,7 @@ func apertureFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	breen, _ := djinn.NewClientWithLogger(tokens.get("wallace.breen").Token, apiEndpoint, t)
+	breen, _ := djinn.NewClientWithLogger(tokens.get("wallace.breen").Token, env.DJINN_API_SERVER, t)
 
 	if err := n.Get(breen); err != nil {
 		t.Fatal(err)
@@ -203,7 +205,7 @@ func apertureFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	bloggs, _ := djinn.NewClientWithLogger(tokens.get("henry.bloggs").Token, apiEndpoint, t)
+	bloggs, _ := djinn.NewClientWithLogger(tokens.get("henry.bloggs").Token, env.DJINN_API_SERVER, t)
 
 	if err := i.Accept(bloggs); err != nil {
 		t.Fatal(err)
@@ -228,7 +230,9 @@ func apertureFlow(t *testing.T) {
 }
 
 func blackMesaFlow(t *testing.T) {
-	breen, _ := djinn.NewClientWithLogger(tokens.get("wallace.breen").Token, apiEndpoint, t)
+	breen, _ := djinn.NewClientWithLogger(tokens.get("wallace.breen").Token, env.DJINN_API_SERVER, t)
+
+	t.Log("creating namespace as user", breen)
 
 	n, err := djinn.CreateNamespace(breen, djinn.NamespaceParams{
 		Name:       "blackmesa",
@@ -252,6 +256,8 @@ func blackMesaFlow(t *testing.T) {
 
 	url.Host = net.JoinHostPort("local.dev", port)
 
+	t.Log("creating webhook us user", breen)
+
 	wh, err := n.CreateWebhook(breen, djinn.WebhookParams{
 		PayloadURL: url.String(),
 		Secret:     webhookSecret,
@@ -263,15 +269,21 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	freeman, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	freeman, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
+
+	t.Log("listing webhooks for namespace", n.Path, "as user", freeman)
 
 	if _, err := n.ListWebhooks(freeman); err == nil {
 		t.Fatalf("expected n.ListWebhooks(%s) to error, it did not\n", freeman)
 	}
 
+	t.Log("updating namespace", n.Path, "as user", breen)
+
 	if err := n.Update(breen, djinn.NamespaceParams{Description: "Black Mesa"}); err != nil {
 		t.Fatal(err)
 	}
+
+	t.Log("getting namespace", n.Path, "as user", freeman)
 
 	_, err = djinn.GetNamespace(freeman, n.User.Username, n.Path)
 
@@ -289,23 +301,33 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatalf("unexpected status code, expected=%q, got=%q\n", http.StatusText(djinnerr.StatusCode), http.StatusText(http.StatusNotFound))
 	}
 
+	t.Log("sending invite to namespace", n.Path, "as user", breen)
+
 	i, err := n.Invite(breen, "gordon.freeman@black-mesa.com")
 
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	t.Log("accepting sent invite to namespace", n.Path, "as user", breen)
+
 	if err := i.Accept(breen); err == nil {
 		t.Fatalf("expected i.Accept(%s) to error, it did not\n", breen.String())
 	}
+
+	t.Log("accepting sent invite to namespace", n.Path, "as user", freeman)
 
 	if err := i.Accept(freeman); err != nil {
 		t.Fatal(err)
 	}
 
+	t.Log("listing webhooks for namespace", n.Path, "as user", freeman)
+
 	if _, err := n.ListWebhooks(freeman); err != nil {
 		t.Fatal(err)
 	}
+
+	t.Log("creating variable for namespace", n.Path, "as user", freeman)
 
 	v, err := djinn.CreateVariable(freeman, djinn.VariableParams{
 		Namespace: "blackmesa@wallace.breen",
@@ -364,7 +386,7 @@ func blackMesaFlow(t *testing.T) {
 
 	defer rc.Close()
 
-	eli, _ := djinn.NewClientWithLogger(tokens.get("eli.vance").Token, apiEndpoint, t)
+	eli, _ := djinn.NewClientWithLogger(tokens.get("eli.vance").Token, env.DJINN_API_SERVER, t)
 
 	var object bytes.Buffer
 
@@ -517,9 +539,11 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	ctx := context.Background()
+
 	var secret []byte
 
-	if err := db.QueryRow("SELECT secret FROM namespace_webhooks WHERE (id = $1)", wh.ID).Scan(&secret); err != nil {
+	if err := db.QueryRow(ctx, "SELECT secret FROM namespace_webhooks WHERE (id = $1)", wh.ID).Scan(&secret); err != nil {
 		t.Fatal(err)
 	}
 
@@ -527,7 +551,7 @@ func blackMesaFlow(t *testing.T) {
 		t.Fatalf("expected webhook secret to be nil after updated, it was not\n")
 	}
 
-	rows, err := db.Query("SELECT error, event FROM namespace_webhook_deliveries")
+	rows, err := db.Query(ctx, "SELECT error, event FROM namespace_webhook_deliveries")
 
 	if err != nil {
 		t.Fatal(err)

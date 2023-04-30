@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -13,6 +12,8 @@ import (
 	"djinn-ci.com/driver"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
+
+	"github.com/andrewpillar/fs"
 
 	"github.com/pkg/sftp"
 
@@ -78,12 +79,12 @@ func Init(w io.Writer, cfg driver.Config) runner.Driver {
 // Create opens up the Driver connection to the remote machine as configured via a
 // previous call to Init. The given env slice is used to set an unexported
 // variable for setting environment variables during job execution.
-func (s *Driver) Create(c context.Context, env []string, objs runner.Passthrough, p runner.Placer) error {
+func (s *Driver) Create(c context.Context, env []string, pt runner.Passthrough, objects fs.FS) error {
 	if s.Writer == nil {
 		return errors.New("cannot create driver with nil io.Writer")
 	}
 
-	fmt.Fprintf(s.Writer, "Running with Driver ssh...\n")
+	fmt.Fprintln(s.Writer, "Running with Driver ssh...")
 
 	ticker := time.NewTicker(time.Second)
 	after := time.After(s.Timeout)
@@ -127,7 +128,7 @@ func (s *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 	fmt.Fprintf(s.Writer, "Established Driver connection to %s...\n\n", s.Addr)
 
 	s.env = env
-	return s.PlaceObjects(objs, p)
+	return s.PlaceObjects(pt, objects)
 }
 
 // Execute will perform the given runner.Job. This turns it into a shell script
@@ -135,12 +136,11 @@ func (s *Driver) Create(c context.Context, env []string, objs runner.Passthrough
 // is executed however, the environment variables given via Create are set for
 // the Driver session being used to invoke the script. The stderr, and stdout
 // streams are forwarded to the underlying io.Writer.
-func (s *Driver) Execute(j *runner.Job, c runner.Collector) {
+func (s *Driver) Execute(j *runner.Job, artifacts fs.FS) error {
 	sess, err := s.client.NewSession()
 
 	if err != nil {
-		j.Failed(err)
-		return
+		return err
 	}
 
 	defer sess.Close()
@@ -151,11 +151,10 @@ func (s *Driver) Execute(j *runner.Job, c runner.Collector) {
 	cli, err := sftp.NewClient(s.client)
 
 	if err != nil {
-		if err == io.EOF {
-			err = errors.New("EOF: make sure Subsystem in sshd_config on the image is configured correctly")
+		if errors.Is(err, io.EOF) {
+			return errors.New("EOF: make sure Subsystem in sshd_config on the image is configured correctly")
 		}
-		j.Failed(err)
-		return
+		return err
 	}
 
 	defer cli.Close()
@@ -163,15 +162,13 @@ func (s *Driver) Execute(j *runner.Job, c runner.Collector) {
 	f, err := cli.Create(script)
 
 	if err != nil {
-		j.Failed(err)
-		return
+		return err
 	}
 
 	io.Copy(f, buf)
 
 	if err := f.Chmod(0755); err != nil {
-		j.Failed(err)
-		return
+		return err
 	}
 
 	f.Close()
@@ -190,17 +187,17 @@ func (s *Driver) Execute(j *runner.Job, c runner.Collector) {
 	sess.Stderr = j.Writer
 
 	if err := sess.Run("./" + script); err != nil {
-		if _, ok := err.(*ssh.ExitError); ok {
-			err = nil
+		if _, ok := err.(*ssh.ExitError); !ok {
+			return err
 		}
-
-		j.Failed(err)
-	} else {
-		j.Status = runner.Passed
 	}
 
-	s.collectArtifacts(j.Writer, j, c)
+	if err := s.collectArtifacts(j, artifacts); err != nil {
+		return err
+	}
+
 	cli.Remove(script)
+	return nil
 }
 
 // Destroy closes the Driver connection.
@@ -210,11 +207,7 @@ func (s *Driver) Destroy() {
 	}
 }
 
-func (s *Driver) collectErr(w io.Writer, src, dst string, err error) {
-	fmt.Fprintf(w, "Failed to collect artifact %s => %s: %s\n", src, dst, errors.Cause(err))
-}
-
-func (s *Driver) collectArtifact(w io.Writer, cli *sftp.Client, src, dst string, c runner.Collector) error {
+func (s *Driver) collectArtifact(w io.Writer, cli *sftp.Client, src, dst string, artifacts fs.FS) error {
 	f, err := cli.Open(src)
 
 	if err != nil {
@@ -223,52 +216,16 @@ func (s *Driver) collectArtifact(w io.Writer, cli *sftp.Client, src, dst string,
 
 	defer f.Close()
 
-	fmt.Fprintf(w, "Collecting artifact %s => %s\n", src, dst)
+	fmt.Fprintln(w, "Collecting artifact", src, "=>", dst)
 
-	if _, err := c.Collect(dst, f); err != nil {
+	if _, err := artifacts.Put(fs.Rename(f, dst)); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (s *Driver) collectArtifacts(w io.Writer, j *runner.Job, c runner.Collector) {
-	if len(j.Artifacts.Values) == 0 {
-		return
-	}
-
-	cli, err := sftp.NewClient(s.client)
-
-	if err != nil {
-		j.Failed(err)
-		return
-	}
-
-	defer cli.Close()
-
-	fmt.Fprintf(w, "\n")
-
-	for src, dst := range j.Artifacts.Values {
-		matches, err := cli.Glob(src)
-
-		if err != nil {
-			s.collectErr(w, src, dst, err)
-			continue
-		}
-
-		for _, path := range matches {
-			dst := strings.Replace(dst, "*", filepath.Base(path), -1)
-
-			if err := s.collectArtifact(w, cli, path, dst, c); err != nil {
-				s.collectErr(w, path, dst, err)
-			}
-		}
-	}
-}
-
-// PlaceObjects copies the given objects from the given placer onto the
-// environment via SFTP.
-func (s *Driver) PlaceObjects(objects runner.Passthrough, p runner.Placer) error {
-	if len(objects.Values) == 0 {
+func (s *Driver) collectArtifacts(j *runner.Job, artifacts fs.FS) error {
+	if len(j.Artifacts) == 0 {
 		return nil
 	}
 
@@ -280,46 +237,75 @@ func (s *Driver) PlaceObjects(objects runner.Passthrough, p runner.Placer) error
 
 	defer cli.Close()
 
-	for src, dst := range objects.Values {
-		fmt.Fprintf(s.Writer, "Placing object %s => %s\n", src, dst)
+	fmt.Fprintln(j.Writer)
 
-		f, err := cli.OpenFile(dst, os.O_WRONLY|os.O_APPEND|os.O_CREATE)
+	for src, dst := range j.Artifacts {
+		matches, err := cli.Glob(src)
 
 		if err != nil {
-			fmt.Fprintf(
-				s.Writer,
-				"Failed to open object file on guest %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
+			fmt.Fprintln(j.Writer, "artifact error:", err)
 			continue
 		}
 
-		defer f.Close()
+		for _, path := range matches {
+			dst := strings.Replace(dst, "*", filepath.Base(path), -1)
 
-		if err := f.Chmod(0700); err != nil {
-			fmt.Fprintf(
-				s.Writer,
-				"Failed to chmod 0700 object %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
-			continue
-		}
-
-		if _, err := p.Place(src, f); err != nil {
-			fmt.Fprintf(
-				s.Writer,
-				"Failed to place object %s => %s: %s\n",
-				src,
-				dst,
-				errors.Cause(err),
-			)
-			continue
+			if err := s.collectArtifact(j.Writer, cli, path, dst, artifacts); err != nil {
+				fmt.Fprintln(j.Writer, "artifact error:", err)
+			}
 		}
 	}
-	fmt.Fprintf(s.Writer, "\n")
+	return nil
+}
+
+// PlaceObjects copies the given objects from the given placer onto the
+// environment via SFTP.
+func (s *Driver) PlaceObjects(pt runner.Passthrough, objects fs.FS) error {
+	if len(pt) == 0 {
+		return nil
+	}
+
+	cli, err := sftp.NewClient(s.client)
+
+	if err != nil {
+		return err
+	}
+
+	defer cli.Close()
+
+	for src, dst := range pt {
+		func(src, dst string) {
+			fmt.Fprintln(s.Writer, "Placing object", src, "=>", dst)
+
+			f, err := cli.Create(dst)
+
+			if err != nil {
+				fmt.Fprintln(s.Writer, "object error:", errors.Cause(err))
+				return
+			}
+
+			defer f.Close()
+
+			if err := f.Chmod(0700); err != nil {
+				fmt.Fprintln(s.Writer, "object error:", errors.Cause(err))
+				return
+			}
+
+			object, err := objects.Open(src)
+
+			if err != nil {
+				fmt.Fprintln(s.Writer, "object error:", errors.Cause(err))
+				return
+			}
+
+			defer object.Close()
+
+			if _, err := io.Copy(f, object); err != nil {
+				fmt.Fprintln(s.Writer, "object error:", errors.Cause(err))
+			}
+		}(src, dst)
+	}
+
+	fmt.Fprintln(s.Writer)
 	return nil
 }

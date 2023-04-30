@@ -76,7 +76,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, func(), error) {
 
 	pidfile := cfg.Pidfile()
 
-	close_ := func() {
+	close := func() {
 		worker.DB.Close()
 		worker.Redis.Close()
 		worker.SMTP.Close()
@@ -97,7 +97,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, func(), error) {
 	worker.Log.Info.Println("using parallelism of:", parallelism)
 
 	webhooks := namespace.WebhookStore{
-		Pool:   worker.DB,
+		Store:  namespace.NewWebhookStore(worker.DB),
 		AESGCM: worker.AESGCM,
 	}
 
@@ -109,7 +109,7 @@ func Init(workerPath, driverPath string) (*worker.Worker, func(), error) {
 
 	worker.Queue = memq
 
-	return worker, close_, nil
+	return worker, close, nil
 }
 
 func Start(ctx context.Context, w *worker.Worker) {

@@ -1,0 +1,57 @@
+{%
+import (
+	"djinn-ci.com/template/form"
+	"djinn-ci.com/variable"
+)
+%}
+
+{% code
+type VariableCreate struct {
+	*form.Form
+}
+%}
+
+{% collapsespace %}
+{% func (p *VariableCreate) Title() %}Create Variable{% endfunc %}
+
+{% func (p *VariableCreate) Header() %}
+	<a class="back" href="/variables">{% cat "static/svg/back.svg" %}</a> {%= p.Title() %}
+{% endfunc %}
+
+{% func (p *VariableCreate) Actions() %}{% endfunc %}
+{% func (p *VariableCreate) Navigation() %}{% endfunc %}
+{% func (p *VariableCreate) Footer() %}{% endfunc %}
+
+{% func (p *VariableCreate) Body() %}
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="/variables">
+			{%v= p.CSRF %}
+			{%= p.Field(form.Field{
+				ID:       "namespace",
+				Name:     "Namespace",
+				Optional: true,
+				Type:     form.Text,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:   "key",
+				Name: "Key",
+				Type: form.Text,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:   "value",
+				Name: "Value",
+				Type: form.Text,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:   "mask",
+				Name: "Mask variable",
+				Desc: `Mask the variable and replace it with <span class="code">`+variable.MaskString+`</span> in the build logs`,
+				Type: form.Checkbox,
+			}) %}
+			<div class="form-field">
+				<button type="submit" class="btn btn-primary">Submit</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

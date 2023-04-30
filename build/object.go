@@ -1,28 +1,24 @@
 package build
 
 import (
-	"database/sql"
-	"fmt"
-	"io"
-	"os"
-	"strings"
+	"context"
+	"encoding/json"
 	"time"
 
-	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
+	"djinn-ci.com/env"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/key"
 	"djinn-ci.com/object"
-	"djinn-ci.com/runner"
 
+	"github.com/andrewpillar/fs"
 	"github.com/andrewpillar/query"
 )
 
 type Object struct {
 	ID        int64
 	BuildID   int64
-	ObjectID  sql.NullInt64
+	ObjectID  database.Null[int64]
 	Source    string
 	Name      string
 	Placed    bool
@@ -34,35 +30,34 @@ type Object struct {
 
 var _ database.Model = (*Object)(nil)
 
-type ObjectStore struct {
-	database.Pool
-	fs.Store
+func (o *Object) Primary() (string, any) { return "id", o.ID }
+
+func (o *Object) Scan(r *database.Row) error {
+	valtab := map[string]any{
+		"id":         &o.ID,
+		"build_id":   &o.BuildID,
+		"object_id":  &o.ObjectID,
+		"source":     &o.Source,
+		"name":       &o.Name,
+		"placed":     &o.Placed,
+		"created_at": &o.CreatedAt,
+	}
+
+	if err := database.Scan(r, valtab); err != nil {
+		return errors.Err(err)
+	}
+	return nil
 }
 
-var (
-	_ database.Loader = (*ObjectStore)(nil)
-	_ runner.Placer   = (*ObjectStore)(nil)
-
-	objectTable = "build_objects"
-)
-
-func SelectBuildIDForObject(objectId int64) query.Query {
-	return query.Select(
-		query.Columns("build_id"),
-		query.From(objectTable),
-		query.Where("object_id", "=", query.Arg(objectId)),
-	)
-}
-
-func (o *Object) Dest() []interface{} {
-	return []interface{}{
-		&o.ID,
-		&o.BuildID,
-		&o.ObjectID,
-		&o.Source,
-		&o.Name,
-		&o.Placed,
-		&o.CreatedAt,
+func (o *Object) Params() database.Params {
+	return database.Params{
+		"id":         database.ImmutableParam(o.ID),
+		"build_id":   database.CreateOnlyParam(o.BuildID),
+		"object_id":  database.CreateOnlyParam(o.ObjectID),
+		"source":     database.CreateOnlyParam(o.Source),
+		"name":       database.CreateOnlyParam(o.Name),
+		"placed":     database.UpdateOnlyParam(o.Placed),
+		"created_at": database.CreateOnlyParam(o.CreatedAt),
 	}
 }
 
@@ -73,227 +68,123 @@ func (o *Object) Bind(m database.Model) {
 			o.Build = v
 		}
 	case *object.Object:
-		if o.ObjectID.Int64 == v.ID {
+		if o.ObjectID.Elem == v.ID {
 			o.Object = v
 		}
 	}
 }
 
-func (o *Object) Endpoint(_ ...string) string { return "" }
-
-func (o *Object) JSON(addr string) map[string]interface{} {
+func (o *Object) MarshalJSON() ([]byte, error) {
 	if o == nil {
-		return nil
+		return []byte("null"), nil
 	}
 
-	json := map[string]interface{}{
-		"id":       o.ID,
-		"build_id": o.BuildID,
-		"source":   o.Source,
-		"name":     o.Name,
-		"type":     nil,
-		"md5":      nil,
-		"sha256":   nil,
-		"placed":   o.Placed,
-	}
-
-	if o.Build != nil {
-		json["build"] = o.Build.JSON(addr)
+	raw := map[string]any{
+		"build_id":   o.BuildID,
+		"source":     o.Source,
+		"name":       o.Name,
+		"type":       nil,
+		"md5":        nil,
+		"sha256":     nil,
+		"placed":     o.Placed,
+		"build":      o.Build,
+		"object_url": nil,
 	}
 
 	if o.Object != nil {
-		json["type"] = o.Object.Type
-		json["md5"] = fmt.Sprintf("%x", o.Object.MD5)
-		json["sha256"] = fmt.Sprintf("%x", o.Object.SHA256)
-		json["object_url"] = addr + o.Object.Endpoint()
+		raw["type"] = o.Object.Type
+		raw["md5"] = o.Object.MD5
+		raw["sha256"] = o.Object.SHA256
+		raw["object_url"] = env.DJINN_API_SERVER + o.Object.Endpoint()
 	}
-	return json
-}
 
-func (o *Object) Values() map[string]interface{} {
-	return map[string]interface{}{
-		"id":        o.ID,
-		"build_id":  o.BuildID,
-		"object_id": o.ObjectID,
-		"source":    o.Source,
-		"name":      o.Name,
-		"placed":    o.Placed,
-	}
-}
-
-func (s *ObjectStore) Get(opts ...query.Option) (*Object, bool, error) {
-	var o Object
-
-	ok, err := s.Pool.Get(objectTable, &o, opts...)
+	b, err := json.Marshal(raw)
 
 	if err != nil {
-		return nil, false, errors.Err(err)
-	}
-
-	if !ok {
-		return nil, false, nil
-	}
-	return &o, ok, nil
-}
-
-func (s *ObjectStore) All(opts ...query.Option) ([]*Object, error) {
-	oo := make([]*Object, 0)
-
-	new := func() database.Model {
-		o := &Object{}
-		oo = append(oo, o)
-		return o
-	}
-
-	if err := s.Pool.All(objectTable, new, opts...); err != nil {
 		return nil, errors.Err(err)
 	}
-	return oo, nil
+	return b, nil
 }
 
-func (s *ObjectStore) Load(fk, pk string, mm ...database.Model) error {
-	vals := database.Values(fk, mm)
+func (*Object) Endpoint(...string) string { return "" }
 
-	oo, err := s.All(query.Where(pk, "IN", database.List(vals...)))
+type ObjectStore struct {
+	*database.Store[*Object]
 
-	if err != nil {
-		return errors.Err(err)
-	}
+	FS fs.FS
+}
 
-	for _, o := range oo {
-		for _, m := range mm {
-			m.Bind(o)
+const objectTable = "build_objects"
+
+func SelectObject(expr query.Expr, opts ...query.Option) query.Query {
+	return query.Select(expr, append([]query.Option{query.From(objectTable)}, opts...)...)
+}
+
+func NewObjectStore(pool *database.Pool) *database.Store[*Object] {
+	return database.NewStore[*Object](pool, objectTable, func() *Object {
+		return &Object{}
+	})
+}
+
+type objectFilestore struct {
+	fs.FS
+
+	store *ObjectStore
+	build *Build
+	chain *key.Chain
+}
+
+func (s *objectFilestore) Open(name string) (fs.File, error) {
+	if name == s.chain.ConfigName() {
+		f, err := s.chain.Open(name)
+
+		if err != nil {
+			return nil, err
 		}
+		return f, nil
 	}
-	return nil
-}
 
-func (s *ObjectStore) getObjectToPlace(buildId int64, name string) (*Object, error) {
-	o, ok, err := s.Get(
-		query.Where("build_id", "=", query.Arg(buildId)),
-		query.Where("source", "=", query.Arg(name)),
+	f, err := s.chain.Open(name)
+
+	if err == nil {
+		return f, nil
+	}
+
+	if !errors.Is(err, fs.ErrNotExist) {
+		return f, errors.Err(err)
+	}
+
+	o, ok, err := object.NewStore(s.store.Pool).Get(
+		context.Background(),
+		query.Where("id", "=", query.Select(
+			query.Columns("object_id"),
+			query.From(objectTable),
+			query.Where("build_id", "=", query.Arg(s.build.ID)),
+			query.Where("source", "=", query.Arg(name)),
+		)),
 	)
 
 	if err != nil {
-		return nil, errors.Err(err)
+		return nil, &fs.PathError{Op: "open", Path: name, Err: err}
 	}
 
 	if !ok {
-		return nil, &fs.PathError{
-			Op:   "place",
-			Path: name,
-			Err:  fs.ErrNotExist,
-		}
+		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 	}
 
-	objects := object.Store{Pool: s.Pool}
-
-	o.Object, ok, err = objects.Get(query.Where("id", "=", query.Arg(o.ObjectID)))
+	f, err = o.Open(s.store.FS)
 
 	if err != nil {
-		return o, errors.Err(err)
+		return nil, &fs.PathError{Op: "open", Path: name, Err: errors.Unwrap(err)}
 	}
-
-	if !ok {
-		return nil, &fs.PathError{
-			Op:   "place",
-			Path: name,
-			Err:  fs.ErrNotExist,
-		}
-	}
-	return o, nil
+	return f, nil
 }
 
-type placer struct {
-	store   *ObjectStore
-	chain   *key.Chain
-	userId  int64
-	buildId int64
-}
-
-func (p *placer) Stat(name string) (os.FileInfo, error) {
-	if name == p.chain.ConfigName() {
-		return p.chain.ConfigFileInfo(), nil
-	}
-
-	if strings.HasPrefix(name, "key:") {
-		info, err := p.chain.Stat(strings.TrimPrefix(name, "key:"))
-
-		if err != nil {
-			return nil, errors.Err(err)
-		}
-		return info, nil
-	}
-
-	o, err := p.store.getObjectToPlace(p.buildId, name)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	info, err := p.store.Stat(o.Object.Hash)
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-	return info, nil
-}
-
-func (p *placer) Place(name string, w io.Writer) (int64, error) {
-	if name == p.chain.ConfigName() {
-		n, err := io.WriteString(w, p.chain.Config())
-
-		if err != nil {
-			return 0, errors.Err(err)
-		}
-		return int64(n), nil
-	}
-
-	if strings.HasPrefix(name, "key:") {
-		n, err := p.chain.Place(strings.TrimPrefix(name, "key:"), w)
-
-		if err != nil {
-			return 0, errors.Err(err)
-		}
-		return n, nil
-	}
-
-	o, err := p.store.getObjectToPlace(p.buildId, name)
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	store, err := p.store.Partition(p.userId)
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-
-	n, err := store.Place(o.Object.Hash, w)
-
-	if err != nil {
-		return 0, errors.Err(err)
-	}
-	return int64(n), nil
-}
-
-func (s *ObjectStore) Placer(b *Build, aesgcm *crypto.AESGCM, kk []*Key) runner.Placer {
-	chain := make([]*key.Key, 0, len(kk))
-
-	for _, k := range kk {
-		chain = append(chain, &key.Key{
-			ID:     k.KeyID.Int64,
-			Name:   k.Name,
-			Key:    k.Key,
-			Config: k.Config,
-		})
-	}
-
-	return &placer{
-		store:   s,
-		chain:   key.NewChain(aesgcm, chain),
-		userId:  b.UserID,
-		buildId: b.ID,
-	}
+func (s *ObjectStore) Filestore(b *Build, chain *key.Chain) fs.FS {
+	return fs.ReadOnly(&objectFilestore{
+		FS:    s.FS,
+		store: s,
+		build: b,
+		chain: chain,
+	})
 }

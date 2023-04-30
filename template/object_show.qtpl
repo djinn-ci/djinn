@@ -1,0 +1,71 @@
+{%
+import (
+	"djinn-ci.com/object"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type ObjectShow struct {
+	*Page
+
+	Object *object.Object
+	Builds *BuildIndex
+}
+%}
+
+{% collapsespace %}
+{% func (p *ObjectShow) Title() %}Objects{% endfunc %}
+
+{% func (p *ObjectShow) Header() %}
+	<a href="/objects" class="back">{% cat "static/svg/back.svg" %}</a>
+	{% if p.Object.Namespace != nil %}
+		<a href="{%s p.Object.Namespace.Endpoint() %}">{%s p.Object.Namespace.Name %}</a> /
+	{% endif %}
+	{%s p.Object.Name %}
+{% endfunc %}
+
+{% func (p *ObjectShow) Actions() %}
+	<li><a href="{%s p.Object.Endpoint("download", p.Object.Name) %}" class="btn btn-primary">Download</a></li>
+	{% if p.User.ID == p.Object.UserID %}
+		<li>
+			<form method="POST" action="{%s p.Object.Endpoint() %}">
+				{%= form.Method("DELETE") %}
+				{%v= p.CSRF %}
+				<button type="submit" class="btn btn-danger">Delete</button>
+			</form>
+		</li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *ObjectShow) Navigation() %}{% endfunc %}
+{% func (p *ObjectShow) Footer() %}{% endfunc %}
+
+{% func (p *ObjectShow) Body() %}
+	<div class="panel">
+		<table class="table">
+			<tr>
+				<td>Name</td>
+				<td class="align-right">{%s p.Object.Name %}</td>
+			</tr>
+			<tr>
+				<td>Type</td>
+				<td class="align-right"><span class="code">{%s p.Object.Type %}</span></td>
+			</tr>
+			<tr>
+				<td>Size</td>
+				<td class="align-right">{%s HumanSize(p.Object.Size) %}</td>
+			</tr>
+			<tr>
+				<td>MD5</td>
+				<td class="align-right"><span class="code">{%s p.Object.MD5.String() %}</span></td>
+			</tr>
+			<tr>
+				<td>SHA256</td>
+				<td class="align-right"><span class="code">{%s p.Object.SHA256.String() %}</span></td>
+			</tr>
+		</table>
+	</div>
+	{%= p.Builds.Body() %}
+{% endfunc %}
+{% endcollapsespace %}

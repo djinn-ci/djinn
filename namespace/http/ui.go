@@ -3,29 +3,25 @@ package http
 import (
 	"net/http"
 	"strconv"
-	"strings"
 
 	"djinn-ci.com/alert"
+	"djinn-ci.com/auth"
 	"djinn-ci.com/build"
-	buildtemplate "djinn-ci.com/build/template"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	imagetemplate "djinn-ci.com/image/template"
-	keytemplate "djinn-ci.com/key/template"
+	"djinn-ci.com/image"
+	"djinn-ci.com/key"
 	"djinn-ci.com/namespace"
-	namespacetemplate "djinn-ci.com/namespace/template"
-	objecttemplate "djinn-ci.com/object/template"
+	"djinn-ci.com/object"
 	"djinn-ci.com/server"
 	"djinn-ci.com/template"
+	"djinn-ci.com/template/form"
 	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 	"djinn-ci.com/variable"
-	variabletemplate "djinn-ci.com/variable/template"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 
-	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 )
 
@@ -33,43 +29,38 @@ type UI struct {
 	*Handler
 }
 
-func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
 
-	nn, paginator, err := h.IndexWithRelations(u, r)
+	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get namespaces"))
 		return
 	}
 
-	p := &namespacetemplate.Index{
-		BasePage: template.BasePage{
-			URL:  r.URL,
-			User: u,
-		},
-		Paginator:  paginator,
-		Namespaces: nn,
-		Search:     r.URL.Query().Get("search"),
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.NamespaceIndex{
+		Paginator:  template.NewPaginator[*namespace.Namespace](tmpl.Page, p),
+		Namespaces: p.Items,
 	}
-
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf.TemplateField(r))
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h UI) Create(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h UI) Create(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
 
+	ctx := r.Context()
 	path := r.URL.Query().Get("parent")
 
 	parent, ok, err := h.Namespaces.Get(
+		ctx,
 		query.Where("path", "=", query.Arg(path)),
 		namespace.SharedWith(u.ID),
 	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get namespace parent"))
 		return
 	}
 
@@ -84,64 +75,27 @@ func (h UI) Create(u *user.User, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := h.Users.Load("user_id", "id", parent); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := user.Loader(h.DB).Load(ctx, "user_id", "id", parent); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load namespace user"))
 			return
 		}
 	}
 
-	csrf := csrf.TemplateField(r)
-
-	p := &namespacetemplate.Form{
-		Form: template.Form{
-			CSRF:   csrf,
-			Errors: webutil.FormErrors(sess),
-			Fields: webutil.FormFields(sess),
-		},
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.NamespaceForm{
+		Form:   form.New(sess, r),
+		Parent: parent,
 	}
-
-	if ok {
-		p.Parent = parent
-	}
-
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
+func (h UI) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	n, f, err := h.StoreModel(u, r)
+	n, f, err := h.Handler.Store(u, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
-				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
-				alert.Flash(sess, alert.Danger, "Failed to create namespace")
-				h.RedirectBack(w, r)
-				return
-			}
-
-			webutil.FlashFormWithErrors(sess, f, verrs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		switch cause {
-		case namespace.ErrDepth:
-			alert.Flash(sess, alert.Danger, strings.Title(cause.Error()))
-			h.RedirectBack(w, r)
-		case database.ErrNotFound:
-			alert.Flash(sess, alert.Danger, "Failed to create namespace: could not find parent")
-			h.RedirectBack(w, r)
-		default:
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to create namespace")
-			h.RedirectBack(w, r)
-		}
+		h.FormError(w, r, f, errors.Wrap(err, "Failed to create namespace"))
 		return
 	}
 
@@ -149,95 +103,79 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.Redirect(w, r, n.Endpoint())
 }
 
-func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
 
+	ctx := r.Context()
 	q := r.URL.Query()
 
-	base := webutil.BasePath(r.URL.Path)
-	csrf := csrf.TemplateField(r)
-
-	bp := template.BasePage{
-		URL:   r.URL,
-		Query: q,
-		User:  u,
-	}
-	p := &namespacetemplate.Show{
-		BasePage:       bp,
-		Namespace:      n,
-		IsCollaborator: n.IsCollaborator(h.DB, u.ID) == nil,
+	tmpl := template.NewDashboard(u, sess, r)
+	show := template.NamespaceShow{
+		Page:      tmpl.Page,
+		Namespace: n,
 	}
 
-	switch base {
+	switch webutil.BasePath(r.URL.Path) {
 	case "namespaces":
-		nn, paginator, err := h.Namespaces.Index(r.URL.Query(), query.Where("parent_id", "=", query.Arg(n.ID)))
+		p, err := h.Namespaces.Index(ctx, q, query.Where("parent_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to get namespaces"))
+			return
+		}
+
+		if err := h.loadLastBuild(ctx, p.Items); err != nil {
 			h.InternalServerError(w, r, errors.Err(err))
 			return
 		}
 
-		if err := h.loadLastBuild(nn); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
-			return
-		}
-
-		p.Section = &namespacetemplate.Index{
-			BasePage:   bp,
-			Paginator:  paginator,
-			Namespace:  n,
-			Namespaces: nn,
-			Search:     q.Get("search"),
+		show.Partial = &template.NamespaceIndex{
+			Paginator:  template.NewPaginator[*namespace.Namespace](tmpl.Page, p),
+			Namespaces: p.Items,
 		}
 	case "images":
-		ii, paginator, err := h.Images.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Images.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get images"))
 			return
 		}
 
-		for _, i := range ii {
+		for _, i := range p.Items {
 			i.Namespace = n
 		}
 
-		p.Section = &imagetemplate.Index{
-			BasePage:  bp,
-			CSRF:      csrf,
-			Paginator: paginator,
-			Images:    ii,
-			Search:    q.Get("search"),
+		show.Partial = &template.ImageIndex{
+			Paginator: template.NewPaginator[*image.Image](tmpl.Page, p),
+			Images:    p.Items,
 		}
 	case "objects":
-		oo, paginator, err := h.Objects.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Objects.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
 			return
 		}
 
-		for _, o := range oo {
+		for _, o := range p.Items {
 			o.Namespace = n
 		}
 
-		p.Section = &objecttemplate.Index{
-			BasePage:  bp,
-			CSRF:      csrf,
-			Paginator: paginator,
-			Objects:   oo,
-			Search:    q.Get("search"),
+		show.Partial = &template.ObjectIndex{
+			Paginator: template.NewPaginator[*object.Object](tmpl.Page, p),
+			Objects:   p.Items,
 		}
 	case "variables":
-		vv, paginator, err := h.Variables.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Variables.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get variables"))
 			return
 		}
 
 		unmasked := variable.GetUnmasked(sess.Values)
 
-		for _, v := range vv {
+		for _, v := range p.Items {
 			v.Namespace = n
 
 			if _, ok := unmasked[v.ID]; ok && v.Masked {
@@ -253,38 +191,31 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 			}
 		}
 
-		p.Section = &variabletemplate.Index{
-			BasePage:  bp,
-			CSRF:      csrf,
-			Paginator: paginator,
-			Variables: vv,
-			Unmasked:  unmasked,
-			Search:    q.Get("search"),
+		show.Partial = &template.VariableIndex{
+			Paginator: template.NewPaginator[*variable.Variable](tmpl.Page, p),
+			Variables: p.Items,
 		}
 	case "keys":
-		kk, paginator, err := h.Keys.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Keys.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
 			return
 		}
 
-		for _, k := range kk {
+		for _, k := range p.Items {
 			k.Namespace = n
 		}
 
-		p.Section = &keytemplate.Index{
-			BasePage:  bp,
-			CSRF:      csrf,
-			Paginator: paginator,
-			Keys:      kk,
-			Search:    q.Get("search"),
+		show.Partial = &template.KeyIndex{
+			Paginator: template.NewPaginator[*key.Key](tmpl.Page, p),
+			Keys:      p.Items,
 		}
 	case "invites":
-		ii, err := h.Invites.All(query.Where("namespace_id", "=", query.Arg(n.ID)))
+		ii, err := h.Invites.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get invites"))
 			return
 		}
 
@@ -292,36 +223,31 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 
 		for _, i := range ii {
 			i.Namespace = n
-
 			mm = append(mm, i)
 		}
 
-		relations := []database.RelationFunc{
-			database.Relation("invitee_id", "id", h.Users),
-			database.Relation("inviter_id", "id", h.Users),
-		}
+		ld := user.Loader(h.DB)
 
-		if err := database.LoadRelations(mm, relations...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := ld.Load(ctx, "invitee_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
 			return
 		}
 
-		p.Section = &namespacetemplate.InviteIndex{
-			BasePage: bp,
-			Form: template.Form{
-				CSRF:   csrf,
-				Errors: webutil.FormErrors(sess),
-				Fields: webutil.FormFields(sess),
-			},
-			CSRF:      csrf,
+		if err := ld.Load(ctx, "inviter_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
+			return
+		}
+
+		show.Partial = &template.InviteIndex{
+			Form:      form.New(sess, r),
 			Namespace: n,
 			Invites:   ii,
 		}
 	case "collaborators":
-		cc, err := h.Collaborators.All(query.Where("namespace_id", "=", query.Arg(n.ID)))
+		cc, err := h.Collaborators.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get collaborators"))
 			return
 		}
 
@@ -332,22 +258,21 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 			mm = append(mm, c)
 		}
 
-		if err := h.Users.Load("user_id", "id", mm...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := user.Loader(h.DB).Load(ctx, "user_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load users"))
 			return
 		}
 
-		p.Section = &namespacetemplate.CollaboratorIndex{
-			BasePage:      bp,
-			CSRF:          csrf,
+		show.Partial = &template.CollaboratorIndex{
+			Page:          tmpl.Page,
 			Namespace:     n,
 			Collaborators: cc,
 		}
 	case "webhooks":
-		ww, err := h.Webhooks.All(query.Where("namespace_id", "=", query.Arg(n.ID)))
+		ww, err := h.Webhooks.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get webhooks"))
 			return
 		}
 
@@ -358,72 +283,64 @@ func (h UI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r 
 			mm = append(mm, w)
 		}
 
-		if err := h.Users.Load("author_id", "id", mm...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := user.Loader(h.DB).Load(ctx, "author_id", "id", mm...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
 			return
 		}
 
-		if err := h.Webhooks.LoadLastDeliveries(ww...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := h.Webhooks.LoadLastDeliveries(ctx, ww...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to get deliveries"))
 			return
 		}
 
-		p.Section = &namespacetemplate.WebhookIndex{
-			BasePage:  bp,
-			CSRF:      csrf,
+		show.Partial = &template.WebhookIndex{
+			Page:      tmpl.Page,
 			Namespace: n,
 			Webhooks:  ww,
 		}
 	default:
-		bb, paginator, err := h.Builds.Index(q, query.Where("namespace_id", "=", query.Arg(n.ID)))
+		p, err := h.Builds.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+			h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
 			return
 		}
 
-		if err := build.LoadRelations(h.DB, bb...); err != nil {
-			h.InternalServerError(w, r, errors.Err(err))
+		if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
+			h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
 			return
 		}
 
-		for _, b := range bb {
+		for _, b := range p.Items {
 			b.Namespace = n
 			b.Namespace.User = n.User
 		}
 
-		p.Tag = q.Get("tag")
-		p.Section = &buildtemplate.Index{
-			BasePage:  bp,
-			Paginator: paginator,
-			Builds:    bb,
+		show.Partial = &template.BuildIndex{
+			Paginator: template.NewPaginator[*build.Build](tmpl.Page, p),
+			Builds:    p.Items,
 		}
 	}
 
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	tmpl.Partial = &show
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h UI) DestroyCollab(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h UI) DestroyCollaborator(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if err := h.deleteCollab(u, n, r); err != nil {
-		if errors.Is(err, namespace.ErrPermission) {
-			alert.Flash(sess, alert.Danger, "Failed to remove collaborator")
-			h.RedirectBack(w, r)
+	if err := h.Handler.DestroyCollaborator(u, n, r); err != nil {
+		if errors.Is(err, database.ErrPermission) {
+			h.Error(w, r, errors.Benign("Failed to remove collaborator"))
 			return
 		}
 
-		if errors.Is(err, database.ErrNotFound) {
-			alert.Flash(sess, alert.Danger, "No such collaborator")
-			h.RedirectBack(w, r)
+		if errors.Is(err, database.ErrNoRows) {
+			h.Error(w, r, errors.Benign("No such collaborator"))
 			return
 		}
 
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to remove collaborator")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to remove collaborator"))
 		return
 	}
 
@@ -431,46 +348,24 @@ func (h UI) DestroyCollab(u *user.User, n *namespace.Namespace, w http.ResponseW
 	h.RedirectBack(w, r)
 }
 
-func (h UI) Edit(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	csrf := csrf.TemplateField(r)
-
-	p := &namespacetemplate.Form{
-		Form: template.Form{
-			CSRF:   csrf,
-			Errors: webutil.FormErrors(sess),
-			Fields: webutil.FormFields(sess),
-		},
-		Namespace: n,
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h UI) Update(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h UI) Edit(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	n, f, err := h.UpdateModel(n, r)
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.NamespaceForm{
+		Form:      form.New(sess, r),
+		Namespace: n,
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h UI) Update(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	n, f, err := h.Handler.Update(u, n, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			if errs, ok := verrs["fatal"]; ok {
-				h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
-				alert.Flash(sess, alert.Danger, "Failed to update namespace")
-				h.RedirectBack(w, r)
-				return
-			}
-
-			webutil.FlashFormWithErrors(sess, f, verrs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		h.InternalServerError(w, r, errors.Err(err))
+		h.FormError(w, r, f, errors.Wrap(err, "Failed to update namespace"))
 		return
 	}
 
@@ -478,13 +373,11 @@ func (h UI) Update(u *user.User, n *namespace.Namespace, w http.ResponseWriter, 
 	h.Redirect(w, r, n.Endpoint())
 }
 
-func (h UI) Destroy(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h UI) Destroy(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if err := h.DeleteModel(r.Context(), n); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to delete namespace")
-		h.RedirectBack(w, r)
+	if err := h.Handler.Destroy(r.Context(), n); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete namespace"))
 		return
 	}
 
@@ -496,48 +389,41 @@ type InviteUI struct {
 	*InviteHandler
 }
 
-func (h InviteUI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h InviteUI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
 
-	ii, err := h.invitesWithRelations(u)
+	ii, err := h.Invites.All(r.Context(), query.Where("invitee_id", "=", query.Arg(u.ID)))
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get invites"))
 		return
 	}
 
-	csrf := csrf.TemplateField(r)
-
-	p := &namespacetemplate.InviteIndex{
-		CSRF:    csrf,
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.InviteIndex{
 		Invites: ii,
 	}
-
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h InviteUI) Store(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h InviteUI) Store(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	if _, f, err := h.StoreModel(n, r); err != nil {
-		cause := errors.Cause(err)
+	if _, f, err := h.InviteHandler.Store(u, n, r); err != nil {
+		errtab := map[error]string{
+			database.ErrNoRows:        "No such user",
+			namespace.ErrSelfInvite:   "Cannot invite self",
+			namespace.ErrInviteSent:   "Invite already sent",
+			namespace.ErrCollaborator: "Already a collaborator",
+		}
 
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			webutil.FlashFormWithErrors(sess, f, verrs)
+		if err, ok := errtab[err]; ok {
+			alert.Flash(sess, alert.Danger, err)
 			h.RedirectBack(w, r)
 			return
 		}
 
-		if errors.Is(cause, database.ErrNotFound) || errors.Is(cause, namespace.ErrPermission) {
-			h.NotFound(w, r)
-			return
-		}
-
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to send invite")
-		h.RedirectBack(w, r)
+		h.FormError(w, r, f, errors.Wrap(err, "Failed to send invite"))
 		return
 	}
 
@@ -545,12 +431,13 @@ func (h InviteUI) Store(u *user.User, n *namespace.Namespace, w http.ResponseWri
 	h.RedirectBack(w, r)
 }
 
-func (h InviteUI) Update(u *user.User, w http.ResponseWriter, r *http.Request) {
+func (h InviteUI) Update(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	id, _ := strconv.ParseInt(mux.Vars(r)["invite"], 10, 64)
+	ctx := r.Context()
+	id := mux.Vars(r)["invite"]
 
-	i, ok, err := h.Invites.Get(query.Where("id", "=", query.Arg(id)))
+	i, ok, err := h.Invites.Get(ctx, query.Where("id", "=", query.Arg(id)))
 
 	if err != nil {
 		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
@@ -563,16 +450,15 @@ func (h InviteUI) Update(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	n, _, _, err := h.Accept(r.Context(), u, i)
+	n, _, _, err := h.Accept(ctx, u, i)
 
 	if err != nil {
-		if errors.Is(err, database.ErrNotFound) {
+		if errors.Is(err, database.ErrNoRows) {
 			h.NotFound(w, r)
 			return
 		}
 
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to accept invite")
+		h.Error(w, r, errors.Wrap(err, "Failed to accept invite"))
 		return
 	}
 
@@ -580,14 +466,15 @@ func (h InviteUI) Update(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
-func (h InviteUI) Destroy(u *user.User, w http.ResponseWriter, r *http.Request) {
+func (h InviteUI) Destroy(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	sess, _ := h.Session(r)
 
-	i, ok, err := h.inviteFromRequest(u, r)
+	i, ok, err := h.Invites.Get(ctx, query.Where("id", "=", query.Arg(mux.Vars(r)["invite"])))
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to accept invite")
+		h.Error(w, r, errors.Wrap(err, "Failed to accept invite"))
 		return
 	}
 
@@ -596,14 +483,13 @@ func (h InviteUI) Destroy(u *user.User, w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := h.DeleteModel(r.Context(), u, i); err != nil {
-		if errors.Is(err, database.ErrNotFound) {
+	if err := h.InviteHandler.Destroy(ctx, u, i); err != nil {
+		if errors.Is(err, database.ErrNoRows) {
 			h.NotFound(w, r)
 			return
 		}
 
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to reject invite")
+		h.Error(w, r, errors.Wrap(err, "Failed to reject invite"))
 		return
 	}
 
@@ -615,41 +501,24 @@ type WebhookUI struct {
 	*WebhookHandler
 }
 
-func (h WebhookUI) Create(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
-
-	csrf := csrf.TemplateField(r)
-
-	p := &namespacetemplate.WebhookForm{
-		Form: template.Form{
-			CSRF:   csrf,
-			Errors: webutil.FormErrors(sess),
-			Fields: webutil.FormFields(sess),
-		},
-		Namespace: n,
-	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
-}
-
-func (h WebhookUI) Store(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h WebhookUI) Create(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	_, f, err := h.StoreModel(u, n, r)
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.WebhookForm{
+		Form:      form.New(sess, r),
+		Namespace: n,
+	}
+	h.Template(w, r, tmpl, http.StatusOK)
+}
+
+func (h WebhookUI) Store(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
+
+	_, f, err := h.WebhookHandler.Store(u, n, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			webutil.FlashFormWithErrors(sess, f, verrs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to create webhook")
-		h.RedirectBack(w, r)
+		h.FormError(w, r, f, errors.Wrap(err, "Failed to create webhook"))
 		return
 	}
 
@@ -657,13 +526,19 @@ func (h WebhookUI) Store(u *user.User, n *namespace.Namespace, w http.ResponseWr
 	h.Redirect(w, r, n.Endpoint("webhooks"))
 }
 
-func (h WebhookUI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h WebhookUI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
-	wh, ok, err := h.webhookFromRequest(u, n, r)
+	sess, _ := h.Session(r)
+
+	wh, ok, err := h.Webhooks.Get(
+		ctx,
+		query.Where("id", "=", query.Arg(mux.Vars(r)["webhook"])),
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get webhook"))
 		return
 	}
 
@@ -672,10 +547,12 @@ func (h WebhookUI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWri
 		return
 	}
 
-	dd, err := h.Webhooks.Deliveries(wh.ID)
+	wh.Namespace = n
+
+	dd, err := h.Webhooks.Deliveries(ctx, wh)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get webhook deliveries"))
 		return
 	}
 
@@ -683,30 +560,39 @@ func (h WebhookUI) Show(u *user.User, n *namespace.Namespace, w http.ResponseWri
 		d.Webhook = wh
 	}
 
-	csrf := csrf.TemplateField(r)
+	f := form.New(sess, r)
+	f.Fields["payload_url"] = wh.PayloadURL.String()
 
-	p := &namespacetemplate.WebhookForm{
-		Form: template.Form{
-			CSRF:   csrf,
-			Errors: webutil.FormErrors(sess),
-			Fields: webutil.FormFields(sess),
-		},
+	if wh.SSL {
+		f.Fields["ssl"] = "checked"
+	}
+	if wh.Active {
+		f.Fields["active"] = "checked"
+	}
+
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.WebhookForm{
+		Form:       f,
 		Namespace:  n,
 		Webhook:    wh,
 		Deliveries: dd,
 	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h WebhookUI) Delivery(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h WebhookUI) Delivery(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
-	wh, ok, err := h.webhookFromRequest(u, n, r)
+	sess, _ := h.Session(r)
+
+	wh, ok, err := h.Webhooks.Get(
+		ctx,
+		query.Where("id", "=", query.Arg(mux.Vars(r)["webhook"])),
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+	)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get webhook"))
 		return
 	}
 
@@ -717,10 +603,10 @@ func (h WebhookUI) Delivery(u *user.User, n *namespace.Namespace, w http.Respons
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["delivery"], 10, 64)
 
-	del, ok, err := h.Webhooks.Delivery(wh.ID, id)
+	del, ok, err := h.Webhooks.Delivery(ctx, wh, id)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to get webhook delivery"))
 		return
 	}
 
@@ -731,70 +617,58 @@ func (h WebhookUI) Delivery(u *user.User, n *namespace.Namespace, w http.Respons
 
 	del.Webhook = wh
 
-	csrf := csrf.TemplateField(r)
-
-	p := &namespacetemplate.ShowDelivery{
-		BasePage: template.BasePage{
-			User: u,
-			URL:  r.URL,
-		},
-		CSRF:     csrf,
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.WebhookDelivery{
+		Page:     tmpl.Page,
 		Delivery: del,
 	}
-	d := template.NewDashboard(p, r.URL, u, alert.First(sess), csrf)
-
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h WebhookUI) Redeliver(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h WebhookUI) Redeliver(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	sess, _ := h.Session(r)
 
-	wh, ok, err := h.webhookFromRequest(u, n, r)
+	wh, ok, err := h.Webhooks.Get(
+		ctx,
+		query.Where("id", "=", query.Arg(mux.Vars(r)["webhook"])),
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+	)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to redeliver hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
 		return
 	}
 
 	if !ok {
-		alert.Flash(sess, alert.Danger, "No such hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Benign("No such webhook"))
 		return
 	}
 
 	id, _ := strconv.ParseInt(mux.Vars(r)["delivery"], 10, 64)
 
-	del, ok, err := h.Webhooks.Delivery(wh.ID, id)
+	del, ok, err := h.Webhooks.Delivery(ctx, wh, id)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to redeliver hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
 		return
 	}
 
 	if !ok {
-		alert.Flash(sess, alert.Danger, "No such hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Benign("No such webhook"))
 		return
 	}
 
-	if err := h.Webhooks.Redeliver(wh.ID, del.EventID); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to redeliver hook")
-		h.RedirectBack(w, r)
+	if err := h.Webhooks.Redeliver(ctx, wh, del.EventID); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
 		return
 	}
 
-	latest, err := h.Webhooks.LastDelivery(wh.ID)
+	latest, err := h.Webhooks.LastDelivery(ctx, wh)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to redeliver hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
 		return
 	}
 
@@ -804,38 +678,33 @@ func (h WebhookUI) Redeliver(u *user.User, n *namespace.Namespace, w http.Respon
 	h.Redirect(w, r, latest.Endpoint())
 }
 
-func (h WebhookUI) Update(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h WebhookUI) Update(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	sess, _ := h.Session(r)
 
-	wh, ok, err := h.webhookFromRequest(u, n, r)
+	wh, ok, err := h.Webhooks.Get(
+		ctx,
+		query.Where("id", "=", query.Arg(mux.Vars(r)["webhook"])),
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+	)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to update hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to update webhook"))
 		return
 	}
 
 	if !ok {
-		alert.Flash(sess, alert.Danger, "No such hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Benign("No such webhook"))
 		return
 	}
 
-	wh, f, err := h.UpdateModel(wh, r)
+	wh.Namespace = n
+
+	wh, f, err := h.WebhookHandler.Update(wh, r)
 
 	if err != nil {
-		cause := errors.Cause(err)
-
-		if verrs, ok := cause.(webutil.ValidationErrors); ok {
-			webutil.FlashFormWithErrors(sess, f, verrs)
-			h.RedirectBack(w, r)
-			return
-		}
-
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to update webhook")
-		h.RedirectBack(w, r)
+		h.FormError(w, r, f, errors.Wrap(err, "Failed to update webhook"))
 		return
 	}
 
@@ -843,28 +712,31 @@ func (h WebhookUI) Update(u *user.User, n *namespace.Namespace, w http.ResponseW
 	h.Redirect(w, r, wh.Endpoint())
 }
 
-func (h WebhookUI) Destroy(u *user.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+func (h WebhookUI) Destroy(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	sess, _ := h.Session(r)
 
-	wh, ok, err := h.webhookFromRequest(u, n, r)
+	wh, ok, err := h.Webhooks.Get(
+		ctx,
+		query.Where("id", "=", query.Arg(mux.Vars(r)["webhook"])),
+		query.Where("namespace_id", "=", query.Arg(n.ID)),
+	)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to delete hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to delete webhook"))
 		return
 	}
 
 	if !ok {
-		alert.Flash(sess, alert.Danger, "No such hook")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Benign("No such webhook"))
 		return
 	}
 
-	if err := h.Webhooks.Delete(wh.ID); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to delete hook")
-		h.RedirectBack(w, r)
+	wh.Namespace = n
+
+	if err := h.Webhooks.Delete(ctx, wh); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to delete webhook"))
 		return
 	}
 
@@ -872,52 +744,100 @@ func (h WebhookUI) Destroy(u *user.User, n *namespace.Namespace, w http.Response
 	h.Redirect(w, r, wh.Namespace.Endpoint("webhooks"))
 }
 
-func RegisterUI(srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func registerNamespaceUI(a auth.Authenticator, srv *server.Server) {
 	ui := UI{
 		Handler: NewHandler(srv),
 	}
 
-	inviteui := InviteUI{
-		InviteHandler: NewInviteHandler(srv),
-	}
+	index := srv.Restrict(a, []string{"namespace:read"}, ui.Index)
+	create := srv.Restrict(a, []string{"namespace:write"}, ui.Create)
+	store := srv.Restrict(a, []string{"namespace:write"}, ui.Store)
 
-	hookui := WebhookUI{
+	root := srv.Router.PathPrefix("/").Subrouter()
+	root.HandleFunc("/namespaces", index).Methods("GET")
+	root.HandleFunc("/namespaces/create", create).Methods("GET")
+	root.HandleFunc("/namespaces", store).Methods("POST")
+	root.Use(srv.CSRF)
+
+	a = namespace.NewAuth[*namespace.Namespace](a, "namespace", ui.Namespaces.Store)
+
+	show := srv.Restrict(a, []string{"namespace:read"}, ui.Namespace(ui.Show))
+	edit := srv.Restrict(a, []string{"namespace:write", "owner"}, ui.Namespace(ui.Edit))
+	update := srv.Restrict(a, []string{"namespace:write", "owner"}, ui.Namespace(ui.Update))
+	destroy := srv.Restrict(a, []string{"namespace:delete"}, ui.Namespace(ui.Destroy))
+	destroyCollab := srv.Restrict(a, []string{"namespace:delete", "owner"}, ui.Namespace(ui.DestroyCollaborator))
+
+	sr := srv.Router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
+	sr.HandleFunc("", srv.Optional(a, ui.Namespace(ui.Show))).Methods("GET")
+	sr.HandleFunc("/-/badge.svg", ui.Badge).Methods("GET")
+	sr.HandleFunc("/-/edit", edit).Methods("GET")
+	sr.HandleFunc("/-/namespaces", show).Methods("GET")
+	sr.HandleFunc("/-/images", show).Methods("GET")
+	sr.HandleFunc("/-/objects", show).Methods("GET")
+	sr.HandleFunc("/-/variables", show).Methods("GET")
+	sr.HandleFunc("/-/keys", show).Methods("GET")
+	sr.HandleFunc("/-/collaborators", show).Methods("GET")
+	sr.HandleFunc("/-/collaborators/{collaborator}", destroyCollab).Methods("DELETE")
+	sr.HandleFunc("/-/invites", srv.Restrict(a, []string{"invite:read", "owner"}, ui.Namespace(ui.Show))).Methods("GET")
+	sr.HandleFunc("/-/webhooks", srv.Restrict(a, []string{"webhook:read"}, ui.Namespace(ui.Show))).Methods("GET")
+	sr.HandleFunc("", update).Methods("PATCH")
+	sr.HandleFunc("", destroy).Methods("DELETE")
+	sr.Use(srv.CSRF)
+}
+
+func registerWebhookUI(a auth.Authenticator, srv *server.Server) {
+	ui := WebhookUI{
 		WebhookHandler: NewWebhookHandler(srv),
 	}
 
-	auth := srv.Router.PathPrefix("/").Subrouter()
-	auth.HandleFunc("/namespaces", user.WithUser(ui.Index)).Methods("GET")
-	auth.HandleFunc("/namespaces/create", user.WithUser(ui.Create)).Methods("GET")
-	auth.HandleFunc("/namespaces", user.WithUser(ui.Store)).Methods("POST")
-	auth.HandleFunc("/invites", user.WithUser(inviteui.Index)).Methods("GET")
-	auth.HandleFunc("/invites/{invite:[0-9]+}", user.WithUser(inviteui.Update)).Methods("PATCH")
-	auth.HandleFunc("/invites/{invite:[0-9]+}", user.WithUser(inviteui.Destroy)).Methods("DELETE")
-	auth.Use(srv.CSRF)
+	h := NewHandler(srv)
 
-	sr := srv.Router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}").Subrouter()
-	sr.HandleFunc("", user.WithOptionalUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/badge.svg", ui.Badge).Methods("GET")
-	sr.HandleFunc("/-/edit", user.WithUser(ui.WithNamespace(ui.Edit))).Methods("GET")
-	sr.HandleFunc("/-/namespaces", user.WithOptionalUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/images", user.WithOptionalUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/objects", user.WithOptionalUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/variables", user.WithOptionalUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/keys", user.WithOptionalUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/invites", user.WithUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/invites", user.WithUser(ui.WithNamespace(inviteui.Store))).Methods("POST")
-	sr.HandleFunc("/-/collaborators", user.WithUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/collaborators/{collaborator}", user.WithUser(ui.WithNamespace(ui.DestroyCollab))).Methods("DELETE")
-	sr.HandleFunc("/-/webhooks", user.WithUser(ui.WithNamespace(ui.Show))).Methods("GET")
-	sr.HandleFunc("/-/webhooks/create", user.WithUser(ui.WithNamespace(hookui.Create))).Methods("GET")
-	sr.HandleFunc("/-/webhooks", user.WithUser(ui.WithNamespace(hookui.Store))).Methods("POST")
-	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", user.WithUser(ui.WithNamespace(hookui.Show))).Methods("GET")
-	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}/deliveries/{delivery:[0-9]+}", user.WithUser(ui.WithNamespace(hookui.Delivery))).Methods("GET")
-	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}/deliveries/{delivery:[0-9]+}", user.WithUser(ui.WithNamespace(hookui.Redeliver))).Methods("PATCH")
-	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", user.WithUser(ui.WithNamespace(hookui.Update))).Methods("PATCH")
-	sr.HandleFunc("/-/webhooks/{webhook:[0-9]+}", user.WithUser(ui.WithNamespace(hookui.Destroy))).Methods("DELETE")
-	sr.HandleFunc("", user.WithUser(ui.WithNamespace(ui.Update))).Methods("PATCH")
-	sr.HandleFunc("", user.WithUser(ui.WithNamespace(ui.Destroy))).Methods("DELETE")
+	create := srv.Restrict(a, []string{"webhook:write"}, h.Namespace(ui.Create))
+	store := srv.Restrict(a, []string{"webhook:write"}, h.Namespace(ui.Store))
+	show := srv.Restrict(a, []string{"webhook:read"}, h.Namespace(ui.Show))
+	delivery := srv.Restrict(a, []string{"webhook:read"}, h.Namespace(ui.Delivery))
+	redeliver := srv.Restrict(a, []string{"webhook:write"}, h.Namespace(ui.Redeliver))
+	update := srv.Restrict(a, []string{"webhook:write"}, h.Namespace(ui.Update))
+	destroy := srv.Restrict(a, []string{"webhook:delete"}, h.Namespace(ui.Destroy))
+
+	sr := srv.Router.PathPrefix("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}/-/webhooks").Subrouter()
+	sr.HandleFunc("/create", create).Methods("GET")
+	sr.HandleFunc("", store).Methods("POST")
+	sr.HandleFunc("/{webhook:[0-9]+}", show).Methods("GET")
+	sr.HandleFunc("/{webhook:[0-9]+}/deliveries/{delivery:[0-9]+}", delivery).Methods("GET")
+	sr.HandleFunc("/{webhook:[0-9]+}/deliveries/{delivery:[0-9]+}", redeliver).Methods("PATCH")
+	sr.HandleFunc("/{webhook:[0-9]+}", update).Methods("PATCH")
+	sr.HandleFunc("/{webhook:[0-9]+}", destroy).Methods("DELETE")
 	sr.Use(srv.CSRF)
+}
+
+func registerInviteUI(a auth.Authenticator, srv *server.Server) {
+	ui := InviteUI{
+		InviteHandler: NewInviteHandler(srv),
+	}
+
+	h := NewHandler(srv)
+
+	inviteAuth := namespace.NewAuth[*namespace.Invite](a, "invite", ui.Invites.Store)
+
+	index := srv.Restrict(a, []string{"invite:read"}, ui.Index)
+	update := srv.Restrict(inviteAuth, []string{"invite:write", "owner"}, ui.Update)
+	destroy := srv.Restrict(inviteAuth, []string{"invite:write"}, ui.Destroy)
+
+	a = namespace.NewAuth[*namespace.Namespace](a, "namespace", ui.Namespaces)
+
+	store := srv.Restrict(a, []string{"invite:write", "owner"}, h.Namespace(ui.Store))
+
+	root := srv.Router.PathPrefix("/").Subrouter()
+	root.HandleFunc("/invites", index).Methods("GET")
+	root.HandleFunc("/invites/{invite:[0-9]+}", update).Methods("PATCH")
+	root.HandleFunc("/invites/{invite:[0-9]+}", destroy).Methods("DELETE")
+	root.HandleFunc("/n/{username}/{namespace:[a-zA-Z0-9\\/?]+}/-/invites", store).Methods("POST")
+	root.Use(srv.CSRF)
+}
+
+func RegisterUI(a auth.Authenticator, srv *server.Server) {
+	registerNamespaceUI(a, srv)
+	registerWebhookUI(a, srv)
+	registerInviteUI(a, srv)
 }

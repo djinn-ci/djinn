@@ -32,18 +32,13 @@ type schedCfg struct {
 }
 
 type Scheduler struct {
-	pidfile string
-
-	interval  time.Duration
-	batchsize int64
-
-	hasher *crypto.Hasher
-
-	db    database.Pool
-	redis *redis.Client
-
-	log *log.Logger
-
+	pidfile      string
+	interval     time.Duration
+	batchsize    int64
+	hasher       *crypto.Hasher
+	db           *database.Pool
+	redis        *redis.Client
+	log          *log.Logger
 	driverQueues map[string]*curlyq.Producer
 }
 
@@ -51,7 +46,7 @@ func (s *Scheduler) Pidfile() string                           { return s.pidfil
 func (s *Scheduler) Interval() time.Duration                   { return s.interval }
 func (s *Scheduler) BatchSize() int64                          { return s.batchsize }
 func (s *Scheduler) Hasher() *crypto.Hasher                    { return s.hasher }
-func (s *Scheduler) DB() database.Pool                         { return s.db }
+func (s *Scheduler) DB() *database.Pool                        { return s.db }
 func (s *Scheduler) Redis() *redis.Client                      { return s.redis }
 func (s *Scheduler) Log() *log.Logger                          { return s.log }
 func (s *Scheduler) DriverQueues() map[string]*curlyq.Producer { return s.driverQueues }

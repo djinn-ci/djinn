@@ -5,15 +5,16 @@ import (
 	"net/http"
 	"time"
 
+	"djinn-ci.com/auth"
 	"djinn-ci.com/crypto"
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
-	"djinn-ci.com/fs"
 	"djinn-ci.com/log"
 	"djinn-ci.com/mail"
 	"djinn-ci.com/provider"
 
 	"github.com/andrewpillar/config"
+	"github.com/andrewpillar/fs"
 
 	"github.com/go-redis/redis"
 
@@ -21,6 +22,7 @@ import (
 )
 
 type serverCfg struct {
+	Debug   bool
 	Host    string
 	Pidfile string
 
@@ -51,6 +53,7 @@ type serverCfg struct {
 }
 
 type Server struct {
+	debug   bool
 	host    string
 	pidfile string
 
@@ -64,33 +67,36 @@ type Server struct {
 	aesgcm *crypto.AESGCM
 	hasher *crypto.Hasher
 
-	db    database.Pool
+	db    *database.Pool
 	redis *redis.Client
 
 	smtp      *mail.Client
 	smtpadmin string
 
-	artifacts fs.Store
-	images    fs.Store
-	objects   fs.Store
+	artifacts fs.FS
+	images    fs.FS
+	objects   fs.FS
 
+	auths     *auth.Registry
 	providers *provider.Registry
 }
 
+func (s *Server) Debug() bool                               { return s.debug }
 func (s *Server) Host() string                              { return s.host }
 func (s *Server) Pidfile() string                           { return s.pidfile }
 func (s *Server) Log() *log.Logger                          { return s.log }
 func (s *Server) Server() *http.Server                      { return s.srv }
-func (s *Server) DB() database.Pool                         { return s.db }
+func (s *Server) DB() *database.Pool                        { return s.db }
 func (s *Server) Redis() *redis.Client                      { return s.redis }
 func (s *Server) SMTP() (*mail.Client, string)              { return s.smtp, s.smtpadmin }
 func (s *Server) DriverQueues() map[string]*curlyq.Producer { return s.driverQueues }
 func (s *Server) AESGCM() *crypto.AESGCM                    { return s.aesgcm }
 func (s *Server) Hasher() *crypto.Hasher                    { return s.hasher }
 func (s *Server) Crypto() ([]byte, []byte, []byte, []byte)  { return s.crypto.values() }
-func (s *Server) Artifacts() fs.Store                       { return s.artifacts }
-func (s *Server) Images() fs.Store                          { return s.images }
-func (s *Server) Objects() fs.Store                         { return s.objects }
+func (s *Server) Artifacts() fs.FS                          { return s.artifacts }
+func (s *Server) Images() fs.FS                             { return s.images }
+func (s *Server) Objects() fs.FS                            { return s.objects }
+func (s *Server) Auths() *auth.Registry                     { return s.auths }
 func (s *Server) Providers() *provider.Registry             { return s.providers }
 
 func DecodeServer(name string, r io.Reader) (*Server, error) {
@@ -103,7 +109,8 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 	}
 
 	srv := &Server{
-		host: cfg.Host,
+		debug: cfg.Debug,
+		host:  cfg.Host,
 	}
 
 	var err error
@@ -185,9 +192,19 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 		}
 	}
 
-	srv.providers = provider.NewRegistry()
+	auths := auth.NewRegistry("auth_mech")
+
+	srv.providers = &provider.Registry{}
 
 	for name, p := range cfg.Provider {
+		a, err := p.auth(name, cfg.Host)
+
+		if err != nil {
+			return nil, err
+		}
+
+		auths.Register("oauth2."+name, a)
+
 		cli, err := p.client(name, cfg.Host)
 
 		if err != nil {
@@ -195,5 +212,7 @@ func DecodeServer(name string, r io.Reader) (*Server, error) {
 		}
 		srv.providers.Register(name, cli)
 	}
+
+	srv.auths = auths
 	return srv, nil
 }

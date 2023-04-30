@@ -1,0 +1,81 @@
+{% import "djinn-ci.com/build" %}
+
+{% code
+type BuildArtifacts struct {
+	*Paginator
+
+	Artifacts []*build.Artifact
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildArtifacts) Title() %}Artifacts{% endfunc %}
+
+{% func (p *BuildArtifacts) Header() %}{% endfunc %}
+{% func (p *BuildArtifacts) Actions() %}{% endfunc %}
+{% func (p *BuildArtifacts) Navigation() %}{% endfunc %}
+{% func (p *BuildArtifacts) Footer() %}{% endfunc %}
+
+{% func (p *BuildArtifacts) renderArtifactItem(a *build.Artifact) %}
+	<tr>
+		<td>
+			{% if a.DeletedAt.Valid %}
+				<a title="Artifact deleted"><strike>{%s a.Name %}</strike></a>
+			{% else %}
+				<a href="{%s a.Endpoint() %}">{%s a.Name %}</a>
+			{% endif %}
+		</td>
+		<td>{%s HumanSize(a.Size.Elem) %}</td>
+		<td>
+			<span class="code">
+				{% if len(a.MD5) == 0 %}
+					--
+				{% else %}
+					a.MD5.String()
+				{% endif %}
+			</span>
+		</td>
+		<td>
+			<span class="code">
+				{% if len(a.SHA256) == 0 %}
+					--
+				{% else %}
+					a.SHA256.String()
+				{% endif %}
+			</span>
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *BuildArtifacts) Body() %}
+	<div class="panel">
+		{% if len(p.Artifacts) == 0 %}
+			{% if query := p.Query.Get("search"); query != "" %}
+				<div class="panel-header">{%= p.Search("Find an artifact...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<div class="panel-message muted">
+					No artifacts have been collected from this build.
+				</div> 
+			{% endif %}
+		{% else %}
+			<div class="panel-header">{%= p.Search("Find an artifact...") %}</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th>SIZE</th>
+						<th>MD5</th>
+						<th>SHA256</th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, a := range p.Artifacts %}
+						{%= p.renderArtifactItem(a) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

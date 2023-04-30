@@ -1,0 +1,161 @@
+{%
+import (
+	"html/template"
+	"net/http"
+
+	"djinn-ci.com/database"
+
+	"github.com/andrewpillar/webutil/v2"
+
+	"github.com/gorilla/csrf"
+	"github.com/gorilla/sessions"
+)
+%}
+
+{% code
+type FieldType uint
+
+const (
+	Text FieldType = iota + 1
+	Textarea
+	Password
+	Checkbox
+	Radio
+	File
+)
+
+type Field struct {
+	ID       string
+	Name     string
+	Desc     string
+	Value    string
+	Optional bool
+	Disabled bool
+	Checked  bool
+	Type     FieldType
+}
+
+type Form struct {
+	model database.Model
+
+	CSRF   template.HTML
+	Errors webutil.ValidationErrors
+	Fields map[string]string
+}
+
+func New(sess *sessions.Session, r *http.Request) *Form {
+	return &Form{
+			CSRF:   csrf.TemplateField(r),
+			Errors: webutil.FormErrors(sess),
+			Fields: webutil.FormFields(sess),
+	}
+}
+
+func NewWithModel(sess *sessions.Session, r *http.Request, m database.Model) *Form {
+	f := New(sess, r)
+	f.model = m
+	return f
+}
+
+func (f *Form) fieldValue(fld Field) any {
+	if f.model != nil {
+		params := f.model.Params()
+
+		if p, ok := params[fld.ID]; ok {
+			if s, ok := p.Value.(interface { String() string }); ok {
+				return s.String()
+			}
+			return p.Value
+		}
+	}
+
+	if v, ok := f.Fields[fld.ID]; ok {
+		return v
+	}
+	return fld.Value
+}
+%}
+
+{% collapsespace %}
+{% func Method(method string) %}
+	<input type="hidden" name="_method" value="{%s method %}"/>
+{% endfunc %}
+
+{% func (f *Form) renderField(fld Field) %}
+	{% if fld.Type != Checkbox && fld.Type != Radio %}
+		<label class="label" for="{%s fld.ID %}">
+			{%s fld.Name %}{% if fld.Optional %} <small>(optional)</small>{% endif %}
+		</label>
+	{% endif %}
+	{% switch fld.Type %}
+	{% case Text %}
+		{% if fld.Desc != "" %}
+			<div class="form-desc">{%s= fld.Desc %}</div>
+		{% endif %}
+		<input autocomplete="off" class="form-text" id="{%s fld.ID %}" name="{%s fld.ID %}" type="text" value="{%v f.fieldValue(fld) %}"/>
+	{% case Password %}
+		<input autocomplete="off" class="form-text" id="{%s fld.ID %}" name="{%s fld.ID %}" type="password"/>
+	{% case Textarea %}
+		<textarea class="form-text form-code" id="{%s fld.ID %}" name="{%s fld.ID %}">{%v f.fieldValue(fld) %}</textarea>
+	{% case Checkbox %}
+		<label class="form-option">
+			{% if v := f.fieldValue(fld); v == "checked" || fld.Checked %}
+				<input checked="true" class="form-selector" name="{%s fld.ID %}" type="checkbox"/>
+			{% else %}
+				<input class="form-selector" name="{%s fld.ID %}" type="checkbox"/>
+			{% endif %}
+			<div class="form-option-info">
+				<strong>{%s fld.Name %}</strong>
+				{% if fld.Desc != "" %}<div class="form-desc">{%s= fld.Desc %}</div>{% endif %}
+			</div>
+		</label>
+	{% case Radio %}
+		<label class="form-option">
+			{% if v, ok := f.Fields[fld.ID]; ok && v == fld.Value || fld.Checked %}
+				<input checked="true" class="form-selector" name="{%s fld.ID %}" type="radio" value="{%s fld.Value %}"/>
+			{% else %} 
+				<input class="form-selector" type="radio" name="{%s fld.ID %}" value="{%s fld.Value %}"/>
+			{% endif %}
+			<div class="form-option-info">
+				<strong>{%s fld.Name %}</strong>
+				{% if fld.Desc != "" %}<div class="form-desc">{%s= fld.Desc %}</div>{% endif %}
+			</div>
+		</label>
+	{% case File %}
+		<input id="{%s fld.ID %}" name="{%s fld.ID %}" type="file"/>
+	{% endswitch %}
+{% endfunc %}
+
+{% func (f *Form) Field(fld Field) %}
+	<div class="form-field">
+		{%= f.renderField(fld) %}
+		{%= f.Error(fld.ID) %}
+	</div>
+{% endfunc %}
+
+{% func (f *Form) FieldGroup(id string, typ FieldType, fields ...Field) %}
+	<div class="form-field">
+		{% for _, fld := range fields %}
+			{%= f.renderField(Field{
+				ID:       id,
+				Name:     fld.Name,
+				Desc:     fld.Desc,
+				Value:    fld.Value,
+				Optional: fld.Optional,
+				Disabled: fld.Disabled,
+				Checked:  fld.Checked,
+				Type:     typ,
+			}) %}
+		{% endfor %}
+		{%= f.Error(id) %}
+	</div>
+{% endfunc %}
+
+{% func (f *Form) Error(field string) %}
+	<div class="form-error">
+		{% if err := f.Errors.First(field); err != "" %}
+			{%s err %}
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

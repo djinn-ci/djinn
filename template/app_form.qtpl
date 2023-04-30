@@ -1,0 +1,109 @@
+{%
+import (
+	"djinn-ci.com/oauth2"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type AppForm struct {
+	*form.Form
+
+	App *oauth2.App
+}
+
+func (p *AppForm) action() string {
+	if p.App != nil {
+		return p.App.Endpoint()
+	}
+	return "/settings/apps"
+}
+%}
+
+{% collapsespace %}
+{% func (p *AppForm) Title() %}
+	{% if p.App == nil %}
+		New App
+	{% else %}
+		Edit App
+	{% endif %}
+{% endfunc %}
+
+{% func (p *AppForm) Header() %}
+	{% if p.App == nil %}
+		<a href="/settings/apps" class="back">{% cat "static/svg/back.svg" %}</a> Settings - New App
+	{% else %}
+		<a href="/settings/apps" class="back">{% cat "static/svg/back.svg" %}</a> Settings - Edit App
+	{% endif %}
+{% endfunc %}
+
+{% func (p *AppForm) Actions() %}{% endfunc %}
+{% func (p *AppForm) Navigation() %}{% endfunc %}
+{% func (p *AppForm) Footer() %}{% endfunc %}
+
+{% func (p *AppForm) renderAppDetails() %}
+	{% if p.App != nil %}
+		<div class="panel-body slim">
+			<h1 class="mb-10">{%s p.App.Name %}</h1>
+			<div class="mb-10">
+				<strong>Client ID</strong>
+				<br/><code><span class="muted">{%s p.App.ClientID %}</span></code><br/><br/>
+				<strong>Client Secret</strong>
+				<br/><code><span class="muted">{%s p.App.ClientSecret.String() %}</span></code></br>
+			</div>
+			<form method="POST" action="{%s p.App.Endpoint("revoke") %}" class="inline-block">
+				{%= form.Method("PATCH") %}
+				{%v= p.CSRF %}
+				<div class="form-field-inline">
+					<button type="submit" class="btn btn-danger">Revoke Tokens</button>
+				</div>
+			</form>
+			<form method="POST" action="{%s p.App.Endpoint("reset") %}" class="inline-block">
+				{%= form.Method("PATCH") %}
+				{%v= p.CSRF %}
+				<button type="submit" class="btn btn-danger">Reset Secret</button>
+			</form>
+		</div>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *AppForm) Body() %}
+	<div class="panel">
+		{%= p.renderAppDetails() %}
+		<form action="{%s p.action() %}" class="panel-body slim" method="POST">
+			{% if p.App != nil %}{%= form.Method("PATCH") %}{% endif %}
+			{%v= p.CSRF %}
+			{%= p.Field(form.Field{
+				ID:   "name",
+				Name: "Name",
+				Type: form.Text,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:       "description",
+				Name:     "Description",
+				Type:     form.Text,
+				Optional: true,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:       "homepage_uri",
+				Name:     "Homepage URI",
+				Type:     form.Text,
+				Optional: true,
+			}) %}
+			{%= p.Field(form.Field{
+				ID:       "redirect_uri",
+				Name:     "Redirect URI",
+				Type:     form.Text,
+				Optional: true,
+			}) %}
+			<div class="form-field">
+				{% if p.App == nil %}
+					<button type="submit" class="btn btn-primary">Create</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Save</button>
+				{% endif %}
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

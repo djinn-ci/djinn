@@ -1,278 +1,147 @@
 package http
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"net/http"
 	"strconv"
 	"sync"
-	"time"
 
 	"djinn-ci.com/alert"
+	"djinn-ci.com/auth"
+	"djinn-ci.com/auth/oauth2"
+	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/provider"
-	providertemplate "djinn-ci.com/provider/template"
 	"djinn-ci.com/server"
 	"djinn-ci.com/template"
 	"djinn-ci.com/user"
-	userhttp "djinn-ci.com/user/http"
 
 	"github.com/andrewpillar/query"
-	"github.com/andrewpillar/webutil"
+	"github.com/andrewpillar/webutil/v2"
 
-	"github.com/gorilla/csrf"
 	"github.com/gorilla/mux"
 )
 
 type UI struct {
 	*Handler
-
-	User *userhttp.Handler
 }
 
-func (h UI) getUserOrCreate(name string, providerUserId int64, email, username string) (*user.User, error) {
-	u, ok, err := h.Users.Get(query.Where("id", "=", provider.Select(
-		"user_id",
-		query.Where("provider_user_id", "=", query.Arg(providerUserId)),
-		query.Where("name", "=", query.Arg(name)),
-		query.Where("main_account", "=", query.Arg(true)),
-	)))
+func (h UI) Connect(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to parse request"))
+		return
+	}
+
+	mech := r.PostForm.Get("auth_mech")
+
+	a, err := h.Auths.Get(mech)
 
 	if err != nil {
-		return nil, errors.Err(err)
+		h.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+		return
 	}
 
-	if ok {
-		return u, nil
+	cli, ok := a.(*oauth2.Authenticator)
+
+	if !ok {
+		h.Error(w, r, errors.Benign("Not a valid OAuth2 client"))
+		return
 	}
 
-	_, ok, err = h.Users.Get(query.Where("email", "=", query.Arg(email)))
+	url := cli.AuthURL()
 
-	if err != nil {
-		return nil, errors.Err(err)
-	}
+	h.Log.Debug.Println(r.Method, r.URL, "authenticating via oauth2 provider", mech)
+	h.Log.Debug.Println(r.Method, r.URL, "auth_url =", url)
 
-	if ok {
-		return nil, user.ErrExists
-	}
-
-	password := make([]byte, 16)
-
-	if _, err := rand.Read(password); err != nil {
-		return nil, errors.Err(err)
-	}
-
-	u, tok, err := h.Users.Create(user.Params{
-		Email:    email,
-		Username: username,
-		Password: hex.EncodeToString(password),
-	})
-
-	if err != nil {
-		return nil, errors.Err(err)
-	}
-
-	if err := h.Users.Verify(tok); err != nil {
-		return nil, errors.Err(err)
-	}
-	return u, nil
+	http.Redirect(w, r, url, http.StatusSeeOther)
+	return
 }
 
 func (h UI) Auth(w http.ResponseWriter, r *http.Request) {
-	sess, _ := h.Session(r)
+	provider := mux.Vars(r)["provider"]
 
-	u, ok, err := h.User.UserFromRequest(r)
+	h.Log.Debug.Println(r.Method, r.URL, "authenticating against", provider)
 
-	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
-		return
-	}
-
-	name := mux.Vars(r)["provider"]
-
-	cli, err := h.Server.Providers.Get(name)
+	a, err := h.Auths.Get("oauth2." + provider)
 
 	if err != nil {
 		h.NotFound(w, r)
 		return
 	}
 
-	back := "/settings"
-
-	if !ok {
-		back = "/login"
-	}
-
-	access, refresh, oauthuser, err := cli.Auth(r.Context(), r.URL.Query())
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-		h.Redirect(w, r, back)
-		return
-	}
-
-	// No user, so create one and set the cookie.
-	if !ok {
-		username := oauthuser.Username
-
-		if username == "" {
-			username = oauthuser.Login
-		}
-
-		u, err = h.getUserOrCreate(name, oauthuser.ID, oauthuser.Email, username)
+	// Wrap the OAuth2 authenticator to get the currently authenticated user,
+	// if any, and attach them to the raw data of the user we get from the
+	// provider.
+	wrapped := auth.AuthenticatorFunc(func(r *http.Request) (*auth.User, error) {
+		u, err := a.Auth(r)
 
 		if err != nil {
-			if errors.Is(errors.Cause(err), user.ErrExists) {
-				msg := "User already exists with username " + username
+			return nil, errors.Err(err)
+		}
 
-				if oauthuser.Email != "" {
-					msg += " and email " + oauthuser.Email
-				}
+		cookieUser, err := user.CookieAuth(h.DB, h.SecureCookie).Auth(r)
 
-				alert.Flash(sess, alert.Danger, msg)
-				h.RedirectBack(w, r)
-				return
+		if err != nil {
+			if !errors.Is(err, auth.ErrAuth) {
+				return nil, errors.Err(err)
 			}
-
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-			h.Redirect(w, r, back)
-			return
+			return u, nil
 		}
 
-		encoded, err := h.SecureCookie.Encode("user", strconv.FormatInt(u.ID, 10))
+		u.RawData[user.InternalProvider] = cookieUser
+		return u, nil
+	})
 
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-			h.Redirect(w, r, back)
-			return
-		}
+	sess, _ := h.Session(r)
 
-		http.SetCookie(w, &http.Cookie{
-			Name:     "user",
-			HttpOnly: true,
-			MaxAge:   user.MaxAge,
-			Expires:  time.Now().Add(time.Duration(user.MaxAge) * time.Second),
-			Value:    encoded,
-			Path:     "/",
-		})
-	}
-
-	p, ok, err := h.Providers.Get(
-		query.Where("user_id", "=", query.Arg(u.ID)),
-		query.Where("name", "=", query.Arg(name)),
-		query.Where("main_account", "=", query.Arg(true)),
-	)
+	u, err := auth.Persist(wrapped, h.Providers).Auth(r)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-		h.Redirect(w, r, back)
+		if errors.Is(err, database.ErrExists) {
+			alert.Flash(sess, alert.Danger, "User already exists")
+			h.Redirect(w, r, "/login")
+			return
+		}
+
+		h.Error(w, r, errors.Wrap(err, "Failed to authenticated via "+provider))
 		return
 	}
 
-	params := provider.Params{
-		UserID:         u.ID,
-		ProviderUserID: oauthuser.ID,
-		Name:           name,
-		AccessToken:    access,
-		RefreshToken:   refresh,
-		Connected:      true,
-		MainAccount:    true,
+	if _, ok := u.RawData["token"]; ok {
+		h.Queues.Produce(r.Context(), "email", user.VerifyMail(h.SMTP.From, webutil.BaseAddress(r), u))
 	}
 
-	if !ok {
-		if _, err := h.Providers.Create(params); err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-			h.Redirect(w, r, back)
-			return
-		}
-	} else {
-		if err := h.Providers.Update(p.ID, params); err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-			h.Redirect(w, r, back)
-			return
-		}
-	}
-
-	groups, err := h.Providers.All(
-		query.Where("user_id", "=", query.Arg(u.ID)),
-		query.Where("name", "=", query.Arg(name)),
-		query.Where("main_account", "=", query.Arg(false)),
-	)
+	cookie, err := user.Cookie(u, h.SecureCookie)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-		h.Redirect(w, r, back)
+		h.Error(w, r, errors.Wrap(err, "Failed to authenticate via "+provider))
 		return
 	}
 
-	set := make(map[int64]struct{})
-
-	for _, grp := range groups {
-		set[grp.ProviderUserID.Int64] = struct{}{}
-	}
-
-	groupIds, err := cli.Groups(access)
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-		h.Redirect(w, r, back)
-		return
-	}
-
-	for _, id := range groupIds {
-		// Ignore any groups we already have on our side as a provider.
-		if _, ok := set[id]; ok {
-			continue
-		}
-
-		_, err := h.Providers.Create(provider.Params{
-			UserID:         u.ID,
-			ProviderUserID: id,
-			Name:           name,
-			AccessToken:    access,
-			RefreshToken:   refresh,
-			Connected:      true,
-			MainAccount:    false,
-		})
-
-		if err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to authenticate to  "+name)
-			h.Redirect(w, r, back)
-			return
-		}
-	}
-	alert.Flash(sess, alert.Success, "Successfully connected to "+name)
+	http.SetCookie(w, cookie)
+	alert.Flash(sess, alert.Success, "Successfully connected to "+provider)
 	h.Redirect(w, r, "/")
 }
 
-func (h UI) Revoke(u *user.User, w http.ResponseWriter, r *http.Request) {
+func (h UI) Revoke(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	name := mux.Vars(r)["provider"]
 
-	if _, err := h.Server.Providers.Get(name); err != nil {
+	if _, err := h.Server.Providers.Get("", name); err != nil {
 		h.NotFound(w, r)
 		return
 	}
 
+	ctx := r.Context()
+
 	p, ok, err := h.Providers.Get(
+		ctx,
 		query.Where("user_id", "=", query.Arg(u.ID)),
 		query.Where("name", "=", query.Arg(name)),
 	)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to disconnect from provider")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
 		return
 	}
 
@@ -282,14 +151,13 @@ func (h UI) Revoke(u *user.User, w http.ResponseWriter, r *http.Request) {
 	}
 
 	rr, err := h.Repos.All(
+		ctx,
 		query.Where("provider_id", "=", query.Arg(p.ID)),
 		query.Where("enabled", "=", query.Arg(true)),
 	)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to disconnect from provider")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
 		return
 	}
 
@@ -302,7 +170,7 @@ func (h UI) Revoke(u *user.User, w http.ResponseWriter, r *http.Request) {
 		go func(r *provider.Repo) {
 			defer wg.Done()
 
-			if err := p.ToggleRepo(r); err != nil {
+			if err := p.Client().ToggleWebhook(r); err != nil {
 				ch <- err
 			}
 		}(r)
@@ -320,23 +188,17 @@ func (h UI) Revoke(u *user.User, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(errs) > 0 {
-		h.Log.Error.Println(r.Method, r.URL, errors.Slice(errs))
-		alert.Flash(sess, alert.Danger, "Failed to disconnect from provider")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(errors.Slice(errs), "Failed to disconnect from provider"))
 		return
 	}
 
-	if err := h.Providers.Cache.Purge(p); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to disconnect from provider")
-		h.RedirectBack(w, r)
+	if err := h.Repos.Purge(p); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
 		return
 	}
 
-	if err := h.Providers.Delete(r.Context(), p.Name, u.ID); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to disconnect from provider")
-		h.RedirectBack(w, r)
+	if err := h.Providers.Delete(ctx, p); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
 		return
 	}
 
@@ -344,12 +206,12 @@ func (h UI) Revoke(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
-func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
-	sess, save := h.Session(r)
+func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	sess, _ := h.Session(r)
 
 	q := r.URL.Query()
 
-	page, err := strconv.ParseInt(q.Get("page"), 10, 64)
+	page, err := strconv.Atoi(q.Get("page"))
 
 	if err != nil {
 		page = 1
@@ -357,88 +219,92 @@ func (h UI) Index(u *user.User, w http.ResponseWriter, r *http.Request) {
 
 	name := q.Get("provider")
 
+	opts := []query.Option{
+		query.Where("name", "=", query.Arg(name)),
+	}
+
 	if name == "" {
-		if h.Server.Providers.Len() == 0 {
-			pg := &providertemplate.RepoIndex{
-				BasePage: template.BasePage{
-					URL:  r.URL,
-					User: u,
-				},
-			}
-			d := template.NewDashboard(pg, r.URL, u, alert.First(sess), csrf.TemplateField(r))
-			save(r, w)
-			webutil.HTML(w, template.Render(d), http.StatusOK)
-			return
+		opts = []query.Option{
+			query.Where("connected", "=", query.Arg(true)),
+			query.OrderAsc("name"),
 		}
 	}
 
-	p, rr, paginator, err := h.Providers.LoadRepos(u.ID, name, page)
+	ctx := r.Context()
+
+	p, ok, err := h.Providers.Get(ctx, opts...)
 
 	if err != nil {
-		h.InternalServerError(w, r, errors.Err(err))
+		h.Error(w, r, errors.Wrap(err, "Failed to find provider"))
 		return
 	}
 
-	names := h.Server.Providers.Names()
+	pp := make([]*provider.Provider, 0)
 
-	if p == nil {
-		if name == "" {
-			// No provider for the main account, so stub in the first one we
-			// have from the configuration.
-			name = names[0]
-		}
-
-		p = &provider.Provider{
-			Name: name,
-		}
-	}
-
-	pp := make([]*provider.Provider, 0, len(names))
-
-	for _, name := range names {
-		if name == p.Name {
-			pp = append(pp, p)
-			continue
-		}
+	for _, name := range h.Server.Providers.Names() {
 		pp = append(pp, &provider.Provider{Name: name})
 	}
 
-	csrf := csrf.TemplateField(r)
-	pg := &providertemplate.RepoIndex{
-		BasePage: template.BasePage{
-			URL:  r.URL,
-			User: u,
-		},
-		CSRF:      csrf,
-		Paginator: paginator,
-		Repos:     rr,
+	if !ok {
+		p = &provider.Provider{Name: name}
+
+		// No name given, so use first provider we have from what was
+		// configured.
+		if p.Name == "" {
+			p.Name = pp[0].Name
+		}
+
+		tmpl := template.NewDashboard(u, sess, r)
+		tmpl.Partial = &template.RepoIndex{
+			Paginator: template.NewPaginator[*provider.Repo](tmpl.Page, &database.Paginator[*provider.Repo]{}),
+			Provider:  p,
+			Providers: pp,
+		}
+		h.Template(w, r, tmpl, http.StatusOK)
+		return
+	}
+
+	repos, err := h.Repos.Load(ctx, p, page)
+
+	if err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed load repos"))
+		return
+	}
+
+	if repos == nil {
+		repos = &database.Paginator[*provider.Repo]{}
+	}
+
+	tmpl := template.NewDashboard(u, sess, r)
+	tmpl.Partial = &template.RepoIndex{
+		Paginator: template.NewPaginator[*provider.Repo](tmpl.Page, repos),
+		Repos:     repos.Items,
 		Provider:  p,
 		Providers: pp,
 	}
-	d := template.NewDashboard(pg, r.URL, u, alert.First(sess), csrf)
-	save(r, w)
-	webutil.HTML(w, template.Render(d), http.StatusOK)
+	h.Template(w, r, tmpl, http.StatusOK)
 }
 
-func (h UI) Update(u *user.User, w http.ResponseWriter, r *http.Request) {
+func (h UI) Update(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
-	page, err := strconv.ParseInt(r.URL.Query().Get("page"), 10, 64)
+	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 
 	if err != nil {
 		page = 1
 	}
 
+	ctx := r.Context()
+
 	p, ok, err := h.Providers.Get(
+		ctx,
 		query.Where("user_id", "=", query.Arg(u.ID)),
 		query.Where("name", "=", query.Arg(r.URL.Query().Get("provider"))),
 		query.Where("main_account", "=", query.Arg(true)),
 	)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to refresh repository cache")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to refresh repository cache"))
 		return
 	}
 
@@ -448,69 +314,52 @@ func (h UI) Update(u *user.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rr, paginator, err := p.Repos(page)
-
-	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to refresh repository cache")
-		h.RedirectBack(w, r)
+	if _, err := h.Repos.Reload(ctx, p, page); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to refresh repository cache"))
 		return
-	}
-
-	if len(rr) > 0 {
-		if err := h.Providers.Cache.Put(p, rr, paginator); err != nil {
-			h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-			alert.Flash(sess, alert.Danger, "Failed to refresh repository cache")
-			h.RedirectBack(w, r)
-			return
-		}
 	}
 
 	alert.Flash(sess, alert.Success, "Successfully reloaded repository cache")
 	h.RedirectBack(w, r)
 }
 
-func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
+func (h UI) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	var f RepoForm
 
-	if err := webutil.UnmarshalForm(&f, r); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to enable repository hooks")
-		h.RedirectBack(w, r)
+	if err := webutil.UnmarshalFormAndValidate(&f, r); err != nil {
+		h.FormError(w, r, &f, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
+	ctx := r.Context()
+
 	p, ok, err := h.Providers.Get(
+		ctx,
 		query.Where("id", "=", query.Arg(f.ProviderID)),
 		query.Where("user_id", "=", query.Arg(u.ID)),
 	)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to enable repository hooks")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
 	if !ok {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to enable repository hooks: no such provider")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
 	repo, ok, err := h.Repos.Get(
+		ctx,
 		query.Where("user_id", "=", query.Arg(u.ID)),
 		query.Where("provider_id", "=", query.Arg(p.ID)),
 		query.Where("repo_id", "=", query.Arg(f.RepoID)),
 	)
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to enable repository hooks")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
@@ -525,23 +374,17 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err := p.ToggleRepo(repo); err != nil {
+	if err := p.Client().ToggleWebhook(repo); err != nil {
 		if errors.Is(err, provider.ErrLocalhost) {
-			alert.Flash(sess, alert.Danger, "Failed to enable repository hooks: "+errors.Unwrap(err).Error())
-			h.RedirectBack(w, r)
+			h.Error(w, r, errors.Benign("Failed to enable repo webhook: "+err.Error()))
 			return
 		}
-
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to enable repository hooks")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
-	if err := h.Repos.Touch(repo); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to enable repository hooks")
-		h.RedirectBack(w, r)
+	if err := h.Repos.Touch(ctx, repo); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
@@ -549,65 +392,63 @@ func (h UI) Store(u *user.User, w http.ResponseWriter, r *http.Request) {
 	h.RedirectBack(w, r)
 }
 
-func (h UI) Destroy(u *user.User, repo *provider.Repo, w http.ResponseWriter, r *http.Request) {
+func (h UI) Destroy(u *auth.User, repo *provider.Repo, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if !repo.Enabled {
-		alert.Flash(sess, alert.Success, "Repository hooks disabled")
+		alert.Flash(sess, alert.Success, "Repo webhook disabled")
 		h.RedirectBack(w, r)
 		return
 	}
 
-	p, ok, err := h.Providers.Get(query.Where("id", "=", query.Arg(repo.ProviderID)))
+	ctx := r.Context()
+
+	p, ok, err := h.Providers.Get(ctx, query.Where("id", "=", query.Arg(repo.ProviderID)))
 
 	if err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to disable repository hooks")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
 		return
 	}
 
 	if !ok {
-		alert.Flash(sess, alert.Danger, "Failed to disable repository hooks: no such provider")
-		h.RedirectBack(w, r)
+		h.Error(w, r, errors.Benign("Failed to disable repo webhook: no such provider"))
 		return
 	}
 
-	if err := p.ToggleRepo(repo); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to disable repository hooks")
-		h.RedirectBack(w, r)
+	if err := p.Client().ToggleWebhook(repo); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
 		return
 	}
 
-	if err := h.Repos.Touch(repo); err != nil {
-		h.Log.Error.Println(r.Method, r.URL, errors.Err(err))
-		alert.Flash(sess, alert.Danger, "Failed to disable repository hooks")
-		h.RedirectBack(w, r)
+	if err := h.Repos.Touch(ctx, repo); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
 		return
 	}
 
-	alert.Flash(sess, alert.Success, "Repository hooks disabled")
+	alert.Flash(sess, alert.Success, "Repo webhook disabled")
 	h.RedirectBack(w, r)
 }
 
-func RegisterUI(srv *server.Server) {
-	user := userhttp.NewHandler(srv)
-
+func RegisterUI(a auth.Authenticator, srv *server.Server) {
 	ui := UI{
 		Handler: NewHandler(srv),
-		User:    user,
 	}
 
 	auth := srv.Router.PathPrefix("/oauth").Subrouter()
+	auth.HandleFunc("", ui.Restrict(a, nil, ui.Connect)).Methods("POST")
 	auth.HandleFunc("/{provider}", ui.Auth).Methods("GET")
-	auth.HandleFunc("/{provider}", user.WithUser(ui.Revoke)).Methods("DELETE")
+	auth.HandleFunc("/{provider}", ui.Restrict(a, nil, ui.Revoke)).Methods("DELETE")
 	auth.Use(srv.CSRF)
 
+	index := ui.Restrict(a, nil, ui.Index)
+	store := ui.Restrict(a, nil, ui.Store)
+	update := ui.Restrict(a, nil, ui.Update)
+	destroy := ui.Restrict(a, nil, ui.Repo(ui.Destroy))
+
 	sr := srv.Router.PathPrefix("/repos").Subrouter()
-	sr.HandleFunc("", user.WithUser(ui.Index)).Methods("GET")
-	sr.HandleFunc("/reload", user.WithUser(ui.Update)).Methods("PATCH")
-	sr.HandleFunc("/enable", user.WithUser(ui.Store)).Methods("POST")
-	sr.HandleFunc("/disable/{repo:[0-9]+}", user.WithUser(ui.WithRepo(ui.Destroy))).Methods("DELETE")
+	sr.HandleFunc("", index).Methods("GET")
+	sr.HandleFunc("/reload", update).Methods("PATCH")
+	sr.HandleFunc("/enable", store).Methods("POST")
+	sr.HandleFunc("/disable/{repo:[0-9]+}", destroy).Methods("DELETE")
 	sr.Use(srv.CSRF)
 }

@@ -1,0 +1,86 @@
+{%
+import (
+	"djinn-ci.com/cron"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type CronForm struct {
+	*form.Form
+
+	Cron *cron.Cron
+}
+
+func (p *CronForm) action() string {
+	if p.Cron != nil {
+		return p.Cron.Endpoint()
+	}
+	return "/cron"
+}
+%}
+
+{% collapsespace %}
+{% func (p *CronForm) Title() %}
+	{% if p.Cron == nil %}
+		Create Cron Job
+	{% else %}
+		Edit Cron Job
+	{% endif %}
+{% endfunc %}
+
+{% func (p *CronForm) Header() %}
+	{% if p.Cron != nil %}
+		<a class="back" href="{%s p.Cron.Endpoint() %}">{% cat "static/svg/back.svg" %}</a>
+		{%s p.Cron.Name %} - Edit
+	{% else %}
+		<a class="back" href="/cron">{% cat "static/svg/back.svg" %}</a> Create Cron Job
+	{% endif %}
+{% endfunc %}
+
+{% func (p *CronForm) Actions() %}{% endfunc %}
+{% func (p *CronForm) Navigation() %}{% endfunc %}
+{% func (p *CronForm) Footer() %}{% endfunc %}
+
+{% func (p *CronForm) Body() %}
+	<div class="panel">
+		<form class="panel-body slim" method="POST" action="{%s p.action() %}">
+			{% if p.Cron != nil %}
+				{%= form.Method("PATCH") %}
+			{% endif %}
+			{%v= p.CSRF %}
+			{%= p.Field(form.Field{
+				ID:   "name",
+				Name: "Name",
+				Type: form.Text,
+			}) %}
+			{%= p.FieldGroup("schedule", form.Radio, form.Field{
+				Name:    "Daily",
+				Desc:    "Run the build at the start of each day",
+				Value:   "daily",
+				Checked: p.Cron == nil,
+			}, form.Field{
+				Name:  "Weekly",
+				Desc:  "Run the build at the start of each week",
+				Value: "weekly",
+			}, form.Field{
+				Name:  "Monthly",
+				Desc:  "Run the build at the start of each month",
+				Value: "monthly",
+			}) %}
+			{%= p.Field(form.Field{
+				ID:   "manifest",
+				Name: "Manifest",
+				Type: form.Textarea,
+			}) %}
+			<div class="form-field">
+				{% if p.Cron == nil %}
+					<button type="submit" class="btn btn-primary">Create</button>
+				{% else %}
+					<button type="submit" class="btn btn-primary">Save</button>
+				{% endif %}
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

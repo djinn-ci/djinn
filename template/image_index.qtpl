@@ -1,0 +1,108 @@
+{%
+import (
+	"djinn-ci.com/image"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type ImageIndex struct {
+	*Paginator
+
+	Images []*image.Image
+}
+%}
+
+{% collapsespace %}
+{% func (p *ImageIndex) Title() %}Images{% endfunc %}
+{% func (p *ImageIndex) Header() %}{%= p.Title() %}{% endfunc %}
+
+{% func (p *ImageIndex) Navigation() %}{% endfunc %}
+{% func (p *ImageIndex) Footer() %}{% endfunc %}
+
+{% func (p *ImageIndex) Actions() %}
+	{% if _, ok := p.User.Permissions["image:write"]; ok %}
+		<li><a href="/images/create" class="btn btn-primary">Create</a></li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *ImageIndex) renderImageItem(i *image.Image) %}
+	<tr>
+		<td>
+			{% if i.Download != nil %}
+				<span class="muted" title="Downloaded Image">{% cat "static/svg/download.svg" %}</span>
+			{% endif %}
+		</td>
+		<td>{%s i.Name %}</td>
+		<td>
+			{% if i.Namespace != nil %}
+				<a href="{%s i.Namespace.Endpoint() %}">{%s i.Namespace.Path %}</a>
+			{% else %}
+				<span class="muted">--</span>
+			{% endif %}
+		</td>
+		<td>
+			{% if i.Download != nil %}
+				{%s i.Download.Source.String() %}
+			{% else %}
+				<span class="muted">--</span>
+			{% endif %}
+		</td>
+		<td class="align-right">
+			{% if p.User.ID != i.UserID %}
+				<span class="muted">{% cat "static/svg/users.svg" %}</span>
+			{% endif %}
+		</td>
+		<td class="align-right{% if i.Download != nil && i.Download.Error.Valid %} error{% endif %}">
+			{% if i.Downloaded() %}
+				<a class="btn btn-primary" href="{%s i.Endpoint("download", i.Name) %}">Download</a>
+			{% elseif i.Download != nil && i.Download.Error.Valid %}
+				{%s i.Download.Error.Elem %}
+			{% endif %}
+			{% if p.User.ID == i.UserID || i.Namespace != nil && i.Namespace.UserID == p.User.ID %}
+					<form method="POST" action="{%s i.Endpoint() %}">
+						{%= form.Method("DELETE") %}
+						{%v= p.CSRF %}
+						<button type="submit" class="btn btn-danger">Delete</button>
+					</form>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *ImageIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Images) == 0 %}
+			{% if query := p.Query.Get("search"); query != "" %}
+				<div class="panel-header">{%= p.Search("Find an image...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<div class="panel-message muted">
+					Upload custom images to use as build environments.
+				</div>
+			{% endif %}
+		{% else %}
+			<div class="panel-header">{%= p.Search("Find an image...") %}</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th></th>
+						<th>NAME</th>
+						<th>NAMESPACE</th>
+						<th>SOURCE</th>
+						<th></th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, i := range p.Images %}
+						{%= p.renderImageItem(i) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+	{%= p.Paginator.Navigation() %}
+{% endfunc %}
+{% endcollapsespace %}

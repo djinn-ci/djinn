@@ -1,0 +1,78 @@
+{%
+import (
+	"djinn-ci.com/build"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type BuildTags struct {
+	*Page
+
+	Build *build.Build
+	Tags  []*build.Tag
+}
+%}
+
+{% collapsespace %}
+{% func (p *BuildTags) Title() %}Tags{% endfunc %}
+
+{% func (p *BuildTags) Header() %}{% endfunc %}
+{% func (p *BuildTags) Actions() %}{% endfunc %}
+{% func (p *BuildTags) Navigation() %}{% endfunc %}
+{% func (p *BuildTags) Footer() %}{% endfunc %}
+
+{% func (p *BuildTags) renderTagForm() %}
+	<div class="panel-header panel-body">
+		<form action="{%s p.Build.Endpoint("tags") %}" method="POST">
+			{%v= p.CSRF %}
+			<div class="form-field form-field-inline">
+				<input type="text" class="form-text" name="tags" placeholder="Tag this build..." autocomplete="off"/>
+				<button type="submit" class="btn btn-primary">Tag</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+
+{% func (p *BuildTags) renderTagItem(t *build.Tag) %}
+	<tr>
+		<td><a class="pill pill-light" href="/builds?tag={%s t.Name %}">{%s t.Name %}</a></td>
+		<td>{%s t.User.Username %} &lt;{%s t.User.Email %}&gt;</td>
+		<td class="align-right">
+			{% if p.User.Has("tag:modify") %}
+				<form method="POST" action="{%s t.Endpoint() %}">
+					{%= form.Method("DELETE") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-danger">Delete</button>
+				</form>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *BuildTags) Body() %}
+	<div class="panel">
+		{% if p.User.Has("tag:modify") %}
+			{%= p.renderTagForm() %}
+		{% endif %}
+		{% if len(p.Tags) == 0 %}
+			<div class="panel-message muted">No tags have been set for this build.</div>
+		{% else %}
+			<table class="table">
+				<thead>
+					<tr>
+						<th>TAG</th>
+						<th>TAGGED BY</th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, t := range p.Tags %}
+						{%= p.renderTagItem(t) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

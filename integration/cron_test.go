@@ -3,11 +3,12 @@ package integration
 import (
 	"testing"
 
+	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 )
 
 func Test_CronCreate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	c, err := djinn.CreateCron(cli, djinn.CronParams{
 		Name:     "Test_CronCreate",
@@ -32,7 +33,7 @@ func Test_CronCreate(t *testing.T) {
 }
 
 func Test_CronUpdate(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	c, err := djinn.CreateCron(cli, djinn.CronParams{
 		Name:     "Test_CronUpdate",
@@ -61,7 +62,7 @@ func Test_CronUpdate(t *testing.T) {
 }
 
 func Test_CronDelete(t *testing.T) {
-	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, apiEndpoint, t)
+	cli, _ := djinn.NewClientWithLogger(tokens.get("gordon.freeman").Token, env.DJINN_API_SERVER, t)
 
 	c, err := djinn.CreateCron(cli, djinn.CronParams{
 		Name:     "Test_CronDelete",

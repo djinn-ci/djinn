@@ -11,8 +11,6 @@ import (
 	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
 
-	"github.com/andrewpillar/webutil"
-
 	"gopkg.in/yaml.v2"
 )
 
@@ -139,7 +137,13 @@ func (m *Manifest) String() string {
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSuffix(string(b), "\n")
+
+	s := strings.TrimSuffix(string(b), "\n")
+
+	if s == "{}" {
+		return ""
+	}
+	return s
 }
 
 func (m *Manifest) UnmarshalText(b []byte) error {
@@ -155,10 +159,7 @@ func (m *Manifest) UnmarshalText(b []byte) error {
 	}{}
 
 	if err := yaml.Unmarshal(b, &tmp); err != nil {
-		return webutil.UnmarshalError{
-			Field: "manifest",
-			Err:   err,
-		}
+		return err
 	}
 
 	m.Namespace = tmp.Namespace
@@ -177,10 +178,7 @@ func (m *Manifest) UnmarshalJSON(b []byte) error {
 	var s string
 
 	if err := json.Unmarshal(b, &s); err != nil {
-		return webutil.UnmarshalError{
-			Field: "manifest",
-			Err:   err,
-		}
+		return err
 	}
 	return m.UnmarshalText([]byte(s))
 }

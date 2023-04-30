@@ -1,0 +1,55 @@
+{%
+import (
+	"djinn-ci.com/alert"
+	"djinn-ci.com/auth"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type SetEmail struct {
+	*form.Form
+
+	User        *auth.User
+	Alert       alert.Alert
+	Token       string
+	RedirectURI string
+}
+%}
+
+{% collapsespace %}
+{% func (p *SetEmail) Title() %}
+	Change email
+{% endfunc %}
+
+{% func (p *SetEmail) Footer() %}
+	<style type="text/css">{% cat "static/auth.css" %}</style>
+{% endfunc %}
+
+{% func (p *SetEmail) Body() %}
+	<div class="auth-page">
+		<div class="auth-header">
+			{%= Logo() %}
+			<h1>Set your email address</h1>
+			{%= Alert(p.Alert, "") %}
+			<p>Your account has no email address set, please set one to continue.</p>
+		</div>
+		<form method="POST" action="/settings/email">
+			{%= form.Method("PATCH") %}
+			{%v= p.CSRF %}
+			{% if p.RedirectURI != "" %}
+				<input type="hidden" name="redirect_uri" value="{%s p.RedirectURI %}"/>
+			{% endif %}
+			<input type="hidden" name="token" value="{%s p.Token %}"/>
+			{%= p.Field(form.Field{
+				ID:   "email",
+				Name: "Email",
+				Type: form.Text,
+			}) %}
+			<div class="input-field">
+				<button type="submit" class="btn btn-primary">Update</button>
+			</div>
+		</form>
+	</div>
+{% endfunc %}
+{% endcollapsespace %}

@@ -1,0 +1,86 @@
+{%
+import (
+	"strings"
+
+	"djinn-ci.com/cron"
+	"djinn-ci.com/template/form"
+)
+%}
+
+{% code
+type CronIndex struct {
+	*Paginator
+
+	Crons []*cron.Cron
+}
+%}
+
+{% collapsespace %}
+{% func (p *CronIndex) Title() %}
+	Cron Jobs
+{% endfunc %}
+
+{% func (p *CronIndex) Header() %}
+	{%= p.Title() %}
+{% endfunc %}
+
+{% func (p *CronIndex) Navigation() %}{% endfunc %}
+{% func (p *CronIndex) Footer() %}{% endfunc %}
+
+{% func (p *CronIndex) Actions() %}
+	{% if _, ok := p.User.Permissions["cron:write"]; ok %}
+		<li><a href="/cron/create" class="btn btn-primary">Create</a></li>
+	{% endif %}
+{% endfunc %}
+
+{% func (p *CronIndex) renderCronItem(c *cron.Cron) %}
+	<tr>
+		<td><a href="{%s c.Endpoint() %}">{%s c.Name %}</a></td>
+		<td>{%s strings.ToUpper(c.Schedule.String()) %}</td>
+		<td>{%s c.NextRun.Format("Mon, Jan 2 15:04 2006") %}</td>
+		<td class="align-right">
+			{% if p.User.ID == c.UserID || c.Namespace != nil && c.Namespace.UserID == p.User.ID %}
+				<form method="POST" action="{%s c.Endpoint() %}">
+					{%= form.Method("DELETE") %}
+					{%v= p.CSRF %}
+					<button type="submit" class="btn btn-danger">Delete</button>
+				</form>
+			{% endif %}
+		</td>
+	</tr>
+{% endfunc %}
+
+{% func (p *CronIndex) Body() %}
+	<div class="panel">
+		{% if len(p.Crons) == 0 %}
+			{% if query := p.Query.Get("search"); query != "" %}
+				<div class="panel-header">{%= p.Search("Find a cron job...") %}</div>
+				<div class="panel-message muted">No results found.</div>
+			{% else %}
+				<div class="panel-message muted">
+					Create a cron job to have builds repeat at a set schedule.
+				</div>
+			{% endif %}
+		{% else %}
+			<div class="panel-header">{%= p.Search("Find a variable...") %}</div>
+			<table class="table">
+				<thead>
+					<tr>
+						<th>NAME</th>
+						<th>SCHEDULE</th>
+						<th>NEXT RUN</th>
+						<th></th>
+						<th></th>
+					</tr>
+				</thead>
+				<tbody>
+					{% for _, c := range p.Crons %}
+						{%= p.renderCronItem(c) %}
+					{% endfor %}
+				</tbody>
+			</table>
+		{% endif %}
+	</div>
+	{%= p.Paginator.Navigation() %}
+{% endfunc %}
+{% endcollapsespace %}

@@ -1,0 +1,121 @@
+{%
+import (
+	"regexp"
+
+	"djinn-ci.com/namespace"
+)
+%}
+
+{% code
+type NamespaceShow struct {
+	*Page
+
+	Namespace *namespace.Namespace
+	Partial   Partial
+}
+%}
+
+{% collapsespace %}
+{% func (p *NamespaceShow) Title() %}
+	{%s p.Namespace.User.Username %}/{%s p.Namespace.Path %} - {%= p.Partial.Title() %}
+{% endfunc %}
+
+{% func (p *NamespaceShow) Header() %}
+	{% if p.Namespace.Parent != nil %}
+		<a class="back" href="{%s p.Namespace.Parent.Endpoint() %}">{%cat "static/svg/back.svg" %}</a>
+	{% else %}
+		{% if p.User != nil %}
+			<a class="back" href="/namespaces">{% cat "static/svg/back.svg" %}</a>
+		{% endif %}
+	{% endif %}
+	{%= namespacePath(p.Namespace.User.Username, p.Namespace.Path) %}
+	{% if tag := p.URL.Query().Get("tag"); tag != "" %}
+		<span class="pill pill-light">
+			{%s tag %}
+			<a href="{%s p.URL.Path %}">{% cat "static/svg/close.svg" %}</a>
+		</span>
+	{% endif %}
+	<small>{%s p.Namespace.Description %}</small>
+{% endfunc %}
+
+{% func (p *NamespaceShow) Actions() %}
+	{% if p.User != nil && p.User.ID == p.Namespace.UserID %}
+		<li><a href="{%s p.Namespace.Endpoint("edit") %}" class="btn btn-primary">Edit</a></li>
+		{% if p.Namespace.Level + 1 < namespace.MaxDepth %}
+			<li><a href="/namespaces/create?parent={%s p.Namespace.Path %}" class="btn btn-primary">Create</a></li>
+		{% endif %}
+	{% endif %}
+{% endfunc %}
+
+{% stripspace %}
+{% func (p *NamespaceShow) Navigation() %}
+	{% for _, link := range []navLink{
+		{
+			Title:   "Builds",
+			Href:    p.Namespace.Endpoint(),
+			Icon:    "static/svg/build.svg",
+			Pattern: regexp.MustCompile("^"+p.Namespace.Endpoint()+"$"),
+		},
+		{
+			Title:   "Namespaces",
+			Href:    p.Namespace.Endpoint("namespaces"),
+			Icon:    "static/svg/folder.svg",
+			Pattern: regexp.MustCompile("^"+p.Namespace.Endpoint("namespaces")+"$"),
+		},
+		{
+			Title:   "Images",
+			Href:    p.Namespace.Endpoint("images"),
+			Icon:    "static/svg/image.svg",
+			Pattern: regexp.MustCompile(p.Namespace.Endpoint("images")),
+		},
+		{
+			Title:   "Objects",
+			Href:    p.Namespace.Endpoint("objects"),
+			Icon:    "static/svg/upload.svg",
+			Pattern: regexp.MustCompile(p.Namespace.Endpoint("objects")),
+		},
+		{
+			Title:   "Variables",
+			Href:    p.Namespace.Endpoint("variables"),
+			Icon:    "static/svg/code.svg",
+			Pattern: regexp.MustCompile(p.Namespace.Endpoint("variables")),
+		},
+		{
+			Title:   "SSH Keys",
+			Href:    p.Namespace.Endpoint("keys"),
+			Icon:    "static/svg/key.svg",
+			Pattern: regexp.MustCompile(p.Namespace.Endpoint("keys")),
+		},
+		{
+			Title:     "Invites",
+			Href:      p.Namespace.Endpoint("invites"),
+			Icon:      "static/svg/mail.svg",
+			Pattern:   regexp.MustCompile(p.Namespace.Endpoint("invites")),
+			Condition: func() bool { return p.User.ID == p.Namespace.UserID },
+		},
+		{
+			Title:     "Collaborators",
+			Href:      p.Namespace.Endpoint("collaborators"),
+			Icon:      "static/svg/mail.svg",
+			Pattern:   regexp.MustCompile(p.Namespace.Endpoint("collaborators")),
+			Condition: func() bool { return p.User.ID == p.Namespace.UserID },
+		},
+		{
+			Title:     "Webhooks",
+			Href:      p.Namespace.Endpoint("webhooks"),
+			Icon:      "static/svg/all_out.svg",
+			Pattern:   regexp.MustCompile(p.Namespace.Endpoint("webhooks")),
+			Condition: func() bool { return p.User.Has("webhook:read") },
+		},
+	} %}
+		<li>{%= link.render(p.URL.Path) %}</li>
+	{% endfor %}
+{% endfunc %}
+
+{% func (p *NamespaceShow) Footer() %}{% endfunc %}
+
+{% func (p *NamespaceShow) Body() %}
+	{%= p.Partial.Body() %}
+{% endfunc %}
+{% endstripspace %}
+{% endcollapsespace %}

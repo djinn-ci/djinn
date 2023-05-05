@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/andrewpillar/config v1.0.0
-	github.com/andrewpillar/fs v0.0.0-20230416204702-a009058fc080
+	github.com/andrewpillar/fs v0.0.0-20230505194115-11f5fcb3ec95
 	github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd
 	github.com/andrewpillar/webutil/v2 v2.2.1
 	github.com/docker/docker v20.10.24+incompatible

@@ -137,7 +137,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 
 	b, _, err := builds.SelectOne(
 		ctx,
-		[]string{"id", "user_id", "status", "secret", "namespace_id", "started_at", "finished_at"},
+		[]string{"id", "user_id", "output", "status", "secret", "namespace_id", "started_at", "finished_at"},
 		query.Where("id", "=", query.Arg(payload.BuildID)),
 	)
 

@@ -171,7 +171,9 @@ func NewRunner(ctx context.Context, w *Worker, b *build.Build) (*Runner, error) 
 		FS:    w.Artifacts,
 	}
 
-	jj, err := build.NewJobStore(w.DB).All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("created_at"))
+	jj, err := build.NewJobStore(w.DB).All(
+		ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("created_at"),
+	)
 
 	if err != nil {
 		return nil, errors.Err(err)
@@ -287,7 +289,9 @@ func sanitize(s string) string {
 	for _, r := range s {
 		if r == 0 {
 			buf = append(buf, 'N', 'U', 'L')
+			continue
 		}
+		buf = append(buf, r)
 	}
 	return string(buf)
 }

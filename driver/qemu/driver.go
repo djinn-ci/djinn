@@ -176,17 +176,22 @@ func (q *Driver) runCmd() error {
 			pidfile.Close()
 			os.Remove(pidfile.Name())
 
-			if strings.Contains(buf.String(), "Could not set up host forwarding rule") {
+			stderr := buf.String()
+
+			if strings.Contains(stderr, "Could not set up host forwarding rule") {
 				q.port++
 				continue
 			}
 
-			if strings.Contains(buf.String(), "No such file or directory") {
-				fmt.Fprintf(q.Writer, "failed to boot machine, couldn't find image %s\n", filepath.Base(disk))
-				fmt.Fprintf(q.Writer, "make sure your image exists in the namespace the build is being run from\n")
+			fmt.Fprintln(q.Writer, "failed to boot machine")
+
+			if strings.Contains(stderr, "No such file or directory") {
+				fmt.Fprintln(q.Writer, "couldn't find image", q.Image)
+				fmt.Fprintln(q.Writer, "make sure your image exists in the namespace the build is being run from")
+			} else if strings.Contains(stderr, `Failed to get "write" lock`) {
+				fmt.Fprintln(q.Writer, "image is currently being modified")
 			} else {
-				fmt.Fprintf(q.Writer, "failed to boot machine\n")
-				fmt.Fprintf(q.Writer, buf.String()+"\n")
+				fmt.Fprintln(q.Writer, stderr)
 			}
 			return err
 		}
@@ -230,13 +235,13 @@ func (q *Driver) Create(c context.Context, env []string, pt runner.Passthrough, 
 		return err
 	}
 
-	pid, err := strconv.ParseInt(strings.Trim(string(b), "\n"), 10, 64)
+	pid, err := strconv.Atoi(string(b[:len(b)-1]))
 
 	if err != nil {
 		return err
 	}
 
-	q.process, err = os.FindProcess(int(pid))
+	q.process, err = os.FindProcess(pid)
 
 	if err != nil {
 		return err

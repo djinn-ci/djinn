@@ -124,6 +124,9 @@ func CookieAuth(db *database.Pool, cookie *securecookie.SecureCookie) auth.Authe
 		var s string
 
 		if err := cookie.Decode("user", c.Value, &s); err != nil {
+			if strings.Contains(err.Error(), "expired timestamp") {
+				return nil, auth.ErrAuth
+			}
 			return nil, errors.Err(err)
 		}
 

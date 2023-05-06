@@ -82,6 +82,17 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if err := build.LoadStageRelations(ctx, h.DB, b.Stages...); err != nil {
+		h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+		return
+	}
+
+	for _, st := range b.Stages {
+		for _, j := range st.Jobs {
+			j.Build = b
+		}
+	}
+
 	tmpl := template.NewDashboard(u, sess, r)
 	show := template.BuildShow{
 		Page:  tmpl.Page,
@@ -216,9 +227,12 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 			return
 		}
 
-		mm := database.Map[*build.Tag, database.Model](tt, func(t *build.Tag) database.Model {
-			return t
-		})
+		mm := make([]database.Model, 0, len(tt))
+
+		for _, t := range tt {
+			mm = append(mm, t)
+			t.Build = b
+		}
 
 		if err := user.Loader(h.DB).Load(ctx, "user_id", "id", mm...); err != nil {
 			h.Error(w, r, errors.Wrap(err, "Failed to load tag relations"))
@@ -318,6 +332,13 @@ func (h UI) ShowJob(u *auth.User, b *build.Build, w http.ResponseWriter, r *http
 		return
 	}
 
+	p, err := h.Artifacts.Index(ctx, r.URL.Query(), query.Where("job_id", "=", query.Arg(j.ID)))
+
+	if err != nil {
+		h.InternalServerError(w, r, errors.Err(err))
+		return
+	}
+
 	j.Build = b
 
 	tmpl := template.NewDashboard(u, sess, r)
@@ -325,6 +346,10 @@ func (h UI) ShowJob(u *auth.User, b *build.Build, w http.ResponseWriter, r *http
 		Page: tmpl.Page,
 		Build: &template.BuildShow{
 			Build: b,
+		},
+		Artifacts: &template.BuildArtifacts{
+			Paginator: template.NewPaginator[*build.Artifact](tmpl.Page, p),
+			Artifacts: p.Items,
 		},
 		Job: j,
 	}

@@ -22,7 +22,7 @@ type BuildShow struct {
 {% collapsespace %}
 {% func (p *BuildShow) Title() %}
 	{% if p.Partial != nil %}
-		Build #{%v p.Build.Number %} - %= p.Partial.Title() %}
+		Build #{%v p.Build.Number %} - {%= p.Partial.Title() %}
 	{% else %}
 		Build #{%v p.Build.Number %} - {%s p.Build.Trigger.CommentTitle() %}
 	{% endif %}
@@ -44,10 +44,8 @@ type BuildShow struct {
 {% func (p *BuildShow) Actions() %}
 	{% if p.User.ID == p.Build.UserID %}
 		<li>
-			<form {% if p.Build.Pinned %}action="{%s p.Build.Endpoint("pin") %}"{% else %}action="{%s p.Build.Endpoint("unpin") %}"{% endif %} method="POST">
-				{% if p.Build.Pinned %}
-					{%= form.Method("PATCH") %}
-				{% endif %}
+			<form {% if p.Build.Pinned %}action="{%s p.Build.Endpoint("unpin") %}"{% else %}action="{%s p.Build.Endpoint("pin") %}"{% endif %} method="POST">
+				{%= form.Method("PATCH") %}
 				{%v= p.CSRF %}
 				{% if p.Build.Pinned %}
 					<button type="submit" class="btn btn-primary">Unpin</button>
@@ -75,7 +73,7 @@ type BuildShow struct {
 			Title:   "Overview",
 			Href:    p.Build.Endpoint(),
 			Icon:    "static/svg/eye.svg",
-			Pattern: regexp.MustCompile(p.Build.Endpoint()),
+			Pattern: regexp.MustCompile("^"+p.Build.Endpoint()+"$"),
 		},
 		{
 			Title:   "Manifest",
@@ -94,6 +92,12 @@ type BuildShow struct {
 			Href:    p.Build.Endpoint("artifacts"),
 			Icon:    "static/svg/upload.svg",
 			Pattern: regexp.MustCompile(p.Build.Endpoint("artifacts")),
+		},
+		{
+			Title:   "Variables",
+			Href:    p.Build.Endpoint("variables"),
+			Icon:    "static/svg/code.svg",
+			Pattern: regexp.MustCompile(p.Build.Endpoint("variables")),
 		},
 		{
 			Title:   "SSH Keys",

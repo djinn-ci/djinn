@@ -215,133 +215,141 @@ func (p *BuildArtifacts) streamrenderArtifactItem(qw422016 *qt422016.Writer, a *
 //line template/build_artifacts.qtpl:28
 	qw422016.E().S(HumanSize(a.Size.Elem))
 //line template/build_artifacts.qtpl:28
-	qw422016.N().S(`</td> <td> <span class="code"> `)
-//line template/build_artifacts.qtpl:31
-	if len(a.MD5) == 0 {
-//line template/build_artifacts.qtpl:31
-		qw422016.N().S(` -- `)
-//line template/build_artifacts.qtpl:33
+	qw422016.N().S(`</td> <td class="align-right"> `)
+//line template/build_artifacts.qtpl:30
+	if a.MD5 == nil {
+//line template/build_artifacts.qtpl:30
+		qw422016.N().S(` <span class="code">--</span> `)
+//line template/build_artifacts.qtpl:32
 	} else {
+//line template/build_artifacts.qtpl:32
+		qw422016.N().S(` <span class="code">`)
 //line template/build_artifacts.qtpl:33
-		qw422016.N().S(` a.MD5.String() `)
-//line template/build_artifacts.qtpl:35
+		qw422016.E().S(a.MD5.String()[:7])
+//line template/build_artifacts.qtpl:33
+		qw422016.N().S(`</span> `)
+//line template/build_artifacts.qtpl:34
 	}
-//line template/build_artifacts.qtpl:35
-	qw422016.N().S(` </span> </td> <td> <span class="code"> `)
-//line template/build_artifacts.qtpl:40
-	if len(a.SHA256) == 0 {
-//line template/build_artifacts.qtpl:40
-		qw422016.N().S(` -- `)
-//line template/build_artifacts.qtpl:42
+//line template/build_artifacts.qtpl:34
+	qw422016.N().S(` </td> <td class="align-right"> `)
+//line template/build_artifacts.qtpl:37
+	if a.SHA256 == nil {
+//line template/build_artifacts.qtpl:37
+		qw422016.N().S(` <span class="code">--</span> `)
+//line template/build_artifacts.qtpl:39
 	} else {
-//line template/build_artifacts.qtpl:42
-		qw422016.N().S(` a.SHA256.String() `)
-//line template/build_artifacts.qtpl:44
+//line template/build_artifacts.qtpl:39
+		qw422016.N().S(` <span class="code">`)
+//line template/build_artifacts.qtpl:40
+		qw422016.E().S(a.SHA256.String()[:7])
+//line template/build_artifacts.qtpl:40
+		qw422016.N().S(`</span> `)
+//line template/build_artifacts.qtpl:41
 	}
+//line template/build_artifacts.qtpl:41
+	qw422016.N().S(` </td> </tr> `)
 //line template/build_artifacts.qtpl:44
-	qw422016.N().S(` </span> </td> </tr> `)
-//line template/build_artifacts.qtpl:48
 }
 
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 func (p *BuildArtifacts) writerenderArtifactItem(qq422016 qtio422016.Writer, a *build.Artifact) {
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 	p.streamrenderArtifactItem(qw422016, a)
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 	qt422016.ReleaseWriter(qw422016)
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 }
 
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 func (p *BuildArtifacts) renderArtifactItem(a *build.Artifact) string {
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 	p.writerenderArtifactItem(qb422016, a)
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 	qs422016 := string(qb422016.B)
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 	return qs422016
-//line template/build_artifacts.qtpl:48
+//line template/build_artifacts.qtpl:44
 }
 
-//line template/build_artifacts.qtpl:50
+//line template/build_artifacts.qtpl:46
 func (p *BuildArtifacts) StreamBody(qw422016 *qt422016.Writer) {
-//line template/build_artifacts.qtpl:50
+//line template/build_artifacts.qtpl:46
 	qw422016.N().S(` <div class="panel"> `)
-//line template/build_artifacts.qtpl:52
+//line template/build_artifacts.qtpl:48
 	if len(p.Artifacts) == 0 {
-//line template/build_artifacts.qtpl:52
+//line template/build_artifacts.qtpl:48
 		qw422016.N().S(` `)
-//line template/build_artifacts.qtpl:53
+//line template/build_artifacts.qtpl:49
 		if query := p.Query.Get("search"); query != "" {
-//line template/build_artifacts.qtpl:53
+//line template/build_artifacts.qtpl:49
 			qw422016.N().S(` <div class="panel-header">`)
-//line template/build_artifacts.qtpl:54
+//line template/build_artifacts.qtpl:50
 			p.StreamSearch(qw422016, "Find an artifact...")
-//line template/build_artifacts.qtpl:54
+//line template/build_artifacts.qtpl:50
 			qw422016.N().S(`</div> <div class="panel-message muted">No results found.</div> `)
-//line template/build_artifacts.qtpl:56
+//line template/build_artifacts.qtpl:52
 		} else {
-//line template/build_artifacts.qtpl:56
+//line template/build_artifacts.qtpl:52
 			qw422016.N().S(` <div class="panel-message muted"> No artifacts have been collected from this build. </div> `)
-//line template/build_artifacts.qtpl:60
+//line template/build_artifacts.qtpl:56
 		}
-//line template/build_artifacts.qtpl:60
+//line template/build_artifacts.qtpl:56
 		qw422016.N().S(` `)
-//line template/build_artifacts.qtpl:61
+//line template/build_artifacts.qtpl:57
 	} else {
-//line template/build_artifacts.qtpl:61
+//line template/build_artifacts.qtpl:57
 		qw422016.N().S(` <div class="panel-header">`)
-//line template/build_artifacts.qtpl:62
+//line template/build_artifacts.qtpl:58
 		p.StreamSearch(qw422016, "Find an artifact...")
-//line template/build_artifacts.qtpl:62
-		qw422016.N().S(`</div> <table class="table"> <thead> <tr> <th>NAME</th> <th>SIZE</th> <th>MD5</th> <th>SHA256</th> </tr> </thead> <tbody> `)
-//line template/build_artifacts.qtpl:73
+//line template/build_artifacts.qtpl:58
+		qw422016.N().S(`</div> <table class="table"> <thead> <tr> <th>NAME</th> <th>SIZE</th> <th class="align-right">MD5</th> <th class="align-right">SHA256</th> </tr> </thead> <tbody> `)
+//line template/build_artifacts.qtpl:69
 		for _, a := range p.Artifacts {
-//line template/build_artifacts.qtpl:73
+//line template/build_artifacts.qtpl:69
 			qw422016.N().S(` `)
-//line template/build_artifacts.qtpl:74
+//line template/build_artifacts.qtpl:70
 			p.streamrenderArtifactItem(qw422016, a)
-//line template/build_artifacts.qtpl:74
+//line template/build_artifacts.qtpl:70
 			qw422016.N().S(` `)
-//line template/build_artifacts.qtpl:75
+//line template/build_artifacts.qtpl:71
 		}
-//line template/build_artifacts.qtpl:75
+//line template/build_artifacts.qtpl:71
 		qw422016.N().S(` </tbody> </table> `)
-//line template/build_artifacts.qtpl:78
+//line template/build_artifacts.qtpl:74
 	}
-//line template/build_artifacts.qtpl:78
+//line template/build_artifacts.qtpl:74
 	qw422016.N().S(` </div> `)
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 }
 
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 func (p *BuildArtifacts) WriteBody(qq422016 qtio422016.Writer) {
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 	p.StreamBody(qw422016)
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 	qt422016.ReleaseWriter(qw422016)
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 }
 
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 func (p *BuildArtifacts) Body() string {
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 	p.WriteBody(qb422016)
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 	qs422016 := string(qb422016.B)
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 	return qs422016
-//line template/build_artifacts.qtpl:80
+//line template/build_artifacts.qtpl:76
 }

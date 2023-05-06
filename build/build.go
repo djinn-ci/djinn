@@ -98,12 +98,6 @@ func LoadRelations(ctx context.Context, pool *database.Pool, bb ...*Build) error
 			Loader: database.ModelLoader(pool, driverTable, func() database.Model {
 				return &Driver{}
 			}),
-		}, {
-			From: "id",
-			To:   "build_id",
-			Loader: database.ModelLoader(pool, tagTable, func() database.Model {
-				return &Tag{}
-			}),
 		},
 	}
 
@@ -738,8 +732,6 @@ func (s *Store) Finished(ctx context.Context, b *Build) error {
 		Elem:  time.Now(),
 		Valid: true,
 	}
-
-	b.loaded = append(b.loaded, "output", "status", "finished_at")
 
 	if err := s.Update(ctx, b); err != nil {
 		return errors.Err(err)

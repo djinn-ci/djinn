@@ -63,11 +63,12 @@ type BuildIndex struct {
 			{% endif %}
 		</td>
 		<td class="align-right hide-mobile">
-			{% if len(b.Tags) > 0 %}
-				{% for _, t := range b.Tags[:3] %}
-					{%= p.renderTag(t) %}
-				{% endfor %}
-			{% endif %}
+			{% for i, t := range b.Tags %}
+				{% if i > 2 %}
+					{% break %}
+				{% endif %}
+				{%= p.renderTag(t) %}
+			{% endfor %}
 			{% if len(b.Tags) > 3 %}
 				<a class="pill pill-light" href="{%s b.Endpoint("tags") %}" title="Build tags">...</a>
 			{% endif %}

@@ -162,8 +162,10 @@ type JobStore struct {
 	*database.Store[*Job]
 }
 
+const jobTable = "build_jobs"
+
 func NewJobStore(pool *database.Pool) *database.Store[*Job] {
-	return database.NewStore[*Job](pool, "build_jobs", func() *Job {
+	return database.NewStore[*Job](pool, jobTable, func() *Job {
 		return &Job{}
 	})
 }
@@ -187,8 +189,6 @@ func (s JobStore) Finished(ctx context.Context, j *Job) error {
 		Elem:  time.Now(),
 		Valid: true,
 	}
-
-	j.loaded = append(j.loaded, "output", "status", "finished_at")
 
 	if err := s.Update(ctx, j); err != nil {
 		return errors.Err(err)

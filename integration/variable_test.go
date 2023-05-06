@@ -93,6 +93,7 @@ func Test_VariableMasking(t *testing.T) {
 		Manifest: djinn.Manifest{
 			Namespace: "maskedvariables",
 			Driver:    map[string]string{"type": "os"},
+			Env:       []string{"API_SECRET=" + secret},
 			Stages:    []string{"env1", "env2", "env3"},
 			Jobs: []djinn.ManifestJob{
 				{

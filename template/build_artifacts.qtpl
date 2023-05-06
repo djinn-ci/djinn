@@ -26,23 +26,19 @@ type BuildArtifacts struct {
 			{% endif %}
 		</td>
 		<td>{%s HumanSize(a.Size.Elem) %}</td>
-		<td>
-			<span class="code">
-				{% if len(a.MD5) == 0 %}
-					--
-				{% else %}
-					a.MD5.String()
-				{% endif %}
-			</span>
+		<td class="align-right">
+			{% if a.MD5 == nil %}
+				<span class="code">--</span>
+			{% else %}
+				<span class="code">{%s a.MD5.String()[:7] %}</span>
+			{% endif %}
 		</td>
-		<td>
-			<span class="code">
-				{% if len(a.SHA256) == 0 %}
-					--
-				{% else %}
-					a.SHA256.String()
-				{% endif %}
-			</span>
+		<td class="align-right">
+			{% if a.SHA256 == nil %}
+				<span class="code">--</span>
+			{% else %}
+				<span class="code">{%s a.SHA256.String()[:7] %}</span>
+			{% endif %}
 		</td>
 	</tr>
 {% endfunc %}
@@ -65,8 +61,8 @@ type BuildArtifacts struct {
 					<tr>
 						<th>NAME</th>
 						<th>SIZE</th>
-						<th>MD5</th>
-						<th>SHA256</th>
+						<th class="align-right">MD5</th>
+						<th class="align-right">SHA256</th>
 					</tr>
 				</thead>
 				<tbody>

@@ -401,11 +401,11 @@ func (p *BuildJob) StreamBody(qw422016 *qt422016.Writer) {
 //line template/build_job.qtpl:99
 	qw422016.N().S(` </div> <div class="col-75 col-right"> `)
 //line template/build_job.qtpl:102
-	p.streamrenderJobOutput(qw422016)
+	p.Build.streamrenderBuildTrigger(qw422016)
 //line template/build_job.qtpl:102
 	qw422016.N().S(` `)
 //line template/build_job.qtpl:103
-	p.Build.streamrenderBuildTrigger(qw422016)
+	p.streamrenderJobOutput(qw422016)
 //line template/build_job.qtpl:103
 	qw422016.N().S(` `)
 //line template/build_job.qtpl:104

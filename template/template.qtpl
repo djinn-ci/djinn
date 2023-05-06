@@ -127,19 +127,19 @@ type FatalError struct {
 {% func IconStatus(s runner.Status) %}
 	{% switch s %}
 		{% case runner.Queued %}
-			<span class="pill w-90 pill-dark">{% cat "static/svg/hourglass.svg" %}</span>
+			<span class="pill-bubble pill-dark">{% cat "static/svg/hourglass.svg" %}</span>
 		{% case runner.Running %}
-			<span class="pill w-90 pill-blue">{% cat "static/svg/timer.svg" %}</span>
+			<span class="pill-bubble pill-blue">{% cat "static/svg/timer.svg" %}</span>
 		{% case runner.Passed %}
-			<span class="pill w-90 pill-green">{% cat "static/svg/check.svg" %}</span>
+			<span class="pill-bubble pill-green">{% cat "static/svg/check.svg" %}</span>
 		{% case runner.PassedWithFailures %}
-			<span class="pill w-90 pill-orange">{% cat "static/svg/warning.svg" %}</span>
+			<span class="pill-bubble pill-orange">{% cat "static/svg/warning.svg" %}</span>
 		{% case runner.Failed %}
-			<span class="pill w-90 pill-red">{% cat "static/svg/close.svg" %}</span>
+			<span class="pill-bubble pill-red">{% cat "static/svg/close.svg" %}</span>
 		{% case runner.Killed %}
-			<span class="pill w-90 pill-red">{% cat "static/svg/stop.svg" %}</span>
+			<span class="pill-bubble pill-red">{% cat "static/svg/stop.svg" %}</span>
 		{% case runner.TimedOut %}
-			<span class="pill w-90 pill-gray">{% cat "static/svg/stopwatch.svg" %}</span>
+			<span class="pill-bubble pill-gray">{% cat "static/svg/stopwatch.svg" %}</span>
 	{% endswitch %}
 {% endfunc %}
 

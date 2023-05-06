@@ -142,6 +142,13 @@ func (c *Client) Do(req *http.Request) (*http.Response, error) {
 				if _, ok := binaryContent[req.Header.Get("Content-Type")]; ok {
 					s = base64.StdEncoding.EncodeToString(buf.Bytes())
 				}
+
+				if strings.HasPrefix(req.Header.Get("Content-Type"), "application/json") {
+					var fmtbuf bytes.Buffer
+
+					json.Indent(&fmtbuf, buf.Bytes(), "", "  ")
+					s = fmtbuf.String()
+				}
 				c.log.Log(s)
 			}
 		}

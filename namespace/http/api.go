@@ -193,6 +193,12 @@ func (h API) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r
 		}
 
 		if ok {
+			if err := build.LoadRelations(ctx, h.DB, b); err != nil {
+				h.Error(w, r, errors.Wrap(err, "Failed to get last build"))
+				return
+			}
+
+			b.Namespace = nil
 			n.Build = b
 		}
 		webutil.JSON(w, n, http.StatusOK)

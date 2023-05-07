@@ -164,6 +164,13 @@ func (h *Handler) Namespace(fn HandlerFunc) auth.HandlerFunc {
 				h.Error(w, r, errors.Wrap(err, "Failed to get parent"))
 				return
 			}
+
+			parent.User, _, err = h.Users.Get(ctx, user.WhereID(parent.UserID))
+
+			if err != nil {
+				h.Error(w, r, errors.Wrap(err, "Failed to get parent"))
+				return
+			}
 			n.Parent = parent
 		}
 

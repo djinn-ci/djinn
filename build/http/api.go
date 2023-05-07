@@ -75,6 +75,10 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 			return
 		}
 
+		for _, a := range p.Items {
+			a.Build = b
+		}
+
 		w.Header().Set("Link", p.EncodeToLink(r.URL))
 		webutil.JSON(w, p.Items, http.StatusOK)
 		return
@@ -109,6 +113,10 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 		if err := build.LoadJobRelations(ctx, h.DB, jj...); err != nil {
 			h.Error(w, r, errors.Wrap(err, "Failed to load job relations"))
 			return
+		}
+
+		for _, j := range jj {
+			j.Build = b
 		}
 
 		webutil.JSON(w, jj, http.StatusOK)
@@ -224,6 +232,9 @@ func (h API) Download(u *auth.User, b *build.Build, w http.ResponseWriter, r *ht
 		http.ServeContent(w, r, a.Name, a.CreatedAt, f.(io.ReadSeeker))
 		return
 	}
+
+	a.Build = b
+
 	webutil.JSON(w, a, http.StatusOK)
 }
 

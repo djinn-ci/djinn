@@ -43,8 +43,6 @@ github.com/alicebob/miniredis v2.5.0+incompatible h1:yBHoLpsyjupjz3NL3MhKMVkR41j
 github.com/alicebob/miniredis v2.5.0+incompatible/go.mod h1:8HZjEj4yU0dwhYHky+DxYx+6BMjkBbe5ONFIF1MXffk=
 github.com/andrewpillar/config v1.0.0 h1:nHxbiNvqaLJpWVK6LSOwpk2uVSg4La7Oqh768DBdeqk=
 github.com/andrewpillar/config v1.0.0/go.mod h1:8Hx8n7Y9+6rAwnxnjgixCOxff3NhJgKoAiXOiw7uCzg=
-github.com/andrewpillar/fs v0.0.0-20230416204702-a009058fc080 h1:XnN+J5s8cyAQHZiDvc1HCgxt8IRi31/hZiT166qvw+0=
-github.com/andrewpillar/fs v0.0.0-20230416204702-a009058fc080/go.mod h1:QtxnrhZJhgAIdYwWTZ1NDxXf/UCzJ/0JNUCbBT31W6c=
 github.com/andrewpillar/fs v0.0.0-20230505194115-11f5fcb3ec95 h1:uNMvdTcq8Q7PDvvWcxtc1v4XS9qoh8r4y/HkT4EMoKY=
 github.com/andrewpillar/fs v0.0.0-20230505194115-11f5fcb3ec95/go.mod h1:QtxnrhZJhgAIdYwWTZ1NDxXf/UCzJ/0JNUCbBT31W6c=
 github.com/andrewpillar/query v0.0.0-20220329202258-3234d5f45afd h1:FI7/h4AfdrvTdUq/kgIrfj/LAlnx7fv0DbipWyYMY9Q=

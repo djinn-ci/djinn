@@ -39,7 +39,6 @@ type SudoForm struct {
 				<input type="hidden" name="sudo_url" value="{%s p.SudoURL %}"/>
 				<input type="hidden" name="sudo_referer" value="{%s p.SudoReferer %}"/>
 				<input type="hidden" name="sudo_token" value="{%s p.SudoToken %}"/>
-				<input type="hidden" name="handle" value="{%s p.Email %}"/>
 				{%= p.Field(form.Field{
 					ID:   "password",
 					Name: "Password",

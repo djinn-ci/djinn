@@ -599,6 +599,8 @@ func (s *Server) sudoHandler(u *auth.User, w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	r.PostForm.Set("handle", u.Email)
+
 	form, _ := s.Auths.Get(user.InternalProvider + ":form")
 
 	if _, err := form.Auth(r); err != nil {

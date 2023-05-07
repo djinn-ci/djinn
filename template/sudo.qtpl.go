@@ -131,44 +131,40 @@ func (p *SudoForm) StreamBody(qw422016 *qt422016.Writer) {
 //line template/sudo.qtpl:41
 	qw422016.E().S(p.SudoToken)
 //line template/sudo.qtpl:41
-	qw422016.N().S(`"/> <input type="hidden" name="handle" value="`)
-//line template/sudo.qtpl:42
-	qw422016.E().S(p.Email)
-//line template/sudo.qtpl:42
 	qw422016.N().S(`"/> `)
-//line template/sudo.qtpl:43
+//line template/sudo.qtpl:42
 	p.StreamField(qw422016, form.Field{
 		ID:   "password",
 		Name: "Password",
 		Type: form.Password,
 	})
-//line template/sudo.qtpl:47
+//line template/sudo.qtpl:46
 	qw422016.N().S(` <div class="form-field"> <button type="submit" class="btn btn-primary">Authorize</button> </div> <a href="/">Back</a> </form> </div> </div> `)
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 }
 
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 func (p *SudoForm) WriteBody(qq422016 qtio422016.Writer) {
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 	p.StreamBody(qw422016)
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 	qt422016.ReleaseWriter(qw422016)
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 }
 
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 func (p *SudoForm) Body() string {
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 	p.WriteBody(qb422016)
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 	qs422016 := string(qb422016.B)
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 	return qs422016
-//line template/sudo.qtpl:55
+//line template/sudo.qtpl:54
 }

@@ -167,7 +167,7 @@ func FormAuth(db *database.Pool) auth.Authenticator {
 			return nil, auth.ErrAuth
 		}
 
-		if r.URL.Path != "/login" {
+		if r.URL.Path != "/login" && r.URL.Path != "/sudo" {
 			return nil, auth.ErrAuth
 		}
 

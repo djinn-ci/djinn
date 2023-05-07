@@ -812,8 +812,9 @@ func (s *Store) Submit(ctx context.Context, host string, b *Build) error {
 				Elem:  v.ID,
 				Valid: v.ID > 0,
 			},
-			Key:   v.Key,
-			Value: v.Value,
+			Key:    v.Key,
+			Value:  v.Value,
+			Masked: v.Masked,
 		})
 
 		if err != nil {

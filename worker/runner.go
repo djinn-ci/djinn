@@ -35,15 +35,6 @@ type maskedBuffer struct {
 	buf *bytes.Buffer
 }
 
-func newBuffer(t transform.Transformer) *maskedBuffer {
-	var buf bytes.Buffer
-
-	return &maskedBuffer{
-		Writer: transform.NewWriter(&buf, t),
-		buf:    &buf,
-	}
-}
-
 func (b *maskedBuffer) String() string { return b.buf.String() }
 
 type job struct {
@@ -51,10 +42,15 @@ type job struct {
 	buf *maskedBuffer
 }
 
-func newJob(j *build.Job, t transform.Transformer) *job {
+func newJob(r *runner.Runner, j *build.Job, t transform.Transformer) *job {
+	var buf bytes.Buffer
+
 	return &job{
 		job: j,
-		buf: newBuffer(t),
+		buf: &maskedBuffer{
+			Writer: transform.NewWriter(io.MultiWriter(r.Writer, &buf), t),
+			buf:    &buf,
+		},
 	}
 }
 
@@ -70,7 +66,7 @@ func (j *job) runnerJob(r *runner.Runner) *runner.Job {
 	}
 
 	return &runner.Job{
-		Writer:    io.MultiWriter(r.Writer, j.buf),
+		Writer:    j.buf,
 		Name:      j.job.Name,
 		Commands:  strings.Split(j.job.Commands, "\n"),
 		Artifacts: artifacts,
@@ -99,11 +95,12 @@ type Runner struct {
 
 	log *log.Logger
 
-	buf *maskedBuffer
+	buf *bytes.Buffer
 
 	driver     string
 	driverInit driver.Init
 	driverCfg  driver.Config
+	driverJob  *job
 
 	builds *build.Store
 	images *database.Store[*image.Image]
@@ -130,7 +127,7 @@ func NewRunner(ctx context.Context, w *Worker, b *build.Build) (*Runner, error) 
 		env = append(env, v.Variable.String())
 
 		if v.Masked {
-			chain = append(chain, variable.Masker(v.Value))
+			chain = append(chain, variable.Masker(v.Variable.Value))
 		}
 	}
 
@@ -187,7 +184,7 @@ func NewRunner(ctx context.Context, w *Worker, b *build.Build) (*Runner, error) 
 		timeout:    w.Timeout,
 		redis:      w.Redis,
 		log:        w.Log,
-		buf:        newBuffer(masker),
+		buf:        &bytes.Buffer{},
 		driver:     w.Driver,
 		driverInit: w.DriverInit,
 		driverCfg:  w.DriverConfig,
@@ -236,13 +233,24 @@ func NewRunner(ctx context.Context, w *Worker, b *build.Build) (*Runner, error) 
 	}
 
 	for _, j := range jj {
-		jb := newJob(j, masker)
+		jb := newJob(r.Runner, j, masker)
 		rj := jb.runnerJob(r.Runner)
 
-		stagetab[j.StageID].Add(rj)
+		st := stagetab[j.StageID]
+		st.Add(rj)
+
 		r.jobs.put(jb)
+
+		if r.isCreateDriverJob(st, j) {
+			r.driverJob = jb
+		}
 	}
 	return r, nil
+}
+
+func (r *Runner) isCreateDriverJob(st *runner.Stage, j *build.Job) bool {
+	return st.Name == fmt.Sprintf("setup - #%d", r.build.Number) &&
+		j.Name == "create-driver"
 }
 
 func keyChain(aesgcm *crypto.AESGCM, buildKeys []*build.Key) *key.Chain {
@@ -298,7 +306,7 @@ func sanitize(s string) string {
 
 func (r *Runner) Run(ctx context.Context) error {
 	cfg := r.driverCfg.Merge(r.build.Driver.Config)
-	d := r.driverInit(r.buf.buf, cfg)
+	d := r.driverInit(io.MultiWriter(r.buf, r.driverJob.buf.buf), cfg)
 
 	if q, ok := d.(*qemu.Driver); ok {
 		qemuCfg := cfg.(*qemu.Config)
@@ -361,8 +369,6 @@ func (r *Runner) Run(ctx context.Context) error {
 	}
 
 	r.log.Debug.Println("build finished", r.build.ID)
-
-	r.buf.Close()
 
 	r.build.Output = database.Null[string]{
 		Elem:  sanitize(r.buf.String()),

@@ -40,9 +40,10 @@ func (v *Variable) Scan(r *database.Row) error {
 	}
 
 	v.Variable = &variable.Variable{
-		ID:    v.VariableID.Elem,
-		Key:   v.Key,
-		Value: v.Value,
+		ID:     v.VariableID.Elem,
+		Key:    v.Key,
+		Value:  v.Value,
+		Masked: v.Masked,
 	}
 	return nil
 }

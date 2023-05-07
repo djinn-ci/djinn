@@ -168,6 +168,8 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 					alert.Flash(sess, alert.Danger, "Could not unmask variable")
 					h.Log.Error.Println(r.Method, r.URL, "could not unmask variable", errors.Err(err))
 				}
+
+				v.Value = v.Variable.Value
 				continue
 			}
 

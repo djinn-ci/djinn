@@ -47,12 +47,13 @@ type BuildVariables struct {
 		{% if len(p.Variables) == 0 %}
 			<div class="panel-message muted">No variables have been set for this build.</div>
 		{% else %}
-			<table>
+			<table class="table">
 				<thead>
 					<tr>
 						<th>KEY</th>
 						<th>VALUE</th>
 						<th>FROM MANIFEST</th>
+						<th></th>
 					</tr>
 				</thead>
 				<tbody>

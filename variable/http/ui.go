@@ -107,7 +107,7 @@ func (h UI) Unmask(u *auth.User, v *variable.Variable, w http.ResponseWriter, r 
 
 	variable.PutUnmasked(sess.Values, unmasked)
 
-	h.Redirect(w, r, "/variables")
+	h.RedirectBack(w, r)
 }
 
 func (h UI) Destroy(u *auth.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {

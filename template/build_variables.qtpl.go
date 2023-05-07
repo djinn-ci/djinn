@@ -284,48 +284,48 @@ func (p *BuildVariables) StreamBody(qw422016 *qt422016.Writer) {
 //line template/build_variables.qtpl:49
 	} else {
 //line template/build_variables.qtpl:49
-		qw422016.N().S(` <table> <thead> <tr> <th>KEY</th> <th>VALUE</th> <th>FROM MANIFEST</th> </tr> </thead> <tbody> `)
-//line template/build_variables.qtpl:59
+		qw422016.N().S(` <table class="table"> <thead> <tr> <th>KEY</th> <th>VALUE</th> <th>FROM MANIFEST</th> <th></th> </tr> </thead> <tbody> `)
+//line template/build_variables.qtpl:60
 		for _, v := range p.Variables {
-//line template/build_variables.qtpl:59
-			qw422016.N().S(` `)
 //line template/build_variables.qtpl:60
+			qw422016.N().S(` `)
+//line template/build_variables.qtpl:61
 			p.streamrenderVariableItem(qw422016, v)
-//line template/build_variables.qtpl:60
+//line template/build_variables.qtpl:61
 			qw422016.N().S(` `)
-//line template/build_variables.qtpl:61
+//line template/build_variables.qtpl:62
 		}
-//line template/build_variables.qtpl:61
+//line template/build_variables.qtpl:62
 		qw422016.N().S(` </tbody> </table> `)
-//line template/build_variables.qtpl:64
+//line template/build_variables.qtpl:65
 	}
-//line template/build_variables.qtpl:64
+//line template/build_variables.qtpl:65
 	qw422016.N().S(` </div> `)
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 }
 
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 func (p *BuildVariables) WriteBody(qq422016 qtio422016.Writer) {
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 	qw422016 := qt422016.AcquireWriter(qq422016)
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 	p.StreamBody(qw422016)
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 	qt422016.ReleaseWriter(qw422016)
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 }
 
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 func (p *BuildVariables) Body() string {
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 	qb422016 := qt422016.AcquireByteBuffer()
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 	p.WriteBody(qb422016)
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 	qs422016 := string(qb422016.B)
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 	qt422016.ReleaseByteBuffer(qb422016)
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 	return qs422016
-//line template/build_variables.qtpl:66
+//line template/build_variables.qtpl:67
 }

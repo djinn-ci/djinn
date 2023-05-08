@@ -17,7 +17,7 @@ type Settings struct {
 	Partial   Partial
 }
 
-var settingsLinks = []navLink{
+var settingsLinks = []NavLink{
 	{
 		Title:   "Account",
 		Href:    "/settings",
@@ -72,7 +72,7 @@ func cleanup(u *auth.User) string {
 
 {% func (p *Settings) Navigation() %}
 	{% for _, link := range settingsLinks %}
-		<li>{%= link.render(p.Page.URL.Path) %}</li>
+		<li>{%= link.Render(p.Page.URL.Path) %}</li>
 	{% endfor %}
 {% endfunc %}
 

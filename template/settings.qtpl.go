@@ -35,7 +35,7 @@ type Settings struct {
 	Partial   Partial
 }
 
-var settingsLinks = []navLink{
+var settingsLinks = []NavLink{
 	{
 		Title:   "Account",
 		Href:    "/settings",
@@ -243,7 +243,7 @@ func (p *Settings) StreamNavigation(qw422016 *qt422016.Writer) {
 //line template/settings.qtpl:74
 		qw422016.N().S(` <li>`)
 //line template/settings.qtpl:75
-		link.streamrender(qw422016, p.Page.URL.Path)
+		link.StreamRender(qw422016, p.Page.URL.Path)
 //line template/settings.qtpl:75
 		qw422016.N().S(`</li> `)
 //line template/settings.qtpl:76

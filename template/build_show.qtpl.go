@@ -309,7 +309,7 @@ func (p *BuildShow) Actions() string {
 //line template/build_show.qtpl:70
 func (p *BuildShow) StreamNavigation(qw422016 *qt422016.Writer) {
 //line template/build_show.qtpl:71
-	for _, link := range []navLink{
+	for _, link := range []NavLink{
 		{
 			Title:   "Overview",
 			Href:    p.Build.Endpoint(),
@@ -356,7 +356,7 @@ func (p *BuildShow) StreamNavigation(qw422016 *qt422016.Writer) {
 //line template/build_show.qtpl:114
 		qw422016.N().S(`<li>`)
 //line template/build_show.qtpl:115
-		link.streamrender(qw422016, p.URL.Path)
+		link.StreamRender(qw422016, p.URL.Path)
 //line template/build_show.qtpl:115
 		qw422016.N().S(`</li>`)
 //line template/build_show.qtpl:116

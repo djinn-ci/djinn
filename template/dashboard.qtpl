@@ -56,7 +56,7 @@ func verified(u *auth.User) bool {
 	return false
 }
 
-type navLink struct {
+type NavLink struct {
 	Title     string
 	Href      string
 	Icon      string
@@ -64,7 +64,7 @@ type navLink struct {
 	Condition func() bool
 }
 
-var sidebarLinks = []navLink{
+var sidebarLinks = []NavLink{
 	{
 		Title:   "Builds",
 		Href:    "/builds",
@@ -121,7 +121,7 @@ var sidebarLinks = []navLink{
 	},
 }
 
-var settingsLink = navLink{
+var settingsLink = NavLink{
 	Title:   "Settings",
 	Href:    "/settings",
 	Icon:    "static/svg/settings.svg",
@@ -130,7 +130,7 @@ var settingsLink = navLink{
 %}
 
 {% collapsespace %}
-{% func (l *navLink) render(url string) %}
+{% func (l *NavLink) Render(url string) %}
 	{% if l.Condition == nil || l.Condition() %}
 		{% if l.Pattern.Match([]byte(url)) %}
 			<a class="active" href="{%s l.Href %}" title="{%s l.Title %}">
@@ -161,7 +161,7 @@ var settingsLink = navLink{
 	{% endif %}
 {% endfunc %}
 
-{% func (p *Dashboard) sidebar(links []navLink) %}
+{% func (p *Dashboard) sidebar(links []NavLink) %}
 	<div class="sidebar">
 		<div class="sidebar-header">
 			{%= Logo() %}
@@ -193,10 +193,10 @@ var settingsLink = navLink{
 				{% endif %}
 				<li class="sidebar-nav-header">MANAGE</li>
 				{% for _, link := range links %}
-					<li>{%= link.render(p.URL.Path) %}</li>
+					<li>{%= link.Render(p.URL.Path) %}</li>
 				{% endfor %}
 				<li class="sidebar-nav-header">ACCOUNT</li>
-				<li>{%= settingsLink.render(p.URL.Path) %}</li>
+				<li>{%= settingsLink.Render(p.URL.Path) %}</li>
 				<li>
 					<form method="POST" action="/logout">
 						{%v= p.CSRF %}

@@ -99,7 +99,7 @@ func verified(u *auth.User) bool {
 	return false
 }
 
-type navLink struct {
+type NavLink struct {
 	Title     string
 	Href      string
 	Icon      string
@@ -107,7 +107,7 @@ type navLink struct {
 	Condition func() bool
 }
 
-var sidebarLinks = []navLink{
+var sidebarLinks = []NavLink{
 	{
 		Title:   "Builds",
 		Href:    "/builds",
@@ -164,7 +164,7 @@ var sidebarLinks = []navLink{
 	},
 }
 
-var settingsLink = navLink{
+var settingsLink = NavLink{
 	Title:   "Settings",
 	Href:    "/settings",
 	Icon:    "static/svg/settings.svg",
@@ -172,7 +172,7 @@ var settingsLink = navLink{
 }
 
 //line template/dashboard.qtpl:133
-func (l *navLink) streamrender(qw422016 *qt422016.Writer, url string) {
+func (l *NavLink) StreamRender(qw422016 *qt422016.Writer, url string) {
 //line template/dashboard.qtpl:133
 	qw422016.N().S(` `)
 //line template/dashboard.qtpl:134
@@ -231,22 +231,22 @@ func (l *navLink) streamrender(qw422016 *qt422016.Writer, url string) {
 }
 
 //line template/dashboard.qtpl:145
-func (l *navLink) writerender(qq422016 qtio422016.Writer, url string) {
+func (l *NavLink) WriteRender(qq422016 qtio422016.Writer, url string) {
 //line template/dashboard.qtpl:145
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line template/dashboard.qtpl:145
-	l.streamrender(qw422016, url)
+	l.StreamRender(qw422016, url)
 //line template/dashboard.qtpl:145
 	qt422016.ReleaseWriter(qw422016)
 //line template/dashboard.qtpl:145
 }
 
 //line template/dashboard.qtpl:145
-func (l *navLink) render(url string) string {
+func (l *NavLink) Render(url string) string {
 //line template/dashboard.qtpl:145
 	qb422016 := qt422016.AcquireByteBuffer()
 //line template/dashboard.qtpl:145
-	l.writerender(qb422016, url)
+	l.WriteRender(qb422016, url)
 //line template/dashboard.qtpl:145
 	qs422016 := string(qb422016.B)
 //line template/dashboard.qtpl:145
@@ -342,7 +342,7 @@ func Alert(a alert.Alert, url string) string {
 }
 
 //line template/dashboard.qtpl:164
-func (p *Dashboard) streamsidebar(qw422016 *qt422016.Writer, links []navLink) {
+func (p *Dashboard) streamsidebar(qw422016 *qt422016.Writer, links []NavLink) {
 //line template/dashboard.qtpl:164
 	qw422016.N().S(` <div class="sidebar"> <div class="sidebar-header"> `)
 //line template/dashboard.qtpl:167
@@ -410,7 +410,7 @@ func (p *Dashboard) streamsidebar(qw422016 *qt422016.Writer, links []navLink) {
 //line template/dashboard.qtpl:195
 			qw422016.N().S(` <li>`)
 //line template/dashboard.qtpl:196
-			link.streamrender(qw422016, p.URL.Path)
+			link.StreamRender(qw422016, p.URL.Path)
 //line template/dashboard.qtpl:196
 			qw422016.N().S(`</li> `)
 //line template/dashboard.qtpl:197
@@ -418,7 +418,7 @@ func (p *Dashboard) streamsidebar(qw422016 *qt422016.Writer, links []navLink) {
 //line template/dashboard.qtpl:197
 		qw422016.N().S(` <li class="sidebar-nav-header">ACCOUNT</li> <li>`)
 //line template/dashboard.qtpl:199
-		settingsLink.streamrender(qw422016, p.URL.Path)
+		settingsLink.StreamRender(qw422016, p.URL.Path)
 //line template/dashboard.qtpl:199
 		qw422016.N().S(`</li> <li> <form method="POST" action="/logout"> `)
 //line template/dashboard.qtpl:202
@@ -441,7 +441,7 @@ func (p *Dashboard) streamsidebar(qw422016 *qt422016.Writer, links []navLink) {
 }
 
 //line template/dashboard.qtpl:211
-func (p *Dashboard) writesidebar(qq422016 qtio422016.Writer, links []navLink) {
+func (p *Dashboard) writesidebar(qq422016 qtio422016.Writer, links []NavLink) {
 //line template/dashboard.qtpl:211
 	qw422016 := qt422016.AcquireWriter(qq422016)
 //line template/dashboard.qtpl:211
@@ -452,7 +452,7 @@ func (p *Dashboard) writesidebar(qq422016 qtio422016.Writer, links []navLink) {
 }
 
 //line template/dashboard.qtpl:211
-func (p *Dashboard) sidebar(links []navLink) string {
+func (p *Dashboard) sidebar(links []NavLink) string {
 //line template/dashboard.qtpl:211
 	qb422016 := qt422016.AcquireByteBuffer()
 //line template/dashboard.qtpl:211

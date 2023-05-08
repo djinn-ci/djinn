@@ -242,7 +242,7 @@ func (p *NamespaceShow) Actions() string {
 //line template/namespace_show.qtpl:51
 func (p *NamespaceShow) StreamNavigation(qw422016 *qt422016.Writer) {
 //line template/namespace_show.qtpl:52
-	for _, link := range []navLink{
+	for _, link := range []NavLink{
 		{
 			Title:   "Builds",
 			Href:    p.Namespace.Endpoint(),
@@ -304,7 +304,7 @@ func (p *NamespaceShow) StreamNavigation(qw422016 *qt422016.Writer) {
 //line template/namespace_show.qtpl:110
 		qw422016.N().S(`<li>`)
 //line template/namespace_show.qtpl:111
-		link.streamrender(qw422016, p.URL.Path)
+		link.StreamRender(qw422016, p.URL.Path)
 //line template/namespace_show.qtpl:111
 		qw422016.N().S(`</li>`)
 //line template/namespace_show.qtpl:112

@@ -68,7 +68,7 @@ type BuildShow struct {
 
 {% stripspace %}
 {% func (p *BuildShow) Navigation() %}
-	{% for _, link := range []navLink{
+	{% for _, link := range []NavLink{
 		{
 			Title:   "Overview",
 			Href:    p.Build.Endpoint(),
@@ -112,7 +112,7 @@ type BuildShow struct {
 			Pattern: regexp.MustCompile(p.Build.Endpoint("tags")),
 		},
 	} %}
-		<li>{%= link.render(p.URL.Path) %}</li>
+		<li>{%= link.Render(p.URL.Path) %}</li>
 	{% endfor %}
 {% endfunc %}
 {% endstripspace %}

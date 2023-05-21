@@ -341,6 +341,10 @@ func (h UI) ShowJob(u *auth.User, b *build.Build, w http.ResponseWriter, r *http
 		return
 	}
 
+	for _, a := range p.Items {
+		a.Build = b
+	}
+
 	j.Build = b
 
 	tmpl := template.NewDashboard(u, sess, r)

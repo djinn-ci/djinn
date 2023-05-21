@@ -472,7 +472,7 @@ func registerNamespaceAPI(a auth.Authenticator, srv *server.Server) {
 
 	a = namespace.NewAuth(a, "namespace", api.Namespaces.Store)
 
-	show := srv.Restrict(a, []string{"namespace:read"}, api.Namespace(api.Show))
+	show := srv.Optional(a, api.Namespace(api.Show))
 	update := srv.Restrict(a, []string{"namespace:write", "owner"}, api.Namespace(api.Update))
 	destroy := srv.Restrict(a, []string{"namespace:delete", "owner"}, api.Namespace(api.Destroy))
 	destroyCollab := srv.Restrict(a, []string{"namespace:delete", "owner"}, api.Namespace(api.DestroyCollaborator))

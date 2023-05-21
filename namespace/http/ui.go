@@ -761,7 +761,7 @@ func registerNamespaceUI(a auth.Authenticator, srv *server.Server) {
 
 	a = namespace.NewAuth[*namespace.Namespace](a, "namespace", ui.Namespaces.Store)
 
-	show := srv.Restrict(a, []string{"namespace:read"}, ui.Namespace(ui.Show))
+	show := srv.Optional(a, ui.Namespace(ui.Show))
 	edit := srv.Restrict(a, []string{"namespace:write", "owner"}, ui.Namespace(ui.Edit))
 	update := srv.Restrict(a, []string{"namespace:write", "owner"}, ui.Namespace(ui.Update))
 	destroy := srv.Restrict(a, []string{"namespace:delete"}, ui.Namespace(ui.Destroy))

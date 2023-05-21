@@ -183,6 +183,13 @@ func (h *Handler) Namespace(fn HandlerFunc) auth.HandlerFunc {
 			h.NotFound(w, r)
 			return
 		}
+
+		if n.Visibility != namespace.Public {
+			if !u.Has("namespace:read") {
+				h.NotFound(w, r)
+				return
+			}
+		}
 		fn(u, n, w, r)
 	}
 }

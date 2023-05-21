@@ -125,12 +125,12 @@ func (d *Driver) Execute(j *runner.Job, artifacts fs.FS) error {
 
 	for src, dst := range j.Artifacts {
 		func(src, dst string) {
-			fmt.Fprintln(d.Writer, "Collecting artifact", src, "=>", dst)
+			fmt.Fprintln(j.Writer, "Collecting artifact", src, "=>", dst)
 
 			f, err := os.Open(src)
 
 			if err != nil {
-				fmt.Fprintln(d.Writer, "artifact error:", errors.Cause(err))
+				fmt.Fprintln(j.Writer, "artifact error:", errors.Cause(err))
 				return
 			}
 
@@ -139,7 +139,7 @@ func (d *Driver) Execute(j *runner.Job, artifacts fs.FS) error {
 			artifact, err := fs.ReadFile(dst, f)
 
 			if err != nil {
-				fmt.Fprintln(d.Writer, "artifact error:", errors.Cause(err))
+				fmt.Fprintln(j.Writer, "artifact error:", errors.Cause(err))
 				return
 			}
 

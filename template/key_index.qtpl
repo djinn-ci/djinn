@@ -28,7 +28,13 @@ type KeyIndex struct {
 
 {% func (p *KeyIndex) renderKeyItem(k *key.Key) %}
 	<tr>
-		<td><a href="{%s k.Endpoint("edit") %}">{%s k.Name %}</a></td>
+		<td>
+			{% if p.Paginator.User.ID > 0 %}
+				<a href="{%s k.Endpoint("edit") %}">{%s k.Name %}</a>
+			{% else %}
+				{%s k.Name %}
+			{% endif %}
+		</td>
 		<td>
 			{% if k.Namespace != nil %}
 				<a href="{%s k.Namespace.Endpoint() %}">{%s k.Namespace.Path %}</a>

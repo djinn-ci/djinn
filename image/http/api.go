@@ -22,7 +22,7 @@ func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get images"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get images"))
 		return
 	}
 
@@ -50,7 +50,7 @@ func (h API) Show(u *auth.User, i *image.Image, w http.ResponseWriter, r *http.R
 				return
 			}
 
-			h.Error(w, r, errors.Wrap(err, "Failed to get image"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get image"))
 			return
 		}
 
@@ -64,12 +64,12 @@ func (h API) Show(u *auth.User, i *image.Image, w http.ResponseWriter, r *http.R
 	ctx := r.Context()
 
 	if err := image.LoadRelations(ctx, h.DB, i); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load relations"))
 		return
 	}
 
 	if err := namespace.Loader(h.DB).Load(ctx, "namespace_id", "id", i); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load namespace"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load namespace"))
 		return
 	}
 	webutil.JSON(w, i, http.StatusOK)
@@ -77,7 +77,7 @@ func (h API) Show(u *auth.User, i *image.Image, w http.ResponseWriter, r *http.R
 
 func (h API) Destroy(u *auth.User, i *image.Image, w http.ResponseWriter, r *http.Request) {
 	if err := h.Handler.Destroy(r.Context(), i); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete image"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete image"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

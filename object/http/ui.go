@@ -30,7 +30,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get objects"))
 		return
 	}
 
@@ -85,7 +85,7 @@ func (h UI) Show(u *auth.User, o *object.Object, w http.ResponseWriter, r *http.
 				return
 			}
 
-			h.Error(w, r, errors.Wrap(err, "Failed to download object"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to download object"))
 			return
 		}
 
@@ -107,12 +107,12 @@ func (h UI) Show(u *auth.User, o *object.Object, w http.ResponseWriter, r *http.
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get builds"))
 		return
 	}
 
 	if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load build relations"))
 		return
 	}
 
@@ -136,7 +136,7 @@ func (h UI) Destroy(u *auth.User, o *object.Object, w http.ResponseWriter, r *ht
 	sess, _ := h.Session(r)
 
 	if err := h.Handler.Destroy(r.Context(), o); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete object"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete object"))
 		return
 	}
 

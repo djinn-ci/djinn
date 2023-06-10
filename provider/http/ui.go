@@ -27,7 +27,7 @@ type UI struct {
 
 func (h UI) Connect(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	if err := r.ParseForm(); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to parse request"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to parse request"))
 		return
 	}
 
@@ -36,14 +36,14 @@ func (h UI) Connect(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	a, err := h.Auths.Get(mech)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 		return
 	}
 
 	cli, ok := a.(*oauth2.Authenticator)
 
 	if !ok {
-		h.Error(w, r, errors.Benign("Not a valid OAuth2 client"))
+		h.InternalServerError(w, r, errors.Benign("Not a valid OAuth2 client"))
 		return
 	}
 
@@ -102,7 +102,7 @@ func (h UI) Auth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to authenticated via "+provider))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticated via "+provider))
 		return
 	}
 
@@ -113,7 +113,7 @@ func (h UI) Auth(w http.ResponseWriter, r *http.Request) {
 	cookie, err := user.Cookie(u, h.SecureCookie)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to authenticate via "+provider))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate via "+provider))
 		return
 	}
 
@@ -141,7 +141,7 @@ func (h UI) Revoke(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
 		return
 	}
 
@@ -157,7 +157,7 @@ func (h UI) Revoke(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
 		return
 	}
 
@@ -188,17 +188,17 @@ func (h UI) Revoke(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(errs) > 0 {
-		h.Error(w, r, errors.Wrap(errors.Slice(errs), "Failed to disconnect from provider"))
+		h.InternalServerError(w, r, errors.Wrap(errors.Slice(errs), "Failed to disconnect from provider"))
 		return
 	}
 
 	if err := h.Repos.Purge(p); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
 		return
 	}
 
 	if err := h.Providers.Delete(ctx, p); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to disconnect from provider"))
 		return
 	}
 
@@ -235,7 +235,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, ok, err := h.Providers.Get(ctx, opts...)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to find provider"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to find provider"))
 		return
 	}
 
@@ -267,7 +267,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	repos, err := h.Repos.Load(ctx, p, page)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed load repos"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed load repos"))
 		return
 	}
 
@@ -304,7 +304,7 @@ func (h UI) Update(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to refresh repository cache"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to refresh repository cache"))
 		return
 	}
 
@@ -315,7 +315,7 @@ func (h UI) Update(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := h.Repos.Reload(ctx, p, page); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to refresh repository cache"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to refresh repository cache"))
 		return
 	}
 
@@ -342,12 +342,12 @@ func (h UI) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
 	if !ok {
-		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
@@ -359,7 +359,7 @@ func (h UI) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
@@ -376,15 +376,15 @@ func (h UI) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
 
 	if err := p.Client().ToggleWebhook(repo); err != nil {
 		if errors.Is(err, provider.ErrLocalhost) {
-			h.Error(w, r, errors.Benign("Failed to enable repo webhook: "+err.Error()))
+			h.InternalServerError(w, r, errors.Benign("Failed to enable repo webhook: "+err.Error()))
 			return
 		}
-		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
 	if err := h.Repos.Touch(ctx, repo); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to enable repo webhook"))
 		return
 	}
 
@@ -406,22 +406,22 @@ func (h UI) Destroy(u *auth.User, repo *provider.Repo, w http.ResponseWriter, r 
 	p, ok, err := h.Providers.Get(ctx, query.Where("id", "=", query.Arg(repo.ProviderID)))
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
 		return
 	}
 
 	if !ok {
-		h.Error(w, r, errors.Benign("Failed to disable repo webhook: no such provider"))
+		h.InternalServerError(w, r, errors.Benign("Failed to disable repo webhook: no such provider"))
 		return
 	}
 
 	if err := p.Client().ToggleWebhook(repo); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
 		return
 	}
 
 	if err := h.Repos.Touch(ctx, repo); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to disable repo webhook"))
 		return
 	}
 

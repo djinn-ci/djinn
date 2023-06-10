@@ -21,7 +21,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get variables"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get variables"))
 		return
 	}
 
@@ -114,7 +114,7 @@ func (h UI) Destroy(u *auth.User, v *variable.Variable, w http.ResponseWriter, r
 	sess, _ := h.Session(r)
 
 	if err := h.Handler.Destroy(r.Context(), v); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete variable"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete variable"))
 		return
 	}
 

@@ -35,7 +35,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get namespaces"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespaces"))
 		return
 	}
 
@@ -60,7 +60,7 @@ func (h UI) Create(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get namespace parent"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace parent"))
 		return
 	}
 
@@ -76,7 +76,7 @@ func (h UI) Create(u *auth.User, w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := user.Loader(h.DB).Load(ctx, "user_id", "id", parent); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load namespace user"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load namespace user"))
 			return
 		}
 	}
@@ -120,7 +120,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		p, err := h.Namespaces.Index(ctx, q, query.Where("parent_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get namespaces"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespaces"))
 			return
 		}
 
@@ -137,7 +137,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		p, err := h.Images.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get images"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get images"))
 			return
 		}
 
@@ -153,7 +153,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		p, err := h.Objects.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get objects"))
 			return
 		}
 
@@ -169,7 +169,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		p, err := h.Variables.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get variables"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get variables"))
 			return
 		}
 
@@ -199,7 +199,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		p, err := h.Keys.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get keys"))
 			return
 		}
 
@@ -215,7 +215,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		ii, err := h.Invites.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get invites"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get invites"))
 			return
 		}
 
@@ -229,12 +229,12 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		ld := user.Loader(h.DB)
 
 		if err := ld.Load(ctx, "invitee_id", "id", mm...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to loader users"))
 			return
 		}
 
 		if err := ld.Load(ctx, "inviter_id", "id", mm...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to loader users"))
 			return
 		}
 
@@ -247,7 +247,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		cc, err := h.Collaborators.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get collaborators"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get collaborators"))
 			return
 		}
 
@@ -259,7 +259,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		}
 
 		if err := user.Loader(h.DB).Load(ctx, "user_id", "id", mm...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load users"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load users"))
 			return
 		}
 
@@ -272,7 +272,7 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		ww, err := h.Webhooks.All(ctx, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get webhooks"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get webhooks"))
 			return
 		}
 
@@ -284,12 +284,12 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		}
 
 		if err := user.Loader(h.DB).Load(ctx, "author_id", "id", mm...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to loader users"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to loader users"))
 			return
 		}
 
 		if err := h.Webhooks.LoadLastDeliveries(ctx, ww...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get deliveries"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get deliveries"))
 			return
 		}
 
@@ -302,12 +302,12 @@ func (h UI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r 
 		p, err := h.Builds.Index(ctx, q, query.Where("namespace_id", "=", query.Arg(n.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get builds"))
 			return
 		}
 
 		if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load build relations"))
 			return
 		}
 
@@ -331,16 +331,16 @@ func (h UI) DestroyCollaborator(u *auth.User, n *namespace.Namespace, w http.Res
 
 	if err := h.Handler.DestroyCollaborator(u, n, r); err != nil {
 		if errors.Is(err, database.ErrPermission) {
-			h.Error(w, r, errors.Benign("Failed to remove collaborator"))
+			h.InternalServerError(w, r, errors.Benign("Failed to remove collaborator"))
 			return
 		}
 
 		if errors.Is(err, database.ErrNoRows) {
-			h.Error(w, r, errors.Benign("No such collaborator"))
+			h.InternalServerError(w, r, errors.Benign("No such collaborator"))
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to remove collaborator"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to remove collaborator"))
 		return
 	}
 
@@ -377,7 +377,7 @@ func (h UI) Destroy(u *auth.User, n *namespace.Namespace, w http.ResponseWriter,
 	sess, _ := h.Session(r)
 
 	if err := h.Handler.Destroy(r.Context(), n); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete namespace"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete namespace"))
 		return
 	}
 
@@ -395,7 +395,7 @@ func (h InviteUI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	ii, err := h.Invites.All(r.Context(), query.Where("invitee_id", "=", query.Arg(u.ID)))
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get invites"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get invites"))
 		return
 	}
 
@@ -458,7 +458,7 @@ func (h InviteUI) Update(u *auth.User, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to accept invite"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to accept invite"))
 		return
 	}
 
@@ -474,7 +474,7 @@ func (h InviteUI) Destroy(u *auth.User, w http.ResponseWriter, r *http.Request) 
 	i, ok, err := h.Invites.Get(ctx, query.Where("id", "=", query.Arg(mux.Vars(r)["invite"])))
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to accept invite"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to accept invite"))
 		return
 	}
 
@@ -489,7 +489,7 @@ func (h InviteUI) Destroy(u *auth.User, w http.ResponseWriter, r *http.Request) 
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to reject invite"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to reject invite"))
 		return
 	}
 
@@ -538,7 +538,7 @@ func (h WebhookUI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWri
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get webhook"))
 		return
 	}
 
@@ -552,7 +552,7 @@ func (h WebhookUI) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWri
 	dd, err := h.Webhooks.Deliveries(ctx, wh)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get webhook deliveries"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get webhook deliveries"))
 		return
 	}
 
@@ -592,7 +592,7 @@ func (h WebhookUI) Delivery(u *auth.User, n *namespace.Namespace, w http.Respons
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get webhook"))
 		return
 	}
 
@@ -606,7 +606,7 @@ func (h WebhookUI) Delivery(u *auth.User, n *namespace.Namespace, w http.Respons
 	del, ok, err := h.Webhooks.Delivery(ctx, wh, id)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get webhook delivery"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get webhook delivery"))
 		return
 	}
 
@@ -637,12 +637,12 @@ func (h WebhookUI) Redeliver(u *auth.User, n *namespace.Namespace, w http.Respon
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
 		return
 	}
 
 	if !ok {
-		h.Error(w, r, errors.Benign("No such webhook"))
+		h.InternalServerError(w, r, errors.Benign("No such webhook"))
 		return
 	}
 
@@ -651,24 +651,24 @@ func (h WebhookUI) Redeliver(u *auth.User, n *namespace.Namespace, w http.Respon
 	del, ok, err := h.Webhooks.Delivery(ctx, wh, id)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
 		return
 	}
 
 	if !ok {
-		h.Error(w, r, errors.Benign("No such webhook"))
+		h.InternalServerError(w, r, errors.Benign("No such webhook"))
 		return
 	}
 
 	if err := h.Webhooks.Redeliver(ctx, wh, del.EventID); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
 		return
 	}
 
 	latest, err := h.Webhooks.LastDelivery(ctx, wh)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to redeliver webhook"))
 		return
 	}
 
@@ -690,12 +690,12 @@ func (h WebhookUI) Update(u *auth.User, n *namespace.Namespace, w http.ResponseW
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to update webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to update webhook"))
 		return
 	}
 
 	if !ok {
-		h.Error(w, r, errors.Benign("No such webhook"))
+		h.InternalServerError(w, r, errors.Benign("No such webhook"))
 		return
 	}
 
@@ -724,19 +724,19 @@ func (h WebhookUI) Destroy(u *auth.User, n *namespace.Namespace, w http.Response
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete webhook"))
 		return
 	}
 
 	if !ok {
-		h.Error(w, r, errors.Benign("No such webhook"))
+		h.InternalServerError(w, r, errors.Benign("No such webhook"))
 		return
 	}
 
 	wh.Namespace = n
 
 	if err := h.Webhooks.Delete(ctx, wh); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete webhook"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete webhook"))
 		return
 	}
 

@@ -118,7 +118,7 @@ func (h *Handler) Namespace(fn HandlerFunc) auth.HandlerFunc {
 		owner, ok, err := h.Users.Get(ctx, user.WhereUsername(vars["username"]))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get namespace owner"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace owner"))
 			return
 		}
 
@@ -136,7 +136,7 @@ func (h *Handler) Namespace(fn HandlerFunc) auth.HandlerFunc {
 		)
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get namespace"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace"))
 			return
 		}
 
@@ -161,14 +161,14 @@ func (h *Handler) Namespace(fn HandlerFunc) auth.HandlerFunc {
 			parent, _, err := h.Namespaces.Get(ctx, query.Where("id", "=", query.Arg(n.ParentID)))
 
 			if err != nil {
-				h.Error(w, r, errors.Wrap(err, "Failed to get parent"))
+				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get parent"))
 				return
 			}
 
 			parent.User, _, err = h.Users.Get(ctx, user.WhereID(parent.UserID))
 
 			if err != nil {
-				h.Error(w, r, errors.Wrap(err, "Failed to get parent"))
+				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get parent"))
 				return
 			}
 			n.Parent = parent
@@ -176,7 +176,7 @@ func (h *Handler) Namespace(fn HandlerFunc) auth.HandlerFunc {
 
 		if err := n.HasAccess(ctx, h.DB, u); err != nil {
 			if !errors.Is(err, database.ErrPermission) {
-				h.Error(w, r, errors.Wrap(err, "Failed to get namespace"))
+				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace"))
 				return
 			}
 
@@ -267,7 +267,7 @@ func (h *Handler) Badge(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get namespace badge"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace badge"))
 		return
 	}
 
@@ -285,7 +285,7 @@ func (h *Handler) Badge(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get namespace badge"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace badge"))
 		return
 	}
 

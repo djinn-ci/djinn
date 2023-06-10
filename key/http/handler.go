@@ -44,7 +44,7 @@ func (h *Handler) Key(fn HandlerFunc) auth.HandlerFunc {
 		k, ok, err := h.Keys.Get(ctx, query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get key"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get key"))
 			return
 		}
 
@@ -54,7 +54,7 @@ func (h *Handler) Key(fn HandlerFunc) auth.HandlerFunc {
 		}
 
 		if err := namespace.LoadResourceRelations[*key.Key](ctx, h.DB, k); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load key relations"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load key relations"))
 			return
 		}
 		fn(u, k, w, r)

@@ -21,7 +21,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get keys"))
 		return
 	}
 
@@ -88,7 +88,7 @@ func (h UI) Destroy(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Req
 	sess, _ := h.Session(r)
 
 	if err := h.Handler.Destroy(r.Context(), k); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete key"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete key"))
 		return
 	}
 

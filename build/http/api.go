@@ -26,7 +26,7 @@ func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get builds"))
 		return
 	}
 
@@ -48,7 +48,7 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 	ctx := r.Context()
 
 	if err := build.LoadRelations(ctx, h.DB, b); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load build relations"))
 		return
 	}
 
@@ -60,7 +60,7 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 		)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get objects"))
 			return
 		}
 
@@ -71,7 +71,7 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 		p, err := h.Artifacts.Index(ctx, r.URL.Query(), query.Where("build_id", "=", query.Arg(b.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get artifacts"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get artifacts"))
 			return
 		}
 
@@ -86,7 +86,7 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 		vv, err := h.Variables.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("key"))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get variables"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get variables"))
 			return
 		}
 
@@ -96,7 +96,7 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 		kk, err := h.Keys.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("name"))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get keys"))
 			return
 		}
 
@@ -106,12 +106,12 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 		jj, err := h.Jobs.Index(ctx, r.URL.Query(), query.Where("build_id", "=", query.Arg(b.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get jobs"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get jobs"))
 			return
 		}
 
 		if err := build.LoadJobRelations(ctx, h.DB, jj...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load job relations"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load job relations"))
 			return
 		}
 
@@ -125,7 +125,7 @@ func (h API) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.R
 		tt, err := h.Tags.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get tags"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get tags"))
 			return
 		}
 
@@ -149,7 +149,7 @@ func (h API) ShowJob(u *auth.User, b *build.Build, w http.ResponseWriter, r *htt
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get job"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get job"))
 		return
 	}
 
@@ -161,7 +161,7 @@ func (h API) ShowJob(u *auth.User, b *build.Build, w http.ResponseWriter, r *htt
 	j.Build = b
 
 	if err := build.LoadJobRelations(ctx, h.DB, j); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load job relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load job relations"))
 		return
 	}
 	webutil.JSON(w, j, http.StatusOK)
@@ -169,7 +169,7 @@ func (h API) ShowJob(u *auth.User, b *build.Build, w http.ResponseWriter, r *htt
 
 func (h API) Destroy(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
 	if err := b.Kill(h.Redis); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to kill build"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to kill build"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -188,7 +188,7 @@ func (h API) TogglePin(u *auth.User, b *build.Build, w http.ResponseWriter, r *h
 	}
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to update pin"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to update pin"))
 		return
 	}
 
@@ -224,7 +224,7 @@ func (h API) Download(u *auth.User, b *build.Build, w http.ResponseWriter, r *ht
 				return
 			}
 
-			h.Error(w, r, errors.Wrap(err, "Failed to get artifact"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get artifact"))
 			return
 		}
 
@@ -242,7 +242,7 @@ func (h API) StoreTag(u *auth.User, b *build.Build, w http.ResponseWriter, r *ht
 	tt, err := h.Handler.StoreTag(u, b, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to tag build"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to tag build"))
 		return
 	}
 	webutil.JSON(w, tt, http.StatusCreated)
@@ -258,7 +258,7 @@ func (h API) ShowTag(u *auth.User, b *build.Build, w http.ResponseWriter, r *htt
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get tag"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get tag"))
 		return
 	}
 
@@ -268,7 +268,7 @@ func (h API) ShowTag(u *auth.User, b *build.Build, w http.ResponseWriter, r *htt
 	}
 
 	if err := user.Loader(h.DB).Load(ctx, "user_id", "id", t); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load tag relation"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load tag relation"))
 		return
 	}
 	webutil.JSON(w, t, http.StatusOK)
@@ -281,7 +281,7 @@ func (h API) DestroyTag(u *auth.User, b *build.Build, w http.ResponseWriter, r *
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to delete tag"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete tag"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

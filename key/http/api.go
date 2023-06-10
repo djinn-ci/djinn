@@ -20,7 +20,7 @@ func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get keys"))
 		return
 	}
 
@@ -42,7 +42,7 @@ func (h API) Show(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Reque
 	ctx := r.Context()
 
 	if err := namespace.LoadResourceRelations[*key.Key](ctx, h.DB, k); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load relations"))
 		return
 	}
 	webutil.JSON(w, k, http.StatusOK)
@@ -60,7 +60,7 @@ func (h API) Update(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Req
 
 func (h API) Destroy(u *auth.User, k *key.Key, w http.ResponseWriter, r *http.Request) {
 	if err := h.Handler.Destroy(r.Context(), k); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete key"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete key"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

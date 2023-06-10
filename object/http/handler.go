@@ -48,7 +48,7 @@ func (h *Handler) Object(fn HandlerFunc) auth.HandlerFunc {
 		o, ok, err := h.Objects.Get(ctx, query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get object"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get object"))
 			return
 		}
 
@@ -58,7 +58,7 @@ func (h *Handler) Object(fn HandlerFunc) auth.HandlerFunc {
 		}
 
 		if err := namespace.LoadResourceRelations[*object.Object](ctx, h.DB, o); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load object relations"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load object relations"))
 			return
 		}
 		fn(u, o, w, r)

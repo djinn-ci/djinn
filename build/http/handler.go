@@ -74,7 +74,7 @@ func (h *Handler) Build(fn HandlerFunc) auth.HandlerFunc {
 		owner, ok, err := h.Users.Get(ctx, user.WhereUsername(vars["username"]))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get build owner"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get build owner"))
 			return
 		}
 
@@ -90,7 +90,7 @@ func (h *Handler) Build(fn HandlerFunc) auth.HandlerFunc {
 		)
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get build"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get build"))
 			return
 		}
 
@@ -119,7 +119,7 @@ func (h *Handler) Build(fn HandlerFunc) auth.HandlerFunc {
 		)
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get root namespace"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get root namespace"))
 			return
 		}
 
@@ -134,7 +134,7 @@ func (h *Handler) Build(fn HandlerFunc) auth.HandlerFunc {
 			b.Namespace, _, err = h.Namespaces.Get(ctx, query.Where("id", "=", query.Arg(b.NamespaceID)))
 
 			if err != nil {
-				h.Error(w, r, errors.Wrap(err, "Failed to get namespace"))
+				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace"))
 				return
 			}
 		}
@@ -145,7 +145,7 @@ func (h *Handler) Build(fn HandlerFunc) auth.HandlerFunc {
 			u, _, err := h.Users.Get(ctx, user.WhereID(b.Namespace.UserID))
 
 			if err != nil {
-				h.Error(w, r, errors.Wrap(err, "Failed to get namespace owner"))
+				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace owner"))
 				return
 			}
 			b.Namespace.User = u
@@ -153,7 +153,7 @@ func (h *Handler) Build(fn HandlerFunc) auth.HandlerFunc {
 
 		if err := root.HasAccess(ctx, h.DB, u); err != nil {
 			if !errors.Is(err, database.ErrPermission) {
-				h.Error(w, r, errors.Wrap(err, "Failed to get root namespace"))
+				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get root namespace"))
 				return
 			}
 

@@ -44,7 +44,7 @@ func (h *Handler) Cron(fn HandlerFunc) auth.HandlerFunc {
 		c, ok, err := h.Crons.Get(ctx, query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get cron job"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get cron job"))
 			return
 		}
 
@@ -54,7 +54,7 @@ func (h *Handler) Cron(fn HandlerFunc) auth.HandlerFunc {
 		}
 
 		if err := namespace.LoadResourceRelations[*cron.Cron](ctx, h.DB, c); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load cron job relations"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load cron job relations"))
 			return
 		}
 		fn(u, c, w, r)

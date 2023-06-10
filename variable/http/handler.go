@@ -43,7 +43,7 @@ func (h *Handler) Variable(fn HandlerFunc) auth.HandlerFunc {
 		v, ok, err := h.Variables.Get(r.Context(), query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get variable"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get variable"))
 			return
 		}
 

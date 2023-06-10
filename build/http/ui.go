@@ -34,7 +34,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get builds"))
 		return
 	}
 
@@ -78,12 +78,12 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 	ctx := r.Context()
 
 	if err := build.LoadRelations(ctx, h.DB, b); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load build relations"))
 		return
 	}
 
 	if err := build.LoadStageRelations(ctx, h.DB, b.Stages...); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load build relations"))
 		return
 	}
 
@@ -123,12 +123,12 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 		)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get objects"))
 			return
 		}
 
 		if err := namespace.LoadResourceRelations[*object.Object](ctx, h.DB, p.Items...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load object relations"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load object relations"))
 			return
 		}
 
@@ -140,7 +140,7 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 		p, err := h.Artifacts.Index(ctx, r.URL.Query(), query.Where("build_id", "=", query.Arg(b.ID)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get artifacts"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get artifacts"))
 			return
 		}
 
@@ -156,7 +156,7 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 		vv, err := h.Variables.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("key"))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get variables"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get variables"))
 			return
 		}
 
@@ -183,7 +183,7 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 		})
 
 		if err := variable.Loader(h.DB).Load(ctx, "variable_id", "id", mm...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load variables"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load variables"))
 			return
 		}
 
@@ -196,7 +196,7 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 		kk, err := h.Keys.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("name"))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get keys"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get keys"))
 			return
 		}
 
@@ -211,7 +211,7 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 
 			if err := b.Namespace.IsCollaborator(ctx, h.DB, u); err != nil {
 				if !errors.Is(err, database.ErrPermission) {
-					h.Error(w, r, errors.Wrap(err, "Failed to get tags"))
+					h.InternalServerError(w, r, errors.Wrap(err, "Failed to get tags"))
 					return
 				}
 				isCollaborator = false
@@ -225,7 +225,7 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 		tt, err := h.Tags.All(ctx, query.Where("build_id", "=", query.Arg(b.ID)), query.OrderAsc("name"))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get tags"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get tags"))
 			return
 		}
 
@@ -237,7 +237,7 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 		}
 
 		if err := user.Loader(h.DB).Load(ctx, "user_id", "id", mm...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load tag relations"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load tag relations"))
 			return
 		}
 
@@ -256,7 +256,7 @@ func (h UI) Destroy(u *auth.User, b *build.Build, w http.ResponseWriter, r *http
 	sess, _ := h.Session(r)
 
 	if err := b.Kill(h.Redis); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to kill build"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to kill build"))
 		return
 	}
 
@@ -284,7 +284,7 @@ func (h UI) TogglePin(u *auth.User, b *build.Build, w http.ResponseWriter, r *ht
 	}
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to update pin"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to update pin"))
 		return
 	}
 
@@ -306,7 +306,7 @@ func (h UI) ShowJob(u *auth.User, b *build.Build, w http.ResponseWriter, r *http
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get job"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get job"))
 		return
 	}
 
@@ -372,7 +372,7 @@ func (h UI) Download(u *auth.User, b *build.Build, w http.ResponseWriter, r *htt
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get artifact"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get artifact"))
 		return
 	}
 
@@ -389,7 +389,7 @@ func (h UI) Download(u *auth.User, b *build.Build, w http.ResponseWriter, r *htt
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to get artifact"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get artifact"))
 		return
 	}
 
@@ -400,7 +400,7 @@ func (h UI) Download(u *auth.User, b *build.Build, w http.ResponseWriter, r *htt
 
 func (h UI) StoreTag(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Request) {
 	if _, err := h.Handler.StoreTag(u, b, r); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to tag build"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to tag build"))
 		return
 	}
 	h.RedirectBack(w, r)
@@ -415,7 +415,7 @@ func (h UI) DestroyTag(u *auth.User, b *build.Build, w http.ResponseWriter, r *h
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to delete tag"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete tag"))
 		return
 	}
 

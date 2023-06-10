@@ -62,7 +62,7 @@ func (h Oauth2) authPage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if !errors.Is(err, auth.ErrAuth) {
-			h.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 			return
 		}
 	}
@@ -74,14 +74,14 @@ func (h Oauth2) authPage(w http.ResponseWriter, r *http.Request) {
 	state := q.Get("state")
 
 	if clientId == "" {
-		h.Error(w, r, errors.Benign("No client ID in request"))
+		h.InternalServerError(w, r, errors.Benign("No client ID in request"))
 		return
 	}
 
 	scope, err := oauth2.UnmarshalScope(q.Get("scope"))
 
 	if err != nil {
-		h.Error(w, r, errors.Cause(err))
+		h.InternalServerError(w, r, errors.Cause(err))
 		return
 	}
 
@@ -90,7 +90,7 @@ func (h Oauth2) authPage(w http.ResponseWriter, r *http.Request) {
 	a, ok, err := h.Apps.Get(ctx, query.Where("client_id", "=", query.Arg(clientId)))
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get app"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get app"))
 		return
 	}
 
@@ -102,7 +102,7 @@ func (h Oauth2) authPage(w http.ResponseWriter, r *http.Request) {
 	author, _, err := h.Users.Get(ctx, user.WhereID(a.UserID))
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get user"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get user"))
 		return
 	}
 
@@ -123,7 +123,7 @@ func (h Oauth2) authPage(w http.ResponseWriter, r *http.Request) {
 
 			if len(diff) == 0 {
 				if a.RedirectURI != redirectUri {
-					h.Error(w, r, errors.Benign("redirect_uri does not match"))
+					h.InternalServerError(w, r, errors.Benign("redirect_uri does not match"))
 					return
 				}
 
@@ -134,7 +134,7 @@ func (h Oauth2) authPage(w http.ResponseWriter, r *http.Request) {
 				})
 
 				if err != nil {
-					h.Error(w, r, errors.Wrap(err, "Failed to create authentication code"))
+					h.InternalServerError(w, r, errors.Wrap(err, "Failed to create authentication code"))
 					return
 				}
 
@@ -153,7 +153,7 @@ func (h Oauth2) authPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(scope) == 0 {
-		h.Error(w, r, errors.Wrap(err, "No scope requested"))
+		h.InternalServerError(w, r, errors.Wrap(err, "No scope requested"))
 		return
 	}
 
@@ -182,7 +182,7 @@ func (h Oauth2) Authz(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 		return
 	}
 
@@ -255,7 +255,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		id, secret, ok = r.BasicAuth()
 
 		if !ok {
-			h.Error(w, r, errors.Benign("Could not get basic auth credentials"))
+			h.InternalServerError(w, r, errors.Benign("Could not get basic auth credentials"))
 			return
 		}
 	}
@@ -265,7 +265,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	a, err := h.Apps.Auth(ctx, id, secret)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to authenticate"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate"))
 		return
 	}
 
@@ -276,7 +276,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get code"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get code"))
 		return
 	}
 
@@ -286,7 +286,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if time.Now().Sub(c.ExpiresAt) > time.Minute*10 {
-		h.Error(w, r, errors.Benign("Code expired"))
+		h.InternalServerError(w, r, errors.Benign("Code expired"))
 		return
 	}
 
@@ -297,7 +297,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get token"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get token"))
 		return
 	}
 
@@ -310,7 +310,7 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		})
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to create token"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to create token"))
 			return
 		}
 	} else {
@@ -321,13 +321,13 @@ func (h Oauth2) Token(w http.ResponseWriter, r *http.Request) {
 		t.Scope = c.Scope
 
 		if err := h.Tokens.Update(ctx, t); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to update token"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to update token"))
 			return
 		}
 	}
 
 	if err := h.Codes.Delete(ctx, c); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete code"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete code"))
 		return
 	}
 
@@ -361,13 +361,13 @@ func (h Oauth2) Revoke(w http.ResponseWriter, r *http.Request) {
 	t, ok, err := h.Tokens.Get(ctx, query.Where("token", "=", query.Arg(tok)))
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get token"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get token"))
 		return
 	}
 
 	if !ok {
 		if err := h.Tokens.Delete(ctx, t); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to delete token"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete token"))
 			return
 		}
 	}
@@ -391,7 +391,7 @@ func (h App) App(fn AppHandlerFunc) auth.HandlerFunc {
 		)
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get app"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get app"))
 			return
 		}
 
@@ -409,7 +409,7 @@ func (h App) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	aa, err := h.Apps.All(r.Context(), query.Where("user_id", "=", query.Arg(u.ID)))
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get apps"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get apps"))
 		return
 	}
 
@@ -470,7 +470,7 @@ func (h App) Show(u *auth.User, a *oauth2.App, w http.ResponseWriter, r *http.Re
 	b, err := h.AESGCM.Decrypt(a.ClientSecret)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to decrypt client secret"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to decrypt client secret"))
 		return
 	}
 
@@ -499,7 +499,7 @@ func (h App) Update(u *auth.User, a *oauth2.App, w http.ResponseWriter, r *http.
 		}
 
 		if err := h.Tokens.Revoke(ctx, &tok); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to revoke tokens"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to revoke tokens"))
 			return
 		}
 
@@ -508,7 +508,7 @@ func (h App) Update(u *auth.User, a *oauth2.App, w http.ResponseWriter, r *http.
 		return
 	case "reset":
 		if err := h.Apps.Reset(ctx, a); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to revoke secret"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to revoke secret"))
 			return
 		}
 
@@ -559,7 +559,7 @@ func (h Token) Token(fn TokenHandlerFunc) auth.HandlerFunc {
 			a, ok, err := h.Apps.Get(ctx, query.Where("client_id", "=", query.Arg(id)))
 
 			if err != nil {
-				h.Error(w, r, errors.Wrap(err, "Failed to get token"))
+				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get token"))
 				return
 			}
 
@@ -573,7 +573,7 @@ func (h Token) Token(fn TokenHandlerFunc) auth.HandlerFunc {
 		t, ok, err := h.Tokens.Get(ctx, opt)
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get token"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get token"))
 			return
 		}
 
@@ -608,7 +608,7 @@ func (h Token) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 		)
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get connected apps"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get connected apps"))
 			return
 		}
 
@@ -625,7 +625,7 @@ func (h Token) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 		)
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get tokens"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get tokens"))
 			return
 		}
 
@@ -651,7 +651,7 @@ func (h Token) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := oauth2.AppLoader(h.DB).Load(ctx, "app_id", "id", mm...); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load relations"))
 		return
 	}
 
@@ -664,7 +664,7 @@ func (h Token) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := user.Loader(h.DB).Load(ctx, "user_id", "id", mm...); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load relations"))
 		return
 	}
 
@@ -752,7 +752,7 @@ func (h Token) Update(u *auth.User, t *oauth2.Token, w http.ResponseWriter, r *h
 
 	if webutil.BasePath(r.URL.Path) == "regenerate" {
 		if err := h.Tokens.Reset(ctx, t); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to update token"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to update token"))
 			return
 		}
 
@@ -782,7 +782,7 @@ func (h Token) Destroy(u *auth.User, t *oauth2.Token, w http.ResponseWriter, r *
 	sess, _ := h.Session(r)
 
 	if err := h.Tokens.Delete(r.Context(), t); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to disconnect from app"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to disconnect from app"))
 		return
 	}
 

@@ -20,7 +20,7 @@ func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	paginator, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get variables"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get variables"))
 		return
 	}
 
@@ -42,7 +42,7 @@ func (h API) Show(u *auth.User, v *variable.Variable, w http.ResponseWriter, r *
 	ctx := r.Context()
 
 	if err := namespace.LoadResourceRelations[*variable.Variable](ctx, h.DB, v); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load relations"))
 		return
 	}
 	webutil.JSON(w, v, http.StatusOK)
@@ -50,7 +50,7 @@ func (h API) Show(u *auth.User, v *variable.Variable, w http.ResponseWriter, r *
 
 func (h API) Destroy(u *auth.User, v *variable.Variable, w http.ResponseWriter, r *http.Request) {
 	if err := h.Handler.Destroy(r.Context(), v); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete variable"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete variable"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

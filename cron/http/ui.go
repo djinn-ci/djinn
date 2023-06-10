@@ -27,7 +27,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get cron jobs"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get cron jobs"))
 		return
 	}
 
@@ -40,7 +40,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err := ld.Load(r.Context(), "namespace_id", "id", mm...); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load namespaces"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load namespaces"))
 		return
 	}
 
@@ -93,12 +93,12 @@ func (h UI) Show(u *auth.User, c *cron.Cron, w http.ResponseWriter, r *http.Requ
 	)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get cron job"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get cron job"))
 		return
 	}
 
 	if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load build relations"))
 		return
 	}
 
@@ -151,7 +151,7 @@ func (h UI) Destroy(u *auth.User, c *cron.Cron, w http.ResponseWriter, r *http.R
 	sess, _ := h.Session(r)
 
 	if err := h.Handler.Destroy(r.Context(), c); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete cron job"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete cron job"))
 		return
 	}
 

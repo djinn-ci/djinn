@@ -47,7 +47,7 @@ func (h *Handler) Image(fn HandlerFunc) auth.HandlerFunc {
 		i, ok, err := h.Images.Get(r.Context(), query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get image"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get image"))
 			return
 		}
 

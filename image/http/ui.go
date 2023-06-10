@@ -29,7 +29,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get images"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get images"))
 		return
 	}
 
@@ -40,7 +40,7 @@ func (h UI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err := ld.Load(r.Context(), "namespace_id", "id", mm...); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to load namespaces"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load namespaces"))
 		return
 	}
 
@@ -89,7 +89,7 @@ func (h UI) Show(u *auth.User, i *image.Image, w http.ResponseWriter, r *http.Re
 			h.NotFound(w, r)
 			return
 		}
-		h.Error(w, r, errors.Wrap(err, "Failed to get image"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get image"))
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h UI) Destroy(u *auth.User, i *image.Image, w http.ResponseWriter, r *http
 	sess, _ := h.Session(r)
 
 	if err := h.Handler.Destroy(r.Context(), i); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete image"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete image"))
 		return
 	}
 

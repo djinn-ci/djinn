@@ -165,7 +165,7 @@ func New(cfg *config.Server) (*Server, error) {
 	})
 
 	srv.Router.MethodNotAllowedHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		srv.Error(w, r, errors.New("Method Not Allowed"))
+		srv.Error(w, r, errors.New("Method Not Allowed"), http.StatusMethodNotAllowed)
 	})
 
 	srv.Router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
@@ -317,13 +317,13 @@ var ErrNotFound = errors.Benign("Not Found")
 
 // NotFound replies to the request with a 404 Not found response.
 func (s *Server) NotFound(w http.ResponseWriter, r *http.Request) {
-	s.Error(w, r, ErrNotFound)
+	s.Error(w, r, ErrNotFound, http.StatusNotFound)
 }
 
 // InternalServerError replies to the request with 500 Internal server error,
 // and logs the given error to the underlying logger.
 func (s *Server) InternalServerError(w http.ResponseWriter, r *http.Request, err error) {
-	s.Error(w, r, errors.Wrap(err, "Internal Server Error"))
+	s.Error(w, r, errors.Wrap(err, "Internal Server Error"), http.StatusInternalServerError)
 }
 
 func isAPI(r *http.Request) bool {
@@ -342,7 +342,7 @@ func expectsJSON(r *http.Request) bool {
 // Error serves up the given error with the given HTTP status code. If err is
 // nil, then the status text for the HTTP status code is used. If the error is
 // of type errors.Benign, then it is not logged.
-func (s *Server) Error(w http.ResponseWriter, r *http.Request, err error) {
+func (s *Server) Error(w http.ResponseWriter, r *http.Request, err error, code int) {
 	if _, ok := err.(errors.Benign); !ok {
 		s.Log.Error.Println(r.Method, r.URL, errors.Unwrap(err))
 	}
@@ -357,15 +357,6 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, err error) {
 		alert.Flash(sess, alert.Danger, err.Error())
 		s.RedirectBack(w, r)
 		return
-	}
-
-	code := http.StatusInternalServerError
-
-	if errors.Is(errors.Cause(err), auth.ErrAuth) {
-		code = http.StatusNotFound
-	}
-	if errors.Is(err, ErrNotFound) {
-		code = http.StatusNotFound
 	}
 
 	if expectsJSON(r) {
@@ -410,7 +401,7 @@ func (s *Server) FormError(w http.ResponseWriter, r *http.Request, f webutil.For
 		s.RedirectBack(w, r)
 		return
 	}
-	s.Error(w, r, err)
+	s.Error(w, r, err, http.StatusInternalServerError)
 }
 
 func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
@@ -465,7 +456,7 @@ func (s *Server) Guest(a auth.Authenticator) func(http.Handler) http.Handler {
 
 			if err != nil {
 				if !errors.Is(err, auth.ErrAuth) {
-					s.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+					s.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 					return
 				}
 				goto serve
@@ -501,7 +492,7 @@ func (s *Server) Restrict(a auth.Authenticator, perms []string, fn auth.HandlerF
 				s.Redirect(w, r, "/login")
 				return
 			}
-			s.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+			s.InternalServerError(w, r, err)
 			return
 		}
 
@@ -525,7 +516,7 @@ func (s *Server) Optional(a auth.Authenticator, fn auth.HandlerFunc) http.Handle
 
 		if err != nil {
 			if !errors.Is(err, auth.ErrAuth) {
-				s.Error(w, r, err)
+				s.InternalServerError(w, r, err)
 				return
 			}
 			u = &auth.User{}
@@ -605,11 +596,11 @@ func (s *Server) sudoHandler(u *auth.User, w http.ResponseWriter, r *http.Reques
 
 	if _, err := form.Auth(r); err != nil {
 		if !errors.Is(err, auth.ErrAuth) {
-			s.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+			s.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 			return
 		}
 
-		s.Error(w, r, errors.Benign("Authentication failed"))
+		s.InternalServerError(w, r, errors.Benign("Authentication failed"))
 		return
 	}
 
@@ -661,7 +652,7 @@ func (s *Server) Sudo(fn auth.HandlerFunc) http.HandlerFunc {
 				Expires:  time.Unix(0, 0),
 			})
 
-			s.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+			s.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 			return
 		}
 

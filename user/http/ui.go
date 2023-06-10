@@ -65,7 +65,7 @@ func (h UI) Register(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to create account"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to create account"))
 		return
 	}
 
@@ -77,7 +77,7 @@ func (h UI) Register(w http.ResponseWriter, r *http.Request) {
 		})
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to create account"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to create account"))
 			return
 		}
 	}
@@ -128,7 +128,7 @@ func (h UI) Login(w http.ResponseWriter, r *http.Request) {
 	a, err := h.Auths.Get(f.AuthMech)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 		return
 	}
 
@@ -146,17 +146,17 @@ func (h UI) Login(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		if !errors.Is(err, auth.ErrAuth) {
-			h.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 			return
 		}
-		h.Error(w, r, errors.Benign("Invalid credentials"))
+		h.InternalServerError(w, r, errors.Benign("Invalid credentials"))
 		return
 	}
 
 	cookie, err := user.Cookie(u, h.SecureCookie)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to authenticate request"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to authenticate request"))
 		return
 	}
 
@@ -219,7 +219,7 @@ func (h UI) PasswordReset(w http.ResponseWriter, r *http.Request) {
 	tok, err := h.Users.ResetPassword(ctx, u)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to reset password"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to reset password"))
 		return
 	}
 
@@ -261,7 +261,7 @@ func (h UI) NewPassword(w http.ResponseWriter, r *http.Request) {
 			h.RedirectBack(w, r)
 			return
 		}
-		h.Error(w, r, errors.Wrap(err, "Failed to set new password"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to set new password"))
 		return
 	}
 
@@ -279,7 +279,7 @@ func (h UI) Settings(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	)
 
 	if err != nil {
-		h.Error(w, r, err)
+		h.InternalServerError(w, r, err)
 		return
 	}
 
@@ -332,7 +332,7 @@ func (h UI) Verify(u *auth.User, w http.ResponseWriter, r *http.Request) {
 				msg = "Failed to verify account"
 			}
 
-			h.Error(w, r, errors.Wrap(err, msg))
+			h.InternalServerError(w, r, errors.Wrap(err, msg))
 			return
 		}
 
@@ -344,7 +344,7 @@ func (h UI) Verify(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	tok, err := h.Users.RequestVerify(ctx, u.ID)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to send verification email"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to send verification email"))
 		return
 	}
 
@@ -403,7 +403,7 @@ func (h UI) Cleanup(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	sess, _ := h.Session(r)
 
 	if err := r.ParseForm(); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to save changes"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to save changes"))
 		return
 	}
 
@@ -422,7 +422,7 @@ func (h UI) Cleanup(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	u.RawData["cleanup"] = cleanup
 
 	if err := h.Users.Update(r.Context(), u); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to save changes"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to save changes"))
 		return
 	}
 
@@ -444,7 +444,7 @@ func (h UI) Email(u *auth.User, w http.ResponseWriter, r *http.Request) {
 		tok, err := h.Users.ResetEmail(ctx, u)
 
 		if err != nil {
-			h.Error(w, r, err)
+			h.InternalServerError(w, r, err)
 			return
 		}
 
@@ -479,7 +479,7 @@ func (h UI) Email(u *auth.User, w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		h.Error(w, r, errors.Wrap(err, "Failed to update email"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to update email"))
 		return
 	}
 
@@ -493,14 +493,14 @@ func (h UI) Email(u *auth.User, w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
-			h.Error(w, r, errors.Wrap(err, "Failed to update email"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to update email"))
 			return
 		}
 		goto resp
 	}
 
 	if err := h.Users.Update(ctx, u); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to update email"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to update email"))
 		return
 	}
 

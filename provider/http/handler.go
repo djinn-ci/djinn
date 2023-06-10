@@ -50,7 +50,7 @@ func (h *Handler) Repo(fn HandlerFunc) auth.HandlerFunc {
 		repo, ok, err := h.Repos.Get(r.Context(), query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get repo"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get repo"))
 			return
 		}
 

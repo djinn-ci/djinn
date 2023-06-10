@@ -24,7 +24,7 @@ func (h API) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 	p, err := h.Handler.Index(u, r)
 
 	if err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to get objects"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get objects"))
 		return
 	}
 	w.Header().Set("Link", p.EncodeToLink(r.URL))
@@ -60,12 +60,12 @@ func (h API) Show(u *auth.User, o *object.Object, w http.ResponseWriter, r *http
 		)
 
 		if err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to get builds"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get builds"))
 			return
 		}
 
 		if err := build.LoadRelations(ctx, h.DB, p.Items...); err != nil {
-			h.Error(w, r, errors.Wrap(err, "Failed to load build relations"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load build relations"))
 			return
 		}
 
@@ -83,7 +83,7 @@ func (h API) Show(u *auth.User, o *object.Object, w http.ResponseWriter, r *http
 				return
 			}
 
-			h.Error(w, r, errors.Wrap(err, "Failed to get object"))
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get object"))
 			return
 		}
 
@@ -97,7 +97,7 @@ func (h API) Show(u *auth.User, o *object.Object, w http.ResponseWriter, r *http
 
 func (h API) Destroy(u *auth.User, o *object.Object, w http.ResponseWriter, r *http.Request) {
 	if err := h.Handler.Destroy(r.Context(), o); err != nil {
-		h.Error(w, r, errors.Wrap(err, "Failed to delete object"))
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to delete object"))
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

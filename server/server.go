@@ -169,7 +169,7 @@ func New(cfg *config.Server) (*Server, error) {
 	})
 
 	srv.Router.HandleFunc("/version", func(w http.ResponseWriter, r *http.Request) {
-		if expectsJSON(r) {
+		if ExpectsJSON(r) {
 			webutil.JSON(w, map[string]string{"build": version.Build}, http.StatusOK)
 			return
 		}
@@ -333,7 +333,7 @@ func isAPI(r *http.Request) bool {
 	return api.Scheme == url.Scheme && api.Host == url.Host && strings.HasPrefix(r.URL.Path, api.Path)
 }
 
-func expectsJSON(r *http.Request) bool {
+func ExpectsJSON(r *http.Request) bool {
 	return strings.HasPrefix(r.Header.Get("Accept"), "application/json") ||
 		strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") ||
 		isAPI(r)
@@ -359,7 +359,7 @@ func (s *Server) Error(w http.ResponseWriter, r *http.Request, err error, code i
 		return
 	}
 
-	if expectsJSON(r) {
+	if ExpectsJSON(r) {
 		m := map[string]string{
 			"message": err.Error(),
 		}
@@ -390,7 +390,7 @@ func (s *Server) FormError(w http.ResponseWriter, r *http.Request, f webutil.For
 	var errs webutil.ValidationErrors
 
 	if errors.As(err, &errs) {
-		if expectsJSON(r) {
+		if ExpectsJSON(r) {
 			webutil.JSON(w, errs, http.StatusBadRequest)
 			return
 		}
@@ -408,7 +408,7 @@ func (s *Server) recoverHandler(h http.Handler) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if v := recover(); v != nil {
-				if expectsJSON(r) {
+				if ExpectsJSON(r) {
 					data := map[string]string{
 						"message": "Something went wrong",
 						"stack":   runtimeStack(!s.Debug),
@@ -463,7 +463,7 @@ func (s *Server) Guest(a auth.Authenticator) func(http.Handler) http.Handler {
 			}
 
 			if u.ID > 0 {
-				if expectsJSON(r) {
+				if ExpectsJSON(r) {
 					s.NotFound(w, r)
 					return
 				}
@@ -484,7 +484,7 @@ func (s *Server) Restrict(a auth.Authenticator, perms []string, fn auth.HandlerF
 
 		if err != nil {
 			if errors.Is(err, database.ErrNoRows) || errors.Is(err, auth.ErrAuth) {
-				if expectsJSON(r) {
+				if ExpectsJSON(r) {
 					s.NotFound(w, r)
 					return
 				}
@@ -498,7 +498,7 @@ func (s *Server) Restrict(a auth.Authenticator, perms []string, fn auth.HandlerF
 
 		for _, perm := range perms {
 			if !u.Has(perm) {
-				if expectsJSON(r) {
+				if ExpectsJSON(r) {
 					s.NotFound(w, r)
 					return
 				}
@@ -637,7 +637,7 @@ func (s *Server) Sudo(fn auth.HandlerFunc) http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		if expectsJSON(r) {
+		if ExpectsJSON(r) {
 			webutil.JSON(w, map[string]any{"message": "Unauthorized"}, http.StatusUnauthorized)
 			return
 		}

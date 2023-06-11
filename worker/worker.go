@@ -95,7 +95,17 @@ func New(cfg *config.Worker, driverCfg driver.Config, driverInit driver.Init) *W
 	}
 }
 
-func (w *Worker) setCommitStatus(p *provider.Provider, r *provider.Repo, payload build.Payload, b *build.Build) error {
+func (w *Worker) SetCommitStatus(ctx context.Context, p *provider.Provider, payload build.Payload, b *build.Build) error {
+	r, _, err := provider.NewRepoStore(w.DB).Get(
+		ctx,
+		query.Where("id", "=", query.Arg(b.Trigger.RepoID)),
+		query.Where("provider_id", "=", query.Arg(p.ID)),
+	)
+
+	if err != nil {
+		return errors.Err(err)
+	}
+
 	if b.Trigger.Type == build.Pull {
 		cli := p.Client()
 		url := payload.Host + b.Endpoint()
@@ -173,10 +183,8 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		return errors.Err(err)
 	}
 
-	var repo *provider.Repo
-
 	if fromProvider {
-		if err := w.setCommitStatus(p, repo, payload, b); err != nil {
+		if err := w.SetCommitStatus(ctx, p, payload, b); err != nil {
 			return errors.Err(err)
 		}
 	}
@@ -198,7 +206,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 	w.Queue.Produce(ctx, &build.Event{Build: b})
 
 	if fromProvider {
-		if err := w.setCommitStatus(p, repo, payload, b); err != nil {
+		if err := w.SetCommitStatus(ctx, p, payload, b); err != nil {
 			return errors.Err(err)
 		}
 	}
@@ -212,7 +220,7 @@ func (w *Worker) handle(ctx context.Context, job curlyq.Job) error {
 		}
 
 		if _, ok := passed[b.Status]; !ok {
-			if err := w.sendEmail(ctx, r, payload, b); err != nil {
+			if err := w.SendEmail(ctx, r, payload, b); err != nil {
 				return errors.Err(err)
 			}
 		}
@@ -229,7 +237,7 @@ const emailTmpl = `Build: %s%s
 %s
 `
 
-func (w *Worker) sendEmail(ctx context.Context, r *Runner, payload build.Payload, b *build.Build) error {
+func (w *Worker) SendEmail(ctx context.Context, r *Runner, payload build.Payload, b *build.Build) error {
 	to := make([]string, 0)
 	to = append(to, b.User.Email)
 

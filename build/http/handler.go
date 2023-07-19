@@ -152,7 +152,7 @@ func (h *Handler) Build(fn HandlerFunc) auth.HandlerFunc {
 		}
 
 		if err := root.HasAccess(ctx, h.DB, u); err != nil {
-			if !errors.Is(err, database.ErrPermission) {
+			if !errors.Is(err, auth.ErrPermission) {
 				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get root namespace"))
 				return
 			}

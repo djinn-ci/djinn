@@ -492,17 +492,19 @@ func (s *Server) Restrict(a auth.Authenticator, perms []string, fn auth.HandlerF
 				s.Redirect(w, r, "/login")
 				return
 			}
+
+			if errors.Is(err, auth.ErrPermission) {
+				s.NotFound(w, r)
+				return
+			}
 			s.InternalServerError(w, r, err)
 			return
 		}
 
 		for _, perm := range perms {
 			if !u.Has(perm) {
-				if ExpectsJSON(r) {
-					s.NotFound(w, r)
-					return
-				}
-				s.Redirect(w, r, "/login")
+				s.Log.Debug.Println("permission denied for user", u.Username)
+				s.NotFound(w, r)
 				return
 			}
 		}

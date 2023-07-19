@@ -112,9 +112,17 @@ func (u *User) MarshalJSON() ([]byte, error) {
 	return json.Marshal(raw)
 }
 
-var ErrAuth = errors.New("auth: authentication failed")
+var (
+	ErrAuth       = errors.New("auth: authentication failed")
+	ErrPermission = errors.New("auth: permission denied")
+)
 
 type Authenticator interface {
+	// Auth authenticates the given request, and upon success should return the
+	// user from the given request. If authentication fails, then ErrAuth should
+	// be returned as the error, if there is no user in the request. Otherwise,
+	// ErrPermission should be returned if there is a user, but they lack the
+	// necessary permissions.
 	Auth(r *http.Request) (*User, error)
 }
 

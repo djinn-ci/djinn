@@ -45,8 +45,8 @@ func (f Form) Validate(ctx context.Context) error {
 	var v webutil.Validator
 
 	v.WrapError(
-		webutil.IgnoreError("key", database.ErrPermission),
-		webutil.MapError(database.ErrPermission, errors.New("permission denied")),
+		webutil.IgnoreError("key", auth.ErrPermission),
+		webutil.MapError(auth.ErrPermission, errors.New("permission denied")),
 		webutil.WrapFieldError,
 	)
 

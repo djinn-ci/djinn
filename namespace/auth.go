@@ -171,8 +171,8 @@ func (a *Authenticator[M]) Auth(r *http.Request) (*auth.User, error) {
 		}
 
 		if err := root.HasAccess(ctx, a.store.Pool, u); err != nil {
-			if errors.Is(err, database.ErrPermission) {
-				return nil, auth.ErrAuth
+			if errors.Is(err, auth.ErrPermission) {
+				return nil, err
 			}
 			return nil, errors.Err(err)
 		}
@@ -184,7 +184,7 @@ func (a *Authenticator[M]) Auth(r *http.Request) (*auth.User, error) {
 	// a namespace, so this is a special case.
 	if a.resource != "invite" {
 		if err := root.IsCollaborator(ctx, a.store.Pool, u); err != nil {
-			if errors.Is(err, database.ErrPermission) {
+			if errors.Is(err, auth.ErrPermission) {
 				return nil, auth.ErrAuth
 			}
 			return nil, errors.Err(err)

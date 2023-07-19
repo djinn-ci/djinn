@@ -142,7 +142,7 @@ func (f *Form) Validate(ctx context.Context) error {
 	var v webutil.Validator
 
 	v.WrapError(
-		webutil.MapError(database.ErrPermission, errors.New("cannot submit to namespace")),
+		webutil.MapError(auth.ErrPermission, errors.New("cannot submit to namespace")),
 		webutil.WrapFieldError,
 	)
 

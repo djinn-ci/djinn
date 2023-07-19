@@ -280,13 +280,13 @@ func (n *Namespace) IsCollaborator(ctx context.Context, pool *database.Pool, u *
 	}
 
 	if _, ok := n.collabtab[u.ID]; !ok {
-		return database.ErrPermission
+		return auth.ErrPermission
 	}
 	return nil
 }
 
 // HasAccess checks to see if a user can access the current namespace. This
-// will return database.ErrPermission if the user cannot access the namespace. A
+// will return auth.ErrPermission if the user cannot access the namespace. A
 // namespace can be accessed if,
 //
 // - It is public
@@ -300,7 +300,7 @@ func (n *Namespace) HasAccess(ctx context.Context, pool *database.Pool, u *auth.
 		if u.ID > 0 {
 			return nil
 		}
-		return database.ErrPermission
+		return auth.ErrPermission
 	case Private:
 		if err := n.loadCollaborators(ctx, pool); err != nil {
 			return errors.Err(err)
@@ -308,12 +308,12 @@ func (n *Namespace) HasAccess(ctx context.Context, pool *database.Pool, u *auth.
 
 		if _, ok := n.collabtab[u.ID]; !ok {
 			if n.UserID != u.ID {
-				return database.ErrPermission
+				return auth.ErrPermission
 			}
 		}
 		return nil
 	default:
-		return database.ErrPermission
+		return auth.ErrPermission
 	}
 }
 

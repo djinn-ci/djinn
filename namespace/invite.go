@@ -282,7 +282,7 @@ var (
 
 func (s InviteStore) Create(ctx context.Context, p *InviteParams) (*Invite, error) {
 	if p.Inviter.ID != p.Namespace.UserID {
-		return nil, database.ErrPermission
+		return nil, auth.ErrPermission
 	}
 
 	u, ok, err := user.NewStore(s.Pool).Get(ctx, user.WhereHandle(p.Handle))

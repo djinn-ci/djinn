@@ -330,7 +330,7 @@ func (h UI) DestroyCollaborator(u *auth.User, n *namespace.Namespace, w http.Res
 	sess, _ := h.Session(r)
 
 	if err := h.Handler.DestroyCollaborator(u, n, r); err != nil {
-		if errors.Is(err, database.ErrPermission) {
+		if errors.Is(err, auth.ErrPermission) {
 			h.InternalServerError(w, r, errors.Benign("Failed to remove collaborator"))
 			return
 		}

@@ -175,7 +175,7 @@ func (h *Handler) Namespace(fn HandlerFunc) auth.HandlerFunc {
 		}
 
 		if err := n.HasAccess(ctx, h.DB, u); err != nil {
-			if !errors.Is(err, database.ErrPermission) {
+			if !errors.Is(err, auth.ErrPermission) {
 				h.InternalServerError(w, r, errors.Wrap(err, "Failed to get namespace"))
 				return
 			}
@@ -357,7 +357,7 @@ func (h *Handler) Update(u *auth.User, n *namespace.Namespace, r *http.Request) 
 
 func (h *Handler) DestroyCollaborator(u *auth.User, n *namespace.Namespace, r *http.Request) error {
 	if u.ID != n.UserID {
-		return database.ErrPermission
+		return auth.ErrPermission
 	}
 
 	ctx := r.Context()

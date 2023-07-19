@@ -147,6 +147,6 @@ func Test_UserPerms(t *testing.T) {
 	}
 
 	if msg[0] != "Namespace permission denied" {
-		t.Fatalf("unexpected namespace error, expected=%q, got=%q\n", database.ErrPermission, msg[0])
+		t.Fatalf("unexpected namespace error, expected=%q, got=%q\n", auth.ErrPermission, msg[0])
 	}
 }

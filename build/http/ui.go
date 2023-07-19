@@ -210,7 +210,7 @@ func (h UI) Show(u *auth.User, b *build.Build, w http.ResponseWriter, r *http.Re
 			isCollaborator = true
 
 			if err := b.Namespace.IsCollaborator(ctx, h.DB, u); err != nil {
-				if !errors.Is(err, database.ErrPermission) {
+				if !errors.Is(err, auth.ErrPermission) {
 					h.InternalServerError(w, r, errors.Wrap(err, "Failed to get tags"))
 					return
 				}

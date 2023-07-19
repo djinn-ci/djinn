@@ -207,7 +207,7 @@ func (h API) Show(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r
 
 func (h API) DestroyCollaborator(u *auth.User, n *namespace.Namespace, w http.ResponseWriter, r *http.Request) {
 	if err := h.Handler.DestroyCollaborator(u, n, r); err != nil {
-		if errors.Is(err, database.ErrPermission) {
+		if errors.Is(err, auth.ErrPermission) {
 			webutil.JSON(w, map[string]string{"message": "Failed to remove collaborator"}, http.StatusBadRequest)
 			return
 		}

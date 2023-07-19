@@ -10,17 +10,18 @@ components of the system.
   * [Worker](#worker)
   * [Scheduler](#scheduler)
   * [Curator](#curator)
+  * [Consumer](#consumer)
 * [Entrypoints](#entrypoints)
 * [Code overview](#code-overview)
   * [Assets](#assets)
 * [Code map](#code-map)
+  * [auth](#auth)
   * [cmd](#cmd)
   * [config](#config)
   * [crypto](#crypto)
   * [database](#database)
   * [driver](#driver)
   * [errors](#errors)
-  * [fs](#fs)
   * [integration](#integration)
   * [log](#log)
   * [mail](#mail)
@@ -115,6 +116,12 @@ the storage space of 1GB. Any artifact that does exceed this threshold will
 be removed from the file store. This will only clean up artifacts if a user has
 this configured via their account settings.
 
+### Consumer
+
+The consumer is another background worker that handles other long running jobs,
+such as the downloading of custom build images from external endpoints. This
+has no effect on running builds.
+
 ## Entrypoints
 
 Detailed below are the entrypoints for each component. This briefly details the
@@ -147,6 +154,12 @@ loop runs on a 1 minute interval (non-configurable), during which old artifacts
 that exceed the limit for a user are removed. The removal of the artifacts is
 handled by the `build.Curator` in `build/curator.go`.
 
+**`djinn-consumer`**
+
+The main entrypoint for the consumer is `cmd/djinn-consumer/mainn.go`, which
+sets up the consumer for handling long running background jobs necessary for
+the `djinn-server`.
+
 ## Code overview
 
 The logic for Djinn CI is grouped on a responsibility basis. For example, the
@@ -156,13 +169,15 @@ and `ui.go` file, which will contain the logic for handling requests to the
 API server and UI server respectively, what with shared logic between the two
 being in the `handler.go` file.
 
-[valyala/quicktemplate][0] is used for templating the views that `djinn-server`
-serves via the UI. This allows for these views to be compiled directly into the
-final binary itself.
-
 ## Code map
 
 Detailed below is how the code base is structured and how it's best navigated.
+
+### auth
+
+`auth` contains the logic for authentication throughout Djinn CI. This also
+provides implementations for authentication from 3rd party providers via
+OAuth2.
 
 ### cmd
 
@@ -198,11 +213,10 @@ hashes.
 
 `database` provides a basic interface for modelling data from the database,
 along with utility functions for working with relationships between entities.
+This provides some custom types to make working with the database easier, and
+makes heavy use of the [andrewpillar/query][0] library for query building.
 
-The `database.Pool` struct is a wrapper around the `pgxpool.Pool` struct. This
-provides a light wrapper around common queries performed throughout the
-components. This makes heavy use of the [andrewpillar/query][1] library for
-query building.
+[0]: https://github.com/andrewpillar/query
 
 ### driver
 
@@ -217,12 +231,6 @@ implementation.
 `errors` provides utility functions for error reporting. The function
 `errors.Err` is heavily used for providing additional stacktracing to errors
 that are raised.
-
-### fs
-
-`fs` provides the `Store` interface for storing and retrieving data in a
-filesystem. This also provides a mechanism of limiting the amounts of data that
-can be stored.
 
 ### integration
 
@@ -277,11 +285,21 @@ of the flags that are passed to the `djinn-server` binary, and the
 initialization of the server's configuration. This will also register all
 of the routers for the entities that the server manages.
 
+### queue
+
+`queue` provides an abstraction and some implementations for a simple queue.
+This is mainly used as the mechanism by which webhooks are dispatched.
+
 ### template
 
-`template` contains the base templates that are used for rendering the dashboard
-views that `djinn-server` serves. This also provides templating for HTML forms
-too.
+`template` contains all of the templates used for rendering all of the HTML
+pages that `djinn-server` serves.
+
+[valyala/quicktemplate][1] is used for templating the views that `djinn-server`
+serves via the UI. This allows for these views to be compiled directly into the
+final binary itself.
+
+[1]: https://github.com/valyala/quicktemplate
 
 ### version
 
@@ -302,6 +320,3 @@ build as it runs, and fires off any emails should a build fail.
 handling build execution. Similar to `serverutil`, this will handle the parsing
 of flags that are passed to the `djinn-worker` binary, and the initialization
 of the worker's configuration.
-
-[0]: https://github.com/valyala/quicktemplate
-[1]: https://github.com/andrewpillar/query

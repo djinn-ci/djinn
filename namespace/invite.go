@@ -29,6 +29,37 @@ type Invite struct {
 	Namespace *Namespace
 }
 
+func LoadInviteRelations(ctx context.Context, pool *database.Pool, ii ...*Invite) error {
+	if len(ii) == 0 {
+		return nil
+	}
+
+	rels := []database.Relation{
+		{
+			From:   "namespace_id",
+			To:     "id",
+			Loader: database.ModelLoader(pool, table, func() database.Model {
+				return &Namespace{}
+			}),
+		},
+		{
+			From:   "inviter_id",
+			To:     "id",
+			Loader: user.Loader(pool),
+		},
+		{
+			From:   "invitee_id",
+			To:     "id",
+			Loader: user.Loader(pool),
+		},
+	}
+
+	if err := database.LoadRelations[*Invite](ctx, ii, rels...); err != nil {
+		return errors.Err(err)
+	}
+	return nil
+}
+
 var _ database.Model = (*Invite)(nil)
 
 func (i *Invite) Primary() (string, any) { return "id", i.ID }

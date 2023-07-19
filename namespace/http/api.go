@@ -256,21 +256,8 @@ func (h InviteAPI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mm := make([]database.Model, 0, len(ii))
-
-	for _, i := range ii {
-		mm = append(mm, i)
-	}
-
-	ld := user.Loader(h.DB)
-
-	if err := ld.Load(ctx, "invitee_id", "id", mm...); err != nil {
-		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load users"))
-		return
-	}
-
-	if err := ld.Load(ctx, "inviter_id", "id", mm...); err != nil {
-		h.InternalServerError(w, r, errors.Wrap(err, "Failed to loader users"))
+	if err := namespace.LoadInviteRelations(ctx, h.DB, ii...); err != nil {
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load invite relations"))
 		return
 	}
 	webutil.JSON(w, ii, http.StatusOK)

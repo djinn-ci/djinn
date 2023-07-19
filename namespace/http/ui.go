@@ -390,17 +390,25 @@ type InviteUI struct {
 }
 
 func (h InviteUI) Index(u *auth.User, w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	sess, _ := h.Session(r)
 
-	ii, err := h.Invites.All(r.Context(), query.Where("invitee_id", "=", query.Arg(u.ID)))
+	ii, err := h.Invites.All(ctx, query.Where("invitee_id", "=", query.Arg(u.ID)))
 
 	if err != nil {
 		h.InternalServerError(w, r, errors.Wrap(err, "Failed to get invites"))
 		return
 	}
 
+	if err := namespace.LoadInviteRelations(ctx, h.DB, ii...); err != nil {
+		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load invite relations"))
+		return
+	}
+
 	tmpl := template.NewDashboard(u, sess, r)
 	tmpl.Partial = &template.InviteIndex{
+		Form:    form.New(sess, r),
 		Invites: ii,
 	}
 	h.Template(w, r, tmpl, http.StatusOK)

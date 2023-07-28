@@ -258,7 +258,6 @@ func (s *ArtifactStore) Delete(ctx context.Context, aa ...*Artifact) error {
 		}
 
 		for _, hash := range hashes {
-			fmt.Printf("%T.Remove(%q)\n", store, hash)
 			if err := store.Remove(hash); err != nil {
 				if !errors.Is(err, fs.ErrNotExist) {
 					return errors.Err(err)

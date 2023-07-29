@@ -8,6 +8,8 @@ import (
 	"djinn-ci.com/database"
 	"djinn-ci.com/errors"
 	"djinn-ci.com/runner"
+
+	"github.com/andrewpillar/query"
 )
 
 type Stage struct {
@@ -23,16 +25,28 @@ type Stage struct {
 var _ database.Model = (*Stage)(nil)
 
 func LoadStageRelations(ctx context.Context, db *database.Pool, ss ...*Stage) error {
-	rel := database.Relation{
-		From: "id",
-		To:   "stage_id",
-		Loader: database.ModelLoader(db, jobTable, func() database.Model {
-			return &Job{}
-		}),
+	if len(ss) == 0 {
+		return nil
 	}
 
-	if err := database.LoadRelations[*Stage](ctx, ss, rel); err != nil {
+	vals := database.Map[*Stage, any](ss, func(s *Stage) any {
+		return s.ID
+	})
+
+	jj, err := NewJobStore(db).All(
+		ctx,
+		query.Where("stage_id", "IN", query.List(vals...)),
+		query.OrderAsc("created_at"),
+	)
+
+	if err != nil {
 		return errors.Err(err)
+	}
+
+	for _, s := range ss {
+		for _, j := range jj {
+			s.Bind(j)
+		}
 	}
 	return nil
 }

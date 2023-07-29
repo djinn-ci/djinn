@@ -24,7 +24,11 @@ type BuildShow struct {
 	{% if p.Partial != nil %}
 		Build #{%v p.Build.Number %} - {%= p.Partial.Title() %}
 	{% else %}
-		Build #{%v p.Build.Number %} - {%s p.Build.Trigger.CommentTitle() %}
+		{% if title := p.Build.Trigger.CommentTitle(); title != "" %}
+			Build #{%v p.Build.Number %} - {%s title %}
+		{% else %}
+			Build #{%v p.Build.Number %}
+		{% endif %}
 	{% endif %}
 {% endfunc %}
 

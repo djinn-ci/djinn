@@ -323,7 +323,7 @@ func (s *Server) NotFound(w http.ResponseWriter, r *http.Request) {
 // InternalServerError replies to the request with 500 Internal server error,
 // and logs the given error to the underlying logger.
 func (s *Server) InternalServerError(w http.ResponseWriter, r *http.Request, err error) {
-	s.Error(w, r, errors.Wrap(err, "Internal Server Error"), http.StatusInternalServerError)
+	s.Error(w, r, err, http.StatusInternalServerError)
 }
 
 func isAPI(r *http.Request) bool {

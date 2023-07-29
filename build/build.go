@@ -609,7 +609,7 @@ func (s *Store) Index(ctx context.Context, vals url.Values, opts ...query.Option
 		return nil, errors.Err(err)
 	}
 
-	if err := paginator.Load(ctx, s.Store, append(opts, query.OrderAsc("created_at"))...); err != nil {
+	if err := paginator.Load(ctx, s.Store, append(opts, query.OrderDesc("created_at"))...); err != nil {
 		return nil, errors.Err(err)
 	}
 	return paginator, nil

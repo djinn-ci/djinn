@@ -390,6 +390,10 @@ func (s *Store[M]) Distinct(ctx context.Context, expr, cols []string, opts ...qu
 			return nil, errors.Err(err)
 		}
 	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errors.Err(err)
+	}
 	return mm, nil
 }
 
@@ -421,6 +425,10 @@ func (s *Store[M]) Select(ctx context.Context, cols []string, opts ...query.Opti
 			return nil, errors.Err(err)
 		}
 		mm = append(mm, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errors.Err(err)
 	}
 	return mm, nil
 }

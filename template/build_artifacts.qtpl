@@ -19,8 +19,8 @@ type BuildArtifacts struct {
 {% func (p *BuildArtifacts) renderArtifactItem(a *build.Artifact) %}
 	<tr>
 		<td>
-			{% if a.DeletedAt.Valid %}
-				<a title="Artifact deleted"><strike>{%s a.Name %}</strike></a>
+			{% if a.DeletedAt.Valid || a.MD5 == nil && a.SHA256 == nil %}
+				<a {% if a.DeletedAt.Valid %}title="Artifact deleted"{% endif %}><strike>{%s a.Name %}</strike></a>
 			{% else %}
 				<a href="{%s a.Endpoint() %}">{%s a.Name %}</a>
 			{% endif %}

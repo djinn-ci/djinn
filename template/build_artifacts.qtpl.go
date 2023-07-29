@@ -189,9 +189,17 @@ func (p *BuildArtifacts) streamrenderArtifactItem(qw422016 *qt422016.Writer, a *
 //line template/build_artifacts.qtpl:19
 	qw422016.N().S(` <tr> <td> `)
 //line template/build_artifacts.qtpl:22
-	if a.DeletedAt.Valid {
+	if a.DeletedAt.Valid || a.MD5 == nil && a.SHA256 == nil {
 //line template/build_artifacts.qtpl:22
-		qw422016.N().S(` <a title="Artifact deleted"><strike>`)
+		qw422016.N().S(` <a `)
+//line template/build_artifacts.qtpl:23
+		if a.DeletedAt.Valid {
+//line template/build_artifacts.qtpl:23
+			qw422016.N().S(`title="Artifact deleted"`)
+//line template/build_artifacts.qtpl:23
+		}
+//line template/build_artifacts.qtpl:23
+		qw422016.N().S(`><strike>`)
 //line template/build_artifacts.qtpl:23
 		qw422016.E().S(a.Name)
 //line template/build_artifacts.qtpl:23

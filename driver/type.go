@@ -23,10 +23,11 @@ var (
 	_ driver.Valuer = (*Type)(nil)
 
 	driversMap = map[string]Type{
-		"ssh":    SSH,
-		"qemu":   QEMU,
-		"docker": Docker,
-		"os":     OS,
+		"ssh":         SSH,
+		"qemu":        QEMU,
+		"qemu-x86_64": QEMU,
+		"docker":      Docker,
+		"os":          OS,
 	}
 )
 

@@ -36,8 +36,8 @@ func LoadInviteRelations(ctx context.Context, pool *database.Pool, ii ...*Invite
 
 	rels := []database.Relation{
 		{
-			From:   "namespace_id",
-			To:     "id",
+			From: "namespace_id",
+			To:   "id",
 			Loader: database.ModelLoader(pool, table, func() database.Model {
 				return &Namespace{}
 			}),

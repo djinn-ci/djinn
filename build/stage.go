@@ -24,8 +24,8 @@ var _ database.Model = (*Stage)(nil)
 
 func LoadStageRelations(ctx context.Context, db *database.Pool, ss ...*Stage) error {
 	rel := database.Relation{
-		From:   "id",
-		To:     "stage_id",
+		From: "id",
+		To:   "stage_id",
 		Loader: database.ModelLoader(db, jobTable, func() database.Model {
 			return &Job{}
 		}),

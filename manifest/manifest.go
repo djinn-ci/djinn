@@ -171,6 +171,10 @@ func (m *Manifest) UnmarshalText(b []byte) error {
 	m.AllowFailures = tmp.AllowFailures
 	m.Jobs = tmp.Jobs
 
+	if m.Driver["type"] == "qemu" {
+		// Set the default arch for now.
+		m.Driver["arch"] = "x86_64"
+	}
 	return nil
 }
 

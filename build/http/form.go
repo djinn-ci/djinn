@@ -127,6 +127,10 @@ func driverValid(drivers map[string]struct{}) webutil.ValidatorFunc {
 		if m, ok := val.(manifest.Manifest); ok {
 			typ := m.Driver["type"]
 
+			if typ == "qemu" {
+				typ += "-" + m.Driver["arch"]
+			}
+
 			if _, ok := drivers[typ]; !ok {
 				if driver.IsValid(typ) {
 					return driver.ErrDisabled(typ)

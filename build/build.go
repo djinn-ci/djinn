@@ -196,7 +196,6 @@ func (b *Build) Tag(ctx context.Context, pool *database.Pool, u *auth.User, tags
 // publish the secret if the Build is running.
 func (b *Build) Kill(redis *redis.Client) error {
 	if b.Status != runner.Running {
-		println("build not running, not killing")
 		return nil
 	}
 
@@ -627,7 +626,6 @@ func (s *Store) Create(ctx context.Context, p *Params) (*Build, error) {
 	typ := p.Manifest.Driver["type"]
 
 	if typ == "qemu" {
-		p.Manifest.Driver["arch"] = "x86_64"
 		typ += "-" + p.Manifest.Driver["arch"]
 	}
 

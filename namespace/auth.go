@@ -172,7 +172,7 @@ func (a *Authenticator[M]) Auth(r *http.Request) (*auth.User, error) {
 
 		if err := root.HasAccess(ctx, a.store.Pool, u); err != nil {
 			if errors.Is(err, auth.ErrPermission) {
-				return nil, err
+				return nil, auth.ErrAuth
 			}
 			return nil, errors.Err(err)
 		}

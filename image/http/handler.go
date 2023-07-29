@@ -42,9 +42,11 @@ type HandlerFunc func(*auth.User, *image.Image, http.ResponseWriter, *http.Reque
 
 func (h *Handler) Image(fn HandlerFunc) auth.HandlerFunc {
 	return func(u *auth.User, w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+
 		id := mux.Vars(r)["image"]
 
-		i, ok, err := h.Images.Get(r.Context(), query.Where("id", "=", query.Arg(id)))
+		i, ok, err := h.Images.Get(ctx, query.Where("id", "=", query.Arg(id)))
 
 		if err != nil {
 			h.InternalServerError(w, r, errors.Wrap(err, "Failed to get image"))
@@ -63,9 +65,16 @@ func (h *Handler) Image(fn HandlerFunc) auth.HandlerFunc {
 			}
 		}
 
-		if !u.Has("image:read") {
-			h.NotFound(w, r)
+		if err := namespace.Loader(h.DB).Load(ctx, "namespace_id", "id", i); err != nil {
+			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load namespace"))
 			return
+		}
+
+		if i.Namespace.Visibility == namespace.Private || i.Namespace.Visibility == namespace.Internal {
+			if !u.Has("image:read") {
+				h.NotFound(w, r)
+				return
+			}
 		}
 		fn(u, i, w, r)
 	}

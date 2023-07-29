@@ -61,15 +61,8 @@ func (h API) Show(u *auth.User, i *image.Image, w http.ResponseWriter, r *http.R
 		return
 	}
 
-	ctx := r.Context()
-
-	if err := image.LoadRelations(ctx, h.DB, i); err != nil {
+	if err := image.LoadRelations(r.Context(), h.DB, i); err != nil {
 		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load relations"))
-		return
-	}
-
-	if err := namespace.Loader(h.DB).Load(ctx, "namespace_id", "id", i); err != nil {
-		h.InternalServerError(w, r, errors.Wrap(err, "Failed to load namespace"))
 		return
 	}
 	webutil.JSON(w, i, http.StatusOK)

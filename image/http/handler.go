@@ -69,13 +69,6 @@ func (h *Handler) Image(fn HandlerFunc) auth.HandlerFunc {
 			h.InternalServerError(w, r, errors.Wrap(err, "Failed to load namespace"))
 			return
 		}
-
-		if i.Namespace.Visibility == namespace.Private || i.Namespace.Visibility == namespace.Internal {
-			if !u.Has("image:read") {
-				h.NotFound(w, r)
-				return
-			}
-		}
 		fn(u, i, w, r)
 	}
 }

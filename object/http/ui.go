@@ -160,7 +160,7 @@ func RegisterUI(a auth.Authenticator, srv *server.Server) {
 
 	a = namespace.NewAuth(a, "object", object.NewStore(srv.DB))
 
-	show := ui.Restrict(a, []string{"object:read", "build:read"}, ui.Object(ui.Show))
+	show := ui.Restrict(a, []string{"object:read"}, ui.Object(ui.Show))
 	destroy := ui.Restrict(a, []string{"object:delete"}, ui.Object(ui.Destroy))
 
 	sr := srv.Router.PathPrefix("/objects").Subrouter()

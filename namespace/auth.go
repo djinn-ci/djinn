@@ -104,10 +104,10 @@ func (a *Authenticator[M]) Auth(r *http.Request) (*auth.User, error) {
 	u, err := a.Authenticator.Auth(r)
 
 	if err != nil {
-		if errors.Is(err, auth.ErrAuth) {
-			return nil, err
+		if !errors.Is(err, auth.ErrAuth) {
+			return nil, errors.Err(err)
 		}
-		return nil, errors.Err(err)
+		u = &auth.User{}
 	}
 
 	m, userId, ok, err := a.getResourceAndOwner(r)

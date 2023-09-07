@@ -1,5 +1,7 @@
 #!/bin/sh
 
+set -e
+
 for bin in $(grep -vE "^#" make.dep | awk '{ print $1 }'); do
 	if ! hash "$bin" 2> /dev/null; then
 		url=$(grep "^$bin" make.dep | awk '{ print $2 }')
@@ -112,8 +114,8 @@ case "$1" in
 		;;
 	*)
 		if [ "$1" = "" ]; then
-			_test
 			_ui
+			_test
 			_build
 			_manif
 		elif [ -d "cmd/djinn-$1" ]; then

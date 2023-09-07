@@ -706,10 +706,17 @@ func (h Token) Store(u *auth.User, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	scope, err := oauth2.UnmarshalScope(f.scopes())
+
+	if err != nil {
+		h.FormError(w, r, &f, err)
+		return
+	}
+
 	tok, err := h.Tokens.Create(r.Context(), &oauth2.TokenParams{
 		User:  u,
 		Name:  f.Name,
-		Scope: f.Scope,
+		Scope: scope,
 	})
 
 	if err != nil {

@@ -3,6 +3,7 @@ package http
 import (
 	"context"
 	"net/url"
+	"strings"
 
 	"djinn-ci.com/auth"
 	"djinn-ci.com/database"
@@ -115,21 +116,37 @@ func (f *AuthorizeForm) Validate(ctx context.Context) error {
 	return errs.Err()
 }
 
+type scopeField string
+
+func (sc *scopeField) UnmarshalText(b []byte) error {
+	*sc = scopeField(string(b))
+	return nil
+}
+
 type TokenForm struct {
 	Pool  *database.Pool `schema:"-"`
 	Token *oauth2.Token  `schema:"-"`
 	User  *auth.User     `schema:"-"`
 
 	Name  string
-	Scope oauth2.Scope
+	Scope []scopeField
 }
 
 var _ webutil.Form = (*TokenForm)(nil)
 
+func (f *TokenForm) scopes() string {
+	scopes := make([]string, 0, len(f.Scope))
+
+	for _, sc := range f.Scope {
+		scopes = append(scopes, string(sc))
+	}
+	return strings.Join(scopes, " ")
+}
+
 func (f *TokenForm) Fields() map[string]string {
 	return map[string]string{
 		"name":  f.Name,
-		"scope": f.Scope.String(),
+		"scope": f.scopes(),
 	}
 }
 

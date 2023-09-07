@@ -11,8 +11,16 @@ import (
 type TokenForm struct {
 	*form.Form
 
+	fieldCount int
+
 	Token  *oauth2.Token
 	Scopes map[string]struct{}
+}
+
+func (p *TokenForm) fieldNumber() int {
+	n := p.fieldCount
+	p.fieldCount++
+	return n
 }
 
 func (p *TokenForm) scope(res oauth2.Resource, perm oauth2.Permission) string {
@@ -59,9 +67,9 @@ func (p *TokenForm) action() string {
 		{% for _, perm := range oauth2.Permissions %}
 			<label>
 				{% if p.hasScope(res, perm) %}
-					<input checked="true" type="checkbox" name="scope" value="{%s p.scope(res, perm) %}"/>
+					<input checked="true" type="checkbox" name="scope.{%d p.fieldNumber() %}" value="{%s p.scope(res, perm) %}"/>
 				{% else %}
-					<input type="checkbox" name="scope" value="{%s p.scope(res, perm) %}"/>
+					<input type="checkbox" name="scope.{%d p.fieldNumber() %}" value="{%s p.scope(res, perm) %}"/>
 				{% endif %}
 				{%s strings.Title(perm.String()) %}
 			</label>

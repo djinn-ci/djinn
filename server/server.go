@@ -344,7 +344,9 @@ func ExpectsJSON(r *http.Request) bool {
 // of type errors.Benign, then it is not logged.
 func (s *Server) Error(w http.ResponseWriter, r *http.Request, err error, code int) {
 	if _, ok := err.(errors.Benign); !ok {
-		s.Log.Error.Println(r.Method, r.URL, errors.Unwrap(err))
+		if err := errors.Unwrap(err); err != nil {
+			s.Log.Error.Println(r.Method, r.URL, errors.Unwrap(err))
+		}
 	}
 
 	typ := r.Header.Get("Content-Type")

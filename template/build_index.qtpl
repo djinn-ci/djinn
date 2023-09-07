@@ -13,9 +13,68 @@ type BuildIndex struct {
 
 	Builds []*build.Build
 }
+
+func linkToQuery(url *url.URL, query map[string]string) string {
+	q := url.Query()
+
+	for k, v := range query {
+		if v == "" {
+			delete(q, k)
+			continue
+		}
+		q.Set(k, v)
+	}
+
+	url2 := (*url)
+	url2.RawQuery = q.Encode()
+
+	return url2.String()
+}
 %}
 
 {% collapsespace %}
+{% func (p *BuildIndex) renderStatusNav(q url.Values) %}
+	{% stripspace %}
+		<ul class="panel-nav">
+			<li>
+				<a href="{%s linkToQuery(p.URL, map[string]string{"status": "", "tag": q.Get("tag")}) %}" {% if !q.Has("status") %}class="active"{% endif %}>
+					{% cat "static/svg/build.svg" %}<span>All</span>
+				</a>
+			</li>
+			<li>
+				<a href="{%s linkToQuery(p.URL, map[string]string{"status": "queued", "tag": q.Get("tag")}) %}" {% if q.Get("status") == "queued" %}class="active"{% endif %}>
+					{% cat "static/svg/hourglass.svg" %}<span>Queued</span>
+				</a>
+			</li>
+			<li>
+				<a href="{%s linkToQuery(p.URL, map[string]string{"status": "running", "tag": q.Get("tag")}) %}" {% if q.Get("status") == "running" %}class="active"{% endif %}>
+					{% cat "static/svg/timer.svg" %}<span>Running</span>
+				</a>
+			</li>
+			<li>
+				<a href="{%s linkToQuery(p.URL, map[string]string{"status": "passed", "tag": q.Get("tag")}) %}" {% if q.Get("status") == "passed" %}class="active"{% endif %}>
+					{% cat "static/svg/check.svg" %}<span>Passed</span>
+				</a>
+			</li>
+			<li>
+				<a href="{%s linkToQuery(p.URL, map[string]string{"status": "failed", "tag": q.Get("tag")}) %}" {% if q.Get("status") == "failed" %}class="active"{% endif %}>
+					{% cat "static/svg/close.svg" %}<span>Failed</span>
+				</a>
+			</li>
+			<li>
+				<a href="{%s linkToQuery(p.URL, map[string]string{"status": "killed", "tag": q.Get("tag")}) %}" {% if q.Get("status") == "killed" %}class="active"{% endif %}>
+					{% cat "static/svg/stop.svg" %}<span>Killed</span>
+				</a>
+			</li>
+			<li>
+				<a href="{%s linkToQuery(p.URL, map[string]string{"status": "timed_out", "tag": q.Get("tag")}) %}" {% if q.Get("status") == "timed_out" %}class="active"{% endif %}>
+					{% cat "static/svg/stopwatch.svg" %}<span>Timed Out</span>
+				</a>
+			</li>
+		</ul>
+	{% endstripspace %}
+{% endfunc %}
+
 {% func (p *BuildIndex) Title() %}Builds{% endfunc %}
 
 {% func (p *BuildIndex) Header() %}
@@ -106,6 +165,10 @@ type BuildIndex struct {
 				<div class="panel-message muted">No builds have been submitted yet.</div>
 			{% endif %}
 		{% else %}
+			<div class="panel-header">
+				{%= p.renderStatusNav(p.URL.Query()) %}
+				{%= p.Search("Find a build...") %}
+			</div>
 			<table class="table">
 				<thead>
 					<tr>

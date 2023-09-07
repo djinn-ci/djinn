@@ -738,7 +738,7 @@ func (h Token) Show(u *auth.User, t *oauth2.Token, w http.ResponseWriter, r *htt
 	}
 
 	tmpl.Partial = &template.TokenForm{
-		Form:   form.New(sess, r),
+		Form:   form.NewWithModel(sess, r, t),
 		Token:  t,
 		Scopes: t.Permissions(),
 	}

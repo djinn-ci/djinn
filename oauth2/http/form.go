@@ -151,8 +151,8 @@ func (f *TokenForm) Validate(ctx context.Context) error {
 				return err
 			}
 
-			if !ok {
-				return webutil.ErrFieldRequired
+			if ok {
+				return webutil.ErrFieldExists
 			}
 		}
 		return nil

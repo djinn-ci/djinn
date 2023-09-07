@@ -519,7 +519,7 @@ func (s *Server) Optional(a auth.Authenticator, fn auth.HandlerFunc) http.Handle
 		u, err := a.Auth(r)
 
 		if err != nil {
-			if !errors.Is(err, auth.ErrAuth) {
+			if !errors.Is(err, auth.ErrAuth) && !errors.Is(err, database.ErrNoRows) {
 				s.InternalServerError(w, r, err)
 				return
 			}

@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"testing"
 
-	"djinn-ci.com/database"
+	"djinn-ci.com/auth"
 	"djinn-ci.com/env"
 	"djinn-ci.com/integration/djinn"
 )

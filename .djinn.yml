@@ -4,21 +4,14 @@ driver:
   image: djinn-dev
 sources:
 - https://github.com/djinn-ci/djinn
-- https://github.com/andrewpillar/mgrt v3
 env:
 - LDFLAGS=-s -w
 - INTEGRATION_CONFIG_DIR=testdata
 - PGDSN=host=localhost port=5432 dbname=djinn user=mgrt password=secret
 stages:
-- deps
 - setup
 - make
 jobs:
-- stage: deps
-  commands:
-  - cd mgrt
-  - ./make.sh
-  - cp bin/mgrt /usr/local/bin/mgrt
 - stage: setup
   commands:
   - printf "127.0.0.1\tlocal.dev\n" | tee -a /etc/hosts
